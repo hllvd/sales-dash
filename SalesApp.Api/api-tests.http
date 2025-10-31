@@ -1,0 +1,42 @@
+### Login as Admin (Default credentials)
+POST http://localhost:5016/api/users/login
+Content-Type: application/json
+
+{
+  "email": "admin@salesapp.com",
+  "password": "admin123"
+}
+
+### Register New User (Admin only - use token from login)
+POST http://localhost:5016/api/users/register
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "role": "normal"
+}
+
+### Get All Users (Admin only)
+GET http://localhost:5016/api/users?page=1&pageSize=10&search=
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### Get User by ID (Admin or self)
+GET http://localhost:5016/api/users/USER_ID_HERE
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### Update User (Admin or self)
+PUT http://localhost:5016/api/users/USER_ID_HERE
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+{
+  "name": "John Updated",
+  "email": "john.updated@example.com"
+}
+
+### Delete User (Admin only - soft delete)
+DELETE http://localhost:5016/api/users/USER_ID_HERE
+Authorization: Bearer YOUR_JWT_TOKEN_HERE

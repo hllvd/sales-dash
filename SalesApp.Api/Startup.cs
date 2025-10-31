@@ -7,6 +7,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using SalesApp.Data;
+using SalesApp.Services;
 using System.Text;
 
 namespace SalesApp
@@ -23,26 +25,25 @@ namespace SalesApp
         public void ConfigureServices(IServiceCollection services)
         {
             // Database (SQLite)
-            // services.AddDbContext<AppDbContext>(options =>
-            //     options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
 
             // Data Protection (fix encryption warning)
             services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Directory.GetCurrentDirectory(), "keys")))
                 .SetApplicationName("SalesApp");
 
+            // Services
+            services.AddScoped<IJwtService, JwtService>();
+            
             // Controllers
             services.AddControllers();
 
             // JWT Authentication
-            var jwtKey = Configuration["Jwt:Key"];
+            var jwtKey = Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
             var key = Encoding.ASCII.GetBytes(jwtKey);
 
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
                 options.RequireHttpsMetadata = false;
@@ -52,9 +53,12 @@ namespace SalesApp
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = false,
-                    ValidateAudience = false
+                    ValidateAudience = false,
+                    ClockSkew = TimeSpan.Zero
                 };
             });
+            
+            services.AddAuthorization();
 
             // Swagger (optional)
             services.AddEndpointsApiExplorer();

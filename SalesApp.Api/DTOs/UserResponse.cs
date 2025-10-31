@@ -1,0 +1,34 @@
+namespace SalesApp.DTOs
+{
+    public class UserResponse
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+    
+    public class LoginResponse
+    {
+        public string Token { get; set; } = string.Empty;
+        public UserResponse User { get; set; } = new();
+    }
+    
+    public class ApiResponse<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+    
+    public class PagedResponse<T>
+    {
+        public List<T> Items { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+}

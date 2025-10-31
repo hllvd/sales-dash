@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using SalesApp.Data;
 using Serilog;
 using Serilog.Events;
 
@@ -7,12 +9,21 @@ namespace SalesApp
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             try
             {
                 Log.Information("Starting SalesApp...");
-                CreateHostBuilder(args).Build().Run();
+                var host = CreateHostBuilder(args).Build();
+                
+                // Seed database
+                using (var scope = host.Services.CreateScope())
+                {
+                    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    await DbSeeder.SeedAsync(context);
+                }
+                
+                host.Run();
             }
             catch (Exception ex)
             {
