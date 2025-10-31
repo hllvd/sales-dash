@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using SalesApp.Data;
+using SalesApp.Repositories;
 using SalesApp.Services;
 using System.Text;
 
@@ -35,6 +36,7 @@ namespace SalesApp
 
             // Services
             services.AddScoped<IJwtService, JwtService>();
+            services.AddScoped<IUserRepository, UserRepository>();
             
             // Controllers
             services.AddControllers();

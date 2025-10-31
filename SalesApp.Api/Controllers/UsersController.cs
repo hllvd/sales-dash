@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
+using SalesApp.Repositories;
 using SalesApp.Services;
 using System.Security.Claims;
 using BCrypt.Net;
@@ -14,12 +13,12 @@ namespace SalesApp.Controllers
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IUserRepository _userRepository;
         private readonly IJwtService _jwtService;
         
-        public UsersController(AppDbContext context, IJwtService jwtService)
+        public UsersController(IUserRepository userRepository, IJwtService jwtService)
         {
-            _context = context;
+            _userRepository = userRepository;
             _jwtService = jwtService;
         }
         
@@ -27,7 +26,7 @@ namespace SalesApp.Controllers
         [Authorize(Roles = "admin")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> Register(RegisterRequest request)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
+            if (await _userRepository.EmailExistsAsync(request.Email))
             {
                 return BadRequest(new ApiResponse<UserResponse>
                 {
@@ -44,8 +43,7 @@ namespace SalesApp.Controllers
                 Role = request.Role
             };
             
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            await _userRepository.CreateAsync(user);
             
             return Ok(new ApiResponse<UserResponse>
             {
@@ -58,7 +56,7 @@ namespace SalesApp.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<ApiResponse<LoginResponse>>> Login(LoginRequest request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email && u.IsActive);
+            var user = await _userRepository.GetByEmailAsync(request.Email);
             
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
@@ -90,18 +88,7 @@ namespace SalesApp.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null)
         {
-            var query = _context.Users.AsQueryable();
-            
-            if (!string.IsNullOrEmpty(search))
-            {
-                query = query.Where(u => u.Name.Contains(search) || u.Email.Contains(search));
-            }
-            
-            var totalCount = await query.CountAsync();
-            var users = await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+            var (users, totalCount) = await _userRepository.GetAllAsync(page, pageSize, search);
             
             return Ok(new ApiResponse<PagedResponse<UserResponse>>
             {
@@ -129,7 +116,7 @@ namespace SalesApp.Controllers
                 return Forbid();
             }
             
-            var user = await _context.Users.FindAsync(id);
+            var user = await _userRepository.GetByIdAsync(id);
             if (user == null)
             {
                 return NotFound(new ApiResponse<UserResponse>
@@ -159,7 +146,7 @@ namespace SalesApp.Controllers
                 return Forbid();
             }
             
-            var user = await _context.Users.FindAsync(id);
+            var user = await _userRepository.GetByIdAsync(id);
             if (user == null)
             {
                 return NotFound(new ApiResponse<UserResponse>
@@ -174,7 +161,7 @@ namespace SalesApp.Controllers
                 
             if (!string.IsNullOrEmpty(request.Email))
             {
-                if (await _context.Users.AnyAsync(u => u.Email == request.Email && u.Id != id))
+                if (await _userRepository.EmailExistsAsync(request.Email, id))
                 {
                     return BadRequest(new ApiResponse<UserResponse>
                     {
@@ -194,9 +181,7 @@ namespace SalesApp.Controllers
             if (request.IsActive.HasValue && currentUserRole == "admin")
                 user.IsActive = request.IsActive.Value;
                 
-            user.UpdatedAt = DateTime.UtcNow;
-            
-            await _context.SaveChangesAsync();
+            await _userRepository.UpdateAsync(user);
             
             return Ok(new ApiResponse<UserResponse>
             {
@@ -210,7 +195,7 @@ namespace SalesApp.Controllers
         [Authorize(Roles = "admin")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteUser(Guid id)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _userRepository.GetByIdAsync(id);
             if (user == null)
             {
                 return NotFound(new ApiResponse<object>
@@ -221,9 +206,7 @@ namespace SalesApp.Controllers
             }
             
             user.IsActive = false;
-            user.UpdatedAt = DateTime.UtcNow;
-            
-            await _context.SaveChangesAsync();
+            await _userRepository.UpdateAsync(user);
             
             return Ok(new ApiResponse<object>
             {
