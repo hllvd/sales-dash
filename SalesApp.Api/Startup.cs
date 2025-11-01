@@ -68,14 +68,18 @@ namespace SalesApp
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new() { Title = "SalesApp API", Version = "v1" });
+                
+                // Bearer Token authentication
                 c.AddSecurityDefinition("Bearer", new()
                 {
                     Name = "Authorization",
                     Type = SecuritySchemeType.Http,
                     Scheme = "Bearer",
                     BearerFormat = "JWT",
-                    In = ParameterLocation.Header
+                    In = ParameterLocation.Header,
+                    Description = "Enter JWT Bearer token"
                 });
+                
                 c.AddSecurityRequirement(new()
                 {
                     {
