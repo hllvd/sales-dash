@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using SalesApp.Models;
 
 namespace SalesApp.DTOs
 {
@@ -17,6 +18,6 @@ namespace SalesApp.DTOs
         public string Password { get; set; } = string.Empty;
         
         [MaxLength(20)]
-        public string Role { get; set; } = "normal";
+        public string Role { get; set; } = UserRole.User;
     }
 }

@@ -21,7 +21,7 @@ namespace SalesApp.Data
                 entity.Property(e => e.Email).IsRequired();
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.PasswordHash).IsRequired();
-                entity.Property(e => e.Role).HasDefaultValue("normal");
+                entity.Property(e => e.Role).HasDefaultValue(UserRole.User);
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
             });
         }

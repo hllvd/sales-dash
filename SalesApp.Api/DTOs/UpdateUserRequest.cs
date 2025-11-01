@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using SalesApp.Models;
 
 namespace SalesApp.DTOs
 {

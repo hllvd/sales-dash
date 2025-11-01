@@ -23,9 +23,18 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost("register")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> Register(RegisterRequest request)
         {
+            if (!UserRole.IsValid(request.Role))
+            {
+                return BadRequest(new ApiResponse<UserResponse>
+                {
+                    Success = false,
+                    Message = "Invalid role. Must be: user, admin, or superadmin"
+                });
+            }
+            
             if (await _userRepository.EmailExistsAsync(request.Email))
             {
                 return BadRequest(new ApiResponse<UserResponse>
@@ -82,7 +91,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet]
-        [Authorize(Roles = "admin")]
+        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<PagedResponse<UserResponse>>>> GetUsers(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
@@ -175,10 +184,20 @@ namespace SalesApp.Controllers
             if (!string.IsNullOrEmpty(request.Password))
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
                 
-            if (!string.IsNullOrEmpty(request.Role) && currentUserRole == "admin")
+            if (!string.IsNullOrEmpty(request.Role) && (currentUserRole == "admin" || currentUserRole == "superadmin"))
+            {
+                if (!UserRole.IsValid(request.Role))
+                {
+                    return BadRequest(new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "Invalid role. Must be: user, admin, or superadmin"
+                    });
+                }
                 user.Role = request.Role;
+            }
                 
-            if (request.IsActive.HasValue && currentUserRole == "admin")
+            if (request.IsActive.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
                 user.IsActive = request.IsActive.Value;
                 
             await _userRepository.UpdateAsync(user);
@@ -192,7 +211,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteUser(Guid id)
         {
             var user = await _userRepository.GetByIdAsync(id);
@@ -237,7 +256,7 @@ namespace SalesApp.Controllers
         
         private string GetCurrentUserRole()
         {
-            return User.FindFirst(ClaimTypes.Role)?.Value ?? "normal";
+            return User.FindFirst(ClaimTypes.Role)?.Value ?? UserRole.User;
         }
     }
 }

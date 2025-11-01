@@ -10,14 +10,14 @@ namespace SalesApp.Data
             await context.Database.EnsureCreatedAsync();
             
             // Check if admin user exists
-            if (!await context.Users.AnyAsync(u => u.Role == "admin"))
+            if (!await context.Users.AnyAsync(u => u.Role == UserRole.Admin))
             {
                 var adminUser = new User
                 {
                     Name = "Admin User",
                     Email = "admin@salesapp.com",
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                    Role = "admin",
+                    Role = UserRole.Admin,
                     IsActive = true
                 };
                 

@@ -20,7 +20,7 @@ namespace SalesApp.Models
         
         [Required]
         [MaxLength(20)]
-        public string Role { get; set; } = "normal"; // "admin" or "normal"
+        public string Role { get; set; } = UserRole.User; // "user", "admin", or "superadmin"
         
         public bool IsActive { get; set; } = true;
         
