@@ -15,7 +15,9 @@ namespace SalesApp.Repositories
         
         public async Task<User?> GetByIdAsync(Guid id)
         {
-            return await _context.Users.FindAsync(id);
+            return await _context.Users
+                .Include(u => u.ParentUser)
+                .FirstOrDefaultAsync(u => u.Id == id);
         }
         
         public async Task<User?> GetByEmailAsync(string email)
@@ -34,6 +36,7 @@ namespace SalesApp.Repositories
             
             var totalCount = await query.CountAsync();
             var users = await query
+                .Include(u => u.ParentUser)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

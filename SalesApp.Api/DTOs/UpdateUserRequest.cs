@@ -17,6 +17,8 @@ namespace SalesApp.DTOs
         [MaxLength(20)]
         public string? Role { get; set; }
         
+        public Guid? ParentUserId { get; set; }
+        
         public bool? IsActive { get; set; }
     }
 }

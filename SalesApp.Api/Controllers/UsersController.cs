@@ -44,12 +44,27 @@ namespace SalesApp.Controllers
                 });
             }
             
+            // Validate parent user if provided
+            if (request.ParentUserId.HasValue)
+            {
+                var parentUser = await _userRepository.GetByIdAsync(request.ParentUserId.Value);
+                if (parentUser == null || !parentUser.IsActive)
+                {
+                    return BadRequest(new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "Invalid parent user"
+                    });
+                }
+            }
+            
             var user = new User
             {
                 Name = request.Name,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = request.Role
+                Role = request.Role,
+                ParentUserId = request.ParentUserId
             };
             
             await _userRepository.CreateAsync(user);
@@ -197,6 +212,20 @@ namespace SalesApp.Controllers
                 user.Role = request.Role;
             }
                 
+            if (request.ParentUserId.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
+            {
+                var parentUser = await _userRepository.GetByIdAsync(request.ParentUserId.Value);
+                if (parentUser == null || !parentUser.IsActive)
+                {
+                    return BadRequest(new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "Invalid parent user"
+                    });
+                }
+                user.ParentUserId = request.ParentUserId;
+            }
+            
             if (request.IsActive.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
                 user.IsActive = request.IsActive.Value;
                 
@@ -242,6 +271,8 @@ namespace SalesApp.Controllers
                 Name = user.Name,
                 Email = user.Email,
                 Role = user.Role,
+                ParentUserId = user.ParentUserId,
+                ParentUserName = user.ParentUser?.Name,
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt

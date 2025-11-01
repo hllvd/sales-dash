@@ -25,6 +25,12 @@ namespace SalesApp.Data
                 entity.Property(e => e.PasswordHash).IsRequired();
                 entity.Property(e => e.Role).HasDefaultValue(UserRole.User);
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
+                
+                // Self-referencing relationship
+                entity.HasOne(e => e.ParentUser)
+                    .WithMany(e => e.ChildUsers)
+                    .HasForeignKey(e => e.ParentUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
             
             // Group entity configuration
