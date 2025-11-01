@@ -1,0 +1,244 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SalesApp.DTOs;
+using SalesApp.Models;
+using SalesApp.Repositories;
+using System.Security.Claims;
+
+namespace SalesApp.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class SalesController : ControllerBase
+    {
+        private readonly ISaleRepository _saleRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly IGroupRepository _groupRepository;
+        
+        public SalesController(ISaleRepository saleRepository, IUserRepository userRepository, IGroupRepository groupRepository)
+        {
+            _saleRepository = saleRepository;
+            _userRepository = userRepository;
+            _groupRepository = groupRepository;
+        }
+        
+        [HttpGet]
+        [Authorize(Roles = "admin,superadmin")]
+        public async Task<ActionResult<ApiResponse<List<SaleResponse>>>> GetSales(
+            [FromQuery] Guid? userId = null,
+            [FromQuery] Guid? groupId = null,
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
+        {
+            var sales = await _saleRepository.GetAllAsync(userId, groupId, startDate, endDate);
+            
+            return Ok(new ApiResponse<List<SaleResponse>>
+            {
+                Success = true,
+                Data = sales.Select(MapToSaleResponse).ToList(),
+                Message = "Sales retrieved successfully"
+            });
+        }
+        
+        [HttpGet("user/{userId}")]
+        public async Task<ActionResult<ApiResponse<List<SaleResponse>>>> GetUserSales(Guid userId)
+        {
+            var currentUserId = GetCurrentUserId();
+            var currentUserRole = GetCurrentUserRole();
+            
+            if (currentUserRole != "admin" && currentUserRole != "superadmin" && currentUserId != userId)
+            {
+                return Forbid();
+            }
+            
+            var sales = await _saleRepository.GetByUserIdAsync(userId);
+            
+            return Ok(new ApiResponse<List<SaleResponse>>
+            {
+                Success = true,
+                Data = sales.Select(MapToSaleResponse).ToList(),
+                Message = "User sales retrieved successfully"
+            });
+        }
+        
+        [HttpGet("{id}")]
+        [Authorize(Roles = "admin,superadmin")]
+        public async Task<ActionResult<ApiResponse<SaleResponse>>> GetSale(Guid id)
+        {
+            var sale = await _saleRepository.GetByIdAsync(id);
+            if (sale == null || !sale.IsActive)
+            {
+                return NotFound(new ApiResponse<SaleResponse>
+                {
+                    Success = false,
+                    Message = "Sale not found"
+                });
+            }
+            
+            return Ok(new ApiResponse<SaleResponse>
+            {
+                Success = true,
+                Data = MapToSaleResponse(sale),
+                Message = "Sale retrieved successfully"
+            });
+        }
+        
+        [HttpPost]
+        [Authorize(Roles = "admin,superadmin")]
+        public async Task<ActionResult<ApiResponse<SaleResponse>>> CreateSale(SaleRequest request)
+        {
+            // Validate user exists
+            var user = await _userRepository.GetByIdAsync(request.UserId);
+            if (user == null || !user.IsActive)
+            {
+                return BadRequest(new ApiResponse<SaleResponse>
+                {
+                    Success = false,
+                    Message = "Invalid user"
+                });
+            }
+            
+            // Validate group exists
+            var group = await _groupRepository.GetByIdAsync(request.GroupId);
+            if (group == null || !group.IsActive)
+            {
+                return BadRequest(new ApiResponse<SaleResponse>
+                {
+                    Success = false,
+                    Message = "Invalid group"
+                });
+            }
+            
+            var sale = new Sale
+            {
+                UserId = request.UserId,
+                TotalAmount = request.TotalAmount,
+                GroupId = request.GroupId,
+                Status = request.Status
+            };
+            
+            await _saleRepository.CreateAsync(sale);
+            
+            return Ok(new ApiResponse<SaleResponse>
+            {
+                Success = true,
+                Data = MapToSaleResponse(sale),
+                Message = "Sale created successfully"
+            });
+        }
+        
+        [HttpPut("{id}")]
+        [Authorize(Roles = "admin,superadmin")]
+        public async Task<ActionResult<ApiResponse<SaleResponse>>> UpdateSale(Guid id, UpdateSaleRequest request)
+        {
+            var sale = await _saleRepository.GetByIdAsync(id);
+            if (sale == null || !sale.IsActive)
+            {
+                return NotFound(new ApiResponse<SaleResponse>
+                {
+                    Success = false,
+                    Message = "Sale not found"
+                });
+            }
+            
+            if (request.UserId.HasValue)
+            {
+                var user = await _userRepository.GetByIdAsync(request.UserId.Value);
+                if (user == null || !user.IsActive)
+                {
+                    return BadRequest(new ApiResponse<SaleResponse>
+                    {
+                        Success = false,
+                        Message = "Invalid user"
+                    });
+                }
+                sale.UserId = request.UserId.Value;
+            }
+            
+            if (request.GroupId.HasValue)
+            {
+                var group = await _groupRepository.GetByIdAsync(request.GroupId.Value);
+                if (group == null || !group.IsActive)
+                {
+                    return BadRequest(new ApiResponse<SaleResponse>
+                    {
+                        Success = false,
+                        Message = "Invalid group"
+                    });
+                }
+                sale.GroupId = request.GroupId.Value;
+            }
+            
+            if (request.TotalAmount.HasValue)
+                sale.TotalAmount = request.TotalAmount.Value;
+                
+            if (!string.IsNullOrEmpty(request.Status))
+                sale.Status = request.Status;
+                
+            if (request.IsActive.HasValue)
+                sale.IsActive = request.IsActive.Value;
+            
+            await _saleRepository.UpdateAsync(sale);
+            
+            return Ok(new ApiResponse<SaleResponse>
+            {
+                Success = true,
+                Data = MapToSaleResponse(sale),
+                Message = "Sale updated successfully"
+            });
+        }
+        
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "admin,superadmin")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteSale(Guid id)
+        {
+            var sale = await _saleRepository.GetByIdAsync(id);
+            if (sale == null || !sale.IsActive)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Sale not found"
+                });
+            }
+            
+            sale.IsActive = false;
+            await _saleRepository.UpdateAsync(sale);
+            
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "Sale deleted successfully"
+            });
+        }
+        
+        private SaleResponse MapToSaleResponse(Sale sale)
+        {
+            return new SaleResponse
+            {
+                Id = sale.Id,
+                UserId = sale.UserId,
+                UserName = sale.User?.Name ?? "",
+                TotalAmount = sale.TotalAmount,
+                GroupId = sale.GroupId,
+                GroupName = sale.Group?.Name ?? "",
+                Status = sale.Status,
+                IsActive = sale.IsActive,
+                CreatedAt = sale.CreatedAt,
+                UpdatedAt = sale.UpdatedAt
+            };
+        }
+        
+        private Guid GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(userIdClaim, out var userId) ? userId : Guid.Empty;
+        }
+        
+        private string GetCurrentUserRole()
+        {
+            return User.FindFirst(ClaimTypes.Role)?.Value ?? UserRole.User;
+        }
+    }
+}

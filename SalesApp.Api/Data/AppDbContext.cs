@@ -9,6 +9,7 @@ namespace SalesApp.Data
         
         public DbSet<User> Users { get; set; }
         public DbSet<Group> Groups { get; set; }
+        public DbSet<Sale> Sales { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -34,6 +35,25 @@ namespace SalesApp.Data
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.Commission).HasColumnType("decimal(5,2)");
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
+            });
+            
+            // Sale entity configuration
+            modelBuilder.Entity<Sale>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Status).HasDefaultValue("active");
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
+                
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.Group)
+                    .WithMany()
+                    .HasForeignKey(e => e.GroupId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }
