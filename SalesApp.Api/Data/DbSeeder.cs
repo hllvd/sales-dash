@@ -7,7 +7,7 @@ namespace SalesApp.Data
     {
         public static async Task SeedAsync(AppDbContext context)
         {
-            await context.Database.EnsureCreatedAsync();
+            await context.Database.MigrateAsync();
             
             // Check if admin user exists
             if (!await context.Users.AnyAsync(u => u.Role == UserRole.Admin))
