@@ -13,14 +13,14 @@ const LoginPage: React.FC = () => {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1 className="login-title">Welcome Back</h1>
-        <p className="login-subtitle">Sign in to your account</p>
+        <h1 className="login-title">Bem-vindo de Volta</h1>
+        <p className="login-subtitle">Entre na sua conta</p>
         
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
             <input
               type="email"
-              placeholder="Email"
+              placeholder="E-mail"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="form-input"
@@ -31,7 +31,7 @@ const LoginPage: React.FC = () => {
           <div className="form-group">
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="form-input"
@@ -40,12 +40,12 @@ const LoginPage: React.FC = () => {
           </div>
           
           <button type="submit" className="login-button">
-            Sign In
+            Entrar
           </button>
         </form>
         
         <p className="forgot-password">
-          <a href="#forgot">Forgot your password?</a>
+          <a href="#forgot">Esqueceu sua senha?</a>
         </p>
       </div>
     </div>
