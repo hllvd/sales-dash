@@ -41,6 +41,17 @@ namespace SalesApp
             services.AddScoped<IGroupRepository, GroupRepository>();
             services.AddScoped<ISaleRepository, SaleRepository>();
             
+            // CORS
+            services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", builder =>
+                {
+                    builder.AllowAnyOrigin()
+                           .AllowAnyMethod()
+                           .AllowAnyHeader();
+                });
+            });
+            
             // Controllers
             services.AddControllers();
 
@@ -113,6 +124,8 @@ namespace SalesApp
             }
 
             app.UseRouting();
+            
+            app.UseCors("AllowAll");
 
             app.UseAuthentication();
             app.UseAuthorization();
