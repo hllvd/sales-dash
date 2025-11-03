@@ -19,6 +19,10 @@ namespace SalesApp.Models
         [MaxLength(20)]
         public string Status { get; set; } = "active"; // "active", "delinquent", "paid_off"
         
+        public DateTime SaleStartDate { get; set; } = DateTime.UtcNow;
+        
+        public DateTime? SaleEndDate { get; set; }
+        
         public bool IsActive { get; set; } = true;
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

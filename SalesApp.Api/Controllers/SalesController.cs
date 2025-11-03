@@ -115,7 +115,9 @@ namespace SalesApp.Controllers
                 UserId = request.UserId,
                 TotalAmount = request.TotalAmount,
                 GroupId = request.GroupId,
-                Status = request.Status
+                Status = request.Status,
+                SaleStartDate = request.SaleStartDate,
+                SaleEndDate = request.SaleEndDate
             };
             
             await _saleRepository.CreateAsync(sale);
@@ -176,6 +178,12 @@ namespace SalesApp.Controllers
             if (!string.IsNullOrEmpty(request.Status))
                 sale.Status = request.Status;
                 
+            if (request.SaleStartDate.HasValue)
+                sale.SaleStartDate = request.SaleStartDate.Value;
+                
+            if (request.SaleEndDate.HasValue)
+                sale.SaleEndDate = request.SaleEndDate.Value;
+                
             if (request.IsActive.HasValue)
                 sale.IsActive = request.IsActive.Value;
             
@@ -224,6 +232,8 @@ namespace SalesApp.Controllers
                 GroupId = sale.GroupId,
                 GroupName = sale.Group?.Name ?? "",
                 Status = sale.Status,
+                SaleStartDate = sale.SaleStartDate,
+                SaleEndDate = sale.SaleEndDate,
                 IsActive = sale.IsActive,
                 CreatedAt = sale.CreatedAt,
                 UpdatedAt = sale.UpdatedAt

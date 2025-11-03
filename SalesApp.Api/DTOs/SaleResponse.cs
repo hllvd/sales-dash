@@ -9,6 +9,8 @@ namespace SalesApp.DTOs
         public Guid GroupId { get; set; }
         public string GroupName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public DateTime SaleStartDate { get; set; }
+        public DateTime? SaleEndDate { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

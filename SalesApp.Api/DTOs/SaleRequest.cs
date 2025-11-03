@@ -16,6 +16,10 @@ namespace SalesApp.DTOs
         
         [MaxLength(20)]
         public string Status { get; set; } = "active";
+        
+        public DateTime SaleStartDate { get; set; } = DateTime.UtcNow;
+        
+        public DateTime? SaleEndDate { get; set; }
     }
     
     public class UpdateSaleRequest
@@ -29,6 +33,10 @@ namespace SalesApp.DTOs
         
         [MaxLength(20)]
         public string? Status { get; set; }
+        
+        public DateTime? SaleStartDate { get; set; }
+        
+        public DateTime? SaleEndDate { get; set; }
         
         public bool? IsActive { get; set; }
     }
