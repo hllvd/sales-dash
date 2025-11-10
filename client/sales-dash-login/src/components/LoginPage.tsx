@@ -26,7 +26,7 @@ const LoginPage: React.FC = () => {
       if (data.success) {
         localStorage.setItem('token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
-        window.location.href = '/dashboard';
+        window.location.reload();
       } else {
         setError(data.message || 'Credenciais inválidas');
       }
