@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SalesApp.Models
 {
-    public class Sale
+    public class Contract
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         

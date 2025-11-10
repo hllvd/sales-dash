@@ -25,7 +25,7 @@ namespace SalesApp.Controllers
         
         [HttpGet]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<List<SaleResponse>>>> GetSales(
+        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetSales(
             [FromQuery] Guid? userId = null,
             [FromQuery] Guid? groupId = null,
             [FromQuery] DateTime? startDate = null,
@@ -33,7 +33,7 @@ namespace SalesApp.Controllers
         {
             var sales = await _saleRepository.GetAllAsync(userId, groupId, startDate, endDate);
             
-            return Ok(new ApiResponse<List<SaleResponse>>
+            return Ok(new ApiResponse<List<ContractResponse>>
             {
                 Success = true,
                 Data = sales.Select(MapToSaleResponse).ToList(),
@@ -42,7 +42,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("user/{userId}")]
-        public async Task<ActionResult<ApiResponse<List<SaleResponse>>>> GetUserSales(Guid userId)
+        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetUserSales(Guid userId)
         {
             var currentUserId = GetCurrentUserId();
             var currentUserRole = GetCurrentUserRole();
@@ -54,7 +54,7 @@ namespace SalesApp.Controllers
             
             var sales = await _saleRepository.GetByUserIdAsync(userId);
             
-            return Ok(new ApiResponse<List<SaleResponse>>
+            return Ok(new ApiResponse<List<ContractResponse>>
             {
                 Success = true,
                 Data = sales.Select(MapToSaleResponse).ToList(),
@@ -64,19 +64,19 @@ namespace SalesApp.Controllers
         
         [HttpGet("{id}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<SaleResponse>>> GetSale(Guid id)
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> GetSale(Guid id)
         {
             var sale = await _saleRepository.GetByIdAsync(id);
             if (sale == null || !sale.IsActive)
             {
-                return NotFound(new ApiResponse<SaleResponse>
+                return NotFound(new ApiResponse<ContractResponse>
                 {
                     Success = false,
                     Message = "Sale not found"
                 });
             }
             
-            return Ok(new ApiResponse<SaleResponse>
+            return Ok(new ApiResponse<ContractResponse>
             {
                 Success = true,
                 Data = MapToSaleResponse(sale),
@@ -86,13 +86,13 @@ namespace SalesApp.Controllers
         
         [HttpPost]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<SaleResponse>>> CreateSale(SaleRequest request)
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> CreateSale(ContractRequest request)
         {
             // Validate user exists
             var user = await _userRepository.GetByIdAsync(request.UserId);
             if (user == null || !user.IsActive)
             {
-                return BadRequest(new ApiResponse<SaleResponse>
+                return BadRequest(new ApiResponse<ContractResponse>
                 {
                     Success = false,
                     Message = "Invalid user"
@@ -103,26 +103,26 @@ namespace SalesApp.Controllers
             var group = await _groupRepository.GetByIdAsync(request.GroupId);
             if (group == null || !group.IsActive)
             {
-                return BadRequest(new ApiResponse<SaleResponse>
+                return BadRequest(new ApiResponse<ContractResponse>
                 {
                     Success = false,
                     Message = "Invalid group"
                 });
             }
             
-            var sale = new Sale
+            var sale = new Contract
             {
                 UserId = request.UserId,
                 TotalAmount = request.TotalAmount,
                 GroupId = request.GroupId,
                 Status = request.Status,
-                SaleStartDate = request.SaleStartDate,
-                SaleEndDate = request.SaleEndDate
+                SaleStartDate = request.ContractStartDate,
+                SaleEndDate = request.ContractEndDate
             };
             
             await _saleRepository.CreateAsync(sale);
             
-            return Ok(new ApiResponse<SaleResponse>
+            return Ok(new ApiResponse<ContractResponse>
             {
                 Success = true,
                 Data = MapToSaleResponse(sale),
@@ -132,12 +132,12 @@ namespace SalesApp.Controllers
         
         [HttpPut("{id}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<SaleResponse>>> UpdateSale(Guid id, UpdateSaleRequest request)
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> UpdateSale(Guid id, UpdateSaleRequest request)
         {
             var sale = await _saleRepository.GetByIdAsync(id);
             if (sale == null || !sale.IsActive)
             {
-                return NotFound(new ApiResponse<SaleResponse>
+                return NotFound(new ApiResponse<ContractResponse>
                 {
                     Success = false,
                     Message = "Sale not found"
@@ -149,7 +149,7 @@ namespace SalesApp.Controllers
                 var user = await _userRepository.GetByIdAsync(request.UserId.Value);
                 if (user == null || !user.IsActive)
                 {
-                    return BadRequest(new ApiResponse<SaleResponse>
+                    return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
                         Message = "Invalid user"
@@ -163,7 +163,7 @@ namespace SalesApp.Controllers
                 var group = await _groupRepository.GetByIdAsync(request.GroupId.Value);
                 if (group == null || !group.IsActive)
                 {
-                    return BadRequest(new ApiResponse<SaleResponse>
+                    return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
                         Message = "Invalid group"
@@ -178,18 +178,18 @@ namespace SalesApp.Controllers
             if (!string.IsNullOrEmpty(request.Status))
                 sale.Status = request.Status;
                 
-            if (request.SaleStartDate.HasValue)
-                sale.SaleStartDate = request.SaleStartDate.Value;
+            if (request.ContractStartDate.HasValue)
+                sale.SaleStartDate = request.ContractStartDate.Value;
                 
-            if (request.SaleEndDate.HasValue)
-                sale.SaleEndDate = request.SaleEndDate.Value;
+            if (request.ContractEndDate.HasValue)
+                sale.SaleEndDate = request.ContractEndDate.Value;
                 
             if (request.IsActive.HasValue)
                 sale.IsActive = request.IsActive.Value;
             
             await _saleRepository.UpdateAsync(sale);
             
-            return Ok(new ApiResponse<SaleResponse>
+            return Ok(new ApiResponse<ContractResponse>
             {
                 Success = true,
                 Data = MapToSaleResponse(sale),
@@ -221,9 +221,9 @@ namespace SalesApp.Controllers
             });
         }
         
-        private SaleResponse MapToSaleResponse(Sale sale)
+        private ContractResponse MapToSaleResponse(Contract sale)
         {
-            return new SaleResponse
+            return new ContractResponse
             {
                 Id = sale.Id,
                 UserId = sale.UserId,
@@ -232,8 +232,8 @@ namespace SalesApp.Controllers
                 GroupId = sale.GroupId,
                 GroupName = sale.Group?.Name ?? "",
                 Status = sale.Status,
-                SaleStartDate = sale.SaleStartDate,
-                SaleEndDate = sale.SaleEndDate,
+                ContractStartDate = sale.SaleStartDate,
+                ContractEndDate = sale.SaleEndDate,
                 IsActive = sale.IsActive,
                 CreatedAt = sale.CreatedAt,
                 UpdatedAt = sale.UpdatedAt

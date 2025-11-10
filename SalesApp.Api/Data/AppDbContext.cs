@@ -9,7 +9,7 @@ namespace SalesApp.Data
         
         public DbSet<User> Users { get; set; }
         public DbSet<Group> Groups { get; set; }
-        public DbSet<Sale> Sales { get; set; }
+        public DbSet<Contract> Contracts { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -43,9 +43,10 @@ namespace SalesApp.Data
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
             });
             
-            // Sale entity configuration
-            modelBuilder.Entity<Sale>(entity =>
+            // Contract entity configuration (maps to Sales table)
+            modelBuilder.Entity<Contract>(entity =>
             {
+                entity.ToTable("Sales");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Status).HasDefaultValue("active");

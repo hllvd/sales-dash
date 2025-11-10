@@ -13,17 +13,17 @@ namespace SalesApp.Repositories
             _context = context;
         }
         
-        public async Task<Sale?> GetByIdAsync(Guid id)
+        public async Task<Contract?> GetByIdAsync(Guid id)
         {
-            return await _context.Sales
+            return await _context.Contracts
                 .Include(s => s.User)
                 .Include(s => s.Group)
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
         
-        public async Task<List<Sale>> GetAllAsync(Guid? userId = null, Guid? groupId = null, DateTime? startDate = null, DateTime? endDate = null)
+        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, Guid? groupId = null, DateTime? startDate = null, DateTime? endDate = null)
         {
-            var query = _context.Sales
+            var query = _context.Contracts
                 .Include(s => s.User)
                 .Include(s => s.Group)
                 .Where(s => s.IsActive);
@@ -43,9 +43,9 @@ namespace SalesApp.Repositories
             return await query.OrderByDescending(s => s.CreatedAt).ToListAsync();
         }
         
-        public async Task<List<Sale>> GetByUserIdAsync(Guid userId)
+        public async Task<List<Contract>> GetByUserIdAsync(Guid userId)
         {
-            return await _context.Sales
+            return await _context.Contracts
                 .Include(s => s.User)
                 .Include(s => s.Group)
                 .Where(s => s.UserId == userId && s.IsActive)
@@ -53,19 +53,19 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
         
-        public async Task<Sale> CreateAsync(Sale sale)
+        public async Task<Contract> CreateAsync(Contract sale)
         {
-            _context.Sales.Add(sale);
+            _context.Contracts.Add(sale);
             await _context.SaveChangesAsync();
             
             // Reload with navigation properties
             return await GetByIdAsync(sale.Id) ?? sale;
         }
         
-        public async Task<Sale> UpdateAsync(Sale sale)
+        public async Task<Contract> UpdateAsync(Contract sale)
         {
             sale.UpdatedAt = DateTime.UtcNow;
-            _context.Sales.Update(sale);
+            _context.Contracts.Update(sale);
             await _context.SaveChangesAsync();
             
             // Reload with navigation properties

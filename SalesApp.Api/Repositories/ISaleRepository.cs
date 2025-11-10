@@ -4,10 +4,10 @@ namespace SalesApp.Repositories
 {
     public interface ISaleRepository
     {
-        Task<Sale?> GetByIdAsync(Guid id);
-        Task<List<Sale>> GetAllAsync(Guid? userId = null, Guid? groupId = null, DateTime? startDate = null, DateTime? endDate = null);
-        Task<List<Sale>> GetByUserIdAsync(Guid userId);
-        Task<Sale> CreateAsync(Sale sale);
-        Task<Sale> UpdateAsync(Sale sale);
+        Task<Contract?> GetByIdAsync(Guid id);
+        Task<List<Contract>> GetAllAsync(Guid? userId = null, Guid? groupId = null, DateTime? startDate = null, DateTime? endDate = null);
+        Task<List<Contract>> GetByUserIdAsync(Guid userId);
+        Task<Contract> CreateAsync(Contract sale);
+        Task<Contract> UpdateAsync(Contract sale);
     }
 }
