@@ -10,13 +10,13 @@ namespace SalesApp.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class SalesController : ControllerBase
+    public class ContractsController : ControllerBase
     {
         private readonly IContractRepository _contractRepository;
         private readonly IUserRepository _userRepository;
         private readonly IGroupRepository _groupRepository;
         
-        public SalesController(IContractRepository contractRepository, IUserRepository userRepository, IGroupRepository groupRepository)
+        public ContractsController(IContractRepository contractRepository, IUserRepository userRepository, IGroupRepository groupRepository)
         {
             _contractRepository = contractRepository;
             _userRepository = userRepository;
@@ -25,24 +25,24 @@ namespace SalesApp.Controllers
         
         [HttpGet]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetSales(
+        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetContracts(
             [FromQuery] Guid? userId = null,
             [FromQuery] Guid? groupId = null,
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
         {
-            var sales = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate);
+            var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate);
             
             return Ok(new ApiResponse<List<ContractResponse>>
             {
                 Success = true,
-                Data = sales.Select(MapToSaleResponse).ToList(),
-                Message = "Sales retrieved successfully"
+                Data = contracts.Select(MapToContractResponse).ToList(),
+                Message = "Contracts retrieved successfully"
             });
         }
         
         [HttpGet("user/{userId}")]
-        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetUserSales(Guid userId)
+        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetUserContracts(Guid userId)
         {
             var currentUserId = GetCurrentUserId();
             var currentUserRole = GetCurrentUserRole();
@@ -52,41 +52,41 @@ namespace SalesApp.Controllers
                 return Forbid();
             }
             
-            var sales = await _contractRepository.GetByUserIdAsync(userId);
+            var contracts = await _contractRepository.GetByUserIdAsync(userId);
             
             return Ok(new ApiResponse<List<ContractResponse>>
             {
                 Success = true,
-                Data = sales.Select(MapToSaleResponse).ToList(),
-                Message = "User sales retrieved successfully"
+                Data = contracts.Select(MapToContractResponse).ToList(),
+                Message = "User contracts retrieved successfully"
             });
         }
         
         [HttpGet("{id}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ContractResponse>>> GetSale(Guid id)
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> GetContract(Guid id)
         {
-            var sale = await _contractRepository.GetByIdAsync(id);
-            if (sale == null || !sale.IsActive)
+            var contract = await _contractRepository.GetByIdAsync(id);
+            if (contract == null || !contract.IsActive)
             {
                 return NotFound(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = "Sale not found"
+                    Message = "Contract not found"
                 });
             }
             
             return Ok(new ApiResponse<ContractResponse>
             {
                 Success = true,
-                Data = MapToSaleResponse(sale),
-                Message = "Sale retrieved successfully"
+                Data = MapToContractResponse(contract),
+                Message = "Contract retrieved successfully"
             });
         }
         
         [HttpPost]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ContractResponse>>> CreateSale(ContractRequest request)
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> CreateContract(ContractRequest request)
         {
             // Validate user exists
             var user = await _userRepository.GetByIdAsync(request.UserId);
@@ -110,7 +110,7 @@ namespace SalesApp.Controllers
                 });
             }
             
-            var sale = new Contract
+            var contract = new Contract
             {
                 UserId = request.UserId,
                 TotalAmount = request.TotalAmount,
@@ -120,27 +120,27 @@ namespace SalesApp.Controllers
                 SaleEndDate = request.ContractEndDate
             };
             
-            await _contractRepository.CreateAsync(sale);
+            await _contractRepository.CreateAsync(contract);
             
             return Ok(new ApiResponse<ContractResponse>
             {
                 Success = true,
-                Data = MapToSaleResponse(sale),
-                Message = "Sale created successfully"
+                Data = MapToContractResponse(contract),
+                Message = "Contract created successfully"
             });
         }
         
         [HttpPut("{id}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ContractResponse>>> UpdateSale(Guid id, UpdateSaleRequest request)
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> UpdateContract(Guid id, UpdateContractRequest request)
         {
-            var sale = await _contractRepository.GetByIdAsync(id);
-            if (sale == null || !sale.IsActive)
+            var contract = await _contractRepository.GetByIdAsync(id);
+            if (contract == null || !contract.IsActive)
             {
                 return NotFound(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = "Sale not found"
+                    Message = "Contract not found"
                 });
             }
             
@@ -155,7 +155,7 @@ namespace SalesApp.Controllers
                         Message = "Invalid user"
                     });
                 }
-                sale.UserId = request.UserId.Value;
+                contract.UserId = request.UserId.Value;
             }
             
             if (request.GroupId.HasValue)
@@ -169,74 +169,74 @@ namespace SalesApp.Controllers
                         Message = "Invalid group"
                     });
                 }
-                sale.GroupId = request.GroupId.Value;
+                contract.GroupId = request.GroupId.Value;
             }
             
             if (request.TotalAmount.HasValue)
-                sale.TotalAmount = request.TotalAmount.Value;
+                contract.TotalAmount = request.TotalAmount.Value;
                 
             if (!string.IsNullOrEmpty(request.Status))
-                sale.Status = request.Status;
+                contract.Status = request.Status;
                 
             if (request.ContractStartDate.HasValue)
-                sale.SaleStartDate = request.ContractStartDate.Value;
+                contract.SaleStartDate = request.ContractStartDate.Value;
                 
             if (request.ContractEndDate.HasValue)
-                sale.SaleEndDate = request.ContractEndDate.Value;
+                contract.SaleEndDate = request.ContractEndDate.Value;
                 
             if (request.IsActive.HasValue)
-                sale.IsActive = request.IsActive.Value;
+                contract.IsActive = request.IsActive.Value;
             
-            await _contractRepository.UpdateAsync(sale);
+            await _contractRepository.UpdateAsync(contract);
             
             return Ok(new ApiResponse<ContractResponse>
             {
                 Success = true,
-                Data = MapToSaleResponse(sale),
-                Message = "Sale updated successfully"
+                Data = MapToContractResponse(contract),
+                Message = "Contract updated successfully"
             });
         }
         
         [HttpDelete("{id}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<object>>> DeleteSale(Guid id)
+        public async Task<ActionResult<ApiResponse<object>>> DeleteContract(Guid id)
         {
-            var sale = await _contractRepository.GetByIdAsync(id);
-            if (sale == null || !sale.IsActive)
+            var contract = await _contractRepository.GetByIdAsync(id);
+            if (contract == null || !contract.IsActive)
             {
                 return NotFound(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Sale not found"
+                    Message = "Contract not found"
                 });
             }
             
-            sale.IsActive = false;
-            await _contractRepository.UpdateAsync(sale);
+            contract.IsActive = false;
+            await _contractRepository.UpdateAsync(contract);
             
             return Ok(new ApiResponse<object>
             {
                 Success = true,
-                Message = "Sale deleted successfully"
+                Message = "Contract deleted successfully"
             });
         }
         
-        private ContractResponse MapToSaleResponse(Contract sale)
+        private ContractResponse MapToContractResponse(Contract contract)
         {
             return new ContractResponse
             {
-                Id = sale.Id,
-                UserId = sale.UserId,
-                UserName = sale.User?.Name ?? "",
-                TotalAmount = sale.TotalAmount,
-                GroupId = sale.GroupId,
-                GroupName = sale.Group?.Name ?? "",
-                Status = sale.Status,
-                ContractStartDate = sale.SaleStartDate,
-                ContractEndDate = sale.SaleEndDate,
-                IsActive = sale.IsActive,
-                CreatedAt = sale.CreatedAt,
-                UpdatedAt = sale.UpdatedAt
+                Id = contract.Id,
+                UserId = contract.UserId,
+                UserName = contract.User?.Name ?? "",
+                TotalAmount = contract.TotalAmount,
+                GroupId = contract.GroupId,
+                GroupName = contract.Group?.Name ?? "",
+                Status = contract.Status,
+                ContractStartDate = contract.SaleStartDate,
+                ContractEndDate = contract.SaleEndDate,
+                IsActive = contract.IsActive,
+                CreatedAt = contract.CreatedAt,
+                UpdatedAt = contract.UpdatedAt
             };
         }
         
