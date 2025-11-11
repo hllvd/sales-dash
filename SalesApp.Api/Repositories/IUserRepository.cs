@@ -10,5 +10,14 @@ namespace SalesApp.Repositories
         Task<User> CreateAsync(User user);
         Task<User> UpdateAsync(User user);
         Task<bool> EmailExistsAsync(string email, Guid? excludeId = null);
+        
+        // Hierarchy methods
+        Task<User?> GetParentAsync(Guid userId);
+        Task<List<User>> GetChildrenAsync(Guid userId);
+        Task<List<User>> GetTreeAsync(Guid userId, int depth = -1);
+        Task<int> GetLevelAsync(Guid userId);
+        Task<User?> GetRootUserAsync();
+        Task<bool> HasRootUserAsync();
+        Task<bool> WouldCreateCycleAsync(Guid userId, Guid? newParentId);
     }
 }

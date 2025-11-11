@@ -26,6 +26,9 @@ namespace SalesApp.Models
         
         public bool IsActive { get; set; } = true;
         
+        // Computed property for hierarchy level
+        public int Level { get; set; } = 0;
+        
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

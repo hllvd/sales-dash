@@ -15,11 +15,13 @@ namespace SalesApp.Controllers
     {
         private readonly IUserRepository _userRepository;
         private readonly IJwtService _jwtService;
+        private readonly IUserHierarchyService _hierarchyService;
         
-        public UsersController(IUserRepository userRepository, IJwtService jwtService)
+        public UsersController(IUserRepository userRepository, IJwtService jwtService, IUserHierarchyService hierarchyService)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
+            _hierarchyService = hierarchyService;
         }
         
         [HttpPost("register")]
@@ -44,18 +46,15 @@ namespace SalesApp.Controllers
                 });
             }
             
-            // Validate parent user if provided
-            if (request.ParentUserId.HasValue)
+            // Validate hierarchy rules
+            var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(Guid.NewGuid(), request.ParentUserId);
+            if (hierarchyError != null)
             {
-                var parentUser = await _userRepository.GetByIdAsync(request.ParentUserId.Value);
-                if (parentUser == null || !parentUser.IsActive)
+                return BadRequest(new ApiResponse<UserResponse>
                 {
-                    return BadRequest(new ApiResponse<UserResponse>
-                    {
-                        Success = false,
-                        Message = "Invalid parent user"
-                    });
-                }
+                    Success = false,
+                    Message = hierarchyError
+                });
             }
             
             var user = new User
@@ -214,13 +213,13 @@ namespace SalesApp.Controllers
                 
             if (request.ParentUserId.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
             {
-                var parentUser = await _userRepository.GetByIdAsync(request.ParentUserId.Value);
-                if (parentUser == null || !parentUser.IsActive)
+                var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(id, request.ParentUserId);
+                if (hierarchyError != null)
                 {
                     return BadRequest(new ApiResponse<UserResponse>
                     {
                         Success = false,
-                        Message = "Invalid parent user"
+                        Message = hierarchyError
                     });
                 }
                 user.ParentUserId = request.ParentUserId;
@@ -288,6 +287,98 @@ namespace SalesApp.Controllers
         private string GetCurrentUserRole()
         {
             return User.FindFirst(ClaimTypes.Role)?.Value ?? UserRole.User;
+        }
+        
+        [HttpGet("{id}/parent")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserHierarchyResponse?>>> GetParent(Guid id)
+        {
+            var parent = await _hierarchyService.GetParentAsync(id);
+            
+            return Ok(new ApiResponse<UserHierarchyResponse?>
+            {
+                Success = true,
+                Data = parent != null ? MapToHierarchyResponse(parent) : null,
+                Message = "Parent retrieved successfully"
+            });
+        }
+        
+        [HttpGet("{id}/children")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<List<UserHierarchyResponse>>>> GetChildren(Guid id)
+        {
+            var children = await _hierarchyService.GetChildrenAsync(id);
+            
+            return Ok(new ApiResponse<List<UserHierarchyResponse>>
+            {
+                Success = true,
+                Data = children.Select(MapToHierarchyResponse).ToList(),
+                Message = "Children retrieved successfully"
+            });
+        }
+        
+        [HttpGet("{id}/tree")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserTreeResponse>>> GetTree(Guid id, [FromQuery] int depth = -1)
+        {
+            var tree = await _hierarchyService.GetTreeAsync(id, depth);
+            
+            return Ok(new ApiResponse<UserTreeResponse>
+            {
+                Success = true,
+                Data = new UserTreeResponse
+                {
+                    Users = tree.Select(MapToHierarchyResponse).ToList(),
+                    TotalUsers = tree.Count,
+                    MaxDepth = tree.Any() ? tree.Max(u => u.Level) : 0
+                },
+                Message = "Tree retrieved successfully"
+            });
+        }
+        
+        [HttpGet("{id}/level")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<int>>> GetLevel(Guid id)
+        {
+            var level = await _hierarchyService.GetLevelAsync(id);
+            
+            return Ok(new ApiResponse<int>
+            {
+                Success = true,
+                Data = level,
+                Message = "Level retrieved successfully"
+            });
+        }
+        
+        [HttpGet("root")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserHierarchyResponse?>>> GetRoot()
+        {
+            var root = await _hierarchyService.GetRootUserAsync();
+            
+            return Ok(new ApiResponse<UserHierarchyResponse?>
+            {
+                Success = true,
+                Data = root != null ? MapToHierarchyResponse(root) : null,
+                Message = "Root user retrieved successfully"
+            });
+        }
+        
+        private UserHierarchyResponse MapToHierarchyResponse(User user)
+        {
+            return new UserHierarchyResponse
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role,
+                ParentUserId = user.ParentUserId,
+                ParentUserName = user.ParentUser?.Name,
+                Level = user.Level,
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt,
+                UpdatedAt = user.UpdatedAt
+            };
         }
     }
 }

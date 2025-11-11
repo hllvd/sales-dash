@@ -63,5 +63,101 @@ namespace SalesApp.Repositories
         {
             return await _context.Users.AnyAsync(u => u.Email == email && (excludeId == null || u.Id != excludeId));
         }
+        
+        public async Task<User?> GetParentAsync(Guid userId)
+        {
+            var user = await _context.Users
+                .Include(u => u.ParentUser)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+            return user?.ParentUser;
+        }
+        
+        public async Task<List<User>> GetChildrenAsync(Guid userId)
+        {
+            return await _context.Users
+                .Where(u => u.ParentUserId == userId && u.IsActive)
+                .Include(u => u.ParentUser)
+                .ToListAsync();
+        }
+        
+        public async Task<List<User>> GetTreeAsync(Guid userId, int depth = -1)
+        {
+            var result = new List<User>();
+            await GetTreeRecursiveAsync(userId, depth, 0, result);
+            return result;
+        }
+        
+        private async Task GetTreeRecursiveAsync(Guid userId, int maxDepth, int currentDepth, List<User> result)
+        {
+            if (maxDepth != -1 && currentDepth > maxDepth) return;
+            
+            var user = await _context.Users
+                .Include(u => u.ParentUser)
+                .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+                
+            if (user == null) return;
+            
+            user.Level = currentDepth;
+            result.Add(user);
+            
+            var children = await GetChildrenAsync(userId);
+            foreach (var child in children)
+            {
+                await GetTreeRecursiveAsync(child.Id, maxDepth, currentDepth + 1, result);
+            }
+        }
+        
+        public async Task<int> GetLevelAsync(Guid userId)
+        {
+            var level = 0;
+            var currentUserId = userId;
+            
+            while (true)
+            {
+                var parent = await GetParentAsync(currentUserId);
+                if (parent == null) break;
+                
+                level++;
+                currentUserId = parent.Id;
+                
+                // Prevent infinite loops
+                if (level > 100) throw new InvalidOperationException("Circular reference detected in user hierarchy");
+            }
+            
+            return level;
+        }
+        
+        public async Task<User?> GetRootUserAsync()
+        {
+            return await _context.Users
+                .FirstOrDefaultAsync(u => u.ParentUserId == null && u.IsActive);
+        }
+        
+        public async Task<bool> HasRootUserAsync()
+        {
+            return await _context.Users.AnyAsync(u => u.ParentUserId == null && u.IsActive);
+        }
+        
+        public async Task<bool> WouldCreateCycleAsync(Guid userId, Guid? newParentId)
+        {
+            if (newParentId == null) return false;
+            if (userId == newParentId) return true;
+            
+            var currentId = newParentId.Value;
+            var visited = new HashSet<Guid> { userId };
+            
+            while (true)
+            {
+                if (visited.Contains(currentId)) return true;
+                
+                var parent = await GetParentAsync(currentId);
+                if (parent == null) break;
+                
+                visited.Add(currentId);
+                currentId = parent.Id;
+            }
+            
+            return false;
+        }
     }
 }
