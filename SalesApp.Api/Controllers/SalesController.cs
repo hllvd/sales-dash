@@ -12,13 +12,13 @@ namespace SalesApp.Controllers
     [Authorize]
     public class SalesController : ControllerBase
     {
-        private readonly ISaleRepository _saleRepository;
+        private readonly IContractRepository _contractRepository;
         private readonly IUserRepository _userRepository;
         private readonly IGroupRepository _groupRepository;
         
-        public SalesController(ISaleRepository saleRepository, IUserRepository userRepository, IGroupRepository groupRepository)
+        public SalesController(IContractRepository contractRepository, IUserRepository userRepository, IGroupRepository groupRepository)
         {
-            _saleRepository = saleRepository;
+            _contractRepository = contractRepository;
             _userRepository = userRepository;
             _groupRepository = groupRepository;
         }
@@ -31,7 +31,7 @@ namespace SalesApp.Controllers
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
         {
-            var sales = await _saleRepository.GetAllAsync(userId, groupId, startDate, endDate);
+            var sales = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate);
             
             return Ok(new ApiResponse<List<ContractResponse>>
             {
@@ -52,7 +52,7 @@ namespace SalesApp.Controllers
                 return Forbid();
             }
             
-            var sales = await _saleRepository.GetByUserIdAsync(userId);
+            var sales = await _contractRepository.GetByUserIdAsync(userId);
             
             return Ok(new ApiResponse<List<ContractResponse>>
             {
@@ -66,7 +66,7 @@ namespace SalesApp.Controllers
         [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> GetSale(Guid id)
         {
-            var sale = await _saleRepository.GetByIdAsync(id);
+            var sale = await _contractRepository.GetByIdAsync(id);
             if (sale == null || !sale.IsActive)
             {
                 return NotFound(new ApiResponse<ContractResponse>
@@ -120,7 +120,7 @@ namespace SalesApp.Controllers
                 SaleEndDate = request.ContractEndDate
             };
             
-            await _saleRepository.CreateAsync(sale);
+            await _contractRepository.CreateAsync(sale);
             
             return Ok(new ApiResponse<ContractResponse>
             {
@@ -134,7 +134,7 @@ namespace SalesApp.Controllers
         [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> UpdateSale(Guid id, UpdateSaleRequest request)
         {
-            var sale = await _saleRepository.GetByIdAsync(id);
+            var sale = await _contractRepository.GetByIdAsync(id);
             if (sale == null || !sale.IsActive)
             {
                 return NotFound(new ApiResponse<ContractResponse>
@@ -187,7 +187,7 @@ namespace SalesApp.Controllers
             if (request.IsActive.HasValue)
                 sale.IsActive = request.IsActive.Value;
             
-            await _saleRepository.UpdateAsync(sale);
+            await _contractRepository.UpdateAsync(sale);
             
             return Ok(new ApiResponse<ContractResponse>
             {
@@ -201,7 +201,7 @@ namespace SalesApp.Controllers
         [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteSale(Guid id)
         {
-            var sale = await _saleRepository.GetByIdAsync(id);
+            var sale = await _contractRepository.GetByIdAsync(id);
             if (sale == null || !sale.IsActive)
             {
                 return NotFound(new ApiResponse<object>
@@ -212,7 +212,7 @@ namespace SalesApp.Controllers
             }
             
             sale.IsActive = false;
-            await _saleRepository.UpdateAsync(sale);
+            await _contractRepository.UpdateAsync(sale);
             
             return Ok(new ApiResponse<object>
             {
