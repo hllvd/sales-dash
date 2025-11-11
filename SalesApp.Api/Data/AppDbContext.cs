@@ -43,10 +43,10 @@ namespace SalesApp.Data
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
             });
             
-            // Contract entity configuration (maps to Sales table)
+            // Contract entity configuration
             modelBuilder.Entity<Contract>(entity =>
             {
-                entity.ToTable("Sales");
+                entity.ToTable("Contracts");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Status).HasDefaultValue("active");
