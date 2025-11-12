@@ -84,6 +84,28 @@ namespace SalesApp.Controllers
             });
         }
         
+        [HttpGet("number/{contractNumber}")]
+        [Authorize(Roles = "admin,superadmin")]
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> GetContractByNumber(string contractNumber)
+        {
+            var contract = await _contractRepository.GetByContractNumberAsync(contractNumber);
+            if (contract == null || !contract.IsActive)
+            {
+                return NotFound(new ApiResponse<ContractResponse>
+                {
+                    Success = false,
+                    Message = "Contract not found"
+                });
+            }
+            
+            return Ok(new ApiResponse<ContractResponse>
+            {
+                Success = true,
+                Data = MapToContractResponse(contract),
+                Message = "Contract retrieved successfully"
+            });
+        }
+        
         [HttpPost]
         [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> CreateContract(ContractRequest request)
@@ -112,6 +134,7 @@ namespace SalesApp.Controllers
             
             var contract = new Contract
             {
+                ContractNumber = request.ContractNumber,
                 UserId = request.UserId,
                 TotalAmount = request.TotalAmount,
                 GroupId = request.GroupId,
@@ -144,6 +167,9 @@ namespace SalesApp.Controllers
                 });
             }
             
+            if (!string.IsNullOrEmpty(request.ContractNumber))
+                contract.ContractNumber = request.ContractNumber;
+                
             if (request.UserId.HasValue)
             {
                 var user = await _userRepository.GetByIdAsync(request.UserId.Value);
@@ -226,6 +252,7 @@ namespace SalesApp.Controllers
             return new ContractResponse
             {
                 Id = contract.Id,
+                ContractNumber = contract.ContractNumber,
                 UserId = contract.UserId,
                 UserName = contract.User?.Name ?? "",
                 TotalAmount = contract.TotalAmount,

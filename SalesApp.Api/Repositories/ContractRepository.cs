@@ -21,6 +21,14 @@ namespace SalesApp.Repositories
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
         
+        public async Task<Contract?> GetByContractNumberAsync(string contractNumber)
+        {
+            return await _context.Contracts
+                .Include(c => c.User)
+                .Include(c => c.Group)
+                .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
+        }
+        
         public async Task<List<Contract>> GetAllAsync(Guid? userId = null, Guid? groupId = null, DateTime? startDate = null, DateTime? endDate = null)
         {
             var query = _context.Contracts

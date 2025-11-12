@@ -4,6 +4,9 @@ namespace SalesApp.DTOs
 {
     public class UpdateContractRequest
     {
+        [MaxLength(50)]
+        public string? ContractNumber { get; set; }
+        
         public Guid? UserId { get; set; }
         
         [Range(0.01, double.MaxValue)]

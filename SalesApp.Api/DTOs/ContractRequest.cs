@@ -5,6 +5,10 @@ namespace SalesApp.DTOs
     public class ContractRequest
     {
         [Required]
+        [MaxLength(50)]
+        public string ContractNumber { get; set; } = string.Empty;
+        
+        [Required]
         public Guid UserId { get; set; }
         
         [Required]

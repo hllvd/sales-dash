@@ -7,6 +7,10 @@ namespace SalesApp.Models
         public int Id { get; set; }
         
         [Required]
+        [MaxLength(50)]
+        public string ContractNumber { get; set; } = string.Empty;
+        
+        [Required]
         public Guid UserId { get; set; }
         
         [Required]
