@@ -48,6 +48,7 @@ namespace SalesApp.Data
             {
                 entity.ToTable("Contracts");
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
                 entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Status).HasDefaultValue("active");
                 entity.Property(e => e.IsActive).HasDefaultValue(true);

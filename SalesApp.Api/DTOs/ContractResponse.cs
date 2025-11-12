@@ -2,7 +2,7 @@ namespace SalesApp.DTOs
 {
     public class ContractResponse
     {
-        public Guid Id { get; set; }
+        public int Id { get; set; }
         public Guid UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }

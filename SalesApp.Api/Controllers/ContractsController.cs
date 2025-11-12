@@ -64,7 +64,7 @@ namespace SalesApp.Controllers
         
         [HttpGet("{id}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ContractResponse>>> GetContract(Guid id)
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> GetContract(int id)
         {
             var contract = await _contractRepository.GetByIdAsync(id);
             if (contract == null || !contract.IsActive)
@@ -132,7 +132,7 @@ namespace SalesApp.Controllers
         
         [HttpPut("{id}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ContractResponse>>> UpdateContract(Guid id, UpdateContractRequest request)
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> UpdateContract(int id, UpdateContractRequest request)
         {
             var contract = await _contractRepository.GetByIdAsync(id);
             if (contract == null || !contract.IsActive)
@@ -199,7 +199,7 @@ namespace SalesApp.Controllers
         
         [HttpDelete("{id}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<object>>> DeleteContract(Guid id)
+        public async Task<ActionResult<ApiResponse<object>>> DeleteContract(int id)
         {
             var contract = await _contractRepository.GetByIdAsync(id);
             if (contract == null || !contract.IsActive)

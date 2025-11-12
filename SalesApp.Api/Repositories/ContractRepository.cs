@@ -13,7 +13,7 @@ namespace SalesApp.Repositories
             _context = context;
         }
         
-        public async Task<Contract?> GetByIdAsync(Guid id)
+        public async Task<Contract?> GetByIdAsync(int id)
         {
             return await _context.Contracts
                 .Include(c => c.User)
