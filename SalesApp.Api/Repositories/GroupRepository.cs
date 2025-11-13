@@ -13,7 +13,7 @@ namespace SalesApp.Repositories
             _context = context;
         }
         
-        public async Task<Group?> GetByIdAsync(Guid id)
+        public async Task<Group?> GetByIdAsync(int id)
         {
             return await _context.Groups.FindAsync(id);
         }
@@ -38,7 +38,7 @@ namespace SalesApp.Repositories
             return group;
         }
         
-        public async Task<bool> NameExistsAsync(string name, Guid? excludeId = null)
+        public async Task<bool> NameExistsAsync(string name, int? excludeId = null)
         {
             return await _context.Groups.AnyAsync(g => g.Name == name && g.IsActive && (excludeId == null || g.Id != excludeId));
         }

@@ -32,7 +32,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("{id}")]
-        public async Task<ActionResult<ApiResponse<GroupResponse>>> GetGroup(Guid id)
+        public async Task<ActionResult<ApiResponse<GroupResponse>>> GetGroup(int id)
         {
             var group = await _groupRepository.GetByIdAsync(id);
             if (group == null || !group.IsActive)
@@ -82,7 +82,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
-        public async Task<ActionResult<ApiResponse<GroupResponse>>> UpdateGroup(Guid id, UpdateGroupRequest request)
+        public async Task<ActionResult<ApiResponse<GroupResponse>>> UpdateGroup(int id, UpdateGroupRequest request)
         {
             var group = await _groupRepository.GetByIdAsync(id);
             if (group == null || !group.IsActive)
@@ -127,7 +127,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
-        public async Task<ActionResult<ApiResponse<object>>> DeleteGroup(Guid id)
+        public async Task<ActionResult<ApiResponse<object>>> DeleteGroup(int id)
         {
             var group = await _groupRepository.GetByIdAsync(id);
             if (group == null || !group.IsActive)

@@ -27,7 +27,7 @@ namespace SalesApp.Controllers
         [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetContracts(
             [FromQuery] Guid? userId = null,
-            [FromQuery] Guid? groupId = null,
+            [FromQuery] int? groupId = null,
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
         {

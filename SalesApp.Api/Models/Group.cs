@@ -4,7 +4,7 @@ namespace SalesApp.Models
 {
     public class Group
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public int Id { get; set; }
         
         [Required]
         [MaxLength(100)]

@@ -16,7 +16,7 @@ namespace SalesApp.DTOs
         public decimal TotalAmount { get; set; }
         
         [Required]
-        public Guid GroupId { get; set; }
+        public int GroupId { get; set; }
         
         [MaxLength(20)]
         public string Status { get; set; } = "active";

@@ -37,6 +37,7 @@ namespace SalesApp.Data
             modelBuilder.Entity<Group>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
                 entity.HasIndex(e => e.Name).IsUnique();
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.Commission).HasColumnType("decimal(5,2)");
