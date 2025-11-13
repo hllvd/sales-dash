@@ -110,6 +110,17 @@ namespace SalesApp.Controllers
         [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> CreateContract(ContractRequest request)
         {
+            // Validate contract number doesn't already exist
+            var existingContract = await _contractRepository.GetByContractNumberAsync(request.ContractNumber);
+            if (existingContract != null)
+            {
+                return BadRequest(new ApiResponse<ContractResponse>
+                {
+                    Success = false,
+                    Message = "Contract number already exists"
+                });
+            }
+            
             // Validate user exists
             var user = await _userRepository.GetByIdAsync(request.UserId);
             if (user == null || !user.IsActive)
@@ -168,7 +179,19 @@ namespace SalesApp.Controllers
             }
             
             if (!string.IsNullOrEmpty(request.ContractNumber))
+            {
+                // Validate contract number doesn't already exist (excluding current contract)
+                var existingContract = await _contractRepository.GetByContractNumberAsync(request.ContractNumber);
+                if (existingContract != null && existingContract.Id != id)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = "Contract number already exists"
+                    });
+                }
                 contract.ContractNumber = request.ContractNumber;
+            }
                 
             if (request.UserId.HasValue)
             {
