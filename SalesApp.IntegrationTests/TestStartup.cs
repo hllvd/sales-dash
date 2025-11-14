@@ -9,8 +9,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SalesApp.Data;
+using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 namespace SalesApp.IntegrationTests
@@ -26,9 +28,12 @@ namespace SalesApp.IntegrationTests
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // Database (InMemory for tests)
+            // Clear default JWT claim mappings
+            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+            
+            // Database (InMemory for tests) - shared across all tests
             services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase($"TestDb_{Guid.NewGuid()}"));
+                options.UseInMemoryDatabase("SharedIntegrationTestDb"));
 
             // Data Protection
             services.AddDataProtection()
@@ -56,11 +61,12 @@ namespace SalesApp.IntegrationTests
                 });
             });
             
-            // Controllers
-            services.AddControllers();
+            // Controllers - scan from main API assembly
+            services.AddControllers()
+                .AddApplicationPart(typeof(SalesApp.Controllers.RolesController).Assembly);
 
-            // JWT Authentication
-            var jwtKey = "test-jwt-key-for-integration-tests-12345";
+            // JWT Configuration
+            var jwtKey = Configuration["Jwt:Key"] ?? "test-secret-key-for-integration-tests-that-is-long-enough";
             var key = Encoding.ASCII.GetBytes(jwtKey);
 
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -74,7 +80,9 @@ namespace SalesApp.IntegrationTests
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = false,
                     ValidateAudience = false,
-                    ClockSkew = TimeSpan.Zero
+                    ClockSkew = TimeSpan.Zero,
+                    RoleClaimType = "role",
+                    NameClaimType = "unique_name"
                 };
             });
             

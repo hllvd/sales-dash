@@ -9,7 +9,7 @@ namespace SalesApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [DynamicRoleAuthorize("admin", "superadmin")]
+    [Authorize(Roles = "admin,superadmin")]
     public class RolesController : ControllerBase
     {
         private readonly IRoleRepository _roleRepository;
