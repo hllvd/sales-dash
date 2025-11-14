@@ -132,7 +132,7 @@ namespace SalesApp.Tests
                 Email = "test@example.com",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
                 Name = "Test User",
-                Role = "user"
+                Role = new Role { Name = "user" }
             };
 
             var request = new LoginRequest
@@ -192,7 +192,7 @@ namespace SalesApp.Tests
                 Id = targetUserId,
                 Name = "Target User",
                 Email = "target@example.com",
-                Role = "user"
+                Role = new Role { Name = "user" }
             };
 
             _mockUserRepository.Setup(x => x.GetByIdAsync(targetUserId)).ReturnsAsync(user);
@@ -255,7 +255,7 @@ namespace SalesApp.Tests
                 Id = userId,
                 Name = "Old Name",
                 Email = "old@example.com",
-                Role = "user"
+                Role = new Role { Name = "user" }
             };
 
             var updateRequest = new UpdateUserRequest
@@ -292,7 +292,7 @@ namespace SalesApp.Tests
                 Id = userId,
                 Name = "Test User",
                 Email = "test@example.com",
-                Role = "user"
+                Role = new Role { Name = "user" }
             };
 
             var updateRequest = new UpdateUserRequest
@@ -327,7 +327,7 @@ namespace SalesApp.Tests
                 Id = userId,
                 Name = "Test User",
                 Email = "test@example.com",
-                Role = "user"
+                Role = new Role { Name = "user" }
             };
 
             var updateRequest = new UpdateUserRequest
@@ -393,7 +393,7 @@ namespace SalesApp.Tests
                 Id = Guid.NewGuid(),
                 Name = "Parent User",
                 Email = "parent@example.com",
-                Role = "admin"
+                Role = new Role { Name = "admin" }
             };
 
             _mockHierarchyService.Setup(x => x.GetParentAsync(userId)).ReturnsAsync(parent);
@@ -498,7 +498,7 @@ namespace SalesApp.Tests
                 Id = Guid.NewGuid(),
                 Name = "Root User",
                 Email = "root@example.com",
-                Role = "superadmin",
+                Role = new Role { Name = "superadmin" },
                 Level = 0
             };
 

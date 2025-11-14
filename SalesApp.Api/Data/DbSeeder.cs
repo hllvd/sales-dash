@@ -9,21 +9,29 @@ namespace SalesApp.Data
         {
             await context.Database.MigrateAsync();
             
-            // Check if admin user exists
-            if (!await context.Users.AnyAsync(u => u.Role == UserRole.Admin))
+            // Check if admin user exists by email
+            var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Email == "admin@salesapp.com");
+            if (adminUser == null)
             {
-                var adminUser = new User
+                adminUser = new User
                 {
                     Name = "Admin User",
                     Email = "admin@salesapp.com",
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                    Role = UserRole.Admin,
+                    RoleId = 2, // Admin role
                     IsActive = true
                 };
                 
                 context.Users.Add(adminUser);
-                await context.SaveChangesAsync();
             }
+            else if (adminUser.RoleId != 2)
+            {
+                // Update existing admin user to have admin role
+                adminUser.RoleId = 2;
+                context.Users.Update(adminUser);
+            }
+            
+            await context.SaveChangesAsync();
         }
     }
 }

@@ -40,7 +40,10 @@ namespace SalesApp
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IGroupRepository, GroupRepository>();
             services.AddScoped<IContractRepository, ContractRepository>();
+            services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
+            services.AddScoped<IDynamicRoleAuthorizationService, DynamicRoleAuthorizationService>();
+            services.AddScoped<IEndpointDiscoveryService, EndpointDiscoveryService>();
             
             // CORS
             services.AddCors(options =>

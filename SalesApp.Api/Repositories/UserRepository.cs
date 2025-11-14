@@ -17,12 +17,15 @@ namespace SalesApp.Repositories
         {
             return await _context.Users
                 .Include(u => u.ParentUser)
+                .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Id == id);
         }
         
         public async Task<User?> GetByEmailAsync(string email)
         {
-            return await _context.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
+            return await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
         }
         
         public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null)
@@ -37,6 +40,7 @@ namespace SalesApp.Repositories
             var totalCount = await query.CountAsync();
             var users = await query
                 .Include(u => u.ParentUser)
+                .Include(u => u.Role)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -62,6 +66,15 @@ namespace SalesApp.Repositories
         public async Task<bool> EmailExistsAsync(string email, Guid? excludeId = null)
         {
             return await _context.Users.AnyAsync(u => u.Email == email && (excludeId == null || u.Id != excludeId));
+        }
+        
+        public async Task<List<User>> GetByRoleIdAsync(int roleId)
+        {
+            return await _context.Users
+                .Where(u => u.RoleId == roleId && u.IsActive)
+                .Include(u => u.ParentUser)
+                .Include(u => u.Role)
+                .ToListAsync();
         }
         
         public async Task<User?> GetParentAsync(Guid userId)

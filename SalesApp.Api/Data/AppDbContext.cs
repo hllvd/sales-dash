@@ -10,6 +10,7 @@ namespace SalesApp.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Group> Groups { get; set; }
         public DbSet<Contract> Contracts { get; set; }
+        public DbSet<Role> Roles { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -23,7 +24,12 @@ namespace SalesApp.Data
                 entity.Property(e => e.Email).IsRequired();
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.PasswordHash).IsRequired();
-                entity.Property(e => e.Role).HasDefaultValue(UserRole.User);
+                entity.Property(e => e.RoleId).HasDefaultValue(3);
+                
+                entity.HasOne(e => e.Role)
+                    .WithMany(r => r.Users)
+                    .HasForeignKey(e => e.RoleId)
+                    .OnDelete(DeleteBehavior.Restrict);
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
                 
                 // Self-referencing relationship
@@ -41,6 +47,16 @@ namespace SalesApp.Data
                 entity.HasIndex(e => e.Name).IsUnique();
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.Commission).HasColumnType("decimal(5,2)");
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
+            });
+            
+            // Role entity configuration
+            modelBuilder.Entity<Role>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.HasIndex(e => e.Name).IsUnique();
+                entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
             });
             

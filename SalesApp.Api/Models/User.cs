@@ -18,9 +18,10 @@ namespace SalesApp.Models
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
         
-        [Required]
-        [MaxLength(20)]
-        public string Role { get; set; } = UserRole.User; // "user", "admin", or "superadmin"
+        public int RoleId { get; set; } = 3; // Default to user role
+        
+        // Navigation property
+        public virtual Role? Role { get; set; } // "user", "admin", or "superadmin"
         
         public Guid? ParentUserId { get; set; }
         

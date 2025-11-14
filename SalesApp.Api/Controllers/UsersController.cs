@@ -62,7 +62,7 @@ namespace SalesApp.Controllers
                 Name = request.Name,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = request.Role,
+                RoleId = 3, // Default to user role for now
                 ParentUserId = request.ParentUserId
             };
             
@@ -123,6 +123,20 @@ namespace SalesApp.Controllers
                     Page = page,
                     PageSize = pageSize
                 },
+                Message = "Users retrieved successfully"
+            });
+        }
+        
+        [HttpGet("role/{roleId}")]
+        [Authorize(Roles = "admin,superadmin")]
+        public async Task<ActionResult<ApiResponse<List<UserResponse>>>> GetUsersByRole(int roleId)
+        {
+            var users = await _userRepository.GetByRoleIdAsync(roleId);
+            
+            return Ok(new ApiResponse<List<UserResponse>>
+            {
+                Success = true,
+                Data = users.Select(MapToUserResponse).ToList(),
                 Message = "Users retrieved successfully"
             });
         }
@@ -208,7 +222,7 @@ namespace SalesApp.Controllers
                         Message = "Invalid role. Must be: user, admin, or superadmin"
                     });
                 }
-                user.Role = request.Role;
+                // Role validation will be handled by RoleId in future update
             }
                 
             if (request.ParentUserId.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
@@ -269,7 +283,7 @@ namespace SalesApp.Controllers
                 Id = user.Id,
                 Name = user.Name,
                 Email = user.Email,
-                Role = user.Role,
+                Role = user.Role?.Name ?? "",
                 ParentUserId = user.ParentUserId,
                 ParentUserName = user.ParentUser?.Name,
                 IsActive = user.IsActive,
@@ -371,7 +385,7 @@ namespace SalesApp.Controllers
                 Id = user.Id,
                 Name = user.Name,
                 Email = user.Email,
-                Role = user.Role,
+                Role = user.Role?.Name ?? "",
                 ParentUserId = user.ParentUserId,
                 ParentUserName = user.ParentUser?.Name,
                 Level = user.Level,
