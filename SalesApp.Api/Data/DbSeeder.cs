@@ -31,6 +31,22 @@ namespace SalesApp.Data
                 context.Users.Update(adminUser);
             }
             
+            // Add test admin user
+            var testAdminUser = await context.Users.FirstOrDefaultAsync(u => u.Email == "user@example.com");
+            if (testAdminUser == null)
+            {
+                testAdminUser = new User
+                {
+                    Name = "Test Admin",
+                    Email = "user@example.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),
+                    RoleId = 2, // Admin role
+                    IsActive = true
+                };
+                
+                context.Users.Add(testAdminUser);
+            }
+            
             await context.SaveChangesAsync();
         }
     }

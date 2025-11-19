@@ -38,13 +38,14 @@ namespace SalesApp.IntegrationTests
             
             context.Database.EnsureCreated();
 
+            // Seed roles with explicit IDs to match the migration
             if (!context.Roles.Any())
             {
                 var roles = new[]
                 {
-                    new SalesApp.Models.Role { Name = "superadmin", Description = "Super Admin", Level = 1, IsActive = true },
-                    new SalesApp.Models.Role { Name = "admin", Description = "Admin", Level = 2, IsActive = true },
-                    new SalesApp.Models.Role { Name = "user", Description = "User", Level = 3, IsActive = true }
+                    new SalesApp.Models.Role { Id = 1, Name = "superadmin", Description = "Super Administrator with full system access", Level = 1, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.Role { Id = 2, Name = "admin", Description = "Administrator with management access", Level = 2, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.Role { Id = 3, Name = "user", Description = "Regular user with basic access", Level = 3, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
                 };
                 context.Roles.AddRange(roles);
                 await context.SaveChangesAsync();
@@ -53,6 +54,8 @@ namespace SalesApp.IntegrationTests
             if (!context.Users.Any())
             {
                 var adminRole = context.Roles.First(r => r.Name == "admin");
+                var superAdminRole = context.Roles.First(r => r.Name == "superadmin");
+                
                 var adminUser = new SalesApp.Models.User
                 {
                     Name = "Admin User",
@@ -61,7 +64,17 @@ namespace SalesApp.IntegrationTests
                     RoleId = adminRole.Id,
                     IsActive = true
                 };
-                context.Users.Add(adminUser);
+                
+                var superAdminUser = new SalesApp.Models.User
+                {
+                    Name = "Super Admin User",
+                    Email = "superadmin@test.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("superadmin123"),
+                    RoleId = superAdminRole.Id,
+                    IsActive = true
+                };
+                
+                context.Users.AddRange(adminUser, superAdminUser);
                 await context.SaveChangesAsync();
             }
         }

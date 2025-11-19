@@ -11,6 +11,7 @@ using Microsoft.OpenApi.Models;
 using SalesApp.Data;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 namespace SalesApp
@@ -26,6 +27,8 @@ namespace SalesApp
 
         public void ConfigureServices(IServiceCollection services)
         {
+
+            
             // Database (SQLite)
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
@@ -75,8 +78,7 @@ namespace SalesApp
                     ValidateIssuer = false,
                     ValidateAudience = false,
                     ClockSkew = TimeSpan.Zero,
-                    RoleClaimType = "role",
-                    NameClaimType = "unique_name"
+
                 };
             });
             

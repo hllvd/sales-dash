@@ -56,7 +56,22 @@ namespace SalesApp.IntegrationTests
         }
 
         [Fact]
-        public async Task GetRoles_WithAuth_ShouldReturnRoles()
+        public async Task GetRoles_WithAdminAuth_ShouldReturnRoles()
+        {
+            // Arrange
+            var token = await GetAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Act
+            var response = await client.GetAsync("/api/roles");
+
+            // Assert - Admin users should have access to view roles
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task GetRoles_WithSuperAdminAuth_ShouldReturnRoles()
         {
             // Arrange
             var token = await GetSuperAdminToken();
@@ -66,7 +81,7 @@ namespace SalesApp.IntegrationTests
             // Act
             var response = await client.GetAsync("/api/roles");
 
-            // Assert - Even superadmin gets forbidden in current setup
+            // Assert - SuperAdmin users should have access to view roles
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
 
@@ -128,27 +143,6 @@ namespace SalesApp.IntegrationTests
 
         private async Task<string> GetSuperAdminToken()
         {
-            // First create a superadmin user
-            using var scope = _factory.Services.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            
-            var superAdminRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "superadmin");
-            var existingSuperAdmin = await context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == "superadmin@test.com");
-            
-            if (existingSuperAdmin == null && superAdminRole != null)
-            {
-                var superAdminUser = new User
-                {
-                    Name = "Super Admin User",
-                    Email = "superadmin@test.com",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("superadmin123"),
-                    RoleId = superAdminRole.Id,
-                    IsActive = true
-                };
-                context.Users.Add(superAdminUser);
-                await context.SaveChangesAsync();
-            }
-
             var loginRequest = new LoginRequest
             {
                 Email = "superadmin@test.com",
