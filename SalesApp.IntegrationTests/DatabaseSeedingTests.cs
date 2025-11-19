@@ -26,15 +26,19 @@ namespace SalesApp.IntegrationTests
             var users = await context.Users.Include(u => u.Role).ToListAsync();
 
             roles.Should().HaveCount(3);
-            users.Should().HaveCount(1);
+            users.Should().HaveCount(3);
             
-            var adminUser = users.First();
-            adminUser.Email.Should().Be("admin@test.com");
+            var superAdminUser = users.First(u => u.Email == "superadmin@test.com");
+            superAdminUser.Role.Name.Should().Be("superadmin");
+            BCrypt.Net.BCrypt.Verify("superadmin123", superAdminUser.PasswordHash).Should().BeTrue();
+            
+            var adminUser = users.First(u => u.Email == "admin@test.com");
             adminUser.Role.Name.Should().Be("admin");
+            BCrypt.Net.BCrypt.Verify("admin123", adminUser.PasswordHash).Should().BeTrue();
             
-            // Test password verification
-            var isValidPassword = BCrypt.Net.BCrypt.Verify("admin123", adminUser.PasswordHash);
-            isValidPassword.Should().BeTrue();
+            var regularUser = users.First(u => u.Email == "user@test.com");
+            regularUser.Role.Name.Should().Be("user");
+            BCrypt.Net.BCrypt.Verify("user123", regularUser.PasswordHash).Should().BeTrue();
         }
     }
 }

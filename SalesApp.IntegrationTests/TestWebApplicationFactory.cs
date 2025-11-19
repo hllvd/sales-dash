@@ -53,17 +53,9 @@ namespace SalesApp.IntegrationTests
 
             if (!context.Users.Any())
             {
-                var adminRole = context.Roles.First(r => r.Name == "admin");
                 var superAdminRole = context.Roles.First(r => r.Name == "superadmin");
-                
-                var adminUser = new SalesApp.Models.User
-                {
-                    Name = "Admin User",
-                    Email = "admin@test.com",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                    RoleId = adminRole.Id,
-                    IsActive = true
-                };
+                var adminRole = context.Roles.First(r => r.Name == "admin");
+                var userRole = context.Roles.First(r => r.Name == "user");
                 
                 var superAdminUser = new SalesApp.Models.User
                 {
@@ -74,7 +66,25 @@ namespace SalesApp.IntegrationTests
                     IsActive = true
                 };
                 
-                context.Users.AddRange(adminUser, superAdminUser);
+                var adminUser = new SalesApp.Models.User
+                {
+                    Name = "Admin User",
+                    Email = "admin@test.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                    RoleId = adminRole.Id,
+                    IsActive = true
+                };
+                
+                var regularUser = new SalesApp.Models.User
+                {
+                    Name = "Regular User",
+                    Email = "user@test.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("user123"),
+                    RoleId = userRole.Id,
+                    IsActive = true
+                };
+                
+                context.Users.AddRange(superAdminUser, adminUser, regularUser);
                 await context.SaveChangesAsync();
             }
         }
