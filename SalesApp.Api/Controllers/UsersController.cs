@@ -25,7 +25,6 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost("register")]
-        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> Register(RegisterRequest request)
         {
             if (!UserRole.IsValid(request.Role))
@@ -172,16 +171,11 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
-        [Authorize]
+        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> UpdateUser(Guid id, UpdateUserRequest request)
         {
             var currentUserId = GetCurrentUserId();
             var currentUserRole = GetCurrentUserRole();
-            
-            if (currentUserRole != "admin" && currentUserId != id)
-            {
-                return Forbid();
-            }
             
             var user = await _userRepository.GetByIdAsync(id);
             if (user == null)
@@ -253,7 +247,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
-        [Authorize(Roles = "admin,superadmin")]
+        [Authorize(Roles = "superadmin")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteUser(Guid id)
         {
             var user = await _userRepository.GetByIdAsync(id);
@@ -332,7 +326,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("{id}/tree")]
-        [Authorize]
+        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<UserTreeResponse>>> GetTree(Guid id, [FromQuery] int depth = -1)
         {
             var tree = await _hierarchyService.GetTreeAsync(id, depth);
@@ -365,7 +359,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("root")]
-        [Authorize]
+        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<UserHierarchyResponse?>>> GetRoot()
         {
             var root = await _hierarchyService.GetRootUserAsync();
