@@ -378,6 +378,30 @@ namespace SalesApp.Controllers
             });
         }
         
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserResponse>>> GetCurrentUser()
+        {
+            var currentUserId = GetCurrentUserId();
+            var user = await _userRepository.GetByIdAsync(currentUserId);
+            
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<UserResponse>
+                {
+                    Success = false,
+                    Message = "User not found"
+                });
+            }
+            
+            return Ok(new ApiResponse<UserResponse>
+            {
+                Success = true,
+                Data = MapToUserResponse(user),
+                Message = "Current user retrieved successfully"
+            });
+        }
+        
         private UserHierarchyResponse MapToHierarchyResponse(User user)
         {
             return new UserHierarchyResponse
