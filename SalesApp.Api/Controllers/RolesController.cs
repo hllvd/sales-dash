@@ -132,6 +132,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteRole(int id)
         {
             var role = await _roleRepository.GetByIdAsync(id);
