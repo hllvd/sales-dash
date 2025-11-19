@@ -28,12 +28,13 @@ namespace SalesApp.IntegrationTests
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // Clear default JWT claim mappings
+            // Clear default JWT claim mappings to prevent claim type transformation
             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+            JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap.Clear();
             
-            // Database (InMemory for tests) - shared across all tests
+            // Database (InMemory for tests) - unique per test run
             services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase("SharedIntegrationTestDb"));
+                options.UseInMemoryDatabase($"IntegrationTestDb_{Guid.NewGuid()}"));
 
             // Data Protection
             services.AddDataProtection()

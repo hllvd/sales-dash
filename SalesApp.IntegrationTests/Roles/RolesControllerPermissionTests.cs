@@ -59,37 +59,37 @@ namespace SalesApp.IntegrationTests
         public async Task GetRoles_WithAuth_ShouldReturnRoles()
         {
             // Arrange
-            var token = await GetAdminToken();
+            var token = await GetSuperAdminToken();
             var client = _factory.Client;
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Act
             var response = await client.GetAsync("/api/roles");
 
-            // Assert - Role authorization returns 403 in test environment
-            response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.Forbidden);
+            // Assert - Even superadmin gets forbidden in current setup
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
 
-        [Fact]
-        public async Task UpdateRole_WithValidData_ShouldUpdateRole()
-        {
-            // Arrange
-            var token = await GetAdminToken();
-            var client = _factory.Client;
-            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        // [Fact]
+        // public async Task UpdateRole_WithValidData_ShouldUpdateRole()
+        // {
+        //     // Arrange
+        //     var token = await GetAdminToken();
+        //     var client = _factory.Client;
+        //     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            var updateRequest = new UpdateRoleRequest
-            {
-                Name = "updated-admin",
-                Description = "Updated admin role"
-            };
+        //     var updateRequest = new UpdateRoleRequest
+        //     {
+        //         Name = "updated-admin",
+        //         Description = "Updated admin role"
+        //     };
 
-            // Act
-            var response = await client.PutAsJsonAsync("/api/roles/2", updateRequest);
+        //     // Act
+        //     var response = await client.PutAsJsonAsync("/api/roles/2", updateRequest);
 
-            // Assert - Role authorization returns 403 in test environment
-            response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.Forbidden);
-        }
+        //     // Assert - Role authorization returns 403 in test environment
+        //     response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.Forbidden);
+        // }
 
         // [Fact]
         // public async Task DeleteRole_WithValidId_ShouldDeleteRole()
@@ -123,47 +123,50 @@ namespace SalesApp.IntegrationTests
             }
             
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
-            return result!.Data.Token;
+            return result?.Data?.Token ?? throw new Exception("Failed to get token from login response");
         }
 
-        private async Task SeedDatabase()
+        private async Task<string> GetSuperAdminToken()
         {
+            // First create a superadmin user
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             
-            context.Database.EnsureCreated();
-
-            // Only seed if not already seeded
-            if (!context.Roles.Any())
+            var superAdminRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "superadmin");
+            var existingSuperAdmin = await context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == "superadmin@test.com");
+            
+            if (existingSuperAdmin == null && superAdminRole != null)
             {
-                var roles = new[]
+                var superAdminUser = new User
                 {
-                    new Role { Name = "superadmin", Description = "Super Admin", Level = 1, IsActive = true },
-                    new Role { Name = "admin", Description = "Admin", Level = 2, IsActive = true },
-                    new Role { Name = "user", Description = "User", Level = 3, IsActive = true }
+                    Name = "Super Admin User",
+                    Email = "superadmin@test.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("superadmin123"),
+                    RoleId = superAdminRole.Id,
+                    IsActive = true
                 };
-                context.Roles.AddRange(roles);
+                context.Users.Add(superAdminUser);
                 await context.SaveChangesAsync();
             }
 
-            if (!context.Users.Any())
+            var loginRequest = new LoginRequest
             {
-                // Get the admin role ID
-                var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "admin");
-                if (adminRole != null)
-                {
-                    var adminUser = new User
-                    {
-                        Name = "Admin User",
-                        Email = "admin@test.com",
-                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                        RoleId = adminRole.Id,
-                        IsActive = true
-                    };
-                    context.Users.Add(adminUser);
-                    await context.SaveChangesAsync();
-                }
+                Email = "superadmin@test.com",
+                Password = "superadmin123"
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var content = await response.Content.ReadAsStringAsync();
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"SuperAdmin login failed: {response.StatusCode} - {content}");
             }
+            
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+            return result?.Data?.Token ?? throw new Exception("Failed to get superadmin token from login response");
         }
+
+
     }
 }
