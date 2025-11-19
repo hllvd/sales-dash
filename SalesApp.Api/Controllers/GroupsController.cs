@@ -8,7 +8,7 @@ namespace SalesApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "admin,superadmin")]
+    [Authorize]
     public class GroupsController : ControllerBase
     {
         private readonly IGroupRepository _groupRepository;
@@ -19,6 +19,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet]
+        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<List<GroupResponse>>>> GetGroups()
         {
             var groups = await _groupRepository.GetAllAsync();
@@ -53,6 +54,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost]
+        [Authorize(Roles = "superadmin")]
         public async Task<ActionResult<ApiResponse<GroupResponse>>> CreateGroup(GroupRequest request)
         {
             if (await _groupRepository.NameExistsAsync(request.Name))
@@ -82,6 +84,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
+        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<GroupResponse>>> UpdateGroup(int id, UpdateGroupRequest request)
         {
             var group = await _groupRepository.GetByIdAsync(id);
@@ -127,6 +130,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteGroup(int id)
         {
             var group = await _groupRepository.GetByIdAsync(id);

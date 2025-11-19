@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesApp.Attributes;
 using SalesApp.DTOs;
@@ -7,7 +8,7 @@ namespace SalesApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [DynamicRoleAuthorize("admin", "superadmin")]
+    [Authorize]
     public class EndpointsController : ControllerBase
     {
         private readonly IEndpointDiscoveryService _endpointService;

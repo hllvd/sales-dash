@@ -63,7 +63,6 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("{id}")]
-        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> GetContract(int id)
         {
             var contract = await _contractRepository.GetByIdAsync(id);
@@ -165,7 +164,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
-        [Authorize(Roles = "admin,superadmin")]
+        [Authorize(Roles = "superadmin")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> UpdateContract(int id, UpdateContractRequest request)
         {
             var contract = await _contractRepository.GetByIdAsync(id);
@@ -247,7 +246,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
-        [Authorize(Roles = "admin,superadmin")]
+        [Authorize(Roles = "superadmin")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteContract(int id)
         {
             var contract = await _contractRepository.GetByIdAsync(id);
