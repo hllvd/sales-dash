@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
+using System.Text.Json;
 using FluentAssertions;
 using SalesApp.DTOs;
 using Xunit;
@@ -35,6 +36,44 @@ namespace SalesApp.IntegrationTests.Roles
             return result?.Data?.Token ?? throw new Exception("Failed to get superadmin token");
         }
 
+        private void InspectToken(string token)
+        {
+            try
+            {
+                var parts = token.Split('.');
+                if (parts.Length == 3)
+                {
+                    // Decode the payload (second part)
+                    var payload = parts[1];
+                    // Add padding if needed
+                    var padding = 4 - (payload.Length % 4);
+                    if (padding != 4)
+                        payload += new string('=', padding);
+                    
+                    var decoded = System.Convert.FromBase64String(payload);
+                    var json = System.Text.Encoding.UTF8.GetString(decoded);
+                    System.Console.WriteLine($"JWT Payload: {json}");
+                    
+                    using (JsonDocument doc = JsonDocument.Parse(json))
+                    {
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("role", out var roleClaim))
+                        {
+                            System.Console.WriteLine($"Role claim found: {roleClaim}");
+                        }
+                        else
+                        {
+                            System.Console.WriteLine("WARNING: No 'role' claim found in JWT!");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error inspecting token: {ex.Message}");
+            }
+        }
+
         public class RoleRequest
         {
             public string Name { get; set; } = string.Empty;
@@ -59,7 +98,11 @@ namespace SalesApp.IntegrationTests.Roles
                 Level = 10,
                 Permissions = "{\"canTest\":true}"
             };
+            InspectToken(token);
+            
             var createResponse = await _client.PostAsJsonAsync("/api/roles", createRequest);
+            
+            // Should succeed now that JWT configuration is fixed
             createResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
             // List roles and check the new role exists

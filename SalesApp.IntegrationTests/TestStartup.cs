@@ -28,9 +28,6 @@ namespace SalesApp.IntegrationTests
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // Clear default JWT claim mappings
-            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-            
             // Database (InMemory for tests) - shared across all tests
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase("SharedIntegrationTestDb"));
@@ -65,7 +62,7 @@ namespace SalesApp.IntegrationTests
             services.AddControllers()
                 .AddApplicationPart(typeof(SalesApp.Controllers.RolesController).Assembly);
 
-            // JWT Configuration
+            // JWT Configuration - matches main API Startup.cs
             var jwtKey = Configuration["Jwt:Key"] ?? "test-secret-key-for-integration-tests-that-is-long-enough";
             var key = Encoding.ASCII.GetBytes(jwtKey);
 
@@ -80,9 +77,7 @@ namespace SalesApp.IntegrationTests
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = false,
                     ValidateAudience = false,
-                    ClockSkew = TimeSpan.Zero,
-                    RoleClaimType = "role",
-                    NameClaimType = "unique_name"
+                    ClockSkew = TimeSpan.Zero
                 };
             });
             

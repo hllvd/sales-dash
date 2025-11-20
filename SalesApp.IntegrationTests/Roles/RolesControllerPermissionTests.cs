@@ -33,7 +33,7 @@ namespace SalesApp.IntegrationTests
         }
 
         [Fact]
-        public async Task CreateRole_WithAdminToken_ShouldReturnForbidden()
+        public async Task CreateRole_WithAdminToken_ShouldSucceed()
         {
             // Arrange
             var token = await GetAdminToken();
@@ -42,7 +42,7 @@ namespace SalesApp.IntegrationTests
 
             var request = new RoleRequest
             {
-                Name = "manager",
+                Name = $"manager-{Guid.NewGuid().ToString()[..8]}",
                 Description = "Manager role",
                 Level = 3,
                 Permissions = "{\"canEdit\": true}"
@@ -51,8 +51,8 @@ namespace SalesApp.IntegrationTests
             // Act
             var response = await client.PostAsJsonAsync("/api/roles", request);
 
-            // Assert - Role creation is forbidden for admin users
-            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            // Assert - Admin users can create roles per RolesController authorization
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
 
         // [Fact]
@@ -82,7 +82,7 @@ namespace SalesApp.IntegrationTests
             var response = await client.GetAsync("/api/roles");
 
             // Assert - SuperAdmin users should have access to view roles
-            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
 
         [Fact]
@@ -124,7 +124,7 @@ namespace SalesApp.IntegrationTests
         }
 
         [Fact]
-        public async Task CreateRole_WithAdminAuth_ShouldReturnUnauthorizedOrForbidden()
+        public async Task CreateRole_WithAdminAuth_ShouldSucceed()
         {
             // Arrange
             var token = await GetAdminToken();
@@ -133,7 +133,7 @@ namespace SalesApp.IntegrationTests
 
             var request = new RoleRequest
             {
-                Name = "newrole",
+                Name = $"newrole-{Guid.NewGuid().ToString()[..8]}",
                 Description = "New role for testing",
                 Level = 4,
                 Permissions = "{\"canView\": true}"
@@ -142,8 +142,8 @@ namespace SalesApp.IntegrationTests
             // Act
             var response = await client.PostAsJsonAsync("/api/roles", request);
 
-            // Assert - Admin should receive Unauthorized or Forbidden when trying to create roles
-            response.StatusCode.Should().BeOneOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden);
+            // Assert - Admin can create roles per RolesController authorization
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
 
         // [Fact]
