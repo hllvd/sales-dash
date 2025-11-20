@@ -30,13 +30,6 @@ namespace SalesApp.Api.Migrations
                     table.PrimaryKey("PK_Groups", x => x.Id);
                 });
 
-            // Create unique index on Name
-            migrationBuilder.CreateIndex(
-                name: "IX_Groups_Name",
-                table: "Groups_New",
-                column: "Name",
-                unique: true);
-
             // Copy data from old Groups table (excluding Id)
             migrationBuilder.Sql(@"
                 INSERT INTO Groups_New (Name, Description, Commission, IsActive, CreatedAt, UpdatedAt)
@@ -90,13 +83,6 @@ namespace SalesApp.Api.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
-            // Create unique index on ContractNumber
-            migrationBuilder.CreateIndex(
-                name: "IX_Contracts_ContractNumber",
-                table: "Contracts_New",
-                column: "ContractNumber",
-                unique: true);
-
             // Copy Contracts data with mapped GroupId
             migrationBuilder.Sql(@"
                 INSERT INTO Contracts_New (ContractNumber, UserId, TotalAmount, GroupId, Status, SaleStartDate, SaleEndDate, IsActive, CreatedAt, UpdatedAt)
@@ -113,6 +99,31 @@ namespace SalesApp.Api.Migrations
             // Rename new tables
             migrationBuilder.RenameTable(name: "Groups_New", newName: "Groups");
             migrationBuilder.RenameTable(name: "Contracts_New", newName: "Contracts");
+
+            // Create unique index on Name after rename
+            migrationBuilder.CreateIndex(
+                name: "IX_Groups_Name",
+                table: "Groups",
+                column: "Name",
+                unique: true);
+
+            // Create unique index on ContractNumber after rename
+            migrationBuilder.CreateIndex(
+                name: "IX_Contracts_ContractNumber",
+                table: "Contracts",
+                column: "ContractNumber",
+                unique: true);
+
+            // Create indexes for foreign keys
+            migrationBuilder.CreateIndex(
+                name: "IX_Contracts_GroupId",
+                table: "Contracts",
+                column: "GroupId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Contracts_UserId",
+                table: "Contracts",
+                column: "UserId");
 
             // Drop temporary mapping table
             migrationBuilder.Sql("DROP TABLE GroupIdMapping;");

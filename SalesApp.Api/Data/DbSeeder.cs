@@ -47,6 +47,22 @@ namespace SalesApp.Data
                 context.Users.Add(testAdminUser);
             }
             
+            // Add superadmin user
+            var superAdminUser = await context.Users.FirstOrDefaultAsync(u => u.Email == "superadmin@salesapp.com");
+            if (superAdminUser == null)
+            {
+                superAdminUser = new User
+                {
+                    Name = "Super Admin",
+                    Email = "superadmin@salesapp.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),
+                    RoleId = 1, // Superadmin role
+                    IsActive = true
+                };
+                
+                context.Users.Add(superAdminUser);
+            }
+            
             await context.SaveChangesAsync();
         }
     }
