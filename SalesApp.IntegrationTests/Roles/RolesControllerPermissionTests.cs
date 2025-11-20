@@ -55,20 +55,20 @@ namespace SalesApp.IntegrationTests
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
 
-        // [Fact]
-        // public async Task GetRoles_WithAdminAuth_ShouldReturnRoles()
-        // {
-        //     // Arrange
-        //     var token = await GetAdminToken();
-        //     var client = _factory.Client;
-        //     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        [Fact]
+        public async Task GetRoles_WithAdminAuth_ShouldReturnRoles()
+        {
+            // Arrange
+            var token = await GetAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        //     // Act
-        //     var response = await client.GetAsync("/api/roles");
+            // Act
+            var response = await client.GetAsync("/api/roles");
 
-        //     // Assert - Admin users should have access to view roles
-        //     response.StatusCode.Should().Be(HttpStatusCode.OK);
-        // }
+            // Assert - Admin users should have access to view roles
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
 
         [Fact]
         public async Task GetRoles_WithSuperAdminAuth_ShouldReturnRoles()
@@ -146,41 +146,6 @@ namespace SalesApp.IntegrationTests
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
 
-        // [Fact]
-        // public async Task UpdateRole_WithValidData_ShouldUpdateRole()
-        // {
-        //     // Arrange
-        //     var token = await GetAdminToken();
-        //     var client = _factory.Client;
-        //     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-        //     var updateRequest = new UpdateRoleRequest
-        //     {
-        //         Name = "updated-admin",
-        //         Description = "Updated admin role"
-        //     };
-
-        //     // Act
-        //     var response = await client.PutAsJsonAsync("/api/roles/2", updateRequest);
-
-        //     // Assert - Role authorization returns 403 in test environment
-        //     response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.Forbidden);
-        // }
-
-        // [Fact]
-        // public async Task DeleteRole_WithValidData_ShouldUpdateRole()
-        // {
-        //     // Arrange
-        //     var token = await GetAdminToken();
-        //     var client = _factory.Client;
-        //     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-        //     // Act
-        //     var response = await client.PutAsJsonAsync("/api/roles/2", updateRequest);
-
-        //     // Assert - Role authorization returns 403 in test environment
-        //     response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.Forbidden);
-        // }
 
         [Fact]
         public async Task DeleteRole_WithAdminAuth_ShouldReturnUnauthorizedOrForbidden()
