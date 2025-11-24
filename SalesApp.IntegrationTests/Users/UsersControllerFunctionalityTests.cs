@@ -1,6 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using SalesApp.Data;
+using SalesApp.Models;
 using SalesApp.DTOs;
 using Xunit;
 
@@ -252,6 +256,176 @@ namespace SalesApp.IntegrationTests.Users
             
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
             return result?.Data?.Token ?? throw new Exception("Failed to get superadmin token from login response");
+        }
+        [Fact]
+        public async Task AssignContract_AsRegularUser_ShouldSucceed()
+        {
+            // Arrange
+            var regularUserId = await GetUserIdByEmail("user@test.com");
+            var superAdminUserId = await GetUserIdByEmail("superadmin@test.com");
+            
+            var contract = await CreateContract(superAdminUserId);
+            
+            var token = await GetUserToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Act
+            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}", null);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.UserId.Should().Be(regularUserId);
+            
+            // Verify in DB
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var dbContract = await context.Contracts.FindAsync(contract.Id);
+            dbContract.Should().NotBeNull();
+            dbContract!.UserId.Should().Be(regularUserId);
+        }
+
+        [Fact]
+        public async Task AssignContract_AsAdmin_ShouldSucceed()
+        {
+            // Arrange
+            var adminUserId = await GetUserIdByEmail("admin@test.com");
+            var superAdminUserId = await GetUserIdByEmail("superadmin@test.com");
+            
+            var contract = await CreateContract(superAdminUserId);
+            
+            var token = await GetAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Act
+            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}", null);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            result!.Success.Should().BeTrue();
+            result.Data!.UserId.Should().Be(adminUserId);
+        }
+
+        [Fact]
+        public async Task AssignContract_AsSuperAdmin_ShouldSucceed()
+        {
+            // Arrange
+            var superAdminUserId = await GetUserIdByEmail("superadmin@test.com");
+            var regularUserId = await GetUserIdByEmail("user@test.com");
+            
+            var contract = await CreateContract(regularUserId);
+            
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Act
+            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}", null);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            result!.Success.Should().BeTrue();
+            result.Data!.UserId.Should().Be(superAdminUserId);
+        }
+
+        [Fact]
+        public async Task AssignContract_NonExistent_ShouldReturnNotFound()
+        {
+            // Arrange
+            var token = await GetUserToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Act
+            var response = await client.PostAsync("/api/users/assign-contract/NON-EXISTENT-CONTRACT", null);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        }
+
+        private async Task<Contract> CreateContract(Guid userId)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            
+            // Ensure group exists
+            var group = await context.Groups.FirstOrDefaultAsync();
+            if (group == null)
+            {
+                group = new Group { Name = "Test Group", Description = "Test Group" };
+                context.Groups.Add(group);
+                await context.SaveChangesAsync();
+            }
+            
+            var contract = new Contract
+            {
+                ContractNumber = $"CN-{Guid.NewGuid().ToString()[..8]}",
+                UserId = userId,
+                TotalAmount = 1000,
+                GroupId = group.Id,
+                Status = "active",
+                IsActive = true
+            };
+            
+            context.Contracts.Add(contract);
+            await context.SaveChangesAsync();
+            
+            return contract;
+        }
+
+        private async Task<Guid> GetUserIdByEmail(string email)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = await context.Users.FirstAsync(u => u.Email == email);
+            return user.Id;
+        }
+
+        private async Task<string> GetUserToken()
+        {
+            var loginRequest = new LoginRequest
+            {
+                Email = "user@test.com",
+                Password = "user123"
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var content = await response.Content.ReadAsStringAsync();
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"User login failed: {response.StatusCode} - {content}");
+            }
+            
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+            return result?.Data?.Token ?? throw new Exception("Failed to get user token from login response");
+        }
+
+        private async Task<string> GetAdminToken()
+        {
+            var loginRequest = new LoginRequest
+            {
+                Email = "admin@test.com",
+                Password = "admin123"
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var content = await response.Content.ReadAsStringAsync();
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"Admin login failed: {response.StatusCode} - {content}");
+            }
+            
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+            return result?.Data?.Token ?? throw new Exception("Failed to get admin token from login response");
         }
     }
 }

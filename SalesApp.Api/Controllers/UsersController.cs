@@ -16,12 +16,14 @@ namespace SalesApp.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IJwtService _jwtService;
         private readonly IUserHierarchyService _hierarchyService;
+        private readonly IContractRepository _contractRepository;
         
-        public UsersController(IUserRepository userRepository, IJwtService jwtService, IUserHierarchyService hierarchyService)
+        public UsersController(IUserRepository userRepository, IJwtService jwtService, IUserHierarchyService hierarchyService, IContractRepository contractRepository)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
             _hierarchyService = hierarchyService;
+            _contractRepository = contractRepository;
         }
         
         [HttpPost("register")]
@@ -396,6 +398,55 @@ namespace SalesApp.Controllers
             });
         }
         
+        [HttpPost("assign-contract/{contractNumber}")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> AssignContract(string contractNumber)
+        {
+            var currentUserId = GetCurrentUserId();
+            
+            var contract = await _contractRepository.GetByContractNumberAsync(contractNumber);
+            if (contract == null)
+            {
+                return NotFound(new ApiResponse<ContractResponse>
+                {
+                    Success = false,
+                    Message = "Contract not found"
+                });
+            }
+            
+            var user = await _userRepository.GetByIdAsync(currentUserId);
+            if (user == null)
+            {
+                return Unauthorized(new ApiResponse<ContractResponse>
+                {
+                    Success = false,
+                    Message = "User not found"
+                });
+            }
+
+            contract.UserId = currentUserId;
+            contract.User = user;
+            await _contractRepository.UpdateAsync(contract);
+            
+            return Ok(new ApiResponse<ContractResponse>
+            {
+                Success = true,
+                Data = new ContractResponse
+                {
+                    Id = contract.Id,
+                    ContractNumber = contract.ContractNumber,
+                    UserId = currentUserId,
+                    UserName = user.Name,
+                    TotalAmount = contract.TotalAmount,
+                Status = contract.Status,
+                ContractStartDate = contract.SaleStartDate,
+                ContractEndDate = contract.SaleEndDate,
+                IsActive = contract.IsActive
+                },
+                Message = "Contract assigned successfully"
+            });
+        }
+
         private UserHierarchyResponse MapToHierarchyResponse(User user)
         {
             return new UserHierarchyResponse
