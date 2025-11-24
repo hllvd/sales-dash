@@ -310,6 +310,13 @@ namespace SalesApp.IntegrationTests.Users
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result!.Success.Should().BeTrue();
             result.Data!.UserId.Should().Be(adminUserId);
+            
+            // Verify in DB
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var dbContract = await context.Contracts.FindAsync(contract.Id);
+            dbContract.Should().NotBeNull();
+            dbContract!.UserId.Should().Be(adminUserId);
         }
 
         [Fact]
@@ -333,6 +340,13 @@ namespace SalesApp.IntegrationTests.Users
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result!.Success.Should().BeTrue();
             result.Data!.UserId.Should().Be(superAdminUserId);
+            
+            // Verify in DB
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var dbContract = await context.Contracts.FindAsync(contract.Id);
+            dbContract.Should().NotBeNull();
+            dbContract!.UserId.Should().Be(superAdminUserId);
         }
 
         [Fact]
