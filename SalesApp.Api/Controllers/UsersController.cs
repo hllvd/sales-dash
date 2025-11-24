@@ -141,13 +141,13 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("{id}")]
-        [Authorize]
+        [Authorize(Roles = "admin,superadmin,user")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> GetUser(Guid id)
         {
             var currentUserId = GetCurrentUserId();
             var currentUserRole = GetCurrentUserRole();
             
-            if (currentUserRole != "admin" && currentUserId != id)
+            if (currentUserRole != "admin" && currentUserRole != "superadmin" && currentUserId != id)
             {
                 return Forbid();
             }
