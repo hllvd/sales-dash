@@ -5,9 +5,6 @@ namespace SalesApp.DTOs
     public class ColumnMappingRequest
     {
         [Required]
-        public string UploadId { get; set; } = string.Empty;
-        
-        [Required]
         public Dictionary<string, string> Mappings { get; set; } = new();
         
         public string? SaveMappingAs { get; set; }

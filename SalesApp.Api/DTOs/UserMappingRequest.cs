@@ -21,9 +21,6 @@ namespace SalesApp.DTOs
     public class UserMappingRequest
     {
         [Required]
-        public string UploadId { get; set; } = string.Empty;
-        
-        [Required]
         public List<UserMappingItem> UserMappings { get; set; } = new();
     }
 }

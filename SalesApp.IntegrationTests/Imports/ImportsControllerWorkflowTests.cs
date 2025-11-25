@@ -41,7 +41,6 @@ TEST-002,Jane,Smith,2000.75,1,active";
             // Configure mappings - Note: mappings endpoint expects file data to be stored in session
             var mappingRequest = new
             {
-                uploadId = uploadId,
                 mappings = new Dictionary<string, string>
                 {
                     { "Contract Number", "ContractNumber" },
@@ -81,12 +80,12 @@ TEST-002,Jane,Smith,2000.75,1,active";
                     });
                 }
 
-                var userMappingResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/users", new { uploadId, userMappings });
+                var userMappingResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/users", new { userMappings });
                 userMappingResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             }
 
             // Confirm import
-            var confirmResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", new { uploadId });
+            var confirmResponse = await _client.PostAsync($"/api/imports/{uploadId}/confirm", null);
 
             // Assert
             confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -318,7 +317,6 @@ EXIST-001,{firstName},{lastName},1000,1";
             // Configure mappings
             var mappingRequest = new
             {
-                uploadId = uploadId,
                 mappings = new Dictionary<string, string>
                 {
                     { "Contract Number", "ContractNumber" },
@@ -357,7 +355,7 @@ EXIST-001,{firstName},{lastName},1000,1";
             }
 
             // Confirm import
-            var confirmResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", new { uploadId });
+            var confirmResponse = await _client.PostAsync($"/api/imports/{uploadId}/confirm", null);
 
             // Assert
             confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);

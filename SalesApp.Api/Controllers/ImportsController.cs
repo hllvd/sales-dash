@@ -484,7 +484,7 @@ namespace SalesApp.Controllers
 
         [HttpPost("{uploadId}/confirm")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmImport(string uploadId, ImportConfirmRequest request)
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmImport(string uploadId)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
             if (session == null)
