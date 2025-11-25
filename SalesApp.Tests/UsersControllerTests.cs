@@ -17,6 +17,7 @@ namespace SalesApp.Tests
         private readonly Mock<IUserRepository> _mockUserRepository;
         private readonly Mock<IJwtService> _mockJwtService;
         private readonly Mock<IUserHierarchyService> _mockHierarchyService;
+        private readonly Mock<IContractRepository> _mockContractRepository;
         private readonly UsersController _controller;
 
         public UsersControllerTests()
@@ -24,7 +25,12 @@ namespace SalesApp.Tests
             _mockUserRepository = new Mock<IUserRepository>();
             _mockJwtService = new Mock<IJwtService>();
             _mockHierarchyService = new Mock<IUserHierarchyService>();
-            _controller = new UsersController(_mockUserRepository.Object, _mockJwtService.Object, _mockHierarchyService.Object);
+            _mockContractRepository = new Mock<IContractRepository>();
+            _controller = new UsersController(
+                _mockUserRepository.Object, 
+                _mockJwtService.Object, 
+                _mockHierarchyService.Object,
+                _mockContractRepository.Object);
         }
 
         private void SetupUser(string userId, string role)

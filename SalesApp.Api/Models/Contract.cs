@@ -33,6 +33,9 @@ namespace SalesApp.Models
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         
+        [MaxLength(50)]
+        public string? UploadId { get; set; } // Tracks which import session created this contract
+        
         // Navigation properties
         public User User { get; set; } = null!;
         public Group Group { get; set; } = null!;

@@ -48,6 +48,19 @@ namespace SalesApp
             services.AddScoped<IDynamicRoleAuthorizationService, DynamicRoleAuthorizationService>();
             services.AddScoped<IEndpointDiscoveryService, EndpointDiscoveryService>();
             
+            // Import repositories
+            services.AddScoped<IImportTemplateRepository, ImportTemplateRepository>();
+            services.AddScoped<IImportSessionRepository, ImportSessionRepository>();
+            services.AddScoped<IImportColumnMappingRepository, ImportColumnMappingRepository>();
+            services.AddScoped<IImportUserMappingRepository, ImportUserMappingRepository>();
+            
+            // Import services
+            services.AddScoped<IFileParserService, FileParserService>();
+            services.AddScoped<IAutoMappingService, AutoMappingService>();
+            services.AddScoped<IUserMatchingService, UserMatchingService>();
+            services.AddScoped<IImportValidationService, ImportValidationService>();
+            services.AddScoped<IImportExecutionService, ImportExecutionService>();
+            
             // CORS
             services.AddCors(options =>
             {
@@ -115,6 +128,16 @@ namespace SalesApp
                         Array.Empty<string>()
                     }
                 });
+                
+                // Support for file uploads - must come before OperationFilter
+                c.MapType<IFormFile>(() => new OpenApiSchema
+                {
+                    Type = "string",
+                    Format = "binary"
+                });
+                
+                // Custom operation filter for file uploads
+                c.OperationFilter<FileUploadOperationFilter>();
             });
         }
 

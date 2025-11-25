@@ -61,6 +61,16 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
         
+        public async Task<List<Contract>> GetByUploadIdAsync(string uploadId)
+        {
+            return await _context.Contracts
+                .Include(c => c.User)
+                .Include(c => c.Group)
+                .Where(c => c.UploadId == uploadId)
+                .OrderByDescending(c => c.CreatedAt)
+                .ToListAsync();
+        }
+        
         public async Task<Contract> CreateAsync(Contract contract)
         {
             _context.Contracts.Add(contract);

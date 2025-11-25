@@ -11,6 +11,10 @@ namespace SalesApp.Data
         public DbSet<Group> Groups { get; set; }
         public DbSet<Contract> Contracts { get; set; }
         public DbSet<Role> Roles { get; set; }
+        public DbSet<ImportTemplate> ImportTemplates { get; set; }
+        public DbSet<ImportSession> ImportSessions { get; set; }
+        public DbSet<ImportColumnMapping> ImportColumnMappings { get; set; }
+        public DbSet<ImportUserMapping> ImportUserMappings { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -80,6 +84,83 @@ namespace SalesApp.Data
                 entity.HasOne(e => e.Group)
                     .WithMany()
                     .HasForeignKey(e => e.GroupId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            
+            // ImportTemplate entity configuration
+            modelBuilder.Entity<ImportTemplate>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.HasIndex(e => e.Name).IsUnique();
+                entity.Property(e => e.Name).IsRequired();
+                entity.Property(e => e.EntityType).IsRequired();
+                entity.Property(e => e.RequiredFields).IsRequired();
+                entity.Property(e => e.OptionalFields).IsRequired();
+                entity.Property(e => e.DefaultMappings).IsRequired();
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
+                
+                entity.HasOne(e => e.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            
+            // ImportSession entity configuration
+            modelBuilder.Entity<ImportSession>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.HasIndex(e => e.UploadId).IsUnique();
+                entity.Property(e => e.UploadId).IsRequired();
+                entity.Property(e => e.FileName).IsRequired();
+                entity.Property(e => e.FileType).IsRequired();
+                entity.Property(e => e.Status).HasDefaultValue("preview");
+                
+                entity.HasOne(e => e.Template)
+                    .WithMany()
+                    .HasForeignKey(e => e.TemplateId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.UploadedBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.UploadedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            
+            // ImportColumnMapping entity configuration
+            modelBuilder.Entity<ImportColumnMapping>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.MappingName).IsRequired();
+                entity.Property(e => e.FileType).IsRequired();
+                entity.Property(e => e.SourceColumn).IsRequired();
+                entity.Property(e => e.TargetField).IsRequired();
+                
+                entity.HasOne(e => e.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            
+            // ImportUserMapping entity configuration
+            modelBuilder.Entity<ImportUserMapping>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.SourceName).IsRequired();
+                entity.Property(e => e.SourceSurname).IsRequired();
+                entity.Property(e => e.Action).HasDefaultValue("pending");
+                
+                entity.HasOne(e => e.ImportSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImportSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                    
+                entity.HasOne(e => e.ResolvedUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.ResolvedUserId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
         }

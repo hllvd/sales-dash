@@ -82,3 +82,4 @@ logs/
 .env
 .env.local
 .env.production
+.fake
