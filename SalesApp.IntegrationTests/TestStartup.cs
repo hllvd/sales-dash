@@ -47,6 +47,19 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IDynamicRoleAuthorizationService, DynamicRoleAuthorizationService>();
             services.AddScoped<IEndpointDiscoveryService, EndpointDiscoveryService>();
             
+            // Import repositories
+            services.AddScoped<IImportTemplateRepository, ImportTemplateRepository>();
+            services.AddScoped<IImportSessionRepository, ImportSessionRepository>();
+            services.AddScoped<IImportColumnMappingRepository, ImportColumnMappingRepository>();
+            services.AddScoped<IImportUserMappingRepository, ImportUserMappingRepository>();
+            
+            // Import services
+            services.AddScoped<IFileParserService, FileParserService>();
+            services.AddScoped<IAutoMappingService, AutoMappingService>();
+            services.AddScoped<IUserMatchingService, UserMatchingService>();
+            services.AddScoped<IImportValidationService, ImportValidationService>();
+            services.AddScoped<IImportExecutionService, ImportExecutionService>();
+            
             // CORS
             services.AddCors(options =>
             {
