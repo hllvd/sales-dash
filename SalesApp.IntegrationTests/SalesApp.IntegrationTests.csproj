@@ -26,4 +26,8 @@
     <ProjectReference Include="..\SalesApp.Api\SalesApp.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Samples\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
