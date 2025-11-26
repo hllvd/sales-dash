@@ -50,6 +50,12 @@
   color: white;
 }
 
+.menu-item.active {
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+}
+
 .menu-item.logout {
   margin-top: auto;
   border-top: 1px solid #374151;

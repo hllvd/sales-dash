@@ -2,7 +2,11 @@ import React from 'react';
 import Menu from './Menu';
 import './WelcomePage.css';
 
-const WelcomePage: React.FC = () => {
+interface WelcomePageProps {
+  title?: string;
+}
+
+const WelcomePage: React.FC<WelcomePageProps> = ({ title = 'Home' }) => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   return (
@@ -11,9 +15,9 @@ const WelcomePage: React.FC = () => {
       <div className="welcome-content">
         <div className="welcome-container">
           <h1 className="welcome-title">Bem-vindo, {user.name || 'Usuário'}!</h1>
-          <p className="welcome-subtitle">Painel de Vendas</p>
+          <p className="welcome-subtitle">Painel de Vendas - {title}</p>
           <div className="welcome-card">
-            <h2>Dashboard Principal</h2>
+            <h2>{title}</h2>
             <p>Acesse suas métricas e relatórios de vendas através do menu lateral.</p>
           </div>
         </div>
