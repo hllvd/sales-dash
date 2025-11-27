@@ -45,6 +45,11 @@ const Menu: React.FC = () => {
             <span>Usuários</span>
           </a>
         )}
+        {userRole === 'superadmin' && (
+          <a href="#/contracts" className={isActive('#/contracts')}>
+            <span>Contratos</span>
+          </a>
+        )}
         <a href="#/grupos" className={isActive('#/grupos')}>
           <span>Grupos</span>
         </a>

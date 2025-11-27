@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import WelcomePage from './components/WelcomePage';
 import UsersPage from './components/UsersPage';
+import ContractsPage from './components/ContractsPage';
 import './App.css';
 
 function App() {
@@ -29,6 +30,8 @@ function App() {
     switch (currentRoute) {
       case '#/users':
         return <UsersPage />;
+      case '#/contracts':
+        return <ContractsPage />;
       case '#/dashboards':
         return <WelcomePage title="Dashboards" />;
       case '#/grupos':
