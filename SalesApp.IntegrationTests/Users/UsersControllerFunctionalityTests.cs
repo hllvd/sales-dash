@@ -83,6 +83,63 @@ namespace SalesApp.IntegrationTests.Users
         }
 
         [Fact]
+        public async Task GetUsers_ShouldReturnActiveUsersBeforeInactiveUsers()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Create an inactive user
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superAdmin = await context.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+                
+                var inactiveUser = new User
+                {
+                    Name = "Inactive Test User",
+                    Email = $"inactive_{Guid.NewGuid().ToString()[..8]}@test.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                    RoleId = 3,
+                    ParentUserId = superAdmin.Id,
+                    IsActive = false
+                };
+                
+                context.Users.Add(inactiveUser);
+                await context.SaveChangesAsync();
+            }
+
+            // Act
+            var response = await client.GetAsync("/api/users?pageSize=100");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Items.Should().NotBeNull();
+            
+            // Verify ordering: active users should come before inactive users
+            var users = result.Data.Items.ToList();
+            if (users.Count > 1)
+            {
+                // Find the first active and first inactive user
+                var firstActiveIndex = users.FindIndex(u => u.IsActive);
+                var firstInactiveIndex = users.FindIndex(u => !u.IsActive);
+                
+                // If both exist, active should come before inactive
+                if (firstActiveIndex >= 0 && firstInactiveIndex >= 0)
+                {
+                    firstActiveIndex.Should().BeLessThan(firstInactiveIndex, 
+                        "active users should appear before inactive users in the list");
+                }
+            }
+        }
+
+
+        [Fact]
         public async Task GetUsersByRole_AsSuperAdmin_ShouldReturnOk()
         {
             // Arrange

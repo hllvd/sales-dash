@@ -94,6 +94,18 @@ const UsersPage: React.FC = () => {
     }
   }
 
+  // Reactivate user by calling API and refreshing list
+  const handleReactivateUser = async (id: string) => {
+    try {
+      setError("")
+      await apiService.updateUser(id, { isActive: true })
+      // Refresh users from API to reflect persisted change
+      fetchUsers()
+    } catch (err: any) {
+      setError(err.message || "Failed to reactivate user")
+    }
+  }
+
   const openEditForm = (user: User) => {
     setEditingUser(user)
     setShowForm(true)
@@ -239,13 +251,23 @@ const UsersPage: React.FC = () => {
                             >
                               ✏️
                             </button>
-                            <button
-                              className="btn-delete"
-                              onClick={() => setDeleteConfirm(user.id)}
-                              title="Excluir"
-                            >
-                              🗑️
-                            </button>
+                            {user.isActive ? (
+                              <button
+                                className="btn-delete"
+                                onClick={() => setDeleteConfirm(user.id)}
+                                title="Excluir"
+                              >
+                                🗑️
+                              </button>
+                            ) : (
+                              <button
+                                className="btn-reactivate"
+                                onClick={() => handleReactivateUser(user.id)}
+                                title="Reativar"
+                              >
+                                🔄
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

@@ -41,6 +41,7 @@ namespace SalesApp.Repositories
             var users = await query
                 .Include(u => u.ParentUser)
                 .Include(u => u.Role)
+                .OrderByDescending(u => u.IsActive)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
