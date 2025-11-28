@@ -238,7 +238,7 @@ namespace SalesApp.IntegrationTests.Imports
             );
             content.Add(fileContent, "file", fileName);
 
-            var response = await _client.PostAsync("/api/imports/upload", content);
+            var response = await _client.PostAsync("/api/imports/upload?templateId=2", content);
             
             if (!response.IsSuccessStatusCode)
             {

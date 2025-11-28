@@ -53,14 +53,42 @@ namespace SalesApp.Controllers
         }
 
         #region Template Management
+        
+        private static readonly List<ImportTemplate> HardcodedTemplates = new()
+        {
+            new ImportTemplate
+            {
+                Id = 1,
+                Name = "Users",
+                EntityType = "User",
+                Description = "Template for importing users",
+                RequiredFields = JsonSerializer.Serialize(new List<string> { "Name", "Email" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "Surname", "Role", "ParentEmail" }),
+                DefaultMappings = "{}",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new ImportTemplate
+            {
+                Id = 2,
+                Name = "Contracts",
+                EntityType = "Contract",
+                Description = "Template for importing contracts",
+                RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserName", "UserSurname", "TotalAmount", "GroupId" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "Status", "SaleStartDate", "SaleEndDate" }),
+                DefaultMappings = "{}",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            }
+        };
 
         [HttpGet("templates")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<List<ImportTemplateResponse>>>> GetTemplates([FromQuery] string? entityType = null)
+        public ActionResult<ApiResponse<List<ImportTemplateResponse>>> GetTemplates([FromQuery] string? entityType = null)
         {
             var templates = string.IsNullOrEmpty(entityType)
-                ? await _templateRepository.GetAllAsync()
-                : await _templateRepository.GetByEntityTypeAsync(entityType);
+                ? HardcodedTemplates
+                : HardcodedTemplates.Where(t => t.EntityType.Equals(entityType, StringComparison.OrdinalIgnoreCase)).ToList();
 
             var response = templates.Select(MapToTemplateResponse).ToList();
 
@@ -74,9 +102,9 @@ namespace SalesApp.Controllers
 
         [HttpGet("templates/{id}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ImportTemplateResponse>>> GetTemplate(int id)
+        public ActionResult<ApiResponse<ImportTemplateResponse>> GetTemplate(int id)
         {
-            var template = await _templateRepository.GetByIdAsync(id);
+            var template = HardcodedTemplates.FirstOrDefault(t => t.Id == id);
             if (template == null)
             {
                 return NotFound(new ApiResponse<ImportTemplateResponse>
@@ -94,117 +122,13 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpPost("templates")]
-        [Authorize(Roles = "superadmin")]
-        public async Task<ActionResult<ApiResponse<ImportTemplateResponse>>> CreateTemplate(ImportTemplateRequest request)
-        {
-            // Check if template name already exists
-            var existing = await _templateRepository.GetByNameAsync(request.Name);
-            if (existing != null)
-            {
-                return BadRequest(new ApiResponse<ImportTemplateResponse>
-                {
-                    Success = false,
-                    Message = "Template name already exists"
-                });
-            }
-
-            var template = new ImportTemplate
-            {
-                Name = request.Name,
-                EntityType = request.EntityType,
-                Description = request.Description,
-                RequiredFields = JsonSerializer.Serialize(request.RequiredFields),
-                OptionalFields = JsonSerializer.Serialize(request.OptionalFields),
-                DefaultMappings = JsonSerializer.Serialize(request.DefaultMappings),
-                CreatedByUserId = GetCurrentUserId()
-            };
-
-            await _templateRepository.CreateAsync(template);
-
-            return Ok(new ApiResponse<ImportTemplateResponse>
-            {
-                Success = true,
-                Data = MapToTemplateResponse(template),
-                Message = "Template created successfully"
-            });
-        }
-
-        [HttpPut("templates/{id}")]
-        [Authorize(Roles = "superadmin")]
-        public async Task<ActionResult<ApiResponse<ImportTemplateResponse>>> UpdateTemplate(int id, ImportTemplateRequest request)
-        {
-            var template = await _templateRepository.GetByIdAsync(id);
-            if (template == null)
-            {
-                return NotFound(new ApiResponse<ImportTemplateResponse>
-                {
-                    Success = false,
-                    Message = "Template not found"
-                });
-            }
-
-            // Check if new name conflicts with existing template
-            if (template.Name != request.Name)
-            {
-                var existing = await _templateRepository.GetByNameAsync(request.Name);
-                if (existing != null)
-                {
-                    return BadRequest(new ApiResponse<ImportTemplateResponse>
-                    {
-                        Success = false,
-                        Message = "Template name already exists"
-                    });
-                }
-            }
-
-            template.Name = request.Name;
-            template.EntityType = request.EntityType;
-            template.Description = request.Description;
-            template.RequiredFields = JsonSerializer.Serialize(request.RequiredFields);
-            template.OptionalFields = JsonSerializer.Serialize(request.OptionalFields);
-            template.DefaultMappings = JsonSerializer.Serialize(request.DefaultMappings);
-
-            await _templateRepository.UpdateAsync(template);
-
-            return Ok(new ApiResponse<ImportTemplateResponse>
-            {
-                Success = true,
-                Data = MapToTemplateResponse(template),
-                Message = "Template updated successfully"
-            });
-        }
-
-        [HttpDelete("templates/{id}")]
-        [Authorize(Roles = "superadmin")]
-        public async Task<ActionResult<ApiResponse<object>>> DeleteTemplate(int id)
-        {
-            var template = await _templateRepository.GetByIdAsync(id);
-            if (template == null)
-            {
-                return NotFound(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Template not found"
-                });
-            }
-
-            await _templateRepository.DeleteAsync(id);
-
-            return Ok(new ApiResponse<object>
-            {
-                Success = true,
-                Message = "Template deleted successfully"
-            });
-        }
-
         #endregion
 
         #region Import Workflow
 
         [HttpPost("upload")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ImportPreviewResponse>>> UploadFile(IFormFile file, int? templateId = null)
+        public async Task<ActionResult<ApiResponse<ImportPreviewResponse>>> UploadFile(IFormFile file, int templateId)
         {
             if (file == null || file.Length == 0)
             {
@@ -224,37 +148,55 @@ namespace SalesApp.Controllers
                 var allRows = await _fileParser.ParseFileAsync(file);
                 var columns = await _fileParser.GetColumnsAsync(file);
 
-                // Get template if specified
-                ImportTemplate? template = null;
-                string entityType = "Contract"; // Default
-                Dictionary<string, string> suggestedMappings;
-
-                if (templateId.HasValue)
+                // Get template (Hardcoded)
+                var hardcodedTemplate = HardcodedTemplates.FirstOrDefault(t => t.Id == templateId);
+                if (hardcodedTemplate == null)
                 {
-                    template = await _templateRepository.GetByIdAsync(templateId.Value);
-                    if (template == null)
+                    return BadRequest(new ApiResponse<ImportPreviewResponse>
                     {
-                        return BadRequest(new ApiResponse<ImportPreviewResponse>
-                        {
-                            Success = false,
-                            Message = "Template not found"
-                        });
-                    }
+                        Success = false,
+                        Message = "Template not found"
+                    });
+                }
 
-                    entityType = template.EntityType;
-                    var templateMappings = JsonSerializer.Deserialize<Dictionary<string, string>>(template.DefaultMappings) ?? new();
-                    suggestedMappings = _autoMapping.ApplyTemplateMappings(templateMappings, columns);
-                }
-                else
+                // Sync with DB to ensure FK validity
+                var dbTemplate = await _templateRepository.GetByNameAsync(hardcodedTemplate.Name);
+                if (dbTemplate == null)
                 {
-                    suggestedMappings = _autoMapping.SuggestMappings(columns, entityType);
+                    dbTemplate = new ImportTemplate
+                    {
+                        Name = hardcodedTemplate.Name,
+                        EntityType = hardcodedTemplate.EntityType,
+                        Description = hardcodedTemplate.Description,
+                        RequiredFields = hardcodedTemplate.RequiredFields,
+                        OptionalFields = hardcodedTemplate.OptionalFields,
+                        DefaultMappings = hardcodedTemplate.DefaultMappings,
+                        CreatedByUserId = GetCurrentUserId(),
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _templateRepository.CreateAsync(dbTemplate);
                 }
+
+                var entityType = hardcodedTemplate.EntityType;
+                
+                // Get required and optional fields
+                var requiredFields = JsonSerializer.Deserialize<List<string>>(hardcodedTemplate.RequiredFields) ?? new();
+                var optionalFields = JsonSerializer.Deserialize<List<string>>(hardcodedTemplate.OptionalFields) ?? new();
+                
+                // Combine all template fields for auto-mapping
+                var allTemplateFields = new List<string>();
+                allTemplateFields.AddRange(requiredFields);
+                allTemplateFields.AddRange(optionalFields);
+                
+                // Use SuggestMappings with template fields for case-insensitive exact matching
+                var suggestedMappings = _autoMapping.SuggestMappings(columns, entityType, allTemplateFields);
 
                 // Create import session and store file data
                 var session = new ImportSession
                 {
                     UploadId = uploadId,
-                    TemplateId = templateId,
+                    TemplateId = dbTemplate.Id, // Use DB ID
                     FileName = file.FileName,
                     FileType = fileType,
                     UploadedByUserId = GetCurrentUserId(),
@@ -265,27 +207,12 @@ namespace SalesApp.Controllers
 
                 await _sessionRepository.CreateAsync(session);
 
-                // Get required and optional fields
-                var requiredFields = new List<string>();
-                var optionalFields = new List<string>();
-
-                if (template != null)
-                {
-                    requiredFields = JsonSerializer.Deserialize<List<string>>(template.RequiredFields) ?? new();
-                    optionalFields = JsonSerializer.Deserialize<List<string>>(template.OptionalFields) ?? new();
-                }
-                else
-                {
-                    // Default required fields for Contract
-                    requiredFields = new List<string> { "ContractNumber", "UserName", "UserSurname", "TotalAmount", "GroupId" };
-                    optionalFields = new List<string> { "Status", "SaleStartDate", "SaleEndDate" };
-                }
-
                 var response = new ImportPreviewResponse
                 {
                     UploadId = uploadId,
+                    SessionId = uploadId,
                     TemplateId = templateId,
-                    TemplateName = template?.Name,
+                    TemplateName = hardcodedTemplate.Name,
                     EntityType = entityType,
                     FileName = file.FileName,
                     DetectedColumns = columns,
@@ -529,25 +456,38 @@ namespace SalesApp.Controllers
                     });
                 }
 
-                // Build user mappings dictionary from ImportUserMappings
-                var userMappingRecords = await _userMappingRepository.GetByImportSessionIdAsync(session.Id);
-                var userMappings = new Dictionary<string, Guid>();
-                
-                foreach (var mapping in userMappingRecords)
-                {
-                    if (mapping.ResolvedUserId.HasValue)
-                    {
-                        var key = $"{mapping.SourceName}|{mapping.SourceSurname}";
-                        userMappings[key] = mapping.ResolvedUserId.Value;
-                    }
-                }
-
                 // Execute import
-                var result = await _importExecution.ExecuteContractImportAsync(
-                    uploadId,
-                    allRows,
-                    mappings,
-                    userMappings);
+                ImportResult result;
+                var entityType = session.Template?.EntityType ?? "Contract";
+
+                if (entityType == "User")
+                {
+                    result = await _importExecution.ExecuteUserImportAsync(
+                        uploadId,
+                        allRows,
+                        mappings);
+                }
+                else
+                {
+                    // Build user mappings dictionary from ImportUserMappings
+                    var userMappingRecords = await _userMappingRepository.GetByImportSessionIdAsync(session.Id);
+                    var userMappings = new Dictionary<string, Guid>();
+                    
+                    foreach (var mapping in userMappingRecords)
+                    {
+                        if (mapping.ResolvedUserId.HasValue)
+                        {
+                            var key = $"{mapping.SourceName}|{mapping.SourceSurname}";
+                            userMappings[key] = mapping.ResolvedUserId.Value;
+                        }
+                    }
+
+                    result = await _importExecution.ExecuteContractImportAsync(
+                        uploadId,
+                        allRows,
+                        mappings,
+                        userMappings);
+                }
 
                 // Update session with results
                 session.Status = result.FailedRows > 0 ? "completed_with_errors" : "completed";

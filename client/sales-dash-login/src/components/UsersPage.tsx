@@ -1,111 +1,127 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import './UsersPage.css';
-import Menu from './Menu';
-import UserForm from './UserForm';
-import { apiService, User, CreateUserRequest, UpdateUserRequest } from '../services/apiService';
+import React, { useState, useEffect, useCallback } from "react"
+import "./UsersPage.css"
+import Menu from "./Menu"
+import UserForm from "./UserForm"
+import BulkImportModal from "./BulkImportModal"
+import {
+  apiService,
+  User,
+  CreateUserRequest,
+  UpdateUserRequest,
+} from "../services/apiService"
 
 const UsersPage: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [search, setSearch] = useState('');
-  const [searchDebounce, setSearchDebounce] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | undefined>(undefined);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const pageSize = 10;
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [search, setSearch] = useState("")
+  const [searchDebounce, setSearchDebounce] = useState("")
+  const [showForm, setShowForm] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | undefined>(undefined)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [currentUserRole, setCurrentUserRole] = useState<string>("")
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const pageSize = 10
 
   // Fetch users
   const fetchUsers = useCallback(async () => {
     try {
-      setLoading(true);
-      setError('');
-      const response = await apiService.getUsers(page, pageSize, searchDebounce || undefined);
-      
+      setLoading(true)
+      setError("")
+      const response = await apiService.getUsers(
+        page,
+        pageSize,
+        searchDebounce || undefined
+      )
+
       if (response.success && response.data) {
-        setUsers(response.data.items);
-        setTotalCount(response.data.totalCount);
-        setTotalPages(Math.ceil(response.data.totalCount / pageSize));
+        setUsers(response.data.items)
+        setTotalCount(response.data.totalCount)
+        setTotalPages(Math.ceil(response.data.totalCount / pageSize))
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load users');
+      setError(err.message || "Failed to load users")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [page, searchDebounce]);
+  }, [page, searchDebounce])
 
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      setSearchDebounce(search);
-      setPage(1); // Reset to first page on search
-    }, 500);
+      setSearchDebounce(search)
+      setPage(1) // Reset to first page on search
+    }, 500)
 
-    return () => clearTimeout(timer);
-  }, [search]);
+    return () => clearTimeout(timer)
+  }, [search])
 
   // Call fetchUsers when page or searchDebounce changes
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    fetchUsers()
+  }, [fetchUsers])
 
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}")
+    setCurrentUserRole(user.role || "")
+  }, [])
 
   const handleCreateUser = async (userData: CreateUserRequest) => {
-    await apiService.createUser(userData);
-    setShowForm(false);
-    fetchUsers();
-  };
+    await apiService.createUser(userData)
+    setShowForm(false)
+    fetchUsers()
+  }
 
   const handleUpdateUser = async (userData: UpdateUserRequest) => {
     if (editingUser) {
-      await apiService.updateUser(editingUser.id, userData);
-      setShowForm(false);
-      setEditingUser(undefined);
-      fetchUsers();
+      await apiService.updateUser(editingUser.id, userData)
+      setShowForm(false)
+      setEditingUser(undefined)
+      fetchUsers()
     }
-  };
+  }
 
   const handleDeleteUser = async (id: string) => {
     try {
-      await apiService.deleteUser(id);
-      setDeleteConfirm(null);
-      fetchUsers();
+      await apiService.deleteUser(id)
+      setDeleteConfirm(null)
+      fetchUsers()
     } catch (err: any) {
-      setError(err.message || 'Failed to delete user');
+      setError(err.message || "Failed to delete user")
     }
-  };
+  }
 
   const openEditForm = (user: User) => {
-    setEditingUser(user);
-    setShowForm(true);
-  };
+    setEditingUser(user)
+    setShowForm(true)
+  }
 
   const closeForm = () => {
-    setShowForm(false);
-    setEditingUser(undefined);
-  };
+    setShowForm(false)
+    setEditingUser(undefined)
+  }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  }
 
   const getRoleBadgeClass = (role: string) => {
     switch (role.toLowerCase()) {
-      case 'superadmin':
-        return 'role-badge role-superadmin';
-      case 'admin':
-        return 'role-badge role-admin';
+      case "superadmin":
+        return "role-badge role-superadmin"
+      case "admin":
+        return "role-badge role-admin"
       default:
-        return 'role-badge role-user';
+        return "role-badge role-user"
     }
-  };
+  }
 
   return (
     <div className="users-layout">
@@ -116,12 +132,24 @@ const UsersPage: React.FC = () => {
             <div>
               <h1 className="users-title">Gerenciamento de Usuários</h1>
               <p className="users-subtitle">
-                {totalCount} {totalCount === 1 ? 'usuário' : 'usuários'} cadastrado{totalCount === 1 ? '' : 's'}
+                {totalCount} {totalCount === 1 ? "usuário" : "usuários"}{" "}
+                cadastrado{totalCount === 1 ? "" : "s"}
               </p>
             </div>
-            <button className="btn-create" onClick={() => setShowForm(true)}>
-              + Criar Usuário
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              {currentUserRole === "superadmin" && (
+                <button
+                  className="btn-create"
+                  onClick={() => setShowImportModal(true)}
+                >
+                  ⬆️ Importar Usuários
+                </button>
+              )}
+
+              <button className="btn-create" onClick={() => setShowForm(true)}>
+                + Criar Usuário
+              </button>
+            </div>
           </div>
 
           <div className="search-bar">
@@ -144,7 +172,14 @@ const UsersPage: React.FC = () => {
           ) : users.length === 0 ? (
             <div className="empty-state">
               <p>Nenhum usuário encontrado</p>
-              {search && <button onClick={() => setSearch('')} className="btn-clear-search">Limpar busca</button>}
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="btn-clear-search"
+                >
+                  Limpar busca
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -167,20 +202,31 @@ const UsersPage: React.FC = () => {
                           <div className="user-name-cell">
                             <span className="user-name">{user.name}</span>
                             {user.parentUserName && (
-                              <span className="user-parent">Pai: {user.parentUserName}</span>
+                              <span className="user-parent">
+                                Pai: {user.parentUserName}
+                              </span>
                             )}
                           </div>
                         </td>
                         <td>{user.email}</td>
                         <td>
                           <span className={getRoleBadgeClass(user.role)}>
-                            {user.role === 'superadmin' ? 'Super Admin' : 
-                             user.role === 'admin' ? 'Admin' : 'Usuário'}
+                            {user.role === "superadmin"
+                              ? "Super Admin"
+                              : user.role === "admin"
+                              ? "Admin"
+                              : "Usuário"}
                           </span>
                         </td>
                         <td>
-                          <span className={`status-badge ${user.isActive ? 'status-active' : 'status-inactive'}`}>
-                            {user.isActive ? 'Ativo' : 'Inativo'}
+                          <span
+                            className={`status-badge ${
+                              user.isActive
+                                ? "status-active"
+                                : "status-inactive"
+                            }`}
+                          >
+                            {user.isActive ? "Ativo" : "Inativo"}
                           </span>
                         </td>
                         <td>{formatDate(user.createdAt)}</td>
@@ -212,7 +258,7 @@ const UsersPage: React.FC = () => {
                 <div className="pagination">
                   <button
                     className="pagination-btn"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                   >
                     ← Anterior
@@ -222,7 +268,7 @@ const UsersPage: React.FC = () => {
                   </span>
                   <button
                     className="pagination-btn"
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                   >
                     Próxima →
@@ -243,16 +289,35 @@ const UsersPage: React.FC = () => {
         />
       )}
 
+      {showImportModal && (
+        <BulkImportModal
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            setShowImportModal(false)
+            fetchUsers()
+          }}
+        />
+      )}
+
       {deleteConfirm && (
         <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
           <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
             <h3>Confirmar Exclusão</h3>
-            <p>Tem certeza que deseja excluir este usuário? Esta ação irá desativá-lo.</p>
+            <p>
+              Tem certeza que deseja excluir este usuário? Esta ação irá
+              desativá-lo.
+            </p>
             <div className="confirm-actions">
-              <button className="btn-cancel" onClick={() => setDeleteConfirm(null)}>
+              <button
+                className="btn-cancel"
+                onClick={() => setDeleteConfirm(null)}
+              >
                 Cancelar
               </button>
-              <button className="btn-confirm-delete" onClick={() => handleDeleteUser(deleteConfirm)}>
+              <button
+                className="btn-confirm-delete"
+                onClick={() => handleDeleteUser(deleteConfirm)}
+              >
                 Excluir
               </button>
             </div>
@@ -260,7 +325,7 @@ const UsersPage: React.FC = () => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default UsersPage;
+export default UsersPage

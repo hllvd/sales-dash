@@ -7,13 +7,19 @@ namespace SalesApp.Services
     {
         private readonly IContractRepository _contractRepository;
         private readonly IGroupRepository _groupRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly IRoleRepository _roleRepository;
 
         public ImportExecutionService(
             IContractRepository contractRepository,
-            IGroupRepository groupRepository)
+            IGroupRepository groupRepository,
+            IUserRepository userRepository,
+            IRoleRepository roleRepository)
         {
             _contractRepository = contractRepository;
             _groupRepository = groupRepository;
+            _userRepository = userRepository;
+            _roleRepository = roleRepository;
         }
 
         public async Task<ImportResult> ExecuteContractImportAsync(
@@ -150,6 +156,116 @@ namespace SalesApp.Services
 
             // Save to database
             return await _contractRepository.CreateAsync(contract);
+        }
+
+        public async Task<ImportResult> ExecuteUserImportAsync(
+            string uploadId,
+            List<Dictionary<string, string>> rows,
+            Dictionary<string, string> mappings)
+        {
+            var result = new ImportResult
+            {
+                TotalRows = rows.Count
+            };
+
+            // Create reverse mapping (target field -> source column)
+            var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                try
+                {
+                    var row = rows[i];
+                    var user = await CreateUserFromRowAsync(row, reverseMappings);
+                    
+                    if (user != null)
+                    {
+                        result.CreatedUsers.Add(user);
+                        result.ProcessedRows++;
+                    }
+                    else
+                    {
+                        result.FailedRows++;
+                        result.Errors.Add($"Row {i + 1}: Failed to create user");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.FailedRows++;
+                    result.Errors.Add($"Row {i + 1}: {ex.Message}");
+                }
+            }
+
+            return result;
+        }
+
+        private async Task<User?> CreateUserFromRowAsync(
+            Dictionary<string, string> row,
+            Dictionary<string, string> reverseMappings)
+        {
+            // Extract required fields
+            var name = GetFieldValue(row, reverseMappings, "Name");
+            var email = GetFieldValue(row, reverseMappings, "Email");
+
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email))
+            {
+                throw new ArgumentException("Missing required fields");
+            }
+
+            // Check if email exists
+            if (await _userRepository.GetByEmailAsync(email) != null)
+            {
+                throw new ArgumentException($"User with email {email} already exists");
+            }
+
+            // Extract optional fields
+            var surname = GetFieldValue(row, reverseMappings, "Surname");
+            var roleName = GetFieldValue(row, reverseMappings, "Role");
+            var parentEmail = GetFieldValue(row, reverseMappings, "ParentEmail");
+
+            // Combine name and surname if surname exists
+            var fullName = name;
+            if (!string.IsNullOrWhiteSpace(surname))
+            {
+                fullName = $"{name} {surname}".Trim();
+            }
+
+            // Resolve Role
+            int roleId = 3; // Default User
+            if (!string.IsNullOrWhiteSpace(roleName))
+            {
+                var role = await _roleRepository.GetByNameAsync(roleName);
+                if (role != null)
+                {
+                    roleId = role.Id;
+                }
+            }
+
+            // Resolve Parent
+            Guid? parentId = null;
+            if (!string.IsNullOrWhiteSpace(parentEmail))
+            {
+                var parent = await _userRepository.GetByEmailAsync(parentEmail);
+                if (parent != null)
+                {
+                    parentId = parent.Id;
+                }
+            }
+
+            // Create User
+            var user = new User
+            {
+                Name = fullName,
+                Email = email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("ChangeMe123!"), // Default password
+                RoleId = roleId,
+                ParentUserId = parentId,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            return await _userRepository.CreateAsync(user);
         }
 
         private string? GetFieldValue(

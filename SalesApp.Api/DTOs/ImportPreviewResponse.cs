@@ -3,6 +3,7 @@ namespace SalesApp.DTOs
     public class ImportPreviewResponse
     {
         public string UploadId { get; set; } = string.Empty;
+        public string SessionId { get; set; } = string.Empty;
         public int? TemplateId { get; set; }
         public string? TemplateName { get; set; }
         public string EntityType { get; set; } = string.Empty;

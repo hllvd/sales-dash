@@ -9,6 +9,7 @@ namespace SalesApp.Services
         public int FailedRows { get; set; }
         public List<string> Errors { get; set; } = new();
         public List<Contract> CreatedContracts { get; set; } = new();
+        public List<User> CreatedUsers { get; set; } = new();
     }
 
     public interface IImportExecutionService
@@ -18,5 +19,10 @@ namespace SalesApp.Services
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
             Dictionary<string, Guid> userMappings);
+
+        Task<ImportResult> ExecuteUserImportAsync(
+            string uploadId,
+            List<Dictionary<string, string>> rows,
+            Dictionary<string, string> mappings);
     }
 }

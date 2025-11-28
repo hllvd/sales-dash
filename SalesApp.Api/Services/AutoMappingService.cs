@@ -24,10 +24,26 @@ namespace SalesApp.Services
             }
         };
 
-        public Dictionary<string, string> SuggestMappings(List<string> sourceColumns, string entityType)
+        public Dictionary<string, string> SuggestMappings(List<string> sourceColumns, string entityType, List<string>? templateFields = null)
         {
             var mappings = new Dictionary<string, string>();
             
+            // First priority: Exact case-insensitive matching with template fields
+            if (templateFields != null && templateFields.Any())
+            {
+                foreach (var sourceColumn in sourceColumns)
+                {
+                    var exactMatch = templateFields.FirstOrDefault(tf => 
+                        string.Equals(tf, sourceColumn, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (exactMatch != null)
+                    {
+                        mappings[sourceColumn] = exactMatch;
+                    }
+                }
+            }
+            
+            // Second priority: Pattern matching for unmapped columns
             if (!_mappingRules.ContainsKey(entityType))
             {
                 return mappings;
@@ -37,6 +53,12 @@ namespace SalesApp.Services
             
             foreach (var sourceColumn in sourceColumns)
             {
+                // Skip if already mapped by exact match
+                if (mappings.ContainsKey(sourceColumn))
+                {
+                    continue;
+                }
+                
                 var normalizedSource = NormalizeColumnName(sourceColumn);
                 
                 foreach (var (targetField, patterns) in rules)

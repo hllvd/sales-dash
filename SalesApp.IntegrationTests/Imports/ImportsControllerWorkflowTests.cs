@@ -136,37 +136,19 @@ TEST-CSV-002,2500,1";
             var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            // Create a template
-            var templateRequest = new
-            {
-                Name = $"Test Template {Guid.NewGuid().ToString()[..8]}",
-                EntityType = "Contract",
-                Description = "Template with default mappings",
-                RequiredFields = new[] { "ContractNumber", "UserName", "UserSurname", "TotalAmount", "GroupId" },
-                OptionalFields = new[] { "Status" },
-                DefaultMappings = new Dictionary<string, string>
-                {
-                    { "Contract #", "ContractNumber" },
-                    { "Amount", "TotalAmount" },
-                    { "Group ID", "GroupId" }
-                }
-            };
-
-            var templateResponse = await _client.PostAsJsonAsync("/api/imports/templates", templateRequest);
-            var templateResult = await templateResponse.Content.ReadFromJsonAsync<ApiResponse<ImportTemplateResponse>>();
-            var templateId = templateResult!.Data!.Id;
+            // Use hardcoded template ID 2 (Contracts)
+            var templateId = 2;
 
             // Upload file with template
-            var csvContent = @"Contract #,User Name,User Surname,Amount,Group ID,Status
+            var csvContent = @"Contract Number,User Name,User Surname,Total Amount,Group ID,Status
 TMPL-001,Test,User,5000,1,active";
 
             var content = new MultipartFormDataContent();
             var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
             content.Add(fileContent, "file", "template-test.csv");
-            content.Add(new StringContent(templateId.ToString()), "templateId");
 
-            var uploadResponse = await _client.PostAsync("/api/imports/upload", content);
+            var uploadResponse = await _client.PostAsync($"/api/imports/upload?templateId={templateId}", content);
 
             // Assert
             uploadResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -174,8 +156,8 @@ TMPL-001,Test,User,5000,1,active";
             uploadResult!.Success.Should().BeTrue();
             // Template ID should be in the response
             uploadResult.Data.Should().NotBeNull();
-            uploadResult.Data!.SuggestedMappings.Should().ContainKey("Contract #");
-            uploadResult.Data.SuggestedMappings["Contract #"].Should().Be("ContractNumber");
+            uploadResult.Data!.TemplateId.Should().Be(templateId);
+            uploadResult.Data.TemplateName.Should().Be("Contracts");
         }
 
         [Fact]
@@ -370,7 +352,7 @@ EXIST-001,{firstName},{lastName},1000,1";
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
             multipartContent.Add(fileContent, "file", fileName);
 
-            var response = await _client.PostAsync("/api/imports/upload", multipartContent);
+            var response = await _client.PostAsync("/api/imports/upload?templateId=2", multipartContent);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ImportPreviewResponse>>();
