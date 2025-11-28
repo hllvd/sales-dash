@@ -6,7 +6,6 @@
 .welcome-content {
   flex: 1;
   margin-left: 250px;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   padding: 32px;
 }
 
@@ -54,15 +53,15 @@
     margin-left: 0;
     padding: 20px;
   }
-  
+
   .welcome-title {
     font-size: 24px;
   }
-  
+
   .welcome-subtitle {
     font-size: 16px;
   }
-  
+
   .welcome-card {
     padding: 20px;
   }

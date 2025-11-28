@@ -18,6 +18,7 @@ namespace SalesApp.Tests
         private readonly Mock<IJwtService> _mockJwtService;
         private readonly Mock<IUserHierarchyService> _mockHierarchyService;
         private readonly Mock<IContractRepository> _mockContractRepository;
+        private readonly Mock<IRoleRepository> _mockRoleRepository;
         private readonly UsersController _controller;
 
         public UsersControllerTests()
@@ -26,11 +27,13 @@ namespace SalesApp.Tests
             _mockJwtService = new Mock<IJwtService>();
             _mockHierarchyService = new Mock<IUserHierarchyService>();
             _mockContractRepository = new Mock<IContractRepository>();
+            _mockRoleRepository = new Mock<IRoleRepository>();
             _controller = new UsersController(
                 _mockUserRepository.Object, 
                 _mockJwtService.Object, 
                 _mockHierarchyService.Object,
-                _mockContractRepository.Object);
+                _mockContractRepository.Object,
+                _mockRoleRepository.Object);
         }
 
         private void SetupUser(string userId, string role)
@@ -64,6 +67,7 @@ namespace SalesApp.Tests
             _mockUserRepository.Setup(x => x.EmailExistsAsync(request.Email, null)).ReturnsAsync(false);
             _mockHierarchyService.Setup(x => x.ValidateHierarchyChangeAsync(It.IsAny<Guid>(), request.ParentUserId))
                 .ReturnsAsync((string?)null);
+            _mockRoleRepository.Setup(x => x.GetByNameAsync(request.Role)).ReturnsAsync(new Role { Id = 3, Name = "user" });
             _mockUserRepository.Setup(x => x.CreateAsync(It.IsAny<User>())).ReturnsAsync(It.IsAny<User>());
 
             // Act

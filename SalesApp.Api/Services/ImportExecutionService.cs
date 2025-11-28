@@ -252,6 +252,17 @@ namespace SalesApp.Services
                 }
             }
 
+            // Extract Matricula fields
+            var matricula = GetFieldValue(row, reverseMappings, "Matricula");
+            var isMatriculaOwnerStr = GetFieldValue(row, reverseMappings, "IsMatriculaOwner");
+            bool isMatriculaOwner = false;
+            
+            if (!string.IsNullOrWhiteSpace(isMatriculaOwnerStr))
+            {
+                var val = isMatriculaOwnerStr.Trim().ToLowerInvariant();
+                isMatriculaOwner = val == "true" || val == "1" || val == "yes" || val == "sim";
+            }
+
             // Create User
             var user = new User
             {
@@ -261,6 +272,8 @@ namespace SalesApp.Services
                 RoleId = roleId,
                 ParentUserId = parentId,
                 IsActive = true,
+                Matricula = matricula,
+                IsMatriculaOwner = isMatriculaOwner,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

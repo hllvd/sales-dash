@@ -17,13 +17,20 @@ namespace SalesApp.Controllers
         private readonly IJwtService _jwtService;
         private readonly IUserHierarchyService _hierarchyService;
         private readonly IContractRepository _contractRepository;
+        private readonly IRoleRepository _roleRepository;
         
-        public UsersController(IUserRepository userRepository, IJwtService jwtService, IUserHierarchyService hierarchyService, IContractRepository contractRepository)
+        public UsersController(
+            IUserRepository userRepository, 
+            IJwtService jwtService, 
+            IUserHierarchyService hierarchyService, 
+            IContractRepository contractRepository,
+            IRoleRepository roleRepository)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
             _hierarchyService = hierarchyService;
             _contractRepository = contractRepository;
+            _roleRepository = roleRepository;
         }
         
         [HttpPost("register")]
@@ -57,17 +64,40 @@ namespace SalesApp.Controllers
                     Message = hierarchyError
                 });
             }
+
+            var role = await _roleRepository.GetByNameAsync(request.Role);
+            if (role == null)
+            {
+                return BadRequest(new ApiResponse<UserResponse>
+                {
+                    Success = false,
+                    Message = "Invalid role specified."
+                });
+            }
             
             var user = new User
             {
                 Name = request.Name,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                RoleId = 3, // Default to user role for now
-                ParentUserId = request.ParentUserId
+                RoleId = role.Id,
+                ParentUserId = request.ParentUserId,
+                Matricula = request.Matricula,
+                IsMatriculaOwner = request.IsMatriculaOwner
             };
             
-            await _userRepository.CreateAsync(user);
+            try
+            {
+                await _userRepository.CreateAsync(user);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new ApiResponse<UserResponse>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
             
             return Ok(new ApiResponse<UserResponse>
             {
@@ -219,6 +249,11 @@ namespace SalesApp.Controllers
                     });
                 }
                 // Role validation will be handled by RoleId in future update
+                var role = await _roleRepository.GetByNameAsync(request.Role);
+                if (role != null)
+                {
+                    user.RoleId = role.Id;
+                }
             }
                 
             if (request.ParentUserId.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
@@ -235,10 +270,33 @@ namespace SalesApp.Controllers
                 user.ParentUserId = request.ParentUserId;
             }
             
-            if (request.IsActive.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
+            if (request.IsActive.HasValue)
+            {
                 user.IsActive = request.IsActive.Value;
+            }
+
+            if (request.Matricula != null)
+            {
+                user.Matricula = request.Matricula;
+            }
+
+            if (request.IsMatriculaOwner.HasValue)
+            {
+                user.IsMatriculaOwner = request.IsMatriculaOwner.Value;
+            }
                 
-            await _userRepository.UpdateAsync(user);
+            try
+            {
+                await _userRepository.UpdateAsync(user);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new ApiResponse<UserResponse>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
             
             return Ok(new ApiResponse<UserResponse>
             {
@@ -283,6 +341,8 @@ namespace SalesApp.Controllers
                 ParentUserId = user.ParentUserId,
                 ParentUserName = user.ParentUser?.Name,
                 IsActive = user.IsActive,
+                Matricula = user.Matricula,
+                IsMatriculaOwner = user.IsMatriculaOwner,
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt
             };
