@@ -22,6 +22,8 @@ const UserForm: React.FC<UserFormProps> = ({
     role: user?.role || "user",
     parentUserId: user?.parentUserId || "",
     isActive: user?.isActive ?? true,
+    matricula: user?.matricula || "",
+    isMatriculaOwner: user?.isMatriculaOwner ?? false,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -57,6 +59,12 @@ const UserForm: React.FC<UserFormProps> = ({
       if (formData.parentUserId) {
         userData.parentUserId = formData.parentUserId
       }
+
+      if (formData.matricula) {
+        userData.matricula = formData.matricula
+      }
+
+      userData.isMatriculaOwner = formData.isMatriculaOwner
 
       if (isEdit) {
         userData.isActive = formData.isActive
@@ -174,6 +182,33 @@ const UserForm: React.FC<UserFormProps> = ({
               onChange={handleChange}
               placeholder="UUID do usuário pai"
             />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="matricula">
+              Matrícula
+              <span className="hint">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              id="matricula"
+              name="matricula"
+              value={formData.matricula}
+              onChange={handleChange}
+              placeholder="Número da matrícula"
+            />
+          </div>
+
+          <div className="form-group checkbox-group">
+            <label>
+              <input
+                type="checkbox"
+                name="isMatriculaOwner"
+                checked={formData.isMatriculaOwner}
+                onChange={handleChange}
+              />
+              <span>Proprietário da Matrícula</span>
+            </label>
           </div>
 
           {isEdit && (

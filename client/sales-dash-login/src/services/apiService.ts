@@ -22,6 +22,8 @@ export interface User {
   parentUserId?: string
   parentUserName?: string
   isActive: boolean
+  matricula?: string
+  isMatriculaOwner: boolean
   createdAt: string
   updatedAt: string
 }
