@@ -41,6 +41,9 @@ namespace SalesApp.Data
                     .WithMany(e => e.ChildUsers)
                     .HasForeignKey(e => e.ParentUserId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(e => e.Matricula).IsRequired(false);
+                entity.Property(e => e.IsMatriculaOwner).HasDefaultValue(false);
             });
             
             // Group entity configuration

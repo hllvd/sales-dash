@@ -51,6 +51,17 @@ namespace SalesApp.Repositories
         
         public async Task<User> CreateAsync(User user)
         {
+            if (user.IsMatriculaOwner && !string.IsNullOrEmpty(user.Matricula))
+            {
+                var existingOwner = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Matricula == user.Matricula && u.IsMatriculaOwner && u.IsActive);
+                
+                if (existingOwner != null)
+                {
+                    throw new InvalidOperationException($"Matricula '{user.Matricula}' already has an owner.");
+                }
+            }
+
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
             return user;
@@ -58,6 +69,17 @@ namespace SalesApp.Repositories
         
         public async Task<User> UpdateAsync(User user)
         {
+            if (user.IsMatriculaOwner && !string.IsNullOrEmpty(user.Matricula))
+            {
+                var existingOwner = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Matricula == user.Matricula && u.IsMatriculaOwner && u.IsActive && u.Id != user.Id);
+                
+                if (existingOwner != null)
+                {
+                    throw new InvalidOperationException($"Matricula '{user.Matricula}' already has an owner.");
+                }
+            }
+
             user.UpdatedAt = DateTime.UtcNow;
             _context.Users.Update(user);
             await _context.SaveChangesAsync();

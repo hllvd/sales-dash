@@ -44,6 +44,8 @@ export interface User {
   email: string;
   role: string;
   isActive: boolean;
+  matricula?: string;
+  isMatriculaOwner: boolean;
 }
 
 export interface Group {
