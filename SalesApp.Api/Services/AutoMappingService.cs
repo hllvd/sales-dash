@@ -8,8 +8,7 @@ namespace SalesApp.Services
             ["Contract"] = new Dictionary<string, string[]>
             {
                 ["ContractNumber"] = new[] { "contract number", "contract_number", "contractnumber", "number", "contract #", "contract#" },
-                ["UserName"] = new[] { "user name", "username", "user_name", "name", "client name", "customer name" },
-                ["UserSurname"] = new[] { "surname", "last name", "lastname", "user surname", "user_surname" },
+                ["UserEmail"] = new[] { "user email", "useremail", "user_email", "email", "client email", "customer email", "e-mail" },
                 ["TotalAmount"] = new[] { "total amount", "totalamount", "total_amount", "amount", "total", "value", "price" },
                 ["GroupId"] = new[] { "group id", "groupid", "group_id", "group", "team id", "teamid" },
                 ["Status"] = new[] { "status", "state", "contract status", "contract_status" },

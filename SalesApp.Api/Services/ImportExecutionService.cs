@@ -25,8 +25,7 @@ namespace SalesApp.Services
         public async Task<ImportResult> ExecuteContractImportAsync(
             string uploadId,
             List<Dictionary<string, string>> rows,
-            Dictionary<string, string> mappings,
-            Dictionary<string, Guid> userMappings)
+            Dictionary<string, string> mappings)
         {
             var result = new ImportResult
             {
@@ -41,7 +40,7 @@ namespace SalesApp.Services
                 try
                 {
                     var row = rows[i];
-                    var contract = await CreateContractFromRowAsync(row, reverseMappings, userMappings, uploadId);
+                    var contract = await CreateContractFromRowAsync(row, reverseMappings, uploadId);
                     
                     if (contract != null)
                     {
@@ -67,20 +66,17 @@ namespace SalesApp.Services
         private async Task<Contract?> CreateContractFromRowAsync(
             Dictionary<string, string> row,
             Dictionary<string, string> reverseMappings,
-            Dictionary<string, Guid> userMappings,
             string uploadId)
         {
             // Extract required fields
             var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
-            var userName = GetFieldValue(row, reverseMappings, "UserName");
-            var userSurname = GetFieldValue(row, reverseMappings, "UserSurname");
+            var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
             var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
             var groupIdStr = GetFieldValue(row, reverseMappings, "GroupId");
 
             // Validate required fields
             if (string.IsNullOrWhiteSpace(contractNumber) ||
-                string.IsNullOrWhiteSpace(userName) ||
-                string.IsNullOrWhiteSpace(userSurname) ||
+                string.IsNullOrWhiteSpace(userEmail) ||
                 string.IsNullOrWhiteSpace(totalAmountStr) ||
                 string.IsNullOrWhiteSpace(groupIdStr))
             {
@@ -106,13 +102,12 @@ namespace SalesApp.Services
                 throw new ArgumentException($"Group not found: {groupId}");
             }
 
-            // Get user ID from mappings
-            var userKey = $"{userName}|{userSurname}";
-            if (!userMappings.ContainsKey(userKey))
+            // Look up user by email
+            var user = await _userRepository.GetByEmailAsync(userEmail);
+            if (user == null || !user.IsActive)
             {
-                throw new ArgumentException($"User not mapped: {userName} {userSurname}");
+                throw new ArgumentException($"User not found or inactive: {userEmail}");
             }
-            var userId = userMappings[userKey];
 
             // Extract optional fields
             var status = GetFieldValue(row, reverseMappings, "Status") ?? "active";
@@ -142,7 +137,7 @@ namespace SalesApp.Services
             var contract = new Contract
             {
                 ContractNumber = contractNumber,
-                UserId = userId,
+                UserId = user.Id,
                 TotalAmount = totalAmount,
                 GroupId = groupId,
                 Status = status.ToLowerInvariant(),

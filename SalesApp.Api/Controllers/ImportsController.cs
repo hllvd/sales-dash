@@ -74,7 +74,7 @@ namespace SalesApp.Controllers
                 Name = "Contracts",
                 EntityType = "Contract",
                 Description = "Template for importing contracts",
-                RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserName", "UserSurname", "TotalAmount", "GroupId" }),
+                RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount", "GroupId" }),
                 OptionalFields = JsonSerializer.Serialize(new List<string> { "Status", "SaleStartDate", "SaleEndDate" }),
                 DefaultMappings = "{}",
                 IsActive = true,
@@ -264,38 +264,9 @@ namespace SalesApp.Controllers
                 // Validate all rows
                 var validationErrors = await _validation.ValidateAllRowsAsync(allRows, request.Mappings, entityType);
 
-                // Identify unresolved users
-                var unresolvedUsers = new List<UnresolvedUserInfo>();
-                var reverseMappings = request.Mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
-
-                if (entityType == "Contract" && reverseMappings.ContainsKey("UserName") && reverseMappings.ContainsKey("UserSurname"))
-                {
-                    var nameColumn = reverseMappings["UserName"];
-                    var surnameColumn = reverseMappings["UserSurname"];
-
-                    var uniqueUsers = allRows
-                        .Select(row => new { Name = row[nameColumn], Surname = row[surnameColumn] })
-                        .Distinct()
-                        .ToList();
-
-                    foreach (var user in uniqueUsers)
-                    {
-                        var matches = await _userMatching.FindUserMatchesAsync(user.Name, user.Surname);
-                        if (matches.Count == 0 || matches.Count > 1)
-                        {
-                            unresolvedUsers.Add(new UnresolvedUserInfo
-                            {
-                                Name = user.Name,
-                                Surname = user.Surname,
-                                SuggestedMatches = matches
-                            });
-                        }
-                    }
-                }
-
                 // Store mappings and update session status
                 session.Mappings = JsonSerializer.Serialize(request.Mappings);
-                session.Status = unresolvedUsers.Any() ? "mapping" : "ready";
+                session.Status = "ready"; // No user resolution needed for contracts anymore
                 await _sessionRepository.UpdateAsync(session);
 
                 var response = new ImportStatusResponse
@@ -305,7 +276,7 @@ namespace SalesApp.Controllers
                     TotalRows = session.TotalRows,
                     ProcessedRows = 0,
                     FailedRows = validationErrors.Count,
-                    UnresolvedUsers = unresolvedUsers,
+                    UnresolvedUsers = new List<UnresolvedUserInfo>(),
                     Errors = validationErrors.SelectMany(kvp => kvp.Value.Select(err => $"Row {kvp.Key + 1}: {err}")).ToList()
                 };
 
@@ -469,24 +440,11 @@ namespace SalesApp.Controllers
                 }
                 else
                 {
-                    // Build user mappings dictionary from ImportUserMappings
-                    var userMappingRecords = await _userMappingRepository.GetByImportSessionIdAsync(session.Id);
-                    var userMappings = new Dictionary<string, Guid>();
-                    
-                    foreach (var mapping in userMappingRecords)
-                    {
-                        if (mapping.ResolvedUserId.HasValue)
-                        {
-                            var key = $"{mapping.SourceName}|{mapping.SourceSurname}";
-                            userMappings[key] = mapping.ResolvedUserId.Value;
-                        }
-                    }
-
+                    // Contract imports now use UserEmail directly, no user mapping needed
                     result = await _importExecution.ExecuteContractImportAsync(
                         uploadId,
                         allRows,
-                        mappings,
-                        userMappings);
+                        mappings);
                 }
 
                 // Update session with results

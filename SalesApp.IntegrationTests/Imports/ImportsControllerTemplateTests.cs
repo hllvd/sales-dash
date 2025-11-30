@@ -84,6 +84,8 @@ namespace SalesApp.IntegrationTests.Imports
             result.Data.OptionalFields.Should().Contain("Surname");
             result.Data.OptionalFields.Should().Contain("Role");
             result.Data.OptionalFields.Should().Contain("ParentEmail");
+            result.Data.OptionalFields.Should().Contain("Matricula");
+            result.Data.OptionalFields.Should().Contain("IsMatriculaOwner");
         }
 
         [Fact]
@@ -105,10 +107,12 @@ namespace SalesApp.IntegrationTests.Imports
             result.Data.Name.Should().Be("Contracts");
             result.Data.EntityType.Should().Be("Contract");
             result.Data.RequiredFields.Should().Contain("ContractNumber");
-            result.Data.RequiredFields.Should().Contain("UserName");
-            result.Data.RequiredFields.Should().Contain("UserSurname");
+            result.Data.RequiredFields.Should().Contain("UserEmail");
             result.Data.RequiredFields.Should().Contain("TotalAmount");
             result.Data.RequiredFields.Should().Contain("GroupId");
+            result.Data.OptionalFields.Should().Contain("Status");
+            result.Data.OptionalFields.Should().Contain("SaleStartDate");
+            result.Data.OptionalFields.Should().Contain("SaleEndDate");
         }
 
         [Fact]
