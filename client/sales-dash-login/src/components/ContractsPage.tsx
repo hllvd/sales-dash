@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './ContractsPage.css';
 import Menu from './Menu';
 import ContractForm from './ContractForm';
+import BulkImportModal from './BulkImportModal';
 import {
   Contract,
   User,
@@ -21,6 +22,7 @@ const ContractsPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Filters
   const [filterUserId, setFilterUserId] = useState('');
@@ -142,9 +144,14 @@ const ContractsPage: React.FC = () => {
         <div className="contracts-page">
           <div className="contracts-header">
             <h1>Gerenciamento de Contratos</h1>
-            <button className="create-contract-btn" onClick={handleCreateClick}>
-              + Criar Contrato
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="create-contract-btn" onClick={() => setShowImportModal(true)}>
+                ⬆️ Importar Contratos
+              </button>
+              <button className="create-contract-btn" onClick={handleCreateClick}>
+                + Criar Contrato
+              </button>
+            </div>
           </div>
 
           {error && <div className="contracts-error">{error}</div>}
@@ -288,6 +295,18 @@ const ContractsPage: React.FC = () => {
           contract={editingContract}
           onClose={() => setShowForm(false)}
           onSuccess={handleFormSuccess}
+        />
+      )}
+
+      {showImportModal && (
+        <BulkImportModal
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            setShowImportModal(false);
+            loadContracts();
+          }}
+          templateId={2}
+          title="Importar Contratos em Lote"
         />
       )}
 

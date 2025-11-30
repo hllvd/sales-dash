@@ -318,6 +318,8 @@ const UsersPage: React.FC = () => {
             setShowImportModal(false)
             fetchUsers()
           }}
+          templateId={1}
+          title="Importar Usuários em Lote"
         />
       )}
 

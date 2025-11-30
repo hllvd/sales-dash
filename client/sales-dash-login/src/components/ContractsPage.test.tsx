@@ -19,6 +19,19 @@ jest.mock('./ContractForm', () => {
 });
 // Mock Menu component
 jest.mock('./Menu', () => () => <div data-testid="menu">Menu</div>);
+// Mock BulkImportModal component
+jest.mock('./BulkImportModal', () => {
+  return function MockBulkImportModal({ onClose, onSuccess, templateId, title }: any) {
+    return (
+      <div data-testid="bulk-import-modal">
+        <div data-testid="modal-title">{title}</div>
+        <div data-testid="template-id">{templateId}</div>
+        <button onClick={onSuccess}>Mock Import Success</button>
+        <button onClick={onClose}>Mock Import Close</button>
+      </div>
+    );
+  };
+});
 
 const mockContracts = [
   {
@@ -285,6 +298,59 @@ describe('ContractsPage', () => {
 
       await waitFor(() => {
         expect(contractService.getContracts).toHaveBeenCalledTimes(2); // Initial + after submit
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('Import Functionality', () => {
+    it('should open import modal when import button is clicked', async () => {
+      render(<ContractsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('⬆️ Importar Contratos')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      const importButton = screen.getByText('⬆️ Importar Contratos');
+      fireEvent.click(importButton);
+
+      expect(screen.getByTestId('bulk-import-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('modal-title')).toHaveTextContent('Importar Contratos em Lote');
+      expect(screen.getByTestId('template-id')).toHaveTextContent('2');
+    });
+
+    it('should reload contracts after successful import', async () => {
+      render(<ContractsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('⬆️ Importar Contratos')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      const importButton = screen.getByText('⬆️ Importar Contratos');
+      fireEvent.click(importButton);
+
+      const successButton = screen.getByText('Mock Import Success');
+      fireEvent.click(successButton);
+
+      await waitFor(() => {
+        expect(contractService.getContracts).toHaveBeenCalledTimes(2); // Initial + after import
+      }, { timeout: 3000 });
+    });
+
+    it('should close modal when close button is clicked', async () => {
+      render(<ContractsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('⬆️ Importar Contratos')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      const importButton = screen.getByText('⬆️ Importar Contratos');
+      fireEvent.click(importButton);
+
+      const closeButton = screen.getByText('Mock Import Close');
+      fireEvent.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('bulk-import-modal')).not.toBeInTheDocument();
       }, { timeout: 3000 });
     });
   });

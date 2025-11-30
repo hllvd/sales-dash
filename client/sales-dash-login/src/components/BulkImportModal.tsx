@@ -5,9 +5,11 @@ import { apiService } from "../services/apiService"
 interface Props {
   onClose: () => void
   onSuccess: () => void
+  templateId: number
+  title: string
 }
 
-const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
+const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, title }) => {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,8 +48,8 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
     setError(null)
     
     try {
-      // Upload file with templateId=1 (Users template)
-      const resp = await apiService.uploadImportFile(file, 1)
+      // Upload file with provided templateId
+      const resp = await apiService.uploadImportFile(file, templateId)
       
       if (resp.success && resp.data) {
         setUploadId(resp.data.uploadId)
@@ -127,7 +129,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Importar Usuários em Lote</h2>
+          <h2>{title}</h2>
           <button className="close-button" onClick={onClose}>
             ×
           </button>

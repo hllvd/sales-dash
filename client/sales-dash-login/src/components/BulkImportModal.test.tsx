@@ -15,7 +15,8 @@ describe("BulkImportModal", () => {
   })
 
   it("renders upload step initially", () => {
-    render(<BulkImportModal onClose={mockOnClose} onSuccess={mockOnSuccess} />)
+    render(<BulkImportModal onClose={mockOnClose} onSuccess={mockOnSuccess} templateId={1} title="Importar Usuários em Lote" />)
+    expect(screen.getByText(/Importar Usuários em Lote/i)).toBeInTheDocument()
     expect(screen.getByText(/Arquivo CSV ou XLSX/i)).toBeInTheDocument()
     expect(screen.getByText(/Formato esperado/i)).toBeInTheDocument()
   })
@@ -47,7 +48,7 @@ describe("BulkImportModal", () => {
       message: "ok",
     })
 
-    render(<BulkImportModal onClose={mockOnClose} onSuccess={mockOnSuccess} />)
+    render(<BulkImportModal onClose={mockOnClose} onSuccess={mockOnSuccess} templateId={1} title="Importar Usuários em Lote" />)
 
     const fileInput = screen.getByLabelText(/Arquivo CSV ou XLSX/i) as HTMLInputElement
     const csv = "name,email,role\nJohn Doe,john@example.com,user\nJane Smith,jane@example.com,admin"
@@ -114,7 +115,7 @@ describe("BulkImportModal", () => {
       message: "ok",
     })
 
-    render(<BulkImportModal onClose={mockOnClose} onSuccess={mockOnSuccess} />)
+    render(<BulkImportModal onClose={mockOnClose} onSuccess={mockOnSuccess} templateId={1} title="Importar Usuários em Lote" />)
 
     const fileInput = screen.getByLabelText(/Arquivo CSV ou XLSX/i) as HTMLInputElement
     const file = new File(["name,email\nJohn,john@test.com"], "test.csv", { type: "text/csv" })
@@ -138,7 +139,7 @@ describe("BulkImportModal", () => {
       new Error("Failed to upload file")
     )
 
-    render(<BulkImportModal onClose={mockOnClose} onSuccess={mockOnSuccess} />)
+    render(<BulkImportModal onClose={mockOnClose} onSuccess={mockOnSuccess} templateId={1} title="Importar Usuários em Lote" />)
 
     const fileInput = screen.getByLabelText(/Arquivo CSV ou XLSX/i) as HTMLInputElement
     const file = new File(["test"], "test.csv", { type: "text/csv" })
