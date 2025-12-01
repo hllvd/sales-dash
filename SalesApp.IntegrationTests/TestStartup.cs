@@ -28,9 +28,9 @@ namespace SalesApp.IntegrationTests
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // Database (InMemory for tests) - shared across all tests
+            // Database (SQLite for tests) - connection string provided by TestWebApplicationFactory
             services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase("SharedIntegrationTestDb"));
+                options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
 
             // Data Protection
             services.AddDataProtection()

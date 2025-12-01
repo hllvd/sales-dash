@@ -24,7 +24,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   const [formData, setFormData] = useState({
     contractNumber: contract?.contractNumber || '',
     userId: contract?.userId || '',
-    groupId: contract?.groupId?.toString() || '',
+    groupId: contract?.groupId?.toString() || '0',
     totalAmount: contract?.totalAmount?.toString() || '',
     status: contract?.status || 'active',
     contractStartDate: contract?.contractStartDate?.split('T')[0] || '',

@@ -72,6 +72,7 @@ const mockUsers = [
 ];
 
 const mockGroups = [
+  { id: 0, name: 'Padrão', description: 'Default', commission: 0, isActive: true },
   { id: 1, name: 'Group A', description: 'Test A', commission: 10, isActive: true },
   { id: 2, name: 'Group B', description: 'Test B', commission: 15, isActive: true },
 ];

@@ -10,11 +10,14 @@ namespace SalesApp.IntegrationTests
     public class TestWebApplicationFactory : IDisposable
     {
         private readonly TestServer _server;
+        private readonly string _dbFileName;
         public HttpClient Client { get; }
         public IServiceProvider Services => _server.Services;
 
         public TestWebApplicationFactory()
         {
+            _dbFileName = $"test_db_{Guid.NewGuid()}.db";
+
             var hostBuilder = new WebHostBuilder()
                 .UseTestServer()
                 .UseStartup<TestStartup>()
@@ -22,6 +25,10 @@ namespace SalesApp.IntegrationTests
                 .ConfigureAppConfiguration((context, config) =>
                 {
                     config.AddJsonFile("appsettings.json", optional: false);
+                    config.AddInMemoryCollection(new Dictionary<string, string>
+                    {
+                        { "ConnectionStrings:DefaultConnection", $"Data Source={_dbFileName}" }
+                    });
                 });
 
             _server = new TestServer(hostBuilder);
@@ -49,6 +56,18 @@ namespace SalesApp.IntegrationTests
                 };
                 context.Roles.AddRange(roles);
                 await context.SaveChangesAsync();
+            }
+
+            if (!context.Groups.Any(g => g.Id == 0))
+            {
+                // Try raw SQL via ADO.NET to force ID 0
+                var connection = context.Database.GetDbConnection();
+                if (connection.State != System.Data.ConnectionState.Open)
+                    await connection.OpenAsync();
+
+                using var command = connection.CreateCommand();
+                command.CommandText = "INSERT OR IGNORE INTO Groups (Id, Name, Description, Commission, IsActive, CreatedAt, UpdatedAt) VALUES (0, 'Padrão', 'Grupo Padrão', 0, 1, datetime('now'), datetime('now'))";
+                await command.ExecuteNonQueryAsync();
             }
 
             if (!context.Users.Any())
@@ -93,6 +112,19 @@ namespace SalesApp.IntegrationTests
         {
             Client?.Dispose();
             _server?.Dispose();
+            
+            // Clean up the database file
+            if (File.Exists(_dbFileName))
+            {
+                try
+                {
+                    File.Delete(_dbFileName);
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
         }
     }
 }

@@ -32,9 +32,9 @@ namespace SalesApp.IntegrationTests.Imports
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Create CSV content
-            var csvContent = @"Contract Number,User Name,User Surname,Total Amount,Group,Status
-TEST-001,John,Doe,1000.50,1,active
-TEST-002,Jane,Smith,2000.75,1,active";
+            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status
+TEST-001,john.doe@test.com,1000.50,0,active
+TEST-002,jane.smith@test.com,2000.75,0,active";
 
             var uploadId = await UploadFile(csvContent, "contracts.csv", "text/csv");
 
@@ -44,8 +44,7 @@ TEST-002,Jane,Smith,2000.75,1,active";
                 mappings = new Dictionary<string, string>
                 {
                     { "Contract Number", "ContractNumber" },
-                    { "User Name", "UserName" },
-                    { "User Surname", "UserSurname" },
+                    { "User Email", "UserEmail" },
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
                     { "Status", "Status" }
@@ -64,24 +63,41 @@ TEST-002,Jane,Smith,2000.75,1,active";
 
             var mappingResult = await mappingResponse.Content.ReadFromJsonAsync<ApiResponse<ImportStatusResponse>>();
             
-            // Resolve users if needed
-            if (mappingResult!.Data!.UnresolvedUsers.Any())
+            // Create users if they don't exist (contracts now use UserEmail directly)
+            using (var userScope = _factory.Services.CreateScope())
             {
-                var userMappings = new List<object>();
-                foreach (var unresolvedUser in mappingResult.Data.UnresolvedUsers)
+                var userContext = userScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var userRepo = userScope.ServiceProvider.GetRequiredService<Repositories.IUserRepository>();
+                
+                // Create john.doe@test.com if not exists
+                var johnUser = await userRepo.GetByEmailAsync("john.doe@test.com");
+                if (johnUser == null)
                 {
-                    // Create new users for testing
-                    userMappings.Add(new
+                    johnUser = new User
                     {
-                        sourceName = unresolvedUser.Name,
-                        sourceSurname = unresolvedUser.Surname,
-                        action = "create",
-                        newUserEmail = $"{unresolvedUser.Name.ToLower()}.{unresolvedUser.Surname.ToLower()}@test.com"
-                    });
+                        Name = "John Doe",
+                        Email = "john.doe@test.com",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                        RoleId = userContext.Roles.First(r => r.Name == "user").Id,
+                        IsActive = true
+                    };
+                    await userRepo.CreateAsync(johnUser);
                 }
-
-                var userMappingResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/users", new { userMappings });
-                userMappingResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+                
+                // Create jane.smith@test.com if not exists
+                var janeUser = await userRepo.GetByEmailAsync("jane.smith@test.com");
+                if (janeUser == null)
+                {
+                    janeUser = new User
+                    {
+                        Name = "Jane Smith",
+                        Email = "jane.smith@test.com",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                        RoleId = userContext.Roles.First(r => r.Name == "user").Id,
+                        IsActive = true
+                    };
+                    await userRepo.CreateAsync(janeUser);
+                }
             }
 
             // Confirm import
@@ -109,8 +125,8 @@ TEST-002,Jane,Smith,2000.75,1,active";
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var csvContent = @"Contract Number,Total,Group
-TEST-CSV-001,1500,1
-TEST-CSV-002,2500,1";
+TEST-CSV-001,1500,0
+TEST-CSV-002,2500,0";
 
             // Act
             var uploadId = await UploadFile(csvContent, "test.csv", "text/csv");
@@ -141,7 +157,7 @@ TEST-CSV-002,2500,1";
 
             // Upload file with template
             var csvContent = @"Contract Number,User Name,User Surname,Total Amount,Group ID,Status
-TMPL-001,Test,User,5000,1,active";
+TMPL-001,Test,User,5000,0,active";
 
             var content = new MultipartFormDataContent();
             var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
@@ -292,7 +308,7 @@ TMPL-001,Test,User,5000,1,active";
             var lastName = names.Length > 1 ? names[1] : "User";
 
             var csvContent = $@"Contract Number,User Name,User Surname,Total Amount,Group
-EXIST-001,{firstName},{lastName},1000,1";
+EXIST-001,{firstName},{lastName},1000,0";
 
             var uploadId = await UploadFile(csvContent, "existing-user.csv", "text/csv");
 

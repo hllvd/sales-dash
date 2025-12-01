@@ -13,6 +13,7 @@ const mockUsers = [
 ];
 
 const mockGroups = [
+  { id: 0, name: 'Padrão', description: 'Default', commission: 0, isActive: true },
   { id: 1, name: 'Group A', description: 'Test A', commission: 10, isActive: true },
   { id: 2, name: 'Group B', description: 'Test B', commission: 15, isActive: true },
 ];
@@ -72,7 +73,7 @@ describe('ContractForm', () => {
       expect(userSelect.options).toHaveLength(3); // "Selecione" + 2 users
 
       const groupSelect = screen.getByLabelText(/Grupo/i) as HTMLSelectElement;
-      expect(groupSelect.options).toHaveLength(3); // "Selecione" + 2 groups
+      expect(groupSelect.options).toHaveLength(4); // "Selecione" + 3 groups (including default)
     });
 
     it('should validate required fields', async () => {

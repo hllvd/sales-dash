@@ -142,7 +142,7 @@ namespace SalesApp.Controllers
             try
             {
                 var fileType = _fileParser.GetFileType(file);
-                var uploadId = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+                var uploadId = $"{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8]}";
 
                 // Parse file
                 var allRows = await _fileParser.ParseFileAsync(file);

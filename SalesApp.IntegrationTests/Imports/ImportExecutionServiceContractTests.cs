@@ -424,5 +424,58 @@ namespace SalesApp.IntegrationTests.Imports
             result.FailedRows.Should().Be(0);
             result.CreatedContracts.Should().HaveCount(2);
         }
+
+        [Fact]
+        public async Task ImportContracts_MissingGroupId_ShouldDefaultToZero()
+        {
+            // Arrange
+            using var scope = _factory.Services.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<IImportExecutionService>();
+            var groupRepo = scope.ServiceProvider.GetRequiredService<IGroupRepository>();
+            var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+            var uploadId = Guid.NewGuid().ToString();
+
+            // Ensure Group 0 exists (seeded by factory)
+            var defaultGroup = await groupRepo.GetByIdAsync(0);
+            defaultGroup.Should().NotBeNull("Group 0 should be seeded by TestWebApplicationFactory");
+
+            // Create test user
+            var user = new User
+            {
+                Name = "Default Group User",
+                Email = $"default_{Guid.NewGuid().ToString()[..8]}@test.com",
+                PasswordHash = "hash",
+                RoleId = 3,
+                IsActive = true
+            };
+            await userRepo.CreateAsync(user);
+
+            var rows = new List<Dictionary<string, string>>
+            {
+                new()
+                {
+                    { "ContractNumber", $"CNT-{Guid.NewGuid().ToString()[..8]}" },
+                    { "UserEmail", user.Email },
+                    { "TotalAmount", "1000.00" }
+                    // Missing GroupId
+                }
+            };
+
+            var mappings = new Dictionary<string, string>
+            {
+                { "ContractNumber", "ContractNumber" },
+                { "UserEmail", "UserEmail" },
+                { "TotalAmount", "TotalAmount" }
+            };
+
+            // Act
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings);
+
+            // Assert
+            result.ProcessedRows.Should().Be(1);
+            result.FailedRows.Should().Be(0);
+            result.CreatedContracts[0].GroupId.Should().Be(0);
+        }
     }
 }

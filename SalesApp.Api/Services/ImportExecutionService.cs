@@ -75,10 +75,10 @@ namespace SalesApp.Services
             var groupIdStr = GetFieldValue(row, reverseMappings, "GroupId");
 
             // Validate required fields
+            // Validate required fields
             if (string.IsNullOrWhiteSpace(contractNumber) ||
                 string.IsNullOrWhiteSpace(userEmail) ||
-                string.IsNullOrWhiteSpace(totalAmountStr) ||
-                string.IsNullOrWhiteSpace(groupIdStr))
+                string.IsNullOrWhiteSpace(totalAmountStr))
             {
                 throw new ArgumentException("Missing required fields");
             }
@@ -90,9 +90,13 @@ namespace SalesApp.Services
             }
 
             // Parse and validate group ID
-            if (!int.TryParse(groupIdStr, out var groupId))
+            int groupId = 0; // Default to 0
+            if (!string.IsNullOrWhiteSpace(groupIdStr))
             {
-                throw new ArgumentException($"Invalid group ID: {groupIdStr}");
+                if (!int.TryParse(groupIdStr, out groupId))
+                {
+                    throw new ArgumentException($"Invalid group ID: {groupIdStr}");
+                }
             }
 
             // Verify group exists
