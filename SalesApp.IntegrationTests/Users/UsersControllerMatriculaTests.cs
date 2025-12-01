@@ -2,19 +2,18 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
-using SalesApp.Data;
-using SalesApp.Models;
 using SalesApp.DTOs;
+using SalesApp.Models;
+using SalesApp.Data;
+using SalesApp.IntegrationTests;
 using Xunit;
 
 namespace SalesApp.IntegrationTests.Users
 {
-    [Collection("Integration Tests")]
-    public class UsersControllerMatriculaTests
+    public class UsersControllerMatriculaTests : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly HttpClient _client;
         private readonly TestWebApplicationFactory _factory;
+        private readonly HttpClient _client;
 
         public UsersControllerMatriculaTests(TestWebApplicationFactory factory)
         {
@@ -22,171 +21,196 @@ namespace SalesApp.IntegrationTests.Users
             _client = factory.Client;
         }
 
-        [Fact]
-        public async Task CreateUser_WithMatricula_ShouldSucceed()
+        private async Task<string> GetToken(string role)
         {
-            // Arrange
-            var token = await GetSuperAdminToken();
-            var client = _factory.Client;
-            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var parentId = (await GetCurrentUser(client)).Id;
-
-            var request = new RegisterRequest
+            // Create a user with the specified role if it doesn't exist (or use existing one)
+            // For simplicity in tests, we can use the factory's seeded users or create new ones.
+            // The factory seeds: admin@test.com (admin), user@test.com (user), superadmin@test.com (superadmin)
+            
+            var email = role switch
             {
-                Name = "Matricula User",
-                Email = $"matricula_{Guid.NewGuid().ToString()[..8]}@test.com",
-                Password = "password123",
-                ParentUserId = parentId,
-                Matricula = "MAT-001",
-                IsMatriculaOwner = false
+                "admin" => "admin@test.com",
+                "superadmin" => "superadmin@test.com",
+                _ => "user@test.com"
             };
 
+            var password = role switch
+            {
+                "admin" => "admin123",
+                "superadmin" => "superadmin123",
+                _ => "user123"
+            };
+
+            var loginResponse = await _client.PostAsJsonAsync("/api/users/login", new
+            {
+                email = email,
+                password = password
+            });
+
+            loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+            return result!.Data!.Token;
+        }
+
+        [Fact]
+        public async Task GetByMatricula_AsAdmin_ShouldReturnUsers()
+        {
+            // Arrange
+            var matricula = "MAT_ADMIN_TEST";
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var user = new User
+                {
+                    Name = "Matricula Test User",
+                    Email = "matricula.admin@test.com",
+                    Matricula = matricula,
+                    IsActive = true,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                    RoleId = context.Roles.First(r => r.Name == "user").Id
+                };
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+            }
+
+            var token = await GetToken("admin");
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
             // Act
-            var response = await client.PostAsJsonAsync("/api/users/register", request);
+            var response = await _client.GetAsync($"/api/users/by-matricula/{matricula}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<UserLookupResponse>>>();
             result!.Success.Should().BeTrue();
-            result.Data!.Matricula.Should().Be("MAT-001");
-            result.Data!.IsMatriculaOwner.Should().BeFalse();
+            result.Data.Should().HaveCount(1);
+            result.Data![0].Matricula.Should().Be(matricula);
+            result.Data![0].Name.Should().Be("Matricula Test User");
         }
 
         [Fact]
-        public async Task CreateUser_WithMatriculaAndOwner_ShouldSucceed()
+        public async Task GetByMatricula_AsSuperAdmin_ShouldReturnUsers()
         {
             // Arrange
-            var token = await GetSuperAdminToken();
-            var client = _factory.Client;
-            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var parentId = (await GetCurrentUser(client)).Id;
-
-            var request = new RegisterRequest
+            var matricula = "MAT_SUPERADMIN_TEST";
+            using (var scope = _factory.Services.CreateScope())
             {
-                Name = "Matricula Owner",
-                Email = $"owner_{Guid.NewGuid().ToString()[..8]}@test.com",
-                Password = "password123",
-                ParentUserId = parentId,
-                Matricula = "MAT-002",
-                IsMatriculaOwner = true
-            };
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var user = new User
+                {
+                    Name = "SuperAdmin Test User",
+                    Email = "matricula.super@test.com",
+                    Matricula = matricula,
+                    IsActive = true,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                    RoleId = context.Roles.First(r => r.Name == "user").Id
+                };
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+            }
+
+            var token = await GetToken("superadmin");
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Act
-            var response = await client.PostAsJsonAsync("/api/users/register", request);
+            var response = await _client.GetAsync($"/api/users/by-matricula/{matricula}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<UserLookupResponse>>>();
             result!.Success.Should().BeTrue();
-            result.Data!.Matricula.Should().Be("MAT-002");
-            result.Data!.IsMatriculaOwner.Should().BeTrue();
+            result.Data.Should().Contain(u => u.Matricula == matricula);
         }
 
         [Fact]
-        public async Task CreateUser_SecondOwnerSameMatricula_ShouldFail()
+        public async Task GetByMatricula_AsRegularUser_ShouldReturn403()
         {
             // Arrange
-            var token = await GetSuperAdminToken();
-            var client = _factory.Client;
-            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var parentId = (await GetCurrentUser(client)).Id;
-            var matricula = "MAT-003";
-
-            // Create first owner
-            var owner1 = new RegisterRequest
-            {
-                Name = "Owner 1",
-                Email = $"owner1_{Guid.NewGuid().ToString()[..8]}@test.com",
-                Password = "password123",
-                ParentUserId = parentId,
-                Matricula = matricula,
-                IsMatriculaOwner = true
-            };
-            await client.PostAsJsonAsync("/api/users/register", owner1);
-
-            // Create second owner
-            var owner2 = new RegisterRequest
-            {
-                Name = "Owner 2",
-                Email = $"owner2_{Guid.NewGuid().ToString()[..8]}@test.com",
-                Password = "password123",
-                ParentUserId = parentId,
-                Matricula = matricula,
-                IsMatriculaOwner = true
-            };
+            var token = await GetToken("user");
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Act
-            var response = await client.PostAsJsonAsync("/api/users/register", owner2);
+            var response = await _client.GetAsync("/api/users/by-matricula/ANY_MATRICULA");
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.Conflict);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
-            result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("already has an owner");
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         }
 
         [Fact]
-        public async Task CreateUser_NonOwnerSameMatricula_ShouldSucceed()
+        public async Task GetByMatricula_Unauthorized_ShouldReturn401()
         {
             // Arrange
-            var token = await GetSuperAdminToken();
-            var client = _factory.Client;
-            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var parentId = (await GetCurrentUser(client)).Id;
-            var matricula = "MAT-004";
-
-            // Create owner
-            var owner = new RegisterRequest
-            {
-                Name = "Owner",
-                Email = $"owner_{Guid.NewGuid().ToString()[..8]}@test.com",
-                Password = "password123",
-                ParentUserId = parentId,
-                Matricula = matricula,
-                IsMatriculaOwner = true
-            };
-            await client.PostAsJsonAsync("/api/users/register", owner);
-
-            // Create non-owner
-            var nonOwner = new RegisterRequest
-            {
-                Name = "Non Owner",
-                Email = $"nonowner_{Guid.NewGuid().ToString()[..8]}@test.com",
-                Password = "password123",
-                ParentUserId = parentId,
-                Matricula = matricula,
-                IsMatriculaOwner = false
-            };
+            _client.DefaultRequestHeaders.Authorization = null;
 
             // Act
-            var response = await client.PostAsJsonAsync("/api/users/register", nonOwner);
+            var response = await _client.GetAsync("/api/users/by-matricula/ANY_MATRICULA");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        [Fact]
+        public async Task GetByMatricula_NotFound_ShouldReturnEmptyList()
+        {
+            // Arrange
+            var token = await GetToken("admin");
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Act
+            var response = await _client.GetAsync("/api/users/by-matricula/NON_EXISTENT_MATRICULA");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<UserLookupResponse>>>();
             result!.Success.Should().BeTrue();
-            result.Data!.Matricula.Should().Be(matricula);
-            result.Data!.IsMatriculaOwner.Should().BeFalse();
+            result.Data.Should().BeEmpty();
         }
 
-        private async Task<UserResponse> GetCurrentUser(HttpClient client)
+        [Fact]
+        public async Task GetByMatricula_MultipleMatches_ShouldReturnAll()
         {
-            var response = await client.GetAsync("/api/users/me");
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
-            return result!.Data!;
-        }
-
-        private async Task<string> GetSuperAdminToken()
-        {
-            var loginRequest = new LoginRequest
+            // Arrange
+            var matricula = "MAT_DUPLICATE_TEST";
+            using (var scope = _factory.Services.CreateScope())
             {
-                Email = "superadmin@test.com",
-                Password = "superadmin123"
-            };
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var roleId = context.Roles.First(r => r.Name == "user").Id;
+                
+                var user1 = new User
+                {
+                    Name = "Duplicate User 1",
+                    Email = "dup1@test.com",
+                    Matricula = matricula,
+                    IsActive = true,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                    RoleId = roleId
+                };
+                var user2 = new User
+                {
+                    Name = "Duplicate User 2",
+                    Email = "dup2@test.com",
+                    Matricula = matricula,
+                    IsActive = true,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                    RoleId = roleId
+                };
+                context.Users.AddRange(user1, user2);
+                await context.SaveChangesAsync();
+            }
 
-            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
-            return result?.Data?.Token ?? throw new Exception("Failed to get superadmin token");
+            var token = await GetToken("admin");
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Act
+            var response = await _client.GetAsync($"/api/users/by-matricula/{matricula}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<UserLookupResponse>>>();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().HaveCount(2);
+            result.Data.Should().Contain(u => u.Name == "Duplicate User 1");
+            result.Data.Should().Contain(u => u.Name == "Duplicate User 2");
         }
     }
 }

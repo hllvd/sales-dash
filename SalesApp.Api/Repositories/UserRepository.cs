@@ -27,6 +27,14 @@ namespace SalesApp.Repositories
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
         }
+
+        public async Task<List<User>> GetByMatriculaAsync(string matricula)
+        {
+            return await _context.Users
+                .Where(u => u.Matricula == matricula && u.IsActive)
+                .Include(u => u.Role)
+                .ToListAsync();
+        }
         
         public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null)
         {

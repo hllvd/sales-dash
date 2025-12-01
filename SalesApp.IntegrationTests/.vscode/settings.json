@@ -1,0 +1,58 @@
+{
+  // -------------------------
+  // AMAZON Q – MINIMAL TOKEN USAGE
+  // -------------------------
+  "amazonQ.indexing.enabled": false,
+  "amazonQ.codeWhisperer.enabled": true,
+  "amazonQ.codeWhisperer.advanced.useContextFromFileSystem": false,
+  "amazonQ.codeWhisperer.advanced.useContextFromSource": false,
+  "amazonQ.codeWhisperer.advanced.maxContextFiles": 1,
+  "amazonQ.codeWhisperer.advanced.maxSnippetSize": 8000,
+  "amazonQ.codeWhisperer.autoSuggestionsEnabled": true,
+  "amazonQ.codeWhisperer.useSelectionAsContext": true,
+  "amazonQ.codeWhisperer.useAllEditorTabsAsContext": false,
+  "amazonQ.conversations.codeContext.enabled": false,
+  "amazonQ.conversations.gitContext.enabled": false,
+  "amazonQ.conversations.terminalContext.enabled": false,
+  "amazonQ.conversations.editorContext.enabled": false,
+  "amazonQ.conversations.fsContext.enabled": false,
+
+  // Disable scanning of big folders (makes a huge difference)
+  "files.exclude": {
+    "**/bin/**": true,
+    "**/obj/**": true,
+    "**/Migrations/**": true,
+    "**/.git/**": true
+  },
+
+  // -------------------------
+  // GITHUB COPILOT – MINIMAL TOKEN USAGE
+  // -------------------------
+  "github.copilot.advanced.maxFileSize": 20000,
+  "github.copilot.advanced.maxPromptSize": 20000,
+  "github.copilot.advanced.useFileContext": false,
+  "github.copilot.advanced.useGitContext": false,
+  "github.copilot.advanced.useTerminalContext": false,
+  "github.copilot.advanced.useEditorContext": false,
+  "github.copilot.advanced.useCodebaseContext": false,
+  "github.copilot.enable": true,
+  "github.copilot.inlineSuggest.enable": true,
+
+  // -------------------------
+  // VS CODE EDITOR BEHAVIOR (RECOMMENDED FOR LLM EFFICIENCY)
+  // -------------------------
+  "editor.codeLens": false,
+  "editor.minimap.enabled": false,
+  "editor.wordWrap": "on",
+  "editor.folding": true,
+  "editor.foldingMaximumRegions": 500,
+  "editor.foldingStrategy": "auto",
+
+  // Avoid scanning within hidden folders
+  "files.watcherExclude": {
+    "**/bin/**": true,
+    "**/obj/**": true,
+    "**/.git/**": true,
+    "**/Migrations/**": true
+  }
+}

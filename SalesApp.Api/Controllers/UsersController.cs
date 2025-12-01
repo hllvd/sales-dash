@@ -171,6 +171,37 @@ namespace SalesApp.Controllers
                 Message = "Users retrieved successfully"
             });
         }
+
+        [HttpGet("by-matricula/{matricula}")]
+        [Authorize(Roles = "admin,superadmin")]
+        public async Task<ActionResult<ApiResponse<List<UserLookupResponse>>>> GetByMatricula(string matricula)
+        {
+            if (string.IsNullOrWhiteSpace(matricula))
+            {
+                return BadRequest(new ApiResponse<List<UserLookupResponse>>
+                {
+                    Success = false,
+                    Message = "Matricula cannot be empty"
+                });
+            }
+
+            var users = await _userRepository.GetByMatriculaAsync(matricula);
+
+            var response = users.Select(u => new UserLookupResponse
+            {
+                Id = u.Id,
+                Name = u.Name ?? string.Empty,
+                Matricula = u.Matricula ?? string.Empty,
+                Email = u.Email
+            }).ToList();
+
+            return Ok(new ApiResponse<List<UserLookupResponse>>
+            {
+                Success = true,
+                Data = response,
+                Message = "Users retrieved successfully"
+            });
+        }
         
         [HttpGet("{id}")]
         [Authorize(Roles = "admin,superadmin,user")]
