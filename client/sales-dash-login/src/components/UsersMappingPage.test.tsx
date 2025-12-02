@@ -313,6 +313,42 @@ describe("UsersMappingPage", () => {
     expect(screen.getByText("user1@test.com")).toBeInTheDocument()
     expect(screen.getByText("user2@test.com")).toBeInTheDocument()
   })
+
+  it("allows selecting between duplicate users", async () => {
+    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+      success: true,
+      data: [
+        { id: "1", name: "user1", email: "user1-v1@test.com", matricula: "123" },
+        { id: "2", name: "user1", email: "user1-v2@test.com", matricula: "123" }
+      ]
+    })
+
+    render(<UsersMappingPage />)
+    
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    const csv = "matricula,name\n123,user1"
+    const file = new File([csv], "test.csv", { type: "text/csv" })
+    
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    fireEvent.click(screen.getByText(/Processar Arquivo/i))
+    
+    await waitFor(() => {
+      expect(screen.getByText(/2 duplicados/i)).toBeInTheDocument()
+    })
+    
+    // Should show dropdown with both options
+    const dropdown = screen.getByRole('combobox') as HTMLSelectElement
+    expect(dropdown).toBeInTheDocument()
+    expect(dropdown.options.length).toBe(2)
+    expect(dropdown.options[0].text).toContain("user1-v1@test.com")
+    expect(dropdown.options[1].text).toContain("user1-v2@test.com")
+    
+    // Change selection to second user
+    fireEvent.change(dropdown, { target: { value: "1" } })
+    
+    // Verify the selection changed
+    expect(dropdown.value).toBe("1")
+  })
 })
 
 export {}

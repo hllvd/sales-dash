@@ -3,6 +3,13 @@ import { apiService } from '../services/apiService';
 import Menu from './Menu';
 import './UsersMappingPage.css';
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  matricula: string;
+}
+
 interface ProcessedRow {
   matricula: string;
   name: string;
@@ -10,6 +17,8 @@ interface ProcessedRow {
   found: boolean;
   hasDuplicates: boolean;
   duplicateCount: number;
+  matchedUsers: User[];
+  selectedUserIndex: number;
   originalData: string[];
 }
 
@@ -112,19 +121,25 @@ const UsersMappingPage: React.FC = () => {
 
           let hasDuplicates = false;
           let duplicateCount = 0;
+          let matchedUsers: User[] = [];
 
           // If we have both matricula and name, try to fetch and filter user data
           if (matricula && userName) {
             try {
               const response = await apiService.getUsersByMatricula(matricula);
               if (response.success && response.data && response.data.length > 0) {
-                // Filter users by name (case-insensitive)
-                const matchedUsers = response.data.filter(
-                  user => user.name.toLowerCase() === userName.toLowerCase()
-                );
+                // Filter users by name (case-insensitive) and map to local User interface
+                matchedUsers = response.data
+                  .filter(user => user.name.toLowerCase() === userName.toLowerCase())
+                  .map(user => ({
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    matricula: user.matricula || ''
+                  }));
                 
                 if (matchedUsers.length > 0) {
-                  // Use the first matched user
+                  // Use the first matched user by default
                   const matchedUser = matchedUsers[0];
                   userEmail = matchedUser.email || '';
                   newRow[emailIndex] = userEmail;
@@ -150,6 +165,8 @@ const UsersMappingPage: React.FC = () => {
             found: foundUser,
             hasDuplicates,
             duplicateCount,
+            matchedUsers,
+            selectedUserIndex: 0,
             originalData: newRow
           });
 
@@ -173,6 +190,26 @@ const UsersMappingPage: React.FC = () => {
     };
 
     reader.readAsText(file);
+  };
+
+  const handleUserSelection = (rowIndex: number, userIndex: number) => {
+    const updatedRows = [...processedRows];
+    const row = updatedRows[rowIndex];
+    
+    // Update the selected user index
+    row.selectedUserIndex = userIndex;
+    
+    // Update the email in the row
+    const selectedUser = row.matchedUsers[userIndex];
+    row.email = selectedUser.email;
+    
+    // Update the original data with the new email
+    const emailColIndex = headers.findIndex(h => h.toLowerCase() === 'email');
+    if (emailColIndex !== -1) {
+      row.originalData[emailColIndex] = selectedUser.email;
+    }
+    
+    setProcessedRows(updatedRows);
   };
 
   const downloadCsv = () => {
@@ -280,7 +317,23 @@ const UsersMappingPage: React.FC = () => {
                     >
                       <td>{row.matricula}</td>
                       <td>{row.name || '-'}</td>
-                      <td>{row.email || '-'}</td>
+                      <td>
+                        {row.hasDuplicates ? (
+                          <select 
+                            value={row.selectedUserIndex}
+                            onChange={(e) => handleUserSelection(index, parseInt(e.target.value))}
+                            className="user-select-dropdown"
+                          >
+                            {row.matchedUsers.map((user, userIdx) => (
+                              <option key={userIdx} value={userIdx}>
+                                {user.email} (ID: {user.id})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          row.email || '-'
+                        )}
+                      </td>
                       <td>
                         {row.hasDuplicates ? (
                           <span className="status-badge duplicates">

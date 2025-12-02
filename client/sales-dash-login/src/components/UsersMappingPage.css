@@ -232,3 +232,24 @@
   color: #856404;
   border: 1px solid #ffeaa7;
 }
+
+.user-select-dropdown {
+  width: 100%;
+  padding: 0.5rem;
+  border: 2px solid #ffeaa7;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.user-select-dropdown:hover {
+  border-color: #ffd700;
+}
+
+.user-select-dropdown:focus {
+  outline: none;
+  border-color: #ff9800;
+  box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1);
+}
