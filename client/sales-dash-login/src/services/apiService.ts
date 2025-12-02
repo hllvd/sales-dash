@@ -263,4 +263,16 @@ export const apiService = {
 
     return response.json()
   },
+
+  async getUsersByMatricula(matricula: string): Promise<ApiResponse<User[]>> {
+    const response = await fetch(`${API_BASE_URL}/users/by-matricula/${matricula}`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch users by matricula")
+    }
+
+    return response.json()
+  },
 }
