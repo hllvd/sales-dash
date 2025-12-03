@@ -275,4 +275,91 @@ export const apiService = {
 
     return response.json()
   },
+
+  // PV (Point of Sale) methods
+  async getPVs(): Promise<ApiResponse<PV[]>> {
+    const response = await fetch(`${API_BASE_URL}/point-of-sale`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch PVs")
+    }
+
+    return response.json()
+  },
+
+  async getPV(id: number): Promise<ApiResponse<PV>> {
+    const response = await fetch(`${API_BASE_URL}/point-of-sale/${id}`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch PV")
+    }
+
+    return response.json()
+  },
+
+  async createPV(pv: PVRequest): Promise<ApiResponse<PV>> {
+    const response = await fetch(`${API_BASE_URL}/point-of-sale`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(pv),
+    })
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to create PV" }))
+      throw new Error(error.message || "Failed to create PV")
+    }
+
+    return response.json()
+  },
+
+  async updatePV(id: number, pv: PVRequest): Promise<ApiResponse<PV>> {
+    const response = await fetch(`${API_BASE_URL}/point-of-sale/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(pv),
+    })
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to update PV" }))
+      throw new Error(error.message || "Failed to update PV")
+    }
+
+    return response.json()
+  },
+
+  async deletePV(id: number): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_BASE_URL}/point-of-sale/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to delete PV" }))
+      throw new Error(error.message || "Failed to delete PV")
+    }
+
+    return response.json()
+  },
+}
+
+export interface PV {
+  id: number
+  name: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PVRequest {
+  id: number
+  name: string
 }

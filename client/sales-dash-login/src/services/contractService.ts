@@ -9,6 +9,8 @@ export interface Contract {
   totalAmount: number;
   groupId: number;
   groupName: string;
+  pvId?: number;
+  pvName?: string;
   status: 'active' | 'delinquent' | 'paid_off';
   contractStartDate: string;
   contractEndDate: string | null;
@@ -22,6 +24,7 @@ export interface CreateContractRequest {
   userId: string;
   totalAmount: number;
   groupId: number;
+  pvId?: number;
   status: 'active' | 'delinquent' | 'paid_off';
   contractStartDate: string;
   contractEndDate?: string | null;
@@ -32,6 +35,7 @@ export interface UpdateContractRequest {
   userId?: string;
   totalAmount?: number;
   groupId?: number;
+  pvId?: number;
   status?: 'active' | 'delinquent' | 'paid_off';
   contractStartDate?: string;
   contractEndDate?: string | null;

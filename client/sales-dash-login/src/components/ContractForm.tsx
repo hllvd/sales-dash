@@ -11,6 +11,7 @@ import {
   getUsers,
   getGroups,
 } from '../services/contractService';
+import { apiService, PV } from '../services/apiService';
 
 interface ContractFormProps {
   contract?: Contract | null;
@@ -25,6 +26,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     contractNumber: contract?.contractNumber || '',
     userId: contract?.userId || '',
     groupId: contract?.groupId?.toString() || '0',
+    pvId: contract?.pvId?.toString() || '',
     totalAmount: contract?.totalAmount?.toString() || '',
     status: contract?.status || 'active',
     contractStartDate: contract?.contractStartDate?.split('T')[0] || '',
@@ -34,17 +36,25 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [pvs, setPVs] = useState<PV[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        const [usersData, groupsData] = await Promise.all([getUsers(), getGroups()]);
+        const [usersData, groupsData, pvsResponse] = await Promise.all([
+          getUsers(),
+          getGroups(),
+          apiService.getPVs(),
+        ]);
         setUsers(usersData);
         setGroups(groupsData);
+        if (pvsResponse.success && pvsResponse.data) {
+          setPVs(pvsResponse.data);
+        }
       } catch (err) {
-        setError('Failed to load users and groups');
+        setError('Failed to load users, groups, and PVs');
       }
     };
 
@@ -107,6 +117,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           contractNumber: formData.contractNumber,
           userId: formData.userId,
           groupId: parseInt(formData.groupId),
+          pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: parseFloat(formData.totalAmount),
           status: formData.status as 'active' | 'delinquent' | 'paid_off',
           contractStartDate: formData.contractStartDate,
@@ -119,6 +130,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           contractNumber: formData.contractNumber,
           userId: formData.userId,
           groupId: parseInt(formData.groupId),
+          pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: parseFloat(formData.totalAmount),
           status: formData.status as 'active' | 'delinquent' | 'paid_off',
           contractStartDate: formData.contractStartDate,
@@ -193,6 +205,23 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
                   {group.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="contract-form-group">
+            <label htmlFor="pvId">Ponto de Venda</label>
+            <select
+              id="pvId"
+              name="pvId"
+              value={formData.pvId}
+              onChange={handleChange}
+            >
+              <option value="">Nenhum</option>
+              {pvs.map((pv) => (
+                <option key={pv.id} value={pv.id}>
+                  {pv.name}
                 </option>
               ))}
             </select>
