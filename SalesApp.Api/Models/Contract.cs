@@ -38,6 +38,10 @@ namespace SalesApp.Models
         
         public int? PvId { get; set; } // Optional link to PV (Ponto de Venda)
         
+        public int? ContractType { get; set; }
+        
+        public int? Quota { get; set; }
+        
         // Navigation properties
         public User User { get; set; } = null!;
         public Group Group { get; set; } = null!;

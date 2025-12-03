@@ -22,5 +22,11 @@ namespace SalesApp.DTOs
         public DateTime? ContractEndDate { get; set; }
         
         public bool? IsActive { get; set; }
+        
+        public int? ContractType { get; set; }
+        
+        public int? Quota { get; set; }
+        
+        public int? PvId { get; set; }
     }
 }

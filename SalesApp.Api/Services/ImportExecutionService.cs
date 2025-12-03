@@ -117,6 +117,9 @@ namespace SalesApp.Services
             var status = GetFieldValue(row, reverseMappings, "Status") ?? "active";
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
             var saleEndDateStr = GetFieldValue(row, reverseMappings, "SaleEndDate");
+            var contractTypeStr = GetFieldValue(row, reverseMappings, "ContractType");
+            var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
+            var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
 
             // Parse dates if provided
             DateTime saleStartDate = DateTime.UtcNow;
@@ -137,6 +140,36 @@ namespace SalesApp.Services
                 }
             }
 
+            // Parse ContractType
+            int? contractType = null;
+            if (!string.IsNullOrWhiteSpace(contractTypeStr))
+            {
+                if (int.TryParse(contractTypeStr, out var parsedType))
+                {
+                    contractType = parsedType;
+                }
+            }
+
+            // Parse Quota
+            int? quota = null;
+            if (!string.IsNullOrWhiteSpace(quotaStr))
+            {
+                if (int.TryParse(quotaStr, out var parsedQuota))
+                {
+                    quota = parsedQuota;
+                }
+            }
+
+            // Parse PvId
+            int? pvId = null;
+            if (!string.IsNullOrWhiteSpace(pvIdStr))
+            {
+                if (int.TryParse(pvIdStr, out var parsedPvId))
+                {
+                    pvId = parsedPvId;
+                }
+            }
+
             // Create contract
             var contract = new Contract
             {
@@ -150,7 +183,10 @@ namespace SalesApp.Services
                 UploadId = uploadId,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.UtcNow,
+                ContractType = contractType,
+                Quota = quota,
+                PvId = pvId
             };
 
             // Save to database

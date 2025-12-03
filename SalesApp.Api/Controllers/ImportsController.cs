@@ -75,7 +75,7 @@ namespace SalesApp.Controllers
                 EntityType = "Contract",
                 Description = "Template for importing contracts",
                 RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount", "GroupId" }),
-                OptionalFields = JsonSerializer.Serialize(new List<string> { "Status", "SaleStartDate", "SaleEndDate" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId" }),
                 DefaultMappings = "{}",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow

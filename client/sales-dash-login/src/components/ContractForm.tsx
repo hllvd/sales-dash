@@ -32,6 +32,8 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     contractStartDate: contract?.contractStartDate?.split('T')[0] || '',
     contractEndDate: contract?.contractEndDate?.split('T')[0] || '',
     isActive: contract?.isActive ?? true,
+    contractType: contract?.contractType?.toString() || '',
+    quota: contract?.quota?.toString() || '',
   });
 
   const [users, setUsers] = useState<User[]>([]);
@@ -123,6 +125,8 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           contractStartDate: formData.contractStartDate,
           contractEndDate: formData.contractEndDate || null,
           isActive: formData.isActive,
+          contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
+          quota: formData.quota ? parseInt(formData.quota) : undefined,
         };
         await updateContract(contract.id, updateData);
       } else {
@@ -135,6 +139,8 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           status: formData.status as 'active' | 'delinquent' | 'paid_off',
           contractStartDate: formData.contractStartDate,
           contractEndDate: formData.contractEndDate || null,
+          contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
+          quota: formData.quota ? parseInt(formData.quota) : undefined,
         };
         await createContract(createData);
       }
@@ -275,6 +281,30 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
               name="contractEndDate"
               value={formData.contractEndDate}
               onChange={handleChange}
+            />
+          </div>
+
+          <div className="contract-form-group">
+            <label htmlFor="contractType">Tipo de Contrato</label>
+            <input
+              type="number"
+              id="contractType"
+              name="contractType"
+              value={formData.contractType}
+              onChange={handleChange}
+              placeholder="Ex: 1"
+            />
+          </div>
+
+          <div className="contract-form-group">
+            <label htmlFor="quota">Cota</label>
+            <input
+              type="number"
+              id="quota"
+              name="quota"
+              value={formData.quota}
+              onChange={handleChange}
+              placeholder="Ex: 10"
             />
           </div>
 

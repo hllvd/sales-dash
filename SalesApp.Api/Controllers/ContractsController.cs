@@ -150,7 +150,9 @@ namespace SalesApp.Controllers
                 GroupId = request.GroupId,
                 Status = request.Status,
                 SaleStartDate = request.ContractStartDate,
-                SaleEndDate = request.ContractEndDate
+                SaleEndDate = request.ContractEndDate,
+                ContractType = request.ContractType,
+                Quota = request.Quota
             };
             
             await _contractRepository.CreateAsync(contract);
@@ -234,6 +236,12 @@ namespace SalesApp.Controllers
                 
             if (request.IsActive.HasValue)
                 contract.IsActive = request.IsActive.Value;
+                
+            if (request.ContractType.HasValue)
+                contract.ContractType = request.ContractType.Value;
+                
+            if (request.Quota.HasValue)
+                contract.Quota = request.Quota.Value;
             
             await _contractRepository.UpdateAsync(contract);
             
@@ -285,7 +293,9 @@ namespace SalesApp.Controllers
                 ContractEndDate = contract.SaleEndDate,
                 IsActive = contract.IsActive,
                 CreatedAt = contract.CreatedAt,
-                UpdatedAt = contract.UpdatedAt
+                UpdatedAt = contract.UpdatedAt,
+                ContractType = contract.ContractType,
+                Quota = contract.Quota
             };
         }
         

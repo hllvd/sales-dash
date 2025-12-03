@@ -17,6 +17,8 @@ export interface Contract {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  contractType?: number;
+  quota?: number;
 }
 
 export interface CreateContractRequest {
@@ -28,6 +30,8 @@ export interface CreateContractRequest {
   status: 'active' | 'delinquent' | 'paid_off';
   contractStartDate: string;
   contractEndDate?: string | null;
+  contractType?: number;
+  quota?: number;
 }
 
 export interface UpdateContractRequest {
@@ -40,6 +44,8 @@ export interface UpdateContractRequest {
   contractStartDate?: string;
   contractEndDate?: string | null;
   isActive?: boolean;
+  contractType?: number;
+  quota?: number;
 }
 
 export interface User {
