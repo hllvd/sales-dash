@@ -7,13 +7,17 @@ namespace SalesApp.Services
         {
             ["Contract"] = new Dictionary<string, string[]>
             {
-                ["ContractNumber"] = new[] { "contract number", "contract_number", "contractnumber", "number", "contract #", "contract#" },
+                ["ContractNumber"] = new[] { "contract number", "contract_number", "contractnumber", "number", "contract #", "contract#", "contrato" },
                 ["UserEmail"] = new[] { "user email", "useremail", "user_email", "email", "client email", "customer email", "e-mail" },
-                ["TotalAmount"] = new[] { "total amount", "totalamount", "total_amount", "amount", "total", "value", "price" },
+                ["TotalAmount"] = new[] { "total amount", "totalamount", "total_amount", "amount", "value", "price", "valor" },
                 ["GroupId"] = new[] { "group id", "groupid", "group_id", "group", "team id", "teamid" },
                 ["Status"] = new[] { "status", "state", "contract status", "contract_status" },
-                ["SaleStartDate"] = new[] { "start date", "startdate", "start_date", "sale start", "contract start", "begin date" },
-                ["SaleEndDate"] = new[] { "end date", "enddate", "end_date", "sale end", "contract end", "finish date" }
+                ["SaleStartDate"] = new[] { "start date", "startdate", "start_date", "sale start", "contract start", "begin date", "data da venda", "data venda" },
+                ["SaleEndDate"] = new[] { "end date", "enddate", "end_date", "sale end", "contract end", "finish date" },
+                ["PvId"] = new[] { "pv id", "pvid", "pv_id", "pv", "point of sale", "codigo pv", "código pv" },
+                ["Quota"] = new[] { "quota", "cota" },
+                ["ContractType"] = new[] { "contract type", "contracttype", "contract_type", "type", "tipo" },
+                ["CustomerName"] = new[] { "customer name", "customername", "customer_name", "client name", "clientname", "nome do cliente", "nome cliente", "cliente" }
             },
             ["User"] = new Dictionary<string, string[]>
             {

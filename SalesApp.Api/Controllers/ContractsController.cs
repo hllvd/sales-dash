@@ -152,7 +152,8 @@ namespace SalesApp.Controllers
                 SaleStartDate = request.ContractStartDate,
                 SaleEndDate = request.ContractEndDate,
                 ContractType = request.ContractType,
-                Quota = request.Quota
+                Quota = request.Quota,
+                CustomerName = request.CustomerName
             };
             
             await _contractRepository.CreateAsync(contract);
@@ -242,6 +243,11 @@ namespace SalesApp.Controllers
                 
             if (request.Quota.HasValue)
                 contract.Quota = request.Quota.Value;
+                
+            if (request.PvId.HasValue) contract.PvId = request.PvId.Value;
+            if (!string.IsNullOrEmpty(request.CustomerName)) contract.CustomerName = request.CustomerName;
+            
+            contract.UpdatedAt = DateTime.UtcNow;
             
             await _contractRepository.UpdateAsync(contract);
             
@@ -295,7 +301,9 @@ namespace SalesApp.Controllers
                 CreatedAt = contract.CreatedAt,
                 UpdatedAt = contract.UpdatedAt,
                 ContractType = contract.ContractType,
-                Quota = contract.Quota
+                Quota = contract.Quota,
+                PvId = contract.PvId,
+                CustomerName = contract.CustomerName
             };
         }
         

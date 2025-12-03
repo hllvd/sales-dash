@@ -17,5 +17,7 @@ namespace SalesApp.DTOs
         public DateTime UpdatedAt { get; set; }
         public int? ContractType { get; set; }
         public int? Quota { get; set; }
+        public int? PvId { get; set; }
+        public string? CustomerName { get; set; }
     }
 }

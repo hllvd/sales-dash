@@ -120,7 +120,6 @@ namespace SalesApp.Tests.Services
                 "totalamount",
                 "total_amount",
                 "amount",
-                "total",
                 "value",
                 "price"
             };
@@ -205,7 +204,7 @@ namespace SalesApp.Tests.Services
             {
                 "contract_number",
                 "client email",
-                "total",
+                "amount",
                 "group",
                 "status",
                 "sale start",
@@ -219,7 +218,7 @@ namespace SalesApp.Tests.Services
             result.Should().HaveCount(7);
             result["contract_number"].Should().Be("ContractNumber");
             result["client email"].Should().Be("UserEmail");
-            result["total"].Should().Be("TotalAmount");
+            result["amount"].Should().Be("TotalAmount");
             result["group"].Should().Be("GroupId");
             result["status"].Should().Be("Status");
             result["sale start"].Should().Be("SaleStartDate");

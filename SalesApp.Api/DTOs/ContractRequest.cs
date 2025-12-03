@@ -24,9 +24,12 @@ namespace SalesApp.DTOs
         public DateTime ContractStartDate { get; set; } = DateTime.UtcNow;
         
         public DateTime? ContractEndDate { get; set; }
-        
+        // New nullable fields
         public int? ContractType { get; set; }
         
         public int? Quota { get; set; }
+
+        [MaxLength(200)]
+        public string? CustomerName { get; set; }
     }
 }

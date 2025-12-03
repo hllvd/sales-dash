@@ -67,6 +67,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 TotalAmount = 5000,
                 ContractType = 1,
                 Quota = 10,
+                CustomerName = "Jane Doe",
                 Status = "active",
                 ContractStartDate = DateTime.UtcNow
             };
@@ -81,6 +82,7 @@ namespace SalesApp.IntegrationTests.Contracts
             result!.Success.Should().BeTrue();
             result.Data.ContractType.Should().Be(1);
             result.Data.Quota.Should().Be(10);
+            result.Data.CustomerName.Should().Be("Jane Doe");
         }
 
         [Fact]

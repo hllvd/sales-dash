@@ -37,6 +37,9 @@ namespace SalesApp.Models
         public string? UploadId { get; set; } // Tracks which import session created this contract
         
         public int? PvId { get; set; } // Optional link to PV (Ponto de Venda)
+
+        [MaxLength(200)]
+        public string? CustomerName { get; set; } // New field
         
         public int? ContractType { get; set; }
         

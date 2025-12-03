@@ -27,6 +27,11 @@ namespace SalesApp.DTOs
         
         public int? Quota { get; set; }
         
+
+        
         public int? PvId { get; set; }
+
+        [MaxLength(200)]
+        public string? CustomerName { get; set; }
     }
 }

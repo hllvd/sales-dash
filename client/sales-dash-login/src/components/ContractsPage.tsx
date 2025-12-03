@@ -244,6 +244,7 @@ const ContractsPage: React.FC = () => {
                 <th>Número</th>
                 <th>Usuário</th>
                 <th>Grupo</th>
+                <th>Cliente</th>
                 <th>Valor Total</th>
                 <th>Status</th>
                 <th>Data Início</th>
@@ -257,6 +258,7 @@ const ContractsPage: React.FC = () => {
                   <td>{contract.contractNumber}</td>
                   <td>{contract.userName}</td>
                   <td>{contract.groupName}</td>
+                  <td>{contract.customerName || '-'}</td>
                   <td>{formatCurrency(contract.totalAmount)}</td>
                   <td>
                     <span className={`status-badge ${getStatusBadgeClass(contract.status)}`}>

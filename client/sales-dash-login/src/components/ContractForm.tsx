@@ -34,6 +34,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     isActive: contract?.isActive ?? true,
     contractType: contract?.contractType?.toString() || '',
     quota: contract?.quota?.toString() || '',
+    customerName: contract?.customerName || '',
   });
 
   const [users, setUsers] = useState<User[]>([]);
@@ -127,6 +128,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           isActive: formData.isActive,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
           quota: formData.quota ? parseInt(formData.quota) : undefined,
+          customerName: formData.customerName || undefined,
         };
         await updateContract(contract.id, updateData);
       } else {
@@ -141,6 +143,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           contractEndDate: formData.contractEndDate || null,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
           quota: formData.quota ? parseInt(formData.quota) : undefined,
+          customerName: formData.customerName || undefined,
         };
         await createContract(createData);
       }
@@ -305,6 +308,19 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
               value={formData.quota}
               onChange={handleChange}
               placeholder="Ex: 10"
+            />
+          </div>
+
+          <div className="contract-form-group">
+            <label htmlFor="customerName">Nome do Cliente</label>
+            <input
+              type="text"
+              id="customerName"
+              name="customerName"
+              value={formData.customerName}
+              onChange={handleChange}
+              placeholder="Ex: João Silva"
+              maxLength={200}
             />
           </div>
 

@@ -120,6 +120,7 @@ namespace SalesApp.Services
             var contractTypeStr = GetFieldValue(row, reverseMappings, "ContractType");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
+            var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
 
             // Parse dates if provided
             DateTime saleStartDate = DateTime.UtcNow;
@@ -186,7 +187,8 @@ namespace SalesApp.Services
                 UpdatedAt = DateTime.UtcNow,
                 ContractType = contractType,
                 Quota = quota,
-                PvId = pvId
+                PvId = pvId,
+                CustomerName = customerName
             };
 
             // Save to database

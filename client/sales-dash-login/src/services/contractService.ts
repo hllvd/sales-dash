@@ -19,6 +19,7 @@ export interface Contract {
   updatedAt: string;
   contractType?: number;
   quota?: number;
+  customerName?: string;
 }
 
 export interface CreateContractRequest {
@@ -32,6 +33,7 @@ export interface CreateContractRequest {
   contractEndDate?: string | null;
   contractType?: number;
   quota?: number;
+  customerName?: string;
 }
 
 export interface UpdateContractRequest {
@@ -46,6 +48,7 @@ export interface UpdateContractRequest {
   isActive?: boolean;
   contractType?: number;
   quota?: number;
+  customerName?: string;
 }
 
 export interface User {
