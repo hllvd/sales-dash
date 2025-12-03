@@ -36,8 +36,11 @@ namespace SalesApp.Models
         [MaxLength(50)]
         public string? UploadId { get; set; } // Tracks which import session created this contract
         
+        public int? PvId { get; set; } // Optional link to PV (Ponto de Venda)
+        
         // Navigation properties
         public User User { get; set; } = null!;
         public Group Group { get; set; } = null!;
+        public PV? PV { get; set; }
     }
 }

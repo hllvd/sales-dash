@@ -106,6 +106,18 @@ namespace SalesApp.IntegrationTests
                 context.Users.AddRange(superAdminUser, adminUser, regularUser);
                 await context.SaveChangesAsync();
             }
+            
+            // Seed PVs for testing
+            if (!context.PVs.Any())
+            {
+                var pvs = new[]
+                {
+                    new SalesApp.Models.PV { Id = 1, Name = "Loja Centro", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.PV { Id = 2, Name = "Loja Norte", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
+                };
+                context.PVs.AddRange(pvs);
+                await context.SaveChangesAsync();
+            }
         }
 
         public void Dispose()

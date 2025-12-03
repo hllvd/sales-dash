@@ -15,6 +15,7 @@ namespace SalesApp.Data
         public DbSet<ImportSession> ImportSessions { get; set; }
         public DbSet<ImportColumnMapping> ImportColumnMappings { get; set; }
         public DbSet<ImportUserMapping> ImportUserMappings { get; set; }
+        public DbSet<PV> PVs { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -88,6 +89,19 @@ namespace SalesApp.Data
                     .WithMany()
                     .HasForeignKey(e => e.GroupId)
                     .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.PV)
+                    .WithMany(p => p.Contracts)
+                    .HasForeignKey(e => e.PvId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            
+            // PV entity configuration
+            modelBuilder.Entity<PV>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedNever(); // NOT auto-increment
+                entity.Property(e => e.Name).IsRequired().HasColumnType("text");
             });
             
             // ImportTemplate entity configuration

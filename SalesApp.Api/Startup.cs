@@ -44,6 +44,7 @@ namespace SalesApp
             services.AddScoped<IGroupRepository, GroupRepository>();
             services.AddScoped<IContractRepository, ContractRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
+            services.AddScoped<IPVRepository, PVRepository>();
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
             services.AddScoped<IDynamicRoleAuthorizationService, DynamicRoleAuthorizationService>();
             services.AddScoped<IEndpointDiscoveryService, EndpointDiscoveryService>();
