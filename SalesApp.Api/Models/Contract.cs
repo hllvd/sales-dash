@@ -10,8 +10,7 @@ namespace SalesApp.Models
         [MaxLength(50)]
         public string ContractNumber { get; set; } = string.Empty;
         
-        [Required]
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
         
         [Required]
         public decimal TotalAmount { get; set; }
@@ -46,7 +45,7 @@ namespace SalesApp.Models
         public int? Quota { get; set; }
         
         // Navigation properties
-        public User User { get; set; } = null!;
+        public User? User { get; set; }
         public Group Group { get; set; } = null!;
         public PV? PV { get; set; }
     }

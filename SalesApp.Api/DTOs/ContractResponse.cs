@@ -4,8 +4,8 @@ namespace SalesApp.DTOs
     {
         public int Id { get; set; }
         public string ContractNumber { get; set; } = string.Empty;
-        public Guid UserId { get; set; }
-        public string UserName { get; set; } = string.Empty;
+        public Guid? UserId { get; set; }
+        public string? UserName { get; set; }
         public decimal TotalAmount { get; set; }
         public int GroupId { get; set; }
         public string GroupName { get; set; } = string.Empty;

@@ -529,10 +529,18 @@ namespace SalesApp.Controllers
                     UserId = currentUserId,
                     UserName = user.Name,
                     TotalAmount = contract.TotalAmount,
-                Status = contract.Status,
-                ContractStartDate = contract.SaleStartDate,
-                ContractEndDate = contract.SaleEndDate,
-                IsActive = contract.IsActive
+                    GroupId = contract.GroupId,
+                    GroupName = contract.Group?.Name ?? "",
+                    Status = contract.Status,
+                    ContractStartDate = contract.SaleStartDate,
+                    ContractEndDate = contract.SaleEndDate,
+                    IsActive = contract.IsActive,
+                    CreatedAt = contract.CreatedAt,
+                    UpdatedAt = contract.UpdatedAt,
+                    ContractType = contract.ContractType,
+                    Quota = contract.Quota,
+                    PvId = contract.PvId,
+                    CustomerName = contract.CustomerName
                 },
                 Message = "Contract assigned successfully"
             });

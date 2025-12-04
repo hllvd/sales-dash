@@ -80,10 +80,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
       return false;
     }
 
-    if (!formData.userId) {
-      setError('User is required');
-      return false;
-    }
 
     if (!formData.groupId) {
       setError('Group is required');
@@ -118,7 +114,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
       if (isEditMode && contract) {
         const updateData: UpdateContractRequest = {
           contractNumber: formData.contractNumber,
-          userId: formData.userId,
+          userId: formData.userId || undefined,
           groupId: parseInt(formData.groupId),
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: parseFloat(formData.totalAmount),
@@ -134,7 +130,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
       } else {
         const createData: CreateContractRequest = {
           contractNumber: formData.contractNumber,
-          userId: formData.userId,
+          userId: formData.userId || undefined,
           groupId: parseInt(formData.groupId),
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: parseFloat(formData.totalAmount),
@@ -184,15 +180,14 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           </div>
 
           <div className="contract-form-group">
-            <label htmlFor="userId">Usuário *</label>
+            <label htmlFor="userId">Usuário</label>
             <select
               id="userId"
               name="userId"
               value={formData.userId}
               onChange={handleChange}
-              required
             >
-              <option value="">Selecione um usuário</option>
+              <option value="">Sem usuário atribuído</option>
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name} ({user.email})

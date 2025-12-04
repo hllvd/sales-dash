@@ -150,5 +150,51 @@ namespace SalesApp.IntegrationTests.Contracts
             result.Data.ContractType.Should().Be(2);
             result.Data.Quota.Should().Be(20);
         }
+
+        [Fact]
+        public async Task CreateContract_WithoutUserId_ShouldSucceed()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Create a group
+            var group = new Group { Id = 103, Name = "Contract Test Group 3" };
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<SalesApp.Data.AppDbContext>();
+                if (await context.Groups.FindAsync(group.Id) == null)
+                {
+                    context.Groups.Add(group);
+                }
+                await context.SaveChangesAsync();
+            }
+
+            var request = new ContractRequest
+            {
+                ContractNumber = "CTR-TEST-003",
+                UserId = null, // No user assigned
+                GroupId = group.Id,
+                TotalAmount = 4000,
+                ContractType = 1,
+                Quota = 15,
+                CustomerName = "John Smith",
+                Status = "active",
+                ContractStartDate = DateTime.UtcNow
+            };
+
+            // Act
+            var response = await _client.PostAsJsonAsync("/api/contracts", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.UserId.Should().BeNull();
+            result.Data.UserName.Should().BeNullOrEmpty();
+            result.Data.CustomerName.Should().Be("John Smith");
+        }
     }
 }

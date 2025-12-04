@@ -55,13 +55,13 @@ namespace SalesApp.Tests
                 ContractEndDate = DateTime.UtcNow.AddDays(30)
             };
 
-            var user = new User { Id = request.UserId, IsActive = true };
+            var user = new User { Id = request.UserId!.Value, IsActive = true };
             var group = new Group { Id = request.GroupId, IsActive = true };
             var contract = new Contract { Id = 1, ContractNumber = request.ContractNumber };
 
             _mockContractRepository.Setup(x => x.GetByContractNumberAsync(request.ContractNumber))
                 .ReturnsAsync((Contract?)null);
-            _mockUserRepository.Setup(x => x.GetByIdAsync(request.UserId))
+            _mockUserRepository.Setup(x => x.GetByIdAsync(request.UserId!.Value))
                 .ReturnsAsync(user);
             _mockGroupRepository.Setup(x => x.GetByIdAsync(request.GroupId))
                 .ReturnsAsync(group);
@@ -198,6 +198,45 @@ namespace SalesApp.Tests
             var response = okResult.Value.Should().BeOfType<ApiResponse<ContractResponse>>().Subject;
             response.Success.Should().BeTrue();
             response.Message.Should().Be("Contract updated successfully");
+        }
+
+        [Fact]
+        public async Task CreateContract_WithoutUserId_ShouldSucceed()
+        {
+            // Arrange
+            var request = new ContractRequest
+            {
+                ContractNumber = "1100000950",
+                UserId = null, // No user assigned
+                GroupId = 1,
+                TotalAmount = 150.00m,
+                Status = "active",
+                ContractStartDate = DateTime.UtcNow,
+                ContractEndDate = DateTime.UtcNow.AddDays(30)
+            };
+
+            var group = new Group { Id = request.GroupId, IsActive = true };
+            var contract = new Contract { Id = 1, ContractNumber = request.ContractNumber, UserId = null };
+
+            _mockContractRepository.Setup(x => x.GetByContractNumberAsync(request.ContractNumber))
+                .ReturnsAsync((Contract?)null);
+            _mockGroupRepository.Setup(x => x.GetByIdAsync(request.GroupId))
+                .ReturnsAsync(group);
+            _mockContractRepository.Setup(x => x.CreateAsync(It.IsAny<Contract>()))
+                .ReturnsAsync(contract);
+
+            // Act
+            var result = await _controller.CreateContract(request);
+
+            // Assert
+            result.Should().BeOfType<ActionResult<ApiResponse<ContractResponse>>>();
+            var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+            var response = okResult.Value.Should().BeOfType<ApiResponse<ContractResponse>>().Subject;
+            response.Success.Should().BeTrue();
+            response.Message.Should().Be("Contract created successfully");
+            
+            // Verify user repository was never called since UserId was null
+            _mockUserRepository.Verify(x => x.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
         }
     }
 }

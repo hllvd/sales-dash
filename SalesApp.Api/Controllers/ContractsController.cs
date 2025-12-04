@@ -120,15 +120,18 @@ namespace SalesApp.Controllers
                 });
             }
             
-            // Validate user exists
-            var user = await _userRepository.GetByIdAsync(request.UserId);
-            if (user == null || !user.IsActive)
+            // Validate user exists (if provided)
+            if (request.UserId.HasValue)
             {
-                return BadRequest(new ApiResponse<ContractResponse>
+                var user = await _userRepository.GetByIdAsync(request.UserId.Value);
+                if (user == null || !user.IsActive)
                 {
-                    Success = false,
-                    Message = "Invalid user"
-                });
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = "Invalid user"
+                    });
+                }
             }
             
             // Validate group exists

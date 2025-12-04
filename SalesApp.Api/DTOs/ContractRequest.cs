@@ -8,8 +8,7 @@ namespace SalesApp.DTOs
         [MaxLength(50)]
         public string ContractNumber { get; set; } = string.Empty;
         
-        [Required]
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
         
         [Required]
         [Range(0.01, double.MaxValue)]

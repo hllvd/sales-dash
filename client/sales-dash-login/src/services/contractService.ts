@@ -4,8 +4,8 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5017/api
 export interface Contract {
   id: number;
   contractNumber: string;
-  userId: string;
-  userName: string;
+  userId?: string | null;
+  userName?: string | null;
   totalAmount: number;
   groupId: number;
   groupName: string;
@@ -24,7 +24,7 @@ export interface Contract {
 
 export interface CreateContractRequest {
   contractNumber: string;
-  userId: string;
+  userId?: string | null;
   totalAmount: number;
   groupId: number;
   pvId?: number;
@@ -206,7 +206,7 @@ export const getGroups = async (): Promise<Group[]> => {
 
 // Get contract by contract number
 export const getContractByNumber = async (contractNumber: string): Promise<Contract> => {
-  const response = await fetch(`${API_BASE_URL}/contracts/by-number/${contractNumber}`, {
+  const response = await fetch(`${API_BASE_URL}/contracts/number/${contractNumber}`, {
     method: 'GET',
     headers: getHeaders(),
   });
@@ -222,10 +222,9 @@ export const getContractByNumber = async (contractNumber: string): Promise<Contr
 
 // Assign contract to current user
 export const assignContract = async (contractNumber: string): Promise<Contract> => {
-  const response = await fetch(`${API_BASE_URL}/contracts/assign-contract`, {
+  const response = await fetch(`${API_BASE_URL}/users/assign-contract/${contractNumber}`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ contractNumber }),
   });
 
   if (!response.ok) {
