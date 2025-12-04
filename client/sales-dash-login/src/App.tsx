@@ -5,6 +5,7 @@ import UsersPage from './components/UsersPage';
 import ContractsPage from './components/ContractsPage';
 import UsersMappingPage from './components/UsersMappingPage';
 import PVPage from './components/PVPage';
+import MyContractsPage from './components/MyContractsPage';
 import './App.css';
 
 function App() {
@@ -38,6 +39,8 @@ function App() {
         return <UsersMappingPage />;
       case '#/point-of-sale':
         return <PVPage />;
+      case '#/my-contracts':
+        return <MyContractsPage />;
       case '#/dashboards':
         return <WelcomePage title="Dashboards" />;
       case '#/grupos':

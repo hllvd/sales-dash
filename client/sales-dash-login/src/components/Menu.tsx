@@ -55,11 +55,14 @@ const Menu: React.FC = () => {
             <span>Mapeamento</span>
           </a>
         )}
-        {userRole === 'superadmin' && (
+        {(userRole === 'admin' || userRole === 'superadmin') && (
           <a href="#/point-of-sale" className={isActive('#/point-of-sale')}>
             <span>Pontos de Venda</span>
           </a>
         )}
+        <a href="#/my-contracts" className={isActive('#/my-contracts')}>
+          <span>Meus Contratos</span>
+        </a>
         <a href="#/grupos" className={isActive('#/grupos')}>
           <span>Grupos</span>
         </a>

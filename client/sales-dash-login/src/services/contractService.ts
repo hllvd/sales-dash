@@ -203,3 +203,36 @@ export const getGroups = async (): Promise<Group[]> => {
   const result: ApiResponse<Group[]> = await response.json();
   return result.data.filter(group => group.isActive);
 };
+
+// Get contract by contract number
+export const getContractByNumber = async (contractNumber: string): Promise<Contract> => {
+  const response = await fetch(`${API_BASE_URL}/contracts/by-number/${contractNumber}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to fetch contract');
+  }
+
+  const result: ApiResponse<Contract> = await response.json();
+  return result.data;
+};
+
+// Assign contract to current user
+export const assignContract = async (contractNumber: string): Promise<Contract> => {
+  const response = await fetch(`${API_BASE_URL}/contracts/assign-contract`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ contractNumber }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to assign contract');
+  }
+
+  const result: ApiResponse<Contract> = await response.json();
+  return result.data;
+};
