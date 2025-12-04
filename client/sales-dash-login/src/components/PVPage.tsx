@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './PVPage.css';
 import Menu from './Menu';
 import PVForm from './PVForm';
+import PVImportModal from './PVImportModal';
 import { apiService, PV } from '../services/apiService';
 
 const PVPage: React.FC = () => {
@@ -9,6 +10,7 @@ const PVPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingPV, setEditingPV] = useState<PV | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
@@ -81,9 +83,14 @@ const PVPage: React.FC = () => {
         <div className="pv-page">
           <div className="pv-header">
             <h1>Gerenciamento de Pontos de Venda</h1>
-            <button className="create-pv-btn" onClick={handleCreateClick}>
-              + Criar Ponto de Venda
-            </button>
+            <div className="pv-header-actions">
+              <button className="import-pv-btn" onClick={() => setShowImportModal(true)}>
+                📁 Importar CSV
+              </button>
+              <button className="create-pv-btn" onClick={handleCreateClick}>
+                + Criar Ponto de Venda
+              </button>
+            </div>
           </div>
 
           {error && <div className="pv-error">{error}</div>}
@@ -150,6 +157,16 @@ const PVPage: React.FC = () => {
           onSubmit={handleFormSubmit}
           onCancel={() => setShowForm(false)}
           isEdit={!!editingPV}
+        />
+      )}
+
+      {showImportModal && (
+        <PVImportModal
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            loadPVs();
+            setShowImportModal(false);
+          }}
         />
       )}
 
