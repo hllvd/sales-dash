@@ -18,7 +18,7 @@ namespace SalesApp.DTOs
         public int GroupId { get; set; }
         
         [MaxLength(20)]
-        public string Status { get; set; } = "active";
+        public string Status { get; set; } = "Active";
         
         public DateTime ContractStartDate { get; set; } = DateTime.UtcNow;
         

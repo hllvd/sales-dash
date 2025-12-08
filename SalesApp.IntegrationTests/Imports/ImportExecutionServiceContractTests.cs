@@ -85,9 +85,9 @@ namespace SalesApp.IntegrationTests.Imports
 
             var contract = result.CreatedContracts[0];
             contract.UserId.Should().Be(user.Id);
-            contract.TotalAmount.Should().Be(150050m); // SQLite stores as cents
+            contract.TotalAmount.Should().Be(150050m); // Stored as cents (no decimals)
             contract.GroupId.Should().Be(group.Id);
-            contract.Status.Should().Be("active");
+            contract.Status.Should().Be("Active");
             contract.SaleStartDate.Should().BeCloseTo(new DateTime(2024, 1, 1), TimeSpan.FromSeconds(1));
             contract.SaleEndDate.Should().BeCloseTo(new DateTime(2024, 12, 31), TimeSpan.FromSeconds(1));
         }
@@ -152,9 +152,9 @@ namespace SalesApp.IntegrationTests.Imports
 
             var contract = result.CreatedContracts[0];
             contract.UserId.Should().Be(user.Id);
-            contract.TotalAmount.Should().Be(200000m); // SQLite stores as cents
+            contract.TotalAmount.Should().Be(200000m); // Stored as cents (no decimals)
             contract.GroupId.Should().Be(group.Id);
-            contract.Status.Should().Be("active"); // Default status
+            contract.Status.Should().Be("Active"); // Default status
         }
 
         [Fact]

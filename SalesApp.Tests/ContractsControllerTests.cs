@@ -50,7 +50,7 @@ namespace SalesApp.Tests
                 UserId = Guid.NewGuid(),
                 GroupId = 1,
                 TotalAmount = 100.00m,
-                Status = "active",
+                Status = "Active",
                 ContractStartDate = DateTime.UtcNow,
                 ContractEndDate = DateTime.UtcNow.AddDays(30)
             };
@@ -89,7 +89,7 @@ namespace SalesApp.Tests
                 UserId = Guid.NewGuid(),
                 GroupId = 1,
                 TotalAmount = 100.00m,
-                Status = "active",
+                Status = "Active",
                 ContractStartDate = DateTime.UtcNow,
                 ContractEndDate = DateTime.UtcNow.AddDays(30)
             };
@@ -210,7 +210,7 @@ namespace SalesApp.Tests
                 UserId = null, // No user assigned
                 GroupId = 1,
                 TotalAmount = 150.00m,
-                Status = "active",
+                Status = "Active",
                 ContractStartDate = DateTime.UtcNow,
                 ContractEndDate = DateTime.UtcNow.AddDays(30)
             };

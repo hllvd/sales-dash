@@ -84,10 +84,13 @@ namespace SalesApp.Services
             }
 
             // Parse and validate total amount
-            if (!decimal.TryParse(totalAmountStr, out var totalAmount))
+            if (!decimal.TryParse(totalAmountStr, out var totalAmountDollars))
             {
                 throw new ArgumentException($"Invalid total amount: {totalAmountStr}");
             }
+            
+            // Convert dollars to cents (no decimals in storage)
+            var totalAmount = totalAmountDollars * 100;
 
             // Parse and validate group ID
             int groupId = 0; // Default to 0
@@ -114,7 +117,8 @@ namespace SalesApp.Services
             }
 
             // Extract optional fields
-            var status = GetFieldValue(row, reverseMappings, "Status") ?? "active";
+            var statusInput = GetFieldValue(row, reverseMappings, "Status");
+            var status = ContractStatusMapper.MapStatus(statusInput) ?? "Active";
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
             var saleEndDateStr = GetFieldValue(row, reverseMappings, "SaleEndDate");
             var contractTypeStr = GetFieldValue(row, reverseMappings, "ContractType");
@@ -178,7 +182,7 @@ namespace SalesApp.Services
                 UserId = user.Id,
                 TotalAmount = totalAmount,
                 GroupId = groupId,
-                Status = status.ToLowerInvariant(),
+                Status = status,
                 SaleStartDate = saleStartDate,
                 SaleEndDate = saleEndDate,
                 UploadId = uploadId,

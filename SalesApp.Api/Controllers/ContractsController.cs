@@ -134,6 +134,16 @@ namespace SalesApp.Controllers
                 }
             }
             
+            // Validate status
+            if (!Services.ContractStatusMapper.IsValidStatus(request.Status))
+            {
+                return BadRequest(new ApiResponse<ContractResponse>
+                {
+                    Success = false,
+                    Message = $"Invalid status. Must be one of: {string.Join(", ", Services.ContractStatusMapper.GetValidStatuses())}"
+                });
+            }
+            
             // Validate group exists
             var group = await _groupRepository.GetByIdAsync(request.GroupId);
             if (group == null || !group.IsActive)
@@ -230,7 +240,17 @@ namespace SalesApp.Controllers
                 contract.TotalAmount = request.TotalAmount.Value;
                 
             if (!string.IsNullOrEmpty(request.Status))
+            {
+                if (!Services.ContractStatusMapper.IsValidStatus(request.Status))
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = $"Invalid status. Must be one of: {string.Join(", ", Services.ContractStatusMapper.GetValidStatuses())}"
+                    });
+                }
                 contract.Status = request.Status;
+            }
                 
             if (request.ContractStartDate.HasValue)
                 contract.SaleStartDate = request.ContractStartDate.Value;

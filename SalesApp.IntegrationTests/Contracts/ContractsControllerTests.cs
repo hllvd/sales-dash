@@ -68,7 +68,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 ContractType = 1,
                 Quota = 10,
                 CustomerName = "Jane Doe",
-                Status = "active",
+                Status = "Active",
                 ContractStartDate = DateTime.UtcNow
             };
 
@@ -103,7 +103,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 TotalAmount = 3000,
                 ContractType = 1,
                 Quota = 5,
-                Status = "active",
+                Status = "Active",
                 SaleStartDate = DateTime.UtcNow
             };
             
@@ -180,7 +180,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 ContractType = 1,
                 Quota = 15,
                 CustomerName = "John Smith",
-                Status = "active",
+                Status = "Active",
                 ContractStartDate = DateTime.UtcNow
             };
 

@@ -28,7 +28,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     groupId: contract?.groupId?.toString() || '0',
     pvId: contract?.pvId?.toString() || '',
     totalAmount: contract?.totalAmount?.toString() || '',
-    status: contract?.status || 'active',
+    status: contract?.status || 'Active',
     contractStartDate: contract?.contractStartDate?.split('T')[0] || '',
     contractEndDate: contract?.contractEndDate?.split('T')[0] || '',
     isActive: contract?.isActive ?? true,
@@ -118,7 +118,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           groupId: parseInt(formData.groupId),
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: parseFloat(formData.totalAmount),
-          status: formData.status as 'active' | 'delinquent' | 'paid_off',
+          status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
           contractStartDate: formData.contractStartDate,
           contractEndDate: formData.contractEndDate || null,
           isActive: formData.isActive,
@@ -134,7 +134,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           groupId: parseInt(formData.groupId),
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: parseFloat(formData.totalAmount),
-          status: formData.status as 'active' | 'delinquent' | 'paid_off',
+          status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
           contractStartDate: formData.contractStartDate,
           contractEndDate: formData.contractEndDate || null,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
@@ -253,9 +253,11 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
               value={formData.status}
               onChange={handleChange}
             >
-              <option value="active">Ativo</option>
-              <option value="delinquent">Inadimplente</option>
-              <option value="paid_off">Quitado</option>
+              <option value="Active">Ativo</option>
+              <option value="Late1">1 mês atrasado</option>
+              <option value="Late2">2 meses atrasado</option>
+              <option value="Late3">3 meses atrasado</option>
+              <option value="Defaulted">Inadimplente</option>
             </select>
           </div>
 
