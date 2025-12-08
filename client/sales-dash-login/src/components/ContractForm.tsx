@@ -286,14 +286,16 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
           <div className="contract-form-group">
             <label htmlFor="contractType">Tipo de Contrato</label>
-            <input
-              type="number"
+            <select
               id="contractType"
               name="contractType"
               value={formData.contractType}
               onChange={handleChange}
-              placeholder="Ex: 1"
-            />
+            >
+              <option value="">Selecione</option>
+              <option value="0">Lar</option>
+              <option value="1">Motores</option>
+            </select>
           </div>
 
           <div className="contract-form-group">

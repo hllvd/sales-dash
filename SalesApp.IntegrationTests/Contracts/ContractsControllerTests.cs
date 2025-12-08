@@ -135,7 +135,7 @@ namespace SalesApp.IntegrationTests.Contracts
 
             var updateRequest = new UpdateContractRequest
             {
-                ContractType = 2,
+                ContractType = 1, // Motors
                 Quota = 20
             };
 
@@ -147,7 +147,7 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.ContractType.Should().Be(2);
+            result.Data.ContractType.Should().Be(1); // Motors
             result.Data.Quota.Should().Be(20);
         }
 

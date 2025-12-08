@@ -144,6 +144,16 @@ namespace SalesApp.Controllers
                 });
             }
             
+            // Validate ContractType if provided
+            if (request.ContractType.HasValue && request.ContractType.Value != 0 && request.ContractType.Value != 1)
+            {
+                return BadRequest(new ApiResponse<ContractResponse>
+                {
+                    Success = false,
+                    Message = "Invalid ContractType. Must be 0 (Lar) or 1 (Motors)"
+                });
+            }
+            
             // Validate group exists
             var group = await _groupRepository.GetByIdAsync(request.GroupId);
             if (group == null || !group.IsActive)
@@ -262,7 +272,17 @@ namespace SalesApp.Controllers
                 contract.IsActive = request.IsActive.Value;
                 
             if (request.ContractType.HasValue)
+            {
+                if (request.ContractType.Value != 0 && request.ContractType.Value != 1)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = "Invalid ContractType. Must be 0 (Lar) or 1 (Motors)"
+                    });
+                }
                 contract.ContractType = request.ContractType.Value;
+            }
                 
             if (request.Quota.HasValue)
                 contract.Quota = request.Quota.Value;
