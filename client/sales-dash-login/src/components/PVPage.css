@@ -35,35 +35,37 @@
 }
 
 .import-pv-btn {
-  background-color: #2196f3;
-  color: white;
-  border: none;
+  background: transparent;
+  color: #b2342b;
+  border: 2px solid #b2342b;
   padding: 12px 24px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 1rem;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .import-pv-btn:hover {
-  background-color: #1976d2;
+  background: rgba(178, 52, 43, 0.1);
+  box-shadow: 0 4px 12px rgba(178, 52, 43, 0.3);
 }
 
 .create-pv-btn {
-  background-color: #4caf50;
-  color: white;
-  border: none;
+  background: transparent;
+  color: #b2342b;
+  border: 2px solid #b2342b;
   padding: 12px 24px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 1rem;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .create-pv-btn:hover {
-  background-color: #45a049;
+  background: rgba(178, 52, 43, 0.1);
+  box-shadow: 0 4px 12px rgba(178, 52, 43, 0.3);
 }
 
 .pv-error {

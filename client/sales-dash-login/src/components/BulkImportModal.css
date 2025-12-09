@@ -99,7 +99,7 @@
 }
 
 .btn-submit {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #b2342b 0%, #8f2a22 100%);
   color: white;
 }
 
@@ -164,7 +164,7 @@
 }
 
 .btn-submit:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #8f2a22 0%, #6d1f1a 100%);
 }
 
 .btn-cancel:disabled,

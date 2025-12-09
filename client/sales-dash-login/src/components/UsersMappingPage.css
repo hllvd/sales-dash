@@ -71,7 +71,7 @@
 }
 
 .process-button {
-  background-color: #3498db;
+  background-color: #b2342b;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -82,7 +82,7 @@
 }
 
 .process-button:hover:not(:disabled) {
-  background-color: #2980b9;
+  background-color: #8f2a22;
 }
 
 .process-button:disabled {

@@ -29,3 +29,41 @@ html {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Mantine Button Overrides - Transparent with Red Border */
+.mantine-Button-root {
+  background: transparent !important;
+  color: #b2342b !important;
+  border: 2px solid #b2342b !important;
+  transition: all 0.2s ease !important;
+}
+
+.mantine-Button-root:hover:not(:disabled) {
+  background: rgba(178, 52, 43, 0.1) !important;
+  transform: translateY(-2px);
+}
+
+.mantine-Button-root:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #999 !important;
+  color: #999 !important;
+}
+
+.mantine-Button-label {
+  color: #b2342b !important;
+}
+
+.mantine-Button-root:hover:not(:disabled) .mantine-Button-label {
+  color: #b2342b !important;
+}
+
+/* Mantine Title Overrides - Black with Red First Letter */
+.mantine-Title-root {
+  color: #000 !important;
+}
+
+.mantine-Title-root::first-letter {
+  color: #b2342b !important;
+  font-weight: bold;
+}

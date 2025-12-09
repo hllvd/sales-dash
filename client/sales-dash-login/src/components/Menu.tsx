@@ -81,7 +81,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconUsers size={20} />}
               active={isActive('#/users')}
               variant="filled"
-              color="blue"
+              color="red"
               styles={navLinkStyles('#/users')}
             />
           )}
@@ -93,7 +93,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconFileText size={20} />}
               active={isActive('#/contracts')}
               variant="filled"
-              color="blue"
+              color="red"
               styles={navLinkStyles('#/contracts')}
             />
           )}
@@ -105,7 +105,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconMap size={20} />}
               active={isActive('#/users-mapping')}
               variant="filled"
-              color="blue"
+              color="red"
               styles={navLinkStyles('#/users-mapping')}
             />
           )}
@@ -117,7 +117,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconBuilding size={20} />}
               active={isActive('#/point-of-sale')}
               variant="filled"
-              color="blue"
+              color="red"
               styles={navLinkStyles('#/point-of-sale')}
             />
           )}
@@ -128,7 +128,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             leftSection={<IconClipboardList size={20} />}
             active={isActive('#/my-contracts')}
             variant="filled"
-            color="blue"
+            color="red"
             styles={navLinkStyles('#/my-contracts')}
           />
 
@@ -146,7 +146,6 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               root: {
                 borderTop: '1px solid #374151',
                 borderRadius: '8px',
-                marginTop: '8px',
                 paddingTop: '16px',
                 '&:hover': {
                   backgroundColor: 'rgba(220, 38, 38, 0.1)',
@@ -159,7 +158,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         </AppShell.Section>
       </AppShell.Navbar>
 
-      <AppShell.Main>{children}</AppShell.Main>
+      <AppShell.Main style={{ backgroundColor: '#f5f5f5' }}>{children}</AppShell.Main>
     </AppShell>
   );
 };
