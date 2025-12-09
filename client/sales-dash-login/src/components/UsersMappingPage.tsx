@@ -246,7 +246,27 @@ const UsersMappingPage: React.FC = () => {
       <div className="users-mapping-container">
         <div className="users-mapping-header">
           <h2>Mapeamento de Usuários</h2>
-          <p>Faça upload de um arquivo CSV contendo uma coluna "matricula". O sistema irá buscar os usuários correspondentes e adicionar colunas "name" e "email".</p>
+          <p>
+            Faça upload de um arquivo CSV contendo as colunas <strong>"matricula"</strong> e <strong>"name"</strong>. 
+            O sistema irá buscar os usuários correspondentes no banco de dados e adicionar automaticamente a coluna <strong>"email"</strong>.
+          </p>
+          <p className="mapping-info">
+            <strong>📋 Campos obrigatórios no CSV:</strong>
+          </p>
+          <ul className="mapping-requirements">
+            <li><strong>matricula</strong> - Matrícula do usuário (ex: 12345)</li>
+            <li><strong>name</strong> ou <strong>nome</strong> - Nome completo do usuário (ex: João Silva)</li>
+          </ul>
+          <p className="mapping-info">
+            <strong>✨ O que o sistema faz:</strong>
+          </p>
+          <ul className="mapping-features">
+            <li>Busca usuários pela <strong>matrícula</strong> e <strong>nome</strong></li>
+            <li>Adiciona automaticamente o <strong>email</strong> de cada usuário encontrado</li>
+            <li>Detecta e permite resolver <strong>duplicatas</strong> (quando há múltiplos usuários com mesma matrícula e nome)</li>
+            <li>Indica quais usuários <strong>não foram encontrados</strong> no sistema</li>
+            <li>Gera um CSV completo com os emails mapeados para download</li>
+          </ul>
         </div>
 
         {!showPreview && (
