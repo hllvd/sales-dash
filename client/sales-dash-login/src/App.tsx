@@ -56,9 +56,7 @@ function App() {
   return (
     <MantineProvider>
       <Notifications />
-      <div className="App">
-        {renderPage()}
-      </div>
+      {renderPage()}
     </MantineProvider>
   );
 }
