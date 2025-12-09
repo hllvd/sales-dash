@@ -24,3 +24,8 @@ html {
   align-items: center;
   justify-content: center;
 }
+
+.page-title-break {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

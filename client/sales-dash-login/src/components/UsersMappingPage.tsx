@@ -246,7 +246,7 @@ const UsersMappingPage: React.FC = () => {
     <Menu>
       <div className="users-mapping-container">
         <div className="users-mapping-header">
-          <Title order={2} size="h2" c="white">Mapeamento de Usuários</Title>
+          <Title order={2} size="h2" c="white" className="page-title-break">Mapeamento de Usuários</Title>
           <p>
             Faça upload de um arquivo CSV contendo as colunas <strong>"matricula"</strong> e <strong>"name"</strong>. 
             O sistema irá buscar os usuários correspondentes no banco de dados e adicionar automaticamente a coluna <strong>"email"</strong>.

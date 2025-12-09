@@ -138,7 +138,7 @@ const MyContractsPage: React.FC = () => {
     <Menu>
       <div className="my-contracts-page">
           <div className="my-contracts-header">
-            <Title order={2} size="h2">Meus Contratos</Title>
+            <Title order={2} size="h2" className="page-title-break">Meus Contratos</Title>
             <Button onClick={handleNewClick} leftSection="+">
               Novo
             </Button>

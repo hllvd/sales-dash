@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Title, Button, Table, ActionIcon, Group } from '@mantine/core';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
 import './PVPage.css';
 import Menu from './Menu';
 import PVForm from './PVForm';
@@ -82,13 +82,13 @@ const PVPage: React.FC = () => {
     <Menu>
       <div className="pv-page">
           <div className="pv-header">
-            <Title order={2} size="h2">Gerenciamento de Pontos de Venda</Title>
+            <Title order={2} size="h2" className="page-title-break">Gerenciamento de PV</Title>
             <div className="pv-header-actions">
-              <Button onClick={() => setShowImportModal(true)} leftSection="📁">
-                Importar CSV
+              <Button onClick={() => setShowImportModal(true)} leftSection={<IconUpload size={16} />}>
+                Importar
               </Button>
-              <Button onClick={handleCreateClick} leftSection="+">
-                Criar Ponto de Venda
+              <Button onClick={handleCreateClick} leftSection={<IconPlus size={16} />}>
+                Criar
               </Button>
             </div>
           </div>
