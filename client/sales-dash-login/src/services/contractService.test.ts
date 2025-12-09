@@ -33,7 +33,7 @@ describe('contractService', () => {
           totalAmount: 1000,
           groupId: 1,
           groupName: 'Group A',
-          status: 'active' as const,
+          status: 'Active' as const,
           contractStartDate: '2024-01-01',
           contractEndDate: null,
           isActive: true,
@@ -97,7 +97,7 @@ describe('contractService', () => {
         totalAmount: 1000,
         groupId: 1,
         groupName: 'Group A',
-        status: 'active' as const,
+        status: 'Active' as const,
         contractStartDate: '2024-01-01',
         contractEndDate: null,
         isActive: true,
@@ -127,7 +127,7 @@ describe('contractService', () => {
         userId: 'user-1',
         totalAmount: 1000,
         groupId: 1,
-        status: 'active',
+        status: 'Active',
         contractStartDate: '2024-01-01',
       };
 
@@ -171,7 +171,7 @@ describe('contractService', () => {
           userId: 'user-1',
           totalAmount: 1000,
           groupId: 1,
-          status: 'active',
+          status: 'Active',
           contractStartDate: '2024-01-01',
         })
       ).rejects.toThrow('Contract number already exists');
@@ -182,7 +182,7 @@ describe('contractService', () => {
     it('should update an existing contract', async () => {
       const updateData: UpdateContractRequest = {
         totalAmount: 1500,
-        status: 'paid_off',
+        status: 'Defaulted',
       };
 
       const mockResponse = {
@@ -193,7 +193,7 @@ describe('contractService', () => {
         totalAmount: 1500,
         groupId: 1,
         groupName: 'Group A',
-        status: 'paid_off' as const,
+        status: 'Defaulted' as const,
         contractStartDate: '2024-01-01',
         contractEndDate: null,
         isActive: true,

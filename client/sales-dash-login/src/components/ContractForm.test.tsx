@@ -26,7 +26,7 @@ const mockContract = {
   totalAmount: 1000,
   groupId: 1,
   groupName: 'Group A',
-  status: 'active' as const,
+  status: 'Active' as const,
   contractStartDate: '2024-01-01T00:00:00Z',
   contractEndDate: null,
   isActive: true,
@@ -156,7 +156,7 @@ describe('ContractForm', () => {
           userId: 'user-1',
           groupId: 1,
           totalAmount: 1000,
-          status: 'active',
+          status: 'Active',
           contractStartDate: '2024-01-01',
           contractEndDate: null,
         });
