@@ -136,10 +136,8 @@ const UsersPage: React.FC = () => {
   }
 
   return (
-    <div className="users-layout">
-      <Menu />
-      <div className="users-content">
-        <div className="users-container">
+    <Menu>
+      <div className="users-container">
           <div className="users-header">
             <div>
               <h1 className="users-title">Gerenciamento de Usuários</h1>
@@ -299,8 +297,7 @@ const UsersPage: React.FC = () => {
               )}
             </>
           )}
-        </div>
-      </div>
+        
 
       {showForm && (
         <UserForm
@@ -349,6 +346,7 @@ const UsersPage: React.FC = () => {
         </div>
       )}
     </div>
+    </Menu>
   )
 }
 

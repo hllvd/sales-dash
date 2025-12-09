@@ -241,8 +241,7 @@ const UsersMappingPage: React.FC = () => {
   };
 
   return (
-    <div className="users-mapping-layout">
-      <Menu />
+    <Menu>
       <div className="users-mapping-container">
         <div className="users-mapping-header">
           <h2>Mapeamento de Usuários</h2>
@@ -382,7 +381,7 @@ const UsersMappingPage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </Menu>
   );
 };
 

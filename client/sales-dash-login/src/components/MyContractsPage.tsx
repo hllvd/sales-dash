@@ -134,10 +134,8 @@ const MyContractsPage: React.FC = () => {
   };
 
   return (
-    <div className="my-contracts-layout">
-      <Menu />
-      <div className="my-contracts-content">
-        <div className="my-contracts-page">
+    <Menu>
+      <div className="my-contracts-page">
           <div className="my-contracts-header">
             <h1>Meus Contratos</h1>
             <button className="new-contract-btn" onClick={handleNewClick}>
@@ -192,7 +190,7 @@ const MyContractsPage: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
+
 
       {/* Assignment Modal */}
       {showAssignModal && (
@@ -297,7 +295,8 @@ const MyContractsPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+
+    </Menu>
   );
 };
 

@@ -138,10 +138,8 @@ const ContractsPage: React.FC = () => {
   };
 
   return (
-    <div className="contracts-layout">
-      <Menu />
-      <div className="contracts-content">
-        <div className="contracts-page">
+    <Menu>
+      <div className="contracts-page">
           <div className="contracts-header">
             <h1>Gerenciamento de Contratos</h1>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -287,8 +285,6 @@ const ContractsPage: React.FC = () => {
           </table>
         </div>
       )}
-        </div>
-      </div>
 
       {showForm && (
         <ContractForm
@@ -324,7 +320,8 @@ const ContractsPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </Menu>
   );
 };
 

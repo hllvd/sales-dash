@@ -77,10 +77,8 @@ const PVPage: React.FC = () => {
   };
 
   return (
-    <div className="pv-layout">
-      <Menu />
-      <div className="pv-content">
-        <div className="pv-page">
+    <Menu>
+      <div className="pv-page">
           <div className="pv-header">
             <h1>Gerenciamento de Pontos de Venda</h1>
             <div className="pv-header-actions">
@@ -148,8 +146,7 @@ const PVPage: React.FC = () => {
               </table>
             </div>
           )}
-        </div>
-      </div>
+        
 
       {showForm && (
         <PVForm
@@ -184,7 +181,8 @@ const PVPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </Menu>
   );
 };
 

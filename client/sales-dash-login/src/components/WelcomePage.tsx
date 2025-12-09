@@ -10,19 +10,16 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ title = 'Home' }) => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   return (
-    <div className="welcome-layout">
-      <Menu />
-      <div className="welcome-content">
-        <div className="welcome-container">
-          <h1 className="welcome-title">Bem-vindo, {user.name || 'Usuário'}!</h1>
-          <p className="welcome-subtitle">Painel de Vendas - {title}</p>
-          <div className="welcome-card">
-            <h2>{title}</h2>
-            <p>Acesse suas métricas e relatórios de vendas através do menu lateral.</p>
-          </div>
+    <Menu>
+      <div className="welcome-container">
+        <h1 className="welcome-title">Bem-vindo, {user.name || 'Usuário'}!</h1>
+        <p className="welcome-subtitle">Painel de Vendas - {title}</p>
+        <div className="welcome-card">
+          <h2>{title}</h2>
+          <p>Acesse suas métricas e relatórios de vendas através do menu lateral.</p>
         </div>
       </div>
-    </div>
+    </Menu>
   );
 };
 
