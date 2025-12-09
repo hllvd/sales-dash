@@ -25,7 +25,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   const [formData, setFormData] = useState({
     contractNumber: contract?.contractNumber || '',
     userId: contract?.userId || '',
-    groupId: contract?.groupId?.toString() || '0',
+    groupId: contract?.groupId?.toString() || '',
     pvId: contract?.pvId?.toString() || '',
     totalAmount: contract?.totalAmount?.toString() || '',
     status: contract?.status || 'Active',
@@ -55,6 +55,15 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         setGroups(groupsData);
         if (pvsResponse.success && pvsResponse.data) {
           setPVs(pvsResponse.data);
+        }
+        
+        // For new contracts, auto-select first group and first contract type
+        if (!contract && groupsData.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            groupId: groupsData[0].id.toString(),
+            contractType: '0', // First option: Lar
+          }));
         }
       } catch (err) {
         setError('Failed to load users, groups, and PVs');
