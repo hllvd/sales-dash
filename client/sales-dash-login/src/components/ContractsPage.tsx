@@ -248,7 +248,6 @@ const ContractsPage: React.FC = () => {
                 <th>Valor Total</th>
                 <th>Status</th>
                 <th>Data Início</th>
-                <th>Data Término</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -266,7 +265,6 @@ const ContractsPage: React.FC = () => {
                     </span>
                   </td>
                   <td>{formatDate(contract.contractStartDate)}</td>
-                  <td>{formatDate(contract.contractEndDate)}</td>
                   <td className="actions-cell">
                     <button
                       className="action-btn edit-btn"

@@ -170,7 +170,6 @@ const MyContractsPage: React.FC = () => {
                     <th>Valor Total</th>
                     <th>Status</th>
                     <th>Data Início</th>
-                    <th>Data Término</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -186,7 +185,6 @@ const MyContractsPage: React.FC = () => {
                         </span>
                       </td>
                       <td>{formatDate(contract.contractStartDate)}</td>
-                      <td>{formatDate(contract.contractEndDate)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -274,10 +272,6 @@ const MyContractsPage: React.FC = () => {
                     <div className="detail-row">
                       <span className="detail-label">Data Início:</span>
                       <span className="detail-value">{formatDate(retrievedContract.contractStartDate)}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Data Término:</span>
-                      <span className="detail-value">{formatDate(retrievedContract.contractEndDate)}</span>
                     </div>
                   </div>
 
