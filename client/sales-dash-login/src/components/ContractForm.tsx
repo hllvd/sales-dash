@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import './ContractForm.css';
+import { Modal, TextInput, NumberInput, Select, Button, Group } from '@mantine/core';
 import {
   CreateContractRequest,
   UpdateContractRequest,
   Contract,
   User,
-  Group,
+  Group as ContractGroup,
   createContract,
   updateContract,
   getUsers,
@@ -27,18 +27,18 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     userId: contract?.userId || '',
     groupId: contract?.groupId?.toString() || '',
     pvId: contract?.pvId?.toString() || '',
-    totalAmount: contract?.totalAmount?.toString() || '',
+    totalAmount: contract?.totalAmount || 0,
     status: contract?.status || 'Active',
     contractStartDate: contract?.contractStartDate?.split('T')[0] || '',
     contractEndDate: contract?.contractEndDate?.split('T')[0] || '',
     isActive: contract?.isActive ?? true,
     contractType: contract?.contractType?.toString() || '',
-    quota: contract?.quota?.toString() || '',
+    quota: contract?.quota || 0,
     customerName: contract?.customerName || '',
   });
 
   const [users, setUsers] = useState<User[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<ContractGroup[]>([]);
   const [pvs, setPVs] = useState<PV[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -73,13 +73,10 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     fetchDropdownData();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
-
+  const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: value,
     }));
   };
 
@@ -89,14 +86,12 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
       return false;
     }
 
-
     if (!formData.groupId) {
       setError('Group is required');
       return false;
     }
 
-    const amount = parseFloat(formData.totalAmount);
-    if (!formData.totalAmount || isNaN(amount) || amount < 0.01) {
+    if (formData.totalAmount < 0.01) {
       setError('Total amount must be at least 0.01');
       return false;
     }
@@ -126,13 +121,13 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           userId: formData.userId || undefined,
           groupId: parseInt(formData.groupId),
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
-          totalAmount: parseFloat(formData.totalAmount),
+          totalAmount: Number(formData.totalAmount),
           status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
           contractStartDate: formData.contractStartDate,
           contractEndDate: formData.contractEndDate || null,
           isActive: formData.isActive,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
-          quota: formData.quota ? parseInt(formData.quota) : undefined,
+          quota: formData.quota ? Number(formData.quota) : undefined,
           customerName: formData.customerName || undefined,
         };
         await updateContract(contract.id, updateData);
@@ -142,12 +137,12 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           userId: formData.userId || undefined,
           groupId: parseInt(formData.groupId),
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
-          totalAmount: parseFloat(formData.totalAmount),
+          totalAmount: Number(formData.totalAmount),
           status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
           contractStartDate: formData.contractStartDate,
           contractEndDate: formData.contractEndDate || null,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
-          quota: formData.quota ? parseInt(formData.quota) : undefined,
+          quota: formData.quota ? Number(formData.quota) : undefined,
           customerName: formData.customerName || undefined,
         };
         await createContract(createData);
@@ -163,200 +158,137 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   };
 
   return (
-    <div className="contract-form-overlay" onClick={onClose}>
-      <div className="contract-form-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="contract-form-header">
-          <h2>{isEditMode ? 'Editar Contrato' : 'Criar Contrato'}</h2>
-          <button className="contract-form-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
+    <Modal opened={true} onClose={onClose} title={isEditMode ? 'Editar Contrato' : 'Criar Contrato'} size="lg">
+      <form onSubmit={handleSubmit}>
+        {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
-        <form onSubmit={handleSubmit} className="contract-form">
-          {error && <div className="contract-form-error">{error}</div>}
+        <TextInput
+          label="Número do Contrato"
+          required
+          value={formData.contractNumber}
+          onChange={(e) => handleChange('contractNumber', e.target.value)}
+          maxLength={50}
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="contractNumber">Número do Contrato *</label>
-            <input
-              type="text"
-              id="contractNumber"
-              name="contractNumber"
-              value={formData.contractNumber}
-              onChange={handleChange}
-              required
-              maxLength={50}
-            />
-          </div>
+        <Select
+          label="Usuário"
+          value={formData.userId}
+          onChange={(value) => handleChange('userId', value)}
+          data={[
+            { value: '', label: 'Sem usuário atribuído' },
+            ...users.map(user => ({ value: user.id, label: `${user.name} (${user.email})` }))
+          ]}
+          searchable
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="userId">Usuário</label>
-            <select
-              id="userId"
-              name="userId"
-              value={formData.userId}
-              onChange={handleChange}
-            >
-              <option value="">Sem usuário atribuído</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name} ({user.email})
-                </option>
-              ))}
-            </select>
-          </div>
+        <Select
+          label="Grupo"
+          required
+          value={formData.groupId}
+          onChange={(value) => handleChange('groupId', value)}
+          data={[
+            { value: '', label: 'Selecione um grupo' },
+            ...groups.map(group => ({ value: group.id.toString(), label: group.name }))
+          ]}
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="groupId">Grupo *</label>
-            <select
-              id="groupId"
-              name="groupId"
-              value={formData.groupId}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Selecione um grupo</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <Select
+          label="Ponto de Venda"
+          value={formData.pvId}
+          onChange={(value) => handleChange('pvId', value)}
+          data={[
+            { value: '', label: 'Nenhum' },
+            ...pvs.map(pv => ({ value: pv.id.toString(), label: pv.name }))
+          ]}
+          searchable
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="pvId">Ponto de Venda</label>
-            <select
-              id="pvId"
-              name="pvId"
-              value={formData.pvId}
-              onChange={handleChange}
-            >
-              <option value="">Nenhum</option>
-              {pvs.map((pv) => (
-                <option key={pv.id} value={pv.id}>
-                  {pv.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <NumberInput
+          label="Valor Total"
+          required
+          value={formData.totalAmount}
+          onChange={(value) => handleChange('totalAmount', value)}
+          min={0.01}
+          decimalScale={2}
+          fixedDecimalScale
+          prefix="R$ "
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="totalAmount">Valor Total *</label>
-            <input
-              type="number"
-              id="totalAmount"
-              name="totalAmount"
-              value={formData.totalAmount}
-              onChange={handleChange}
-              required
-              min="0.01"
-              step="0.01"
-            />
-          </div>
+        <Select
+          label="Status"
+          value={formData.status}
+          onChange={(value) => handleChange('status', value)}
+          data={[
+            { value: 'Active', label: 'Ativo' },
+            { value: 'Late1', label: '1 mês atrasado' },
+            { value: 'Late2', label: '2 meses atrasado' },
+            { value: 'Late3', label: '3 meses atrasado' },
+            { value: 'Defaulted', label: 'Inadimplente' },
+          ]}
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="status">Status</label>
-            <select
-              id="status"
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-            >
-              <option value="Active">Ativo</option>
-              <option value="Late1">1 mês atrasado</option>
-              <option value="Late2">2 meses atrasado</option>
-              <option value="Late3">3 meses atrasado</option>
-              <option value="Defaulted">Inadimplente</option>
-            </select>
-          </div>
+        <TextInput
+          label="Data de Início"
+          required
+          type="date"
+          value={formData.contractStartDate}
+          onChange={(e) => handleChange('contractStartDate', e.target.value)}
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="contractStartDate">Data de Início *</label>
-            <input
-              type="date"
-              id="contractStartDate"
-              name="contractStartDate"
-              value={formData.contractStartDate}
-              onChange={handleChange}
-              required
-            />
-          </div>
+        <TextInput
+          label="Data de Término"
+          type="date"
+          value={formData.contractEndDate}
+          onChange={(e) => handleChange('contractEndDate', e.target.value)}
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="contractEndDate">Data de Término</label>
-            <input
-              type="date"
-              id="contractEndDate"
-              name="contractEndDate"
-              value={formData.contractEndDate}
-              onChange={handleChange}
-            />
-          </div>
+        <Select
+          label="Tipo de Contrato"
+          value={formData.contractType}
+          onChange={(value) => handleChange('contractType', value)}
+          data={[
+            { value: '', label: 'Selecione' },
+            { value: '0', label: 'Lar' },
+            { value: '1', label: 'Motores' },
+          ]}
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="contractType">Tipo de Contrato</label>
-            <select
-              id="contractType"
-              name="contractType"
-              value={formData.contractType}
-              onChange={handleChange}
-            >
-              <option value="">Selecione</option>
-              <option value="0">Lar</option>
-              <option value="1">Motores</option>
-            </select>
-          </div>
+        <NumberInput
+          label="Cota"
+          value={formData.quota}
+          onChange={(value) => handleChange('quota', value)}
+          placeholder="Ex: 10"
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="quota">Cota</label>
-            <input
-              type="number"
-              id="quota"
-              name="quota"
-              value={formData.quota}
-              onChange={handleChange}
-              placeholder="Ex: 10"
-            />
-          </div>
+        <TextInput
+          label="Nome do Cliente"
+          value={formData.customerName}
+          onChange={(e) => handleChange('customerName', e.target.value)}
+          placeholder="Ex: João Silva"
+          maxLength={200}
+          mb="md"
+        />
 
-          <div className="contract-form-group">
-            <label htmlFor="customerName">Nome do Cliente</label>
-            <input
-              type="text"
-              id="customerName"
-              name="customerName"
-              value={formData.customerName}
-              onChange={handleChange}
-              placeholder="Ex: João Silva"
-              maxLength={200}
-            />
-          </div>
-
-          {isEditMode && (
-            <div className="contract-form-group contract-form-checkbox">
-              <label>
-                <input
-                  type="checkbox"
-                  name="isActive"
-                  checked={formData.isActive}
-                  onChange={handleChange}
-                />
-                Contrato Ativo
-              </label>
-            </div>
-          )}
-
-          <div className="contract-form-actions">
-            <button type="button" onClick={onClose} className="contract-form-cancel">
-              Cancelar
-            </button>
-            <button type="submit" className="contract-form-submit" disabled={loading}>
-              {loading ? 'Salvando...' : isEditMode ? 'Salvar Alterações' : 'Criar Contrato'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <Group justify="flex-end" mt="xl">
+          <Button variant="default" onClick={onClose} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="submit" loading={loading}>
+            {isEditMode ? 'Salvar Alterações' : 'Criar Contrato'}
+          </Button>
+        </Group>
+      </form>
+    </Modal>
   );
 };
 

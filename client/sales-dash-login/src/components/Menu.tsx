@@ -25,7 +25,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     setUserRole(user.role || '');
 
     const handleHashChange = () => {
-      setCurrentPath(window.location.hash || '#/home');
+      setCurrentPath(window.location.hash || '#/my-contracts');
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -39,6 +39,20 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   };
 
   const isActive = (path: string) => currentPath === path;
+
+  const navLinkStyles = (path: string) => ({
+    root: {
+      color: '#d1d5db',
+      borderRadius: '8px',
+      marginBottom: '4px',
+      '&:hover': {
+        backgroundColor: '#374151',
+        color: 'white',
+      },
+      backgroundColor: isActive(path) ? undefined : 'transparent',
+    },
+    label: { color: isActive(path) ? 'white' : 'inherit' },
+  });
 
   return (
     <AppShell
@@ -58,31 +72,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         </AppShell.Section>
 
         <AppShell.Section grow>
-          <NavLink
-            href="#/home"
-            label="Home"
-            leftSection={<IconHome size={20} />}
-            active={isActive('#/home')}
-            variant="filled"
-            color="blue"
-            styles={{
-              root: { color: '#d1d5db', borderRadius: '8px', marginBottom: '4px' },
-              label: { color: isActive('#/home') ? 'white' : '#d1d5db' },
-            }}
-          />
 
-          <NavLink
-            href="#/dashboards"
-            label="Dashboards"
-            leftSection={<IconChartBar size={20} />}
-            active={isActive('#/dashboards')}
-            variant="filled"
-            color="blue"
-            styles={{
-              root: { color: '#d1d5db', borderRadius: '8px', marginBottom: '4px' },
-              label: { color: isActive('#/dashboards') ? 'white' : '#d1d5db' },
-            }}
-          />
 
           {userRole === 'superadmin' && (
             <NavLink
@@ -92,10 +82,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               active={isActive('#/users')}
               variant="filled"
               color="blue"
-              styles={{
-                root: { color: '#d1d5db', borderRadius: '8px', marginBottom: '4px' },
-                label: { color: isActive('#/users') ? 'white' : '#d1d5db' },
-              }}
+              styles={navLinkStyles('#/users')}
             />
           )}
 
@@ -107,10 +94,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               active={isActive('#/contracts')}
               variant="filled"
               color="blue"
-              styles={{
-                root: { color: '#d1d5db', borderRadius: '8px', marginBottom: '4px' },
-                label: { color: isActive('#/contracts') ? 'white' : '#d1d5db' },
-              }}
+              styles={navLinkStyles('#/contracts')}
             />
           )}
 
@@ -122,10 +106,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               active={isActive('#/users-mapping')}
               variant="filled"
               color="blue"
-              styles={{
-                root: { color: '#d1d5db', borderRadius: '8px', marginBottom: '4px' },
-                label: { color: isActive('#/users-mapping') ? 'white' : '#d1d5db' },
-              }}
+              styles={navLinkStyles('#/users-mapping')}
             />
           )}
 
@@ -137,10 +118,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               active={isActive('#/point-of-sale')}
               variant="filled"
               color="blue"
-              styles={{
-                root: { color: '#d1d5db', borderRadius: '8px', marginBottom: '4px' },
-                label: { color: isActive('#/point-of-sale') ? 'white' : '#d1d5db' },
-              }}
+              styles={navLinkStyles('#/point-of-sale')}
             />
           )}
 
@@ -151,24 +129,10 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             active={isActive('#/my-contracts')}
             variant="filled"
             color="blue"
-            styles={{
-              root: { color: '#d1d5db', borderRadius: '8px', marginBottom: '4px' },
-              label: { color: isActive('#/my-contracts') ? 'white' : '#d1d5db' },
-            }}
+            styles={navLinkStyles('#/my-contracts')}
           />
 
-          <NavLink
-            href="#/grupos"
-            label="Grupos"
-            leftSection={<IconUsersGroup size={20} />}
-            active={isActive('#/grupos')}
-            variant="filled"
-            color="blue"
-            styles={{
-              root: { color: '#d1d5db', borderRadius: '8px', marginBottom: '4px' },
-              label: { color: isActive('#/grupos') ? 'white' : '#d1d5db' },
-            }}
-          />
+
         </AppShell.Section>
 
         <AppShell.Section>
@@ -184,6 +148,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
                 borderRadius: '8px',
                 marginTop: '8px',
                 paddingTop: '16px',
+                '&:hover': {
+                  backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                },
               },
             }}
           >

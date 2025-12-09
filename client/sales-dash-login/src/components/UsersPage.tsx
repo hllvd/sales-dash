@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react"
+import { Title, Button, Table, ActionIcon, Group, Badge } from '@mantine/core';
+import { IconEdit, IconTrash, IconRefresh } from '@tabler/icons-react';
 import "./UsersPage.css"
 import Menu from "./Menu"
 import UserForm from "./UserForm"
@@ -140,7 +142,7 @@ const UsersPage: React.FC = () => {
       <div className="users-container">
           <div className="users-header">
             <div>
-              <h1 className="users-title">Gerenciamento de Usuários</h1>
+              <Title order={2} size="h2">Gerenciamento de Usuários</Title>
               <p className="users-subtitle">
                 {totalCount} {totalCount === 1 ? "usuário" : "usuários"}{" "}
                 cadastrado{totalCount === 1 ? "" : "s"}
@@ -148,17 +150,17 @@ const UsersPage: React.FC = () => {
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               {currentUserRole === "superadmin" && (
-                <button
-                  className="btn-create"
+                <Button
                   onClick={() => setShowImportModal(true)}
+                  leftSection="⬆️"
                 >
-                  ⬆️ Importar Usuários
-                </button>
+                  Importar Usuários
+                </Button>
               )}
 
-              <button className="btn-create" onClick={() => setShowForm(true)}>
-                + Criar Usuário
-              </button>
+              <Button onClick={() => setShowForm(true)} leftSection="+">
+                Criar Usuário
+              </Button>
             </div>
           </div>
 
@@ -194,21 +196,21 @@ const UsersPage: React.FC = () => {
           ) : (
             <>
               <div className="table-container">
-                <table className="users-table">
-                  <thead>
-                    <tr>
-                      <th>Nome</th>
-                      <th>Email</th>
-                      <th>Função</th>
-                      <th>Status</th>
-                      <th>Criado em</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Nome</Table.Th>
+                      <Table.Th>Email</Table.Th>
+                      <Table.Th>Função</Table.Th>
+                      <Table.Th>Status</Table.Th>
+                      <Table.Th>Criado em</Table.Th>
+                      <Table.Th>Ações</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
                     {users.map((user) => (
-                      <tr key={user.id}>
-                        <td>
+                      <Table.Tr key={user.id}>
+                        <Table.Td>
                           <div className="user-name-cell">
                             <span className="user-name">{user.name}</span>
                             {user.parentUserName && (
@@ -217,61 +219,65 @@ const UsersPage: React.FC = () => {
                               </span>
                             )}
                           </div>
-                        </td>
-                        <td>{user.email}</td>
-                        <td>
-                          <span className={getRoleBadgeClass(user.role)}>
+                        </Table.Td>
+                        <Table.Td>{user.email}</Table.Td>
+                        <Table.Td>
+                          <Badge 
+                            color={
+                              user.role === 'superadmin' ? 'red' : 
+                              user.role === 'admin' ? 'orange' : 'green'
+                            }
+                          >
                             {user.role === "superadmin"
                               ? "Super Admin"
                               : user.role === "admin"
                               ? "Admin"
                               : "Usuário"}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`status-badge ${
-                              user.isActive
-                                ? "status-active"
-                                : "status-inactive"
-                            }`}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge 
+                            color={user.isActive ? 'teal' : 'gray'}
                           >
                             {user.isActive ? "Ativo" : "Inativo"}
-                          </span>
-                        </td>
-                        <td>{formatDate(user.createdAt)}</td>
-                        <td>
-                          <div className="action-buttons">
-                            <button
-                              className="btn-edit"
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>{formatDate(user.createdAt)}</Table.Td>
+                        <Table.Td>
+                          <Group gap="xs">
+                            <ActionIcon
+                              variant="subtle"
+                              color="blue"
                               onClick={() => openEditForm(user)}
                               title="Editar"
                             >
-                              ✏️
-                            </button>
+                              <IconEdit size={16} />
+                            </ActionIcon>
                             {user.isActive ? (
-                              <button
-                                className="btn-delete"
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
                                 onClick={() => setDeleteConfirm(user.id)}
                                 title="Excluir"
                               >
-                                🗑️
-                              </button>
+                                <IconTrash size={16} />
+                              </ActionIcon>
                             ) : (
-                              <button
-                                className="btn-reactivate"
+                              <ActionIcon
+                                variant="subtle"
+                                color="green"
                                 onClick={() => handleReactivateUser(user.id)}
                                 title="Reativar"
                               >
-                                🔄
-                              </button>
+                                <IconRefresh size={16} />
+                              </ActionIcon>
                             )}
-                          </div>
-                        </td>
-                      </tr>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
                     ))}
-                  </tbody>
-                </table>
+                  </Table.Tbody>
+                </Table>
               </div>
 
               {totalPages > 1 && (

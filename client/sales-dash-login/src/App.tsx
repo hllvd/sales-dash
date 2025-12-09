@@ -14,11 +14,11 @@ import './App.css';
 
 function App() {
   const isAuthenticated = localStorage.getItem('token');
-  const [currentRoute, setCurrentRoute] = useState(window.location.hash || '#/home');
+  const [currentRoute, setCurrentRoute] = useState(window.location.hash || '#/my-contracts');
 
   useEffect(() => {
     const handleHashChange = () => {
-      setCurrentRoute(window.location.hash || '#/home');
+      setCurrentRoute(window.location.hash || '#/my-contracts');
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -46,12 +46,10 @@ function App() {
       case '#/my-contracts':
         return <MyContractsPage />;
       case '#/dashboards':
-        return <WelcomePage title="Dashboards" />;
       case '#/grupos':
-        return <WelcomePage title="Grupos" />;
       case '#/home':
       default:
-        return <WelcomePage title="Home" />;
+        return <MyContractsPage />;
     }
   };
 

@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
+import { Title, Button } from '@mantine/core';
 import { apiService } from '../services/apiService';
 import Menu from './Menu';
 import './UsersMappingPage.css';
@@ -244,7 +246,7 @@ const UsersMappingPage: React.FC = () => {
     <Menu>
       <div className="users-mapping-container">
         <div className="users-mapping-header">
-          <h2>Mapeamento de Usuários</h2>
+          <Title order={2} size="h2">Mapeamento de Usuários</Title>
           <p>
             Faça upload de um arquivo CSV contendo as colunas <strong>"matricula"</strong> e <strong>"name"</strong>. 
             O sistema irá buscar os usuários correspondentes no banco de dados e adicionar automaticamente a coluna <strong>"email"</strong>.
@@ -277,13 +279,13 @@ const UsersMappingPage: React.FC = () => {
               className="file-input"
               disabled={processing}
             />
-            <button 
+            <Button 
               onClick={processFile} 
               disabled={!file || processing}
-              className="process-button"
+              loading={processing}
             >
               {processing ? 'Processando...' : 'Processar Arquivo'}
-            </button>
+            </Button>
           </div>
         )}
 

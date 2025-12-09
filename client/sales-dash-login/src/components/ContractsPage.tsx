@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Title, Button, Table, ActionIcon, Group, Badge } from '@mantine/core';
+import { IconEdit, IconTrash } from '@tabler/icons-react';
 import './ContractsPage.css';
 import Menu from './Menu';
 import ContractForm from './ContractForm';
@@ -6,7 +8,7 @@ import BulkImportModal from './BulkImportModal';
 import {
   Contract,
   User,
-  Group,
+  Group as ContractGroup,
   getContracts,
   deleteContract,
   getUsers,
@@ -16,7 +18,7 @@ import {
 const ContractsPage: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<ContractGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -141,14 +143,14 @@ const ContractsPage: React.FC = () => {
     <Menu>
       <div className="contracts-page">
           <div className="contracts-header">
-            <h1>Gerenciamento de Contratos</h1>
+            <Title order={2} size="h2">Gerenciamento de Contratos</Title>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="create-contract-btn" onClick={() => setShowImportModal(true)}>
-                ⬆️ Importar Contratos
-              </button>
-              <button className="create-contract-btn" onClick={handleCreateClick}>
-                + Criar Contrato
-              </button>
+              <Button onClick={() => setShowImportModal(true)} leftSection="⬆️">
+                Importar Contratos
+              </Button>
+              <Button onClick={handleCreateClick} leftSection="+">
+                Criar Contrato
+              </Button>
             </div>
           </div>
 
@@ -236,53 +238,63 @@ const ContractsPage: React.FC = () => {
         </div>
       ) : (
         <div className="contracts-table-container">
-          <table className="contracts-table">
-            <thead>
-              <tr>
-                <th>Número</th>
-                <th>Usuário</th>
-                <th>Grupo</th>
-                <th>Cliente</th>
-                <th>Valor Total</th>
-                <th>Status</th>
-                <th>Data Início</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table striped highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Número</Table.Th>
+                <Table.Th>Usuário</Table.Th>
+                <Table.Th>Grupo</Table.Th>
+                <Table.Th>Cliente</Table.Th>
+                <Table.Th>Valor Total</Table.Th>
+                <Table.Th>Status</Table.Th>
+                <Table.Th>Data Início</Table.Th>
+                <Table.Th>Ações</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {contracts.map((contract) => (
-                <tr key={contract.id}>
-                  <td>{contract.contractNumber}</td>
-                  <td>{contract.userName}</td>
-                  <td>{contract.groupName}</td>
-                  <td>{contract.customerName || '-'}</td>
-                  <td>{formatCurrency(contract.totalAmount)}</td>
-                  <td>
-                    <span className={`status-badge ${getStatusBadgeClass(contract.status)}`}>
+                <Table.Tr key={contract.id}>
+                  <Table.Td>{contract.contractNumber}</Table.Td>
+                  <Table.Td>{contract.userName}</Table.Td>
+                  <Table.Td>{contract.groupName}</Table.Td>
+                  <Table.Td>{contract.customerName || '-'}</Table.Td>
+                  <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
+                  <Table.Td>
+                    <Badge 
+                      color={
+                        contract.status === 'Active' ? 'green' :
+                        contract.status === 'Defaulted' ? 'red' :
+                        contract.status.startsWith('Late') ? 'orange' : 'gray'
+                      }
+                    >
                       {getStatusLabel(contract.status)}
-                    </span>
-                  </td>
-                  <td>{formatDate(contract.contractStartDate)}</td>
-                  <td className="actions-cell">
-                    <button
-                      className="action-btn edit-btn"
-                      onClick={() => handleEditClick(contract)}
-                      title="Editar"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      className="action-btn delete-btn"
-                      onClick={() => handleDeleteClick(contract.id)}
-                      title="Excluir"
-                    >
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
+                  <Table.Td>
+                    <Group gap="xs">
+                      <ActionIcon
+                        variant="subtle"
+                        color="blue"
+                        onClick={() => handleEditClick(contract)}
+                        title="Editar"
+                      >
+                        <IconEdit size={16} />
+                      </ActionIcon>
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        onClick={() => handleDeleteClick(contract.id)}
+                        title="Excluir"
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
               ))}
-            </tbody>
-          </table>
+            </Table.Tbody>
+          </Table>
         </div>
       )}
 

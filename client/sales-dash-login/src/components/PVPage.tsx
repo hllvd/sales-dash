@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Title, Button, Table, ActionIcon, Group } from '@mantine/core';
+import { IconEdit, IconTrash } from '@tabler/icons-react';
 import './PVPage.css';
 import Menu from './Menu';
 import PVForm from './PVForm';
@@ -80,14 +82,14 @@ const PVPage: React.FC = () => {
     <Menu>
       <div className="pv-page">
           <div className="pv-header">
-            <h1>Gerenciamento de Pontos de Venda</h1>
+            <Title order={2} size="h2">Gerenciamento de Pontos de Venda</Title>
             <div className="pv-header-actions">
-              <button className="import-pv-btn" onClick={() => setShowImportModal(true)}>
-                📁 Importar CSV
-              </button>
-              <button className="create-pv-btn" onClick={handleCreateClick}>
-                + Criar Ponto de Venda
-              </button>
+              <Button onClick={() => setShowImportModal(true)} leftSection="📁">
+                Importar CSV
+              </Button>
+              <Button onClick={handleCreateClick} leftSection="+">
+                Criar Ponto de Venda
+              </Button>
             </div>
           </div>
 
@@ -101,49 +103,53 @@ const PVPage: React.FC = () => {
           ) : pvs.length === 0 ? (
             <div className="pv-empty">
               <p>Nenhum ponto de venda encontrado.</p>
-              <button className="create-pv-btn" onClick={handleCreateClick}>
+              <Button onClick={handleCreateClick}>
                 Criar Primeiro Ponto de Venda
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="pv-table-container">
-              <table className="pv-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Nome</th>
-                    <th>Criado em</th>
-                    <th>Atualizado em</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>ID</Table.Th>
+                    <Table.Th>Nome</Table.Th>
+                    <Table.Th>Criado em</Table.Th>
+                    <Table.Th>Atualizado em</Table.Th>
+                    <Table.Th>Ações</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
                   {pvs.map((pv) => (
-                    <tr key={pv.id}>
-                      <td>{pv.id}</td>
-                      <td>{pv.name}</td>
-                      <td>{formatDate(pv.createdAt)}</td>
-                      <td>{formatDate(pv.updatedAt)}</td>
-                      <td className="actions-cell">
-                        <button
-                          className="action-btn edit-btn"
-                          onClick={() => handleEditClick(pv)}
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          className="action-btn delete-btn"
-                          onClick={() => handleDeleteClick(pv.id)}
-                          title="Excluir"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
+                    <Table.Tr key={pv.id}>
+                      <Table.Td>{pv.id}</Table.Td>
+                      <Table.Td>{pv.name}</Table.Td>
+                      <Table.Td>{formatDate(pv.createdAt)}</Table.Td>
+                      <Table.Td>{formatDate(pv.updatedAt)}</Table.Td>
+                      <Table.Td>
+                        <Group gap="xs">
+                          <ActionIcon
+                            variant="subtle"
+                            color="blue"
+                            onClick={() => handleEditClick(pv)}
+                            title="Editar"
+                          >
+                            <IconEdit size={16} />
+                          </ActionIcon>
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            onClick={() => handleDeleteClick(pv.id)}
+                            title="Excluir"
+                          >
+                            <IconTrash size={16} />
+                          </ActionIcon>
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
                   ))}
-                </tbody>
-              </table>
+                </Table.Tbody>
+              </Table>
             </div>
           )}
         

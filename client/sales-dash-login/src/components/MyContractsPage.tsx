@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Title, Button, Table, Badge } from '@mantine/core';
 import './MyContractsPage.css';
 import Menu from './Menu';
 import {
@@ -137,10 +138,10 @@ const MyContractsPage: React.FC = () => {
     <Menu>
       <div className="my-contracts-page">
           <div className="my-contracts-header">
-            <h1>Meus Contratos</h1>
-            <button className="new-contract-btn" onClick={handleNewClick}>
-              + Novo
-            </button>
+            <Title order={2} size="h2">Meus Contratos</Title>
+            <Button onClick={handleNewClick} leftSection="+">
+              Novo
+            </Button>
           </div>
 
           {error && <div className="my-contracts-error">{error}</div>}
@@ -153,40 +154,46 @@ const MyContractsPage: React.FC = () => {
           ) : contracts.length === 0 ? (
             <div className="my-contracts-empty">
               <p>Você ainda não possui contratos atribuídos.</p>
-              <button className="new-contract-btn" onClick={handleNewClick}>
+              <Button onClick={handleNewClick}>
                 Atribuir Primeiro Contrato
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="my-contracts-table-container">
-              <table className="my-contracts-table">
-                <thead>
-                  <tr>
-                    <th>Número</th>
-                    <th>Cliente</th>
-                    <th>Grupo</th>
-                    <th>Valor Total</th>
-                    <th>Status</th>
-                    <th>Data Início</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Número</Table.Th>
+                    <Table.Th>Cliente</Table.Th>
+                    <Table.Th>Grupo</Table.Th>
+                    <Table.Th>Valor Total</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th>Data Início</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
                   {contracts.map((contract) => (
-                    <tr key={contract.id}>
-                      <td>{contract.contractNumber}</td>
-                      <td>{contract.customerName || '-'}</td>
-                      <td>{contract.groupName}</td>
-                      <td>{formatCurrency(contract.totalAmount)}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusBadgeClass(contract.status)}`}>
+                    <Table.Tr key={contract.id}>
+                      <Table.Td>{contract.contractNumber}</Table.Td>
+                      <Table.Td>{contract.customerName || '-'}</Table.Td>
+                      <Table.Td>{contract.groupName}</Table.Td>
+                      <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
+                      <Table.Td>
+                        <Badge 
+                          color={
+                            contract.status === 'Active' ? 'green' :
+                            contract.status === 'Defaulted' ? 'red' :
+                            contract.status.startsWith('Late') ? 'orange' : 'gray'
+                          }
+                        >
                           {getStatusLabel(contract.status)}
-                        </span>
-                      </td>
-                      <td>{formatDate(contract.contractStartDate)}</td>
-                    </tr>
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
+                    </Table.Tr>
                   ))}
-                </tbody>
-              </table>
+                </Table.Tbody>
+              </Table>
             </div>
           )}
         </div>
@@ -263,9 +270,15 @@ const MyContractsPage: React.FC = () => {
                     </div>
                     <div className="detail-row">
                       <span className="detail-label">Status:</span>
-                      <span className={`status-badge ${getStatusBadgeClass(retrievedContract.status)}`}>
+                      <Badge 
+                        color={
+                          retrievedContract.status === 'Active' ? 'green' :
+                          retrievedContract.status === 'Defaulted' ? 'red' :
+                          retrievedContract.status.startsWith('Late') ? 'orange' : 'gray'
+                        }
+                      >
                         {getStatusLabel(retrievedContract.status)}
-                      </span>
+                      </Badge>
                     </div>
                     <div className="detail-row">
                       <span className="detail-label">Data Início:</span>
