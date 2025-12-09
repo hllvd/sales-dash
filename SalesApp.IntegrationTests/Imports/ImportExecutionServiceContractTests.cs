@@ -56,7 +56,7 @@ namespace SalesApp.IntegrationTests.Imports
                 {
                     { "ContractNumber", $"CNT-{Guid.NewGuid().ToString()[..8]}" },
                     { "UserEmail", user.Email },
-                    { "TotalAmount", "1500.50" },
+                    { "TotalAmount", "150050" },
                     { "GroupId", group.Id.ToString() },
                     { "Status", "active" },
                     { "SaleStartDate", "2024-01-01" },
@@ -129,7 +129,7 @@ namespace SalesApp.IntegrationTests.Imports
                 {
                     { "ContractNumber", $"CNT-{Guid.NewGuid().ToString()[..8]}" },
                     { "UserEmail", user.Email },
-                    { "TotalAmount", "2000.00" },
+                    { "TotalAmount", "200000" },
                     { "GroupId", group.Id.ToString() }
                 }
             };

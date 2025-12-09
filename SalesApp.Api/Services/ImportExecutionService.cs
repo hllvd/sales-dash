@@ -83,15 +83,12 @@ namespace SalesApp.Services
                 throw new ArgumentException("Missing required fields");
             }
 
-            // Parse and validate total amount
-            if (!decimal.TryParse(totalAmountStr, out var totalAmountDollars))
+            // Parse and validate total amount (already in cents from CSV)
+            if (!decimal.TryParse(totalAmountStr, out var totalAmount))
             {
                 throw new ArgumentException($"Invalid total amount: {totalAmountStr}");
             }
             
-            // Convert dollars to cents (no decimals in storage)
-            var totalAmount = totalAmountDollars * 100;
-
             // Parse and validate group ID
             int groupId = 0; // Default to 0
             if (!string.IsNullOrWhiteSpace(groupIdStr))
