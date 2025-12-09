@@ -1,5 +1,5 @@
 .users-mapping-container {
-  padding: 2rem;
+  padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -8,18 +8,15 @@
   margin-bottom: 2rem;
 }
 
-.users-mapping-header h2 {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-}
+
 
 .users-mapping-header p {
-  color: #7f8c8d;
+  color: #d1d5db;
   line-height: 1.6;
 }
 
 .mapping-info {
-  color: #2c3e50;
+  color: #e2e8f0;
   font-size: 0.95rem;
   margin-top: 1rem;
   margin-bottom: 0.5rem;
@@ -36,7 +33,7 @@
 .mapping-features li {
   position: relative;
   padding: 0.4rem 0;
-  color: #555;
+  color: #d1d5db;
   line-height: 1.5;
 }
 
@@ -63,6 +60,7 @@
   display: flex;
   gap: 1rem;
   align-items: center;
+  max-width: 679px;
 }
 
 .file-input {

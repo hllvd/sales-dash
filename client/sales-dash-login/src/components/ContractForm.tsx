@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, TextInput, NumberInput, Select, Button, Group } from '@mantine/core';
+import { Modal, TextInput, NumberInput, Select, Button, Group, Title } from '@mantine/core';
 import {
   CreateContractRequest,
   UpdateContractRequest,
@@ -158,7 +158,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   };
 
   return (
-    <Modal opened={true} onClose={onClose} title={isEditMode ? 'Editar Contrato' : 'Criar Contrato'} size="lg">
+    <Modal opened={true} onClose={onClose} title={<Title order={2} c="rgb(30, 28, 28)">{isEditMode ? 'Editar Contrato' : 'Criar Contrato'}</Title>} size="lg">
       <form onSubmit={handleSubmit}>
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Title, Button, Table, ActionIcon, Group, Badge } from '@mantine/core';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
 import './ContractsPage.css';
 import Menu from './Menu';
 import ContractForm from './ContractForm';
@@ -145,10 +145,10 @@ const ContractsPage: React.FC = () => {
           <div className="contracts-header">
             <Title order={2} size="h2">Gerenciamento de Contratos</Title>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <Button onClick={() => setShowImportModal(true)} leftSection="⬆️">
+              <Button onClick={() => setShowImportModal(true)} leftSection={<IconUpload size={16} />}>
                 Importar Contratos
               </Button>
-              <Button onClick={handleCreateClick} leftSection="+">
+              <Button onClick={handleCreateClick} leftSection={<IconPlus size={16} />}>
                 Criar Contrato
               </Button>
             </div>

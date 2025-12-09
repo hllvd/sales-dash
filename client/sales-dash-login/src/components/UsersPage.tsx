@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { Title, Button, Table, ActionIcon, Group, Badge } from '@mantine/core';
-import { IconEdit, IconTrash, IconRefresh } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload } from '@tabler/icons-react';
 import "./UsersPage.css"
 import Menu from "./Menu"
 import UserForm from "./UserForm"
@@ -152,13 +152,13 @@ const UsersPage: React.FC = () => {
               {currentUserRole === "superadmin" && (
                 <Button
                   onClick={() => setShowImportModal(true)}
-                  leftSection="⬆️"
+                  leftSection={<IconUpload size={16} />}
                 >
                   Importar Usuários
                 </Button>
               )}
 
-              <Button onClick={() => setShowForm(true)} leftSection="+">
+              <Button onClick={() => setShowForm(true)} leftSection={<IconPlus size={16} />}>
                 Criar Usuário
               </Button>
             </div>
