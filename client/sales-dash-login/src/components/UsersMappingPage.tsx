@@ -68,14 +68,23 @@ const UsersMappingPage: React.FC = () => {
         // Parse header
         const headerLine = lines[0];
         const parsedHeaders = headerLine.split(',').map(h => h.trim());
-        const matriculaIndex = parsedHeaders.findIndex(h => h.toLowerCase() === 'matricula');
+        
+        // Helper function to normalize strings (remove accents and convert to lowercase)
+        const normalizeString = (str: string) => {
+          return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        };
+        
+        const matriculaIndex = parsedHeaders.findIndex(h => normalizeString(h) === 'matricula');
 
         if (matriculaIndex === -1) {
-          throw new Error('Coluna "matricula" não encontrada no CSV.');
+          throw new Error('Coluna "matricula" ou "Matrícula" não encontrada no CSV.');
         }
 
         // Add name and email columns if not exists
-        let nameIndex = parsedHeaders.findIndex(h => h.toLowerCase() === 'name' || h.toLowerCase() === 'nome');
+        let nameIndex = parsedHeaders.findIndex(h => {
+          const normalized = normalizeString(h);
+          return normalized === 'name' || normalized === 'nome' || normalized === 'comissionado';
+        });
         if (nameIndex === -1) {
           parsedHeaders.push('name');
           nameIndex = parsedHeaders.length - 1;

@@ -282,23 +282,21 @@ const UsersPage: React.FC = () => {
 
               {totalPages > 1 && (
                 <div className="pagination">
-                  <button
-                    className="pagination-btn"
+                  <Button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                   >
                     ← Anterior
-                  </button>
+                  </Button>
                   <span className="pagination-info">
                     Página {page} de {totalPages}
                   </span>
-                  <button
-                    className="pagination-btn"
+                  <Button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                   >
                     Próxima →
-                  </button>
+                  </Button>
                 </div>
               )}
             </>
