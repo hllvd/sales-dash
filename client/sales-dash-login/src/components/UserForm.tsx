@@ -74,7 +74,7 @@ const UserForm: React.FC<UserFormProps> = ({
   }
 
   return (
-    <Modal opened={true} onClose={onCancel} title={<Title order={2} c="rgb(30, 28, 28)">{isEdit ? "Editar Usuário" : "Criar Novo Usuário"}</Title>} size="md">
+    <Modal opened={true} onClose={onCancel} title={<Title order={2} c="rgb(30, 28, 28)">{isEdit ? "Editar Usuário" : "Criar Novo Usuário"}</Title>} size="md" className="styled-form">
       <form onSubmit={handleSubmit}>
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 

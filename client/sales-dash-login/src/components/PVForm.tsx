@@ -41,7 +41,7 @@ const PVForm: React.FC<PVFormProps> = ({ pv, onSubmit, onCancel, isEdit = false 
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content styled-form" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{isEdit ? 'Editar Ponto de Venda' : 'Criar Novo Ponto de Venda'}</h2>
           <button className="close-button" onClick={onCancel}>

@@ -158,7 +158,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   };
 
   return (
-    <Modal opened={true} onClose={onClose} title={<Title order={2} c="rgb(30, 28, 28)">{isEditMode ? 'Editar Contrato' : 'Criar Contrato'}</Title>} size="lg">
+    <Modal opened={true} onClose={onClose} title={<Title order={2} c="rgb(30, 28, 28)">{isEditMode ? 'Editar Contrato' : 'Criar Contrato'}</Title>} size="lg" className="styled-form">
       <form onSubmit={handleSubmit}>
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 

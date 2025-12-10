@@ -76,3 +76,291 @@ html {
   /** background-color: #fab7b7;**/
   border:1px solid #333
 }
+
+/* Styled Form - Common Form Styles */
+
+/* For custom modals (non-Mantine) */
+.styled-form.modal-content {
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.styled-form .modal-header {
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.styled-form .modal-header h2 {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.styled-form .close-button {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 28px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.styled-form .close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.styled-form .pv-form,
+.styled-form form {
+  padding: 24px;
+}
+
+.styled-form .form-group {
+  margin-bottom: 20px;
+}
+
+.styled-form .form-group label {
+  display: block;
+  color: #d1d5db;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.styled-form .form-group input[type="text"],
+.styled-form .form-group input[type="number"],
+.styled-form .form-group input[type="date"],
+.styled-form .form-group select {
+  width: 100%;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.styled-form .form-group input:focus,
+.styled-form .form-group select:focus {
+  outline: none;
+  border-color: #b2342b;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.styled-form .form-group input::placeholder {
+  color: #6b7280;
+}
+
+.styled-form .form-group input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.styled-form .hint {
+  display: block;
+  color: #9ca3af;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.styled-form .error-message {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.styled-form .form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.styled-form .btn-cancel,
+.styled-form .btn-submit {
+  flex: 1;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.styled-form .btn-cancel {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #d1d5db;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.styled-form .btn-cancel:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.styled-form .btn-submit {
+  background: linear-gradient(135deg, #b2342b 0%, #8f2a22 100%);
+  color: #fff;
+}
+
+.styled-form .btn-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #8f2a22 0%, #6d1f1a 100%);
+  transform: translateY(-1px);
+}
+
+.styled-form .btn-cancel:disabled,
+.styled-form .btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* For Mantine Modals */
+.styled-form .mantine-Modal-content {
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.styled-form .mantine-Modal-header {
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+}
+
+.styled-form .mantine-Modal-title {
+  color: #fff !important;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.styled-form .mantine-Modal-close {
+  color: #9ca3af;
+  transition: all 0.2s;
+}
+
+.styled-form .mantine-Modal-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.styled-form .mantine-Modal-body {
+  padding: 24px;
+}
+
+/* Form inputs */
+.styled-form .mantine-TextInput-label,
+.styled-form .mantine-NumberInput-label,
+.styled-form .mantine-Select-label,
+.styled-form .mantine-PasswordInput-label,
+.styled-form .mantine-Checkbox-label {
+  color: #d1d5db !important;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.styled-form .mantine-TextInput-input,
+.styled-form .mantine-NumberInput-input,
+.styled-form .mantine-Select-input,
+.styled-form .mantine-PasswordInput-input {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.styled-form .mantine-TextInput-input:focus,
+.styled-form .mantine-NumberInput-input:focus,
+.styled-form .mantine-Select-input:focus,
+.styled-form .mantine-PasswordInput-input:focus {
+  border-color: #b2342b !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.styled-form .mantine-TextInput-input::placeholder,
+.styled-form .mantine-NumberInput-input::placeholder,
+.styled-form .mantine-Select-input::placeholder,
+.styled-form .mantine-PasswordInput-input::placeholder {
+  color: #6b7280;
+}
+
+.styled-form .mantine-Select-dropdown {
+  background-color: #1f2937 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.styled-form .mantine-Select-option {
+  color: #fff !important;
+}
+
+.styled-form .mantine-Select-option:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.styled-form .mantine-Checkbox-input {
+  cursor: pointer;
+  accent-color: #b2342b;
+}
+
+.styled-form .mantine-Checkbox-label {
+  cursor: pointer;
+  color: #d1d5db !important;
+}
+
+/* Form description text */
+.styled-form .mantine-TextInput-description,
+.styled-form .mantine-NumberInput-description,
+.styled-form .mantine-Select-description,
+.styled-form .mantine-PasswordInput-description {
+  color: #9ca3af !important;
+  font-size: 12px;
+}
+
+/* Error messages */
+.styled-form .mantine-TextInput-error,
+.styled-form .mantine-NumberInput-error,
+.styled-form .mantine-Select-error,
+.styled-form .mantine-PasswordInput-error {
+  color: #fca5a5 !important;
+}
+
+/* Form buttons group */
+.styled-form .mantine-Group-root {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .styled-form .mantine-Modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .styled-form .mantine-Modal-header {
+    padding: 16px;
+  }
+
+  .styled-form .mantine-Modal-body {
+    padding: 16px;
+  }
+
+  .styled-form .mantine-Group-root {
+    flex-direction: column-reverse;
+  }
+
+  .styled-form .mantine-Button-root {
+    width: 100%;
+  }
+}
