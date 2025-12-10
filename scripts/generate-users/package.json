@@ -1,0 +1,16 @@
+{
+  "name": "generate-users",
+  "version": "1.0.0",
+  "description": "Generate email addresses for users from CSV file",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["csv", "email", "users"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0"
+  }
+}
