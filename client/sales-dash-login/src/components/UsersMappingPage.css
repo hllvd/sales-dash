@@ -11,12 +11,12 @@
 
 
 .users-mapping-header p {
-  color: #d1d5db;
+  color: #333;
   line-height: 1.6;
 }
 
 .mapping-info {
-  color: #e2e8f0;
+  color: #333;
   font-size: 0.95rem;
   margin-top: 1rem;
   margin-bottom: 0.5rem;
@@ -33,7 +33,7 @@
 .mapping-features li {
   position: relative;
   padding: 0.4rem 0;
-  color: #d1d5db;
+  color: #333;
   line-height: 1.5;
 }
 
@@ -115,7 +115,7 @@
 
 .status-text {
   text-align: center;
-  color: #7f8c8d;
+  color: #333;
   font-weight: 500;
 }
 
@@ -166,7 +166,7 @@
 }
 
 .preview-info {
-  color: #7f8c8d;
+  color: #333;
   margin-bottom: 1.5rem;
   font-size: 0.95rem;
 }
