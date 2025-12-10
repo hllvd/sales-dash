@@ -60,6 +60,7 @@
   margin-top: auto;
   border-top: 1px solid #374151;
   color: #dc2626;
+  border:0px !important;
 }
 
 .menu-item.logout:hover {

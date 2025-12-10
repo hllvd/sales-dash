@@ -135,23 +135,14 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
 
         </AppShell.Section>
 
-        <AppShell.Section>
+        <AppShell.Section style={{ border: '0px', borderTop: '1px solid #374151', borderRadius: '8px', paddingTop: '16px', '&:hover': { backgroundColor: 'rgba(220, 38, 38, 0.1)' } }}>
           <Button
             fullWidth
             leftSection={<IconLogout size={20} />}
             variant="subtle"
             color="red"
+            className="no-border"
             onClick={handleLogout}
-            styles={{
-              root: {
-                borderTop: '1px solid #374151',
-                borderRadius: '8px',
-                paddingTop: '16px',
-                '&:hover': {
-                  backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                },
-              },
-            }}
           >
             Logout
           </Button>

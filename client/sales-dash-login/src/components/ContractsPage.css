@@ -73,7 +73,7 @@
 }
 
 .filter-group label {
-  color: #d1d5db;
+  color: #333;
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 6px;
@@ -85,7 +85,7 @@
   background-color: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  color: #fff;
+  color: #333;
   font-size: 14px;
   transition: all 0.2s;
 }
@@ -98,8 +98,8 @@
 }
 
 .filter-group select option {
-  background-color: #1f2937;
-  color: #fff;
+  background-color: #f5f5f5;
+  color: #333;
 }
 
 .clear-filters-btn {

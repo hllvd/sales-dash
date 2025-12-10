@@ -37,6 +37,9 @@ html {
   border: 2px solid #b2342b !important;
   transition: all 0.2s ease !important;
 }
+.no-border {
+  border: none !important;
+}
 
 .mantine-Button-root:hover:not(:disabled) {
   background: rgba(178, 52, 43, 0.1) !important;
@@ -66,4 +69,10 @@ html {
 .mantine-Title-root::first-letter {
   color: #b2342b !important;
   font-weight: bold;
+}
+
+/** inputs **/
+.filter-group select, .filter-group input[type="date"]{
+  /** background-color: #fab7b7;**/
+  border:1px solid #333
 }
