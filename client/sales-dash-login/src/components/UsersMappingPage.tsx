@@ -67,20 +67,63 @@ const UsersMappingPage: React.FC = () => {
 
         // Parse header
         const headerLine = lines[0];
-        const parsedHeaders = headerLine.split(',').map(h => h.trim());
+        
+        // Proper CSV parser that handles quoted fields
+        const parseCSVLine = (line: string): string[] => {
+          const result: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+            
+            if (char === '"') {
+              if (inQuotes && nextChar === '"') {
+                // Escaped quote
+                current += '"';
+                i++; // Skip next quote
+              } else {
+                // Toggle quote mode
+                inQuotes = !inQuotes;
+              }
+            } else if (char === ',' && !inQuotes) {
+              // Field separator (only when not in quotes)
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          
+          // Add last field
+          result.push(current.trim());
+          return result;
+        };
+        
+        const parsedHeaders = parseCSVLine(headerLine);
         
         // Helper function to normalize strings (remove accents and convert to lowercase)
         const normalizeString = (str: string) => {
           return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         };
         
-        const matriculaIndex = parsedHeaders.findIndex(h => normalizeString(h) === 'matricula');
+        let matriculaIndex = parsedHeaders.findIndex(h => normalizeString(h) === 'matricula');
 
         if (matriculaIndex === -1) {
           throw new Error('Coluna "matricula" ou "Matrícula" não encontrada no CSV.');
         }
 
-        // Add name and email columns if not exists
+        // Add email column at the beginning if not exists
+        let emailIndex = parsedHeaders.findIndex(h => h.toLowerCase() === 'email');
+        if (emailIndex === -1) {
+          parsedHeaders.unshift('Email'); // Add at the beginning
+          emailIndex = 0;
+          // Adjust matricula index since we inserted at the beginning
+          matriculaIndex++;
+        }
+
+        // Add name column if not exists
         let nameIndex = parsedHeaders.findIndex(h => {
           const normalized = normalizeString(h);
           return normalized === 'name' || normalized === 'nome' || normalized === 'comissionado';
@@ -88,12 +131,6 @@ const UsersMappingPage: React.FC = () => {
         if (nameIndex === -1) {
           parsedHeaders.push('name');
           nameIndex = parsedHeaders.length - 1;
-        }
-
-        let emailIndex = parsedHeaders.findIndex(h => h.toLowerCase() === 'email');
-        if (emailIndex === -1) {
-          parsedHeaders.push('email');
-          emailIndex = parsedHeaders.length - 1;
         }
 
         setHeaders(parsedHeaders);
@@ -115,11 +152,18 @@ const UsersMappingPage: React.FC = () => {
           }
 
           // Parse the line into columns
-          const columns = line.split(',').map(c => c.trim());
-          const matricula = columns[matriculaIndex] || '';
-
-          // Create a new row with all the original columns
-          const newRow = [...columns];
+          const columns = parseCSVLine(line);
+          
+          // If email column was added at the beginning, we need to shift all columns
+          let newRow: string[];
+          if (emailIndex === 0 && parsedHeaders[0] === 'Email') {
+            // Email column was added at beginning, so insert empty string at start
+            newRow = ['', ...columns];
+          } else {
+            newRow = [...columns];
+          }
+          
+          const matricula = columns[matriculaIndex - (emailIndex === 0 ? 1 : 0)] || '';
           
           // Ensure the row has enough columns to match headers
           while (newRow.length < parsedHeaders.length) {
@@ -226,13 +270,37 @@ const UsersMappingPage: React.FC = () => {
   const downloadCsv = () => {
     if (processedRows.length === 0) return;
 
-    const csvLines = [headers.join(',')];
+    // Helper function to properly format CSV fields
+    const formatCSVField = (field: string): string => {
+      // Convert to string if not already
+      const fieldStr = String(field || '');
+      
+      // Check if field needs quoting (contains comma, quote, newline, or starts/ends with whitespace)
+      const needsQuoting = fieldStr.includes(',') || 
+                          fieldStr.includes('"') || 
+                          fieldStr.includes('\n') || 
+                          fieldStr.includes('\r') ||
+                          fieldStr.trim() !== fieldStr;
+      
+      if (needsQuoting) {
+        // Escape quotes by doubling them
+        const escaped = fieldStr.replace(/"/g, '""');
+        return `"${escaped}"`;
+      }
+      
+      return fieldStr;
+    };
+
+    // Format headers
+    const csvLines = [headers.map(formatCSVField).join(',')];
+    
+    // Format data rows
     processedRows.forEach(row => {
-      csvLines.push(row.originalData.join(','));
+      csvLines.push(row.originalData.map(formatCSVField).join(','));
     });
 
     const csvContent = csvLines.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
