@@ -25,7 +25,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   const [formData, setFormData] = useState({
     contractNumber: contract?.contractNumber || '',
     userId: contract?.userId || '',
-    groupId: contract?.groupId?.toString() || '',
+    groupId: contract?.groupId?.toString() || '0',
     pvId: contract?.pvId?.toString() || '',
     totalAmount: contract?.totalAmount || 0,
     status: contract?.status || 'Active',
@@ -57,11 +57,10 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           setPVs(pvsResponse.data);
         }
         
-        // For new contracts, auto-select first group and first contract type
-        if (!contract && groupsData.length > 0) {
+        // For new contracts, set default contract type
+        if (!contract) {
           setFormData(prev => ({
             ...prev,
-            groupId: groupsData[0].id.toString(),
             contractType: '0', // First option: Lar
           }));
         }
@@ -83,11 +82,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   const validateForm = (): boolean => {
     if (!formData.contractNumber.trim()) {
       setError('Contract number is required');
-      return false;
-    }
-
-    if (!formData.groupId) {
-      setError('Group is required');
       return false;
     }
 
@@ -119,7 +113,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         const updateData: UpdateContractRequest = {
           contractNumber: formData.contractNumber,
           userId: formData.userId || undefined,
-          groupId: parseInt(formData.groupId),
+          groupId: formData.groupId ? parseInt(formData.groupId) : 0,
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: Number(formData.totalAmount),
           status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
@@ -135,7 +129,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         const createData: CreateContractRequest = {
           contractNumber: formData.contractNumber,
           userId: formData.userId || undefined,
-          groupId: parseInt(formData.groupId),
+          groupId: formData.groupId ? parseInt(formData.groupId) : 0,
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: Number(formData.totalAmount),
           status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
@@ -184,12 +178,11 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         />
 
         <Select
-          label="Grupo"
-          required
+          label="Grupo (Opcional)"
           value={formData.groupId}
           onChange={(value) => handleChange('groupId', value)}
           data={[
-            { value: '', label: 'Selecione um grupo' },
+            { value: '0', label: 'Nenhum' },
             ...groups.map(group => ({ value: group.id.toString(), label: group.name }))
           ]}
           mb="md"

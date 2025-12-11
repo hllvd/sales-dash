@@ -83,13 +83,13 @@ namespace SalesApp.Services
                 throw new ArgumentException("Missing required fields");
             }
 
-            // Parse and validate total amount (already in cents from CSV)
-            if (!decimal.TryParse(totalAmountStr, out var totalAmount))
+            // Parse and validate total amount
+            if (!TryParseBrazilianCurrency(totalAmountStr, out var totalAmount))
             {
                 throw new ArgumentException($"Invalid total amount: {totalAmountStr}");
             }
             
-            // Parse and validate group ID
+            // Parse and validate group ID (optional - defaults to 0)
             int groupId = 0; // Default to 0
             if (!string.IsNullOrWhiteSpace(groupIdStr))
             {
@@ -99,11 +99,14 @@ namespace SalesApp.Services
                 }
             }
 
-            // Verify group exists
-            var group = await _groupRepository.GetByIdAsync(groupId);
-            if (group == null || !group.IsActive)
+            // Verify group exists only if groupId is not 0
+            if (groupId != 0)
             {
-                throw new ArgumentException($"Group not found: {groupId}");
+                var group = await _groupRepository.GetByIdAsync(groupId);
+                if (group == null || !group.IsActive)
+                {
+                    throw new ArgumentException($"Group not found: {groupId}");
+                }
             }
 
             // Look up user by email
@@ -336,6 +339,79 @@ namespace SalesApp.Services
             }
 
             return row[sourceColumn]?.Trim();
+        }
+
+        private bool TryParseBrazilianCurrency(string? input, out decimal result)
+        {
+            result = 0;
+            
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return false;
+            }
+
+            try
+            {
+                // Remove currency symbol and whitespace
+                var cleaned = input.Trim()
+                    .Replace("R$", "")
+                    .Replace("$", "")
+                    .Trim();
+
+                // Handle both Brazilian (100.000,00) and US (100,000.00) formats
+                // Count dots and commas to determine format
+                int dotCount = cleaned.Count(c => c == '.');
+                int commaCount = cleaned.Count(c => c == ',');
+
+                if (dotCount > 1 || commaCount > 1)
+                {
+                    // Multiple separators - likely Brazilian format with thousand separators
+                    // Brazilian: 100.000,00 or 1.000.000,00
+                    cleaned = cleaned.Replace(".", "").Replace(",", ".");
+                }
+                else if (dotCount == 1 && commaCount == 1)
+                {
+                    // Both separators present - determine which is decimal
+                    int lastDotIndex = cleaned.LastIndexOf('.');
+                    int lastCommaIndex = cleaned.LastIndexOf(',');
+                    
+                    if (lastCommaIndex > lastDotIndex)
+                    {
+                        // Brazilian format: 1.000,00
+                        cleaned = cleaned.Replace(".", "").Replace(",", ".");
+                    }
+                    else
+                    {
+                        // US format: 1,000.00
+                        cleaned = cleaned.Replace(",", "");
+                    }
+                }
+                else if (commaCount == 1 && dotCount == 0)
+                {
+                    // Only comma - check if it's decimal separator or thousand separator
+                    int commaIndex = cleaned.IndexOf(',');
+                    int digitsAfterComma = cleaned.Length - commaIndex - 1;
+                    
+                    if (digitsAfterComma == 2)
+                    {
+                        // Likely decimal separator: 100,00
+                        cleaned = cleaned.Replace(",", ".");
+                    }
+                    else
+                    {
+                        // Likely thousand separator: 1,000
+                        cleaned = cleaned.Replace(",", "");
+                    }
+                }
+                // If only dots or no separators, use as-is
+
+                return decimal.TryParse(cleaned, System.Globalization.NumberStyles.Number, 
+                    System.Globalization.CultureInfo.InvariantCulture, out result);
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

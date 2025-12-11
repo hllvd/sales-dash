@@ -10,7 +10,7 @@ namespace SalesApp.Services
         // Define required fields for each entity type
         private readonly Dictionary<string, List<string>> _requiredFields = new()
         {
-            ["Contract"] = new List<string> { "ContractNumber", "UserName", "UserSurname", "TotalAmount", "GroupId" },
+            ["Contract"] = new List<string> { "ContractNumber", "UserName", "UserSurname", "TotalAmount" },
             ["User"] = new List<string> { "Name", "Email" }
         };
 
@@ -100,21 +100,17 @@ namespace SalesApp.Services
                 }
             }
 
-            // Validate group exists
+            // Validate group exists (optional - only if provided and not 0)
             if (reverseMappings.ContainsKey("GroupId"))
             {
                 var groupIdStr = row[reverseMappings["GroupId"]];
-                if (int.TryParse(groupIdStr, out var groupId))
+                if (!string.IsNullOrWhiteSpace(groupIdStr) && int.TryParse(groupIdStr, out var groupId) && groupId != 0)
                 {
                     var groupExists = await _context.Groups.AnyAsync(g => g.Id == groupId && g.IsActive);
                     if (!groupExists)
                     {
                         errors.Add($"Group not found: {groupId}");
                     }
-                }
-                else
-                {
-                    errors.Add($"Invalid group ID: {groupIdStr}");
                 }
             }
 

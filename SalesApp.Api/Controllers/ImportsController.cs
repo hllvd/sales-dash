@@ -74,8 +74,8 @@ namespace SalesApp.Controllers
                 Name = "Contracts",
                 EntityType = "Contract",
                 Description = "Template for importing contracts",
-                RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount", "GroupId" }),
-                OptionalFields = JsonSerializer.Serialize(new List<string> { "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName" }),
+                RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName" }),
                 DefaultMappings = "{}",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -159,7 +159,7 @@ namespace SalesApp.Controllers
                     });
                 }
 
-                // Sync with DB to ensure FK validity
+                // Sync with DB to ensure FK validity and keep fields updated
                 var dbTemplate = await _templateRepository.GetByNameAsync(hardcodedTemplate.Name);
                 if (dbTemplate == null)
                 {
@@ -176,6 +176,15 @@ namespace SalesApp.Controllers
                         CreatedAt = DateTime.UtcNow
                     };
                     await _templateRepository.CreateAsync(dbTemplate);
+                }
+                else
+                {
+                    // Update existing template to match hardcoded values
+                    dbTemplate.RequiredFields = hardcodedTemplate.RequiredFields;
+                    dbTemplate.OptionalFields = hardcodedTemplate.OptionalFields;
+                    dbTemplate.Description = hardcodedTemplate.Description;
+                    dbTemplate.UpdatedAt = DateTime.UtcNow;
+                    await _templateRepository.UpdateAsync(dbTemplate);
                 }
 
                 var entityType = hardcodedTemplate.EntityType;

@@ -66,6 +66,12 @@ namespace SalesApp.Services
                 
                 foreach (var (targetField, patterns) in rules)
                 {
+                    // Skip if this target field is already mapped to another source column
+                    if (mappings.ContainsValue(targetField))
+                    {
+                        continue;
+                    }
+                    
                     if (patterns.Any(pattern => normalizedSource.Contains(NormalizeColumnName(pattern))))
                     {
                         mappings[sourceColumn] = targetField;
