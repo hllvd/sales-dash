@@ -154,15 +154,19 @@ namespace SalesApp.Controllers
                 });
             }
             
-            // Validate group exists
-            var group = await _groupRepository.GetByIdAsync(request.GroupId);
-            if (group == null || !group.IsActive)
+            
+            // Validate group exists (if provided)
+            if (request.GroupId.HasValue)
             {
-                return BadRequest(new ApiResponse<ContractResponse>
+                var group = await _groupRepository.GetByIdAsync(request.GroupId.Value);
+                if (group == null || !group.IsActive)
                 {
-                    Success = false,
-                    Message = "Invalid group"
-                });
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = "Invalid group"
+                    });
+                }
             }
             
             var contract = new Contract

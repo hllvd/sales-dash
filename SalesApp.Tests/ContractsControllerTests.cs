@@ -56,14 +56,14 @@ namespace SalesApp.Tests
             };
 
             var user = new User { Id = request.UserId!.Value, IsActive = true };
-            var group = new Group { Id = request.GroupId, IsActive = true };
+            var group = new Group { Id = request.GroupId!.Value, IsActive = true };
             var contract = new Contract { Id = 1, ContractNumber = request.ContractNumber };
 
             _mockContractRepository.Setup(x => x.GetByContractNumberAsync(request.ContractNumber))
                 .ReturnsAsync((Contract?)null);
             _mockUserRepository.Setup(x => x.GetByIdAsync(request.UserId!.Value))
                 .ReturnsAsync(user);
-            _mockGroupRepository.Setup(x => x.GetByIdAsync(request.GroupId))
+            _mockGroupRepository.Setup(x => x.GetByIdAsync(request.GroupId!.Value))
                 .ReturnsAsync(group);
             _mockContractRepository.Setup(x => x.CreateAsync(It.IsAny<Contract>()))
                 .ReturnsAsync(contract);
@@ -215,12 +215,12 @@ namespace SalesApp.Tests
                 ContractEndDate = DateTime.UtcNow.AddDays(30)
             };
 
-            var group = new Group { Id = request.GroupId, IsActive = true };
+            var group = new Group { Id = request.GroupId!.Value, IsActive = true };
             var contract = new Contract { Id = 1, ContractNumber = request.ContractNumber, UserId = null };
 
             _mockContractRepository.Setup(x => x.GetByContractNumberAsync(request.ContractNumber))
                 .ReturnsAsync((Contract?)null);
-            _mockGroupRepository.Setup(x => x.GetByIdAsync(request.GroupId))
+            _mockGroupRepository.Setup(x => x.GetByIdAsync(request.GroupId!.Value))
                 .ReturnsAsync(group);
             _mockContractRepository.Setup(x => x.CreateAsync(It.IsAny<Contract>()))
                 .ReturnsAsync(contract);

@@ -89,20 +89,21 @@ namespace SalesApp.Services
                 throw new ArgumentException($"Invalid total amount: {totalAmountStr}");
             }
             
-            // Parse and validate group ID (optional - defaults to 0)
-            int groupId = 0; // Default to 0
+            // Parse and validate group ID (optional - defaults to null)
+            int? groupId = null;
             if (!string.IsNullOrWhiteSpace(groupIdStr))
             {
-                if (!int.TryParse(groupIdStr, out groupId))
+                if (!int.TryParse(groupIdStr, out var parsedGroupId))
                 {
                     throw new ArgumentException($"Invalid group ID: {groupIdStr}");
                 }
+                groupId = parsedGroupId;
             }
 
-            // Verify group exists only if groupId is not 0
-            if (groupId != 0)
+            // Verify group exists only if groupId is provided
+            if (groupId.HasValue)
             {
-                var group = await _groupRepository.GetByIdAsync(groupId);
+                var group = await _groupRepository.GetByIdAsync(groupId.Value);
                 if (group == null || !group.IsActive)
                 {
                     throw new ArgumentException($"Group not found: {groupId}");
@@ -130,7 +131,7 @@ namespace SalesApp.Services
             DateTime saleStartDate = DateTime.UtcNow;
             if (!string.IsNullOrWhiteSpace(saleStartDateStr))
             {
-                if (!DateTime.TryParse(saleStartDateStr, out saleStartDate))
+                if (!TryParseFlexibleDate(saleStartDateStr, out saleStartDate))
                 {
                     throw new ArgumentException($"Invalid start date: {saleStartDateStr}");
                 }
@@ -139,7 +140,7 @@ namespace SalesApp.Services
             DateTime? saleEndDate = null;
             if (!string.IsNullOrWhiteSpace(saleEndDateStr))
             {
-                if (DateTime.TryParse(saleEndDateStr, out var parsedEndDate))
+                if (TryParseFlexibleDate(saleEndDateStr, out var parsedEndDate))
                 {
                     saleEndDate = parsedEndDate;
                 }
@@ -412,6 +413,44 @@ namespace SalesApp.Services
             {
                 return false;
             }
+        }
+
+        private bool TryParseFlexibleDate(string? input, out DateTime result)
+        {
+            result = DateTime.MinValue;
+            
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return false;
+            }
+
+            var cleanedInput = input.Trim();
+
+            // Try multiple date formats
+            var formats = new[]
+            {
+                "MM/dd/yyyy",      // US format: 08/31/2025
+                "M/d/yyyy",        // US format without leading zeros: 8/31/2025
+                "dd/MM/yyyy",      // European/Brazilian format: 31/08/2025
+                "d/M/yyyy",        // European/Brazilian format without leading zeros: 31/8/2025
+                "yyyy-MM-dd",      // ISO format: 2025-08-31
+                "yyyy/MM/dd",      // ISO format with slashes: 2025/08/31
+                "MM-dd-yyyy",      // US format with dashes: 08-31-2025
+                "dd-MM-yyyy",      // European format with dashes: 31-08-2025
+            };
+
+            // Try parsing with explicit formats
+            if (DateTime.TryParseExact(cleanedInput, formats, 
+                System.Globalization.CultureInfo.InvariantCulture, 
+                System.Globalization.DateTimeStyles.None, out result))
+            {
+                return true;
+            }
+
+            // Fallback to general parsing
+            return DateTime.TryParse(cleanedInput, 
+                System.Globalization.CultureInfo.InvariantCulture, 
+                System.Globalization.DateTimeStyles.None, out result);
         }
     }
 }

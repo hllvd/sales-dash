@@ -15,8 +15,8 @@ namespace SalesApp.Models
         [Required]
         public decimal TotalAmount { get; set; }
         
-        [Required]
-        public int GroupId { get; set; }
+        
+        public int? GroupId { get; set; }
         
         [Required]
         [MaxLength(20)]
@@ -46,7 +46,7 @@ namespace SalesApp.Models
         
         // Navigation properties
         public User? User { get; set; }
-        public Group Group { get; set; } = null!;
+        public Group? Group { get; set; }
         public PV? PV { get; set; }
     }
 }
