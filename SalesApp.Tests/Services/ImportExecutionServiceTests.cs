@@ -74,7 +74,7 @@ namespace SalesApp.Tests.Services
                 .ReturnsAsync((Contract c) => c);
 
             // Act
-            var result = await _service.ExecuteContractImportAsync(uploadId, rows, mappings);
+            var result = await _service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(1);

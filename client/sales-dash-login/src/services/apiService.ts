@@ -210,7 +210,8 @@ export const apiService = {
 
   async configureImportMappings(
     uploadId: string,
-    mappings: Record<string, string>
+    mappings: Record<string, string>,
+    dateFormat: string = "MM/DD/YYYY"
   ): Promise<
     ApiResponse<{
       uploadId: string
@@ -224,7 +225,7 @@ export const apiService = {
     const response = await fetch(`${API_BASE_URL}/imports/${uploadId}/mappings`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ mappings }),
+      body: JSON.stringify({ mappings, dateFormat }),
     })
 
     if (!response.ok) {
