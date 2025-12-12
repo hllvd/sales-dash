@@ -25,7 +25,8 @@ namespace SalesApp.Services
         public async Task<ImportResult> ExecuteContractImportAsync(
             string uploadId,
             List<Dictionary<string, string>> rows,
-            Dictionary<string, string> mappings)
+            Dictionary<string, string> mappings,
+            string dateFormat)
         {
             var result = new ImportResult
             {
@@ -40,7 +41,7 @@ namespace SalesApp.Services
                 try
                 {
                     var row = rows[i];
-                    var contract = await CreateContractFromRowAsync(row, reverseMappings, uploadId);
+                    var contract = await CreateContractFromRowAsync(row, reverseMappings, uploadId, dateFormat);
                     
                     if (contract != null)
                     {
@@ -66,7 +67,8 @@ namespace SalesApp.Services
         private async Task<Contract?> CreateContractFromRowAsync(
             Dictionary<string, string> row,
             Dictionary<string, string> reverseMappings,
-            string uploadId)
+            string uploadId,
+            string dateFormat)
         {
             // Extract required fields
             var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");

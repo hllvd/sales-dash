@@ -17,7 +17,8 @@ namespace SalesApp.Services
         Task<ImportResult> ExecuteContractImportAsync(
             string uploadId,
             List<Dictionary<string, string>> rows,
-            Dictionary<string, string> mappings);
+            Dictionary<string, string> mappings,
+            string dateFormat);
 
         Task<ImportResult> ExecuteUserImportAsync(
             string uploadId,

@@ -76,7 +76,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings);
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(1);
@@ -143,7 +143,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings);
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(1);
@@ -185,7 +185,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings);
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(0);
@@ -244,7 +244,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings);
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(0);
@@ -294,7 +294,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings);
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(0);
@@ -341,7 +341,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings);
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(0);
@@ -417,7 +417,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings);
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(2);
@@ -426,19 +426,14 @@ namespace SalesApp.IntegrationTests.Imports
         }
 
         [Fact]
-        public async Task ImportContracts_MissingGroupId_ShouldDefaultToZero()
+        public async Task ImportContracts_MissingGroupId_ShouldDefaultToNull()
         {
             // Arrange
             using var scope = _factory.Services.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IImportExecutionService>();
-            var groupRepo = scope.ServiceProvider.GetRequiredService<IGroupRepository>();
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
             var uploadId = Guid.NewGuid().ToString();
-
-            // Ensure Group 0 exists (seeded by factory)
-            var defaultGroup = await groupRepo.GetByIdAsync(0);
-            defaultGroup.Should().NotBeNull("Group 0 should be seeded by TestWebApplicationFactory");
 
             // Create test user
             var user = new User
@@ -470,12 +465,12 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings);
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(1);
             result.FailedRows.Should().Be(0);
-            result.CreatedContracts[0].GroupId.Should().Be(0);
+            result.CreatedContracts[0].GroupId.Should().BeNull();
         }
     }
 }

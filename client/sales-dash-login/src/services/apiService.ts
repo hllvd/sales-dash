@@ -238,7 +238,8 @@ export const apiService = {
   },
 
   async confirmImport(
-    uploadId: string
+    uploadId: string,
+    dateFormat: string = "MM/DD/YYYY"
   ): Promise<
     ApiResponse<{
       uploadId: string
@@ -252,6 +253,7 @@ export const apiService = {
     const response = await fetch(`${API_BASE_URL}/imports/${uploadId}/confirm`, {
       method: "POST",
       headers: getAuthHeaders(),
+      body: JSON.stringify({ dateFormat }),
     })
 
     if (!response.ok) {

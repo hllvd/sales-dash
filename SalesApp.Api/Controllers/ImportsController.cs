@@ -391,7 +391,9 @@ namespace SalesApp.Controllers
 
         [HttpPost("{uploadId}/confirm")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmImport(string uploadId)
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmImport(
+            string uploadId,
+            [FromBody] ConfirmImportRequest? request)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
             if (session == null)
@@ -439,6 +441,7 @@ namespace SalesApp.Controllers
                 // Execute import
                 ImportResult result;
                 var entityType = session.Template?.EntityType ?? "Contract";
+                var dateFormat = request?.DateFormat ?? "MM/DD/YYYY";
 
                 if (entityType == "User")
                 {
@@ -453,7 +456,8 @@ namespace SalesApp.Controllers
                     result = await _importExecution.ExecuteContractImportAsync(
                         uploadId,
                         allRows,
-                        mappings);
+                        mappings,
+                        dateFormat);
                 }
 
                 // Update session with results

@@ -24,6 +24,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [mappings, setMappings] = useState<Record<string, string>>({})
   const [requiredFields, setRequiredFields] = useState<string[]>([])
   const [optionalFields, setOptionalFields] = useState<string[]>([])
+  const [dateFormat, setDateFormat] = useState<string>("MM/DD/YYYY")
   
   // Step 3: Result
   const [resultMessage, setResultMessage] = useState<string>("")
@@ -82,7 +83,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
 
     try {
       // Step 1: Configure mappings
-      const mappingResp = await apiService.configureImportMappings(uploadId, mappings)
+      const mappingResp = await apiService.configureImportMappings(uploadId, mappings, dateFormat)
       
       if (!mappingResp.success) {
         setError(mappingResp.message || "Falha ao configurar mapeamentos")
@@ -91,7 +92,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
       }
 
       // Step 2: Confirm import
-      const confirmResp = await apiService.confirmImport(uploadId)
+      const confirmResp = await apiService.confirmImport(uploadId, dateFormat)
       
       if (confirmResp.success && confirmResp.data) {
         const { processedRows, failedRows, errors } = confirmResp.data
