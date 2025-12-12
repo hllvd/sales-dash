@@ -74,7 +74,7 @@ html {
 /** inputs **/
 .filter-group select, .filter-group input[type="date"]{
   /** background-color: #fab7b7;**/
-  border:1px solid #333
+  border:1px solid #333 !important
 }
 
 /* Styled Form - Common Form Styles */

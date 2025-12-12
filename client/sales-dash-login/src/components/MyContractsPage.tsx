@@ -15,11 +15,23 @@ const MyContractsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
   
+  // Date filter state
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  
   // Contract assignment state
   const [contractNumber, setContractNumber] = useState('');
   const [retrievedContract, setRetrievedContract] = useState<Contract | null>(null);
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState('');
+
+  // Load saved date filters from localStorage
+  useEffect(() => {
+    const savedStart = localStorage.getItem('myContracts_startDate');
+    const savedEnd = localStorage.getItem('myContracts_endDate');
+    if (savedStart) setStartDate(savedStart);
+    if (savedEnd) setEndDate(savedEnd);
+  }, []);
 
   useEffect(() => {
     loadMyContracts();
@@ -95,6 +107,45 @@ const MyContractsPage: React.FC = () => {
     }
   };
 
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value);
+    if (value) {
+      localStorage.setItem('myContracts_startDate', value);
+    } else {
+      localStorage.removeItem('myContracts_startDate');
+    }
+  };
+
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value);
+    if (value) {
+      localStorage.setItem('myContracts_endDate', value);
+    } else {
+      localStorage.removeItem('myContracts_endDate');
+    }
+  };
+
+  const handleClearFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    localStorage.removeItem('myContracts_startDate');
+    localStorage.removeItem('myContracts_endDate');
+  };
+
+  // Filter contracts by date range
+  const filteredContracts = contracts.filter(contract => {
+    if (!startDate && !endDate) return true;
+    
+    const contractDate = new Date(contract.contractStartDate);
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    
+    if (start && contractDate < start) return false;
+    if (end && contractDate > end) return false;
+    
+    return true;
+  });
+
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -146,6 +197,35 @@ const MyContractsPage: React.FC = () => {
 
           {error && <div className="my-contracts-error">{error}</div>}
 
+          {/* Date Filters */}
+          {!loading && contracts.length > 0 && (
+            <div className="date-filters">
+              <div className="filter-group">
+                <label htmlFor="startDate">Data Início:</label>
+                <input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                />
+              </div>
+              <div className="filter-group">
+                <label htmlFor="endDate">Data Fim:</label>
+                <input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => handleEndDateChange(e.target.value)}
+                />
+              </div>
+              {(startDate || endDate) && (
+                <Button onClick={handleClearFilters} variant="subtle" size="sm">
+                  Limpar Filtros
+                </Button>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div className="my-contracts-loading">
               <div className="spinner"></div>
@@ -156,6 +236,13 @@ const MyContractsPage: React.FC = () => {
               <p>Você ainda não possui contratos atribuídos.</p>
               <Button onClick={handleNewClick}>
                 Atribuir Primeiro Contrato
+              </Button>
+            </div>
+          ) : filteredContracts.length === 0 ? (
+            <div className="my-contracts-empty">
+              <p>Nenhum contrato encontrado para o período selecionado.</p>
+              <Button onClick={handleClearFilters}>
+                Limpar Filtros
               </Button>
             </div>
           ) : (
@@ -172,7 +259,7 @@ const MyContractsPage: React.FC = () => {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {contracts.map((contract) => (
+                  {filteredContracts.map((contract) => (
                     <Table.Tr key={contract.id}>
                       <Table.Td>{contract.contractNumber}</Table.Td>
                       <Table.Td>{contract.customerName || '-'}</Table.Td>

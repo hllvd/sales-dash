@@ -346,3 +346,48 @@
   font-size: 14px;
   font-weight: 600;
 }
+
+/* Date Filters */
+.date-filters {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-group label {
+  color: #333;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.filter-group input[type="date"] {
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #333;
+  font-size: 14px;
+  transition: all 0.2s;
+  min-width: 180px;
+}
+
+.filter-group input[type="date"]:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.filter-group input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
