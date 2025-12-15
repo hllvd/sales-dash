@@ -5,6 +5,7 @@ import './ContractsPage.css';
 import Menu from './Menu';
 import ContractForm from './ContractForm';
 import BulkImportModal from './BulkImportModal';
+import AggregationSummary from '../shared/AggregationSummary';
 import {
   Contract,
   User,
@@ -303,41 +304,11 @@ const ContractsPage: React.FC = () => {
 
       {/* Aggregation Summary */}
       {aggregation && contracts.length > 0 && (
-        <div className="aggregation-summary">
-          <h3>Resumo</h3>
-          <div className="aggregation-grid">
-            <div className="aggregation-item">
-              <span className="aggregation-label">Total Geral:</span>
-              <span className="aggregation-value">
-                {isNaN(aggregation.total) || aggregation.total === null || aggregation.total === undefined
-                  ? '--'
-                  : new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(aggregation.total)}
-              </span>
-            </div>
-            <div className="aggregation-item">
-              <span className="aggregation-label">Total Cancelado:</span>
-              <span className="aggregation-value canceled">
-                {isNaN(aggregation.totalCancel) || aggregation.totalCancel === null || aggregation.totalCancel === undefined
-                  ? '--'
-                  : new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(aggregation.totalCancel)}
-              </span>
-            </div>
-            <div className="aggregation-item">
-              <span className="aggregation-label">Taxa de Retenção:</span>
-              <span className="aggregation-value retention">
-                {isNaN(aggregation.retention) || aggregation.retention === null || aggregation.retention === undefined
-                  ? '--'
-                  : `${(aggregation.retention * 100).toFixed(1)}%`}
-              </span>
-            </div>
-          </div>
-        </div>
+        <AggregationSummary
+          total={aggregation.total}
+          totalCancel={aggregation.totalCancel}
+          retention={aggregation.retention}
+        />
       )}
 
       {showForm && (

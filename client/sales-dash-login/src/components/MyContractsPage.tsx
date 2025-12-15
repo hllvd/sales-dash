@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Title, Button, Table, Badge } from '@mantine/core';
 import './MyContractsPage.css';
 import Menu from './Menu';
+import AggregationSummary from '../shared/AggregationSummary';
 import {
   Contract,
+  ContractAggregation,
   getContracts,
   getContractByNumber,
   assignContract,
@@ -13,6 +15,7 @@ const MyContractsPage: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [aggregation, setAggregation] = useState<ContractAggregation | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   
   // Date filter state
@@ -52,8 +55,9 @@ const MyContractsPage: React.FC = () => {
       }
 
       // Load contracts for current user
-      const { contracts: data } = await getContracts(userId);
+      const { contracts: data, aggregation: aggData } = await getContracts(userId);
       setContracts(data);
+      setAggregation(aggData || null);
     } catch (err: any) {
       setError(err.message || 'Falha ao carregar contratos');
     } finally {
@@ -284,6 +288,15 @@ const MyContractsPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Aggregation Summary */}
+        {aggregation && filteredContracts.length > 0 && (
+          <AggregationSummary
+            total={aggregation.total}
+            totalCancel={aggregation.totalCancel}
+            retention={aggregation.retention}
+          />
+        )}
 
 
       {/* Assignment Modal */}
