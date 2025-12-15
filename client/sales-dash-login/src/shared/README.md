@@ -1,6 +1,6 @@
 # AggregationSummary Component
 
-A reusable presentational component for displaying contract aggregation metrics.
+A reusable presentational component for displaying contract aggregation metrics with visual chart.
 
 ## Props
 
@@ -27,14 +27,29 @@ import AggregationSummary from '../shared/AggregationSummary';
 - **NaN Handling**: Displays `--` for invalid values (NaN, null, undefined)
 - **Currency Formatting**: Brazilian Real (R$) format for monetary values
 - **Percentage Display**: Retention shown as percentage with 1 decimal place
+- **Visual Chart**: Donut chart showing retention vs defaulted distribution
 - **Color Coding**: 
-  - Total: Green
-  - Total Cancelado: Red
-  - Taxa de Retenção: Blue
+  - Total: Green (#22c55e)
+  - Total Cancelado: Red (#ef4444)
+  - Taxa de Retenção: Blue (#3b82f6)
+
+## Chart Visualization
+
+The component includes a donut chart that visualizes:
+- **Retidos** (Green): Percentage of retained contracts
+- **Inadimplentes** (Red): Percentage of defaulted contracts
+
+Chart only displays when retention data is valid (not NaN/null/undefined).
 
 ## Display
 
-Shows three metrics in a responsive grid:
+Shows three metrics in a responsive grid plus chart:
 - **Total Geral**: R$ 15.000,00
 - **Total Cancelado**: R$ 2.500,00
 - **Taxa de Retenção**: 75.0%
+- **Chart**: Visual representation of retention (75%) vs defaulted (25%)
+
+## Dependencies
+
+- `@mantine/charts`: For DonutChart component
+- `recharts`: Chart rendering library (peer dependency)

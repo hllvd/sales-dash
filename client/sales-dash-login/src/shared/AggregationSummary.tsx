@@ -1,4 +1,5 @@
 import React from 'react';
+import { DonutChart } from '@mantine/charts';
 import './AggregationSummary.css';
 
 interface AggregationSummaryProps {
@@ -25,28 +26,47 @@ const AggregationSummary: React.FC<AggregationSummaryProps> = ({ total, totalCan
     return `${(value * 100).toFixed(1)}%`;
   };
 
+  // Prepare chart data
+  const isValidRetention = !isNaN(retention) && retention !== null && retention !== undefined;
+  const retentionPercent = isValidRetention ? retention * 100 : 0;
+  const defaultedPercent = isValidRetention ? (1 - retention) * 100 : 0;
+
+  const chartData = [
+    { name: 'Retidos', value: retentionPercent, color: '#22c55e' },
+    { name: 'Inadimplentes', value: defaultedPercent, color: '#ef4444' }
+  ];
+
   return (
     <div className="aggregation-summary">
       <h3>Resumo</h3>
-      <div className="aggregation-grid">
-        <div className="aggregation-item">
-          <span className="aggregation-label">Total Geral:</span>
-          <span className="aggregation-value">
-            {formatCurrency(total)}
-          </span>
+      <div className="aggregation-container">
+        <div className="aggregation-grid">
+          <div className="aggregation-item">
+            <span className="aggregation-label">Total Geral:</span>
+            <span className="aggregation-value">
+              {formatCurrency(total)}
+            </span>
+          </div>
+          <div className="aggregation-item">
+            <span className="aggregation-label">Total Cancelado:</span>
+            <span className="aggregation-value canceled">
+              {formatCurrency(totalCancel)}
+            </span>
+          </div>
         </div>
-        <div className="aggregation-item">
-          <span className="aggregation-label">Total Cancelado:</span>
-          <span className="aggregation-value canceled">
-            {formatCurrency(totalCancel)}
-          </span>
-        </div>
-        <div className="aggregation-item">
-          <span className="aggregation-label">Taxa de Retenção:</span>
-          <span className="aggregation-value retention">
-            {formatPercentage(retention)}
-          </span>
-        </div>
+        
+        {isValidRetention && (
+          <div className="aggregation-chart">
+            <h4 className="chart-title">Retenção</h4>
+            <DonutChart
+              data={chartData}
+              thickness={30}
+              size={180}
+              chartLabel={formatPercentage(retention)}
+              tooltipDataSource="segment"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

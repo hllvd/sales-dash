@@ -10,6 +10,7 @@ import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
+import '@mantine/charts/styles.css';
 import './App.css';
 
 function App() {
