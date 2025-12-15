@@ -303,7 +303,7 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 500,
-                    Status = "Canceled",
+                    Status = "Defaulted",
                     SaleStartDate = DateTime.UtcNow
                 };
                 
@@ -382,6 +382,92 @@ namespace SalesApp.IntegrationTests.Contracts
             var aggregation = System.Text.Json.JsonSerializer.Deserialize<ContractAggregation>(aggregationJson, options);
             aggregation.Should().NotBeNull();
             aggregation!.Total.Should().BeGreaterOrEqualTo(3000);
+        }
+
+        [Fact]
+        public async Task GetContracts_ShouldReturnAggregationWithRetention()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Create test contracts with mixed statuses
+            var user = new User { Id = Guid.NewGuid(), Name = "Retention Test User", Email = "retentiontest@test.com", RoleId = 1 };
+            var group = new Group { Id = 107, Name = "Retention Test Group" };
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                if (await context.Users.FindAsync(user.Id) == null)
+                {
+                    context.Users.Add(user);
+                }
+                if (await context.Groups.FindAsync(group.Id) == null)
+                {
+                    context.Groups.Add(group);
+                }
+                
+                // Add 3 active contracts and 1 defaulted contract
+                var activeContract1 = new Contract
+                {
+                    ContractNumber = $"RET-ACTIVE1-{Guid.NewGuid().ToString()[..8]}",
+                    UserId = user.Id,
+                    GroupId = group.Id,
+                    TotalAmount = 1000,
+                    Status = "Active",
+                    SaleStartDate = DateTime.UtcNow
+                };
+                var activeContract2 = new Contract
+                {
+                    ContractNumber = $"RET-ACTIVE2-{Guid.NewGuid().ToString()[..8]}",
+                    UserId = user.Id,
+                    GroupId = group.Id,
+                    TotalAmount = 1000,
+                    Status = "Late1",
+                    SaleStartDate = DateTime.UtcNow
+                };
+                var activeContract3 = new Contract
+                {
+                    ContractNumber = $"RET-ACTIVE3-{Guid.NewGuid().ToString()[..8]}",
+                    UserId = user.Id,
+                    GroupId = group.Id,
+                    TotalAmount = 1000,
+                    Status = "Late2",
+                    SaleStartDate = DateTime.UtcNow
+                };
+                var defaultedContract = new Contract
+                {
+                    ContractNumber = $"RET-DEFAULTED-{Guid.NewGuid().ToString()[..8]}",
+                    UserId = user.Id,
+                    GroupId = group.Id,
+                    TotalAmount = 1000,
+                    Status = "Defaulted",
+                    SaleStartDate = DateTime.UtcNow
+                };
+                
+                context.Contracts.Add(activeContract1);
+                context.Contracts.Add(activeContract2);
+                context.Contracts.Add(activeContract3);
+                context.Contracts.Add(defaultedContract);
+                await context.SaveChangesAsync();
+            }
+
+            // Act
+            var response = await _client.GetAsync($"/api/contracts?userId={user.Id}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Aggregation.Should().NotBeNull();
+            
+            var aggregationJson = System.Text.Json.JsonSerializer.Serialize(result.Aggregation);
+            var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var aggregation = System.Text.Json.JsonSerializer.Deserialize<ContractAggregation>(aggregationJson, options);
+            aggregation.Should().NotBeNull();
+            aggregation!.Retention.Should().BeGreaterThan(0); // Should have retention > 0 since we have active contracts
+            aggregation.Retention.Should().BeLessThanOrEqualTo(1.0m); // Retention should be between 0 and 1
         }
     }
 }

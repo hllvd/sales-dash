@@ -309,19 +309,31 @@ const ContractsPage: React.FC = () => {
             <div className="aggregation-item">
               <span className="aggregation-label">Total Geral:</span>
               <span className="aggregation-value">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                }).format(aggregation.total)}
+                {isNaN(aggregation.total) || aggregation.total === null || aggregation.total === undefined
+                  ? '--'
+                  : new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    }).format(aggregation.total)}
               </span>
             </div>
             <div className="aggregation-item">
               <span className="aggregation-label">Total Cancelado:</span>
               <span className="aggregation-value canceled">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                }).format(aggregation.totalCancel)}
+                {isNaN(aggregation.totalCancel) || aggregation.totalCancel === null || aggregation.totalCancel === undefined
+                  ? '--'
+                  : new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    }).format(aggregation.totalCancel)}
+              </span>
+            </div>
+            <div className="aggregation-item">
+              <span className="aggregation-label">Taxa de Retenção:</span>
+              <span className="aggregation-value retention">
+                {isNaN(aggregation.retention) || aggregation.retention === null || aggregation.retention === undefined
+                  ? '--'
+                  : `${(aggregation.retention * 100).toFixed(1)}%`}
               </span>
             </div>
           </div>

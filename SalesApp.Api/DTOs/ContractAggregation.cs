@@ -4,5 +4,6 @@ namespace SalesApp.DTOs
     {
         public decimal Total { get; set; }
         public decimal TotalCancel { get; set; }
+        public decimal Retention { get; set; }
     }
 }

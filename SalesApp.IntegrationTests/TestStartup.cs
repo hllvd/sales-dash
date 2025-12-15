@@ -60,6 +60,7 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IUserMatchingService, UserMatchingService>();
             services.AddScoped<IImportValidationService, ImportValidationService>();
             services.AddScoped<IImportExecutionService, ImportExecutionService>();
+            services.AddScoped<IContractAggregationService, ContractAggregationService>();
             
             // CORS
             services.AddCors(options =>

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
+using SalesApp.Services;
 using System.Security.Claims;
 
 namespace SalesApp.Controllers
@@ -15,12 +16,18 @@ namespace SalesApp.Controllers
         private readonly IContractRepository _contractRepository;
         private readonly IUserRepository _userRepository;
         private readonly IGroupRepository _groupRepository;
+        private readonly IContractAggregationService _aggregationService;
         
-        public ContractsController(IContractRepository contractRepository, IUserRepository userRepository, IGroupRepository groupRepository)
+        public ContractsController(
+            IContractRepository contractRepository, 
+            IUserRepository userRepository, 
+            IGroupRepository groupRepository,
+            IContractAggregationService aggregationService)
         {
             _contractRepository = contractRepository;
             _userRepository = userRepository;
             _groupRepository = groupRepository;
+            _aggregationService = aggregationService;
         }
         
         [HttpGet]
@@ -35,14 +42,8 @@ namespace SalesApp.Controllers
             
             var contractResponses = contracts.Select(MapToContractResponse).ToList();
             
-            // Calculate aggregations
-            var aggregation = new ContractAggregation
-            {
-                Total = contracts.Sum(c => c.TotalAmount),
-                TotalCancel = contracts
-                    .Where(c => c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
-                    .Sum(c => c.TotalAmount)
-            };
+            // Calculate aggregations using service
+            var aggregation = _aggregationService.CalculateAggregation(contracts);
             
             return Ok(new ApiResponse<List<ContractResponse>>
             {
@@ -68,14 +69,8 @@ namespace SalesApp.Controllers
             
             var contractResponses = contracts.Select(MapToContractResponse).ToList();
             
-            // Calculate aggregations
-            var aggregation = new ContractAggregation
-            {
-                Total = contracts.Sum(c => c.TotalAmount),
-                TotalCancel = contracts
-                    .Where(c => c.Status.Contains("Cancel", StringComparison.OrdinalIgnoreCase))
-                    .Sum(c => c.TotalAmount)
-            };
+            // Calculate aggregations using service
+            var aggregation = _aggregationService.CalculateAggregation(contracts);
             
             return Ok(new ApiResponse<List<ContractResponse>>
             {

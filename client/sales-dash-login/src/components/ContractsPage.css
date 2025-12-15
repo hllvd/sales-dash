@@ -169,6 +169,11 @@
   color: #ef4444;
 }
 
+.aggregation-value.retention {
+  color: #3b82f6;
+}
+
+
 .contracts-loading {
   display: flex;
   flex-direction: column;

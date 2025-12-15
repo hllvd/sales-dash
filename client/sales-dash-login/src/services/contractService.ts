@@ -72,6 +72,7 @@ export interface Group {
 export interface ContractAggregation {
   total: number;
   totalCancel: number;
+  retention: number;
 }
 
 interface ApiResponse<T> {

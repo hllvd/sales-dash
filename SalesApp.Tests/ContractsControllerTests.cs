@@ -5,6 +5,7 @@ using SalesApp.Controllers;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
+using SalesApp.Services;
 using System.Security.Claims;
 using Xunit;
 using FluentAssertions;
@@ -16,6 +17,7 @@ namespace SalesApp.Tests
         private readonly Mock<IContractRepository> _mockContractRepository;
         private readonly Mock<IUserRepository> _mockUserRepository;
         private readonly Mock<IGroupRepository> _mockGroupRepository;
+        private readonly Mock<IContractAggregationService> _mockAggregationService;
         private readonly ContractsController _controller;
 
         public ContractsControllerTests()
@@ -23,7 +25,8 @@ namespace SalesApp.Tests
             _mockContractRepository = new Mock<IContractRepository>();
             _mockUserRepository = new Mock<IUserRepository>();
             _mockGroupRepository = new Mock<IGroupRepository>();
-            _controller = new ContractsController(_mockContractRepository.Object, _mockUserRepository.Object, _mockGroupRepository.Object);
+            _mockAggregationService = new Mock<IContractAggregationService>();
+            _controller = new ContractsController(_mockContractRepository.Object, _mockUserRepository.Object, _mockGroupRepository.Object, _mockAggregationService.Object);
             
             // Setup admin user context
             var claims = new List<Claim>
