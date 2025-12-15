@@ -33,11 +33,23 @@ namespace SalesApp.Controllers
         {
             var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate);
             
+            var contractResponses = contracts.Select(MapToContractResponse).ToList();
+            
+            // Calculate aggregations
+            var aggregation = new ContractAggregation
+            {
+                Total = contracts.Sum(c => c.TotalAmount),
+                TotalCancel = contracts
+                    .Where(c => c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
+                    .Sum(c => c.TotalAmount)
+            };
+            
             return Ok(new ApiResponse<List<ContractResponse>>
             {
                 Success = true,
-                Data = contracts.Select(MapToContractResponse).ToList(),
-                Message = "Contracts retrieved successfully"
+                Data = contractResponses,
+                Message = "Contracts retrieved successfully",
+                Aggregation = aggregation
             });
         }
         
@@ -54,11 +66,23 @@ namespace SalesApp.Controllers
             
             var contracts = await _contractRepository.GetByUserIdAsync(userId);
             
+            var contractResponses = contracts.Select(MapToContractResponse).ToList();
+            
+            // Calculate aggregations
+            var aggregation = new ContractAggregation
+            {
+                Total = contracts.Sum(c => c.TotalAmount),
+                TotalCancel = contracts
+                    .Where(c => c.Status.Contains("Cancel", StringComparison.OrdinalIgnoreCase))
+                    .Sum(c => c.TotalAmount)
+            };
+            
             return Ok(new ApiResponse<List<ContractResponse>>
             {
                 Success = true,
-                Data = contracts.Select(MapToContractResponse).ToList(),
-                Message = "User contracts retrieved successfully"
+                Data = contractResponses,
+                Message = "User contracts retrieved successfully",
+                Aggregation = aggregation
             });
         }
         

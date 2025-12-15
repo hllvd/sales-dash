@@ -9,6 +9,7 @@ import {
   Contract,
   User,
   Group as ContractGroup,
+  ContractAggregation,
   getContracts,
   deleteContract,
   getUsers,
@@ -25,6 +26,7 @@ const ContractsPage: React.FC = () => {
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [aggregation, setAggregation] = useState<ContractAggregation | null>(null);
 
   // Filters
   const [filterUserId, setFilterUserId] = useState('');
@@ -51,13 +53,14 @@ const ContractsPage: React.FC = () => {
     setError('');
 
     try {
-      const data = await getContracts(
+      const { contracts: data, aggregation: aggData } = await getContracts(
         filterUserId || undefined,
         filterGroupId ? parseInt(filterGroupId) : undefined,
         filterStartDate || undefined,
         filterEndDate || undefined
       );
       setContracts(data);
+      setAggregation(aggData || null);
     } catch (err: any) {
       setError(err.message || 'Failed to load contracts');
     } finally {
@@ -295,6 +298,33 @@ const ContractsPage: React.FC = () => {
               ))}
             </Table.Tbody>
           </Table>
+        </div>
+      )}
+
+      {/* Aggregation Summary */}
+      {aggregation && contracts.length > 0 && (
+        <div className="aggregation-summary">
+          <h3>Resumo</h3>
+          <div className="aggregation-grid">
+            <div className="aggregation-item">
+              <span className="aggregation-label">Total Geral:</span>
+              <span className="aggregation-value">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(aggregation.total)}
+              </span>
+            </div>
+            <div className="aggregation-item">
+              <span className="aggregation-label">Total Cancelado:</span>
+              <span className="aggregation-value canceled">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(aggregation.totalCancel)}
+              </span>
+            </div>
+          </div>
         </div>
       )}
 

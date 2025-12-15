@@ -52,7 +52,7 @@ const MyContractsPage: React.FC = () => {
       }
 
       // Load contracts for current user
-      const data = await getContracts(userId);
+      const { contracts: data } = await getContracts(userId);
       setContracts(data);
     } catch (err: any) {
       setError(err.message || 'Falha ao carregar contratos');

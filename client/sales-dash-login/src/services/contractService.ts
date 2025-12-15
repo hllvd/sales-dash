@@ -69,10 +69,16 @@ export interface Group {
   isActive: boolean;
 }
 
+export interface ContractAggregation {
+  total: number;
+  totalCancel: number;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
   message: string;
+  aggregation?: ContractAggregation;
 }
 
 // Helper function to get auth token
@@ -95,7 +101,7 @@ export const getContracts = async (
   groupId?: number,
   startDate?: string,
   endDate?: string
-): Promise<Contract[]> => {
+): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
   if (groupId) params.append('groupId', groupId.toString());
@@ -115,7 +121,7 @@ export const getContracts = async (
   }
 
   const result: ApiResponse<Contract[]> = await response.json();
-  return result.data;
+  return { contracts: result.data, aggregation: result.aggregation };
 };
 
 export const getContract = async (id: number): Promise<Contract> => {

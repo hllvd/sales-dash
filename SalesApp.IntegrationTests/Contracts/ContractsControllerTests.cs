@@ -196,5 +196,192 @@ namespace SalesApp.IntegrationTests.Contracts
             result.Data.UserName.Should().BeNullOrEmpty();
             result.Data.CustomerName.Should().Be("John Smith");
         }
+
+        [Fact]
+        public async Task GetContracts_ShouldReturnAggregationWithTotal()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Create test contracts
+            var user = new User { Id = Guid.NewGuid(), Name = "Agg Test User", Email = "aggtest@test.com", RoleId = 1 };
+            var group = new Group { Id = 104, Name = "Agg Test Group" };
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                if (await context.Users.FindAsync(user.Id) == null)
+                {
+                    context.Users.Add(user);
+                }
+                if (await context.Groups.FindAsync(group.Id) == null)
+                {
+                    context.Groups.Add(group);
+                }
+                
+                // Add contracts with different amounts
+                var contract1 = new Contract
+                {
+                    ContractNumber = $"AGG-{Guid.NewGuid().ToString()[..8]}",
+                    UserId = user.Id,
+                    GroupId = group.Id,
+                    TotalAmount = 1000,
+                    Status = "Active",
+                    SaleStartDate = DateTime.UtcNow
+                };
+                var contract2 = new Contract
+                {
+                    ContractNumber = $"AGG-{Guid.NewGuid().ToString()[..8]}",
+                    UserId = user.Id,
+                    GroupId = group.Id,
+                    TotalAmount = 2000,
+                    Status = "Active",
+                    SaleStartDate = DateTime.UtcNow
+                };
+                
+                context.Contracts.Add(contract1);
+                context.Contracts.Add(contract2);
+                await context.SaveChangesAsync();
+            }
+
+            // Act
+            var response = await _client.GetAsync($"/api/contracts?userId={user.Id}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Aggregation.Should().NotBeNull();
+            
+            var aggregationJson = System.Text.Json.JsonSerializer.Serialize(result.Aggregation);
+            var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var aggregation = System.Text.Json.JsonSerializer.Deserialize<ContractAggregation>(aggregationJson, options);
+            aggregation.Should().NotBeNull();
+            aggregation!.Total.Should().BeGreaterOrEqualTo(3000); // At least our test contracts
+        }
+
+        [Fact]
+        public async Task GetContracts_ShouldReturnAggregationWithTotalCancel()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Create test contracts with canceled status
+            var user = new User { Id = Guid.NewGuid(), Name = "Cancel Test User", Email = "canceltest@test.com", RoleId = 1 };
+            var group = new Group { Id = 105, Name = "Cancel Test Group" };
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                if (await context.Users.FindAsync(user.Id) == null)
+                {
+                    context.Users.Add(user);
+                }
+                if (await context.Groups.FindAsync(group.Id) == null)
+                {
+                    context.Groups.Add(group);
+                }
+                
+                // Add active contract
+                var activeContract = new Contract
+                {
+                    ContractNumber = $"CANCEL-ACTIVE-{Guid.NewGuid().ToString()[..8]}",
+                    UserId = user.Id,
+                    GroupId = group.Id,
+                    TotalAmount = 1000,
+                    Status = "Active",
+                    SaleStartDate = DateTime.UtcNow
+                };
+                
+                // Add canceled contract
+                var canceledContract = new Contract
+                {
+                    ContractNumber = $"CANCEL-CANCELED-{Guid.NewGuid().ToString()[..8]}",
+                    UserId = user.Id,
+                    GroupId = group.Id,
+                    TotalAmount = 500,
+                    Status = "Canceled",
+                    SaleStartDate = DateTime.UtcNow
+                };
+                
+                context.Contracts.Add(activeContract);
+                context.Contracts.Add(canceledContract);
+                await context.SaveChangesAsync();
+            }
+
+            // Act
+            var response = await _client.GetAsync($"/api/contracts?userId={user.Id}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Aggregation.Should().NotBeNull();
+            
+            var aggregationJson = System.Text.Json.JsonSerializer.Serialize(result.Aggregation);
+            var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var aggregation = System.Text.Json.JsonSerializer.Deserialize<ContractAggregation>(aggregationJson, options);
+            aggregation.Should().NotBeNull();
+            aggregation!.Total.Should().BeGreaterOrEqualTo(1500); // Active + Canceled
+            aggregation.TotalCancel.Should().BeGreaterOrEqualTo(500); // Only canceled
+        }
+
+        [Fact]
+        public async Task GetUserContracts_ShouldReturnAggregation()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Create test user and contracts
+            var user = new User { Id = Guid.NewGuid(), Name = "User Agg Test", Email = "useragg@test.com", RoleId = 1 };
+            var group = new Group { Id = 106, Name = "User Agg Group" };
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                if (await context.Users.FindAsync(user.Id) == null)
+                {
+                    context.Users.Add(user);
+                }
+                if (await context.Groups.FindAsync(group.Id) == null)
+                {
+                    context.Groups.Add(group);
+                }
+                
+                var contract = new Contract
+                {
+                    ContractNumber = $"USER-AGG-{Guid.NewGuid().ToString()[..8]}",
+                    UserId = user.Id,
+                    GroupId = group.Id,
+                    TotalAmount = 3000,
+                    Status = "Active",
+                    SaleStartDate = DateTime.UtcNow
+                };
+                
+                context.Contracts.Add(contract);
+                await context.SaveChangesAsync();
+            }
+
+            // Act
+            var response = await _client.GetAsync($"/api/contracts/user/{user.Id}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Aggregation.Should().NotBeNull();
+            
+            var aggregationJson = System.Text.Json.JsonSerializer.Serialize(result.Aggregation);
+            var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var aggregation = System.Text.Json.JsonSerializer.Deserialize<ContractAggregation>(aggregationJson, options);
+            aggregation.Should().NotBeNull();
+            aggregation!.Total.Should().BeGreaterOrEqualTo(3000);
+        }
     }
 }
