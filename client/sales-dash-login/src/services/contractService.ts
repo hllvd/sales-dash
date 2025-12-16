@@ -7,7 +7,7 @@ export interface Contract {
   userId?: string | null;
   userName?: string | null;
   totalAmount: number;
-  groupId: number;
+  groupId?: number | null;
   groupName: string;
   pvId?: number;
   pvName?: string;
@@ -24,13 +24,13 @@ export interface Contract {
 
 export interface CreateContractRequest {
   contractNumber: string;
-  userId?: string | null;
+  userId?: string;
   totalAmount: number;
-  groupId: number;
-  pvId?: number;
+  groupId?: number;
   status: 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted';
   contractStartDate: string;
-  contractEndDate?: string | null;
+  contractEndDate?: string;
+  pvId?: number;
   contractType?: number;
   quota?: number;
   customerName?: string;

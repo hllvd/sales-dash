@@ -5,27 +5,34 @@ namespace SalesApp.Services
 {
     public class ContractAggregationService : IContractAggregationService
     {
-        public ContractAggregation CalculateAggregation(IEnumerable<Contract> contracts)
+        public ContractAggregation CalculateAggregation(List<Contract> contracts)
         {
-            var contractList = contracts.ToList();
-            var totalCount = contractList.Count;
+            if (contracts == null || !contracts.Any())
+            {
+                return new ContractAggregation
+                {
+                    Total = 0,
+                    TotalCancel = 0,
+                    Retention = 0
+                };
+            }
+
+            var total = contracts.Sum(c => c.TotalAmount);
+            var totalCancel = contracts
+                .Where(c => c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
+                .Sum(c => c.TotalAmount);
+
+            // Calculate retention: Active amount / Total amount
+            var totalActiveAmount = contracts
+                .Where(c => c.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+                .Sum(c => c.TotalAmount);
             
-            // Count defaulted contracts
-            var defaultedCount = contractList.Count(c => 
-                c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase));
-            
-            // Count non-defaulted contracts (Active, Late1, Late2, Late3)
-            var nonDefaultedCount = totalCount - defaultedCount;
-            
-            // Calculate retention rate (non-defaulted / total)
-            var retention = totalCount > 0 ? (decimal)nonDefaultedCount / totalCount : 0m;
-            
+            var retention = total > 0 ? totalActiveAmount / total : 0m;
+
             return new ContractAggregation
             {
-                Total = contractList.Sum(c => c.TotalAmount),
-                TotalCancel = contractList
-                    .Where(c => c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
-                    .Sum(c => c.TotalAmount),
+                Total = total,
+                TotalCancel = totalCancel,
                 Retention = retention
             };
         }

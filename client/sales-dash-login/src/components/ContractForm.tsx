@@ -113,7 +113,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         const updateData: UpdateContractRequest = {
           contractNumber: formData.contractNumber,
           userId: formData.userId || undefined,
-          groupId: formData.groupId ? parseInt(formData.groupId) : 0,
+          groupId: formData.groupId ? parseInt(formData.groupId) : undefined,
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: Number(formData.totalAmount),
           status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
@@ -129,12 +129,12 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         const createData: CreateContractRequest = {
           contractNumber: formData.contractNumber,
           userId: formData.userId || undefined,
-          groupId: formData.groupId ? parseInt(formData.groupId) : 0,
+          groupId: formData.groupId ? parseInt(formData.groupId) : undefined,
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: Number(formData.totalAmount),
           status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
           contractStartDate: formData.contractStartDate,
-          contractEndDate: formData.contractEndDate || null,
+          contractEndDate: formData.contractEndDate || undefined,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
           quota: formData.quota ? Number(formData.quota) : undefined,
           customerName: formData.customerName || undefined,

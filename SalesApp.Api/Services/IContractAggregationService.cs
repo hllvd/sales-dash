@@ -5,6 +5,6 @@ namespace SalesApp.Services
 {
     public interface IContractAggregationService
     {
-        ContractAggregation CalculateAggregation(IEnumerable<Contract> contracts);
+        ContractAggregation CalculateAggregation(List<Contract> contracts);
     }
 }
