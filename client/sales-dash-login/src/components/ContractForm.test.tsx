@@ -28,7 +28,6 @@ const mockContract = {
   groupName: 'Group A',
   status: 'Active' as const,
   contractStartDate: '2024-01-01T00:00:00Z',
-  contractEndDate: null,
   isActive: true,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
@@ -158,7 +157,6 @@ describe('ContractForm', () => {
           totalAmount: 1000,
           status: 'Active',
           contractStartDate: '2024-01-01',
-          contractEndDate: null,
         });
         expect(mockOnSuccess).toHaveBeenCalled();
         expect(mockOnClose).toHaveBeenCalled();

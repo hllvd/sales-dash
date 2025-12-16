@@ -30,7 +30,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     totalAmount: contract?.totalAmount || 0,
     status: contract?.status || 'Active',
     contractStartDate: contract?.contractStartDate?.split('T')[0] || '',
-    contractEndDate: contract?.contractEndDate?.split('T')[0] || '',
     isActive: contract?.isActive ?? true,
     contractType: contract?.contractType?.toString() || '',
     quota: contract?.quota || 0,
@@ -118,7 +117,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           totalAmount: Number(formData.totalAmount),
           status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
           contractStartDate: formData.contractStartDate,
-          contractEndDate: formData.contractEndDate || null,
           isActive: formData.isActive,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
           quota: formData.quota ? Number(formData.quota) : undefined,
@@ -134,7 +132,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           totalAmount: Number(formData.totalAmount),
           status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
           contractStartDate: formData.contractStartDate,
-          contractEndDate: formData.contractEndDate || undefined,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
           quota: formData.quota ? Number(formData.quota) : undefined,
           customerName: formData.customerName || undefined,
@@ -235,13 +232,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           mb="md"
         />
 
-        <TextInput
-          label="Data de Término"
-          type="date"
-          value={formData.contractEndDate}
-          onChange={(e) => handleChange('contractEndDate', e.target.value)}
-          mb="md"
-        />
 
         <Select
           label="Tipo de Contrato"

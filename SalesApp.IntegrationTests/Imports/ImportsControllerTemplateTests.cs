@@ -112,7 +112,6 @@ namespace SalesApp.IntegrationTests.Imports
             result.Data.OptionalFields.Should().Contain("GroupId");
             result.Data.OptionalFields.Should().Contain("Status");
             result.Data.OptionalFields.Should().Contain("SaleStartDate");
-            result.Data.OptionalFields.Should().Contain("SaleEndDate");
         }
 
         [Fact]

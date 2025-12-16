@@ -123,7 +123,6 @@ namespace SalesApp.Services
             var statusInput = GetFieldValue(row, reverseMappings, "Status");
             var status = ContractStatusMapper.MapStatus(statusInput) ?? "Active";
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
-            var saleEndDateStr = GetFieldValue(row, reverseMappings, "SaleEndDate");
             var contractTypeStr = GetFieldValue(row, reverseMappings, "ContractType");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
@@ -136,15 +135,6 @@ namespace SalesApp.Services
                 if (!TryParseFlexibleDate(saleStartDateStr, out saleStartDate))
                 {
                     throw new ArgumentException($"Invalid start date: {saleStartDateStr}");
-                }
-            }
-
-            DateTime? saleEndDate = null;
-            if (!string.IsNullOrWhiteSpace(saleEndDateStr))
-            {
-                if (TryParseFlexibleDate(saleEndDateStr, out var parsedEndDate))
-                {
-                    saleEndDate = parsedEndDate;
                 }
             }
 
@@ -187,7 +177,6 @@ namespace SalesApp.Services
                 GroupId = groupId,
                 Status = status,
                 SaleStartDate = saleStartDate,
-                SaleEndDate = saleEndDate,
                 UploadId = uploadId,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,

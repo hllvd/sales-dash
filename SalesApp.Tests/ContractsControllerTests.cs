@@ -54,8 +54,7 @@ namespace SalesApp.Tests
                 GroupId = 1,
                 TotalAmount = 100.00m,
                 Status = "Active",
-                ContractStartDate = DateTime.UtcNow,
-                ContractEndDate = DateTime.UtcNow.AddDays(30)
+                ContractStartDate = DateTime.UtcNow
             };
 
             var user = new User { Id = request.UserId!.Value, IsActive = true };
@@ -93,8 +92,7 @@ namespace SalesApp.Tests
                 GroupId = 1,
                 TotalAmount = 100.00m,
                 Status = "Active",
-                ContractStartDate = DateTime.UtcNow,
-                ContractEndDate = DateTime.UtcNow.AddDays(30)
+                ContractStartDate = DateTime.UtcNow
             };
 
             var existingContract = new Contract { Id = 1, ContractNumber = request.ContractNumber };
@@ -214,8 +212,7 @@ namespace SalesApp.Tests
                 GroupId = 1,
                 TotalAmount = 150.00m,
                 Status = "Active",
-                ContractStartDate = DateTime.UtcNow,
-                ContractEndDate = DateTime.UtcNow.AddDays(30)
+                ContractStartDate = DateTime.UtcNow
             };
 
             var group = new Group { Id = request.GroupId!.Value, IsActive = true };

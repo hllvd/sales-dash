@@ -59,8 +59,7 @@ namespace SalesApp.IntegrationTests.Imports
                     { "TotalAmount", "150050" },
                     { "GroupId", group.Id.ToString() },
                     { "Status", "active" },
-                    { "SaleStartDate", "2024-01-01" },
-                    { "SaleEndDate", "2024-12-31" }
+                    { "SaleStartDate", "2024-01-01" }
                 }
             };
 
@@ -71,8 +70,7 @@ namespace SalesApp.IntegrationTests.Imports
                 { "TotalAmount", "TotalAmount" },
                 { "GroupId", "GroupId" },
                 { "Status", "Status" },
-                { "SaleStartDate", "SaleStartDate" },
-                { "SaleEndDate", "SaleEndDate" }
+                { "SaleStartDate", "SaleStartDate" }
             };
 
             // Act
@@ -89,7 +87,6 @@ namespace SalesApp.IntegrationTests.Imports
             contract.GroupId.Should().Be(group.Id);
             contract.Status.Should().Be("Active");
             contract.SaleStartDate.Should().BeCloseTo(new DateTime(2024, 1, 1), TimeSpan.FromSeconds(1));
-            contract.SaleEndDate.Should().BeCloseTo(new DateTime(2024, 12, 31), TimeSpan.FromSeconds(1));
         }
 
         [Fact]

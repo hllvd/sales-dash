@@ -196,7 +196,6 @@ namespace SalesApp.Controllers
                 GroupId = request.GroupId,
                 Status = request.Status,
                 SaleStartDate = request.ContractStartDate,
-                SaleEndDate = request.ContractEndDate,
                 ContractType = request.ContractType,
                 Quota = request.Quota,
                 CustomerName = request.CustomerName
@@ -288,9 +287,6 @@ namespace SalesApp.Controllers
             if (request.ContractStartDate.HasValue)
                 contract.SaleStartDate = request.ContractStartDate.Value;
                 
-            if (request.ContractEndDate.HasValue)
-                contract.SaleEndDate = request.ContractEndDate.Value;
-                
             if (request.IsActive.HasValue)
                 contract.IsActive = request.IsActive.Value;
                 
@@ -362,7 +358,6 @@ namespace SalesApp.Controllers
                 GroupName = contract.Group?.Name ?? "",
                 Status = contract.Status,
                 ContractStartDate = contract.SaleStartDate,
-                ContractEndDate = contract.SaleEndDate,
                 IsActive = contract.IsActive,
                 CreatedAt = contract.CreatedAt,
                 UpdatedAt = contract.UpdatedAt,

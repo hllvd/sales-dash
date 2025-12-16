@@ -533,7 +533,6 @@ namespace SalesApp.Controllers
                     GroupName = contract.Group?.Name ?? "",
                     Status = contract.Status,
                     ContractStartDate = contract.SaleStartDate,
-                    ContractEndDate = contract.SaleEndDate,
                     IsActive = contract.IsActive,
                     CreatedAt = contract.CreatedAt,
                     UpdatedAt = contract.UpdatedAt,

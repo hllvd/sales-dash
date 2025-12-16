@@ -180,20 +180,6 @@ namespace SalesApp.Tests.Services
                 result.Should().ContainKey(columnName);
                 result[columnName].Should().Be("SaleStartDate");
             }
-
-            // Arrange - End Date
-            var endDateColumns = new[] { "end date", "enddate", "end_date", "sale end", "contract end", "finish date" };
-            foreach (var columnName in endDateColumns)
-            {
-                var sourceColumns = new List<string> { columnName };
-
-                // Act
-                var result = _service.SuggestMappings(sourceColumns, "Contract");
-
-                // Assert
-                result.Should().ContainKey(columnName);
-                result[columnName].Should().Be("SaleEndDate");
-            }
         }
 
         [Fact]
@@ -207,22 +193,20 @@ namespace SalesApp.Tests.Services
                 "amount",
                 "group",
                 "status",
-                "sale start",
-                "sale end"
+                "sale start"
             };
 
             // Act
             var result = _service.SuggestMappings(sourceColumns, "Contract");
 
             // Assert
-            result.Should().HaveCount(7);
+            result.Should().HaveCount(6);
             result["contract_number"].Should().Be("ContractNumber");
             result["client email"].Should().Be("UserEmail");
             result["amount"].Should().Be("TotalAmount");
             result["group"].Should().Be("GroupId");
             result["status"].Should().Be("Status");
             result["sale start"].Should().Be("SaleStartDate");
-            result["sale end"].Should().Be("SaleEndDate");
         }
 
         #endregion

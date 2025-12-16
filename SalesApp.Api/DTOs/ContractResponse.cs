@@ -11,7 +11,6 @@ namespace SalesApp.DTOs
         public string GroupName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public DateTime ContractStartDate { get; set; }
-        public DateTime? ContractEndDate { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
