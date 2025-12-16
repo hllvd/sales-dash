@@ -34,14 +34,38 @@ const AggregationSummary: React.FC<AggregationSummaryProps> = ({
     return `${(value * 100).toFixed(1)}%`;
   };
 
-  // Prepare chart data
+  // Prepare donut chart data
   const isValidRetention = !isNaN(retention) && retention !== null && retention !== undefined;
   const retentionPercent = isValidRetention ? retention * 100 : 0;
   const defaultedPercent = isValidRetention ? (1 - retention) * 100 : 0;
 
-  const chartData = [
+  const donutData = [
     { name: 'Retidos', value: retentionPercent, color: '#22c55e' },
     { name: 'Inadimplentes', value: defaultedPercent, color: '#ef4444' }
+  ];
+
+  // Prepare horizontal bar chart data
+  const barChartData = [
+    {
+      status: 'Total Geral',
+      value: total,
+      color: '#6366f1'
+    },
+    {
+      status: 'Total Ativo',
+      value: totalActive,
+      color: '#22c55e'
+    },
+    {
+      status: 'Total Atrasado',
+      value: totalLate,
+      color: '#f59e0b'
+    },
+    {
+      status: 'Total Cancelado',
+      value: totalCancel,
+      color: '#ef4444'
+    }
   ];
 
   return (
@@ -79,7 +103,7 @@ const AggregationSummary: React.FC<AggregationSummaryProps> = ({
           <div className="aggregation-chart">
             <h4 className="chart-title">Retenção</h4>
             <DonutChart
-              data={chartData}
+              data={donutData}
               thickness={30}
               size={180}
               chartLabel={formatPercentage(retention)}

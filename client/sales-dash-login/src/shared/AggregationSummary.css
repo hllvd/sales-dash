@@ -50,7 +50,7 @@
 }
 
 .aggregation-value {
-  color: #22c55e;
+  color: #3b82f6;
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -105,6 +105,41 @@
 .aggregation-chart :global(.mantine-DonutChart-label) {
   font-size: 24px !important;
   font-weight: 700 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .aggregation-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .aggregation-chart {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .aggregation-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Horizontal Bar Chart */
+.aggregation-bar-chart {
+  margin-top: 32px;
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f0f0;
+}
+
+.aggregation-bar-chart .chart-title {
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 
