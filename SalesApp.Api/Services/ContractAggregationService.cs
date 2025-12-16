@@ -24,9 +24,9 @@ namespace SalesApp.Services
                 .Where(c => c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
                 .Sum(c => c.TotalAmount);
 
-            // Calculate retention: Active amount / Total amount
+            // Calculate total active: All contracts except Defaulted (includes Active, Late1, Late2, Late3)
             var totalActiveAmount = contracts
-                .Where(c => c.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+                .Where(c => !c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
                 .Sum(c => c.TotalAmount);
             
             // Calculate total late (Late1, Late2, Late3)

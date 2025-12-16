@@ -38,7 +38,7 @@ namespace SalesApp.Tests.Services
         [Fact]
         public void CalculateAggregation_WithNoActiveContracts_ShouldReturnZeroRetention()
         {
-            // Arrange - No active contracts means 0% retention
+            // Arrange - Only defaulted means 0% retention, but Late1 is included in TotalActive
             var contracts = new List<Contract>
             {
                 new Contract { TotalAmount = 1000, Status = "Defaulted" },
@@ -51,13 +51,14 @@ namespace SalesApp.Tests.Services
             // Assert
             result.Total.Should().Be(3000);
             result.TotalCancel.Should().Be(1000);
-            result.Retention.Should().Be(0.0m); // 0 active / 3000 total = 0
+            result.TotalActive.Should().Be(2000); // Late1 is included in active
+            result.Retention.Should().Be(0.6666666666666666666666666667m); // 2000 active / 3000 total
         }
 
         [Fact]
         public void CalculateAggregation_WithMixedStatuses_ShouldCalculateCorrectRetention()
         {
-            // Arrange - 1000 active out of 5000 total = 0.2
+            // Arrange - Active + Late contracts = 3000 out of 5000 total = 0.6
             var contracts = new List<Contract>
             {
                 new Contract { TotalAmount = 1000, Status = "Active" },
@@ -72,7 +73,8 @@ namespace SalesApp.Tests.Services
             // Assert
             result.Total.Should().Be(5000);
             result.TotalCancel.Should().Be(2000);
-            result.Retention.Should().Be(0.2m); // 1000 active / 5000 total = 0.2
+            result.TotalActive.Should().Be(3000); // Active (1000) + Late1 (1500) + Late2 (500)
+            result.Retention.Should().Be(0.6m); // 3000 active / 5000 total = 0.6
         }
 
         [Fact]
