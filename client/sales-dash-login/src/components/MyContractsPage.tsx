@@ -287,9 +287,7 @@ const MyContractsPage: React.FC = () => {
               </Table>
             </div>
           )}
-        </div>
-
-        {/* Aggregation Summary */}
+          {/* Aggregation Summary */}
         {aggregation && filteredContracts.length > 0 && (
           <AggregationSummary
             total={aggregation.total}
@@ -297,6 +295,9 @@ const MyContractsPage: React.FC = () => {
             retention={aggregation.retention}
           />
         )}
+        </div>
+
+        
 
 
       {/* Assignment Modal */}
