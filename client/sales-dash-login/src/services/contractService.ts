@@ -124,6 +124,32 @@ export const getContracts = async (
   return { contracts: result.data, aggregation: result.aggregation };
 };
 
+export const getUserContracts = async (
+  userId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+
+  const queryString = params.toString();
+  const url = `${API_BASE_URL}/contracts/user/${userId}${queryString ? `?${queryString}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch user contracts');
+  }
+
+  const data: ApiResponse<Contract[]> = await response.json();
+  return { contracts: data.data, aggregation: data.aggregation };
+};
+
+
 export const getContract = async (id: number): Promise<Contract> => {
   const response = await fetch(`${API_BASE_URL}/contracts/${id}`, {
     method: 'GET',

@@ -55,7 +55,10 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("user/{userId}")]
-        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetUserContracts(Guid userId)
+        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetUserContracts(
+            Guid userId,
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
         {
             var currentUserId = GetCurrentUserId();
             var currentUserRole = GetCurrentUserRole();
@@ -65,7 +68,7 @@ namespace SalesApp.Controllers
                 return Forbid();
             }
             
-            var contracts = await _contractRepository.GetByUserIdAsync(userId);
+            var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate);
             
             var contractResponses = contracts.Select(MapToContractResponse).ToList();
             

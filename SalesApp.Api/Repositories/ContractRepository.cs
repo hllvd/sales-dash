@@ -43,22 +43,28 @@ namespace SalesApp.Repositories
                 query = query.Where(c => c.GroupId == groupId.Value);
                 
             if (startDate.HasValue)
-                query = query.Where(c => c.CreatedAt >= startDate.Value);
+                query = query.Where(c => c.SaleStartDate >= startDate.Value);
                 
             if (endDate.HasValue)
-                query = query.Where(c => c.CreatedAt <= endDate.Value);
+                query = query.Where(c => c.SaleStartDate <= endDate.Value);
             
             return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
         }
         
-        public async Task<List<Contract>> GetByUserIdAsync(Guid userId)
+        public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null)
         {
-            return await _context.Contracts
+            var query = _context.Contracts
                 .Include(c => c.User)
                 .Include(c => c.Group)
-                .Where(c => c.UserId == userId && c.IsActive)
-                .OrderByDescending(c => c.CreatedAt)
-                .ToListAsync();
+                .Where(c => c.UserId == userId && c.IsActive);
+            
+            if (startDate.HasValue)
+                query = query.Where(c => c.SaleStartDate >= startDate.Value);
+                
+            if (endDate.HasValue)
+                query = query.Where(c => c.SaleStartDate <= endDate.Value);
+            
+            return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
         }
         
         public async Task<List<Contract>> GetByUploadIdAsync(string uploadId)

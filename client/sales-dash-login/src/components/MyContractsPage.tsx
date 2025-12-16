@@ -7,6 +7,7 @@ import {
   Contract,
   ContractAggregation,
   getContracts,
+  getUserContracts,
   getContractByNumber,
   assignContract,
 } from '../services/contractService';
@@ -54,8 +55,12 @@ const MyContractsPage: React.FC = () => {
         return;
       }
 
-      // Load contracts for current user
-      const { contracts: data, aggregation: aggData } = await getContracts(userId);
+      // Load contracts for current user with date filters
+      const { contracts: data, aggregation: aggData } = await getUserContracts(
+        userId,
+        startDate || undefined,
+        endDate || undefined
+      );
       setContracts(data);
       setAggregation(aggData || null);
     } catch (err: any) {
@@ -129,26 +134,19 @@ const MyContractsPage: React.FC = () => {
     }
   };
 
+  const handleApplyFilters = () => {
+    loadMyContracts();
+  };
+
   const handleClearFilters = () => {
     setStartDate('');
     setEndDate('');
     localStorage.removeItem('myContracts_startDate');
     localStorage.removeItem('myContracts_endDate');
+    // Reload without filters
+    setTimeout(() => loadMyContracts(), 0);
   };
 
-  // Filter contracts by date range
-  const filteredContracts = contracts.filter(contract => {
-    if (!startDate && !endDate) return true;
-    
-    const contractDate = new Date(contract.contractStartDate);
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-    
-    if (start && contractDate < start) return false;
-    if (end && contractDate > end) return false;
-    
-    return true;
-  });
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('pt-BR', {
@@ -222,11 +220,16 @@ const MyContractsPage: React.FC = () => {
                   onChange={(e) => handleEndDateChange(e.target.value)}
                 />
               </div>
-              {(startDate || endDate) && (
-                <Button onClick={handleClearFilters} variant="subtle" size="sm">
-                  Limpar Filtros
+              <div className="filter-actions">
+                <Button onClick={handleApplyFilters} size="sm">
+                  Aplicar Filtros
                 </Button>
-              )}
+                {(startDate || endDate) && (
+                  <Button onClick={handleClearFilters} variant="subtle" size="sm">
+                    Limpar Filtros
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
@@ -242,7 +245,7 @@ const MyContractsPage: React.FC = () => {
                 Atribuir Primeiro Contrato
               </Button>
             </div>
-          ) : filteredContracts.length === 0 ? (
+          ) : contracts.length === 0 ? (
             <div className="my-contracts-empty">
               <p>Nenhum contrato encontrado para o período selecionado.</p>
               <Button onClick={handleClearFilters}>
@@ -263,7 +266,7 @@ const MyContractsPage: React.FC = () => {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {filteredContracts.map((contract) => (
+                  {contracts.map((contract) => (
                     <Table.Tr key={contract.id}>
                       <Table.Td>{contract.contractNumber}</Table.Td>
                       <Table.Td>{contract.customerName || '-'}</Table.Td>
@@ -288,7 +291,7 @@ const MyContractsPage: React.FC = () => {
             </div>
           )}
           {/* Aggregation Summary */}
-        {aggregation && filteredContracts.length > 0 && (
+        {aggregation && contracts.length > 0 && (
           <AggregationSummary
             total={aggregation?.total || 0}
             totalCancel={aggregation?.totalCancel || 0}
