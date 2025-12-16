@@ -3,6 +3,7 @@ import { Title, Button, Table, Badge } from '@mantine/core';
 import './MyContractsPage.css';
 import Menu from './Menu';
 import AggregationSummary from '../shared/AggregationSummary';
+import HistoricProduction from '../shared/HistoricProduction';
 import {
   Contract,
   ContractAggregation,
@@ -298,6 +299,15 @@ const MyContractsPage: React.FC = () => {
             totalActive={aggregation?.totalActive || 0}
             totalLate={aggregation?.totalLate || 0}
             retention={aggregation?.retention || 0}
+          />
+        )}
+
+        {/* Historic Production */}
+        {contracts.length > 0 && (
+          <HistoricProduction
+            startDate={startDate}
+            endDate={endDate}
+            userId={JSON.parse(localStorage.getItem('user') || '{}').id}
           />
         )}
         </div>

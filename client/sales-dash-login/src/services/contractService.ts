@@ -74,6 +74,19 @@ export interface ContractAggregation {
   retention: number;
 }
 
+export interface MonthlyProduction {
+  period: string; // "YYYY-MM"
+  totalProduction: number;
+  contractCount: number;
+}
+
+export interface HistoricProductionResponse {
+  monthlyData: MonthlyProduction[];
+  totalProduction: number;
+  totalContracts: number;
+}
+
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -265,5 +278,32 @@ export const assignContract = async (contractNumber: string): Promise<Contract> 
   }
 
   const result: ApiResponse<Contract> = await response.json();
+  return result.data;
+};
+
+// Get historic production data
+export const getHistoricProduction = async (
+  startDate?: string,
+  endDate?: string,
+  userId?: string
+): Promise<HistoricProductionResponse> => {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  if (userId) params.append('userId', userId);
+
+  const queryString = params.toString();
+  const url = `${API_BASE_URL}/contracts/aggregation/historic-production${queryString ? `?${queryString}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch historic production');
+  }
+
+  const result: ApiResponse<HistoricProductionResponse> = await response.json();
   return result.data;
 };

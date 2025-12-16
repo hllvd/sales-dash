@@ -6,6 +6,7 @@ import Menu from './Menu';
 import ContractForm from './ContractForm';
 import BulkImportModal from './BulkImportModal';
 import AggregationSummary from '../shared/AggregationSummary';
+import HistoricProduction from '../shared/HistoricProduction';
 import {
   Contract,
   User,
@@ -310,6 +311,14 @@ const ContractsPage: React.FC = () => {
           totalActive={aggregation?.totalActive || 0}
           totalLate={aggregation?.totalLate || 0}
           retention={aggregation?.retention || 0}
+        />
+      )}
+
+      {/* Historic Production */}
+      {contracts.length > 0 && (
+        <HistoricProduction
+          startDate={filterStartDate}
+          endDate={filterEndDate}
         />
       )}
 
