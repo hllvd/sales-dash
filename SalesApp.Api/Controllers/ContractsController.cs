@@ -84,6 +84,51 @@ namespace SalesApp.Controllers
             });
         }
         
+        [HttpGet("aggregation/historic-production")]
+        public async Task<ActionResult<ApiResponse<HistoricProductionResponse>>> GetHistoricProduction(
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null,
+            [FromQuery] Guid? userId = null)
+        {
+            var currentUserId = GetCurrentUserId();
+            var currentUserRole = GetCurrentUserRole();
+            
+            // If userId is specified and user is not admin/superadmin, verify it's their own data
+            if (userId.HasValue && currentUserRole != "admin" && currentUserRole != "superadmin" && currentUserId != userId.Value)
+            {
+                return Forbid();
+            }
+            
+            // Get contracts with filters
+            var contracts = await _contractRepository.GetAllAsync(userId, null, startDate, endDate);
+            
+            // Group by month and calculate production
+            var monthlyData = contracts
+                .GroupBy(c => new { Year = c.SaleStartDate.Year, Month = c.SaleStartDate.Month })
+                .Select(g => new MonthlyProduction
+                {
+                    Period = $"{g.Key.Year:D4}-{g.Key.Month:D2}",
+                    TotalProduction = g.Sum(c => c.TotalAmount),
+                    ContractCount = g.Count()
+                })
+                .OrderBy(m => m.Period)
+                .ToList();
+            
+            var response = new HistoricProductionResponse
+            {
+                MonthlyData = monthlyData,
+                TotalProduction = monthlyData.Sum(m => m.TotalProduction),
+                TotalContracts = monthlyData.Sum(m => m.ContractCount)
+            };
+            
+            return Ok(new ApiResponse<HistoricProductionResponse>
+            {
+                Success = true,
+                Data = response,
+                Message = "Historic production retrieved successfully"
+            });
+        }
+        
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> GetContract(int id)
         {
