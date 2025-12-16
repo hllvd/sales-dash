@@ -60,6 +60,14 @@
   color: #ef4444;
 }
 
+.aggregation-value.active {
+  color: #22c55e;
+}
+
+.aggregation-value.late {
+  color: #f59e0b;
+}
+
 .aggregation-value.retention {
   color: #3b82f6;
 }

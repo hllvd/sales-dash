@@ -5,10 +5,18 @@ import './AggregationSummary.css';
 interface AggregationSummaryProps {
   total: number;
   totalCancel: number;
+  totalActive: number;
+  totalLate: number;
   retention: number;
 }
 
-const AggregationSummary: React.FC<AggregationSummaryProps> = ({ total, totalCancel, retention }) => {
+const AggregationSummary: React.FC<AggregationSummaryProps> = ({ 
+  total, 
+  totalCancel, 
+  totalActive, 
+  totalLate, 
+  retention 
+}) => {
   const formatCurrency = (value: number): string => {
     if (isNaN(value) || value === null || value === undefined) {
       return '--';
@@ -45,6 +53,18 @@ const AggregationSummary: React.FC<AggregationSummaryProps> = ({ total, totalCan
             <span className="aggregation-label">Total Geral:</span>
             <span className="aggregation-value">
               {formatCurrency(total)}
+            </span>
+          </div>
+          <div className="aggregation-item">
+            <span className="aggregation-label">Total Ativo:</span>
+            <span className="aggregation-value active">
+              {formatCurrency(totalActive)}
+            </span>
+          </div>
+          <div className="aggregation-item">
+            <span className="aggregation-label">Total Atrasado:</span>
+            <span className="aggregation-value late">
+              {formatCurrency(totalLate)}
             </span>
           </div>
           <div className="aggregation-item">

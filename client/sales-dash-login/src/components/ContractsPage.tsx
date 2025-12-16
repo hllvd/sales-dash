@@ -305,9 +305,11 @@ const ContractsPage: React.FC = () => {
       {/* Aggregation Summary */}
       {aggregation && contracts.length > 0 && (
         <AggregationSummary
-          total={aggregation.total}
-          totalCancel={aggregation.totalCancel}
-          retention={aggregation.retention}
+          total={aggregation?.total || 0}
+          totalCancel={aggregation?.totalCancel || 0}
+          totalActive={aggregation?.totalActive || 0}
+          totalLate={aggregation?.totalLate || 0}
+          retention={aggregation?.retention || 0}
         />
       )}
 

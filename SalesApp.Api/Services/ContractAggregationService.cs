@@ -13,6 +13,8 @@ namespace SalesApp.Services
                 {
                     Total = 0,
                     TotalCancel = 0,
+                    TotalActive = 0,
+                    TotalLate = 0,
                     Retention = 0
                 };
             }
@@ -27,12 +29,21 @@ namespace SalesApp.Services
                 .Where(c => c.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
                 .Sum(c => c.TotalAmount);
             
+            // Calculate total late (Late1, Late2, Late3)
+            var totalLateAmount = contracts
+                .Where(c => c.Status.Equals("Late1", StringComparison.OrdinalIgnoreCase) ||
+                           c.Status.Equals("Late2", StringComparison.OrdinalIgnoreCase) ||
+                           c.Status.Equals("Late3", StringComparison.OrdinalIgnoreCase))
+                .Sum(c => c.TotalAmount);
+            
             var retention = total > 0 ? totalActiveAmount / total : 0m;
 
             return new ContractAggregation
             {
                 Total = total,
                 TotalCancel = totalCancel,
+                TotalActive = totalActiveAmount,
+                TotalLate = totalLateAmount,
                 Retention = retention
             };
         }

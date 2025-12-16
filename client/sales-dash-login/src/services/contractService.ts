@@ -69,6 +69,8 @@ export interface Group {
 export interface ContractAggregation {
   total: number;
   totalCancel: number;
+  totalActive: number;
+  totalLate: number;
   retention: number;
 }
 
