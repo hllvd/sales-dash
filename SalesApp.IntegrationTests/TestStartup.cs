@@ -44,6 +44,8 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IContractRepository, ContractRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IPVRepository, PVRepository>();
+            services.AddScoped<IUserMatriculaRepository, UserMatriculaRepository>();
+
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
             services.AddScoped<IDynamicRoleAuthorizationService, DynamicRoleAuthorizationService>();
             services.AddScoped<IEndpointDiscoveryService, EndpointDiscoveryService>();

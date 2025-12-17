@@ -16,6 +16,7 @@ namespace SalesApp.Data
         public DbSet<ImportColumnMapping> ImportColumnMappings { get; set; }
         public DbSet<ImportUserMapping> ImportUserMappings { get; set; }
         public DbSet<PV> PVs { get; set; }
+        public DbSet<UserMatricula> UserMatriculas { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -94,7 +95,13 @@ namespace SalesApp.Data
                     .WithMany(p => p.Contracts)
                     .HasForeignKey(e => e.PvId)
                     .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.UserMatricula)
+                    .WithMany(m => m.Contracts)
+                    .HasForeignKey(e => e.MatriculaId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
+
             
             // PV entity configuration
             modelBuilder.Entity<PV>(entity =>
@@ -179,6 +186,25 @@ namespace SalesApp.Data
                     .WithMany()
                     .HasForeignKey(e => e.ResolvedUserId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+            
+            // UserMatricula entity configuration
+            modelBuilder.Entity<UserMatricula>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.MatriculaNumber).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.StartDate).IsRequired();
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
+                
+                // Index for faster lookups
+                entity.HasIndex(e => e.MatriculaNumber);
+                entity.HasIndex(e => new { e.UserId, e.MatriculaNumber });
+                
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
