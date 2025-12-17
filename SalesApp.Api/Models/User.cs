@@ -34,10 +34,6 @@ namespace SalesApp.Models
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         
-        public string? Matricula { get; set; }
-        
-        public bool IsMatriculaOwner { get; set; } = false;
-        
         // Navigation properties
         public User? ParentUser { get; set; }
         public ICollection<User> ChildUsers { get; set; } = new List<User>();

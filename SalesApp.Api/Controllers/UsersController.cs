@@ -82,8 +82,8 @@ namespace SalesApp.Controllers
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 RoleId = role.Id,
                 ParentUserId = request.ParentUserId,
-                Matricula = request.Matricula,
-                IsMatriculaOwner = request.IsMatriculaOwner
+                IsActive = true,
+                Level = 1 // Default level for new users, will be adjusted by hierarchy service if needed
             };
             
             try
@@ -173,33 +173,16 @@ namespace SalesApp.Controllers
         }
 
         [HttpGet("by-matricula/{matricula}")]
+        [HttpGet("lookup/{matricula}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<List<UserLookupResponse>>>> GetByMatricula(string matricula)
+        public async Task<ActionResult<ApiResponse<List<UserLookupResponse>>>> LookupByMatricula(string matricula)
         {
-            if (string.IsNullOrWhiteSpace(matricula))
-            {
-                return BadRequest(new ApiResponse<List<UserLookupResponse>>
-                {
-                    Success = false,
-                    Message = "Matricula cannot be empty"
-                });
-            }
-
-            var users = await _userRepository.GetByMatriculaAsync(matricula);
-
-            var response = users.Select(u => new UserLookupResponse
-            {
-                Id = u.Id,
-                Name = u.Name ?? string.Empty,
-                Matricula = u.Matricula ?? string.Empty,
-                Email = u.Email
-            }).ToList();
-
+            // This endpoint is deprecated - use UserMatriculas endpoints instead
             return Ok(new ApiResponse<List<UserLookupResponse>>
             {
-                Success = true,
-                Data = response,
-                Message = "Users retrieved successfully"
+                Success = false,
+                Message = "This endpoint is deprecated. Please use /api/usermatriculas endpoints to manage matriculas.",
+                Data = new List<UserLookupResponse>()
             });
         }
         
@@ -305,16 +288,6 @@ namespace SalesApp.Controllers
             {
                 user.IsActive = request.IsActive.Value;
             }
-
-            if (request.Matricula != null)
-            {
-                user.Matricula = request.Matricula;
-            }
-
-            if (request.IsMatriculaOwner.HasValue)
-            {
-                user.IsMatriculaOwner = request.IsMatriculaOwner.Value;
-            }
                 
             try
             {
@@ -372,8 +345,7 @@ namespace SalesApp.Controllers
                 ParentUserId = user.ParentUserId,
                 ParentUserName = user.ParentUser?.Name,
                 IsActive = user.IsActive,
-                Matricula = user.Matricula,
-                IsMatriculaOwner = user.IsMatriculaOwner,
+
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt
             };

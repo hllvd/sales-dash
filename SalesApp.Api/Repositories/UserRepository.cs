@@ -28,13 +28,7 @@ namespace SalesApp.Repositories
                 .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
         }
 
-        public async Task<List<User>> GetByMatriculaAsync(string matricula)
-        {
-            return await _context.Users
-                .Where(u => u.Matricula == matricula && u.IsActive)
-                .Include(u => u.Role)
-                .ToListAsync();
-        }
+
         
         public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null)
         {
@@ -59,16 +53,7 @@ namespace SalesApp.Repositories
         
         public async Task<User> CreateAsync(User user)
         {
-            if (user.IsMatriculaOwner && !string.IsNullOrEmpty(user.Matricula))
-            {
-                var existingOwner = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Matricula == user.Matricula && u.IsMatriculaOwner && u.IsActive);
-                
-                if (existingOwner != null)
-                {
-                    throw new InvalidOperationException($"Matricula '{user.Matricula}' already has an owner.");
-                }
-            }
+
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -77,16 +62,7 @@ namespace SalesApp.Repositories
         
         public async Task<User> UpdateAsync(User user)
         {
-            if (user.IsMatriculaOwner && !string.IsNullOrEmpty(user.Matricula))
-            {
-                var existingOwner = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Matricula == user.Matricula && u.IsMatriculaOwner && u.IsActive && u.Id != user.Id);
-                
-                if (existingOwner != null)
-                {
-                    throw new InvalidOperationException($"Matricula '{user.Matricula}' already has an owner.");
-                }
-            }
+
 
             user.UpdatedAt = DateTime.UtcNow;
             _context.Users.Update(user);

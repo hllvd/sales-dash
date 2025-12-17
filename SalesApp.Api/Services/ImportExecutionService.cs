@@ -295,7 +295,6 @@ namespace SalesApp.Services
                 var val = isMatriculaOwnerStr.Trim().ToLowerInvariant();
                 isMatriculaOwner = val == "true" || val == "1" || val == "yes" || val == "sim";
             }
-
             // Create User
             var user = new User
             {
@@ -305,8 +304,6 @@ namespace SalesApp.Services
                 RoleId = roleId,
                 ParentUserId = parentId,
                 IsActive = true,
-                Matricula = matricula,
-                IsMatriculaOwner = isMatriculaOwner,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

@@ -63,7 +63,7 @@ namespace SalesApp.Controllers
                 EntityType = "User",
                 Description = "Template for importing users",
                 RequiredFields = JsonSerializer.Serialize(new List<string> { "Name", "Email" }),
-                OptionalFields = JsonSerializer.Serialize(new List<string> { "Surname", "Role", "ParentEmail", "Matricula", "IsMatriculaOwner" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "Surname", "Role", "ParentEmail" }),
                 DefaultMappings = "{}",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow

@@ -21,9 +21,5 @@ namespace SalesApp.DTOs
         public string Role { get; set; } = UserRole.User;
         
         public Guid? ParentUserId { get; set; }
-        
-        public string? Matricula { get; set; }
-        
-        public bool IsMatriculaOwner { get; set; } = false;
     }
 }

@@ -84,8 +84,6 @@ namespace SalesApp.IntegrationTests.Imports
             result.Data.OptionalFields.Should().Contain("Surname");
             result.Data.OptionalFields.Should().Contain("Role");
             result.Data.OptionalFields.Should().Contain("ParentEmail");
-            result.Data.OptionalFields.Should().Contain("Matricula");
-            result.Data.OptionalFields.Should().Contain("IsMatriculaOwner");
         }
 
         [Fact]

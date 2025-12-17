@@ -9,8 +9,6 @@ namespace SalesApp.DTOs
         public Guid? ParentUserId { get; set; }
         public string? ParentUserName { get; set; }
         public bool IsActive { get; set; }
-        public string? Matricula { get; set; }
-        public bool IsMatriculaOwner { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

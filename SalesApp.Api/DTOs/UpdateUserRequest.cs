@@ -20,9 +20,5 @@ namespace SalesApp.DTOs
         public Guid? ParentUserId { get; set; }
         
         public bool? IsActive { get; set; }
-        
-        public string? Matricula { get; set; }
-        
-        public bool? IsMatriculaOwner { get; set; }
     }
 }
