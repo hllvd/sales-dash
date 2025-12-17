@@ -5,6 +5,7 @@
   "dependencies": {
     "@mantine/charts": "^8.3.10",
     "@mantine/core": "^8.3.10",
+    "@mantine/dates": "^8.3.10",
     "@mantine/form": "^8.3.10",
     "@mantine/hooks": "^8.3.10",
     "@mantine/notifications": "^8.3.10",
@@ -17,6 +18,7 @@
     "@types/node": "^16.18.126",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "dayjs": "^1.11.19",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-scripts": "5.0.1",

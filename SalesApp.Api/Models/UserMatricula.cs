@@ -20,6 +20,8 @@ namespace SalesApp.Models
         
         public bool IsActive { get; set; } = true;
         
+        public bool IsOwner { get; set; } = false;
+        
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

@@ -24,7 +24,6 @@ namespace SalesApp.Repositories
         public async Task<UserMatricula?> GetByIdAsync(int id)
         {
             return await _context.UserMatriculas
-                .Include(m => m.User)
                 .FirstOrDefaultAsync(m => m.Id == id);
         }
 
@@ -62,12 +61,24 @@ namespace SalesApp.Repositories
             _context.UserMatriculas.Add(matricula);
             await _context.SaveChangesAsync();
             
+            // If this matricula is being set as owner, remove owner flag from others
+            if (matricula.IsOwner)
+            {
+                await SetOwnerAsync(matricula.MatriculaNumber, matricula.UserId);
+            }
+            
             return await GetByIdAsync(matricula.Id) ?? matricula;
         }
 
         public async Task<UserMatricula> UpdateAsync(UserMatricula matricula)
         {
             matricula.UpdatedAt = DateTime.UtcNow;
+            
+            // If this matricula is being set as owner, remove owner flag from others
+            if (matricula.IsOwner)
+            {
+                await SetOwnerAsync(matricula.MatriculaNumber, matricula.UserId);
+            }
             
             _context.UserMatriculas.Update(matricula);
             await _context.SaveChangesAsync();
@@ -99,6 +110,29 @@ namespace SalesApp.Repositories
         {
             return await _context.UserMatriculas
                 .AnyAsync(m => m.MatriculaNumber == matriculaNumber);
+        }
+
+        public async Task<UserMatricula?> GetOwnerByMatriculaNumberAsync(string matriculaNumber)
+        {
+            return await _context.UserMatriculas
+                .FirstOrDefaultAsync(m => m.MatriculaNumber == matriculaNumber && m.IsOwner);
+        }
+
+        public async Task SetOwnerAsync(string matriculaNumber, Guid newOwnerId)
+        {
+            // Get all matriculas with this number
+            var existingMatriculas = await _context.UserMatriculas
+                .Where(m => m.MatriculaNumber == matriculaNumber)
+                .ToListAsync();
+            
+            // Set IsOwner based on whether it belongs to the new owner
+            foreach (var matricula in existingMatriculas)
+            {
+                matricula.IsOwner = (matricula.UserId == newOwnerId);
+                matricula.UpdatedAt = DateTime.UtcNow;
+            }
+            
+            await _context.SaveChangesAsync();
         }
     }
 }

@@ -10,6 +10,7 @@ import {
   IconClipboardList,
   IconUsersGroup,
   IconLogout,
+  IconId,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -119,6 +120,18 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/point-of-sale')}
+            />
+          )}
+
+          {userRole === 'superadmin' && (
+            <NavLink
+              href="#/matriculas"
+              label="Matrículas"
+              leftSection={<IconId size={20} />}
+              active={isActive('#/matriculas')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/matriculas')}
             />
           )}
 

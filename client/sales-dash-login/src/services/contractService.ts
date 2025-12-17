@@ -266,8 +266,10 @@ export const getContractByNumber = async (contractNumber: string): Promise<Contr
 };
 
 // Assign contract to current user
-export const assignContract = async (contractNumber: string): Promise<Contract> => {
-  const response = await fetch(`${API_BASE_URL}/users/assign-contract/${contractNumber}`, {
+export const assignContract = async (contractNumber: string, matriculaNumber?: string): Promise<Contract> => {
+  const url = `${API_BASE_URL}/users/assign-contract/${contractNumber}${matriculaNumber ? `?matriculaNumber=${encodeURIComponent(matriculaNumber)}` : ''}`;
+  
+  const response = await fetch(url, {
     method: 'POST',
     headers: getHeaders(),
   });

@@ -14,5 +14,7 @@ namespace SalesApp.Repositories
         Task DeleteAsync(int id);
         Task<bool> IsMatriculaValidForUser(Guid userId, int matriculaId);
         Task<bool> MatriculaExistsAsync(string matriculaNumber);
+        Task<UserMatricula?> GetOwnerByMatriculaNumberAsync(string matriculaNumber);
+        Task SetOwnerAsync(string matriculaNumber, Guid newOwnerId);
     }
 }

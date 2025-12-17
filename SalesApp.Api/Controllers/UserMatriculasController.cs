@@ -97,6 +97,7 @@ namespace SalesApp.Controllers
                 MatriculaNumber = request.MatriculaNumber,
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
+                IsOwner = request.IsOwner,
                 IsActive = true
             };
 
@@ -141,6 +142,9 @@ namespace SalesApp.Controllers
             
             if (request.IsActive.HasValue)
                 matricula.IsActive = request.IsActive.Value;
+            
+            if (request.IsOwner.HasValue)
+                matricula.IsOwner = request.IsOwner.Value;
 
             var updated = await _matriculaRepository.UpdateAsync(matricula);
 
@@ -243,11 +247,12 @@ namespace SalesApp.Controllers
             {
                 Id = matricula.Id,
                 UserId = matricula.UserId,
-                UserName = matricula.User?.Name ?? string.Empty,
+                UserName = matricula.User?.Name ?? "",
                 MatriculaNumber = matricula.MatriculaNumber,
                 StartDate = matricula.StartDate,
                 EndDate = matricula.EndDate,
                 IsActive = matricula.IsActive,
+                IsOwner = matricula.IsOwner,
                 CreatedAt = matricula.CreatedAt
             };
         }

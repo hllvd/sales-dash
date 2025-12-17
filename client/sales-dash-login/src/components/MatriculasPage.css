@@ -1,0 +1,44 @@
+.matriculas-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.matriculas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+}
+
+.matriculas-subtitle {
+  color: #666;
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.search-container {
+  margin-bottom: 20px;
+}
+
+.table-container {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.error-message {
+  background-color: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border-left: 4px solid #c33;
+}

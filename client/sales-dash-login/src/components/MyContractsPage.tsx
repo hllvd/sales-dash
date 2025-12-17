@@ -12,6 +12,7 @@ import {
   getContractByNumber,
   assignContract,
 } from '../services/contractService';
+import { apiService, UserMatricula } from '../services/apiService';
 
 const MyContractsPage: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -29,6 +30,8 @@ const MyContractsPage: React.FC = () => {
   const [retrievedContract, setRetrievedContract] = useState<Contract | null>(null);
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState('');
+  const [userMatriculas, setUserMatriculas] = useState<UserMatricula[]>([]);
+  const [selectedMatricula, setSelectedMatricula] = useState<string>('');
 
   // Load saved date filters from localStorage
   useEffect(() => {
@@ -71,10 +74,42 @@ const MyContractsPage: React.FC = () => {
     }
   };
 
-  const handleNewClick = () => {
+  const handleNewClick = async () => {
     setContractNumber('');
     setRetrievedContract(null);
     setAssignError('');
+    setSelectedMatricula('');
+    
+    // Fetch user's active matriculas
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = user.id;
+      if (userId) {
+        const response = await apiService.getUserMatriculas(userId);
+        if (response.success && response.data) {
+          // Filter active matriculas
+          const now = new Date();
+          const activeMatriculas = response.data.filter(m => 
+            m.isActive && (!m.endDate || new Date(m.endDate) > now)
+          );
+          // Sort by most recent (startDate descending)
+          activeMatriculas.sort((a, b) => 
+            new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+          );
+          setUserMatriculas(activeMatriculas);
+          // Auto-select if only one
+          if (activeMatriculas.length === 1) {
+            setSelectedMatricula(activeMatriculas[0].matriculaNumber);
+          } else if (activeMatriculas.length > 1) {
+            // Default to most recent
+            setSelectedMatricula(activeMatriculas[0].matriculaNumber);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch matriculas:', err);
+    }
+    
     setShowAssignModal(true);
   };
 
@@ -105,10 +140,12 @@ const MyContractsPage: React.FC = () => {
     setAssignError('');
 
     try {
-      await assignContract(contractNumber);
+      // Pass selected matricula if available
+      await assignContract(contractNumber, selectedMatricula || undefined);
       setShowAssignModal(false);
       setContractNumber('');
       setRetrievedContract(null);
+      setSelectedMatricula('');
       loadMyContracts(); // Refresh the list
     } catch (err: any) {
       setAssignError(err.message || 'Falha ao atribuir contrato');
@@ -401,6 +438,42 @@ const MyContractsPage: React.FC = () => {
                       <span className="detail-value">{formatDate(retrievedContract.contractStartDate)}</span>
                     </div>
                   </div>
+
+                  {/* Matricula Selection */}
+                  {userMatriculas.length > 0 && (
+                    <div className="form-group" style={{ marginTop: '20px' }}>
+                      <label htmlFor="matriculaSelect">Matrícula {userMatriculas.length > 1 ? '(Selecione)' : ''}</label>
+                      {userMatriculas.length === 1 ? (
+                        <input
+                          type="text"
+                          value={`${userMatriculas[0].matriculaNumber} (${new Date(userMatriculas[0].startDate).toLocaleDateString('pt-BR')})`}
+                          readOnly
+                          disabled
+                          style={{ backgroundColor: '#f5f5f5' }}
+                        />
+                      ) : (
+                        <select
+                          id="matriculaSelect"
+                          value={selectedMatricula}
+                          onChange={(e) => setSelectedMatricula(e.target.value)}
+                          style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        >
+                          {userMatriculas.map((m) => (
+                            <option key={m.id} value={m.matriculaNumber}>
+                              {m.matriculaNumber} - {new Date(m.startDate).toLocaleDateString('pt-BR')}
+                              {m.endDate ? ` até ${new Date(m.endDate).toLocaleDateString('pt-BR')}` : ''}
+                              {m.isOwner ? ' (Proprietário)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+                        {userMatriculas.length === 0 && 'Você não possui matrículas ativas'}
+                        {userMatriculas.length === 1 && 'Matrícula será atribuída automaticamente'}
+                        {userMatriculas.length > 1 && 'Selecione a matrícula para este contrato (padrão: mais recente)'}
+                      </small>
+                    </div>
+                  )}
 
                   <div className="form-actions">
                     <button

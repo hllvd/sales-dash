@@ -8,6 +8,7 @@ import ContractsPage from './components/ContractsPage';
 import UsersMappingPage from './components/UsersMappingPage';
 import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
+import MatriculasPage from './components/MatriculasPage';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/charts/styles.css';
@@ -46,6 +47,8 @@ function App() {
         return <PVPage />;
       case '#/my-contracts':
         return <MyContractsPage />;
+      case '#/matriculas':
+        return <MatriculasPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':

@@ -353,6 +353,118 @@ export const apiService = {
 
     return response.json()
   },
+
+  // Matricula endpoints
+  async getMatriculas(
+    page: number = 1,
+    pageSize: number = 10,
+    search?: string
+  ): Promise<ApiResponse<PagedResponse<UserMatricula>>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString(),
+    })
+
+    if (search) {
+      params.append("search", search)
+    }
+
+    const response = await fetch(`${API_BASE_URL}/usermatriculas?${params}`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch matriculas")
+    }
+
+    return response.json()
+  },
+
+  async getAllMatriculas(): Promise<ApiResponse<UserMatricula[]>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch matriculas")
+    }
+
+    return response.json()
+  },
+
+  async getMatriculaById(id: number): Promise<ApiResponse<UserMatricula>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas/${id}`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch matricula")
+    }
+
+    return response.json()
+  },
+
+  async getUserMatriculas(userId: string): Promise<ApiResponse<UserMatricula[]>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas/user/${userId}`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch user matriculas")
+    }
+
+    return response.json()
+  },
+
+  async createMatricula(data: CreateMatriculaRequest): Promise<ApiResponse<UserMatricula>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to create matricula" }))
+      throw new Error(error.message || "Failed to create matricula")
+    }
+
+    return response.json()
+  },
+
+  async updateMatricula(id: number, data: UpdateMatriculaRequest): Promise<ApiResponse<UserMatricula>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to update matricula" }))
+      throw new Error(error.message || "Failed to update matricula")
+    }
+
+    return response.json()
+  },
+
+  async deleteMatricula(id: number): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to delete matricula" }))
+      throw new Error(error.message || "Failed to delete matricula")
+    }
+
+    return response.json()
+  },
 }
 
 export interface PV {
@@ -365,4 +477,32 @@ export interface PV {
 export interface PVRequest {
   id: number
   name: string
+}
+
+export interface UserMatricula {
+  id: number
+  userId: string
+  userName: string
+  matriculaNumber: string
+  startDate: string
+  endDate?: string
+  isActive: boolean
+  isOwner: boolean
+  createdAt: string
+}
+
+export interface CreateMatriculaRequest {
+  userId: string
+  matriculaNumber: string
+  startDate: string
+  endDate?: string
+  isOwner?: boolean
+}
+
+export interface UpdateMatriculaRequest {
+  matriculaNumber?: string
+  startDate?: string
+  endDate?: string
+  isActive?: boolean
+  isOwner?: boolean
 }
