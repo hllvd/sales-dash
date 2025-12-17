@@ -31,5 +31,8 @@ namespace SalesApp.DTOs
 
         [MaxLength(200)]
         public string? CustomerName { get; set; }
+        
+        [MaxLength(50)]
+        public string? MatriculaNumber { get; set; }
     }
 }

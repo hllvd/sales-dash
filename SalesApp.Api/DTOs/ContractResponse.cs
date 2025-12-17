@@ -18,5 +18,7 @@ namespace SalesApp.DTOs
         public int? Quota { get; set; }
         public int? PvId { get; set; }
         public string? CustomerName { get; set; }
+        public int? MatriculaId { get; set; }
+        public string? MatriculaNumber { get; set; }
     }
 }

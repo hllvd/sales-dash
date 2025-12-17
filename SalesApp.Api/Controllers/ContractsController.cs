@@ -17,17 +17,20 @@ namespace SalesApp.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IGroupRepository _groupRepository;
         private readonly IContractAggregationService _aggregationService;
+        private readonly IUserMatriculaRepository _matriculaRepository;
         
         public ContractsController(
             IContractRepository contractRepository, 
             IUserRepository userRepository, 
             IGroupRepository groupRepository,
-            IContractAggregationService aggregationService)
+            IContractAggregationService aggregationService,
+            IUserMatriculaRepository matriculaRepository)
         {
             _contractRepository = contractRepository;
             _userRepository = userRepository;
             _groupRepository = groupRepository;
             _aggregationService = aggregationService;
+            _matriculaRepository = matriculaRepository;
         }
         
         [HttpGet]
@@ -236,6 +239,22 @@ namespace SalesApp.Controllers
                 }
             }
             
+            // Validate and resolve matricula if provided
+            int? matriculaId = null;
+            if (!string.IsNullOrWhiteSpace(request.MatriculaNumber) && request.UserId.HasValue)
+            {
+                var (isValid, matricula, errorMessage) = await ValidateMatriculaForUser(request.MatriculaNumber, request.UserId.Value);
+                if (!isValid)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = errorMessage ?? "Invalid matricula"
+                    });
+                }
+                matriculaId = matricula!.Id;
+            }
+            
             var contract = new Contract
             {
                 ContractNumber = request.ContractNumber,
@@ -246,8 +265,11 @@ namespace SalesApp.Controllers
                 SaleStartDate = request.ContractStartDate,
                 ContractType = request.ContractType,
                 Quota = request.Quota,
-                CustomerName = request.CustomerName
+                PvId = request.PvId,
+                CustomerName = request.CustomerName,
+                MatriculaId = matriculaId
             };
+
             
             await _contractRepository.CreateAsync(contract);
             
@@ -357,6 +379,34 @@ namespace SalesApp.Controllers
             if (request.PvId.HasValue) contract.PvId = request.PvId.Value;
             if (!string.IsNullOrEmpty(request.CustomerName)) contract.CustomerName = request.CustomerName;
             
+            // Validate and update matricula if provided
+            if (!string.IsNullOrWhiteSpace(request.MatriculaNumber))
+            {
+                var userId = contract.UserId ?? Guid.Empty;
+                if (userId == Guid.Empty)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = "Cannot assign matricula to contract without a user"
+                    });
+                }
+                
+                var (isValid, matricula, errorMessage) = await ValidateMatriculaForUser(request.MatriculaNumber, userId);
+                if (!isValid)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = errorMessage ?? "Invalid matricula"
+                    });
+                }
+                contract.MatriculaId = matricula!.Id;
+            }
+            
+            if (request.IsActive.HasValue)
+                contract.IsActive = request.IsActive.Value;
+            
             contract.UpdatedAt = DateTime.UtcNow;
             
             await _contractRepository.UpdateAsync(contract);
@@ -412,10 +462,29 @@ namespace SalesApp.Controllers
                 ContractType = contract.ContractType,
                 Quota = contract.Quota,
                 PvId = contract.PvId,
-                CustomerName = contract.CustomerName
+                CustomerName = contract.CustomerName,
+                MatriculaId = contract.MatriculaId,
+                MatriculaNumber = contract.UserMatricula?.MatriculaNumber
             };
         }
         
+        private async Task<(bool isValid, UserMatricula? matricula, string? errorMessage)> 
+            ValidateMatriculaForUser(string matriculaNumber, Guid userId)
+        {
+            var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(matriculaNumber);
+            
+            if (matricula == null)
+                return (false, null, $"Matricula '{matriculaNumber}' not found");
+            
+            if (!matricula.IsActive)
+                return (false, null, $"Matricula '{matriculaNumber}' is not active");
+            
+            if (matricula.UserId != userId)
+                return (false, null, $"Matricula '{matriculaNumber}' does not belong to the specified user");
+            
+            return (true, matricula, null);
+        }
+    
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

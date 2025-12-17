@@ -18,6 +18,7 @@ namespace SalesApp.Tests
         private readonly Mock<IUserRepository> _mockUserRepository;
         private readonly Mock<IGroupRepository> _mockGroupRepository;
         private readonly Mock<IContractAggregationService> _mockAggregationService;
+        private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
         private readonly ContractsController _controller;
 
         public ContractsControllerTests()
@@ -26,7 +27,8 @@ namespace SalesApp.Tests
             _mockUserRepository = new Mock<IUserRepository>();
             _mockGroupRepository = new Mock<IGroupRepository>();
             _mockAggregationService = new Mock<IContractAggregationService>();
-            _controller = new ContractsController(_mockContractRepository.Object, _mockUserRepository.Object, _mockGroupRepository.Object, _mockAggregationService.Object);
+            _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
+            _controller = new ContractsController(_mockContractRepository.Object, _mockUserRepository.Object, _mockGroupRepository.Object, _mockAggregationService.Object, _mockMatriculaRepository.Object);
             
             // Setup admin user context
             var claims = new List<Claim>
