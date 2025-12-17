@@ -13,6 +13,7 @@ namespace SalesApp.Tests.Services
         private readonly Mock<IGroupRepository> _mockGroupRepository;
         private readonly Mock<IUserRepository> _mockUserRepository;
         private readonly Mock<IRoleRepository> _mockRoleRepository;
+        private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
         private readonly ImportExecutionService _service;
 
         public ImportExecutionServiceTests()
@@ -21,12 +22,14 @@ namespace SalesApp.Tests.Services
             _mockGroupRepository = new Mock<IGroupRepository>();
             _mockUserRepository = new Mock<IUserRepository>();
             _mockRoleRepository = new Mock<IRoleRepository>();
+            _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
 
             _service = new ImportExecutionService(
                 _mockContractRepository.Object,
                 _mockGroupRepository.Object,
                 _mockUserRepository.Object,
-                _mockRoleRepository.Object
+                _mockRoleRepository.Object,
+                _mockMatriculaRepository.Object
             );
         }
 
