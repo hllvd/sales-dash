@@ -465,6 +465,23 @@ export const apiService = {
 
     return response.json()
   },
+
+  async bulkCreateMatriculas(data: CreateMatriculaRequest[]): Promise<ApiResponse<BulkCreateMatriculaResponse>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas/bulk`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ matriculas: data }),
+    })
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to bulk create matriculas" }))
+      throw new Error(error.message || "Failed to bulk create matriculas")
+    }
+
+    return response.json()
+  },
 }
 
 export interface PV {
@@ -492,7 +509,8 @@ export interface UserMatricula {
 }
 
 export interface CreateMatriculaRequest {
-  userId: string
+  userId?: string
+  userEmail?: string
   matriculaNumber: string
   startDate: string
   endDate?: string
@@ -505,4 +523,17 @@ export interface UpdateMatriculaRequest {
   endDate?: string
   isActive?: boolean
   isOwner?: boolean
+}
+
+export interface BulkCreateMatriculaResponse {
+  totalProcessed: number
+  successCount: number
+  errorCount: number
+  createdMatriculas: UserMatricula[]
+  errors: Array<{
+    rowNumber: number
+    matriculaNumber: string
+    userEmail: string
+    error: string
+  }>
 }

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { Title, Button, Table, ActionIcon, Group, Badge, TextInput } from '@mantine/core';
-import { IconEdit, IconTrash, IconRefresh, IconPlus } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload } from '@tabler/icons-react';
 import "./MatriculasPage.css"
 import Menu from "./Menu"
 import MatriculaForm from "./MatriculaForm"
+import MatriculaImportModal from "./MatriculaImportModal"
 import {
   apiService,
   UserMatricula,
@@ -18,6 +19,7 @@ const MatriculasPage: React.FC = () => {
   const [search, setSearch] = useState("")
   const [searchDebounce, setSearchDebounce] = useState("")
   const [showForm, setShowForm] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [editingMatricula, setEditingMatricula] = useState<UserMatricula | undefined>(undefined)
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
 
@@ -130,6 +132,13 @@ const MatriculasPage: React.FC = () => {
               variant="light"
             >
               Atualizar
+            </Button>
+            <Button
+              leftSection={<IconUpload size={16} />}
+              onClick={() => setShowImportModal(true)}
+              variant="light"
+            >
+              Importar CSV
             </Button>
             <Button
               leftSection={<IconPlus size={16} />}
@@ -247,6 +256,16 @@ const MatriculasPage: React.FC = () => {
             matricula={editingMatricula}
             onSubmit={editingMatricula ? handleUpdateMatricula : handleCreateMatricula}
             onClose={closeForm}
+          />
+        )}
+
+        {showImportModal && (
+          <MatriculaImportModal
+            onClose={() => setShowImportModal(false)}
+            onSuccess={() => {
+              setShowImportModal(false);
+              fetchMatriculas();
+            }}
           />
         )}
       </div>

@@ -1,0 +1,4 @@
+matriculaNumber,isOwner,userEmail,startDate,endDate
+MAT-001,true,superadmin@test.com,2024-01-01,2024-12-31
+MAT-002,false,admin@test.com,2024-01-01,
+MAT-003,true,user@test.com,2024-02-01,2025-01-31

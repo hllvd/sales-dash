@@ -80,9 +80,38 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<UserMatriculaResponse>>> Create(
             [FromBody] CreateUserMatriculaRequest request)
         {
+            Guid userId;
+            
+            // Support both UserId and UserEmail
+            if (request.UserId.HasValue)
+            {
+                userId = request.UserId.Value;
+            }
+            else if (!string.IsNullOrEmpty(request.UserEmail))
+            {
+                var user = await _userRepository.GetByEmailAsync(request.UserEmail);
+                if (user == null)
+                {
+                    return NotFound(new ApiResponse<UserMatriculaResponse>
+                    {
+                        Success = false,
+                        Message = $"User not found with email: {request.UserEmail}"
+                    });
+                }
+                userId = user.Id;
+            }
+            else
+            {
+                return BadRequest(new ApiResponse<UserMatriculaResponse>
+                {
+                    Success = false,
+                    Message = "Either UserId or UserEmail is required"
+                });
+            }
+            
             // Verify user exists
-            var user = await _userRepository.GetByIdAsync(request.UserId);
-            if (user == null)
+            var existingUser = await _userRepository.GetByIdAsync(userId);
+            if (existingUser == null)
             {
                 return NotFound(new ApiResponse<UserMatriculaResponse>
                 {
@@ -93,7 +122,7 @@ namespace SalesApp.Controllers
 
             var matricula = new UserMatricula
             {
-                UserId = request.UserId,
+                UserId = userId,
                 MatriculaNumber = request.MatriculaNumber,
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
@@ -114,7 +143,107 @@ namespace SalesApp.Controllers
                 });
         }
 
+        // POST: api/usermatriculas/bulk
+        [HttpPost("bulk")]
+        [Authorize(Roles = "superadmin")]
+        public async Task<ActionResult<ApiResponse<BulkCreateMatriculaResponse>>> BulkCreate(
+            [FromBody] BulkCreateMatriculaRequest request)
+        {
+            var response = new BulkCreateMatriculaResponse();
+
+            for (int i = 0; i < request.Matriculas.Count; i++)
+            {
+                var item = request.Matriculas[i];
+                try
+                {
+                    Guid userId;
+                    
+                    // Lookup user by email or use provided UserId
+                    if (item.UserId.HasValue)
+                    {
+                        userId = item.UserId.Value;
+                    }
+                    else if (!string.IsNullOrEmpty(item.UserEmail))
+                    {
+                        var user = await _userRepository.GetByEmailAsync(item.UserEmail);
+                        if (user == null)
+                        {
+                            response.Errors.Add(new BulkImportError
+                            {
+                                RowNumber = i + 2, // +2 for header row and 0-index
+                                MatriculaNumber = item.MatriculaNumber ?? "",
+                                UserEmail = item.UserEmail,
+                                Error = $"User not found with email: {item.UserEmail}"
+                            });
+                            continue;
+                        }
+                        userId = user.Id;
+                    }
+                    else
+                    {
+                        response.Errors.Add(new BulkImportError
+                        {
+                            RowNumber = i + 2,
+                            MatriculaNumber = item.MatriculaNumber ?? "",
+                            UserEmail = item.UserEmail ?? "",
+                            Error = "Either UserId or UserEmail is required"
+                        });
+                        continue;
+                    }
+
+                    // Validate required fields
+                    if (string.IsNullOrEmpty(item.MatriculaNumber))
+                    {
+                        response.Errors.Add(new BulkImportError
+                        {
+                            RowNumber = i + 2,
+                            MatriculaNumber = "",
+                            UserEmail = item.UserEmail ?? "",
+                            Error = "MatriculaNumber is required"
+                        });
+                        continue;
+                    }
+
+                    // Create matricula
+                    var matricula = new UserMatricula
+                    {
+                        UserId = userId,
+                        MatriculaNumber = item.MatriculaNumber,
+                        StartDate = item.StartDate,
+                        EndDate = item.EndDate,
+                        IsOwner = item.IsOwner,
+                        IsActive = true
+                    };
+
+                    var created = await _matriculaRepository.CreateAsync(matricula);
+                    response.CreatedMatriculas.Add(MapToResponse(created));
+                }
+                catch (Exception ex)
+                {
+                    response.Errors.Add(new BulkImportError
+                    {
+                        RowNumber = i + 2,
+                        MatriculaNumber = item.MatriculaNumber ?? "",
+                        UserEmail = item.UserEmail ?? "",
+                        Error = ex.Message
+                    });
+                }
+            }
+
+            response.TotalProcessed = request.Matriculas.Count;
+            response.SuccessCount = response.CreatedMatriculas.Count;
+            response.ErrorCount = response.Errors.Count;
+
+            return Ok(new ApiResponse<BulkCreateMatriculaResponse>
+            {
+                Success = true,
+                Data = response,
+                Message = $"Processed {response.TotalProcessed} records: {response.SuccessCount} succeeded, {response.ErrorCount} failed"
+            });
+        }
+
         // PUT: api/usermatriculas/{id}
+
         [HttpPut("{id}")]
         public async Task<ActionResult<ApiResponse<UserMatriculaResponse>>> Update(
             int id,

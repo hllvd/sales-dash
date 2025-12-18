@@ -4,8 +4,10 @@ namespace SalesApp.DTOs
 {
     public class CreateUserMatriculaRequest
     {
-        [Required]
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
+        
+        [EmailAddress]
+        public string? UserEmail { get; set; }
         
         [Required]
         [MaxLength(50)]
