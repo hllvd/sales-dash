@@ -515,9 +515,46 @@ namespace SalesApp.Controllers
         
         [HttpPost("assign-contract/{contractNumber}")]
         [Authorize]
-        public async Task<ActionResult<ApiResponse<ContractResponse>>> AssignContract(string contractNumber)
+        public async Task<ActionResult<ApiResponse<ContractResponse>>> AssignContract(
+            string contractNumber,
+            [FromQuery] string? matriculaNumber = null)
         {
             var currentUserId = GetCurrentUserId();
+            
+            // Validate and get matricula if provided
+            UserMatricula? userMatricula = null;
+            if (!string.IsNullOrEmpty(matriculaNumber))
+            {
+                userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, currentUserId);
+                
+                if (userMatricula == null)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = "Matricula not found or doesn't belong to you"
+                    });
+                }
+                
+                if (!userMatricula.IsActive)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = "Matricula is not active"
+                    });
+                }
+                
+                // Check if matricula is still valid (not expired)
+                if (userMatricula.EndDate.HasValue && userMatricula.EndDate.Value < DateTime.UtcNow)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = "Matricula has expired"
+                    });
+                }
+            }
             
             var contract = await _contractRepository.GetByContractNumberAsync(contractNumber);
             if (contract == null)
@@ -541,6 +578,8 @@ namespace SalesApp.Controllers
 
             contract.UserId = currentUserId;
             contract.User = user;
+            contract.MatriculaId = userMatricula?.Id;
+            contract.UserMatricula = userMatricula;
             await _contractRepository.UpdateAsync(contract);
             
             return Ok(new ApiResponse<ContractResponse>
@@ -563,7 +602,8 @@ namespace SalesApp.Controllers
                     ContractType = contract.ContractType,
                     Quota = contract.Quota,
                     PvId = contract.PvId,
-                    CustomerName = contract.CustomerName
+                    CustomerName = contract.CustomerName,
+                    MatriculaNumber = userMatricula?.MatriculaNumber
                 },
                 Message = "Contract assigned successfully"
             });
