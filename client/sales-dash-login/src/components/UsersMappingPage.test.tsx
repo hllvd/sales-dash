@@ -59,10 +59,10 @@ describe("UsersMappingPage", () => {
   })
 
   it("processes CSV and shows preview with matched users", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockResolvedValue({
       success: true,
       data: [
-        { id: "1", name: "user1", email: "user1@test.com", matricula: "123" }
+        { id: "1", name: "user1", email: "user1@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true }
       ]
     })
 
@@ -85,11 +85,11 @@ describe("UsersMappingPage", () => {
   })
 
   it("filters users by name (case-insensitive)", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockResolvedValue({
       success: true,
       data: [
-        { id: "1", name: "user1", email: "user1@test.com", matricula: "123" },
-        { id: "2", name: "user2", email: "user2@test.com", matricula: "123" }
+        { id: "1", name: "user1", email: "user1@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true },
+        { id: "2", name: "user2", email: "user2@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true }
       ]
     })
 
@@ -111,11 +111,11 @@ describe("UsersMappingPage", () => {
   })
 
   it("detects and highlights duplicate users", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockResolvedValue({
       success: true,
       data: [
-        { id: "1", name: "user1", email: "user1@test.com", matricula: "123" },
-        { id: "2", name: "user1", email: "user1-dup@test.com", matricula: "123" }
+        { id: "1", name: "user1", email: "user1@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true },
+        { id: "2", name: "user1", email: "user1-dup@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true }
       ]
     })
 
@@ -136,7 +136,7 @@ describe("UsersMappingPage", () => {
   })
 
   it("shows not found status when user doesn't exist", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockResolvedValue({
       success: true,
       data: []
     })
@@ -158,10 +158,10 @@ describe("UsersMappingPage", () => {
   })
 
   it("shows not found when name doesn't match", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockResolvedValue({
       success: true,
       data: [
-        { id: "1", name: "user1", email: "user1@test.com", matricula: "123" }
+        { id: "1", name: "user1", email: "user1@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true }
       ]
     })
 
@@ -180,10 +180,10 @@ describe("UsersMappingPage", () => {
   })
 
   it("preserves original name from CSV", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockResolvedValue({
       success: true,
       data: [
-        { id: "1", name: "user1", email: "user1@test.com", matricula: "123" }
+        { id: "1", name: "user1", email: "user1@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true }
       ]
     })
 
@@ -206,10 +206,10 @@ describe("UsersMappingPage", () => {
   })
 
   it("allows downloading CSV after processing", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockResolvedValue({
       success: true,
       data: [
-        { id: "1", name: "user1", email: "user1@test.com", matricula: "123" }
+        { id: "1", name: "user1", email: "user1@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true }
       ]
     })
 
@@ -237,10 +237,10 @@ describe("UsersMappingPage", () => {
   })
 
   it("allows processing a new file after completion", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockResolvedValue({
       success: true,
       data: [
-        { id: "1", name: "user1", email: "user1@test.com", matricula: "123" }
+        { id: "1", name: "user1", email: "user1@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true }
       ]
     })
 
@@ -265,7 +265,7 @@ describe("UsersMappingPage", () => {
   })
 
   it("handles API errors gracefully", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockRejectedValue(
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockRejectedValue(
       new Error("API Error")
     )
 
@@ -287,14 +287,14 @@ describe("UsersMappingPage", () => {
   })
 
   it("processes multiple rows correctly", async () => {
-    (apiService.getUsersByMatricula as jest.Mock)
+    (apiService.getUsersByMatriculaNumber as jest.Mock)
       .mockResolvedValueOnce({
         success: true,
-        data: [{ id: "1", name: "user1", email: "user1@test.com", matricula: "123" }]
+        data: [{ id: "1", name: "user1", email: "user1@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true }]
       })
       .mockResolvedValueOnce({
         success: true,
-        data: [{ id: "2", name: "user2", email: "user2@test.com", matricula: "456" }]
+        data: [{ id: "2", name: "user2", email: "user2@test.com", matriculaId: 1, matriculaNumber: "456", isOwner: true }]
       })
 
     render(<UsersMappingPage />)
@@ -315,11 +315,11 @@ describe("UsersMappingPage", () => {
   })
 
   it("allows selecting between duplicate users", async () => {
-    (apiService.getUsersByMatricula as jest.Mock).mockResolvedValue({
+    (apiService.getUsersByMatriculaNumber as jest.Mock).mockResolvedValue({
       success: true,
       data: [
-        { id: "1", name: "user1", email: "user1-v1@test.com", matricula: "123" },
-        { id: "2", name: "user1", email: "user1-v2@test.com", matricula: "123" }
+        { id: "1", name: "user1", email: "user1-v1@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true },
+        { id: "2", name: "user1", email: "user1-v2@test.com", matriculaId: 1, matriculaNumber: "123", isOwner: true }
       ]
     })
 
