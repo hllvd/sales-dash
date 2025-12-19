@@ -336,6 +336,9 @@ namespace SalesApp.Controllers
         
         private UserResponse MapToUserResponse(User user)
         {
+            // Get the primary/owner matricula if it exists
+            var primaryMatricula = user.UserMatriculas?.FirstOrDefault(m => m.IsOwner && m.IsActive);
+            
             return new UserResponse
             {
                 Id = user.Id,
@@ -347,7 +350,12 @@ namespace SalesApp.Controllers
                 IsActive = user.IsActive,
 
                 CreatedAt = user.CreatedAt,
-                UpdatedAt = user.UpdatedAt
+                UpdatedAt = user.UpdatedAt,
+                
+                // Matricula information
+                MatriculaId = primaryMatricula?.Id,
+                MatriculaNumber = primaryMatricula?.MatriculaNumber,
+                IsMatriculaOwner = primaryMatricula != null
             };
         }
         

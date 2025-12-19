@@ -9,6 +9,7 @@ import UsersMappingPage from './components/UsersMappingPage';
 import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
 import MatriculasPage from './components/MatriculasPage';
+import { ContractsProvider } from './contexts/ContractsContext';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/charts/styles.css';
@@ -58,10 +59,12 @@ function App() {
   };
 
   return (
-    <MantineProvider>
-      <Notifications />
-      {renderPage()}
-    </MantineProvider>
+    <ContractsProvider>
+      <MantineProvider>
+        <Notifications />
+        {renderPage()}
+      </MantineProvider>
+    </ContractsProvider>
   );
 }
 

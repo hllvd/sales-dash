@@ -7,6 +7,8 @@ import ContractForm from './ContractForm';
 import BulkImportModal from './BulkImportModal';
 import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
+import { useContractsContext } from '../contexts/ContractsContext';
+import { toast } from '../utils/toast';
 import {
   Contract,
   User,
@@ -19,6 +21,9 @@ import {
 } from '../services/contractService';
 
 const ContractsPage: React.FC = () => {
+  // Get context for caching
+  const { setContracts: setCachedContracts, setUsers: setCachedUsers, setGroups: setCachedGroups } = useContractsContext();
+  
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<ContractGroup[]>([]);
@@ -45,8 +50,12 @@ const ContractsPage: React.FC = () => {
       const [usersData, groupsData] = await Promise.all([getUsers(), getGroups()]);
       setUsers(usersData);
       setGroups(groupsData);
-    } catch (err) {
+      // Cache the data in context for use by ContractForm
+      setCachedUsers(usersData);
+      setCachedGroups(groupsData);
+    } catch (err: any) {
       console.error('Failed to load filter options:', err);
+      toast.error(err.message || 'Falha ao carregar opções de filtro');
     }
   };
 
@@ -63,8 +72,12 @@ const ContractsPage: React.FC = () => {
       );
       setContracts(data);
       setAggregation(aggData || null);
+      // Cache contracts in context
+      setCachedContracts(data);
     } catch (err: any) {
-      setError(err.message || 'Failed to load contracts');
+      const errorMessage = err.message || 'Falha ao carregar contratos';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -94,9 +107,12 @@ const ContractsPage: React.FC = () => {
     try {
       await deleteContract(deleteConfirm);
       setDeleteConfirm(null);
+      toast.success('Contrato excluído com sucesso');
       loadContracts();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete contract');
+      const errorMessage = err.message || 'Falha ao excluir contrato';
+      setError(errorMessage);
+      toast.error(errorMessage);
       setDeleteConfirm(null);
     }
   };

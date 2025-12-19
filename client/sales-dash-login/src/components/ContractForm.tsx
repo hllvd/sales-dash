@@ -12,6 +12,8 @@ import {
   getGroups,
 } from '../services/contractService';
 import { apiService, PV } from '../services/apiService';
+import { useContractsContext } from '../contexts/ContractsContext';
+import { toast } from '../utils/toast';
 
 interface ContractFormProps {
   contract?: Contract | null;
@@ -21,6 +23,9 @@ interface ContractFormProps {
 
 const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSuccess }) => {
   const isEditMode = !!contract;
+  
+  // Get cached data from context
+  const { users: cachedUsers, groups: cachedGroups } = useContractsContext();
 
   const [formData, setFormData] = useState({
     contractNumber: contract?.contractNumber || '',
@@ -34,6 +39,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     contractType: contract?.contractType?.toString() || '',
     quota: contract?.quota || 0,
     customerName: contract?.customerName || '',
+    matriculaNumber: contract?.matriculaNumber || '',
   });
 
   const [users, setUsers] = useState<User[]>([]);
@@ -45,13 +51,21 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        const [usersData, groupsData, pvsResponse] = await Promise.all([
-          getUsers(),
-          getGroups(),
-          apiService.getPVs(),
-        ]);
-        setUsers(usersData);
-        setGroups(groupsData);
+        // Use cached users and groups if available, otherwise fetch
+        if (cachedUsers.length > 0 && cachedGroups.length > 0) {
+          setUsers(cachedUsers);
+          setGroups(cachedGroups);
+        } else {
+          const [usersData, groupsData] = await Promise.all([
+            getUsers(),
+            getGroups(),
+          ]);
+          setUsers(usersData);
+          setGroups(groupsData);
+        }
+        
+        // Always fetch PVs (smaller dataset)
+        const pvsResponse = await apiService.getPVs();
         if (pvsResponse.success && pvsResponse.data) {
           setPVs(pvsResponse.data);
         }
@@ -63,13 +77,15 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
             contractType: '0', // First option: Lar
           }));
         }
-      } catch (err) {
-        setError('Failed to load users, groups, and PVs');
+      } catch (err: any) {
+        const errorMessage = err.message || 'Falha ao carregar dados do formulário';
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
     };
 
     fetchDropdownData();
-  }, []);
+  }, [cachedUsers, cachedGroups, contract]);
 
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({
@@ -80,17 +96,23 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
   const validateForm = (): boolean => {
     if (!formData.contractNumber.trim()) {
-      setError('Contract number is required');
+      const errorMessage = 'Número do contrato é obrigatório';
+      setError(errorMessage);
+      toast.error(errorMessage);
       return false;
     }
 
     if (formData.totalAmount < 0.01) {
-      setError('Total amount must be at least 0.01');
+      const errorMessage = 'Valor total deve ser pelo menos 0.01';
+      setError(errorMessage);
+      toast.error(errorMessage);
       return false;
     }
 
     if (!formData.contractStartDate) {
-      setError('Contract start date is required');
+      const errorMessage = 'Data de início do contrato é obrigatória';
+      setError(errorMessage);
+      toast.error(errorMessage);
       return false;
     }
 
@@ -121,6 +143,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
           quota: formData.quota ? Number(formData.quota) : undefined,
           customerName: formData.customerName || undefined,
+          matriculaNumber: formData.matriculaNumber || undefined,
         };
         await updateContract(contract.id, updateData);
       } else {
@@ -135,14 +158,18 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
           quota: formData.quota ? Number(formData.quota) : undefined,
           customerName: formData.customerName || undefined,
+          matriculaNumber: formData.matriculaNumber || undefined,
         };
         await createContract(createData);
       }
 
+      toast.success(isEditMode ? 'Contrato atualizado com sucesso' : 'Contrato criado com sucesso');
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to save contract');
+      const errorMessage = err.message || 'Falha ao salvar contrato';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -259,6 +286,15 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           onChange={(e) => handleChange('customerName', e.target.value)}
           placeholder="Ex: João Silva"
           maxLength={200}
+          mb="md"
+        />
+
+        <TextInput
+          label="Número da Matrícula (Opcional)"
+          value={formData.matriculaNumber}
+          onChange={(e) => handleChange('matriculaNumber', e.target.value)}
+          placeholder="Ex: MAT-001"
+          maxLength={50}
           mb="md"
         />
 

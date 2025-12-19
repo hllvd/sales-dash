@@ -18,6 +18,7 @@ namespace SalesApp.Repositories
             return await _context.Contracts
                 .Include(c => c.User)
                 .Include(c => c.Group)
+                .Include(c => c.UserMatricula)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
         
@@ -26,6 +27,7 @@ namespace SalesApp.Repositories
             return await _context.Contracts
                 .Include(c => c.User)
                 .Include(c => c.Group)
+                .Include(c => c.UserMatricula)
                 .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
         }
         
@@ -34,6 +36,7 @@ namespace SalesApp.Repositories
             var query = _context.Contracts
                 .Include(c => c.User)
                 .Include(c => c.Group)
+                .Include(c => c.UserMatricula)
                 .Where(c => c.IsActive);
             
             if (userId.HasValue)
@@ -56,6 +59,7 @@ namespace SalesApp.Repositories
             var query = _context.Contracts
                 .Include(c => c.User)
                 .Include(c => c.Group)
+                .Include(c => c.UserMatricula)
                 .Where(c => c.UserId == userId && c.IsActive);
             
             if (startDate.HasValue)
@@ -72,6 +76,7 @@ namespace SalesApp.Repositories
             return await _context.Contracts
                 .Include(c => c.User)
                 .Include(c => c.Group)
+                .Include(c => c.UserMatricula)
                 .Where(c => c.UploadId == uploadId)
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();

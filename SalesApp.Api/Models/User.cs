@@ -37,5 +37,6 @@ namespace SalesApp.Models
         // Navigation properties
         public User? ParentUser { get; set; }
         public ICollection<User> ChildUsers { get; set; } = new List<User>();
+        public ICollection<UserMatricula> UserMatriculas { get; set; } = new List<UserMatricula>();
     }
 }

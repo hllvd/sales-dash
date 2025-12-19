@@ -19,6 +19,7 @@ export interface Contract {
   contractType?: number;
   quota?: number;
   customerName?: string;
+  matriculaNumber?: string;
 }
 
 export interface CreateContractRequest {
@@ -32,6 +33,7 @@ export interface CreateContractRequest {
   contractType?: number;
   quota?: number;
   customerName?: string;
+  matriculaNumber?: string;
 }
 
 export interface UpdateContractRequest {
@@ -46,6 +48,7 @@ export interface UpdateContractRequest {
   contractType?: number;
   quota?: number;
   customerName?: string;
+  matriculaNumber?: string;
 }
 
 export interface User {
@@ -54,7 +57,8 @@ export interface User {
   email: string;
   role: string;
   isActive: boolean;
-  matricula?: string;
+  matriculaId?: number;
+  matriculaNumber?: string;
   isMatriculaOwner: boolean;
 }
 

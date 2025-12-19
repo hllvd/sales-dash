@@ -199,7 +199,7 @@ namespace SalesApp.Data
                 entity.HasIndex(e => new { e.UserId, e.MatriculaNumber });
                 
                 entity.HasOne(e => e.User)
-                    .WithMany()
+                    .WithMany(u => u.UserMatriculas)
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
             });

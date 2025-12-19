@@ -411,10 +411,12 @@ namespace SalesApp.Controllers
             
             await _contractRepository.UpdateAsync(contract);
             
+            // Reload contract with all relationships to get updated MatriculaNumber
+            var updatedContract = await _contractRepository.GetByIdAsync(id);            
             return Ok(new ApiResponse<ContractResponse>
             {
                 Success = true,
-                Data = MapToContractResponse(contract),
+                Data = MapToContractResponse(updatedContract!),
                 Message = "Contract updated successfully"
             });
         }
