@@ -57,7 +57,7 @@ namespace SalesApp.Repositories
         {
             return await _context.UserMatriculas
                 .Include(m => m.User)
-                .Where(m => m.MatriculaNumber == matriculaNumber)
+                .Where(m => m.MatriculaNumber == matriculaNumber && m.IsActive)
                 .OrderByDescending(m => m.IsOwner)
                 .ThenBy(m => m.User.Name)
                 .ToListAsync();

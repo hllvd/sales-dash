@@ -465,5 +465,70 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             result.Data.Count(u => u.IsOwner).Should().Be(1);
             result.Data.Count(u => !u.IsOwner).Should().Be(2);
         }
+
+        [Fact]
+        public async Task LookupByMatriculaNumber_ShouldExcludeInactiveMatriculas()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var user1Id = Guid.NewGuid();
+            var user2Id = Guid.NewGuid();
+            var user3Id = Guid.NewGuid();
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var user1 = new User { Id = user1Id, Name = "Active User 1", Email = "active1@test.com", PasswordHash = "hash", RoleId = 1 };
+                var user2 = new User { Id = user2Id, Name = "Inactive User", Email = "inactive@test.com", PasswordHash = "hash", RoleId = 1 };
+                var user3 = new User { Id = user3Id, Name = "Active User 2", Email = "active2@test.com", PasswordHash = "hash", RoleId = 1 };
+                context.Users.AddRange(user1, user2, user3);
+                await context.SaveChangesAsync();
+
+                // Create matriculas - one active owner, one inactive, one active non-owner
+                var matricula1 = new UserMatricula 
+                { 
+                    UserId = user1Id, 
+                    MatriculaNumber = "ACTIVE-TEST-999", 
+                    StartDate = DateTime.UtcNow, 
+                    IsActive = true, 
+                    IsOwner = true 
+                };
+                var matricula2 = new UserMatricula 
+                { 
+                    UserId = user2Id, 
+                    MatriculaNumber = "ACTIVE-TEST-999", 
+                    StartDate = DateTime.UtcNow, 
+                    IsActive = false,  // Inactive!
+                    IsOwner = false 
+                };
+                var matricula3 = new UserMatricula 
+                { 
+                    UserId = user3Id, 
+                    MatriculaNumber = "ACTIVE-TEST-999", 
+                    StartDate = DateTime.UtcNow, 
+                    IsActive = true, 
+                    IsOwner = false 
+                };
+                context.UserMatriculas.AddRange(matricula1, matricula2, matricula3);
+                await context.SaveChangesAsync();
+            }
+
+            // Act
+            var response = await _client.GetAsync("/api/usermatriculas/lookup/ACTIVE-TEST-999");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<UserLookupByMatriculaResponse>>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            
+            // Should only return 2 users (the active ones), not the inactive one
+            result.Data.Should().HaveCount(2);
+            result.Data.Should().Contain(u => u.Name == "Active User 1");
+            result.Data.Should().Contain(u => u.Name == "Active User 2");
+            result.Data.Should().NotContain(u => u.Name == "Inactive User");
+        }
     }
 }
