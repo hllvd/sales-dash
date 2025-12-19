@@ -53,6 +53,16 @@ namespace SalesApp.Repositories
                 .FirstOrDefaultAsync(m => m.MatriculaNumber == matriculaNumber);
         }
 
+        public async Task<List<UserMatricula>> GetAllByMatriculaNumberAsync(string matriculaNumber)
+        {
+            return await _context.UserMatriculas
+                .Include(m => m.User)
+                .Where(m => m.MatriculaNumber == matriculaNumber)
+                .OrderByDescending(m => m.IsOwner)
+                .ThenBy(m => m.User.Name)
+                .ToListAsync();
+        }
+
         public async Task<UserMatricula> CreateAsync(UserMatricula matricula)
         {
             matricula.CreatedAt = DateTime.UtcNow;

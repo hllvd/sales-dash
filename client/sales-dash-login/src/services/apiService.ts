@@ -28,6 +28,15 @@ export interface User {
   updatedAt: string
 }
 
+export interface UserLookupByMatricula {
+  id: string
+  name: string
+  email: string
+  matriculaId: number
+  matriculaNumber: string
+  isOwner: boolean
+}
+
 export interface CreateUserRequest {
   name: string
   email: string
@@ -267,8 +276,8 @@ export const apiService = {
     return response.json()
   },
 
-  async getUsersByMatricula(matricula: string): Promise<ApiResponse<User[]>> {
-    const response = await fetch(`${API_BASE_URL}/users/by-matricula/${matricula}`, {
+  async getUsersByMatricula(matricula: string): Promise<ApiResponse<UserLookupByMatricula[]>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas/lookup/${matricula}`, {
       headers: getAuthHeaders(),
     })
 

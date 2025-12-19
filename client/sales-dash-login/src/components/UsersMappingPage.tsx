@@ -9,7 +9,9 @@ interface User {
   id: string;
   name: string;
   email: string;
-  matricula: string;
+  matriculaId: number;
+  matriculaNumber: string;
+  isOwner: boolean;
 }
 
 interface ProcessedRow {
@@ -190,7 +192,9 @@ const UsersMappingPage: React.FC = () => {
                     id: user.id,
                     name: user.name,
                     email: user.email,
-                    matricula: user.matricula || ''
+                    matriculaId: user.matriculaId,
+                    matriculaNumber: user.matriculaNumber,
+                    isOwner: user.isOwner
                   }));
                 
                 if (matchedUsers.length > 0) {

@@ -75,6 +75,63 @@ namespace SalesApp.Controllers
             });
         }
 
+        // GET: api/usermatriculas/lookup/{identifier}
+        [HttpGet("lookup/{identifier}")]
+        public async Task<ActionResult<ApiResponse<List<UserLookupByMatriculaResponse>>>> LookupByMatricula(string identifier)
+        {
+            List<UserMatricula> matriculas;
+
+            // Try to parse as integer (matricula ID)
+            if (int.TryParse(identifier, out int matriculaId))
+            {
+                var matricula = await _matriculaRepository.GetByIdAsync(matriculaId);
+                if (matricula == null)
+                {
+                    return Ok(new ApiResponse<List<UserLookupByMatriculaResponse>>
+                    {
+                        Success = true,
+                        Data = new List<UserLookupByMatriculaResponse>(),
+                        Message = "No users found for this matricula ID"
+                    });
+                }
+                
+                // Get all users with this matricula number
+                matriculas = await _matriculaRepository.GetAllByMatriculaNumberAsync(matricula.MatriculaNumber);
+            }
+            else
+            {
+                // Treat as matricula number (string)
+                matriculas = await _matriculaRepository.GetAllByMatriculaNumberAsync(identifier);
+            }
+
+            if (matriculas == null || !matriculas.Any())
+            {
+                return Ok(new ApiResponse<List<UserLookupByMatriculaResponse>>
+                {
+                    Success = true,
+                    Data = new List<UserLookupByMatriculaResponse>(),
+                    Message = "No users found for this matricula"
+                });
+            }
+
+            var responses = matriculas.Select(m => new UserLookupByMatriculaResponse
+            {
+                Id = m.UserId,
+                Name = m.User?.Name ?? "",
+                Email = m.User?.Email ?? "",
+                MatriculaId = m.Id,
+                MatriculaNumber = m.MatriculaNumber,
+                IsOwner = m.IsOwner
+            }).ToList();
+
+            return Ok(new ApiResponse<List<UserLookupByMatriculaResponse>>
+            {
+                Success = true,
+                Data = responses,
+                Message = "Users retrieved successfully"
+            });
+        }
+
         // POST: api/usermatriculas
         [HttpPost]
         public async Task<ActionResult<ApiResponse<UserMatriculaResponse>>> Create(
