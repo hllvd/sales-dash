@@ -30,7 +30,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   const [formData, setFormData] = useState({
     contractNumber: contract?.contractNumber || '',
     userId: contract?.userId || '',
-    groupId: contract?.groupId?.toString() || '0',
+    groupId: contract?.groupId?.toString() || '',
     pvId: contract?.pvId?.toString() || '',
     totalAmount: contract?.totalAmount || 0,
     status: contract?.status || 'Active',
@@ -206,9 +206,10 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           value={formData.groupId}
           onChange={(value) => handleChange('groupId', value)}
           data={[
-            { value: '0', label: 'Nenhum' },
+            { value: '', label: 'Nenhum' },
             ...groups.map(group => ({ value: group.id.toString(), label: group.name }))
           ]}
+          clearable
           mb="md"
         />
 

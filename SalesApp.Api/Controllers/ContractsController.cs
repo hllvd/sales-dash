@@ -395,10 +395,15 @@ namespace SalesApp.Controllers
                 var (isValid, matricula, errorMessage) = await ValidateMatriculaForUser(request.MatriculaNumber, userId);
                 if (!isValid)
                 {
+                    // Get user info for better error message
+                    var user = await _userRepository.GetByIdAsync(userId);
+                    var userName = user?.Name ?? "Unknown";
+                    var enhancedMessage = $"{errorMessage} (Contract assigned to: {userName}, User ID: {userId})";
+                    
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = errorMessage ?? "Invalid matricula"
+                        Message = enhancedMessage
                     });
                 }
                 contract.MatriculaId = matricula!.Id;
@@ -473,16 +478,14 @@ namespace SalesApp.Controllers
         private async Task<(bool isValid, UserMatricula? matricula, string? errorMessage)> 
             ValidateMatriculaForUser(string matriculaNumber, Guid userId)
         {
-            var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(matriculaNumber);
+            // Query for matricula by BOTH number AND userId since multiple users can have the same number
+            var matricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, userId);
             
             if (matricula == null)
-                return (false, null, $"Matricula '{matriculaNumber}' not found");
+                return (false, null, $"Matricula '{matriculaNumber}' not found for this user");
             
             if (!matricula.IsActive)
                 return (false, null, $"Matricula '{matriculaNumber}' is not active");
-            
-            if (matricula.UserId != userId)
-                return (false, null, $"Matricula '{matriculaNumber}' does not belong to the specified user");
             
             return (true, matricula, null);
         }

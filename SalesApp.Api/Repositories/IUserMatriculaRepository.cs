@@ -9,6 +9,7 @@ namespace SalesApp.Repositories
         Task<List<UserMatricula>> GetByUserIdAsync(Guid userId);
         Task<List<UserMatricula>> GetActiveByUserIdAsync(Guid userId);
         Task<UserMatricula?> GetByMatriculaNumberAsync(string matriculaNumber);
+        Task<UserMatricula?> GetByMatriculaNumberAndUserIdAsync(string matriculaNumber, Guid userId);
         Task<UserMatricula> CreateAsync(UserMatricula matricula);
         Task<UserMatricula> UpdateAsync(UserMatricula matricula);
         Task DeleteAsync(int id);
