@@ -276,13 +276,25 @@ export const apiService = {
     return response.json()
   },
 
-  async getUsersByMatricula(matricula: string): Promise<ApiResponse<UserLookupByMatricula[]>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas/lookup/${matricula}`, {
+  async getUsersByMatriculaNumber(matriculaNumber: string): Promise<ApiResponse<UserLookupByMatricula[]>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas/by-number/${matriculaNumber}`, {
       headers: getAuthHeaders(),
     })
 
     if (!response.ok) {
-      throw new Error("Failed to fetch users by matricula")
+      throw new Error("Failed to fetch users by matricula number")
+    }
+
+    return response.json()
+  },
+
+  async getUsersByMatriculaId(matriculaId: number): Promise<ApiResponse<UserLookupByMatricula[]>> {
+    const response = await fetch(`${API_BASE_URL}/usermatriculas/${matriculaId}/users`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch users by matricula ID")
     }
 
     return response.json()

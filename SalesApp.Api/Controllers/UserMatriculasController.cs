@@ -75,34 +75,11 @@ namespace SalesApp.Controllers
             });
         }
 
-        // GET: api/usermatriculas/lookup/{identifier}
-        [HttpGet("lookup/{identifier}")]
-        public async Task<ActionResult<ApiResponse<List<UserLookupByMatriculaResponse>>>> LookupByMatricula(string identifier)
+        // GET: api/usermatriculas/by-number/{matriculaNumber}
+        [HttpGet("by-number/{matriculaNumber}")]
+        public async Task<ActionResult<ApiResponse<List<UserLookupByMatriculaResponse>>>> GetUsersByMatriculaNumber(string matriculaNumber)
         {
-            List<UserMatricula> matriculas;
-
-            // Try to parse as integer (matricula ID)
-            if (int.TryParse(identifier, out int matriculaId))
-            {
-                var matricula = await _matriculaRepository.GetByIdAsync(matriculaId);
-                if (matricula == null)
-                {
-                    return Ok(new ApiResponse<List<UserLookupByMatriculaResponse>>
-                    {
-                        Success = true,
-                        Data = new List<UserLookupByMatriculaResponse>(),
-                        Message = "No users found for this matricula ID"
-                    });
-                }
-                
-                // Get all users with this matricula number
-                matriculas = await _matriculaRepository.GetAllByMatriculaNumberAsync(matricula.MatriculaNumber);
-            }
-            else
-            {
-                // Treat as matricula number (string)
-                matriculas = await _matriculaRepository.GetAllByMatriculaNumberAsync(identifier);
-            }
+            var matriculas = await _matriculaRepository.GetAllByMatriculaNumberAsync(matriculaNumber);
 
             if (matriculas == null || !matriculas.Any())
             {
@@ -110,9 +87,45 @@ namespace SalesApp.Controllers
                 {
                     Success = true,
                     Data = new List<UserLookupByMatriculaResponse>(),
-                    Message = "No users found for this matricula"
+                    Message = "No users found for this matricula number"
                 });
             }
+
+            var responses = matriculas.Select(m => new UserLookupByMatriculaResponse
+            {
+                Id = m.UserId,
+                Name = m.User?.Name ?? "",
+                Email = m.User?.Email ?? "",
+                MatriculaId = m.Id,
+                MatriculaNumber = m.MatriculaNumber,
+                IsOwner = m.IsOwner
+            }).ToList();
+
+            return Ok(new ApiResponse<List<UserLookupByMatriculaResponse>>
+            {
+                Success = true,
+                Data = responses,
+                Message = "Users retrieved successfully"
+            });
+        }
+
+        // GET: api/usermatriculas/{id}/users
+        [HttpGet("{id}/users")]
+        public async Task<ActionResult<ApiResponse<List<UserLookupByMatriculaResponse>>>> GetUsersByMatriculaId(int id)
+        {
+            var matricula = await _matriculaRepository.GetByIdAsync(id);
+            if (matricula == null)
+            {
+                return Ok(new ApiResponse<List<UserLookupByMatriculaResponse>>
+                {
+                    Success = true,
+                    Data = new List<UserLookupByMatriculaResponse>(),
+                    Message = "Matricula not found"
+                });
+            }
+
+            // Get all users with this matricula number
+            var matriculas = await _matriculaRepository.GetAllByMatriculaNumberAsync(matricula.MatriculaNumber);
 
             var responses = matriculas.Select(m => new UserLookupByMatriculaResponse
             {

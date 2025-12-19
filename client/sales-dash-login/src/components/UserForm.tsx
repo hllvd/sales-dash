@@ -22,9 +22,10 @@ const UserForm: React.FC<UserFormProps> = ({
     password: "",
     role: user?.role || "user",
     parentUserId: user?.parentUserId || "",
+    parentUserEmail: "",
     isActive: user?.isActive ?? true,
-    matricula: user?.matricula || "",
-    isMatriculaOwner: user?.isMatriculaOwner ?? false,
+    matriculaNumber: "",
+    isMatriculaOwner: false,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -54,13 +55,17 @@ const UserForm: React.FC<UserFormProps> = ({
 
       if (formData.parentUserId) {
         userData.parentUserId = formData.parentUserId
+      } else if (formData.parentUserEmail) {
+        userData.parentUserEmail = formData.parentUserEmail
       }
 
-      if (formData.matricula) {
-        userData.matricula = formData.matricula
+      // Only include matricula fields when creating a new user
+      if (!isEdit) {
+        if (formData.matriculaNumber) {
+          userData.matriculaNumber = formData.matriculaNumber
+          userData.isMatriculaOwner = formData.isMatriculaOwner
+        }
       }
-
-      userData.isMatriculaOwner = formData.isMatriculaOwner
 
       if (isEdit) {
         userData.isActive = formData.isActive
@@ -138,7 +143,7 @@ const UserForm: React.FC<UserFormProps> = ({
 
         <TextInput
           label="ID do Usuário Pai"
-          description="Opcional"
+          description="Opcional - deixe em branco se usar email"
           value={formData.parentUserId}
           onChange={(e) => handleChange('parentUserId', e.target.value)}
           placeholder="UUID do usuário pai"
@@ -146,20 +151,34 @@ const UserForm: React.FC<UserFormProps> = ({
         />
 
         <TextInput
-          label="Matrícula"
-          description="Opcional"
-          value={formData.matricula}
-          onChange={(e) => handleChange('matricula', e.target.value)}
-          placeholder="Número da matrícula"
+          label="Email do Usuário Pai"
+          description="Opcional - alternativa ao ID"
+          type="email"
+          value={formData.parentUserEmail}
+          onChange={(e) => handleChange('parentUserEmail', e.target.value)}
+          placeholder="email@exemplo.com"
           mb="md"
         />
 
-        <Checkbox
-          label="Proprietário da Matrícula"
-          checked={formData.isMatriculaOwner}
-          onChange={(e) => handleChange('isMatriculaOwner', e.currentTarget.checked)}
-          mb="md"
-        />
+        {!isEdit && (
+          <>
+            <TextInput
+              label="Matrícula"
+              description="Opcional - número da matrícula"
+              value={formData.matriculaNumber}
+              onChange={(e) => handleChange('matriculaNumber', e.target.value)}
+              placeholder="Número da matrícula"
+              mb="md"
+            />
+
+            <Checkbox
+              label="Proprietário da Matrícula"
+              checked={formData.isMatriculaOwner}
+              onChange={(e) => handleChange('isMatriculaOwner', e.currentTarget.checked)}
+              mb="md"
+            />
+          </>
+        )}
 
         {isEdit && (
           <Checkbox

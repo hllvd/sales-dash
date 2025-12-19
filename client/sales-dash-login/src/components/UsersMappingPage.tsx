@@ -183,7 +183,7 @@ const UsersMappingPage: React.FC = () => {
           // If we have both matricula and name, try to fetch and filter user data
           if (matricula && userName) {
             try {
-              const response = await apiService.getUsersByMatricula(matricula);
+              const response = await apiService.getUsersByMatriculaNumber(matricula);
               if (response.success && response.data && response.data.length > 0) {
                 // Filter users by name (case-insensitive) and map to local User interface
                 matchedUsers = response.data

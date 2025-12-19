@@ -18,19 +18,22 @@ namespace SalesApp.Controllers
         private readonly IUserHierarchyService _hierarchyService;
         private readonly IContractRepository _contractRepository;
         private readonly IRoleRepository _roleRepository;
+        private readonly IUserMatriculaRepository _matriculaRepository;
         
         public UsersController(
             IUserRepository userRepository, 
             IJwtService jwtService, 
             IUserHierarchyService hierarchyService, 
             IContractRepository contractRepository,
-            IRoleRepository roleRepository)
+            IRoleRepository roleRepository,
+            IUserMatriculaRepository matriculaRepository)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
             _hierarchyService = hierarchyService;
             _contractRepository = contractRepository;
             _roleRepository = roleRepository;
+            _matriculaRepository = matriculaRepository;
         }
         
         [HttpPost("register")]
@@ -54,8 +57,24 @@ namespace SalesApp.Controllers
                 });
             }
             
+            // Resolve parent user ID from email if provided
+            Guid? parentUserId = request.ParentUserId;
+            if (!parentUserId.HasValue && !string.IsNullOrEmpty(request.ParentUserEmail))
+            {
+                var parentUser = await _userRepository.GetByEmailAsync(request.ParentUserEmail);
+                if (parentUser == null)
+                {
+                    return BadRequest(new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = $"Parent user not found with email: {request.ParentUserEmail}"
+                    });
+                }
+                parentUserId = parentUser.Id;
+            }
+            
             // Validate hierarchy rules
-            var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(Guid.NewGuid(), request.ParentUserId);
+            var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(Guid.NewGuid(), parentUserId);
             if (hierarchyError != null)
             {
                 return BadRequest(new ApiResponse<UserResponse>
@@ -81,7 +100,7 @@ namespace SalesApp.Controllers
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 RoleId = role.Id,
-                ParentUserId = request.ParentUserId,
+                ParentUserId = parentUserId,
                 IsActive = true,
                 Level = 1 // Default level for new users, will be adjusted by hierarchy service if needed
             };
@@ -97,6 +116,46 @@ namespace SalesApp.Controllers
                     Success = false,
                     Message = ex.Message
                 });
+            }
+            
+            // Handle matricula assignment if provided
+            if (!string.IsNullOrEmpty(request.MatriculaNumber))
+            {
+                try
+                {
+                    // Check if matricula already exists
+                    var existingMatricula = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
+                    
+                    bool isOwner = request.IsMatriculaOwner;
+                    
+                    // If matricula doesn't exist and user wants to be owner, they become the owner
+                    if (existingMatricula == null)
+                    {
+                        isOwner = true; // First user with this matricula becomes owner
+                    }
+                    
+                    var userMatricula = new UserMatricula
+                    {
+                        UserId = user.Id,
+                        MatriculaNumber = request.MatriculaNumber,
+                        StartDate = DateTime.UtcNow,
+                        IsOwner = isOwner,
+                        IsActive = true
+                    };
+                    
+                    await _matriculaRepository.CreateAsync(userMatricula);
+                }
+                catch (Exception ex)
+                {
+                    // Log error but don't fail user creation
+                    // User was created successfully, matricula assignment failed
+                    return Ok(new ApiResponse<UserResponse>
+                    {
+                        Success = true,
+                        Data = MapToUserResponse(user),
+                        Message = $"User created successfully, but matricula assignment failed: {ex.Message}"
+                    });
+                }
             }
             
             return Ok(new ApiResponse<UserResponse>
@@ -270,9 +329,28 @@ namespace SalesApp.Controllers
                 }
             }
                 
-            if (request.ParentUserId.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
+            // Handle parent user assignment (by ID or email)
+            if ((request.ParentUserId.HasValue || !string.IsNullOrEmpty(request.ParentUserEmail)) && 
+                (currentUserRole == "admin" || currentUserRole == "superadmin"))
             {
-                var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(id, request.ParentUserId);
+                Guid? parentUserId = request.ParentUserId;
+                
+                // Resolve parent user ID from email if provided
+                if (!parentUserId.HasValue && !string.IsNullOrEmpty(request.ParentUserEmail))
+                {
+                    var parentUser = await _userRepository.GetByEmailAsync(request.ParentUserEmail);
+                    if (parentUser == null)
+                    {
+                        return BadRequest(new ApiResponse<UserResponse>
+                        {
+                            Success = false,
+                            Message = $"Parent user not found with email: {request.ParentUserEmail}"
+                        });
+                    }
+                    parentUserId = parentUser.Id;
+                }
+                
+                var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(id, parentUserId);
                 if (hierarchyError != null)
                 {
                     return BadRequest(new ApiResponse<UserResponse>
@@ -281,7 +359,7 @@ namespace SalesApp.Controllers
                         Message = hierarchyError
                     });
                 }
-                user.ParentUserId = request.ParentUserId;
+                user.ParentUserId = parentUserId;
             }
             
             if (request.IsActive.HasValue)

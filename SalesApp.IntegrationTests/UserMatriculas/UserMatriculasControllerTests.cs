@@ -312,7 +312,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
         }
 
         [Fact]
-        public async Task LookupByMatriculaNumber_AsAdmin_ShouldReturnUsers()
+        public async Task GetUsersByMatriculaNumber_AsAdmin_ShouldReturnUsers()
         {
             // Arrange
             var token = await GetSuperAdminTokenAsync();
@@ -350,7 +350,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             }
 
             // Act
-            var response = await _client.GetAsync("/api/usermatriculas/lookup/LOOKUP-123");
+            var response = await _client.GetAsync("/api/usermatriculas/by-number/LOOKUP-123");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -364,7 +364,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
         }
 
         [Fact]
-        public async Task LookupByMatriculaId_AsAdmin_ShouldReturnUsers()
+        public async Task GetUsersByMatriculaId_AsAdmin_ShouldReturnUsers()
         {
             // Arrange
             var token = await GetSuperAdminTokenAsync();
@@ -394,7 +394,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             }
 
             // Act - lookup by ID
-            var response = await _client.GetAsync($"/api/usermatriculas/lookup/{matriculaId}");
+            var response = await _client.GetAsync($"/api/usermatriculas/{matriculaId}/users");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -408,14 +408,14 @@ namespace SalesApp.IntegrationTests.UserMatriculas
         }
 
         [Fact]
-        public async Task LookupByNonExistentMatricula_AsAdmin_ShouldReturnEmptyList()
+        public async Task GetUsersByNonExistentMatriculaNumber_AsAdmin_ShouldReturnEmptyList()
         {
             // Arrange
             var token = await GetSuperAdminTokenAsync();
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Act
-            var response = await _client.GetAsync("/api/usermatriculas/lookup/NONEXISTENT-999");
+            var response = await _client.GetAsync("/api/usermatriculas/by-number/NONEXISTENT-999");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -427,7 +427,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
         }
 
         [Fact]
-        public async Task LookupByMatriculaNumber_WithMultipleUsers_ShouldReturnAllUsers()
+        public async Task GetUsersByMatriculaNumber_WithMultipleUsers_ShouldReturnAllUsers()
         {
             // Arrange
             var token = await GetSuperAdminTokenAsync();
@@ -454,7 +454,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             }
 
             // Act
-            var response = await _client.GetAsync("/api/usermatriculas/lookup/MULTI-789");
+            var response = await _client.GetAsync("/api/usermatriculas/by-number/MULTI-789");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -467,7 +467,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
         }
 
         [Fact]
-        public async Task LookupByMatriculaNumber_ShouldExcludeInactiveMatriculas()
+        public async Task GetUsersByMatriculaNumber_ShouldExcludeInactiveMatriculas()
         {
             // Arrange
             var token = await GetSuperAdminTokenAsync();
@@ -516,7 +516,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             }
 
             // Act
-            var response = await _client.GetAsync("/api/usermatriculas/lookup/ACTIVE-TEST-999");
+            var response = await _client.GetAsync("/api/usermatriculas/by-number/ACTIVE-TEST-999");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
