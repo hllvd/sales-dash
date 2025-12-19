@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, TextInput, NumberInput, Select, Button, Group, Title } from '@mantine/core';
+import { TextInput, NumberInput, Select, Button, Group } from '@mantine/core';
 import {
   CreateContractRequest,
   UpdateContractRequest,
@@ -14,6 +14,7 @@ import {
 import { apiService, PV } from '../services/apiService';
 import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
+import StyledModal from './StyledModal';
 
 interface ContractFormProps {
   contract?: Contract | null;
@@ -176,7 +177,12 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   };
 
   return (
-    <Modal opened={true} onClose={onClose} title={<Title order={2} c="rgb(30, 28, 28)">{isEditMode ? 'Editar Contrato' : 'Criar Contrato'}</Title>} size="lg" className="styled-form">
+    <StyledModal 
+      opened={true} 
+      onClose={onClose} 
+      title={isEditMode ? 'Editar Contrato' : 'Criar Contrato'}
+      size="lg"
+    >
       <form onSubmit={handleSubmit}>
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
@@ -308,7 +314,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           </Button>
         </Group>
       </form>
-    </Modal>
+    </StyledModal>
   );
 };
 

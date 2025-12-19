@@ -1,6 +1,7 @@
 import React, { useState } from "react"
-import { Modal, TextInput, PasswordInput, Select, Checkbox, Button, Group, Title } from '@mantine/core';
+import { TextInput, PasswordInput, Select, Checkbox, Button, Group } from '@mantine/core';
 import { User } from "../services/apiService"
+import StyledModal from './StyledModal';
 
 interface UserFormProps {
   user?: User
@@ -74,7 +75,12 @@ const UserForm: React.FC<UserFormProps> = ({
   }
 
   return (
-    <Modal opened={true} onClose={onCancel} title={<Title order={2} c="rgb(30, 28, 28)">{isEdit ? "Editar Usuário" : "Criar Novo Usuário"}</Title>} size="md" className="styled-form">
+    <StyledModal 
+      opened={true} 
+      onClose={onCancel} 
+      title={isEdit ? "Editar Usuário" : "Criar Novo Usuário"}
+      size="md"
+    >
       <form onSubmit={handleSubmit}>
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
@@ -173,7 +179,7 @@ const UserForm: React.FC<UserFormProps> = ({
           </Button>
         </Group>
       </form>
-    </Modal>
+    </StyledModal>
   )
 }
 

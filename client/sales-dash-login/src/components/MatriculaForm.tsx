@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
-import { Modal, TextInput, Select, Checkbox, Button, Group, Title } from '@mantine/core';
+import { TextInput, Select, Checkbox, Button, Group } from '@mantine/core';
 import { UserMatricula, apiService, User } from "../services/apiService"
+import StyledModal from './StyledModal';
 
 interface MatriculaFormProps {
   matricula?: UserMatricula
@@ -82,12 +83,11 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
   }))
 
   return (
-    <Modal 
+    <StyledModal 
       opened={true} 
       onClose={onClose} 
-      title={<Title order={2} c="rgb(30, 28, 28)">{isEdit ? "Editar Matrícula" : "Nova Matrícula"}</Title>} 
-      size="md" 
-      className="styled-form"
+      title={isEdit ? "Editar Matrícula" : "Nova Matrícula"}
+      size="md"
     >
       <form onSubmit={handleSubmit}>
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
@@ -186,7 +186,7 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
           </Button>
         </Group>
       </form>
-    </Modal>
+    </StyledModal>
   )
 }
 

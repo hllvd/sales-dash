@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, Button, Group, Title, Progress, Text } from '@mantine/core';
+import { Button, Group, Title, Progress, Text } from '@mantine/core';
 import { IconUpload, IconCheck, IconX } from '@tabler/icons-react';
 import { apiService } from '../services/apiService';
+import StyledModal from './StyledModal';
 
 interface MatriculaImportModalProps {
   onClose: () => void;
@@ -133,10 +134,10 @@ const MatriculaImportModal: React.FC<MatriculaImportModalProps> = ({ onClose, on
   };
 
   return (
-    <Modal
+    <StyledModal
       opened={true}
       onClose={onClose}
-      title={<Title order={2} c="rgb(30, 28, 28)">Importar Matrículas (CSV)</Title>}
+      title="Importar Matrículas (CSV)"
       size="lg"
     >
       <div style={{ padding: '10px 0' }}>
@@ -263,7 +264,7 @@ const MatriculaImportModal: React.FC<MatriculaImportModalProps> = ({ onClose, on
           </>
         )}
       </div>
-    </Modal>
+    </StyledModal>
   );
 };
 
