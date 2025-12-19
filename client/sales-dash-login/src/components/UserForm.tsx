@@ -1,7 +1,8 @@
-import React, { useState } from "react"
-import { TextInput, PasswordInput, Select, Checkbox, Button, Group } from '@mantine/core';
-import { User } from "../services/apiService"
+import React, { useState, useEffect } from "react"
+import { TextInput, PasswordInput, Select, Checkbox, Button, Group, Autocomplete } from '@mantine/core';
+import { User, apiService } from "../services/apiService"
 import StyledModal from './StyledModal';
+import { toast } from '../utils/toast';
 
 interface UserFormProps {
   user?: User
@@ -22,19 +23,70 @@ const UserForm: React.FC<UserFormProps> = ({
     password: "",
     role: user?.role || "user",
     parentUserId: user?.parentUserId || "",
-    parentUserEmail: "",
     isActive: user?.isActive ?? true,
     matriculaNumber: "",
     isMatriculaOwner: false,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [users, setUsers] = useState<User[]>([])
+  const [parentUserSearch, setParentUserSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(parentUserSearch)
+    }, 300) // 300ms delay
+
+    return () => clearTimeout(timer)
+  }, [parentUserSearch])
+
+  // Load users for parent selection
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const response = await apiService.getUsers(1, 100)
+        if (response.success && response.data) {
+          setUsers(response.data.items)
+          
+          // Set initial parent user search if editing
+          if (user?.parentUserId) {
+            const parentUser = response.data.items.find(u => u.id === user.parentUserId)
+            if (parentUser) {
+              setParentUserSearch(`${parentUser.name} (${parentUser.email})`)
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load users:', err)
+        toast.error('Falha ao carregar lista de usuários')
+      }
+    }
+    loadUsers()
+  }, [user?.parentUserId])
 
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }))
+  }
+
+  const handleParentUserSelect = (value: string) => {
+    setParentUserSearch(value)
+    
+    // Find user by name or email
+    const selectedUser = users.find(u => 
+      `${u.name} (${u.email})` === value
+    )
+    
+    if (selectedUser) {
+      setFormData(prev => ({
+        ...prev,
+        parentUserId: selectedUser.id
+      }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,8 +107,6 @@ const UserForm: React.FC<UserFormProps> = ({
 
       if (formData.parentUserId) {
         userData.parentUserId = formData.parentUserId
-      } else if (formData.parentUserEmail) {
-        userData.parentUserEmail = formData.parentUserEmail
       }
 
       // Only include matricula fields when creating a new user
@@ -73,7 +123,9 @@ const UserForm: React.FC<UserFormProps> = ({
 
       await onSubmit(userData)
     } catch (err: any) {
-      setError(err.message || "An error occurred")
+      const errorMessage = err.message || "Ocorreu um erro"
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -141,22 +193,21 @@ const UserForm: React.FC<UserFormProps> = ({
           mb="md"
         />
 
-        <TextInput
-          label="ID do Usuário Pai"
-          description="Opcional - deixe em branco se usar email"
-          value={formData.parentUserId}
-          onChange={(e) => handleChange('parentUserId', e.target.value)}
-          placeholder="UUID do usuário pai"
-          mb="md"
-        />
-
-        <TextInput
-          label="Email do Usuário Pai"
-          description="Opcional - alternativa ao ID"
-          type="email"
-          value={formData.parentUserEmail}
-          onChange={(e) => handleChange('parentUserEmail', e.target.value)}
-          placeholder="email@exemplo.com"
+        <Autocomplete
+          label="Usuário Pai"
+          description="Opcional - busque por nome ou email"
+          placeholder="Digite para buscar..."
+          value={parentUserSearch}
+          onChange={handleParentUserSelect}
+          data={users
+            .filter(u => {
+              if (!debouncedSearch) return true
+              const searchLower = debouncedSearch.toLowerCase()
+              return u.name.toLowerCase().includes(searchLower) || 
+                     u.email.toLowerCase().includes(searchLower)
+            })
+            .map(u => `${u.name} (${u.email})`)}
+          limit={10}
           mb="md"
         />
 

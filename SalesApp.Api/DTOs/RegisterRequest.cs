@@ -22,9 +22,6 @@ namespace SalesApp.DTOs
         
         public Guid? ParentUserId { get; set; }
         
-        [EmailAddress]
-        public string? ParentUserEmail { get; set; }
-        
         [MaxLength(50)]
         public string? MatriculaNumber { get; set; }
         

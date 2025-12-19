@@ -19,9 +19,6 @@ namespace SalesApp.DTOs
         
         public Guid? ParentUserId { get; set; }
         
-        [EmailAddress]
-        public string? ParentUserEmail { get; set; }
-        
         public bool? IsActive { get; set; }
     }
 }

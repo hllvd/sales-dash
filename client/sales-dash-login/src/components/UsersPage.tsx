@@ -11,8 +11,10 @@ import {
   CreateUserRequest,
   UpdateUserRequest,
 } from "../services/apiService"
+import { useUsers } from "../contexts/UsersContext"
 
 const UsersPage: React.FC = () => {
+  const { users: cachedUsers, setUsers: setCachedUsers, getUserById } = useUsers()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -41,6 +43,7 @@ const UsersPage: React.FC = () => {
 
       if (response.success && response.data) {
         setUsers(response.data.items)
+        setCachedUsers(response.data.items) // Store in context
         setTotalCount(response.data.totalCount)
         setTotalPages(Math.ceil(response.data.totalCount / pageSize))
       }
@@ -49,7 +52,7 @@ const UsersPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [page, searchDebounce])
+  }, [page, searchDebounce, setCachedUsers])
 
   // Debounce search input
   useEffect(() => {
@@ -109,7 +112,9 @@ const UsersPage: React.FC = () => {
   }
 
   const openEditForm = (user: User) => {
-    setEditingUser(user)
+    // Try to get fresh data from cache first
+    const cachedUser = getUserById(user.id)
+    setEditingUser(cachedUser || user)
     setShowForm(true)
   }
 

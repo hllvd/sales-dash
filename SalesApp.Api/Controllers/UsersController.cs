@@ -57,24 +57,8 @@ namespace SalesApp.Controllers
                 });
             }
             
-            // Resolve parent user ID from email if provided
-            Guid? parentUserId = request.ParentUserId;
-            if (!parentUserId.HasValue && !string.IsNullOrEmpty(request.ParentUserEmail))
-            {
-                var parentUser = await _userRepository.GetByEmailAsync(request.ParentUserEmail);
-                if (parentUser == null)
-                {
-                    return BadRequest(new ApiResponse<UserResponse>
-                    {
-                        Success = false,
-                        Message = $"Parent user not found with email: {request.ParentUserEmail}"
-                    });
-                }
-                parentUserId = parentUser.Id;
-            }
-            
             // Validate hierarchy rules
-            var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(Guid.NewGuid(), parentUserId);
+            var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(Guid.NewGuid(), request.ParentUserId);
             if (hierarchyError != null)
             {
                 return BadRequest(new ApiResponse<UserResponse>
@@ -100,7 +84,7 @@ namespace SalesApp.Controllers
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 RoleId = role.Id,
-                ParentUserId = parentUserId,
+                ParentUserId = request.ParentUserId,
                 IsActive = true,
                 Level = 1 // Default level for new users, will be adjusted by hierarchy service if needed
             };
@@ -329,28 +313,10 @@ namespace SalesApp.Controllers
                 }
             }
                 
-            // Handle parent user assignment (by ID or email)
-            if ((request.ParentUserId.HasValue || !string.IsNullOrEmpty(request.ParentUserEmail)) && 
-                (currentUserRole == "admin" || currentUserRole == "superadmin"))
+            // Handle parent user assignment
+            if (request.ParentUserId.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
             {
-                Guid? parentUserId = request.ParentUserId;
-                
-                // Resolve parent user ID from email if provided
-                if (!parentUserId.HasValue && !string.IsNullOrEmpty(request.ParentUserEmail))
-                {
-                    var parentUser = await _userRepository.GetByEmailAsync(request.ParentUserEmail);
-                    if (parentUser == null)
-                    {
-                        return BadRequest(new ApiResponse<UserResponse>
-                        {
-                            Success = false,
-                            Message = $"Parent user not found with email: {request.ParentUserEmail}"
-                        });
-                    }
-                    parentUserId = parentUser.Id;
-                }
-                
-                var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(id, parentUserId);
+                var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(id, request.ParentUserId);
                 if (hierarchyError != null)
                 {
                     return BadRequest(new ApiResponse<UserResponse>
@@ -359,7 +325,7 @@ namespace SalesApp.Controllers
                         Message = hierarchyError
                     });
                 }
-                user.ParentUserId = parentUserId;
+                user.ParentUserId = request.ParentUserId;
             }
             
             if (request.IsActive.HasValue)
