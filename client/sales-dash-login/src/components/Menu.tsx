@@ -148,7 +148,17 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
 
         </AppShell.Section>
 
-        <AppShell.Section style={{ border: '0px', borderTop: '1px solid #374151', borderRadius: '8px', paddingTop: '16px', '&:hover': { backgroundColor: 'rgba(220, 38, 38, 0.1)' } }}>
+        <AppShell.Section style={{ border: '0px', borderTop: '1px solid #374151', borderRadius: '8px', paddingTop: '16px' }}>
+          <NavLink
+            href="#/my-profile"
+            label="Meu Usuário"
+            leftSection={<IconUsers size={20} />}
+            active={isActive('#/my-profile')}
+            variant="filled"
+            color="red"
+            styles={navLinkStyles('#/my-profile')}
+            mb="xs"
+          />
           <Button
             fullWidth
             leftSection={<IconLogout size={20} />}

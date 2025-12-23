@@ -1,0 +1,139 @@
+.my-profile-page {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.my-profile-header {
+  margin-bottom: 30px;
+}
+
+.my-profile-content {
+  background: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-section h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+.readonly-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.readonly-field label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+}
+
+.readonly-value {
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  color: #333;
+  font-size: 14px;
+}
+
+.matriculas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.matricula-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.matricula-item strong {
+  color: #333;
+}
+
+.owner-badge {
+  background: #4caf50;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.matricula-dates {
+  margin-left: auto;
+  font-size: 13px;
+  color: #666;
+}
+
+.password-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.password-section-header h3 {
+  margin: 0;
+  border: none;
+  padding: 0;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
