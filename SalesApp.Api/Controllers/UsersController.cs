@@ -4,8 +4,10 @@ using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Data;
 using System.Security.Claims;
 using BCrypt.Net;
+using Microsoft.EntityFrameworkCore;
 
 namespace SalesApp.Controllers
 {
@@ -19,6 +21,8 @@ namespace SalesApp.Controllers
         private readonly IContractRepository _contractRepository;
         private readonly IRoleRepository _roleRepository;
         private readonly IUserMatriculaRepository _matriculaRepository;
+        private readonly IConfiguration _configuration;
+        private readonly AppDbContext _context;
         
         public UsersController(
             IUserRepository userRepository, 
@@ -26,7 +30,9 @@ namespace SalesApp.Controllers
             IUserHierarchyService hierarchyService, 
             IContractRepository contractRepository,
             IRoleRepository roleRepository,
-            IUserMatriculaRepository matriculaRepository)
+            IUserMatriculaRepository matriculaRepository,
+            IConfiguration configuration,
+            AppDbContext context)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
@@ -34,6 +40,8 @@ namespace SalesApp.Controllers
             _contractRepository = contractRepository;
             _roleRepository = roleRepository;
             _matriculaRepository = matriculaRepository;
+            _configuration = configuration;
+            _context = context;
         }
         
         [HttpPost("register")]
@@ -165,6 +173,23 @@ namespace SalesApp.Controllers
             }
             
             var token = _jwtService.GenerateToken(user);
+            var refreshToken = _jwtService.GenerateRefreshToken();
+            
+            // Get refresh token expiration from config
+            var refreshTokenExpirationDays = int.Parse(_configuration["Jwt:RefreshTokenExpirationDays"] ?? "7");
+            var expiresAt = DateTime.UtcNow.AddDays(refreshTokenExpirationDays);
+            
+            // Store refresh token in database
+            var refreshTokenEntity = new RefreshToken
+            {
+                UserId = user.Id,
+                Token = refreshToken,
+                ExpiresAt = expiresAt,
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            _context.RefreshTokens.Add(refreshTokenEntity);
+            await _context.SaveChangesAsync();
             
             return Ok(new ApiResponse<LoginResponse>
             {
@@ -172,6 +197,8 @@ namespace SalesApp.Controllers
                 Data = new LoginResponse
                 {
                     Token = token,
+                    RefreshToken = refreshToken,
+                    ExpiresAt = expiresAt,
                     User = MapToUserResponse(user)
                 },
                 Message = "Login successful"

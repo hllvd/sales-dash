@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using SalesApp.Controllers;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Data;
 using System.Security.Claims;
 using Xunit;
 using FluentAssertions;
@@ -20,6 +23,8 @@ namespace SalesApp.Tests
         private readonly Mock<IContractRepository> _mockContractRepository;
         private readonly Mock<IRoleRepository> _mockRoleRepository;
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
+        private readonly Mock<IConfiguration> _mockConfiguration;
+        private readonly AppDbContext _context;
         private readonly UsersController _controller;
 
         public UsersControllerTests()
@@ -30,13 +35,23 @@ namespace SalesApp.Tests
             _mockContractRepository = new Mock<IContractRepository>();
             _mockRoleRepository = new Mock<IRoleRepository>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
+            _mockConfiguration = new Mock<IConfiguration>();
+            
+            // Create in-memory database for testing
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+            _context = new AppDbContext(options);
+            
             _controller = new UsersController(
                 _mockUserRepository.Object, 
                 _mockJwtService.Object, 
                 _mockHierarchyService.Object,
                 _mockContractRepository.Object,
                 _mockRoleRepository.Object,
-                _mockMatriculaRepository.Object);
+                _mockMatriculaRepository.Object,
+                _mockConfiguration.Object,
+                _context);
         }
 
         private void SetupUser(string userId, string role)
@@ -156,6 +171,8 @@ namespace SalesApp.Tests
 
             _mockUserRepository.Setup(x => x.GetByEmailAsync(request.Email)).ReturnsAsync(user);
             _mockJwtService.Setup(x => x.GenerateToken(user)).Returns("test_token");
+            _mockJwtService.Setup(x => x.GenerateRefreshToken()).Returns("test_refresh_token");
+            _mockConfiguration.Setup(x => x["Jwt:RefreshTokenExpirationDays"]).Returns("7");
 
             // Act
             var result = await _controller.Login(request);
@@ -166,6 +183,7 @@ namespace SalesApp.Tests
             var response = okResult!.Value as ApiResponse<LoginResponse>;
             response!.Success.Should().BeTrue();
             response.Data!.Token.Should().Be("test_token");
+            response.Data.RefreshToken.Should().Be("test_refresh_token");
             response.Data.User.Email.Should().Be(user.Email);
         }
 

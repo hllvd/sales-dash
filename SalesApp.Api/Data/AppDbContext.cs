@@ -17,6 +17,7 @@ namespace SalesApp.Data
         public DbSet<ImportUserMapping> ImportUserMappings { get; set; }
         public DbSet<PV> PVs { get; set; }
         public DbSet<UserMatricula> UserMatriculas { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -200,6 +201,25 @@ namespace SalesApp.Data
                 
                 entity.HasOne(e => e.User)
                     .WithMany(u => u.UserMatriculas)
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+            
+            // RefreshToken entity configuration
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.Token).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.ExpiresAt).IsRequired();
+                entity.Property(e => e.IsRevoked).HasDefaultValue(false);
+                
+                // Index for faster token lookups
+                entity.HasIndex(e => e.Token);
+                entity.HasIndex(e => new { e.UserId, e.IsRevoked });
+                
+                entity.HasOne(e => e.User)
+                    .WithMany()
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
             });

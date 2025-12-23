@@ -2,6 +2,7 @@ using Microsoft.IdentityModel.Tokens;
 using SalesApp.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace SalesApp.Services
@@ -9,6 +10,7 @@ namespace SalesApp.Services
     public interface IJwtService
     {
         string GenerateToken(User user);
+        string GenerateRefreshToken();
         ClaimsPrincipal? ValidateToken(string token);
     }
     
@@ -25,6 +27,7 @@ namespace SalesApp.Services
         {
             var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"]!);
             var roleName = user.Role?.Name ?? "user";
+            var expirationMinutes = int.Parse(_configuration["Jwt:AccessTokenExpirationMinutes"] ?? "1440");
             
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -35,13 +38,21 @@ namespace SalesApp.Services
                     new Claim(ClaimTypes.Name, user.Name),
                     new Claim(ClaimTypes.Role, roleName)
                 }),
-                Expires = DateTime.UtcNow.AddDays(7),
+                Expires = DateTime.UtcNow.AddMinutes(expirationMinutes),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
             
             var tokenHandler = new JwtSecurityTokenHandler();
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
+        }
+        
+        public string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[64];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
         }
         
         public ClaimsPrincipal? ValidateToken(string token)
