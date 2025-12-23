@@ -505,10 +505,25 @@ namespace SalesApp.Controllers
                 });
             }
             
+            // Get active matriculas for current user
+            var activeMatriculas = await _matriculaRepository.GetActiveByUserIdAsync(currentUserId);
+            
+            var userResponse = MapToUserResponse(user);
+            userResponse.ActiveMatriculas = activeMatriculas
+                .Select(m => new UserMatriculaInfo
+                {
+                    Id = m.Id,
+                    MatriculaNumber = m.MatriculaNumber,
+                    IsOwner = m.IsOwner,
+                    StartDate = m.StartDate,
+                    EndDate = m.EndDate
+                })
+                .ToList();
+            
             return Ok(new ApiResponse<UserResponse>
             {
                 Success = true,
-                Data = MapToUserResponse(user),
+                Data = userResponse,
                 Message = "Current user retrieved successfully"
             });
         }

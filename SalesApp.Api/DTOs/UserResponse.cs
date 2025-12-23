@@ -16,6 +16,9 @@ namespace SalesApp.DTOs
         public int? MatriculaId { get; set; }
         public string? MatriculaNumber { get; set; }
         public bool IsMatriculaOwner { get; set; }
+        
+        // Active matriculas for current user
+        public List<UserMatriculaInfo> ActiveMatriculas { get; set; } = new();
     }
     
     public class LoginResponse

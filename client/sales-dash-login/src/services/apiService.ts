@@ -14,6 +14,14 @@ interface PagedResponse<T> {
   pageSize: number
 }
 
+export interface UserMatriculaInfo {
+  id: number
+  matriculaNumber: string
+  isOwner: boolean
+  startDate: string
+  endDate: string | null
+}
+
 export interface User {
   id: string
   name: string
@@ -26,6 +34,7 @@ export interface User {
   isMatriculaOwner: boolean
   createdAt: string
   updatedAt: string
+  activeMatriculas?: UserMatriculaInfo[]
 }
 
 export interface UserLookupByMatricula {
@@ -95,6 +104,18 @@ export const apiService = {
 
     if (!response.ok) {
       throw new Error("Failed to fetch user")
+    }
+
+    return response.json()
+  },
+
+  async getCurrentUser(): Promise<ApiResponse<User>> {
+    const response = await fetch(`${API_BASE_URL}/users/me`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch current user")
     }
 
     return response.json()

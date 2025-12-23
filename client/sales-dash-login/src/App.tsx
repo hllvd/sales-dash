@@ -11,6 +11,7 @@ import MyContractsPage from './components/MyContractsPage';
 import MatriculasPage from './components/MatriculasPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
+import { CurrentUserProvider } from './contexts/CurrentUserContext';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/charts/styles.css';
@@ -60,14 +61,16 @@ function App() {
   };
 
   return (
-    <UsersProvider>
-      <ContractsProvider>
-        <MantineProvider>
-          <Notifications />
-          {renderPage()}
-        </MantineProvider>
-      </ContractsProvider>
-    </UsersProvider>
+    <CurrentUserProvider>
+      <UsersProvider>
+        <ContractsProvider>
+          <MantineProvider>
+            <Notifications />
+            {renderPage()}
+          </MantineProvider>
+        </ContractsProvider>
+      </UsersProvider>
+    </CurrentUserProvider>
   );
 }
 
