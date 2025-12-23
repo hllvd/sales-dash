@@ -262,8 +262,9 @@ const ContractsPage: React.FC = () => {
           <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Número</Table.Th>
+                <Table.Th>Número do Contrato</Table.Th>
                 <Table.Th>Usuário</Table.Th>
+                <Table.Th>Matrícula</Table.Th>
                 <Table.Th>Grupo</Table.Th>
                 <Table.Th>Cliente</Table.Th>
                 <Table.Th>Valor Total</Table.Th>
@@ -277,6 +278,7 @@ const ContractsPage: React.FC = () => {
                 <Table.Tr key={contract.id}>
                   <Table.Td>{contract.contractNumber}</Table.Td>
                   <Table.Td>{contract.userName}</Table.Td>
+                  <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
                   <Table.Td>{contract.groupName}</Table.Td>
                   <Table.Td>{contract.customerName || '-'}</Table.Td>
                   <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
