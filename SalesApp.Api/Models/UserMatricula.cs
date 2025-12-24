@@ -20,6 +20,10 @@ namespace SalesApp.Models
         
         public bool IsActive { get; set; } = true;
         
+        [Required]
+        [MaxLength(20)]
+        public string Status { get; set; } = "active"; // "active", "pending"
+        
         public bool IsOwner { get; set; } = false;
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

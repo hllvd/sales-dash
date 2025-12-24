@@ -88,6 +88,24 @@
   font-weight: 500;
 }
 
+.active-badge {
+  background: #2196f3;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pending-badge {
+  background: #ff9800;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .matricula-dates {
   margin-left: auto;
   font-size: 13px;

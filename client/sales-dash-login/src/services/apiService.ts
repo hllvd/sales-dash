@@ -18,6 +18,7 @@ export interface UserMatriculaInfo {
   id: number
   matriculaNumber: string
   isOwner: boolean
+  status: string
   startDate: string
   endDate: string | null
 }

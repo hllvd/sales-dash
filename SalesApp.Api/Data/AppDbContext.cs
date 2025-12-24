@@ -194,6 +194,7 @@ namespace SalesApp.Data
                 entity.Property(e => e.MatriculaNumber).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.StartDate).IsRequired();
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("active");
                 
                 // Index for faster lookups
                 entity.HasIndex(e => e.MatriculaNumber);

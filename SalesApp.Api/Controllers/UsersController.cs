@@ -542,6 +542,7 @@ namespace SalesApp.Controllers
                     Id = m.Id,
                     MatriculaNumber = m.MatriculaNumber,
                     IsOwner = m.IsOwner,
+                    Status = m.Status,
                     StartDate = m.StartDate,
                     EndDate = m.EndDate
                 })
@@ -552,6 +553,55 @@ namespace SalesApp.Controllers
                 Success = true,
                 Data = userResponse,
                 Message = "Current user retrieved successfully"
+            });
+        }
+        
+        [HttpPost("me/request-matricula")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserMatriculaInfo>>> RequestMatricula([FromBody] RequestMatriculaRequest request)
+        {
+            var currentUserId = GetCurrentUserId();
+            
+            // Check if user already has this matricula
+            var existingMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, currentUserId);
+            if (existingMatricula != null)
+            {
+                return BadRequest(new ApiResponse<UserMatriculaInfo>
+                {
+                    Success = false,
+                    Message = "You already have this matricula assigned or requested"
+                });
+            }
+            
+            // Create new matricula request with pending status
+            var userMatricula = new UserMatricula
+            {
+                UserId = currentUserId,
+                MatriculaNumber = request.MatriculaNumber,
+                StartDate = DateTime.UtcNow,
+                IsActive = false, // Not active until approved
+                Status = "pending",
+                IsOwner = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            
+            _context.UserMatriculas.Add(userMatricula);
+            await _context.SaveChangesAsync();
+            
+            return Ok(new ApiResponse<UserMatriculaInfo>
+            {
+                Success = true,
+                Data = new UserMatriculaInfo
+                {
+                    Id = userMatricula.Id,
+                    MatriculaNumber = userMatricula.MatriculaNumber,
+                    IsOwner = userMatricula.IsOwner,
+                    Status = userMatricula.Status,
+                    StartDate = userMatricula.StartDate,
+                    EndDate = userMatricula.EndDate
+                },
+                Message = "Matricula request submitted successfully. Awaiting approval."
             });
         }
         

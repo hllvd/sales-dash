@@ -172,12 +172,14 @@ const MyProfilePage: React.FC = () => {
 
               {currentUser.activeMatriculas && currentUser.activeMatriculas.length > 0 && (
                 <div className="readonly-field">
-                  <label>Matrículas Ativas</label>
+                  <label>Matrículas</label>
                   <div className="matriculas-list">
                     {currentUser.activeMatriculas.map(m => (
                       <div key={m.id} className="matricula-item">
                         <strong>{m.matriculaNumber}</strong>
                         {m.isOwner && <span className="owner-badge">Proprietário</span>}
+                        {m.status === 'pending' && <span className="pending-badge">Pendente</span>}
+                        {m.status === 'active' && <span className="active-badge">Ativa</span>}
                         <span className="matricula-dates">
                           {new Date(m.startDate).toLocaleDateString('pt-BR')}
                           {m.endDate && ` - ${new Date(m.endDate).toLocaleDateString('pt-BR')}`}
