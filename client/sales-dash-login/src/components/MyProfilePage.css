@@ -106,6 +106,47 @@
   font-weight: 500;
 }
 
+.matriculas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.matriculas-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.matriculas-table th,
+.matriculas-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.matriculas-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.matriculas-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.matriculas-table td {
+  font-size: 14px;
+}
+
+.no-matriculas {
+  color: #666;
+  font-style: italic;
+  margin: 12px 0;
+}
+
 .matricula-dates {
   margin-left: auto;
   font-size: 13px;

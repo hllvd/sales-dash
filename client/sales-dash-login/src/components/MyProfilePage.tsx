@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Title, Button, TextInput, PasswordInput } from '@mantine/core';
+import { Title, Button, TextInput, PasswordInput, Modal } from '@mantine/core';
 import './MyProfilePage.css';
 import Menu from './Menu';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
@@ -17,6 +17,9 @@ const MyProfilePage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [showAddMatriculaModal, setShowAddMatriculaModal] = useState(false);
+  const [newMatriculaNumber, setNewMatriculaNumber] = useState('');
+  const [submittingMatricula, setSubmittingMatricula] = useState(false);
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -102,6 +105,29 @@ const MyProfilePage: React.FC = () => {
     }
   };
 
+  const handleAddMatricula = async () => {
+    if (!newMatriculaNumber.trim()) {
+      toast.error('Número da matrícula é obrigatório');
+      return;
+    }
+
+    setSubmittingMatricula(true);
+    try {
+      await apiService.requestMatricula(newMatriculaNumber);
+      toast.success('Matrícula solicitada com sucesso! Aguardando aprovação.');
+      setShowAddMatriculaModal(false);
+      setNewMatriculaNumber('');
+      
+      // Refresh current user to show new matricula
+      await refreshCurrentUser();
+    } catch (err: any) {
+      const errorMessage = err.message || 'Falha ao solicitar matrícula';
+      toast.error(errorMessage);
+    } finally {
+      setSubmittingMatricula(false);
+    }
+  };
+
   if (!currentUser) {
     return (
       <Menu>
@@ -172,21 +198,57 @@ const MyProfilePage: React.FC = () => {
 
               {currentUser.activeMatriculas && currentUser.activeMatriculas.length > 0 && (
                 <div className="readonly-field">
-                  <label>Matrículas</label>
-                  <div className="matriculas-list">
-                    {currentUser.activeMatriculas.map(m => (
-                      <div key={m.id} className="matricula-item">
-                        <strong>{m.matriculaNumber}</strong>
-                        {m.isOwner && <span className="owner-badge">Proprietário</span>}
-                        {m.status === 'pending' && <span className="pending-badge">Pendente</span>}
-                        {m.status === 'active' && <span className="active-badge">Ativa</span>}
-                        <span className="matricula-dates">
-                          {new Date(m.startDate).toLocaleDateString('pt-BR')}
-                          {m.endDate && ` - ${new Date(m.endDate).toLocaleDateString('pt-BR')}`}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="matriculas-header">
+                    <label>Matrículas</label>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowAddMatriculaModal(true)}
+                    >
+                      Adicionar Matrícula
+                    </Button>
                   </div>
+                  <table className="matriculas-table">
+                    <thead>
+                      <tr>
+                        <th>Número</th>
+                        <th>Status</th>
+                        <th>Proprietário</th>
+                        <th>Data Início</th>
+                        <th>Data Fim</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentUser.activeMatriculas.map(m => (
+                        <tr key={m.id}>
+                          <td><strong>{m.matriculaNumber}</strong></td>
+                          <td>
+                            {m.status === 'pending' && <span className="pending-badge">Pendente</span>}
+                            {m.status === 'active' && <span className="active-badge">Ativa</span>}
+                          </td>
+                          <td>
+                            {m.isOwner ? <span className="owner-badge">Sim</span> : 'Não'}
+                          </td>
+                          <td>{new Date(m.startDate).toLocaleDateString('pt-BR')}</td>
+                          <td>{m.endDate ? new Date(m.endDate).toLocaleDateString('pt-BR') : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {(!currentUser.activeMatriculas || currentUser.activeMatriculas.length === 0) && (
+                <div className="readonly-field">
+                  <div className="matriculas-header">
+                    <label>Matrículas</label>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowAddMatriculaModal(true)}
+                    >
+                      Adicionar Matrícula
+                    </Button>
+                  </div>
+                  <p className="no-matriculas">Nenhuma matrícula cadastrada</p>
                 </div>
               )}
             </div>
@@ -249,6 +311,42 @@ const MyProfilePage: React.FC = () => {
             </div>
           </form>
         </div>
+
+        <Modal
+          opened={showAddMatriculaModal}
+          onClose={() => {
+            setShowAddMatriculaModal(false);
+            setNewMatriculaNumber('');
+          }}
+          title="Adicionar Matrícula"
+          centered
+        >
+          <TextInput
+            label="Número da Matrícula"
+            placeholder="Digite o número da matrícula"
+            value={newMatriculaNumber}
+            onChange={(e) => setNewMatriculaNumber(e.target.value)}
+            mb="md"
+          />
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <Button
+              variant="subtle"
+              onClick={() => {
+                setShowAddMatriculaModal(false);
+                setNewMatriculaNumber('');
+              }}
+              disabled={submittingMatricula}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAddMatricula}
+              loading={submittingMatricula}
+            >
+              Solicitar
+            </Button>
+          </div>
+        </Modal>
       </div>
     </Menu>
   );

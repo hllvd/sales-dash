@@ -122,6 +122,21 @@ export const apiService = {
     return response.json()
   },
 
+  async requestMatricula(matriculaNumber: string): Promise<ApiResponse<any>> {
+    const response = await fetch(`${API_BASE_URL}/users/me/request-matricula`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ matriculaNumber })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || "Failed to request matricula")
+    }
+
+    return response.json()
+  },
+
   async createUser(userData: CreateUserRequest): Promise<ApiResponse<User>> {
     const response = await fetch(`${API_BASE_URL}/users/register`, {
       method: "POST",
