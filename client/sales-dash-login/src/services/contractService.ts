@@ -1,3 +1,5 @@
+import { authenticatedFetch, getAuthHeaders } from '../utils/httpInterceptor';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5017/api';
 
 // TypeScript Interfaces
@@ -98,20 +100,6 @@ interface ApiResponse<T> {
   aggregation?: ContractAggregation;
 }
 
-// Helper function to get auth token
-const getAuthToken = (): string | null => {
-  return localStorage.getItem('token');
-};
-
-// Helper function to create headers
-const getHeaders = (): HeadersInit => {
-  const token = getAuthToken();
-  return {
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
-  };
-};
-
 // Contract CRUD Operations
 export const getContracts = async (
   userId?: string,
@@ -128,9 +116,9 @@ export const getContracts = async (
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts${queryString ? `?${queryString}` : ''}`;
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: 'GET',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -153,9 +141,9 @@ export const getUserContracts = async (
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts/user/${userId}${queryString ? `?${queryString}` : ''}`;
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: 'GET',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -168,9 +156,9 @@ export const getUserContracts = async (
 
 
 export const getContract = async (id: number): Promise<Contract> => {
-  const response = await fetch(`${API_BASE_URL}/contracts/${id}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/contracts/${id}`, {
     method: 'GET',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -182,9 +170,9 @@ export const getContract = async (id: number): Promise<Contract> => {
 };
 
 export const createContract = async (data: CreateContractRequest): Promise<Contract> => {
-  const response = await fetch(`${API_BASE_URL}/contracts`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/contracts`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -198,9 +186,9 @@ export const createContract = async (data: CreateContractRequest): Promise<Contr
 };
 
 export const updateContract = async (id: number, data: UpdateContractRequest): Promise<Contract> => {
-  const response = await fetch(`${API_BASE_URL}/contracts/${id}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/contracts/${id}`, {
     method: 'PUT',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -214,9 +202,9 @@ export const updateContract = async (id: number, data: UpdateContractRequest): P
 };
 
 export const deleteContract = async (id: number): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/contracts/${id}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/contracts/${id}`, {
     method: 'DELETE',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -226,9 +214,9 @@ export const deleteContract = async (id: number): Promise<void> => {
 
 // Helper functions to fetch users and groups for dropdowns
 export const getUsers = async (): Promise<User[]> => {
-  const response = await fetch(`${API_BASE_URL}/users?page=1&pageSize=1000`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users?page=1&pageSize=1000`, {
     method: 'GET',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -240,9 +228,9 @@ export const getUsers = async (): Promise<User[]> => {
 };
 
 export const getGroups = async (): Promise<Group[]> => {
-  const response = await fetch(`${API_BASE_URL}/groups`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/groups`, {
     method: 'GET',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -255,9 +243,9 @@ export const getGroups = async (): Promise<Group[]> => {
 
 // Get contract by contract number
 export const getContractByNumber = async (contractNumber: string): Promise<Contract> => {
-  const response = await fetch(`${API_BASE_URL}/contracts/number/${contractNumber}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/contracts/number/${contractNumber}`, {
     method: 'GET',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -273,9 +261,9 @@ export const getContractByNumber = async (contractNumber: string): Promise<Contr
 export const assignContract = async (contractNumber: string, matriculaNumber?: string): Promise<Contract> => {
   const url = `${API_BASE_URL}/users/assign-contract/${contractNumber}${matriculaNumber ? `?matriculaNumber=${encodeURIComponent(matriculaNumber)}` : ''}`;
   
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -301,9 +289,9 @@ export const getHistoricProduction = async (
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts/aggregation/historic-production${queryString ? `?${queryString}` : ''}`;
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: 'GET',
-    headers: getHeaders(),
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {

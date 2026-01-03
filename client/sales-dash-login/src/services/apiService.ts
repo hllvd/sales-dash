@@ -1,3 +1,5 @@
+import { authenticatedFetch, getAuthHeaders } from '../utils/httpInterceptor'
+
 const API_BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5017/api"
 
@@ -64,14 +66,6 @@ export interface UpdateUserRequest {
   isActive?: boolean
 }
 
-const getAuthHeaders = (): HeadersInit => {
-  const token = localStorage.getItem("token")
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  }
-}
-
 export const apiService = {
   async getUsers(
     page: number = 1,
@@ -87,7 +81,7 @@ export const apiService = {
       params.append("search", search)
     }
 
-    const response = await fetch(`${API_BASE_URL}/users?${params}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users?${params}`, {
       headers: getAuthHeaders(),
     })
 
@@ -99,7 +93,7 @@ export const apiService = {
   },
 
   async getUser(id: string): Promise<ApiResponse<User>> {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/${id}`, {
       headers: getAuthHeaders(),
     })
 
@@ -111,7 +105,7 @@ export const apiService = {
   },
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
-    const response = await fetch(`${API_BASE_URL}/users/me`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me`, {
       headers: getAuthHeaders(),
     })
 
@@ -123,7 +117,7 @@ export const apiService = {
   },
 
   async requestMatricula(matriculaNumber: string): Promise<ApiResponse<any>> {
-    const response = await fetch(`${API_BASE_URL}/users/me/request-matricula`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/request-matricula`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ matriculaNumber })
@@ -138,7 +132,7 @@ export const apiService = {
   },
 
   async createUser(userData: CreateUserRequest): Promise<ApiResponse<User>> {
-    const response = await fetch(`${API_BASE_URL}/users/register`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/register`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(userData),
@@ -156,7 +150,7 @@ export const apiService = {
     id: string,
     userData: UpdateUserRequest
   ): Promise<ApiResponse<User>> {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/${id}`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify(userData),
@@ -171,7 +165,7 @@ export const apiService = {
   },
 
   async deleteUser(id: string): Promise<ApiResponse<object>> {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     })
@@ -191,7 +185,7 @@ export const apiService = {
 
     const token = localStorage.getItem("token")
 
-    const response = await fetch(`${API_BASE_URL}/users/import`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/import`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -233,7 +227,7 @@ export const apiService = {
 
     const token = localStorage.getItem("token")
 
-    const response = await fetch(
+    const response = await authenticatedFetch(
       `${API_BASE_URL}/imports/upload?templateId=${templateId}`,
       {
         method: "POST",
@@ -268,7 +262,7 @@ export const apiService = {
       errors: string[]
     }>
   > {
-    const response = await fetch(`${API_BASE_URL}/imports/${uploadId}/mappings`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/mappings`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ mappings, dateFormat }),
@@ -297,7 +291,7 @@ export const apiService = {
       errors: string[]
     }>
   > {
-    const response = await fetch(`${API_BASE_URL}/imports/${uploadId}/confirm`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/confirm`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ dateFormat }),
@@ -314,7 +308,7 @@ export const apiService = {
   },
 
   async getUsersByMatriculaNumber(matriculaNumber: string): Promise<ApiResponse<UserLookupByMatricula[]>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas/by-number/${matriculaNumber}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas/by-number/${matriculaNumber}`, {
       headers: getAuthHeaders(),
     })
 
@@ -326,7 +320,7 @@ export const apiService = {
   },
 
   async getUsersByMatriculaId(matriculaId: number): Promise<ApiResponse<UserLookupByMatricula[]>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas/${matriculaId}/users`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas/${matriculaId}/users`, {
       headers: getAuthHeaders(),
     })
 
@@ -339,7 +333,7 @@ export const apiService = {
 
   // PV (Point of Sale) methods
   async getPVs(): Promise<ApiResponse<PV[]>> {
-    const response = await fetch(`${API_BASE_URL}/point-of-sale`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/point-of-sale`, {
       headers: getAuthHeaders(),
     })
 
@@ -351,7 +345,7 @@ export const apiService = {
   },
 
   async getPV(id: number): Promise<ApiResponse<PV>> {
-    const response = await fetch(`${API_BASE_URL}/point-of-sale/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/point-of-sale/${id}`, {
       headers: getAuthHeaders(),
     })
 
@@ -363,7 +357,7 @@ export const apiService = {
   },
 
   async createPV(pv: PVRequest): Promise<ApiResponse<PV>> {
-    const response = await fetch(`${API_BASE_URL}/point-of-sale`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/point-of-sale`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(pv),
@@ -380,7 +374,7 @@ export const apiService = {
   },
 
   async updatePV(id: number, pv: PVRequest): Promise<ApiResponse<PV>> {
-    const response = await fetch(`${API_BASE_URL}/point-of-sale/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/point-of-sale/${id}`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify(pv),
@@ -397,7 +391,7 @@ export const apiService = {
   },
 
   async deletePV(id: number): Promise<ApiResponse<void>> {
-    const response = await fetch(`${API_BASE_URL}/point-of-sale/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/point-of-sale/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     })
@@ -427,7 +421,7 @@ export const apiService = {
       params.append("search", search)
     }
 
-    const response = await fetch(`${API_BASE_URL}/usermatriculas?${params}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas?${params}`, {
       headers: getAuthHeaders(),
     })
 
@@ -439,7 +433,7 @@ export const apiService = {
   },
 
   async getAllMatriculas(): Promise<ApiResponse<UserMatricula[]>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas`, {
       headers: getAuthHeaders(),
     })
 
@@ -451,7 +445,7 @@ export const apiService = {
   },
 
   async getMatriculaById(id: number): Promise<ApiResponse<UserMatricula>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas/${id}`, {
       headers: getAuthHeaders(),
     })
 
@@ -463,7 +457,7 @@ export const apiService = {
   },
 
   async getUserMatriculas(userId: string): Promise<ApiResponse<UserMatricula[]>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas/user/${userId}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas/user/${userId}`, {
       headers: getAuthHeaders(),
     })
 
@@ -475,7 +469,7 @@ export const apiService = {
   },
 
   async createMatricula(data: CreateMatriculaRequest): Promise<ApiResponse<UserMatricula>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -492,7 +486,7 @@ export const apiService = {
   },
 
   async updateMatricula(id: number, data: UpdateMatriculaRequest): Promise<ApiResponse<UserMatricula>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas/${id}`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -509,7 +503,7 @@ export const apiService = {
   },
 
   async deleteMatricula(id: number): Promise<ApiResponse<void>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas/${id}`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     })
@@ -525,7 +519,7 @@ export const apiService = {
   },
 
   async bulkCreateMatriculas(data: CreateMatriculaRequest[]): Promise<ApiResponse<BulkCreateMatriculaResponse>> {
-    const response = await fetch(`${API_BASE_URL}/usermatriculas/bulk`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas/bulk`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ matriculas: data }),
