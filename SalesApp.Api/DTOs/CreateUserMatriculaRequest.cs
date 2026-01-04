@@ -14,7 +14,7 @@ namespace SalesApp.DTOs
         [StringLength(50)]
         [ValidateXSS]
         [ValidateSQLInjection]
-        [RegularExpression(@"^[a-zA-Z0-9\-_]*$", ErrorMessage = "Matricula must be alphanumeric (hyphens and underscores allowed)")]
+        [ValidAlphanumeric]
         public string MatriculaNumber { get; set; } = string.Empty;
         
         [Required]

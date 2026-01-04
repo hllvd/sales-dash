@@ -8,7 +8,7 @@ namespace SalesApp.DTOs
         [StringLength(50)]
         [ValidateXSS]
         [ValidateSQLInjection]
-        [RegularExpression(@"^[a-zA-Z0-9\-_]+$", ErrorMessage = "Contract number must be alphanumeric (hyphens and underscores allowed)")]
+        [ValidAlphanumeric(required: false)]
         public string? ContractNumber { get; set; }
         
         public Guid? UserId { get; set; }
@@ -44,7 +44,7 @@ namespace SalesApp.DTOs
         [StringLength(50)]
         [ValidateXSS]
         [ValidateSQLInjection]
-        [RegularExpression(@"^[a-zA-Z0-9\-_]*$", ErrorMessage = "Matricula must be alphanumeric (hyphens and underscores allowed)")]
+        [ValidAlphanumeric(required: false)]
         public string? MatriculaNumber { get; set; }
     }
 }

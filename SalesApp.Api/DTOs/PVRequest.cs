@@ -12,7 +12,7 @@ namespace SalesApp.DTOs
         [StringLength(100, MinimumLength = 1, ErrorMessage = "Name must be between 1 and 100 characters")]
         [ValidateXSS]
         [ValidateSQLInjection]
-        [RegularExpression(@"^[a-zA-Z0-9\s\-_]+$", ErrorMessage = "PV name must be alphanumeric (spaces, hyphens, and underscores allowed)")]
+        [ValidAlphanumeric(allowSpaces: true)]
         public string Name { get; set; } = string.Empty;
     }
 }
