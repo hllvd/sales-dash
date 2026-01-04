@@ -8,7 +8,7 @@ namespace SalesApp.DTOs
     {
         [Required(ErrorMessage = "Name is required")]
         [StringLength(150, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 150 characters")]
-        [RegularExpression(@"^[a-zA-Z\u00C0-\u00FF\s'-]+$", ErrorMessage = "Name can only contain letters, spaces, hyphens, and apostrophes")]
+        [ValidUserName]
         public string Name { get; set; } = string.Empty;
         
         [Required(ErrorMessage = "Email is required")]

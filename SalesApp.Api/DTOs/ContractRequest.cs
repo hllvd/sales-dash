@@ -1,11 +1,15 @@
 using System.ComponentModel.DataAnnotations;
+using SalesApp.Attributes;
 
 namespace SalesApp.DTOs
 {
     public class ContractRequest
     {
         [Required]
-        [MaxLength(50)]
+        [StringLength(50)]
+        [ValidateXSS]
+        [ValidateSQLInjection]
+        [RegularExpression(@"^[a-zA-Z0-9\-_]+$", ErrorMessage = "Contract number must be alphanumeric (hyphens and underscores allowed)")]
         public string ContractNumber { get; set; } = string.Empty;
         
         public Guid? UserId { get; set; }
@@ -17,22 +21,26 @@ namespace SalesApp.DTOs
         
         public int? GroupId { get; set; }
         
-        [MaxLength(20)]
+        [StringLength(20)]
+        [ValidContractStatus]
         public string Status { get; set; } = "Active";
         
         public DateTime ContractStartDate { get; set; } = DateTime.UtcNow;
         
-        // New nullable fields
+        [Range(1, 100, ErrorMessage = "Contract type must be between 1 and 100")]
         public int? ContractType { get; set; }
-        
+        [Range(1, 1000, ErrorMessage = "Quota must be between 1 and 1000")]
         public int? Quota { get; set; }
-
-        [MaxLength(200)]
+        [StringLength(200)]
+        [ValidUserName]
+        [ValidateXSS]
         public string? CustomerName { get; set; }
         
         public int? PvId { get; set; }
-        
-        [MaxLength(50)]
+        [StringLength(50)]
+        [ValidateXSS]
+        [ValidateSQLInjection]
+        [RegularExpression(@"^[a-zA-Z0-9\-_]*$", ErrorMessage = "Matricula must be alphanumeric (hyphens and underscores allowed)")]
         public string? MatriculaNumber { get; set; }
     }
 }

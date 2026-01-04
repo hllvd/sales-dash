@@ -7,7 +7,7 @@ namespace SalesApp.DTOs
     public class UpdateUserRequest
     {
         [StringLength(150, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 150 characters")]
-        [RegularExpression(@"^[a-zA-Z\u00C0-\u00FF\s'-]+$", ErrorMessage = "Name can only contain letters, spaces, hyphens, and apostrophes")]
+        [ValidUserName]
         public string? Name { get; set; }
         
         [EmailAddress(ErrorMessage = "Invalid email format")]

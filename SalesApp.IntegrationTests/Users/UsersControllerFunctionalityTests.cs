@@ -45,7 +45,7 @@ namespace SalesApp.IntegrationTests.Users
             {
                 Name = "New Functionality User",
                 Email = $"func_user_{Guid.NewGuid().ToString()[..8]}@test.com",
-                Password = "password123",
+                Password = "Password123!",
                 ParentUserId = parentUserId
             };
 
@@ -268,7 +268,7 @@ namespace SalesApp.IntegrationTests.Users
             {
                 Name = "Childless User",
                 Email = $"childless_{Guid.NewGuid().ToString()[..8]}@test.com",
-                Password = "password123",
+                Password = "Password123!",
                 ParentUserId = (await GetCurrentUser(client)).Id // Set parent to current superadmin
             };
             
