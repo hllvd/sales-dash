@@ -76,8 +76,18 @@ namespace SalesApp
                 });
             });
             
-            // Controllers
-            services.AddControllers();
+            // Controllers with security configurations
+            services.AddControllers(options =>
+            {
+                // Suppress automatic 400 responses to allow custom error handling
+                options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = false;
+            })
+            .AddJsonOptions(options =>
+            {
+                // Security: Reject unknown JSON properties to prevent mass assignment/property pollution
+                options.JsonSerializerOptions.UnmappedMemberHandling = 
+                    System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow;
+            });
 
             // JWT Authentication
             var jwtKey = Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");

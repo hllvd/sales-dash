@@ -47,6 +47,9 @@ namespace SalesApp.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> Register(RegisterRequest request)
         {
+            // Normalize email to lowercase
+            request.Email = request.Email.ToLowerInvariant().Trim();
+            
             if (!UserRole.IsValid(request.Role))
             {
                 return BadRequest(new ApiResponse<UserResponse>
@@ -161,7 +164,9 @@ namespace SalesApp.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<ApiResponse<LoginResponse>>> Login(LoginRequest request)
         {
-            var user = await _userRepository.GetByEmailAsync(request.Email);
+            // Normalize email to lowercase
+            var email = request.Email.ToLowerInvariant().Trim();
+            var user = await _userRepository.GetByEmailAsync(email);
             
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
@@ -308,6 +313,9 @@ namespace SalesApp.Controllers
                 
             if (!string.IsNullOrEmpty(request.Email))
             {
+                // Normalize email to lowercase
+                request.Email = request.Email.ToLowerInvariant().Trim();
+                
                 if (await _userRepository.EmailExistsAsync(request.Email, id))
                 {
                     return BadRequest(new ApiResponse<UserResponse>
