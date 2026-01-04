@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { TextInput, Select, Checkbox, Button, Group } from '@mantine/core';
-import { UserMatricula, apiService, User } from "../services/apiService"
+import { UserMatricula, apiService } from "../services/apiService"
 import StyledModal from './StyledModal';
+import { useUsers } from '../contexts/UsersContext';
 
 interface MatriculaFormProps {
   matricula?: UserMatricula
@@ -22,24 +23,10 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
     isActive: matricula?.isActive ?? true,
     isOwner: matricula?.isOwner ?? false,
   })
-  const [users, setUsers] = useState<User[]>([])
+  const { users } = useUsers() // Use UsersContext instead of local state
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const isEdit = !!matricula
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await apiService.getUsers(1, 1000)
-        if (response.success && response.data) {
-          setUsers(response.data.items)
-        }
-      } catch (err) {
-        console.error("Failed to fetch users:", err)
-      }
-    }
-    fetchUsers()
-  }, [])
 
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({
