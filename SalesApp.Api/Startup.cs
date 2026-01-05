@@ -72,7 +72,8 @@ namespace SalesApp
                 {
                     builder.AllowAnyOrigin()
                            .AllowAnyMethod()
-                           .AllowAnyHeader();
+                           .AllowAnyHeader()
+                           .WithExposedHeaders("WWW-Authenticate"); // Expose authentication error header
                 });
             });
             
