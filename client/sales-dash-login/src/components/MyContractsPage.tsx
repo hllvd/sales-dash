@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Title, Button, Table, Badge } from '@mantine/core';
+import { Title, Button, Table, Badge, TextInput, Select } from '@mantine/core';
 import './MyContractsPage.css';
 import Menu from './Menu';
+import StyledModal from './StyledModal';
+import FormField from './FormField';
 import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
 import {
@@ -356,148 +358,137 @@ const MyContractsPage: React.FC = () => {
 
       {/* Assignment Modal */}
       {showAssignModal && (
-        <div className="assign-modal-overlay" onClick={() => setShowAssignModal(false)}>
-          <div className="assign-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="assign-modal-header">
-              <h2>Atribuir Contrato</h2>
-              <button className="close-button" onClick={() => setShowAssignModal(false)}>
-                ×
-              </button>
-            </div>
+        <StyledModal
+          opened={true}
+          onClose={() => setShowAssignModal(false)}
+          title="Atribuir Contrato"
+          size="md"
+        >
+          {assignError && <div style={{ color: 'red', marginBottom: '1rem' }}>{assignError}</div>}
 
-            <div className="assign-modal-body">
-              {assignError && <div className="error-message">{assignError}</div>}
+          {!retrievedContract ? (
+            <>
+              <FormField label="Número do Contrato" required>
+                <TextInput
+                  required
+                  value={contractNumber}
+                  onChange={(e) => setContractNumber(e.target.value)}
+                  placeholder="Digite o número do contrato"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleRetrieveContract();
+                    }
+                  }}
+                />
+              </FormField>
 
-              {!retrievedContract ? (
-                <>
-                  <div className="form-group">
-                    <label htmlFor="contractNumber">Número do Contrato</label>
-                    <input
-                      id="contractNumber"
-                      type="text"
-                      value={contractNumber}
-                      onChange={(e) => setContractNumber(e.target.value)}
-                      placeholder="Digite o número do contrato"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleRetrieveContract();
-                        }
-                      }}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '1.5rem' }}>
+                <Button
+                  variant="default"
+                  onClick={() => setShowAssignModal(false)}
+                  disabled={assignLoading}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleRetrieveContract}
+                  disabled={!contractNumber.trim() || assignLoading}
+                  loading={assignLoading}
+                >
+                  Buscar Contrato
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ color: 'white', marginBottom: '1rem' }}>Detalhes do Contrato</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#a0a0a0' }}>Número:</span>
+                    <span style={{ color: 'white' }}>{retrievedContract.contractNumber}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#a0a0a0' }}>Cliente:</span>
+                    <span style={{ color: 'white' }}>{retrievedContract.customerName || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#a0a0a0' }}>Grupo:</span>
+                    <span style={{ color: 'white' }}>{retrievedContract.groupName}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#a0a0a0' }}>Valor Total:</span>
+                    <span style={{ color: 'white' }}>{formatCurrency(retrievedContract.totalAmount)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#a0a0a0' }}>Status:</span>
+                    <Badge 
+                      color={
+                        retrievedContract.status === 'Active' ? 'green' :
+                        retrievedContract.status === 'Defaulted' ? 'red' :
+                        retrievedContract.status.startsWith('Late') ? 'orange' : 'gray'
+                      }
+                    >
+                      {getStatusLabel(retrievedContract.status)}
+                    </Badge>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#a0a0a0' }}>Data Início:</span>
+                    <span style={{ color: 'white' }}>{formatDate(retrievedContract.contractStartDate)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Matricula Selection */}
+              {userMatriculas.length > 0 && (
+                <FormField 
+                  label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
+                  description={
+                    userMatriculas.length === 0 ? 'Você não possui matrículas ativas' :
+                    userMatriculas.length === 1 ? 'Matrícula será atribuída automaticamente' :
+                    'Selecione a matrícula para este contrato (padrão: mais recente)'
+                  }
+                >
+                  {userMatriculas.length === 1 ? (
+                    <TextInput
+                      value={`${userMatriculas[0].matriculaNumber} (${new Date(userMatriculas[0].startDate).toLocaleDateString('pt-BR')})`}
+                      readOnly
+                      disabled
                     />
-                  </div>
-
-                  <div className="form-actions">
-                    <button
-                      className="btn-cancel"
-                      onClick={() => setShowAssignModal(false)}
-                      disabled={assignLoading}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      className="btn-submit"
-                      onClick={handleRetrieveContract}
-                      disabled={!contractNumber.trim() || assignLoading}
-                    >
-                      {assignLoading ? 'Buscando...' : 'Buscar Contrato'}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="contract-details">
-                    <h3>Detalhes do Contrato</h3>
-                    <div className="detail-row">
-                      <span className="detail-label">Número:</span>
-                      <span className="detail-value">{retrievedContract.contractNumber}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Cliente:</span>
-                      <span className="detail-value">{retrievedContract.customerName || '-'}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Grupo:</span>
-                      <span className="detail-value">{retrievedContract.groupName}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Valor Total:</span>
-                      <span className="detail-value">{formatCurrency(retrievedContract.totalAmount)}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Status:</span>
-                      <Badge 
-                        color={
-                          retrievedContract.status === 'Active' ? 'green' :
-                          retrievedContract.status === 'Defaulted' ? 'red' :
-                          retrievedContract.status.startsWith('Late') ? 'orange' : 'gray'
-                        }
-                      >
-                        {getStatusLabel(retrievedContract.status)}
-                      </Badge>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Data Início:</span>
-                      <span className="detail-value">{formatDate(retrievedContract.contractStartDate)}</span>
-                    </div>
-                  </div>
-
-                  {/* Matricula Selection */}
-                  {userMatriculas.length > 0 && (
-                    <div className="form-group" style={{ marginTop: '20px' }}>
-                      <label htmlFor="matriculaSelect">Matrícula {userMatriculas.length > 1 ? '(Selecione)' : ''}</label>
-                      {userMatriculas.length === 1 ? (
-                        <input
-                          type="text"
-                          value={`${userMatriculas[0].matriculaNumber} (${new Date(userMatriculas[0].startDate).toLocaleDateString('pt-BR')})`}
-                          readOnly
-                          disabled
-                          style={{ backgroundColor: '#f5f5f5' }}
-                        />
-                      ) : (
-                        <select
-                          id="matriculaSelect"
-                          value={selectedMatricula}
-                          onChange={(e) => setSelectedMatricula(e.target.value)}
-                          style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                        >
-                          {userMatriculas.map((m) => (
-                            <option key={m.id} value={m.matriculaNumber}>
-                              {m.matriculaNumber} - {new Date(m.startDate).toLocaleDateString('pt-BR')}
-                              {m.endDate ? ` até ${new Date(m.endDate).toLocaleDateString('pt-BR')}` : ''}
-                              {m.isOwner ? ' (Proprietário)' : ''}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
-                        {userMatriculas.length === 0 && 'Você não possui matrículas ativas'}
-                        {userMatriculas.length === 1 && 'Matrícula será atribuída automaticamente'}
-                        {userMatriculas.length > 1 && 'Selecione a matrícula para este contrato (padrão: mais recente)'}
-                      </small>
-                    </div>
+                  ) : (
+                    <Select
+                      value={selectedMatricula}
+                      onChange={(value) => setSelectedMatricula(value || '')}
+                      data={userMatriculas.map((m) => ({
+                        value: m.matriculaNumber,
+                        label: `${m.matriculaNumber} - ${new Date(m.startDate).toLocaleDateString('pt-BR')}${
+                          m.endDate ? ` até ${new Date(m.endDate).toLocaleDateString('pt-BR')}` : ''
+                        }${m.isOwner ? ' (Proprietário)' : ''}`
+                      }))}
+                    />
                   )}
-
-                  <div className="form-actions">
-                    <button
-                      className="btn-cancel"
-                      onClick={() => setRetrievedContract(null)}
-                      disabled={assignLoading}
-                    >
-                      Voltar
-                    </button>
-                    <button
-                      className="btn-submit"
-                      onClick={handleConfirmAssignment}
-                      disabled={assignLoading}
-                    >
-                      {assignLoading ? 'Atribuindo...' : 'Confirmar Atribuição'}
-                    </button>
-                  </div>
-                </>
+                </FormField>
               )}
-            </div>
-          </div>
-        </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '1.5rem' }}>
+                <Button
+                  variant="default"
+                  onClick={() => setRetrievedContract(null)}
+                  disabled={assignLoading}
+                >
+                  Voltar
+                </Button>
+                <Button
+                  onClick={handleConfirmAssignment}
+                  disabled={assignLoading}
+                  loading={assignLoading}
+                >
+                  Confirmar Atribuição
+                </Button>
+              </div>
+            </>
+          )}
+        </StyledModal>
       )}
 
     </Menu>

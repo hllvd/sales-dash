@@ -3,6 +3,7 @@ import { TextInput, Select, Checkbox, Button, Group } from '@mantine/core';
 import { UserMatricula, apiService } from "../services/apiService"
 import StyledModal from './StyledModal';
 import { useUsers } from '../contexts/UsersContext';
+import FormField from './FormField';
 
 interface MatriculaFormProps {
   matricula?: UserMatricula
@@ -80,42 +81,38 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
         {!isEdit && (
-          <Select
-            label="Usuário"
-            required
-            value={formData.userId}
-            onChange={(value) => handleChange('userId', value)}
-            data={userOptions}
-            placeholder="Selecione um usuário"
-            searchable
-            mb="md"
-          />
+          <FormField label="Usuário" required>
+            <Select
+              required
+              value={formData.userId}
+              onChange={(value) => handleChange('userId', value)}
+              data={userOptions}
+              placeholder="Selecione um usuário"
+              searchable
+            />
+          </FormField>
         )}
 
         {isEdit && (
-          <TextInput
-            label="Usuário"
-            value={matricula?.userName || ""}
-            readOnly
-            disabled
-            mb="md"
-          />
+          <FormField label="Usuário">
+            <TextInput
+              value={matricula?.userName || ""}
+              readOnly
+              disabled
+            />
+          </FormField>
         )}
 
-        <TextInput
-          label="Número da Matrícula"
-          required
-          value={formData.matriculaNumber}
-          onChange={(e) => handleChange('matriculaNumber', e.target.value)}
-          placeholder="Ex: MAT-001"
-          mb="md"
-        />
+        <FormField label="Número da Matrícula" required>
+          <TextInput
+            required
+            value={formData.matriculaNumber}
+            onChange={(e) => handleChange('matriculaNumber', e.target.value)}
+            placeholder="Ex: MAT-001"
+          />
+        </FormField>
 
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '14px', fontWeight: 500 }}>
-            Data de Início <span style={{ color: 'red' }}>*</span>
-          </label>
+        <FormField label="Data de Início" required>
           <input
             type="date"
             required
@@ -129,12 +126,9 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
               fontSize: '14px'
             }}
           />
-        </div>
+        </FormField>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '14px', fontWeight: 500 }}>
-            Data de Fim (Opcional)
-          </label>
+        <FormField label="Data de Fim (Opcional)">
           <input
             type="date"
             value={formData.endDate}
@@ -147,22 +141,24 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
               fontSize: '14px'
             }}
           />
-        </div>
+        </FormField>
 
-        <Checkbox
-          label="Matrícula Ativa"
-          checked={formData.isActive}
-          onChange={(e) => handleChange('isActive', e.currentTarget.checked)}
-          mb="md"
-        />
+        <FormField label="Matrícula Ativa">
+          <Checkbox
+            checked={formData.isActive}
+            onChange={(e) => handleChange('isActive', e.currentTarget.checked)}
+          />
+        </FormField>
 
-        <Checkbox
+        <FormField 
           label="Proprietário da Matrícula"
-          checked={formData.isOwner}
-          onChange={(e) => handleChange('isOwner', e.currentTarget.checked)}
-          mb="md"
           description="Apenas um usuário pode ser proprietário de uma matrícula"
-        />
+        >
+          <Checkbox
+            checked={formData.isOwner}
+            onChange={(e) => handleChange('isOwner', e.currentTarget.checked)}
+          />
+        </FormField>
 
         <Group justify="flex-end" mt="xl">
           <Button variant="light" onClick={onClose} disabled={loading}>

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import './PVForm.css';
+import { TextInput, NumberInput, Button, Group } from '@mantine/core';
 import { PV } from '../services/apiService';
+import StyledModal from './StyledModal';
+import FormField from './FormField';
 
 interface PVFormProps {
   pv?: PV;
@@ -17,11 +19,10 @@ const PVForm: React.FC<PVFormProps> = ({ pv, onSubmit, onCancel, isEdit = false 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+  const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'id' ? parseInt(value) || 0 : value,
+      [name]: value,
     }));
   };
 
@@ -40,61 +41,50 @@ const PVForm: React.FC<PVFormProps> = ({ pv, onSubmit, onCancel, isEdit = false 
   };
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content styled-form" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{isEdit ? 'Editar Ponto de Venda' : 'Criar Novo Ponto de Venda'}</h2>
-          <button className="close-button" onClick={onCancel}>
-            ×
-          </button>
-        </div>
+    <StyledModal
+      opened={true}
+      onClose={onCancel}
+      title={isEdit ? 'Editar Ponto de Venda' : 'Criar Novo Ponto de Venda'}
+      size="md"
+    >
+      <form onSubmit={handleSubmit}>
+        {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
-        <form onSubmit={handleSubmit} className="pv-form">
-          {error && <div className="error-message">{error}</div>}
+        <FormField 
+          label="ID" 
+          required
+          description={!isEdit ? "O ID deve ser único e não pode ser alterado depois" : undefined}
+        >
+          <NumberInput
+            required
+            value={formData.id}
+            onChange={(value) => handleChange('id', value)}
+            disabled={isEdit}
+            placeholder="ID do ponto de venda"
+            min={1}
+          />
+        </FormField>
 
-          <div className="form-group">
-            <label htmlFor="id">ID *</label>
-            <input
-              type="number"
-              id="id"
-              name="id"
-              value={formData.id}
-              onChange={handleChange}
-              required
-              disabled={isEdit}
-              placeholder="ID do ponto de venda"
-              min="1"
-            />
-            {!isEdit && (
-              <span className="hint">O ID deve ser único e não pode ser alterado depois</span>
-            )}
-          </div>
+        <FormField label="Nome" required>
+          <TextInput
+            required
+            value={formData.name}
+            onChange={(e) => handleChange('name', e.target.value)}
+            maxLength={100}
+            placeholder="Nome do ponto de venda"
+          />
+        </FormField>
 
-          <div className="form-group">
-            <label htmlFor="name">Nome *</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              maxLength={100}
-              placeholder="Nome do ponto de venda"
-            />
-          </div>
-
-          <div className="form-actions">
-            <button type="button" onClick={onCancel} className="btn-cancel" disabled={loading}>
-              Cancelar
-            </button>
-            <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Criar PV'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <Group justify="flex-end" mt="xl">
+          <Button variant="default" onClick={onCancel} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="submit" loading={loading}>
+            {isEdit ? 'Salvar Alterações' : 'Criar PV'}
+          </Button>
+        </Group>
+      </form>
+    </StyledModal>
   );
 };
 

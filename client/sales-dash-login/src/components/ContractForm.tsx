@@ -15,6 +15,7 @@ import { apiService, PV } from '../services/apiService';
 import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
 import StyledModal from './StyledModal';
+import FormField from './FormField';
 
 interface ContractFormProps {
   contract?: Contract | null;
@@ -186,124 +187,130 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
       <form onSubmit={handleSubmit}>
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
-        <TextInput
-          label="Número do Contrato"
-          required
-          value={formData.contractNumber}
-          onChange={(e) => handleChange('contractNumber', e.target.value)}
-          maxLength={50}
-          mb="md"
-        />
+        <FormField label="Número do Contrato" required>
+          <TextInput
+            required
+            value={formData.contractNumber}
+            onChange={(e) => handleChange('contractNumber', e.target.value)}
+            maxLength={50}
+          />
+        </FormField>
 
-        <Select
-          label="Usuário"
-          value={formData.userId}
-          onChange={(value) => handleChange('userId', value)}
-          data={[
-            { value: '', label: 'Sem usuário atribuído' },
-            ...users.map(user => ({ value: user.id, label: `${user.name} (${user.email})` }))
-          ]}
-          searchable
-          mb="md"
-        />
+        <FormField label="Usuário">
+          <Select
+            value={formData.userId}
+            onChange={(value) => handleChange('userId', value)}
+            data={[
+              { value: '', label: 'Sem usuário atribuído' },
+              ...users.map(user => ({ value: user.id, label: `${user.name} (${user.email})` }))
+            ]}
+            searchable
+          />
+        </FormField>
 
-        <Select
-          label="Grupo (Opcional)"
-          value={formData.groupId}
-          onChange={(value) => handleChange('groupId', value)}
-          data={[
-            { value: '', label: 'Nenhum' },
-            ...groups.map(group => ({ value: group.id.toString(), label: group.name }))
-          ]}
-          clearable
-          mb="md"
-        />
+        <FormField label="Grupo (Opcional)">
+          <Select
+            value={formData.groupId}
+            onChange={(value) => handleChange('groupId', value)}
+            data={[
+              { value: '', label: 'Nenhum' },
+              ...groups.map(group => ({ value: group.id.toString(), label: group.name }))
+            ]}
+            clearable
+          />
+        </FormField>
 
-        <Select
-          label="Ponto de Venda"
-          value={formData.pvId}
-          onChange={(value) => handleChange('pvId', value)}
-          data={[
-            { value: '', label: 'Nenhum' },
-            ...pvs.map(pv => ({ value: pv.id.toString(), label: pv.name }))
-          ]}
-          searchable
-          mb="md"
-        />
+        <FormField label="Ponto de Venda">
+          <Select
+            value={formData.pvId}
+            onChange={(value) => handleChange('pvId', value)}
+            data={[
+              { value: '', label: 'Nenhum' },
+              ...pvs.map(pv => ({ value: pv.id.toString(), label: pv.name }))
+            ]}
+            searchable
+          />
+        </FormField>
 
-        <NumberInput
-          label="Valor Total"
-          required
-          value={formData.totalAmount}
-          onChange={(value) => handleChange('totalAmount', value)}
-          min={0.01}
-          decimalScale={2}
-          fixedDecimalScale
-          prefix="R$ "
-          mb="md"
-        />
+        <FormField label="Valor Total" required>
+          <NumberInput
+            required
+            value={formData.totalAmount}
+            onChange={(value) => handleChange('totalAmount', value)}
+            min={0.01}
+            decimalScale={2}
+            fixedDecimalScale
+            prefix="R$ "
+          />
+        </FormField>
 
-        <Select
-          label="Status"
-          value={formData.status}
-          onChange={(value) => handleChange('status', value)}
-          data={[
-            { value: 'Active', label: 'Ativo' },
-            { value: 'Late1', label: '1 mês atrasado' },
-            { value: 'Late2', label: '2 meses atrasado' },
-            { value: 'Late3', label: '3 meses atrasado' },
-            { value: 'Defaulted', label: 'Inadimplente' },
-          ]}
-          mb="md"
-        />
+        <FormField label="Status">
+          <Select
+            value={formData.status}
+            onChange={(value) => handleChange('status', value)}
+            data={[
+              { value: 'Active', label: 'Ativo' },
+              { value: 'Late1', label: '1 mês atrasado' },
+              { value: 'Late2', label: '2 meses atrasado' },
+              { value: 'Late3', label: '3 meses atrasado' },
+              { value: 'Defaulted', label: 'Inadimplente' },
+            ]}
+          />
+        </FormField>
 
-        <TextInput
-          label="Data de Início"
-          required
-          type="date"
-          value={formData.contractStartDate}
-          onChange={(e) => handleChange('contractStartDate', e.target.value)}
-          mb="md"
-        />
+        <FormField label="Data de Início" required>
+          <input
+            type="date"
+            required
+            value={formData.contractStartDate}
+            onChange={(e) => handleChange('contractStartDate', e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              borderRadius: '4px',
+              border: '1px solid #ced4da',
+              fontSize: '14px'
+            }}
+          />
+        </FormField>
 
+        <FormField label="Tipo de Contrato">
+          <Select
+            value={formData.contractType}
+            onChange={(value) => handleChange('contractType', value)}
+            data={[
+              { value: '', label: 'Selecione' },
+              { value: '0', label: 'Lar' },
+              { value: '1', label: 'Motores' },
+            ]}
+          />
+        </FormField>
 
-        <Select
-          label="Tipo de Contrato"
-          value={formData.contractType}
-          onChange={(value) => handleChange('contractType', value)}
-          data={[
-            { value: '', label: 'Selecione' },
-            { value: '0', label: 'Lar' },
-            { value: '1', label: 'Motores' },
-          ]}
-          mb="md"
-        />
+        <FormField label="Cota">
+          <NumberInput
+            value={formData.quota}
+            onChange={(value) => handleChange('quota', value)}
+            placeholder="Ex: 10"
+          />
+        </FormField>
 
-        <NumberInput
-          label="Cota"
-          value={formData.quota}
-          onChange={(value) => handleChange('quota', value)}
-          placeholder="Ex: 10"
-          mb="md"
-        />
+        <FormField label="Nome do Cliente">
+          <TextInput
+            value={formData.customerName}
+            onChange={(e) => handleChange('customerName', e.target.value)}
+            placeholder="Ex: João Silva"
+            maxLength={200}
+          />
+        </FormField>
 
-        <TextInput
-          label="Nome do Cliente"
-          value={formData.customerName}
-          onChange={(e) => handleChange('customerName', e.target.value)}
-          placeholder="Ex: João Silva"
-          maxLength={200}
-          mb="md"
-        />
-
-        <TextInput
-          label="Número da Matrícula (Opcional)"
-          value={formData.matriculaNumber}
-          onChange={(e) => handleChange('matriculaNumber', e.target.value)}
-          placeholder="Ex: MAT-001"
-          maxLength={50}
-          mb="md"
-        />
+        <FormField label="Número da Matrícula (Opcional)">
+          <TextInput
+            value={formData.matriculaNumber}
+            onChange={(e) => handleChange('matriculaNumber', e.target.value)}
+            placeholder="Ex: MAT-001"
+            maxLength={50}
+          />
+        </FormField>
 
         <Group justify="flex-end" mt="xl">
           <Button variant="default" onClick={onClose} disabled={loading}>

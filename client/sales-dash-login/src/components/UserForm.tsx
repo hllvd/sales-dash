@@ -3,6 +3,7 @@ import { TextInput, PasswordInput, Select, Checkbox, Button, Group, Autocomplete
 import { User, apiService } from "../services/apiService"
 import StyledModal from './StyledModal';
 import { toast } from '../utils/toast';
+import FormField from './FormField';
 
 interface UserFormProps {
   user?: User
@@ -142,102 +143,109 @@ const UserForm: React.FC<UserFormProps> = ({
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
         {isEdit && (
-          <TextInput
-            label="ID do Usuário"
-            value={user?.id || ""}
-            readOnly
-            disabled
-            mb="md"
-          />
+          <FormField label="ID do Usuário">
+            <TextInput
+              value={user?.id || ""}
+              readOnly
+              disabled
+            />
+          </FormField>
         )}
 
-        <TextInput
-          label="Nome"
-          required
-          value={formData.name}
-          onChange={(e) => handleChange('name', e.target.value)}
-          placeholder="Nome completo"
-          mb="md"
-        />
+        <FormField label="Nome" required>
+          <TextInput
+            required
+            value={formData.name}
+            onChange={(e) => handleChange('name', e.target.value)}
+            placeholder="Nome completo"
+          />
+        </FormField>
 
-        <TextInput
-          label="Email"
-          required
-          type="email"
-          value={formData.email}
-          onChange={(e) => handleChange('email', e.target.value)}
-          placeholder="email@exemplo.com"
-          mb="md"
-        />
+        <FormField label="Email" required>
+          <TextInput
+            required
+            type="email"
+            value={formData.email}
+            onChange={(e) => handleChange('email', e.target.value)}
+            placeholder="email@exemplo.com"
+          />
+        </FormField>
 
-        <PasswordInput
-          label="Senha"
+        <FormField 
+          label="Senha" 
           required={!isEdit}
           description={isEdit ? "Deixe em branco para manter a atual" : "Mínimo 6 caracteres"}
-          value={formData.password}
-          onChange={(e) => handleChange('password', e.target.value)}
-          placeholder="Senha"
-          mb="md"
-        />
+        >
+          <PasswordInput
+            required={!isEdit}
+            value={formData.password}
+            onChange={(e) => handleChange('password', e.target.value)}
+            placeholder="Senha"
+          />
+        </FormField>
 
-        <Select
-          label="Função"
-          required
-          value={formData.role}
-          onChange={(value) => handleChange('role', value)}
-          data={[
-            { value: 'user', label: 'Usuário' },
-            { value: 'admin', label: 'Administrador' },
-            { value: 'superadmin', label: 'Super Administrador' },
-          ]}
-          mb="md"
-        />
+        <FormField label="Função" required>
+          <Select
+            required
+            value={formData.role}
+            onChange={(value) => handleChange('role', value)}
+            data={[
+              { value: 'user', label: 'Usuário' },
+              { value: 'admin', label: 'Administrador' },
+              { value: 'superadmin', label: 'Super Administrador' },
+            ]}
+          />
+        </FormField>
 
-        <Autocomplete
+        <FormField 
           label="Usuário Pai"
           description="Opcional - busque por nome ou email"
-          placeholder="Digite para buscar..."
-          value={parentUserSearch}
-          onChange={handleParentUserSelect}
-          data={users
-            .filter(u => {
-              if (!debouncedSearch) return true
-              const searchLower = debouncedSearch.toLowerCase()
-              return u.name.toLowerCase().includes(searchLower) || 
-                     u.email.toLowerCase().includes(searchLower)
-            })
-            .map(u => `${u.name} (${u.email})`)}
-          limit={10}
-          mb="md"
-        />
+        >
+          <Autocomplete
+            placeholder="Digite para buscar..."
+            value={parentUserSearch}
+            onChange={handleParentUserSelect}
+            data={users
+              .filter(u => {
+                if (!debouncedSearch) return true
+                const searchLower = debouncedSearch.toLowerCase()
+                return u.name.toLowerCase().includes(searchLower) || 
+                       u.email.toLowerCase().includes(searchLower)
+              })
+              .map(u => `${u.name} (${u.email})`)}
+            limit={10}
+          />
+        </FormField>
 
         {!isEdit && (
           <>
-            <TextInput
+            <FormField 
               label="Matrícula"
               description="Opcional - número da matrícula"
-              value={formData.matriculaNumber}
-              onChange={(e) => handleChange('matriculaNumber', e.target.value)}
-              placeholder="Número da matrícula"
-              mb="md"
-            />
+            >
+              <TextInput
+                value={formData.matriculaNumber}
+                onChange={(e) => handleChange('matriculaNumber', e.target.value)}
+                placeholder="Número da matrícula"
+              />
+            </FormField>
 
-            <Checkbox
-              label="Proprietário da Matrícula"
-              checked={formData.isMatriculaOwner}
-              onChange={(e) => handleChange('isMatriculaOwner', e.currentTarget.checked)}
-              mb="md"
-            />
+            <FormField label="Proprietário da Matrícula">
+              <Checkbox
+                checked={formData.isMatriculaOwner}
+                onChange={(e) => handleChange('isMatriculaOwner', e.currentTarget.checked)}
+              />
+            </FormField>
           </>
         )}
 
         {isEdit && (
-          <Checkbox
-            label="Usuário Ativo"
-            checked={formData.isActive}
-            onChange={(e) => handleChange('isActive', e.currentTarget.checked)}
-            mb="md"
-          />
+          <FormField label="Usuário Ativo">
+            <Checkbox
+              checked={formData.isActive}
+              onChange={(e) => handleChange('isActive', e.currentTarget.checked)}
+            />
+          </FormField>
         )}
 
         <Group justify="flex-end" mt="xl">
