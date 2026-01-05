@@ -42,14 +42,20 @@ export const authenticatedFetch = async (
         // If we can't parse JSON, continue with null errorData
       }
 
-      // Check for specific authentication failure messages
+      // Check for specific authentication failure messages in response body
       const errorMessage = errorData?.message || errorData?.error || ''
+      
+      // Also check the www-authenticate header for token expiration
+      const wwwAuthenticate = response.headers.get('www-authenticate') || ''
+      
       const isAuthenticationFailure =
         errorMessage.includes('TOKEN_EXPIRED') ||
-        errorMessage.includes('INVALID_TOKEN')
+        errorMessage.includes('INVALID_TOKEN') ||
+        wwwAuthenticate.includes('invalid_token') ||
+        wwwAuthenticate.includes('expired')
 
       if (isAuthenticationFailure) {
-        console.warn('Authentication failure detected:', errorMessage)
+        console.warn('Authentication failure detected:', errorMessage || wwwAuthenticate)
         handleAuthenticationFailure()
         return Promise.reject(new Error('Authentication failed'))
       }
