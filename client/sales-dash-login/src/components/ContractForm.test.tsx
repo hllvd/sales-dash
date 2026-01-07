@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ContractForm from './ContractForm';
 import * as contractService from '../services/contractService';
+import { ContractStatus } from '../services/contractService';
 
 // Mock the contract service
 jest.mock('../services/contractService');
@@ -26,7 +27,7 @@ const mockContract = {
   totalAmount: 1000,
   groupId: 1,
   groupName: 'Group A',
-  status: 'Active' as const,
+  status: ContractStatus.Active,
   contractStartDate: '2024-01-01T00:00:00Z',
   isActive: true,
   createdAt: '2024-01-01T00:00:00Z',
@@ -155,7 +156,7 @@ describe('ContractForm', () => {
           userId: 'user-1',
           groupId: 1,
           totalAmount: 1000,
-          status: 'Active',
+          status: ContractStatus.Active,
           contractStartDate: '2024-01-01',
         });
         expect(mockOnSuccess).toHaveBeenCalled();

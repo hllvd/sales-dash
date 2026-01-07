@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { ContractsProvider, useContractsContext } from './ContractsContext';
-import { Contract, User, Group as ContractGroup } from '../services/contractService';
+import { Contract, ContractStatus, User, Group as ContractGroup } from '../services/contractService';
 
 describe('ContractsContext', () => {
   it('should provide initial empty state', () => {
@@ -27,7 +27,7 @@ describe('ContractsContext', () => {
         id: 1,
         contractNumber: 'C001',
         totalAmount: 1000,
-        status: 'Active',
+        status: ContractStatus.Active,
         contractStartDate: '2024-01-01',
         isActive: true,
         createdAt: '2024-01-01',
@@ -104,7 +104,7 @@ describe('ContractsContext', () => {
         id: 1,
         contractNumber: 'C001',
         totalAmount: 1000,
-        status: 'Active',
+        status: ContractStatus.Active,
         contractStartDate: '2024-01-01',
         isActive: true,
         createdAt: '2024-01-01',
@@ -115,7 +115,7 @@ describe('ContractsContext', () => {
         id: 2,
         contractNumber: 'C002',
         totalAmount: 2000,
-        status: 'Active',
+        status: ContractStatus.Active,
         contractStartDate: '2024-01-01',
         isActive: true,
         createdAt: '2024-01-01',

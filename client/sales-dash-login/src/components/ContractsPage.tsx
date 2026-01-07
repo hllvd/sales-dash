@@ -11,6 +11,7 @@ import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
 import {
   Contract,
+  ContractStatus,
   User,
   Group as ContractGroup,
   ContractAggregation,
@@ -285,8 +286,8 @@ const ContractsPage: React.FC = () => {
                   <Table.Td>
                     <Badge 
                       color={
-                        contract.status === 'Active' ? 'green' :
-                        contract.status === 'Defaulted' ? 'red' :
+                        contract.status === ContractStatus.Active ? 'green' :
+                        contract.status === ContractStatus.Defaulted ? 'red' :
                         contract.status.startsWith('Late') ? 'orange' : 'gray'
                       }
                     >

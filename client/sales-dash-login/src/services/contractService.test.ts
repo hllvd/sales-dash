@@ -9,6 +9,7 @@ import {
   CreateContractRequest,
   UpdateContractRequest,
   Contract,
+  ContractStatus,
 } from './contractService';
 
 // Mock fetch globally
@@ -33,7 +34,7 @@ describe('contractService', () => {
           totalAmount: 1000,
           groupId: 1,
           groupName: 'Group A',
-          status: 'Active' as const,
+          status: ContractStatus.Active,
           contractStartDate: '2024-01-01',
           isActive: true,
           createdAt: '2024-01-01',
@@ -96,7 +97,7 @@ describe('contractService', () => {
         totalAmount: 1000,
         groupId: 1,
         groupName: 'Group A',
-        status: 'Active' as const,
+        status: ContractStatus.Active,
         contractStartDate: '2024-01-01',
         isActive: true,
         createdAt: '2024-01-01',
@@ -125,7 +126,7 @@ describe('contractService', () => {
         userId: 'user-1',
         totalAmount: 1000,
         groupId: 1,
-        status: 'Active',
+        status: ContractStatus.Active,
         contractStartDate: '2024-01-01',
       };
 
@@ -168,7 +169,7 @@ describe('contractService', () => {
           userId: 'user-1',
           totalAmount: 1000,
           groupId: 1,
-          status: 'Active',
+          status: ContractStatus.Active,
           contractStartDate: '2024-01-01',
         })
       ).rejects.toThrow('Contract number already exists');
@@ -179,7 +180,7 @@ describe('contractService', () => {
     it('should update an existing contract', async () => {
       const updateData: UpdateContractRequest = {
         totalAmount: 1500,
-        status: 'Defaulted',
+        status: ContractStatus.Defaulted,
       };
 
       const mockResponse = {
@@ -190,7 +191,7 @@ describe('contractService', () => {
         totalAmount: 1500,
         groupId: 1,
         groupName: 'Group A',
-        status: 'Defaulted' as const,
+        status: ContractStatus.Defaulted,
         contractStartDate: '2024-01-01',
         isActive: true,
         createdAt: '2024-01-01',

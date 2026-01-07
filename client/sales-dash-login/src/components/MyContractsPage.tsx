@@ -9,6 +9,7 @@ import HistoricProduction from '../shared/HistoricProduction';
 import {
   Contract,
   ContractAggregation,
+  ContractStatus,
   getContracts,
   getUserContracts,
   getContractByNumber,
@@ -317,8 +318,8 @@ const MyContractsPage: React.FC = () => {
                       <Table.Td>
                         <Badge 
                           color={
-                            contract.status === 'Active' ? 'green' :
-                            contract.status === 'Defaulted' ? 'red' :
+                            contract.status === ContractStatus.Active ? 'green' :
+                            contract.status === ContractStatus.Defaulted ? 'red' :
                             contract.status.startsWith('Late') ? 'orange' : 'gray'
                           }
                         >
@@ -424,8 +425,8 @@ const MyContractsPage: React.FC = () => {
                     <span style={{ color: '#a0a0a0' }}>Status:</span>
                     <Badge 
                       color={
-                        retrievedContract.status === 'Active' ? 'green' :
-                        retrievedContract.status === 'Defaulted' ? 'red' :
+                        retrievedContract.status === ContractStatus.Active ? 'green' :
+                        retrievedContract.status === ContractStatus.Defaulted ? 'red' :
                         retrievedContract.status.startsWith('Late') ? 'orange' : 'gray'
                       }
                     >

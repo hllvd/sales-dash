@@ -4,6 +4,7 @@ import {
   CreateContractRequest,
   UpdateContractRequest,
   Contract,
+  ContractStatus,
   User,
   Group as ContractGroup,
   createContract,
@@ -35,7 +36,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     groupId: contract?.groupId?.toString() || '',
     pvId: contract?.pvId?.toString() || '',
     totalAmount: contract?.totalAmount || 0,
-    status: contract?.status || 'Active',
+    status: contract?.status || ContractStatus.Active,
     contractStartDate: contract?.contractStartDate?.split('T')[0] || '',
     isActive: contract?.isActive ?? true,
     contractType: contract?.contractType?.toString() || '',
@@ -139,7 +140,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           groupId: formData.groupId ? parseInt(formData.groupId) : undefined,
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: Number(formData.totalAmount),
-          status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
+          status: formData.status as ContractStatus,
           contractStartDate: formData.contractStartDate,
           isActive: formData.isActive,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
@@ -155,7 +156,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           groupId: formData.groupId ? parseInt(formData.groupId) : undefined,
           pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
           totalAmount: Number(formData.totalAmount),
-          status: formData.status as 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted',
+          status: formData.status as ContractStatus,
           contractStartDate: formData.contractStartDate,
           contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
           quota: formData.quota ? Number(formData.quota) : undefined,
@@ -249,11 +250,11 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
             value={formData.status}
             onChange={(value) => handleChange('status', value)}
             data={[
-              { value: 'Active', label: 'Ativo' },
-              { value: 'Late1', label: '1 mês atrasado' },
-              { value: 'Late2', label: '2 meses atrasado' },
-              { value: 'Late3', label: '3 meses atrasado' },
-              { value: 'Defaulted', label: 'Inadimplente' },
+              { value: ContractStatus.Active, label: 'Ativo' },
+              { value: ContractStatus.Late1, label: '1 mês atrasado' },
+              { value: ContractStatus.Late2, label: '2 meses atrasado' },
+              { value: ContractStatus.Late3, label: '3 meses atrasado' },
+              { value: ContractStatus.Defaulted, label: 'Inadimplente' },
             ]}
           />
         </FormField>

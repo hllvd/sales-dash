@@ -2,6 +2,15 @@ import { authenticatedFetch, getAuthHeaders } from '../utils/httpInterceptor';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5017/api';
 
+// Contract Status Enum
+export enum ContractStatus {
+  Active = 'Active',
+  Late1 = 'Late1',
+  Late2 = 'Late2',
+  Late3 = 'Late3',
+  Defaulted = 'Defaulted'
+}
+
 // TypeScript Interfaces
 export interface Contract {
   id: number;
@@ -13,7 +22,7 @@ export interface Contract {
   groupName: string;
   pvId?: number;
   pvName?: string;
-  status: 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted';
+  status: ContractStatus;
   contractStartDate: string;
   isActive: boolean;
   createdAt: string;
@@ -29,7 +38,7 @@ export interface CreateContractRequest {
   userId?: string;
   totalAmount: number;
   groupId?: number;
-  status: 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted';
+  status: ContractStatus;
   contractStartDate: string;
   pvId?: number;
   contractType?: number;
@@ -44,7 +53,7 @@ export interface UpdateContractRequest {
   totalAmount?: number;
   groupId?: number;
   pvId?: number;
-  status?: 'Active' | 'Late1' | 'Late2' | 'Late3' | 'Defaulted';
+  status?: ContractStatus;
   contractStartDate?: string;
   isActive?: boolean;
   contractType?: number;
