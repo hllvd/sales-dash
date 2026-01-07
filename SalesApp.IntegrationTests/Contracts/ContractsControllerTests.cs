@@ -65,7 +65,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 UserId = user.Id,
                 GroupId = group.Id,
                 TotalAmount = 5000,
-                ContractType = 1,
+                ContractType = "motores",
                 Quota = 10,
                 CustomerName = "Jane Doe",
                 Status = "Active",
@@ -80,7 +80,7 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.ContractType.Should().Be(1);
+            result.Data.ContractType.Should().Be("motores");
             result.Data.Quota.Should().Be(10);
             result.Data.CustomerName.Should().Be("Jane Doe");
         }
@@ -101,7 +101,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 UserId = user.Id,
                 GroupId = group.Id,
                 TotalAmount = 3000,
-                ContractType = 1,
+                ContractType = 1, // Will be updated to "motores"
                 Quota = 5,
                 Status = "Active",
                 SaleStartDate = DateTime.UtcNow
@@ -135,7 +135,7 @@ namespace SalesApp.IntegrationTests.Contracts
 
             var updateRequest = new UpdateContractRequest
             {
-                ContractType = 1, // Motors
+                ContractType = "motores",
                 Quota = 20
             };
 
@@ -147,7 +147,7 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.ContractType.Should().Be(1); // Motors
+            result.Data.ContractType.Should().Be("motores");
             result.Data.Quota.Should().Be(20);
         }
 
@@ -177,7 +177,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 UserId = null, // No user assigned
                 GroupId = group.Id,
                 TotalAmount = 4000,
-                ContractType = 1,
+                ContractType = "lar",
                 Quota = 15,
                 CustomerName = "John Smith",
                 Status = "Active",
@@ -468,6 +468,177 @@ namespace SalesApp.IntegrationTests.Contracts
             aggregation.Should().NotBeNull();
             aggregation!.Retention.Should().BeGreaterThan(0); // Should have retention > 0 since we have active contracts
             aggregation.Retention.Should().BeLessThanOrEqualTo(1.0m); // Retention should be between 0 and 1
+        }
+
+        [Fact]
+        public async Task CreateContract_WithStringContractType_ShouldAcceptLarAndMotores()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var user = new User { Id = Guid.NewGuid(), Name = "ContractType Test User", Email = "contracttypetest@test.com", RoleId = 1 };
+            var group = new Group { Id = 108, Name = "ContractType Test Group" };
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                if (await context.Users.FindAsync(user.Id) == null)
+                {
+                    context.Users.Add(user);
+                }
+                if (await context.Groups.FindAsync(group.Id) == null)
+                {
+                    context.Groups.Add(group);
+                }
+                await context.SaveChangesAsync();
+            }
+
+            // Test 1: Create contract with "lar" (lowercase)
+            var requestLar = new ContractRequest
+            {
+                ContractNumber = $"TYPE-LAR-{Guid.NewGuid().ToString()[..8]}",
+                UserId = user.Id,
+                GroupId = group.Id,
+                TotalAmount = 1000,
+                ContractType = "lar",
+                Status = "Active",
+                ContractStartDate = DateTime.UtcNow
+            };
+
+            var responseLar = await _client.PostAsJsonAsync("/api/contracts", requestLar);
+            responseLar.StatusCode.Should().Be(HttpStatusCode.OK);
+            var resultLar = await responseLar.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            resultLar!.Data.ContractType.Should().Be("lar");
+
+            // Test 2: Create contract with "motores" (lowercase)
+            var requestMotores = new ContractRequest
+            {
+                ContractNumber = $"TYPE-MOTORES-{Guid.NewGuid().ToString()[..8]}",
+                UserId = user.Id,
+                GroupId = group.Id,
+                TotalAmount = 2000,
+                ContractType = "motores",
+                Status = "Active",
+                ContractStartDate = DateTime.UtcNow
+            };
+
+            var responseMotores = await _client.PostAsJsonAsync("/api/contracts", requestMotores);
+            responseMotores.StatusCode.Should().Be(HttpStatusCode.OK);
+            var resultMotores = await responseMotores.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            resultMotores!.Data.ContractType.Should().Be("motores");
+
+            // Test 3: Create contract with "LAR" (uppercase - should be normalized to lowercase)
+            var requestUppercase = new ContractRequest
+            {
+                ContractNumber = $"TYPE-UPPER-{Guid.NewGuid().ToString()[..8]}",
+                UserId = user.Id,
+                GroupId = group.Id,
+                TotalAmount = 3000,
+                ContractType = "LAR",
+                Status = "Active",
+                ContractStartDate = DateTime.UtcNow
+            };
+
+            var responseUppercase = await _client.PostAsJsonAsync("/api/contracts", requestUppercase);
+            responseUppercase.StatusCode.Should().Be(HttpStatusCode.OK);
+            var resultUppercase = await responseUppercase.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            resultUppercase!.Data.ContractType.Should().Be("lar"); // Should be normalized to lowercase
+
+            // Test 4: Create contract with invalid type should fail
+            var requestInvalid = new ContractRequest
+            {
+                ContractNumber = $"TYPE-INVALID-{Guid.NewGuid().ToString()[..8]}",
+                UserId = user.Id,
+                GroupId = group.Id,
+                TotalAmount = 4000,
+                ContractType = "invalid",
+                Status = "Active",
+                ContractStartDate = DateTime.UtcNow
+            };
+
+            var responseInvalid = await _client.PostAsJsonAsync("/api/contracts", requestInvalid);
+            responseInvalid.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var resultInvalid = await responseInvalid.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            resultInvalid!.Success.Should().BeFalse();
+            resultInvalid.Message.Should().Contain("Invalid contract type");
+        }
+
+        [Fact]
+        public async Task CreateContract_WithAndWithoutQuota_ShouldBothSucceed()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var user = new User { Id = Guid.NewGuid(), Name = "Quota Test User", Email = "quotatest@test.com", RoleId = 1 };
+            var group = new Group { Id = 109, Name = "Quota Test Group" };
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                if (await context.Users.FindAsync(user.Id) == null)
+                {
+                    context.Users.Add(user);
+                }
+                if (await context.Groups.FindAsync(group.Id) == null)
+                {
+                    context.Groups.Add(group);
+                }
+                await context.SaveChangesAsync();
+            }
+
+            // Test 1: Create contract WITH quota
+            var requestWithQuota = new ContractRequest
+            {
+                ContractNumber = $"QUOTA-WITH-{Guid.NewGuid().ToString()[..8]}",
+                UserId = user.Id,
+                GroupId = group.Id,
+                TotalAmount = 1000,
+                ContractType = "lar",
+                Quota = 25,
+                Status = "Active",
+                ContractStartDate = DateTime.UtcNow
+            };
+
+            var responseWithQuota = await _client.PostAsJsonAsync("/api/contracts", requestWithQuota);
+            responseWithQuota.StatusCode.Should().Be(HttpStatusCode.OK);
+            var resultWithQuota = await responseWithQuota.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            resultWithQuota!.Success.Should().BeTrue();
+            resultWithQuota.Data.Quota.Should().Be(25);
+
+            // Test 2: Create contract WITHOUT quota (null)
+            var requestWithoutQuota = new ContractRequest
+            {
+                ContractNumber = $"QUOTA-WITHOUT-{Guid.NewGuid().ToString()[..8]}",
+                UserId = user.Id,
+                GroupId = group.Id,
+                TotalAmount = 2000,
+                ContractType = "motores",
+                Quota = null, // Explicitly null
+                Status = "Active",
+                ContractStartDate = DateTime.UtcNow
+            };
+
+            var responseWithoutQuota = await _client.PostAsJsonAsync("/api/contracts", requestWithoutQuota);
+            responseWithoutQuota.StatusCode.Should().Be(HttpStatusCode.OK);
+            var resultWithoutQuota = await responseWithoutQuota.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            resultWithoutQuota!.Success.Should().BeTrue();
+            resultWithoutQuota.Data.Quota.Should().BeNull();
+
+            // Test 3: Update contract to remove quota
+            var contractId = resultWithQuota.Data.Id;
+            var updateRequest = new UpdateContractRequest
+            {
+                Quota = null // Remove quota
+            };
+
+            var updateResponse = await _client.PutAsJsonAsync($"/api/contracts/{contractId}", updateRequest);
+            updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var updateResult = await updateResponse.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
+            updateResult!.Success.Should().BeTrue();
+            // Note: The quota might still be the old value since we only update if HasValue
+            // This is expected behavior for partial updates
         }
     }
 }

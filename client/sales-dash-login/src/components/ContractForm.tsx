@@ -17,6 +17,7 @@ import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
 import StyledModal from './StyledModal';
 import FormField from './FormField';
+import { ContractType, ContractTypeLabels } from '../types/ContractType';
 
 interface ContractFormProps {
   contract?: Contract | null;
@@ -39,7 +40,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     status: contract?.status || ContractStatus.Active,
     contractStartDate: contract?.contractStartDate?.split('T')[0] || '',
     isActive: contract?.isActive ?? true,
-    contractType: contract?.contractType?.toString() || '',
+    contractType: contract?.contractType || '',
     quota: contract?.quota || 0,
     customerName: contract?.customerName || '',
     matriculaNumber: contract?.matriculaNumber || '',
@@ -77,7 +78,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         if (!contract) {
           setFormData(prev => ({
             ...prev,
-            contractType: '0', // First option: Lar
+            contractType: ContractType.Lar, // Default to Lar
           }));
         }
       } catch (err: any) {
@@ -143,7 +144,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           status: formData.status as ContractStatus,
           contractStartDate: formData.contractStartDate,
           isActive: formData.isActive,
-          contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
+          contractType: formData.contractType || undefined,
           quota: formData.quota ? Number(formData.quota) : undefined,
           customerName: formData.customerName || undefined,
           matriculaNumber: formData.matriculaNumber || undefined,
@@ -158,7 +159,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           totalAmount: Number(formData.totalAmount),
           status: formData.status as ContractStatus,
           contractStartDate: formData.contractStartDate,
-          contractType: formData.contractType ? parseInt(formData.contractType) : undefined,
+          contractType: formData.contractType || undefined,
           quota: formData.quota ? Number(formData.quota) : undefined,
           customerName: formData.customerName || undefined,
           matriculaNumber: formData.matriculaNumber || undefined,
@@ -281,13 +282,13 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
             onChange={(value) => handleChange('contractType', value)}
             data={[
               { value: '', label: 'Selecione' },
-              { value: '0', label: 'Lar' },
-              { value: '1', label: 'Motores' },
+              { value: ContractType.Lar, label: ContractTypeLabels[ContractType.Lar] },
+              { value: ContractType.Motores, label: ContractTypeLabels[ContractType.Motores] },
             ]}
           />
         </FormField>
 
-        <FormField label="Cota">
+        <FormField label="Cota (Opcional)">
           <NumberInput
             value={formData.quota}
             onChange={(value) => handleChange('quota', value)}

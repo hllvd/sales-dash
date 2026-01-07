@@ -699,7 +699,7 @@ namespace SalesApp.Controllers
                     IsActive = contract.IsActive,
                     CreatedAt = contract.CreatedAt,
                     UpdatedAt = contract.UpdatedAt,
-                    ContractType = contract.ContractType,
+                    ContractType = ContractTypeExtensions.ToApiString(contract.ContractType),
                     Quota = contract.Quota,
                     PvId = contract.PvId,
                     CustomerName = contract.CustomerName,

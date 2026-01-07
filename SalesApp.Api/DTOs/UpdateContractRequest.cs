@@ -26,10 +26,9 @@ namespace SalesApp.DTOs
         
         public bool? IsActive { get; set; }
         
-        [Range(1, 100, ErrorMessage = "Contract type must be between 1 and 100")]
-        public int? ContractType { get; set; }
+        [StringLength(20)]
+        public string? ContractType { get; set; }
         
-        [Range(1, 1000, ErrorMessage = "Quota must be between 1 and 1000")]
         public int? Quota { get; set; }
         
 

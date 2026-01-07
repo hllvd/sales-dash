@@ -141,13 +141,22 @@ namespace SalesApp.Services
                 }
             }
 
-            // Parse ContractType
+            // Parse ContractType - try string first, then fallback to int for backwards compatibility
             int? contractType = null;
             if (!string.IsNullOrWhiteSpace(contractTypeStr))
             {
-                if (int.TryParse(contractTypeStr, out var parsedType))
+                try
                 {
-                    contractType = parsedType;
+                    // Try parsing as string ("lar" or "motores")
+                    contractType = ContractTypeExtensions.FromApiStringToInt(contractTypeStr);
+                }
+                catch (ArgumentException)
+                {
+                    // Fallback to int parsing for backwards compatibility
+                    if (int.TryParse(contractTypeStr, out var parsedType))
+                    {
+                        contractType = parsedType;
+                    }
                 }
             }
 

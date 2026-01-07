@@ -214,14 +214,22 @@ namespace SalesApp.Controllers
                 });
             }
             
-            // Validate ContractType if provided
-            if (request.ContractType.HasValue && request.ContractType.Value != 0 && request.ContractType.Value != 1)
+            // Validate and convert ContractType if provided
+            int? contractTypeInt = null;
+            if (!string.IsNullOrWhiteSpace(request.ContractType))
             {
-                return BadRequest(new ApiResponse<ContractResponse>
+                try
                 {
-                    Success = false,
-                    Message = "Invalid ContractType. Must be 0 (Lar) or 1 (Motors)"
-                });
+                    contractTypeInt = ContractTypeExtensions.FromApiStringToInt(request.ContractType);
+                }
+                catch (ArgumentException ex)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = ex.Message
+                    });
+                }
             }
             
             
@@ -263,7 +271,7 @@ namespace SalesApp.Controllers
                 GroupId = request.GroupId,
                 Status = request.Status,
                 SaleStartDate = request.ContractStartDate,
-                ContractType = request.ContractType,
+                ContractType = contractTypeInt,
                 Quota = request.Quota,
                 PvId = request.PvId,
                 CustomerName = request.CustomerName,
@@ -360,17 +368,20 @@ namespace SalesApp.Controllers
             if (request.IsActive.HasValue)
                 contract.IsActive = request.IsActive.Value;
                 
-            if (request.ContractType.HasValue)
+            if (!string.IsNullOrWhiteSpace(request.ContractType))
             {
-                if (request.ContractType.Value != 0 && request.ContractType.Value != 1)
+                try
+                {
+                    contract.ContractType = ContractTypeExtensions.FromApiStringToInt(request.ContractType);
+                }
+                catch (ArgumentException ex)
                 {
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Invalid ContractType. Must be 0 (Lar) or 1 (Motors)"
+                        Message = ex.Message
                     });
                 }
-                contract.ContractType = request.ContractType.Value;
             }
                 
             if (request.Quota.HasValue)
@@ -466,7 +477,7 @@ namespace SalesApp.Controllers
                 IsActive = contract.IsActive,
                 CreatedAt = contract.CreatedAt,
                 UpdatedAt = contract.UpdatedAt,
-                ContractType = contract.ContractType,
+                ContractType = ContractTypeExtensions.ToApiString(contract.ContractType),
                 Quota = contract.Quota,
                 PvId = contract.PvId,
                 CustomerName = contract.CustomerName,

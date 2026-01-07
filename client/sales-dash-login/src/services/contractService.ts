@@ -27,7 +27,7 @@ export interface Contract {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  contractType?: number;
+  contractType?: string;
   quota?: number;
   customerName?: string;
   matriculaNumber?: string;
@@ -41,7 +41,7 @@ export interface CreateContractRequest {
   status: ContractStatus;
   contractStartDate: string;
   pvId?: number;
-  contractType?: number;
+  contractType?: string;
   quota?: number;
   customerName?: string;
   matriculaNumber?: string;
@@ -56,7 +56,7 @@ export interface UpdateContractRequest {
   status?: ContractStatus;
   contractStartDate?: string;
   isActive?: boolean;
-  contractType?: number;
+  contractType?: string;
   quota?: number;
   customerName?: string;
   matriculaNumber?: string;

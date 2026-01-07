@@ -27,9 +27,8 @@ namespace SalesApp.DTOs
         
         public DateTime ContractStartDate { get; set; } = DateTime.UtcNow;
         
-        [Range(1, 100, ErrorMessage = "Contract type must be between 1 and 100")]
-        public int? ContractType { get; set; }
-        [Range(1, 1000, ErrorMessage = "Quota must be between 1 and 1000")]
+        [StringLength(20)]
+        public string? ContractType { get; set; }
         public int? Quota { get; set; }
         [StringLength(200)]
         [ValidUserName]
