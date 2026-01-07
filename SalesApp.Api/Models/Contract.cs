@@ -20,7 +20,7 @@ namespace SalesApp.Models
         
         [Required]
         [MaxLength(20)]
-        public string Status { get; set; } = "active"; // "active", "delinquent", "paid_off"
+        public string Status { get; set; } = "active"; // See ContractStatus enum for valid values
         
         public DateTime SaleStartDate { get; set; } = DateTime.UtcNow;
         

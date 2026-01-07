@@ -22,7 +22,7 @@ namespace SalesApp.Models
         
         [Required]
         [MaxLength(20)]
-        public string Status { get; set; } = "active"; // "active", "pending"
+        public string Status { get; set; } = "active"; // See MatriculaStatus enum for valid values
         
         public bool IsOwner { get; set; } = false;
         

@@ -588,7 +588,7 @@ namespace SalesApp.Controllers
                 MatriculaNumber = request.MatriculaNumber,
                 StartDate = DateTime.UtcNow,
                 IsActive = false, // Not active until approved
-                Status = "pending",
+                Status = MatriculaStatus.Pending.ToApiString(),
                 IsOwner = false,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow

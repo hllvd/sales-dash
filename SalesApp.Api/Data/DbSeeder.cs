@@ -56,7 +56,7 @@ namespace SalesApp.Data
                     Name = "Super Admin",
                     Email = "superadmin@salesapp.com",
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),
-                    RoleId = 1, // Superadmin role
+                    RoleId = (int)Models.RoleId.SuperAdmin,
                     IsActive = true
                 };
                 

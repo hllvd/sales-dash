@@ -68,7 +68,7 @@ namespace SalesApp.Services
                 Name = fullName,
                 Email = email,
                 PasswordHash = defaultPassword,
-                RoleId = 3, // Default to user role
+                RoleId = (int)Models.RoleId.User, // Default to user role
                 ParentUserId = createdByUserId, // Set the importing user as parent
                 IsActive = true,
                 Level = 1,

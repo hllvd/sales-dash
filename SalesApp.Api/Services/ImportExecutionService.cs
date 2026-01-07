@@ -303,7 +303,7 @@ namespace SalesApp.Services
             }
 
             // Resolve Role
-            int roleId = 3; // Default User
+            int roleId = (int)Models.RoleId.User; // Default User
             if (!string.IsNullOrWhiteSpace(roleName))
             {
                 var role = await _roleRepository.GetByNameAsync(roleName);
