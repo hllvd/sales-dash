@@ -6,6 +6,7 @@ import Menu from "./Menu"
 import MatriculaForm from "./MatriculaForm"
 import MatriculaImportModal from "./MatriculaImportModal"
 import { MatriculaStatus, MatriculaStatusLabels, ActiveState, ActiveStateLabels } from '../types/MatriculaStatus';
+import { useCurrentUser } from '../contexts/CurrentUserContext';
 import {
   apiService,
   UserMatricula,
@@ -14,6 +15,7 @@ import {
 } from "../services/apiService"
 
 const MatriculasPage: React.FC = () => {
+  const { refreshCurrentUser } = useCurrentUser();
   const [matriculas, setMatriculas] = useState<UserMatricula[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -70,6 +72,7 @@ const MatriculasPage: React.FC = () => {
     await apiService.createMatricula(data)
     setShowForm(false)
     fetchMatriculas()
+    refreshCurrentUser() // Refresh current user context
   }
 
   const handleUpdateMatricula = async (data: UpdateMatriculaRequest) => {
@@ -78,6 +81,7 @@ const MatriculasPage: React.FC = () => {
       setShowForm(false)
       setEditingMatricula(undefined)
       fetchMatriculas()
+      refreshCurrentUser() // Refresh current user context
     }
   }
 
@@ -86,6 +90,7 @@ const MatriculasPage: React.FC = () => {
       await apiService.deleteMatricula(id)
       setDeleteConfirm(null)
       fetchMatriculas()
+      refreshCurrentUser() // Refresh current user context
     } catch (err: any) {
       setError(err.message || "Failed to delete matricula")
     }
@@ -272,6 +277,7 @@ const MatriculasPage: React.FC = () => {
             onSuccess={() => {
               setShowImportModal(false);
               fetchMatriculas();
+              refreshCurrentUser(); // Refresh current user context
             }}
           />
         )}

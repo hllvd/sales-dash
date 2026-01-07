@@ -346,7 +346,7 @@ namespace SalesApp.Controllers
                 matricula.IsOwner = request.IsOwner.Value;
             
             if (request.Status != null)
-                matricula.Status = request.Status;
+                matricula.Status = request.Status.ToLower();
 
             var updated = await _matriculaRepository.UpdateAsync(matricula);
 
