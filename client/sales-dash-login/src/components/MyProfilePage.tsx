@@ -320,6 +320,12 @@ const MyProfilePage: React.FC = () => {
           }}
           title="Adicionar Matrícula"
           centered
+          styles={{
+            title: {
+              color: '#212529',
+              fontWeight: 600,
+            },
+          }}
         >
           <TextInput
             label="Número da Matrícula"

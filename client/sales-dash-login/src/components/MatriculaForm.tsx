@@ -123,10 +123,13 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
             onChange={(e) => handleChange('startDate', e.target.value)}
             style={{
               width: '100%',
-              padding: '8px',
-              borderRadius: '4px',
+              padding: '10px 12px',
+              borderRadius: '6px',
               border: '1px solid #ced4da',
-              fontSize: '14px'
+              fontSize: '14px',
+              backgroundColor: 'white',
+              color: '#212529',
+              transition: 'border-color 0.15s ease-in-out'
             }}
           />
         </FormField>
@@ -138,10 +141,13 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
             onChange={(e) => handleChange('endDate', e.target.value)}
             style={{
               width: '100%',
-              padding: '8px',
-              borderRadius: '4px',
+              padding: '10px 12px',
+              borderRadius: '6px',
               border: '1px solid #ced4da',
-              fontSize: '14px'
+              fontSize: '14px',
+              backgroundColor: 'white',
+              color: '#212529',
+              transition: 'border-color 0.15s ease-in-out'
             }}
           />
         </FormField>
@@ -175,11 +181,30 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
           />
         </FormField>
 
-        <Group justify="flex-end" mt="xl">
-          <Button variant="light" onClick={onClose} disabled={loading}>
+        <Group justify="flex-end" mt="xl" style={{ 
+          paddingTop: '16px', 
+          borderTop: '1px solid #dee2e6',
+          marginTop: '24px'
+        }}>
+          <Button 
+            variant="subtle" 
+            onClick={onClose} 
+            disabled={loading}
+            color="gray"
+            size="md"
+          >
             Cancelar
           </Button>
-          <Button type="submit" loading={loading}>
+          <Button 
+            type="submit" 
+            loading={loading}
+            size="md"
+            style={{
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}
+          >
             {isEdit ? "Salvar Alterações" : "Criar Matrícula"}
           </Button>
         </Group>

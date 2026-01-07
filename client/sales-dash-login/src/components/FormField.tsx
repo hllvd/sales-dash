@@ -9,6 +9,7 @@ interface FormFieldProps {
 
 /**
  * Reusable form field component for modals with consistent styling
+ * Optimized for light background with dark text for maximum readability
  */
 const FormField: React.FC<FormFieldProps> = ({ 
   label, 
@@ -22,7 +23,7 @@ const FormField: React.FC<FormFieldProps> = ({
      (typeof children.props === 'object' && children.props !== null && 'checked' in children.props));
 
   return (
-    <div style={{ marginBottom: '1rem' }}>
+    <div style={{ marginBottom: '1.25rem' }}>
       {isCheckbox ? (
         // Inline layout for checkboxes
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -30,10 +31,10 @@ const FormField: React.FC<FormFieldProps> = ({
           <label style={{ 
             fontSize: '14px', 
             fontWeight: 500,
-            color: 'white',
+            color: '#212529',
             cursor: 'pointer'
           }}>
-            {label} {required && <span style={{ color: 'red' }}>*</span>}
+            {label} {required && <span style={{ color: '#fa5252' }}>*</span>}
           </label>
         </div>
       ) : (
@@ -41,12 +42,13 @@ const FormField: React.FC<FormFieldProps> = ({
         <>
           <label style={{ 
             display: 'block', 
-            marginBottom: '0.25rem', 
+            marginBottom: '0.5rem', 
             fontSize: '14px', 
-            fontWeight: 500,
-            color: 'white'
+            fontWeight: 600,
+            color: '#212529',
+            letterSpacing: '0.01em'
           }}>
-            {label} {required && <span style={{ color: 'red' }}>*</span>}
+            {label} {required && <span style={{ color: '#fa5252' }}>*</span>}
           </label>
           {children}
         </>
@@ -54,8 +56,9 @@ const FormField: React.FC<FormFieldProps> = ({
       {description && (
         <div style={{ 
           fontSize: '12px', 
-          color: '#a0a0a0', 
-          marginTop: '0.25rem' 
+          color: '#6c757d', 
+          marginTop: '0.375rem',
+          lineHeight: '1.4'
         }}>
           {description}
         </div>

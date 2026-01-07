@@ -7,8 +7,8 @@ interface StyledModalProps extends Omit<ModalProps, 'title'> {
 }
 
 /**
- * Reusable styled modal component with white title
- * Used across the application for consistent modal styling
+ * Reusable styled modal component with light form area for better readability
+ * Dark header + light form content + light footer for maximum contrast
  */
 const StyledModal: React.FC<StyledModalProps> = ({ title, children, ...props }) => {
   return (
@@ -19,7 +19,32 @@ const StyledModal: React.FC<StyledModalProps> = ({ title, children, ...props }) 
           {title}
         </Title>
       }
-      className="styled-form"
+      styles={{
+        header: {
+          backgroundColor: '#1a1b1e',
+          borderBottom: '1px solid #373A40',
+          padding: '20px 24px',
+        },
+        body: {
+          backgroundColor: '#f8f9fa',
+          padding: '24px',
+        },
+        content: {
+          backgroundColor: '#1a1b1e',
+        },
+        close: {
+          color: '#fff',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '6px',
+          width: '36px',
+          height: '36px',
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            transform: 'scale(1.05)',
+          },
+          transition: 'all 0.2s ease',
+        },
+      }}
     >
       {children}
     </Modal>
