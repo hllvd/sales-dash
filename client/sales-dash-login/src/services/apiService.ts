@@ -557,6 +557,7 @@ export interface UserMatricula {
   endDate?: string
   isActive: boolean
   isOwner: boolean
+  status: string
   createdAt: string
 }
 
@@ -575,6 +576,7 @@ export interface UpdateMatriculaRequest {
   endDate?: string
   isActive?: boolean
   isOwner?: boolean
+  status?: string
 }
 
 export interface BulkCreateMatriculaResponse {

@@ -18,5 +18,8 @@ namespace SalesApp.DTOs
         public bool? IsActive { get; set; }
         
         public bool? IsOwner { get; set; }
+        
+        [StringLength(20)]
+        public string? Status { get; set; }
     }
 }

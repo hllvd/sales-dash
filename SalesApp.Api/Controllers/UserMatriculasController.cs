@@ -344,6 +344,9 @@ namespace SalesApp.Controllers
             
             if (request.IsOwner.HasValue)
                 matricula.IsOwner = request.IsOwner.Value;
+            
+            if (request.Status != null)
+                matricula.Status = request.Status;
 
             var updated = await _matriculaRepository.UpdateAsync(matricula);
 
@@ -452,6 +455,7 @@ namespace SalesApp.Controllers
                 EndDate = matricula.EndDate,
                 IsActive = matricula.IsActive,
                 IsOwner = matricula.IsOwner,
+                Status = matricula.Status,
                 CreatedAt = matricula.CreatedAt
             };
         }

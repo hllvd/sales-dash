@@ -4,6 +4,7 @@ import { UserMatricula, apiService } from "../services/apiService"
 import StyledModal from './StyledModal';
 import { useUsers } from '../contexts/UsersContext';
 import FormField from './FormField';
+import { MatriculaStatus, MatriculaStatusLabels } from '../types/MatriculaStatus';
 
 interface MatriculaFormProps {
   matricula?: UserMatricula
@@ -23,6 +24,7 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
     endDate: matricula?.endDate ? matricula.endDate.split('T')[0] : "",
     isActive: matricula?.isActive ?? true,
     isOwner: matricula?.isOwner ?? false,
+    status: matricula?.status || MatriculaStatus.Active,
   })
   const { users } = useUsers() // Use UsersContext instead of local state
   const [loading, setLoading] = useState(false)
@@ -47,6 +49,7 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
         startDate: formData.startDate, // Already in YYYY-MM-DD format
         isActive: formData.isActive,
         isOwner: formData.isOwner,
+        status: formData.status,
       }
 
       if (!isEdit) {
@@ -157,6 +160,18 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
           <Checkbox
             checked={formData.isOwner}
             onChange={(e) => handleChange('isOwner', e.currentTarget.checked)}
+          />
+        </FormField>
+
+        <FormField label="Status" required>
+          <Select
+            required
+            value={formData.status}
+            onChange={(value) => handleChange('status', value)}
+            data={[
+              { value: MatriculaStatus.Active, label: MatriculaStatusLabels[MatriculaStatus.Active] },
+              { value: MatriculaStatus.Pending, label: MatriculaStatusLabels[MatriculaStatus.Pending] },
+            ]}
           />
         </FormField>
 

@@ -5,6 +5,7 @@ import "./MatriculasPage.css"
 import Menu from "./Menu"
 import MatriculaForm from "./MatriculaForm"
 import MatriculaImportModal from "./MatriculaImportModal"
+import { MatriculaStatus, MatriculaStatusLabels, ActiveState, ActiveStateLabels } from '../types/MatriculaStatus';
 import {
   apiService,
   UserMatricula,
@@ -171,6 +172,7 @@ const MatriculasPage: React.FC = () => {
                   <Table.Th>Usuário</Table.Th>
                   <Table.Th>Data Início</Table.Th>
                   <Table.Th>Data Fim</Table.Th>
+                  <Table.Th>Ativo</Table.Th>
                   <Table.Th>Status</Table.Th>
                   <Table.Th>Proprietário</Table.Th>
                   <Table.Th>Ações</Table.Th>
@@ -179,7 +181,7 @@ const MatriculasPage: React.FC = () => {
               <Table.Tbody>
                 {matriculas.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={7} style={{ textAlign: "center" }}>
+                    <Table.Td colSpan={8} style={{ textAlign: "center" }}>
                       Nenhuma matrícula encontrada
                     </Table.Td>
                   </Table.Tr>
@@ -196,7 +198,12 @@ const MatriculasPage: React.FC = () => {
                       </Table.Td>
                       <Table.Td>
                         <Badge color={isActive(matricula) ? "green" : "gray"}>
-                          {isActive(matricula) ? "Ativa" : "Inativa"}
+                          {ActiveStateLabels[isActive(matricula) ? ActiveState.Active : ActiveState.Inactive]}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge color={matricula.status === MatriculaStatus.Active ? "blue" : "yellow"}>
+                          {MatriculaStatusLabels[matricula.status as MatriculaStatus]}
                         </Badge>
                       </Table.Td>
                       <Table.Td>
