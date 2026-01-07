@@ -16,18 +16,41 @@ const FormField: React.FC<FormFieldProps> = ({
   children,
   description 
 }) => {
+  // Check if children is a checkbox by checking if it's a React element with type.displayName or type.name containing 'Checkbox'
+  const isCheckbox = React.isValidElement(children) && 
+    (children.type?.toString().includes('Checkbox') || 
+     (typeof children.props === 'object' && children.props !== null && 'checked' in children.props));
+
   return (
     <div style={{ marginBottom: '1rem' }}>
-      <label style={{ 
-        display: 'block', 
-        marginBottom: '0.25rem', 
-        fontSize: '14px', 
-        fontWeight: 500,
-        color: 'white'
-      }}>
-        {label} {required && <span style={{ color: 'red' }}>*</span>}
-      </label>
-      {children}
+      {isCheckbox ? (
+        // Inline layout for checkboxes
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {children}
+          <label style={{ 
+            fontSize: '14px', 
+            fontWeight: 500,
+            color: 'white',
+            cursor: 'pointer'
+          }}>
+            {label} {required && <span style={{ color: 'red' }}>*</span>}
+          </label>
+        </div>
+      ) : (
+        // Block layout for other inputs
+        <>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '0.25rem', 
+            fontSize: '14px', 
+            fontWeight: 500,
+            color: 'white'
+          }}>
+            {label} {required && <span style={{ color: 'red' }}>*</span>}
+          </label>
+          {children}
+        </>
+      )}
       {description && (
         <div style={{ 
           fontSize: '12px', 
