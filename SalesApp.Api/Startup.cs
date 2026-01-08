@@ -63,6 +63,9 @@ namespace SalesApp
             services.AddScoped<IImportExecutionService, ImportExecutionService>();
             services.AddScoped<IContractAggregationService, ContractAggregationService>();
             services.AddScoped<IUserMatriculaRepository, UserMatriculaRepository>();
+            
+            // Message service for translations
+            services.AddScoped<IMessageService, MessageService>();
 
             
             // CORS
