@@ -1,3 +1,5 @@
+using SalesApp.Models;
+
 namespace SalesApp.Services
 {
     /// <summary>
@@ -7,32 +9,32 @@ namespace SalesApp.Services
     {
         private static readonly Dictionary<string, string> StatusAliases = new(StringComparer.OrdinalIgnoreCase)
         {
-            // Active aliases
-            { "Active", "Active" },
-            { "Normal", "Active" },
+            // ✅ Active aliases
+            { "Active", ContractStatus.Active.ToApiString() },
+            { "Normal", ContractStatus.Active.ToApiString() },
             
-            // Late1 aliases
-            { "Late1", "Late1" },
-            { "NCONT 1 AT", "Late1" },
+            // ✅ Late1 aliases
+            { "Late1", ContractStatus.Late1.ToApiString() },
+            { "NCONT 1 AT", ContractStatus.Late1.ToApiString() },
             
-            // Late2 aliases
-            { "Late2", "Late2" },
-            { "NCONT 2 AT", "Late2" },
+            // ✅ Late2 aliases
+            { "Late2", ContractStatus.Late2.ToApiString() },
+            { "NCONT 2 AT", ContractStatus.Late2.ToApiString() },
             
-            // Late3 aliases
-            { "Late3", "Late3" },
-            { "NCONT 3 AT", "Late3" },
-            { "SUJ. A CANCELAMENTO", "Late3" },
-            { "SUJ. A  CANCELAMENTO", "Late3" }, // Handle double space
+            // ✅ Late3 aliases
+            { "Late3", ContractStatus.Late3.ToApiString() },
+            { "NCONT 3 AT", ContractStatus.Late3.ToApiString() },
+            { "SUJ. A CANCELAMENTO", ContractStatus.Late3.ToApiString() },
+            { "SUJ. A  CANCELAMENTO", ContractStatus.Late3.ToApiString() }, // Handle double space
             
-            // Defaulted aliases
-            { "Defaulted", "Defaulted" },
-            { "DESISTENTE", "Defaulted" },
-            { "EXCLUIDO", "Defaulted" },
-            { "paid_off", "Defaulted" }, // Legacy
+            // ✅ Defaulted aliases
+            { "Defaulted", ContractStatus.Defaulted.ToApiString() },
+            { "DESISTENTE", ContractStatus.Defaulted.ToApiString() },
+            { "EXCLUIDO", ContractStatus.Defaulted.ToApiString() },
+            { "paid_off", ContractStatus.Defaulted.ToApiString() }, // Legacy
             
             // Late3 legacy
-            { "delinquent", "Late3" } // Legacy
+            { "delinquent", ContractStatus.Late3.ToApiString() } // Legacy
         };
 
         /// <summary>
@@ -63,11 +65,12 @@ namespace SalesApp.Services
                 return false;
             }
 
-            return status == "Active" || 
-                   status == "Late1" || 
-                   status == "Late2" || 
-                   status == "Late3" || 
-                   status == "Defaulted";
+            // ✅ Use enum instead of hardcoded strings
+            return status == ContractStatus.Active.ToApiString() || 
+                   status == ContractStatus.Late1.ToApiString() || 
+                   status == ContractStatus.Late2.ToApiString() || 
+                   status == ContractStatus.Late3.ToApiString() || 
+                   status == ContractStatus.Defaulted.ToApiString();
         }
 
         /// <summary>
@@ -75,7 +78,15 @@ namespace SalesApp.Services
         /// </summary>
         public static string[] GetValidStatuses()
         {
-            return new[] { "Active", "Late1", "Late2", "Late3", "Defaulted" };
+            // ✅ Use enum instead of hardcoded strings
+            return new[] 
+            { 
+                ContractStatus.Active.ToApiString(), 
+                ContractStatus.Late1.ToApiString(), 
+                ContractStatus.Late2.ToApiString(), 
+                ContractStatus.Late3.ToApiString(), 
+                ContractStatus.Defaulted.ToApiString() 
+            };
         }
     }
 }

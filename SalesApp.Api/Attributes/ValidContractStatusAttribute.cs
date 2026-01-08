@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using SalesApp.Models;
 
 namespace SalesApp.Attributes
 {
@@ -7,13 +8,14 @@ namespace SalesApp.Attributes
     /// </summary>
     public class ValidContractStatusAttribute : ValidationAttribute
     {
+        // ✅ Use enum instead of hardcoded strings
         private static readonly string[] ValidStatuses = 
         { 
-            "Active", 
-            "Late1", 
-            "Late2", 
-            "Late3", 
-            "Defaulted" 
+            ContractStatus.Active.ToApiString(), 
+            ContractStatus.Late1.ToApiString(), 
+            ContractStatus.Late2.ToApiString(), 
+            ContractStatus.Late3.ToApiString(), 
+            ContractStatus.Defaulted.ToApiString() 
         };
 
         protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)

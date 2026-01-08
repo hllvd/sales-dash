@@ -144,7 +144,8 @@ namespace SalesApp.Services
 
             // Extract optional fields
             var statusInput = GetFieldValue(row, reverseMappings, "Status");
-            var status = ContractStatusMapper.MapStatus(statusInput) ?? "Active";
+            // ✅ Use enum for default status
+            var status = ContractStatusMapper.MapStatus(statusInput) ?? ContractStatus.Active.ToApiString();
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
             var contractTypeStr = GetFieldValue(row, reverseMappings, "ContractType");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");

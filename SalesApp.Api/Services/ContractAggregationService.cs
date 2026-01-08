@@ -29,7 +29,8 @@ namespace SalesApp.Services
                     var active = acc.Active;
                     var late = acc.Late;
                     
-                    if (c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
+                    // ✅ Use enum instead of hardcoded strings
+                    if (c.Status.Equals(ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase))
                     {
                         cancel += c.TotalAmount;
                     }
@@ -37,9 +38,9 @@ namespace SalesApp.Services
                     {
                         active += c.TotalAmount;
                         
-                        if (c.Status.Equals("Late1", StringComparison.OrdinalIgnoreCase) ||
-                            c.Status.Equals("Late2", StringComparison.OrdinalIgnoreCase) ||
-                            c.Status.Equals("Late3", StringComparison.OrdinalIgnoreCase))
+                        if (c.Status.Equals(ContractStatus.Late1.ToApiString(), StringComparison.OrdinalIgnoreCase) ||
+                            c.Status.Equals(ContractStatus.Late2.ToApiString(), StringComparison.OrdinalIgnoreCase) ||
+                            c.Status.Equals(ContractStatus.Late3.ToApiString(), StringComparison.OrdinalIgnoreCase))
                         {
                             late += c.TotalAmount;
                         }
