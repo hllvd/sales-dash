@@ -38,17 +38,19 @@ namespace SalesApp.Services
 
             // Create reverse mapping (target field -> source column)
             var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+            var contractsToAdd = new List<Contract>();
 
+            // ✅ Phase 1: Build all contracts (validation only, no DB saves)
             for (int i = 0; i < rows.Count; i++)
             {
                 try
                 {
                     var row = rows[i];
-                    var contract = await CreateContractFromRowAsync(row, reverseMappings, uploadId, dateFormat);
+                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat);
                     
                     if (contract != null)
                     {
-                        result.CreatedContracts.Add(contract);
+                        contractsToAdd.Add(contract);
                         result.ProcessedRows++;
                     }
                     else
@@ -64,10 +66,28 @@ namespace SalesApp.Services
                 }
             }
 
+            // ✅ Phase 2: Batch insert all valid contracts in single transaction
+            if (contractsToAdd.Any())
+            {
+                try
+                {
+                    await _contractRepository.CreateBatchAsync(contractsToAdd);
+                    result.CreatedContracts = contractsToAdd;
+                }
+                catch (Exception ex)
+                {
+                    // If batch fails, mark all as failed
+                    result.FailedRows += contractsToAdd.Count;
+                    result.ProcessedRows -= contractsToAdd.Count;
+                    result.Errors.Add($"Batch insert failed: {ex.Message}");
+                    result.CreatedContracts.Clear();
+                }
+            }
+
             return result;
         }
 
-        private async Task<Contract?> CreateContractFromRowAsync(
+        private async Task<Contract?> BuildContractFromRowAsync(
             Dictionary<string, string> row,
             Dictionary<string, string> reverseMappings,
             string uploadId,
@@ -206,7 +226,7 @@ namespace SalesApp.Services
                 matriculaId = matricula.Id;
             }
 
-            // Create contract
+            // ✅ Create contract object (don't save yet)
             var contract = new Contract
             {
                 ContractNumber = contractNumber,
@@ -226,8 +246,7 @@ namespace SalesApp.Services
                 MatriculaId = matriculaId
             };
 
-            // Save to database
-            return await _contractRepository.CreateAsync(contract);
+            return contract;
         }
 
         public async Task<ImportResult> ExecuteUserImportAsync(

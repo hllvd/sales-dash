@@ -15,6 +15,7 @@ namespace SalesApp.Repositories
         
         public async Task<Contract?> GetByIdAsync(int id)
         {
+            // NOTE: No AsNoTracking - used after create/update, needs tracked entities
             return await _context.Contracts
                 .Include(c => c.User)
                 .Include(c => c.Group)
@@ -25,6 +26,7 @@ namespace SalesApp.Repositories
         public async Task<Contract?> GetByContractNumberAsync(string contractNumber)
         {
             return await _context.Contracts
+                .AsNoTracking()
                 .Include(c => c.User)
                 .Include(c => c.Group)
                 .Include(c => c.UserMatricula)
@@ -34,6 +36,7 @@ namespace SalesApp.Repositories
         public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null)
         {
             var query = _context.Contracts
+                .AsNoTracking()
                 .Include(c => c.User)
                 .Include(c => c.Group)
                 .Include(c => c.UserMatricula)
@@ -57,6 +60,7 @@ namespace SalesApp.Repositories
         public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null)
         {
             var query = _context.Contracts
+                .AsNoTracking()
                 .Include(c => c.User)
                 .Include(c => c.Group)
                 .Include(c => c.UserMatricula)
@@ -74,6 +78,7 @@ namespace SalesApp.Repositories
         public async Task<List<Contract>> GetByUploadIdAsync(string uploadId)
         {
             return await _context.Contracts
+                .AsNoTracking()
                 .Include(c => c.User)
                 .Include(c => c.Group)
                 .Include(c => c.UserMatricula)
@@ -91,9 +96,40 @@ namespace SalesApp.Repositories
             return await GetByIdAsync(contract.Id) ?? contract;
         }
         
+        public async Task<List<Contract>> CreateBatchAsync(List<Contract> contracts)
+        {
+            if (contracts == null || !contracts.Any())
+                return new List<Contract>();
+            
+            // ✅ Batch insert - single transaction, single SaveChanges
+            _context.Contracts.AddRange(contracts);
+            await _context.SaveChangesAsync();
+            
+            // ✅ Reload with navigation properties for API responses
+            var contractIds = contracts.Select(c => c.Id).ToList();
+            var reloadedContracts = await _context.Contracts
+                .AsNoTracking()
+                .Include(c => c.User)
+                .Include(c => c.Group)
+                .Include(c => c.UserMatricula)
+                .Where(c => contractIds.Contains(c.Id))
+                .ToListAsync();
+            
+            return reloadedContracts;
+        }
+        
         public async Task<Contract> UpdateAsync(Contract contract)
         {
             contract.UpdatedAt = DateTime.UtcNow;
+            
+            // ✅ Clear ALL tracked entities to avoid conflicts
+            _context.ChangeTracker.Clear();
+            
+            // ✅ Null out navigation properties to prevent EF Core from tracking them
+            contract.User = null;
+            contract.Group = null;
+            contract.UserMatricula = null;
+            
             _context.Contracts.Update(contract);
             await _context.SaveChangesAsync();
             

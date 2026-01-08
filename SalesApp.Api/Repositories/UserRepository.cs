@@ -15,6 +15,7 @@ namespace SalesApp.Repositories
         
         public async Task<User?> GetByIdAsync(Guid id)
         {
+            // NOTE: No AsNoTracking - used in update scenarios
             return await _context.Users
                 .Include(u => u.ParentUser)
                 .Include(u => u.Role)
@@ -24,6 +25,7 @@ namespace SalesApp.Repositories
         public async Task<User?> GetByEmailAsync(string email)
         {
             return await _context.Users
+                .AsNoTracking()
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
         }
@@ -32,7 +34,7 @@ namespace SalesApp.Repositories
         
         public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null)
         {
-            var query = _context.Users.AsQueryable();
+            var query = _context.Users.AsNoTracking();
             
             if (!string.IsNullOrEmpty(search))
             {
@@ -79,6 +81,7 @@ namespace SalesApp.Repositories
         public async Task<List<User>> GetByRoleIdAsync(int roleId)
         {
             return await _context.Users
+                .AsNoTracking()
                 .Where(u => u.RoleId == roleId && u.IsActive)
                 .Include(u => u.ParentUser)
                 .Include(u => u.Role)
@@ -88,6 +91,7 @@ namespace SalesApp.Repositories
         public async Task<User?> GetParentAsync(Guid userId)
         {
             var user = await _context.Users
+                .AsNoTracking()
                 .Include(u => u.ParentUser)
                 .FirstOrDefaultAsync(u => u.Id == userId);
             return user?.ParentUser;
@@ -96,6 +100,7 @@ namespace SalesApp.Repositories
         public async Task<List<User>> GetChildrenAsync(Guid userId)
         {
             return await _context.Users
+                .AsNoTracking()
                 .Where(u => u.ParentUserId == userId && u.IsActive)
                 .Include(u => u.ParentUser)
                 .ToListAsync();
@@ -103,43 +108,60 @@ namespace SalesApp.Repositories
         
         public async Task<List<User>> GetTreeAsync(Guid userId, int depth = -1)
         {
+            // ✅ Load ALL active users once with minimal data
+            var allUsers = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.IsActive)
+                .Include(u => u.ParentUser)
+                .ToListAsync();
+            
+            // Build tree in memory (no more DB calls)
             var result = new List<User>();
-            await GetTreeRecursiveAsync(userId, depth, 0, result);
+            BuildTreeRecursive(userId, allUsers, depth, 0, result);
             return result;
         }
         
-        private async Task GetTreeRecursiveAsync(Guid userId, int maxDepth, int currentDepth, List<User> result)
+        private void BuildTreeRecursive(Guid userId, List<User> allUsers, int maxDepth, int currentDepth, List<User> result)
         {
             if (maxDepth != -1 && currentDepth > maxDepth) return;
             
-            var user = await _context.Users
-                .Include(u => u.ParentUser)
-                .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
-                
+            var user = allUsers.FirstOrDefault(u => u.Id == userId);
             if (user == null) return;
             
             user.Level = currentDepth;
             result.Add(user);
             
-            var children = await GetChildrenAsync(userId);
+            // Find children from already-loaded users
+            var children = allUsers.Where(u => u.ParentUserId == userId);
             foreach (var child in children)
             {
-                await GetTreeRecursiveAsync(child.Id, maxDepth, currentDepth + 1, result);
+                BuildTreeRecursive(child.Id, allUsers, maxDepth, currentDepth + 1, result);
             }
         }
         
         public async Task<int> GetLevelAsync(Guid userId)
         {
-            var level = 0;
-            var currentUserId = userId;
+            // ✅ Load all users once with minimal projection
+            var allUsers = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.IsActive)
+                .Select(u => new { u.Id, u.ParentUserId })
+                .ToListAsync();
             
-            while (true)
+            // Build dictionary for O(1) lookups
+            var userDict = allUsers.ToDictionary(u => u.Id);
+            
+            var level = 0;
+            var currentId = userId;
+            
+            // Traverse hierarchy in memory
+            while (userDict.ContainsKey(currentId))
             {
-                var parent = await GetParentAsync(currentUserId);
-                if (parent == null) break;
+                var parentId = userDict[currentId].ParentUserId;
+                if (parentId == null) break;
                 
                 level++;
-                currentUserId = parent.Id;
+                currentId = parentId.Value;
                 
                 // Prevent infinite loops
                 if (level > 100) throw new InvalidOperationException("Circular reference detected in user hierarchy");
@@ -151,6 +173,7 @@ namespace SalesApp.Repositories
         public async Task<User?> GetRootUserAsync()
         {
             return await _context.Users
+                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.ParentUserId == null && u.IsActive);
         }
         

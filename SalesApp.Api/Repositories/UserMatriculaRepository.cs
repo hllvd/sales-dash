@@ -16,6 +16,7 @@ namespace SalesApp.Repositories
         public async Task<List<UserMatricula>> GetAllAsync()
         {
             return await _context.UserMatriculas
+                .AsNoTracking()
                 .Include(m => m.User)
                 .OrderByDescending(m => m.CreatedAt)
                 .ToListAsync();
@@ -23,6 +24,7 @@ namespace SalesApp.Repositories
 
         public async Task<UserMatricula?> GetByIdAsync(int id)
         {
+            // NOTE: No AsNoTracking - used after create/update
             return await _context.UserMatriculas
                 .FirstOrDefaultAsync(m => m.Id == id);
         }
@@ -30,6 +32,7 @@ namespace SalesApp.Repositories
         public async Task<List<UserMatricula>> GetByUserIdAsync(Guid userId)
         {
             return await _context.UserMatriculas
+                .AsNoTracking()
                 .Where(m => m.UserId == userId)
                 .OrderByDescending(m => m.StartDate)
                 .ToListAsync();
@@ -39,6 +42,7 @@ namespace SalesApp.Repositories
         {
             var now = DateTime.UtcNow;
             return await _context.UserMatriculas
+                .AsNoTracking()
                 .Where(m => m.UserId == userId && 
                            m.IsActive && 
                            (m.EndDate == null || m.EndDate > now))
@@ -49,6 +53,7 @@ namespace SalesApp.Repositories
         public async Task<UserMatricula?> GetByMatriculaNumberAsync(string matriculaNumber)
         {
             return await _context.UserMatriculas
+                .AsNoTracking()
                 .Include(m => m.User)
                 .FirstOrDefaultAsync(m => m.MatriculaNumber == matriculaNumber);
         }
@@ -56,6 +61,7 @@ namespace SalesApp.Repositories
         public async Task<List<UserMatricula>> GetAllByMatriculaNumberAsync(string matriculaNumber)
         {
             return await _context.UserMatriculas
+                .AsNoTracking()
                 .Include(m => m.User)
                 .Where(m => m.MatriculaNumber == matriculaNumber && m.IsActive)
                 .OrderByDescending(m => m.IsOwner)
@@ -90,7 +96,21 @@ namespace SalesApp.Repositories
                 await SetOwnerAsync(matricula.MatriculaNumber, matricula.UserId);
             }
             
-            _context.UserMatriculas.Update(matricula);
+            // ✅ Ensure entity is tracked before updating
+            var existingEntry = _context.ChangeTracker.Entries<UserMatricula>()
+                .FirstOrDefault(e => e.Entity.Id == matricula.Id);
+            
+            if (existingEntry == null)
+            {
+                // Entity not tracked, attach it
+                _context.UserMatriculas.Update(matricula);
+            }
+            else
+            {
+                // Entity already tracked, update its values
+                _context.Entry(existingEntry.Entity).CurrentValues.SetValues(matricula);
+            }
+            
             await _context.SaveChangesAsync();
             
             return matricula;
@@ -125,12 +145,13 @@ namespace SalesApp.Repositories
         public async Task<UserMatricula?> GetOwnerByMatriculaNumberAsync(string matriculaNumber)
         {
             return await _context.UserMatriculas
+                .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.MatriculaNumber == matriculaNumber && m.IsOwner);
         }
 
         public async Task SetOwnerAsync(string matriculaNumber, Guid newOwnerId)
         {
-            // Get all matriculas with this number
+            // Get all matriculas with this number (WITH tracking - we need to update them)
             var existingMatriculas = await _context.UserMatriculas
                 .Where(m => m.MatriculaNumber == matriculaNumber)
                 .ToListAsync();
@@ -147,6 +168,7 @@ namespace SalesApp.Repositories
         public async Task<UserMatricula?> GetByMatriculaNumberAndUserIdAsync(string matriculaNumber, Guid userId)
         {
             return await _context.UserMatriculas
+                .AsNoTracking()
                 .Include(m => m.User)
                 .FirstOrDefaultAsync(m => m.MatriculaNumber == matriculaNumber && m.UserId == userId);
         }
