@@ -19,31 +19,43 @@ namespace SalesApp.Services
                 };
             }
 
-            var total = contracts.Sum(c => c.TotalAmount);
-            var totalCancel = contracts
-                .Where(c => c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
-                .Sum(c => c.TotalAmount);
-
-            // Calculate total active: All contracts except Defaulted (includes Active, Late1, Late2, Late3)
-            var totalActiveAmount = contracts
-                .Where(c => !c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
-                .Sum(c => c.TotalAmount);
+            // ✅ Single-pass aggregation instead of 4 separate iterations
+            var aggregation = contracts.Aggregate(
+                new { Total = 0m, Cancel = 0m, Active = 0m, Late = 0m },
+                (acc, c) =>
+                {
+                    var total = acc.Total + c.TotalAmount;
+                    var cancel = acc.Cancel;
+                    var active = acc.Active;
+                    var late = acc.Late;
+                    
+                    if (c.Status.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
+                    {
+                        cancel += c.TotalAmount;
+                    }
+                    else
+                    {
+                        active += c.TotalAmount;
+                        
+                        if (c.Status.Equals("Late1", StringComparison.OrdinalIgnoreCase) ||
+                            c.Status.Equals("Late2", StringComparison.OrdinalIgnoreCase) ||
+                            c.Status.Equals("Late3", StringComparison.OrdinalIgnoreCase))
+                        {
+                            late += c.TotalAmount;
+                        }
+                    }
+                    
+                    return new { Total = total, Cancel = cancel, Active = active, Late = late };
+                });
             
-            // Calculate total late (Late1, Late2, Late3)
-            var totalLateAmount = contracts
-                .Where(c => c.Status.Equals("Late1", StringComparison.OrdinalIgnoreCase) ||
-                           c.Status.Equals("Late2", StringComparison.OrdinalIgnoreCase) ||
-                           c.Status.Equals("Late3", StringComparison.OrdinalIgnoreCase))
-                .Sum(c => c.TotalAmount);
-            
-            var retention = total > 0 ? totalActiveAmount / total : 0m;
+            var retention = aggregation.Total > 0 ? aggregation.Active / aggregation.Total : 0m;
 
             return new ContractAggregation
             {
-                Total = total,
-                TotalCancel = totalCancel,
-                TotalActive = totalActiveAmount,
-                TotalLate = totalLateAmount,
+                Total = aggregation.Total,
+                TotalCancel = aggregation.Cancel,
+                TotalActive = aggregation.Active,
+                TotalLate = aggregation.Late,
                 Retention = retention
             };
         }

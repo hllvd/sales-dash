@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SalesApp.Data;
+using SalesApp.DTOs;
 using SalesApp.Models;
 
 namespace SalesApp.Repositories
@@ -116,6 +117,38 @@ namespace SalesApp.Repositories
                 .ToListAsync();
             
             return reloadedContracts;
+        }
+        
+        public async Task<List<MonthlyProduction>> GetMonthlyProductionAsync(
+            Guid? userId, 
+            DateTime? startDate, 
+            DateTime? endDate)
+        {
+            // ✅ Push grouping to database instead of loading all contracts into memory
+            var query = _context.Contracts
+                .AsNoTracking()
+                .Where(c => c.IsActive);
+            
+            if (userId.HasValue)
+                query = query.Where(c => c.UserId == userId.Value);
+            
+            if (startDate.HasValue)
+                query = query.Where(c => c.SaleStartDate >= startDate.Value);
+            
+            if (endDate.HasValue)
+                query = query.Where(c => c.SaleStartDate <= endDate.Value);
+            
+            return await query
+                .GroupBy(c => new { c.SaleStartDate.Year, c.SaleStartDate.Month })
+                .Select(g => new MonthlyProduction
+                {
+                    // ✅ Use string concatenation instead of string.Format for SQL translation
+                    Period = g.Key.Year.ToString() + "-" + (g.Key.Month < 10 ? "0" : "") + g.Key.Month.ToString(),
+                    TotalProduction = g.Sum(c => c.TotalAmount),
+                    ContractCount = g.Count()
+                })
+                .OrderBy(m => m.Period)
+                .ToListAsync();
         }
         
         public async Task<Contract> UpdateAsync(Contract contract)

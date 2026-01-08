@@ -102,20 +102,8 @@ namespace SalesApp.Controllers
                 return Forbid();
             }
             
-            // Get contracts with filters
-            var contracts = await _contractRepository.GetAllAsync(userId, null, startDate, endDate);
-            
-            // Group by month and calculate production
-            var monthlyData = contracts
-                .GroupBy(c => new { Year = c.SaleStartDate.Year, Month = c.SaleStartDate.Month })
-                .Select(g => new MonthlyProduction
-                {
-                    Period = $"{g.Key.Year:D4}-{g.Key.Month:D2}",
-                    TotalProduction = g.Sum(c => c.TotalAmount),
-                    ContractCount = g.Count()
-                })
-                .OrderBy(m => m.Period)
-                .ToList();
+            // ✅ Push grouping to database instead of loading all contracts into memory
+            var monthlyData = await _contractRepository.GetMonthlyProductionAsync(userId, startDate, endDate);
             
             var response = new HistoricProductionResponse
             {

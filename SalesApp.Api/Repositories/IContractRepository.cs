@@ -1,3 +1,4 @@
+using SalesApp.DTOs;
 using SalesApp.Models;
 
 namespace SalesApp.Repositories
@@ -12,5 +13,6 @@ namespace SalesApp.Repositories
         Task<Contract> CreateAsync(Contract contract);
         Task<List<Contract>> CreateBatchAsync(List<Contract> contracts);
         Task<Contract> UpdateAsync(Contract contract);
+        Task<List<MonthlyProduction>> GetMonthlyProductionAsync(Guid? userId, DateTime? startDate, DateTime? endDate);
     }
 }
