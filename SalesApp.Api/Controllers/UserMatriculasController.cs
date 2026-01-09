@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
+using SalesApp.Services;
 
 namespace SalesApp.Controllers
 {
@@ -13,13 +14,16 @@ namespace SalesApp.Controllers
     {
         private readonly IUserMatriculaRepository _matriculaRepository;
         private readonly IUserRepository _userRepository;
+        private readonly IMessageService _messageService;
 
         public UserMatriculasController(
             IUserMatriculaRepository matriculaRepository,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            IMessageService messageService)
         {
             _matriculaRepository = matriculaRepository;
             _userRepository = userRepository;
+            _messageService = messageService;
         }
 
         // GET: api/usermatriculas
@@ -33,7 +37,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = responses,
-                Message = "User matriculas retrieved successfully"
+                Message = _messageService.Get(AppMessage.MatriculasRetrievedSuccessfully)
             });
         }
 
@@ -48,7 +52,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<UserMatriculaResponse>
                 {
                     Success = false,
-                    Message = "User matricula not found"
+                    Message = _messageService.Get(AppMessage.MatriculaNotFound)
                 });
             }
 
@@ -56,7 +60,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToResponse(matricula),
-                Message = "User matricula retrieved successfully"
+                Message = _messageService.Get(AppMessage.MatriculaRetrievedSuccessfully)
             });
         }
 
@@ -71,7 +75,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = responses,
-                Message = "User matriculas retrieved successfully"
+                Message = _messageService.Get(AppMessage.MatriculasRetrievedSuccessfully)
             });
         }
 
@@ -105,7 +109,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = responses,
-                Message = "Users retrieved successfully"
+                Message = _messageService.Get(AppMessage.UsersRetrievedSuccessfully)
             });
         }
 
@@ -120,7 +124,7 @@ namespace SalesApp.Controllers
                 {
                     Success = true,
                     Data = new List<UserLookupByMatriculaResponse>(),
-                    Message = "Matricula not found"
+                    Message = _messageService.Get(AppMessage.MatriculaNotFound)
                 });
             }
 
@@ -141,7 +145,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = responses,
-                Message = "Users retrieved successfully"
+                Message = _messageService.Get(AppMessage.UsersRetrievedSuccessfully)
             });
         }
 
@@ -186,7 +190,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<UserMatriculaResponse>
                 {
                     Success = false,
-                    Message = "User not found"
+                    Message = _messageService.Get(AppMessage.UserNotFound)
                 });
             }
 
@@ -209,7 +213,7 @@ namespace SalesApp.Controllers
                 {
                     Success = true,
                     Data = MapToResponse(created),
-                    Message = "User matricula created successfully"
+                    Message = _messageService.Get(AppMessage.MatriculaCreatedSuccessfully)
                 });
         }
 
@@ -326,7 +330,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<UserMatriculaResponse>
                 {
                     Success = false,
-                    Message = "User matricula not found"
+                    Message = _messageService.Get(AppMessage.MatriculaNotFound)
                 });
             }
 
@@ -354,7 +358,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToResponse(updated),
-                Message = "User matricula updated successfully"
+                Message = _messageService.Get(AppMessage.MatriculaUpdatedSuccessfully)
             });
         }
 
@@ -369,7 +373,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "User matricula not found"
+                    Message = _messageService.Get(AppMessage.MatriculaNotFound)
                 });
             }
 
@@ -378,7 +382,7 @@ namespace SalesApp.Controllers
             return Ok(new ApiResponse<object>
             {
                 Success = true,
-                Message = "User matricula deleted successfully"
+                Message = _messageService.Get(AppMessage.MatriculaDeletedSuccessfully)
             });
         }
 

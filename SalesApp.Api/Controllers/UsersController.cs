@@ -23,6 +23,7 @@ namespace SalesApp.Controllers
         private readonly IUserMatriculaRepository _matriculaRepository;
         private readonly IConfiguration _configuration;
         private readonly AppDbContext _context;
+        private readonly IMessageService _messageService;
         
         public UsersController(
             IUserRepository userRepository, 
@@ -32,7 +33,8 @@ namespace SalesApp.Controllers
             IRoleRepository roleRepository,
             IUserMatriculaRepository matriculaRepository,
             IConfiguration configuration,
-            AppDbContext context)
+            AppDbContext context,
+            IMessageService messageService)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
@@ -42,6 +44,7 @@ namespace SalesApp.Controllers
             _matriculaRepository = matriculaRepository;
             _configuration = configuration;
             _context = context;
+            _messageService = messageService;
         }
         
         [HttpPost("register")]
@@ -55,7 +58,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<UserResponse>
                 {
                     Success = false,
-                    Message = "Invalid role. Must be: user, admin, or superadmin"
+                    Message = _messageService.Get(AppMessage.InvalidRole)
                 });
             }
             
@@ -64,7 +67,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<UserResponse>
                 {
                     Success = false,
-                    Message = "Email already exists"
+                    Message = _messageService.Get(AppMessage.EmailAlreadyExists)
                 });
             }
             
@@ -85,7 +88,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<UserResponse>
                 {
                     Success = false,
-                    Message = "Invalid role specified."
+                    Message = _messageService.Get(AppMessage.InvalidRole)
                 });
             }
             
@@ -148,7 +151,7 @@ namespace SalesApp.Controllers
                     {
                         Success = true,
                         Data = MapToUserResponse(user),
-                        Message = $"User created successfully, but matricula assignment failed: {ex.Message}"
+                        Message = _messageService.Get(AppMessage.UserCreatedButMatriculaFailed, ex.Message)
                     });
                 }
             }
@@ -157,7 +160,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToUserResponse(user),
-                Message = "User created successfully"
+                Message = _messageService.Get(AppMessage.UserCreatedSuccessfully)
             });
         }
         
@@ -173,7 +176,7 @@ namespace SalesApp.Controllers
                 return Unauthorized(new ApiResponse<LoginResponse>
                 {
                     Success = false,
-                    Message = "Invalid credentials"
+                    Message = _messageService.Get(AppMessage.InvalidCredentials)
                 });
             }
             
@@ -206,7 +209,7 @@ namespace SalesApp.Controllers
                     ExpiresAt = expiresAt,
                     User = MapToUserResponse(user)
                 },
-                Message = "Login successful"
+                Message = _messageService.Get(AppMessage.LoginSuccessful)
             });
         }
         
@@ -229,7 +232,7 @@ namespace SalesApp.Controllers
                     Page = page,
                     PageSize = pageSize
                 },
-                Message = "Users retrieved successfully"
+                Message = _messageService.Get(AppMessage.UsersRetrievedSuccessfully)
             });
         }
         
@@ -243,7 +246,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = users.Select(MapToUserResponse).ToList(),
-                Message = "Users retrieved successfully"
+                Message = _messageService.Get(AppMessage.UsersRetrievedSuccessfully)
             });
         }
 
@@ -256,7 +259,7 @@ namespace SalesApp.Controllers
             return Ok(new ApiResponse<List<UserLookupResponse>>
             {
                 Success = false,
-                Message = "This endpoint is deprecated. Please use /api/usermatriculas endpoints to manage matriculas.",
+                Message = _messageService.Get(AppMessage.EndpointDeprecated),
                 Data = new List<UserLookupResponse>()
             });
         }
@@ -279,7 +282,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<UserResponse>
                 {
                     Success = false,
-                    Message = "User not found"
+                    Message = _messageService.Get(AppMessage.UserNotFound)
                 });
             }
             
@@ -287,7 +290,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToUserResponse(user),
-                Message = "User retrieved successfully"
+                Message = _messageService.Get(AppMessage.UserRetrievedSuccessfully)
             });
         }
         
@@ -304,7 +307,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<UserResponse>
                 {
                     Success = false,
-                    Message = "User not found"
+                    Message = _messageService.Get(AppMessage.UserNotFound)
                 });
             }
             
@@ -321,7 +324,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<UserResponse>
                     {
                         Success = false,
-                        Message = "Email already exists"
+                        Message = _messageService.Get(AppMessage.EmailAlreadyExists)
                     });
                 }
                 user.Email = request.Email;
@@ -337,7 +340,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<UserResponse>
                     {
                         Success = false,
-                        Message = "Invalid role. Must be: user, admin, or superadmin"
+                        Message = _messageService.Get(AppMessage.InvalidRole)
                     });
                 }
                 // Role validation will be handled by RoleId in future update
@@ -385,7 +388,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToUserResponse(user),
-                Message = "User updated successfully"
+                Message = _messageService.Get(AppMessage.UserUpdatedSuccessfully)
             });
         }
         
@@ -399,7 +402,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "User not found"
+                    Message = _messageService.Get(AppMessage.UserNotFound)
                 });
             }
             
@@ -409,7 +412,7 @@ namespace SalesApp.Controllers
             return Ok(new ApiResponse<object>
             {
                 Success = true,
-                Message = "User deleted successfully"
+                Message = _messageService.Get(AppMessage.UserDeletedSuccessfully)
             });
         }
         
@@ -459,7 +462,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = parent != null ? MapToHierarchyResponse(parent) : null,
-                Message = "Parent retrieved successfully"
+                Message = _messageService.Get(AppMessage.ParentRetrievedSuccessfully)
             });
         }
         
@@ -473,7 +476,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = children.Select(MapToHierarchyResponse).ToList(),
-                Message = "Children retrieved successfully"
+                Message = _messageService.Get(AppMessage.ChildrenRetrievedSuccessfully)
             });
         }
         
@@ -492,7 +495,7 @@ namespace SalesApp.Controllers
                     TotalUsers = tree.Count,
                     MaxDepth = tree.Any() ? tree.Max(u => u.Level) : 0
                 },
-                Message = "Tree retrieved successfully"
+                Message = _messageService.Get(AppMessage.TreeRetrievedSuccessfully)
             });
         }
         
@@ -506,7 +509,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = level,
-                Message = "Level retrieved successfully"
+                Message = _messageService.Get(AppMessage.LevelRetrievedSuccessfully)
             });
         }
         
@@ -520,7 +523,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = root != null ? MapToHierarchyResponse(root) : null,
-                Message = "Root user retrieved successfully"
+                Message = _messageService.Get(AppMessage.RootUserRetrievedSuccessfully)
             });
         }
         
@@ -536,7 +539,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<UserResponse>
                 {
                     Success = false,
-                    Message = "User not found"
+                    Message = _messageService.Get(AppMessage.UserNotFound)
                 });
             }
             
@@ -560,7 +563,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = userResponse,
-                Message = "Current user retrieved successfully"
+                Message = _messageService.Get(AppMessage.CurrentUserRetrievedSuccessfully)
             });
         }
         
@@ -577,7 +580,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<UserMatriculaInfo>
                 {
                     Success = false,
-                    Message = "You already have this matricula assigned or requested"
+                    Message = _messageService.Get(AppMessage.MatriculaAlreadyAssigned)
                 });
             }
             
@@ -609,7 +612,7 @@ namespace SalesApp.Controllers
                     StartDate = userMatricula.StartDate,
                     EndDate = userMatricula.EndDate
                 },
-                Message = "Matricula request submitted successfully. Awaiting approval."
+                Message = _messageService.Get(AppMessage.MatriculaRequestSubmitted)
             });
         }
         
@@ -632,7 +635,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Matricula not found or doesn't belong to you"
+                        Message = _messageService.Get(AppMessage.MatriculaDoesNotBelongToUser)
                     });
                 }
                 
@@ -641,7 +644,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Matricula is not active"
+                        Message = _messageService.Get(AppMessage.MatriculaNotActive)
                     });
                 }
                 
@@ -651,7 +654,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Matricula has expired"
+                        Message = _messageService.Get(AppMessage.MatriculaExpired)
                     });
                 }
             }
@@ -662,7 +665,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = "Contract not found"
+                    Message = _messageService.Get(AppMessage.ContractNotFound)
                 });
             }
             
@@ -672,7 +675,7 @@ namespace SalesApp.Controllers
                 return Unauthorized(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = "User not found"
+                    Message = _messageService.Get(AppMessage.UserNotFound)
                 });
             }
 
@@ -705,7 +708,7 @@ namespace SalesApp.Controllers
                     CustomerName = contract.CustomerName,
                     MatriculaNumber = userMatricula?.MatriculaNumber
                 },
-                Message = "Contract assigned successfully"
+                Message = _messageService.Get(AppMessage.ContractAssignedSuccessfully)
             });
         }
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
+using SalesApp.Services;
 
 namespace SalesApp.Controllers
 {
@@ -11,10 +12,12 @@ namespace SalesApp.Controllers
     public class PointOfSaleController : ControllerBase
     {
         private readonly IPVRepository _pvRepository;
+        private readonly IMessageService _messageService;
         
-        public PointOfSaleController(IPVRepository pvRepository)
+        public PointOfSaleController(IPVRepository pvRepository, IMessageService messageService)
         {
             _pvRepository = pvRepository;
+            _messageService = messageService;
         }
         
         [HttpGet]
@@ -34,7 +37,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = response,
-                Message = "PVs retrieved successfully"
+                Message = _messageService.Get(AppMessage.PVsRetrievedSuccessfully)
             });
         }
         
@@ -49,7 +52,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<PVResponse>
                 {
                     Success = false,
-                    Message = "PV not found"
+                    Message = _messageService.Get(AppMessage.PVNotFound)
                 });
             }
             
@@ -65,7 +68,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = response,
-                Message = "PV retrieved successfully"
+                Message = _messageService.Get(AppMessage.PVRetrievedSuccessfully)
             });
         }
         
@@ -79,7 +82,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<PVResponse>
                 {
                     Success = false,
-                    Message = $"PV with ID {request.Id} already exists"
+                    Message = _messageService.Get(AppMessage.PVCodeAlreadyExists)
                 });
             }
             
@@ -106,7 +109,7 @@ namespace SalesApp.Controllers
                 {
                     Success = true,
                     Data = response,
-                    Message = "PV created successfully"
+                    Message = _messageService.Get(AppMessage.PVCreatedSuccessfully)
                 });
         }
         
@@ -129,7 +132,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<PVResponse>
                 {
                     Success = false,
-                    Message = "PV not found"
+                    Message = _messageService.Get(AppMessage.PVNotFound)
                 });
             }
             
@@ -148,7 +151,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = response,
-                Message = "PV updated successfully"
+                Message = _messageService.Get(AppMessage.PVUpdatedSuccessfully)
             });
         }
         
@@ -163,14 +166,14 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "PV not found"
+                    Message = _messageService.Get(AppMessage.PVNotFound)
                 });
             }
             
             return Ok(new ApiResponse<object>
             {
                 Success = true,
-                Message = "PV deleted successfully"
+                Message = _messageService.Get(AppMessage.PVDeletedSuccessfully)
             });
         }
     }

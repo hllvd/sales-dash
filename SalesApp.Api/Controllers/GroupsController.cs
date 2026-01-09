@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
+using SalesApp.Services;
 
 namespace SalesApp.Controllers
 {
@@ -12,10 +13,12 @@ namespace SalesApp.Controllers
     public class GroupsController : ControllerBase
     {
         private readonly IGroupRepository _groupRepository;
+        private readonly IMessageService _messageService;
         
-        public GroupsController(IGroupRepository groupRepository)
+        public GroupsController(IGroupRepository groupRepository, IMessageService messageService)
         {
             _groupRepository = groupRepository;
+            _messageService = messageService;
         }
         
         [HttpGet]
@@ -28,7 +31,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = groups.Select(MapToGroupResponse).ToList(),
-                Message = "Groups retrieved successfully"
+                Message = _messageService.Get(AppMessage.GroupsRetrievedSuccessfully)
             });
         }
         
@@ -41,7 +44,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<GroupResponse>
                 {
                     Success = false,
-                    Message = "Group not found"
+                    Message = _messageService.Get(AppMessage.GroupNotFound)
                 });
             }
             
@@ -49,7 +52,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToGroupResponse(group),
-                Message = "Group retrieved successfully"
+                Message = _messageService.Get(AppMessage.GroupRetrievedSuccessfully)
             });
         }
         
@@ -62,7 +65,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<GroupResponse>
                 {
                     Success = false,
-                    Message = "Group name already exists"
+                    Message = _messageService.Get(AppMessage.GroupNameAlreadyExists)
                 });
             }
             
@@ -79,7 +82,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToGroupResponse(group),
-                Message = "Group created successfully"
+                Message = _messageService.Get(AppMessage.GroupCreatedSuccessfully)
             });
         }
         
@@ -93,7 +96,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<GroupResponse>
                 {
                     Success = false,
-                    Message = "Group not found"
+                    Message = _messageService.Get(AppMessage.GroupNotFound)
                 });
             }
             
@@ -104,7 +107,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<GroupResponse>
                     {
                         Success = false,
-                        Message = "Group name already exists"
+                        Message = _messageService.Get(AppMessage.GroupNameAlreadyExists)
                     });
                 }
                 group.Name = request.Name;
@@ -125,7 +128,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToGroupResponse(group),
-                Message = "Group updated successfully"
+                Message = _messageService.Get(AppMessage.GroupUpdatedSuccessfully)
             });
         }
         
@@ -139,7 +142,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Group not found"
+                    Message = _messageService.Get(AppMessage.GroupNotFound)
                 });
             }
             
@@ -149,7 +152,7 @@ namespace SalesApp.Controllers
             return Ok(new ApiResponse<object>
             {
                 Success = true,
-                Message = "Group deleted successfully"
+                Message = _messageService.Get(AppMessage.GroupDeletedSuccessfully)
             });
         }
         

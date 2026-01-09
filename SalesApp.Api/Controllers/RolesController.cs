@@ -4,6 +4,7 @@ using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Attributes;
+using SalesApp.Services;
 
 namespace SalesApp.Controllers
 {
@@ -13,10 +14,12 @@ namespace SalesApp.Controllers
     public class RolesController : ControllerBase
     {
         private readonly IRoleRepository _roleRepository;
+        private readonly IMessageService _messageService;
         
-        public RolesController(IRoleRepository roleRepository)
+        public RolesController(IRoleRepository roleRepository, IMessageService messageService)
         {
             _roleRepository = roleRepository;
+            _messageService = messageService;
         }
         
         [HttpGet]
@@ -28,7 +31,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = roles.Select(MapToRoleResponse).ToList(),
-                Message = "Roles retrieved successfully"
+                Message = _messageService.Get(AppMessage.RolesRetrievedSuccessfully)
             });
         }
         
@@ -41,7 +44,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<RoleResponse>
                 {
                     Success = false,
-                    Message = "Role not found"
+                    Message = _messageService.Get(AppMessage.RoleNotFound)
                 });
             }
             
@@ -49,7 +52,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToRoleResponse(role),
-                Message = "Role retrieved successfully"
+                Message = _messageService.Get(AppMessage.RoleRetrievedSuccessfully)
             });
         }
         
@@ -61,7 +64,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<RoleResponse>
                 {
                     Success = false,
-                    Message = "Role name already exists"
+                    Message = _messageService.Get(AppMessage.RoleNameAlreadyExists)
                 });
             }
             
@@ -79,7 +82,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToRoleResponse(role),
-                Message = "Role created successfully"
+                Message = _messageService.Get(AppMessage.RoleCreatedSuccessfully)
             });
         }
         
@@ -92,7 +95,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<RoleResponse>
                 {
                     Success = false,
-                    Message = "Role not found"
+                    Message = _messageService.Get(AppMessage.RoleNotFound)
                 });
             }
             
@@ -103,7 +106,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<RoleResponse>
                     {
                         Success = false,
-                        Message = "Role name already exists"
+                        Message = _messageService.Get(AppMessage.RoleNameAlreadyExists)
                     });
                 }
                 role.Name = request.Name;
@@ -127,7 +130,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToRoleResponse(role),
-                Message = "Role updated successfully"
+                Message = _messageService.Get(AppMessage.RoleUpdatedSuccessfully)
             });
         }
         
@@ -141,7 +144,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Role not found"
+                    Message = _messageService.Get(AppMessage.RoleNotFound)
                 });
             }
             
@@ -150,7 +153,7 @@ namespace SalesApp.Controllers
             return Ok(new ApiResponse<object>
             {
                 Success = true,
-                Message = "Role deleted successfully"
+                Message = _messageService.Get(AppMessage.RoleDeletedSuccessfully)
             });
         }
         

@@ -18,19 +18,22 @@ namespace SalesApp.Controllers
         private readonly IGroupRepository _groupRepository;
         private readonly IContractAggregationService _aggregationService;
         private readonly IUserMatriculaRepository _matriculaRepository;
+        private readonly IMessageService _messageService;
         
         public ContractsController(
             IContractRepository contractRepository, 
             IUserRepository userRepository, 
             IGroupRepository groupRepository,
             IContractAggregationService aggregationService,
-            IUserMatriculaRepository matriculaRepository)
+            IUserMatriculaRepository matriculaRepository,
+            IMessageService messageService)
         {
             _contractRepository = contractRepository;
             _userRepository = userRepository;
             _groupRepository = groupRepository;
             _aggregationService = aggregationService;
             _matriculaRepository = matriculaRepository;
+            _messageService = messageService;
         }
         
         [HttpGet]
@@ -52,7 +55,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = contractResponses,
-                Message = "Contracts retrieved successfully",
+                Message = _messageService.Get(AppMessage.ContractsRetrievedSuccessfully),
                 Aggregation = aggregation
             });
         }
@@ -82,7 +85,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = contractResponses,
-                Message = "User contracts retrieved successfully",
+                Message = _messageService.Get(AppMessage.ContractsRetrievedSuccessfully),
                 Aggregation = aggregation
             });
         }
@@ -116,7 +119,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = response,
-                Message = "Historic production retrieved successfully"
+                Message = _messageService.Get(AppMessage.HistoricProductionRetrievedSuccessfully)
             });
         }
         
@@ -129,7 +132,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = "Contract not found"
+                    Message = _messageService.Get(AppMessage.ContractNotFound)
                 });
             }
             
@@ -137,7 +140,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToContractResponse(contract),
-                Message = "Contract retrieved successfully"
+                Message = _messageService.Get(AppMessage.ContractRetrievedSuccessfully)
             });
         }
         
@@ -151,7 +154,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = "Contract not found"
+                    Message = _messageService.Get(AppMessage.ContractNotFound)
                 });
             }
             
@@ -159,7 +162,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToContractResponse(contract),
-                Message = "Contract retrieved successfully"
+                Message = _messageService.Get(AppMessage.ContractRetrievedSuccessfully)
             });
         }
         
@@ -174,7 +177,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = "Contract number already exists"
+                    Message = _messageService.Get(AppMessage.ContractNumberAlreadyExists)
                 });
             }
             
@@ -187,7 +190,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Invalid user"
+                        Message = _messageService.Get(AppMessage.UserNotFound)
                     });
                 }
             }
@@ -273,7 +276,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToContractResponse(contract),
-                Message = "Contract created successfully"
+                Message = _messageService.Get(AppMessage.ContractCreatedSuccessfully)
             });
         }
         
@@ -287,7 +290,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = "Contract not found"
+                    Message = _messageService.Get(AppMessage.ContractNotFound)
                 });
             }
             
@@ -300,7 +303,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Contract number already exists"
+                        Message = _messageService.Get(AppMessage.ContractNumberAlreadyExists)
                     });
                 }
                 contract.ContractNumber = request.ContractNumber;
@@ -314,7 +317,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Invalid user"
+                        Message = _messageService.Get(AppMessage.UserNotFound)
                     });
                 }
                 contract.UserId = request.UserId.Value;
@@ -421,7 +424,7 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = MapToContractResponse(updatedContract!),
-                Message = "Contract updated successfully"
+                Message = _messageService.Get(AppMessage.ContractUpdatedSuccessfully)
             });
         }
         
@@ -435,7 +438,7 @@ namespace SalesApp.Controllers
                 return NotFound(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Contract not found"
+                    Message = _messageService.Get(AppMessage.ContractNotFound)
                 });
             }
             
@@ -445,7 +448,7 @@ namespace SalesApp.Controllers
             return Ok(new ApiResponse<object>
             {
                 Success = true,
-                Message = "Contract deleted successfully"
+                Message = _messageService.Get(AppMessage.ContractDeletedSuccessfully)
             });
         }
         
