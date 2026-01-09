@@ -72,7 +72,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             result.Data!.MatriculaNumber.Should().Be("TEST-MAT-001");
             result.Data.Status.Should().Be("pending");
             result.Data.IsOwner.Should().BeFalse();
-            result.Message.Should().Contain("submitted successfully");
+            result.Message.Should().Contain("enviada com sucesso");
         }
 
         [Fact]
@@ -100,7 +100,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserMatriculaInfo>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("already have this matricula");
+            result.Message.Should().Contain("já tem esta matrícula");
         }
 
         [Fact]

@@ -64,6 +64,9 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IImportExecutionService, ImportExecutionService>();
             services.AddScoped<IContractAggregationService, ContractAggregationService>();
             
+            // Message service for translations
+            services.AddScoped<IMessageService, MessageService>();
+            
             // CORS
             services.AddCors(options =>
             {

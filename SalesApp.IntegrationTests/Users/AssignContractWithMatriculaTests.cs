@@ -107,7 +107,7 @@ namespace SalesApp.IntegrationTests.Users
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("not active");
+            result.Message.Should().Contain("não está ativa");
         }
 
         [Fact]
@@ -133,7 +133,7 @@ namespace SalesApp.IntegrationTests.Users
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("expired");
+            result.Message.Should().Contain("expirou");
         }
 
         [Fact]
@@ -161,7 +161,7 @@ namespace SalesApp.IntegrationTests.Users
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("doesn't belong to you");
+            result.Message.Should().Contain("não pertence a você");
         }
 
         [Fact]
@@ -182,7 +182,7 @@ namespace SalesApp.IntegrationTests.Users
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("not found");
+            result.Message.Should().Contain("não encontrada");
         }
 
         // Helper methods
