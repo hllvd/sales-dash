@@ -24,6 +24,7 @@ namespace SalesApp.Tests
         private readonly Mock<IRoleRepository> _mockRoleRepository;
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
         private readonly Mock<IConfiguration> _mockConfiguration;
+        private readonly Mock<IMessageService> _mockMessageService;
         private readonly AppDbContext _context;
         private readonly UsersController _controller;
 
@@ -36,6 +37,7 @@ namespace SalesApp.Tests
             _mockRoleRepository = new Mock<IRoleRepository>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
             _mockConfiguration = new Mock<IConfiguration>();
+            _mockMessageService = new Mock<IMessageService>();
             
             // Create in-memory database for testing
             var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -51,7 +53,15 @@ namespace SalesApp.Tests
                 _mockRoleRepository.Object,
                 _mockMatriculaRepository.Object,
                 _mockConfiguration.Object,
-                _context);
+                _context,
+                _mockMessageService.Object);
+            
+            // Setup MessageService to return English messages for tests
+            var enumToMessage = new System.Func<AppMessage, string>(msg => {
+                var text = System.Text.RegularExpressions.Regex.Replace(msg.ToString(), "([a-z])([A-Z])", "$1 $2");
+                return char.ToUpper(text[0]) + text.Substring(1).ToLower();
+            });
+            _mockMessageService.Setup(m => m.Get(It.IsAny<AppMessage>())).Returns(enumToMessage);
         }
 
         private void SetupUser(string userId, string role)

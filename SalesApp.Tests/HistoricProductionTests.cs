@@ -19,6 +19,7 @@ namespace SalesApp.Tests
         private readonly Mock<IGroupRepository> _mockGroupRepository;
         private readonly Mock<IContractAggregationService> _mockAggregationService;
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
+        private readonly Mock<IMessageService> _mockMessageService;
         private readonly ContractsController _controller;
 
         public HistoricProductionTests()
@@ -28,13 +29,22 @@ namespace SalesApp.Tests
             _mockGroupRepository = new Mock<IGroupRepository>();
             _mockAggregationService = new Mock<IContractAggregationService>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
+            _mockMessageService = new Mock<IMessageService>();
             _controller = new ContractsController(
                 _mockRepository.Object,
                 _mockUserRepository.Object,
                 _mockGroupRepository.Object,
                 _mockAggregationService.Object,
-                _mockMatriculaRepository.Object
+                _mockMatriculaRepository.Object,
+                _mockMessageService.Object
             );
+
+            // Setup MessageService to return English messages for tests
+            var enumToMessage = new System.Func<AppMessage, string>(msg => {
+                var text = System.Text.RegularExpressions.Regex.Replace(msg.ToString(), "([a-z])([A-Z])", "$1 $2");
+                return char.ToUpper(text[0]) + text.Substring(1).ToLower();
+            });
+            _mockMessageService.Setup(m => m.Get(It.IsAny<AppMessage>())).Returns(enumToMessage);
 
             // Setup user context
             var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
@@ -53,15 +63,13 @@ namespace SalesApp.Tests
         public async Task GetHistoricProduction_SingleMonth_ReturnsCorrectData()
         {
             // Arrange
-            var contracts = new List<Contract>
+            var monthlyData = new List<MonthlyProduction>
             {
-                new Contract { Id = 1, TotalAmount = 100000, SaleStartDate = new DateTime(2024, 7, 1) },
-                new Contract { Id = 2, TotalAmount = 150000, SaleStartDate = new DateTime(2024, 7, 15) },
-                new Contract { Id = 3, TotalAmount = 50000, SaleStartDate = new DateTime(2024, 7, 30) }
+                new MonthlyProduction { Period = "2024-07", TotalProduction = 300000, ContractCount = 3 }
             };
 
-            _mockRepository.Setup(r => r.GetAllAsync(null, null, null, null))
-                .ReturnsAsync(contracts);
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, null, null))
+                .ReturnsAsync(monthlyData);
 
             // Act
             var result = await _controller.GetHistoricProduction();
@@ -83,16 +91,15 @@ namespace SalesApp.Tests
         public async Task GetHistoricProduction_MultipleMonths_ReturnsSortedData()
         {
             // Arrange
-            var contracts = new List<Contract>
+            var monthlyData = new List<MonthlyProduction>
             {
-                new Contract { Id = 1, TotalAmount = 100000, SaleStartDate = new DateTime(2024, 8, 1) },
-                new Contract { Id = 2, TotalAmount = 200000, SaleStartDate = new DateTime(2024, 7, 1) },
-                new Contract { Id = 3, TotalAmount = 150000, SaleStartDate = new DateTime(2024, 9, 1) },
-                new Contract { Id = 4, TotalAmount = 50000, SaleStartDate = new DateTime(2024, 7, 15) }
+                new MonthlyProduction { Period = "2024-07", TotalProduction = 250000, ContractCount = 2 },
+                new MonthlyProduction { Period = "2024-08", TotalProduction = 100000, ContractCount = 1 },
+                new MonthlyProduction { Period = "2024-09", TotalProduction = 150000, ContractCount = 1 }
             };
 
-            _mockRepository.Setup(r => r.GetAllAsync(null, null, null, null))
-                .ReturnsAsync(contracts);
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, null, null))
+                .ReturnsAsync(monthlyData);
 
             // Act
             var result = await _controller.GetHistoricProduction();
@@ -122,8 +129,8 @@ namespace SalesApp.Tests
         public async Task GetHistoricProduction_NoContracts_ReturnsEmptyData()
         {
             // Arrange
-            _mockRepository.Setup(r => r.GetAllAsync(null, null, null, null))
-                .ReturnsAsync(new List<Contract>());
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, null, null))
+                .ReturnsAsync(new List<MonthlyProduction>());
 
             // Act
             var result = await _controller.GetHistoricProduction();
@@ -145,14 +152,14 @@ namespace SalesApp.Tests
             var startDate = new DateTime(2024, 1, 1);
             var endDate = new DateTime(2024, 12, 31);
             
-            _mockRepository.Setup(r => r.GetAllAsync(null, null, startDate, endDate))
-                .ReturnsAsync(new List<Contract>());
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, startDate, endDate))
+                .ReturnsAsync(new List<MonthlyProduction>());
 
             // Act
             await _controller.GetHistoricProduction(startDate, endDate);
 
             // Assert
-            _mockRepository.Verify(r => r.GetAllAsync(null, null, startDate, endDate), Times.Once);
+            _mockRepository.Verify(r => r.GetMonthlyProductionAsync(null, startDate, endDate), Times.Once);
         }
 
         [Fact]
@@ -161,14 +168,14 @@ namespace SalesApp.Tests
             // Arrange
             var userId = Guid.NewGuid();
             
-            _mockRepository.Setup(r => r.GetAllAsync(userId, null, null, null))
-                .ReturnsAsync(new List<Contract>());
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(userId, null, null))
+                .ReturnsAsync(new List<MonthlyProduction>());
 
             // Act
             await _controller.GetHistoricProduction(null, null, userId);
 
             // Assert
-            _mockRepository.Verify(r => r.GetAllAsync(userId, null, null, null), Times.Once);
+            _mockRepository.Verify(r => r.GetMonthlyProductionAsync(userId, null, null), Times.Once);
         }
     }
 }

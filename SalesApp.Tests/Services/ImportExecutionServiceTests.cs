@@ -71,10 +71,10 @@ namespace SalesApp.Tests.Services
             _mockUserRepository.Setup(r => r.GetByEmailAsync("test@test.com"))
                 .ReturnsAsync(new User { Id = Guid.NewGuid(), IsActive = true });
 
-            Contract? capturedContract = null;
-            _mockContractRepository.Setup(r => r.CreateAsync(It.IsAny<Contract>()))
-                .Callback<Contract>(c => capturedContract = c)
-                .ReturnsAsync((Contract c) => c);
+            List<Contract>? capturedContracts = null;
+            _mockContractRepository.Setup(r => r.CreateBatchAsync(It.IsAny<List<Contract>>()))
+                .Callback<List<Contract>>(contracts => capturedContracts = contracts)
+                .ReturnsAsync((List<Contract> contracts) => contracts);
 
             // Act
             var result = await _service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
@@ -83,8 +83,10 @@ namespace SalesApp.Tests.Services
             result.ProcessedRows.Should().Be(1);
             result.FailedRows.Should().Be(0);
             
-            capturedContract.Should().NotBeNull();
-            capturedContract!.ContractType.Should().Be(1);
+            capturedContracts.Should().NotBeNull();
+            capturedContracts.Should().HaveCount(1);
+            var capturedContract = capturedContracts![0];
+            capturedContract.ContractType.Should().Be(1);
             capturedContract.Quota.Should().Be(10);
             capturedContract.PvId.Should().Be(5);
             capturedContract.CustomerName.Should().Be("John Doe");
