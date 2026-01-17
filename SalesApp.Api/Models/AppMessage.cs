@@ -21,6 +21,10 @@ namespace SalesApp.Models
         InvalidRole,
         CurrentUserRetrievedSuccessfully,
         UserCreatedButMatriculaFailed,
+        PasswordResetSuccessfully,
+        PasswordResetWithEmailSent,
+        EmailSendFailed,
+        CannotResetOwnPassword,
         
         // Contract Messages
         ContractCreatedSuccessfully,

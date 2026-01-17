@@ -67,6 +67,10 @@ namespace SalesApp.IntegrationTests
             // Message service for translations
             services.AddScoped<IMessageService, MessageService>();
             
+            // Email services
+            services.AddScoped<IEmailSender, SesEmailSender>();
+            services.AddScoped<IEmailService, EmailService>();
+            
             // CORS
             services.AddCors(options =>
             {

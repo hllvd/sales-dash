@@ -25,6 +25,7 @@ namespace SalesApp.Tests
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
         private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly Mock<IMessageService> _mockMessageService;
+        private readonly Mock<IEmailService> _mockEmailService;
         private readonly AppDbContext _context;
         private readonly UsersController _controller;
 
@@ -38,6 +39,7 @@ namespace SalesApp.Tests
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
             _mockConfiguration = new Mock<IConfiguration>();
             _mockMessageService = new Mock<IMessageService>();
+            _mockEmailService = new Mock<IEmailService>();
             
             // Create in-memory database for testing
             var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -54,7 +56,8 @@ namespace SalesApp.Tests
                 _mockMatriculaRepository.Object,
                 _mockConfiguration.Object,
                 _context,
-                _mockMessageService.Object);
+                _mockMessageService.Object,
+                _mockEmailService.Object);
             
             // Setup MessageService to return English messages for tests
             var enumToMessage = new System.Func<AppMessage, string>(msg => {

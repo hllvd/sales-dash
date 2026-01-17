@@ -24,6 +24,7 @@ namespace SalesApp.Controllers
         private readonly IConfiguration _configuration;
         private readonly AppDbContext _context;
         private readonly IMessageService _messageService;
+        private readonly IEmailService _emailService;
         
         public UsersController(
             IUserRepository userRepository, 
@@ -34,7 +35,8 @@ namespace SalesApp.Controllers
             IUserMatriculaRepository matriculaRepository,
             IConfiguration configuration,
             AppDbContext context,
-            IMessageService messageService)
+            IMessageService messageService,
+            IEmailService emailService)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
@@ -45,6 +47,7 @@ namespace SalesApp.Controllers
             _configuration = configuration;
             _context = context;
             _messageService = messageService;
+            _emailService = emailService;
         }
         
         [HttpPost("register")]
@@ -613,6 +616,68 @@ namespace SalesApp.Controllers
                     EndDate = userMatricula.EndDate
                 },
                 Message = _messageService.Get(AppMessage.MatriculaRequestSubmitted)
+            });
+        }
+        
+        [HttpPost("{id}/reset-password")]
+        [Authorize(Roles = "admin,superadmin")]
+        public async Task<ActionResult<ApiResponse<ResetPasswordResponse>>> ResetPassword(Guid id, [FromBody] ResetPasswordRequest request)
+        {
+            var currentUserId = GetCurrentUserId();
+            
+            // Prevent users from resetting their own password via this endpoint
+            if (currentUserId == id)
+            {
+                return BadRequest(new ApiResponse<ResetPasswordResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.CannotResetOwnPassword)
+                });
+            }
+            
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<ResetPasswordResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+            
+            // Generate new password using user's name
+            var newPassword = PasswordGenerator.GeneratePassword(user.Name);
+            
+            // Update user's password in database
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepository.UpdateAsync(user);
+            
+            // Optionally send email with new password
+            bool emailSent = false;
+            if (request.SendEmail)
+            {
+                emailSent = await _emailService.SendPasswordResetEmailAsync(
+                    user.Email,
+                    user.Name,
+                    newPassword
+                );
+            }
+            
+            // Return response with new password
+            var message = emailSent 
+                ? _messageService.Get(AppMessage.PasswordResetWithEmailSent)
+                : _messageService.Get(AppMessage.PasswordResetSuccessfully);
+            
+            return Ok(new ApiResponse<ResetPasswordResponse>
+            {
+                Success = true,
+                Data = new ResetPasswordResponse
+                {
+                    NewPassword = newPassword,
+                    EmailSent = emailSent
+                },
+                Message = message
             });
         }
         

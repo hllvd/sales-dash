@@ -25,6 +25,10 @@ namespace SalesApp.Services
             [AppMessage.InvalidRole] = "Função inválida. Deve ser: user, admin ou superadmin",
             [AppMessage.CurrentUserRetrievedSuccessfully] = "Usuário atual recuperado com sucesso",
             [AppMessage.UserCreatedButMatriculaFailed] = "Usuário criado com sucesso, mas a atribuição de matrícula falhou: {0}",
+            [AppMessage.PasswordResetSuccessfully] = "Senha redefinida com sucesso",
+            [AppMessage.PasswordResetWithEmailSent] = "Senha redefinida com sucesso. Um email foi enviado para o usuário com a nova senha.",
+            [AppMessage.EmailSendFailed] = "Senha redefinida, mas falha ao enviar email: {0}",
+            [AppMessage.CannotResetOwnPassword] = "Você não pode redefinir sua própria senha usando este endpoint",
             
             // Contract Messages
             [AppMessage.ContractCreatedSuccessfully] = "Contrato criado com sucesso",
