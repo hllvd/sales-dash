@@ -10,19 +10,22 @@ namespace SalesApp.Services
         private readonly IUserRepository _userRepository;
         private readonly IRoleRepository _roleRepository;
         private readonly IUserMatriculaRepository _matriculaRepository;
+        private readonly IEmailService _emailService;
 
         public ImportExecutionService(
             IContractRepository contractRepository,
             IGroupRepository groupRepository,
             IUserRepository userRepository,
             IRoleRepository roleRepository,
-            IUserMatriculaRepository matriculaRepository)
+            IUserMatriculaRepository matriculaRepository,
+            IEmailService emailService)
         {
             _contractRepository = contractRepository;
             _groupRepository = groupRepository;
             _userRepository = userRepository;
             _roleRepository = roleRepository;
             _matriculaRepository = matriculaRepository;
+            _emailService = emailService;
         }
 
         public async Task<ImportResult> ExecuteContractImportAsync(
@@ -354,12 +357,18 @@ namespace SalesApp.Services
                 var val = isMatriculaOwnerStr.Trim().ToLowerInvariant();
                 isMatriculaOwner = val == "true" || val == "1" || val == "yes" || val == "sim";
             }
+            
+            // Extract SendEmail field
+            var sendEmailStr = GetFieldValue(row, reverseMappings, "SendEmail");
+            bool sendEmail = ParseBooleanValue(sendEmailStr);
+            
             // Create User
+            var defaultPassword = "ChangeMe123!";
             var user = new User
             {
                 Name = fullName,
                 Email = email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("ChangeMe123!"), // Default password
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultPassword),
                 RoleId = roleId,
                 ParentUserId = parentId,
                 IsActive = true,
@@ -367,7 +376,23 @@ namespace SalesApp.Services
                 UpdatedAt = DateTime.UtcNow
             };
 
-            return await _userRepository.CreateAsync(user);
+            var createdUser = await _userRepository.CreateAsync(user);
+            
+            // Send welcome email if requested
+            if (sendEmail && createdUser != null)
+            {
+                try
+                {
+                    await _emailService.SendWelcomeEmailAsync(createdUser.Email, createdUser.Name, defaultPassword);
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't fail import
+                    Console.WriteLine($"[ImportExecutionService] Failed to send welcome email to {createdUser.Email}: {ex.Message}");
+                }
+            }
+            
+            return createdUser;
         }
 
         private string? GetFieldValue(
@@ -498,6 +523,22 @@ namespace SalesApp.Services
             return DateTime.TryParse(cleanedInput, 
                 System.Globalization.CultureInfo.InvariantCulture, 
                 System.Globalization.DateTimeStyles.None, out result);
+        }
+        
+        private bool ParseBooleanValue(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+            
+            var normalized = value.Trim().ToLowerInvariant();
+            return normalized == "true" || 
+                   normalized == "1" || 
+                   normalized == "yes" || 
+                   normalized == "sim" ||
+                   normalized == "y" ||
+                   normalized == "s";
         }
     }
 }
