@@ -32,5 +32,7 @@ namespace SalesApp.DTOs
         public string? MatriculaNumber { get; set; }
         
         public bool IsMatriculaOwner { get; set; } = false;
+        
+        public bool SendEmail { get; set; } = false;
     }
 }

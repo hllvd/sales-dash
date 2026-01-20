@@ -19,5 +19,10 @@ namespace SalesApp.Services
         /// Sends a role assignment notification email
         /// </summary>
         Task<bool> SendRoleAssignmentEmailAsync(string userEmail, string userName, string? roleName = null, string? qualificationName = null, string? assignedBy = null);
+        
+        /// <summary>
+        /// Sends a welcome email with credentials to a newly created user
+        /// </summary>
+        Task<bool> SendWelcomeEmailAsync(string userEmail, string userName, string password);
     }
 }

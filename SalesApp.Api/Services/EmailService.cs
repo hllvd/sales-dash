@@ -64,5 +64,19 @@ namespace SalesApp.Services
             var message = template.Build(parameters);
             return await _emailSender.SendEmailAsync(message);
         }
+        
+        public async Task<bool> SendWelcomeEmailAsync(string userEmail, string userName, string password)
+        {
+            var template = new WelcomeEmailTemplate();
+            var parameters = new Dictionary<string, string>
+            {
+                ["toEmail"] = userEmail,
+                ["userName"] = userName,
+                ["password"] = password
+            };
+
+            var message = template.Build(parameters);
+            return await _emailSender.SendEmailAsync(message);
+        }
     }
 }

@@ -159,6 +159,20 @@ namespace SalesApp.Controllers
                 }
             }
             
+            // Send welcome email if requested
+            if (request.SendEmail)
+            {
+                try
+                {
+                    await _emailService.SendWelcomeEmailAsync(user.Email, user.Name, request.Password);
+                }
+                catch (Exception)
+                {
+                    // Email sending failed, but user was created successfully
+                    // Don't fail the registration
+                }
+            }
+            
             return Ok(new ApiResponse<UserResponse>
             {
                 Success = true,
