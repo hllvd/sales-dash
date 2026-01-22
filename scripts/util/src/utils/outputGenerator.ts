@@ -35,10 +35,10 @@ export function generateOutputPath(templateName: string, outputDir: string): str
 }
 
 /**
- * Gets the project root output directory
+ * Gets the output directory (relative to scripts/util)
  */
 export function getOutputDirectory(): string {
-  // Navigate from scripts/util to project root
-  const projectRoot = path.resolve(__dirname, '..', '..', '..', '..');
-  return path.join(projectRoot, 'data', 'output');
+  // Navigate from dist/utils to scripts/util root, then to data/output
+  const utilRoot = path.resolve(__dirname, '..', '..');
+  return path.join(utilRoot, 'data', 'output');
 }

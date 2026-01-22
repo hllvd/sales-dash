@@ -1,0 +1,3 @@
+Name,Email,Surname,Role,ParentEmail,Matricula,Owner_Matricula
+John,john@example.com,Doe,Admin,,123,456
+Jane,jane@example.com,Smith,User,,111,222
