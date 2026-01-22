@@ -68,7 +68,7 @@ describe('outputGenerator', () => {
     it('should return path to project root output directory', () => {
       const outputDir = getOutputDirectory();
       
-      expect(outputDir).toContain('output');
+      expect(outputDir).toContain('data/output');
       expect(path.isAbsolute(outputDir)).toBe(true);
     });
   });

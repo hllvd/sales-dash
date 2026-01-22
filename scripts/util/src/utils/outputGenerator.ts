@@ -40,5 +40,5 @@ export function generateOutputPath(templateName: string, outputDir: string): str
 export function getOutputDirectory(): string {
   // Navigate from scripts/util to project root
   const projectRoot = path.resolve(__dirname, '..', '..', '..', '..');
-  return path.join(projectRoot, 'output');
+  return path.join(projectRoot, 'data', 'output');
 }

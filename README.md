@@ -48,12 +48,13 @@ npm start -- -i input.csv to-csv
 
 #### `user-temp`
 Gera um template CSV de usuários a partir de um CSV de entrada.
+**Nota:** Remove duplicatas baseadas no nome e adiciona colunas de matrícula.
 
 ```bash
 npm start -- -i users.csv user-temp
 ```
 
-**Saída:** `/output/user-template-YYYYMMDD-HHMMSS.csv`
+**Saída:** `/data/output/user-template-YYYYMMDD-HHMMSS.csv`
 
 **Colunas do template:**
 - Name
@@ -61,6 +62,8 @@ npm start -- -i users.csv user-temp
 - Surname
 - Role
 - ParentEmail
+- Matricula
+- Owner_Matricula
 
 ---
 

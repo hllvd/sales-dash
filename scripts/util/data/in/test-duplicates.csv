@@ -1,0 +1,4 @@
+name,email,surname,role,matricula,owner_matricula
+John,john@example.com,Doe,Admin,123,456
+John,john2@example.com,Doe,User,124,457
+Jane,jane@example.com,Smith,User,111,222
