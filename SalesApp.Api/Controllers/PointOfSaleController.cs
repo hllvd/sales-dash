@@ -30,7 +30,8 @@ namespace SalesApp.Controllers
                 Id = p.Id,
                 Name = p.Name,
                 CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt
+                UpdatedAt = p.UpdatedAt,
+                MatriculaId = p.MatriculaId
             }).ToList();
             
             return Ok(new ApiResponse<List<PVResponse>>
@@ -61,7 +62,8 @@ namespace SalesApp.Controllers
                 Id = pv.Id,
                 Name = pv.Name,
                 CreatedAt = pv.CreatedAt,
-                UpdatedAt = pv.UpdatedAt
+                UpdatedAt = pv.UpdatedAt,
+                MatriculaId = pv.MatriculaId
             };
             
             return Ok(new ApiResponse<PVResponse>
@@ -89,7 +91,8 @@ namespace SalesApp.Controllers
             var pv = new PV
             {
                 Id = request.Id,
-                Name = request.Name
+                Name = request.Name,
+                MatriculaId = request.MatriculaId
             };
             
             var created = await _pvRepository.CreateAsync(pv);
@@ -99,7 +102,8 @@ namespace SalesApp.Controllers
                 Id = created.Id,
                 Name = created.Name,
                 CreatedAt = created.CreatedAt,
-                UpdatedAt = created.UpdatedAt
+                UpdatedAt = created.UpdatedAt,
+                MatriculaId = created.MatriculaId
             };
             
             return CreatedAtAction(
@@ -137,6 +141,7 @@ namespace SalesApp.Controllers
             }
             
             existing.Name = request.Name;
+            existing.MatriculaId = request.MatriculaId;
             var updated = await _pvRepository.UpdateAsync(existing);
             
             var response = new PVResponse
@@ -144,7 +149,8 @@ namespace SalesApp.Controllers
                 Id = updated.Id,
                 Name = updated.Name,
                 CreatedAt = updated.CreatedAt,
-                UpdatedAt = updated.UpdatedAt
+                UpdatedAt = updated.UpdatedAt,
+                MatriculaId = updated.MatriculaId
             };
             
             return Ok(new ApiResponse<PVResponse>

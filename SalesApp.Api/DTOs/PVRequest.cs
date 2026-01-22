@@ -14,5 +14,7 @@ namespace SalesApp.DTOs
         [ValidateSQLInjection]
         [ValidAlphanumeric(allowSpaces: true)]
         public string Name { get; set; } = string.Empty;
+        
+        public int? MatriculaId { get; set; }
     }
 }

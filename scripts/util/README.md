@@ -79,11 +79,16 @@ npm start -- -i data.csv preview
 #### `pv-temp`
 Generates a Ponto de Venda (Point of Sale) template CSV.
 
+**Features:**
+- **Case-insensitive column matching**: Finds columns regardless of case
+- **PV deduplication**: Removes duplicate PV entries (keeps first occurrence)
+- **Matricula field**: Includes Matricula column from source
+
 ```bash
 npm start -- -i data.csv pv-temp
 ```
 
-**Output:** `/output/pv-temp-YYYYMMDD-HHMMSS.csv`
+**Output:** `/data/output/pv-temp-YYYYMMDD-HHMMSS.csv`
 
 **Template columns:**
 - Código PV
@@ -91,24 +96,32 @@ npm start -- -i data.csv pv-temp
 - Endereço
 - Cidade
 - Estado
+- Matricula
 
 ---
 
 #### `pv-mat`
 Generates a Matricula template CSV.
 
+**Features:**
+- **Accepts user-temp output**: Can use the output from `user-temp` as input
+- **Case-insensitive column matching**: Finds columns regardless of case
+- **Matricula deduplication**: Removes duplicate matricula entries
+- **Filters empty matriculas**: Skips rows without matricula values
+
 ```bash
 npm start -- -i data.csv pv-mat
+# Or use user-temp output as input:
+npm start -- -i data/output/user-template-*.csv pv-mat
 ```
 
-**Output:** `/output/pv-mat-YYYYMMDD-HHMMSS.csv`
+**Output:** `/data/output/pv-mat-YYYYMMDD-HHMMSS.csv`
 
 **Template columns:**
 - Matrícula
-- Nome
-- Código PV
-- Status
-- Data Ativação
+- Email
+- IsOwner (defaults to 'false')
+- StartDate (automatically set to 2 years ago in YYYY-MM-DD format)
 
 ---
 
