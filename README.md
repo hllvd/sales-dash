@@ -6,3 +6,156 @@ Estrutura base para iniciar um projeto fullstack com:
 - Nginx como proxy reverso
 - Docker Compose para orquestração
 - Certbot para HTTPS automático
+
+---
+
+## CSV Utility Script
+
+Utilitário TypeScript para processamento de arquivos CSV e geração de templates.
+
+### Localização
+
+```
+scripts/util/
+```
+
+### Instalação
+
+```bash
+cd scripts/util
+npm install
+```
+
+### Uso
+
+```bash
+npm start -- -i <arquivo-entrada> <comando>
+```
+
+### Comandos Disponíveis
+
+#### `to-csv`
+Converte arquivo de entrada para formato CSV (copia para output com timestamp).
+
+```bash
+npm start -- -i input.csv to-csv
+```
+
+**Saída:** `/output/to-csv-YYYYMMDD-HHMMSS.csv`
+
+---
+
+#### `user-temp`
+Gera um template CSV de usuários a partir de um CSV de entrada.
+
+```bash
+npm start -- -i users.csv user-temp
+```
+
+**Saída:** `/output/user-template-YYYYMMDD-HHMMSS.csv`
+
+**Colunas do template:**
+- Name
+- Email
+- Surname
+- Role
+- ParentEmail
+
+---
+
+#### `pv-temp`
+Gera um template CSV de Ponto de Venda.
+
+```bash
+npm start -- -i data.csv pv-temp
+```
+
+**Saída:** `/output/pv-temp-YYYYMMDD-HHMMSS.csv`
+
+**Colunas do template:**
+- Código PV
+- Nome
+- Endereço
+- Cidade
+- Estado
+
+---
+
+#### `pv-mat`
+Gera um template CSV de Matrícula.
+
+```bash
+npm start -- -i data.csv pv-mat
+```
+
+**Saída:** `/output/pv-mat-YYYYMMDD-HHMMSS.csv`
+
+**Colunas do template:**
+- Matrícula
+- Nome
+- Código PV
+- Status
+- Data Ativação
+
+---
+
+### Validação de Parâmetros
+
+O script valida todos os parâmetros e fornece mensagens de erro claras:
+
+```bash
+# Arquivo de entrada ausente
+❌ Error: Input file is required. Use -i <file> to specify the input file.
+
+# Arquivo não encontrado
+❌ Error: Input file not found: /path/to/file.csv
+
+# Formato de arquivo inválido
+❌ Error: Input file must be a CSV file. Got: .txt
+
+# Comando desconhecido
+❌ Error: Unknown command 'invalid'
+Valid commands: to-csv, user-temp, pv-temp, pv-mat
+```
+
+### Pasta de Saída
+
+Todos os arquivos gerados são salvos na pasta `/output` na raiz do projeto com nomenclatura baseada em timestamp:
+
+```
+/output/
+├── to-csv-20260122-073000.csv
+├── user-template-20260122-073100.csv
+├── pv-temp-20260122-073200.csv
+└── pv-mat-20260122-073300.csv
+```
+
+### Desenvolvimento
+
+#### Compilar TypeScript
+```bash
+cd scripts/util
+npm run build
+```
+
+#### Executar Testes
+```bash
+npm test
+```
+
+#### Executar Testes com Cobertura
+```bash
+npm run test:coverage
+```
+
+### Ajuda
+
+Para ver todas as opções disponíveis:
+
+```bash
+npm start -- --help
+```
+
+### Documentação Completa
+
+Para mais detalhes, consulte: [scripts/util/README.md](scripts/util/README.md)
