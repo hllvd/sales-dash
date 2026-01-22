@@ -6,7 +6,7 @@ A TypeScript utility for CSV file processing and template generation with timest
 
 - ✅ **Argument validation** with clear error messages
 - ✅ **CSV and XLSX conversion** and template generation
-- ✅ **Automatic column removal** (removes last two columns for `to-csv`)
+- ✅ **Automatic column removal** (removes 'Total' and 'Numeric' columns for `to-csv`)
 - ✅ **Timestamp-based output** files
 - ✅ **Type-safe** TypeScript implementation
 - ✅ **Unit tested** with Jest

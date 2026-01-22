@@ -36,6 +36,7 @@ npm start -- -i <arquivo-entrada> <comando>
 
 #### `to-csv`
 Converte arquivo de entrada para formato CSV (copia para output com timestamp).
+**Nota:** Remove automaticamente as colunas 'Total' e 'Numeric' do arquivo gerado.
 
 ```bash
 npm start -- -i input.csv to-csv
