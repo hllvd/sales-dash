@@ -42,7 +42,12 @@ npm start -- -i input.csv to-csv
 
 #### `user-temp`
 Generates a user template CSV from input CSV data.
-**Note:** Removes duplicates based on name and adds matricula columns.
+
+**Features:**
+- **Case-insensitive column matching**: Finds columns regardless of case
+- **Comissionado mapping**: If "Comissionado" column exists, it's used for the "Name" field
+- **Smart deduplication**: Removes duplicates based on combination of Name + Matricula
+- **Matricula fields**: Includes Matricula and Owner_Matricula columns
 
 ```bash
 npm start -- -i users.csv user-temp
@@ -51,13 +56,23 @@ npm start -- -i users.csv user-temp
 **Output:** `/data/output/user-template-YYYYMMDD-HHMMSS.csv`
 
 **Template columns:**
-- Name
+- Name (from Comissionado if available, otherwise from Name)
 - Email
-- Surname
 - Role
 - ParentEmail
 - Matricula
 - Owner_Matricula
+
+---
+
+#### `preview`
+Preview the first 10 rows of the input file in a formatted table.
+
+```bash
+npm start -- -i data.csv preview
+```
+
+**Output:** Displays data in console (no file created)
 
 ---
 

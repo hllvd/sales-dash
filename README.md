@@ -67,6 +67,17 @@ npm start -- -i users.csv user-temp
 
 ---
 
+#### `preview`
+Visualiza as primeiras 10 linhas do arquivo em uma tabela formatada.
+
+```bash
+npm start -- -i data.csv preview
+```
+
+**Saída:** Exibe dados no console (não cria arquivo)
+
+---
+
 #### `pv-temp`
 Gera um template CSV de Ponto de Venda.
 
