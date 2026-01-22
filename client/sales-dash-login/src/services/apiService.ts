@@ -539,6 +539,7 @@ export const apiService = {
 export interface PV {
   id: number
   name: string
+  matriculaId?: number
   createdAt: string
   updatedAt: string
 }
@@ -546,6 +547,7 @@ export interface PV {
 export interface PVRequest {
   id: number
   name: string
+  matriculaId?: number
 }
 
 export interface UserMatricula {
