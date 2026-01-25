@@ -63,6 +63,22 @@ npm start -- -i users.csv user-temp
 - Matricula
 - Owner_Matricula
 
+**Demo Data Generation:**
+
+You can generate realistic demo data using the `--demo` flag:
+
+```bash
+npm start -- -i data/in/demo-users.csv user-temp --demo
+```
+
+This will create a CSV file with 16 sample users:
+- 1 SuperAdmin (Carlos Silva)
+- 3 Admins (Ana, Roberto, Patricia) 
+- 12 Users (4 per admin team)
+- Realistic email patterns (firstname.lastname@example.com)
+- Proper parent-child relationships
+- Matricula ownership patterns (some users own their matriculas, others use their admin's)
+
 ---
 
 #### `preview`

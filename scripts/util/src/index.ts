@@ -8,22 +8,30 @@ import { userTemplate } from './commands/userTemplate';
 import { pvTemplate } from './commands/pvTemplate';
 import { pvMatTemplate } from './commands/pvMatTemplate';
 import { preview } from './commands/preview';
+import { writeDemoDataToFile } from './utils/demoDataGenerator';
+import * as path from 'path';
 
 interface Arguments {
   i?: string;
+  demo?: boolean;
   _: (string | number)[];
   $0: string;
 }
 
 async function main() {
   const argv = yargs(hideBin(process.argv))
-    .usage('Usage: $0 -i <input-file> <command>')
+    .usage('Usage: $0 -i <input-file> <command> [--demo]')
     .option('i', {
       alias: 'input',
       describe: 'Input CSV file path',
       type: 'string',
       demandOption: true,
       requiresArg: true
+    })
+    .option('demo', {
+      describe: 'Generate demo data for user-temp command',
+      type: 'boolean',
+      default: false
     })
     .command('to-csv', 'Convert input file to CSV format')
     .command('user-temp', 'Generate user template CSV from input CSV')
@@ -35,20 +43,40 @@ async function main() {
     .alias('h', 'help')
     .example('$0 -i input.csv to-csv', 'Convert input.csv to CSV format')
     .example('$0 -i users.csv user-temp', 'Generate user template from users.csv')
+    .example('$0 -i demo.csv user-temp --demo', 'Generate user template with demo data')
     .example('$0 -i data.csv pv-temp', 'Generate PV template')
     .example('$0 -i data.csv pv-mat', 'Generate Matricula template')
     .example('$0 -i data.csv preview', 'Preview first 10 rows of data.csv')
     .strict()
     .parseSync() as Arguments;
 
-  const inputFile = argv.i;
+  let inputFile = argv.i;
   const command = argv._[0] as string;
+  const useDemo = argv.demo;
 
   try {
     // Validate input file
     if (!inputFile) {
       console.error('❌ Error: Input file is required. Use -i <file> to specify the input file.');
       process.exit(1);
+    }
+
+    // Generate demo data if --demo flag is set
+    if (useDemo) {
+      if (command !== 'user-temp') {
+        console.error('❌ Error: --demo flag is only supported with user-temp command');
+        process.exit(1);
+      }
+      
+      console.log('🎲 Generating demo data...');
+      const demoFilePath = path.resolve(inputFile);
+      writeDemoDataToFile(demoFilePath);
+      console.log(`✅ Demo data written to: ${demoFilePath}`);
+      console.log('📊 Demo data includes:');
+      console.log('   - 1 SuperAdmin (Carlos Silva)');
+      console.log('   - 3 Admins (Ana, Roberto, Patricia)');
+      console.log('   - 12 Users (4 per admin team)');
+      console.log('   - Realistic email patterns and matricula relationships\n');
     }
 
     console.log(`📂 Input file: ${inputFile}`);

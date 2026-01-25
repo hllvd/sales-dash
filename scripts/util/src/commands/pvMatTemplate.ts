@@ -57,7 +57,7 @@ export async function pvMatTemplate(inputFile: string): Promise<string> {
     return {
       matricula,
       email: getColumnValue(row, 'email', 'Email'),
-      isOwner: 'false', // Default to false
+      isOwner: getColumnValue(row, 'isOwner', 'IsOwner', 'owner_matricula', 'Owner_Matricula') || '0',
       startDate: startDate, // Date 2 years ago
       _matKey: String(matricula).toLowerCase().trim()
     };
