@@ -116,7 +116,7 @@ npm start -- -i data.csv pv-temp
 
 ---
 
-#### `pv-mat`
+#### `mat-temp`
 Generates a Matricula template CSV.
 
 **Features:**
@@ -126,17 +126,17 @@ Generates a Matricula template CSV.
 - **Filters empty matriculas**: Skips rows without matricula values
 
 ```bash
-npm start -- -i data.csv pv-mat
+npm start -- -i data.csv mat-temp
 # Or use user-temp output as input:
-npm start -- -i data/output/user-template-*.csv pv-mat
+npm start -- -i data/output/user-template-*.csv mat-temp
 ```
 
-**Output:** `/data/output/pv-mat-YYYYMMDD-HHMMSS.csv`
+**Output:** `/data/output/mat-temp-YYYYMMDD-HHMMSS.csv`
 
 **Template columns:**
 - Matrícula
 - Email
-- IsOwner (defaults to 'false')
+- IsOwner (defaults to '0')
 - StartDate (automatically set to 2 years ago in YYYY-MM-DD format)
 
 ---

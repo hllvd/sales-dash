@@ -36,7 +36,7 @@ async function main() {
     .command('to-csv', 'Convert input file to CSV format')
     .command('user-temp', 'Generate user template CSV from input CSV')
     .command('pv-temp', 'Generate Ponto de Venda template CSV')
-    .command('pv-mat', 'Generate Matricula template CSV')
+    .command('mat-temp', 'Generate Matricula template CSV')
     .command('preview', 'Preview first 10 rows of the input file')
     .demandCommand(1, 'You must specify a command')
     .help('h')
@@ -45,7 +45,7 @@ async function main() {
     .example('$0 -i users.csv user-temp', 'Generate user template from users.csv')
     .example('$0 -i demo.csv user-temp --demo', 'Generate user template with demo data')
     .example('$0 -i data.csv pv-temp', 'Generate PV template')
-    .example('$0 -i data.csv pv-mat', 'Generate Matricula template')
+    .example('$0 -i data.csv mat-temp', 'Generate Matricula template')
     .example('$0 -i data.csv preview', 'Preview first 10 rows of data.csv')
     .strict()
     .parseSync() as Arguments;
@@ -107,7 +107,7 @@ async function main() {
         console.log(`✅ PV template created: ${outputPath}`);
         break;
 
-      case 'pv-mat':
+      case 'mat-temp':
         console.log('🎓 Generating Matricula template...');
         outputPath = await pvMatTemplate(inputFile);
         console.log(`✅ Matricula template created: ${outputPath}`);
@@ -119,7 +119,7 @@ async function main() {
 
       default:
         console.error(`❌ Error: Unknown command '${command}'`);
-        console.error('Valid commands: to-csv, user-temp, pv-temp, pv-mat, preview');
+        console.error('Valid commands: to-csv, user-temp, pv-temp, mat-temp, preview');
         process.exit(1);
     }
 
