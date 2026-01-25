@@ -79,7 +79,7 @@ namespace SalesApp.Tests
             var response = okResult.Value.Should().BeOfType<ApiResponse<HistoricProductionResponse>>().Subject;
 
             response.Success.Should().BeTrue();
-            response.Data.MonthlyData.Should().HaveCount(1);
+            response.Data!.MonthlyData.Should().HaveCount(1);
             response.Data.MonthlyData[0].Period.Should().Be("2024-07");
             response.Data.MonthlyData[0].TotalProduction.Should().Be(300000);
             response.Data.MonthlyData[0].ContractCount.Should().Be(3);
@@ -108,7 +108,7 @@ namespace SalesApp.Tests
             var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
             var response = okResult.Value.Should().BeOfType<ApiResponse<HistoricProductionResponse>>().Subject;
 
-            response.Data.MonthlyData.Should().HaveCount(3);
+            response.Data!.MonthlyData.Should().HaveCount(3);
             response.Data.MonthlyData[0].Period.Should().Be("2024-07");
             response.Data.MonthlyData[0].TotalProduction.Should().Be(250000);
             response.Data.MonthlyData[0].ContractCount.Should().Be(2);
@@ -140,7 +140,7 @@ namespace SalesApp.Tests
             var response = okResult.Value.Should().BeOfType<ApiResponse<HistoricProductionResponse>>().Subject;
 
             response.Success.Should().BeTrue();
-            response.Data.MonthlyData.Should().BeEmpty();
+            response.Data!.MonthlyData.Should().BeEmpty();
             response.Data.TotalProduction.Should().Be(0);
             response.Data.TotalContracts.Should().Be(0);
         }
