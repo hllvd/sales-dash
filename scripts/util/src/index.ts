@@ -7,6 +7,7 @@ import { toCsv } from './commands/toCsv';
 import { userTemplate } from './commands/userTemplate';
 import { pvTemplate } from './commands/pvTemplate';
 import { pvMatTemplate } from './commands/pvMatTemplate';
+import { readInputFile } from './utils/fileReader';
 import { preview } from './commands/preview';
 import { writeDemoDataToFile } from './utils/demoDataGenerator';
 import * as path from 'path';
@@ -70,13 +71,19 @@ async function main() {
       
       console.log('🎲 Demo mode enabled. Generating demo data...');
       const demoFilePath = path.resolve(inputFile);
-      writeDemoDataToFile(demoFilePath);
+      
+      // Read existing data to preserve matriculas
+      const inputRows = await readInputFile(demoFilePath);
+      console.log(`📖 Read ${inputRows.length} rows from ${inputFile} to preserve matriculas.`);
+      
+      await writeDemoDataToFile(demoFilePath, inputRows);
+      
       console.log(`✅ Demo data written to: ${demoFilePath}`);
       console.log('📊 Demo data includes:');
-      console.log('   - 1 SuperAdmin (Carlos Silva)');
-      console.log('   - 3 Admins (Ana, Roberto, Patricia)');
-      console.log('   - 12 Users (4 per admin team)');
-      console.log('   - Realistic email patterns and matricula relationships\n');
+      console.log(`   - ${inputRows.length} users mapped to original matriculas`);
+      console.log('   - Randomized names and name-based emails');
+      console.log('   - Exactly one owner per matricula');
+      console.log('   - Randomized parent hierarchy from owners\n');
     }
 
     console.log(`📂 Processing file: ${inputFile}`);
