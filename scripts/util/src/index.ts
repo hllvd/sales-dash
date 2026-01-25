@@ -52,7 +52,7 @@ async function main() {
 
   let inputFile = argv.i;
   const command = argv._[0] as string;
-  const useDemo = argv.demo;
+  const useDemo = argv.demo === true;
 
   try {
     // Validate input file
@@ -68,7 +68,7 @@ async function main() {
         process.exit(1);
       }
       
-      console.log('🎲 Generating demo data...');
+      console.log('🎲 Demo mode enabled. Generating demo data...');
       const demoFilePath = path.resolve(inputFile);
       writeDemoDataToFile(demoFilePath);
       console.log(`✅ Demo data written to: ${demoFilePath}`);
@@ -79,7 +79,7 @@ async function main() {
       console.log('   - Realistic email patterns and matricula relationships\n');
     }
 
-    console.log(`📂 Input file: ${inputFile}`);
+    console.log(`📂 Processing file: ${inputFile}`);
     
     // Validate file exists and is CSV
     validateInputFile(inputFile);
