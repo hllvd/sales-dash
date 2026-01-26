@@ -40,24 +40,24 @@ export async function pvTemplate(inputFile: string): Promise<string> {
       { id: 'codigoPv', title: 'Código PV' },
       { id: 'nome', title: 'Nome' },
       { id: 'endereco', title: 'Endereço' },
-      { id: 'cidade', title: 'Cidade' },
-      { id: 'estado', title: 'Estado' },
       { id: 'matricula', title: 'Matricula' }
     ]
   });
   
   // Transform input rows to PV template format
   const pvRows = rows.map(row => {
-    const pv = getColumnValue(row, 'pv', 'PV', 'Código PV', 'codigo_pv', 'codigoPv');
+    // Priority: 'Código PV' should be copied as is
+    const codigoPv = getColumnValue(row, 'Código PV', 'codigoPv', 'codigo_pv');
+    
+    // PV field from the source should be Name on the target file
+    const nome = getColumnValue(row, 'PV', 'pv', 'Nome', 'Name', 'name');
     
     return {
-      codigoPv: pv,
-      nome: getColumnValue(row, 'nome', 'Nome', 'name', 'Name'),
-      endereco: getColumnValue(row, 'endereco', 'Endereço', 'endereco', 'address', 'Address'),
-      cidade: getColumnValue(row, 'cidade', 'Cidade', 'city', 'City'),
-      estado: getColumnValue(row, 'estado', 'Estado', 'state', 'State'),
+      codigoPv: codigoPv,
+      nome: nome,
+      endereco: getColumnValue(row, 'endereco', 'Endereço', 'address', 'Address'),
       matricula: getColumnValue(row, 'matricula', 'Matricula', 'Matrícula'),
-      _pvKey: String(pv).toLowerCase().trim()
+      _pvKey: String(codigoPv).toLowerCase().trim()
     };
   });
 
