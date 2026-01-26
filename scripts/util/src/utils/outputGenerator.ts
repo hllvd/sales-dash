@@ -26,19 +26,44 @@ export function ensureOutputDirectory(outputDir: string): void {
 }
 
 /**
- * Generates an output file path with timestamp
+ * Gets the base input directory (relative to scripts/util)
  */
-export function generateOutputPath(templateName: string, outputDir: string): string {
-  const timestamp = generateTimestamp();
-  const filename = `${templateName}-${timestamp}.csv`;
-  return path.join(outputDir, filename);
+export function getInputDirectory(): string {
+  // Navigate to scripts/util root, then to data/in
+  const utilRoot = path.resolve(process.cwd());
+  return path.join(utilRoot, 'data', 'in');
 }
 
 /**
- * Gets the output directory (relative to scripts/util)
+ * Gets the base output directory (relative to scripts/util)
  */
 export function getOutputDirectory(): string {
-  // Navigate from dist/utils to scripts/util root, then to data/output
-  const utilRoot = path.resolve(__dirname, '..', '..');
+  // Navigate to scripts/util root, then to data/output
+  const utilRoot = path.resolve(process.cwd());
   return path.join(utilRoot, 'data', 'output');
+}
+
+/**
+ * Generates an output file path with timestamp, mirroring input subfolders
+ */
+export function generateOutputPath(templateName: string, baseOutputDir: string, inputFile: string): string {
+  const timestamp = generateTimestamp();
+  const inputDir = getInputDirectory();
+  const absoluteInputFile = path.resolve(inputFile);
+  
+  let targetOutputDir = baseOutputDir;
+  
+  // If the input file is inside our data/in directory, calculate the subfolder
+  if (absoluteInputFile.startsWith(inputDir)) {
+    const relativeDir = path.dirname(path.relative(inputDir, absoluteInputFile));
+    if (relativeDir !== '.') {
+      targetOutputDir = path.join(baseOutputDir, relativeDir);
+    }
+  }
+  
+  // Ensure the specific subfolder exists
+  ensureOutputDirectory(targetOutputDir);
+  
+  const filename = `${templateName}-${timestamp}.csv`;
+  return path.join(targetOutputDir, filename);
 }

@@ -26,9 +26,8 @@ function getColumnValue(row: any, ...columnNames: string[]): string {
  */
 export async function pvTemplate(inputFile: string): Promise<string> {
   const outputDir = getOutputDirectory();
-  ensureOutputDirectory(outputDir);
   
-  const outputPath = generateOutputPath('pv-temp', outputDir);
+  const outputPath = generateOutputPath('pv-temp', outputDir, inputFile);
   
   // Read input file
   const rows = await readInputFile(inputFile);

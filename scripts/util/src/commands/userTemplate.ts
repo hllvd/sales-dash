@@ -32,9 +32,8 @@ function getColumnValue(row: any, ...columnNames: string[]): string {
  */
 export async function userTemplate(inputFile: string): Promise<string> {
   const outputDir = getOutputDirectory();
-  ensureOutputDirectory(outputDir);
   
-  const outputPath = generateOutputPath('user-template', outputDir);
+  const outputPath = generateOutputPath('user-template', outputDir, inputFile);
   
   // Read input file (CSV or XLSX)
   const rows = await readInputFile(inputFile);

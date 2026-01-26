@@ -10,9 +10,8 @@ import { ColumnFilterTransformer } from '../transformers/ColumnFilterTransformer
  */
 export async function toCsv(inputFile: string): Promise<string> {
   const outputDir = getOutputDirectory();
-  ensureOutputDirectory(outputDir);
   
-  const outputPath = generateOutputPath('to-csv', outputDir);
+  const outputPath = generateOutputPath('to-csv', outputDir, inputFile);
   
   // Read input file
   const rows = await readInputFile(inputFile);

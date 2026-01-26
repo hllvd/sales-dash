@@ -27,9 +27,8 @@ function getColumnValue(row: any, ...columnNames: string[]): string {
  */
 export async function pvMatTemplate(inputFile: string): Promise<string> {
   const outputDir = getOutputDirectory();
-  ensureOutputDirectory(outputDir);
   
-  const outputPath = generateOutputPath('mat-temp', outputDir);
+  const outputPath = generateOutputPath('mat-temp', outputDir, inputFile);
   
   // Read input file
   const rows = await readInputFile(inputFile);
