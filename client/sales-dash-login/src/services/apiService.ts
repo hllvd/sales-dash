@@ -265,7 +265,7 @@ export const apiService = {
     const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/mappings`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ mappings, dateFormat }),
+      body: JSON.stringify({ mappings }),
     })
 
     if (!response.ok) {
