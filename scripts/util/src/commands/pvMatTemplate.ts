@@ -42,22 +42,24 @@ export async function pvMatTemplate(inputFile: string): Promise<string> {
   const csvWriter = createObjectCsvWriter({
     path: outputPath,
     header: [
-      { id: 'matricula', title: 'Matrícula' },
-      { id: 'email', title: 'Email' },
-      { id: 'isOwner', title: 'IsOwner' },
-      { id: 'startDate', title: 'StartDate' }
+      { id: 'matriculaNumber', title: 'matriculaNumber' },
+      { id: 'userEmail', title: 'userEmail' },
+      { id: 'isOwner', title: 'isOwner' },
+      { id: 'startDate', title: 'startDate' },
+      { id: 'endDate', title: 'endDate' }
     ]
   });
   
   // Transform input rows to matricula template format
   const matRows = rows.map(row => {
-    const matricula = getColumnValue(row, 'matricula', 'Matricula', 'Matrícula');
+    const matricula = getColumnValue(row, 'matriculaNumber', 'matricula', 'Matricula', 'Matrícula');
     
     return {
-      matricula,
-      email: getColumnValue(row, 'email', 'Email', 'e-mail', 'E-mail', 'EMAIL', 'E-MAIL'),
+      matriculaNumber: matricula,
+      userEmail: getColumnValue(row, 'userEmail', 'email', 'Email', 'e-mail', 'E-mail', 'EMAIL', 'E-MAIL'),
       isOwner: getColumnValue(row, 'isOwner', 'IsOwner', 'owner_matricula', 'Owner_Matricula') || '0',
       startDate: startDate, // Date 2 years ago
+      endDate: null,
       _matKey: String(matricula).toLowerCase().trim()
     };
   });
@@ -80,7 +82,7 @@ export async function pvMatTemplate(inputFile: string): Promise<string> {
     // Deduplicate by email within the same matricula group
     const emailSeen = new Set<string>();
     const uniqueGroupUsers = groupUsers.filter(u => {
-      const emailLower = u.email.toLowerCase().trim();
+      const emailLower = u.userEmail.toLowerCase().trim();
       if (!emailLower || emailSeen.has(emailLower)) return false;
       emailSeen.add(emailLower);
       return true;

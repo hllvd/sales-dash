@@ -45,9 +45,7 @@ export async function userTemplate(inputFile: string): Promise<string> {
       { id: 'name', title: 'Name' },
       { id: 'email', title: 'Email' },
       { id: 'role', title: 'Role' },
-      { id: 'parentEmail', title: 'ParentEmail' },
-      { id: 'matricula', title: 'Matricula' },
-      { id: 'owner_matricula', title: 'Owner_Matricula' }
+      { id: 'parentEmail', title: 'ParentEmail' }
     ]
   });
   
@@ -56,21 +54,19 @@ export async function userTemplate(inputFile: string): Promise<string> {
     // Use 'comissionado' for name if it exists, otherwise fall back to 'name'
     const comissionado = getColumnValue(row, 'comissionado', 'Comissionado');
     const name = comissionado || getColumnValue(row, 'name', 'Name');
-    const matricula = getColumnValue(row, 'matricula', 'Matricula', 'Matrícula');
+    const email = getColumnValue(row, 'email', 'Email');
     
     return {
       name,
-      email: getColumnValue(row, 'email', 'Email'),
+      email,
       role: getColumnValue(row, 'role', 'Role'),
       parentEmail: getColumnValue(row, 'parentEmail', 'ParentEmail'),
-      matricula,
-      owner_matricula: getColumnValue(row, 'owner_matricula', 'Owner_Matricula'),
       // Add composite key for deduplication (convert to string to handle any type)
-      _compositeKey: `${String(name).toLowerCase().trim()}_${String(matricula).toLowerCase().trim()}`
+      _compositeKey: `${String(name).toLowerCase().trim()}_${String(email).toLowerCase().trim()}`
     };
   });
 
-  // Remove duplicates based on composite key (comissionado + matricula)
+  // Remove duplicates based on composite key (name + email)
   const seen = new Set<string>();
   const uniqueRows = userRows.filter(row => {
     if (seen.has(row._compositeKey)) {
