@@ -83,7 +83,12 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
 
     try {
       // Step 1: Configure mappings
-      const mappingResp = await apiService.configureImportMappings(uploadId, mappings, dateFormat)
+      // Filter out any columns that are not mapped (empty string)
+      const explicitlyMapped = Object.fromEntries(
+        Object.entries(mappings).filter(([_, targetField]) => targetField !== "")
+      )
+
+      const mappingResp = await apiService.configureImportMappings(uploadId, explicitlyMapped, dateFormat)
       
       if (!mappingResp.success) {
         setError(mappingResp.message || "Falha ao configurar mapeamentos")
