@@ -15,6 +15,7 @@ namespace SalesApp.Data
             {
                 adminUser = new User
                 {
+                    Id = Guid.Parse("32af666a-413e-4745-bd26-bb4c6fef4a72"),
                     Name = "Admin User",
                     Email = "admin@salesapp.com",
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
@@ -37,6 +38,7 @@ namespace SalesApp.Data
             {
                 testAdminUser = new User
                 {
+                    Id = Guid.Parse("2e23a8b2-4ead-4138-879f-85f2e1c74422"),
                     Name = "Test Admin",
                     Email = "user@example.com",
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),
@@ -53,6 +55,7 @@ namespace SalesApp.Data
             {
                 superAdminUser = new User
                 {
+                    Id = Guid.Parse("080a0aea-4cbd-490f-9d6c-bc001391b005"),
                     Name = "Super Admin",
                     Email = "superadmin@salesapp.com",
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),

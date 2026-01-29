@@ -3,6 +3,8 @@ using Moq;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Data;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace SalesApp.Tests.Services
@@ -15,6 +17,7 @@ namespace SalesApp.Tests.Services
         private readonly Mock<IRoleRepository> _mockRoleRepository;
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
         private readonly Mock<IEmailService> _mockEmailService;
+        private readonly Mock<AppDbContext> _mockContext;
         private readonly ImportExecutionService _service;
 
         public ImportExecutionServiceTests()
@@ -25,6 +28,7 @@ namespace SalesApp.Tests.Services
             _mockRoleRepository = new Mock<IRoleRepository>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
             _mockEmailService = new Mock<IEmailService>();
+            _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>());
             
             _service = new ImportExecutionService(
                 _mockContractRepository.Object,
@@ -32,7 +36,8 @@ namespace SalesApp.Tests.Services
                 _mockUserRepository.Object,
                 _mockRoleRepository.Object,
                 _mockMatriculaRepository.Object,
-                _mockEmailService.Object
+                _mockEmailService.Object,
+                _mockContext.Object
             );
         }
 

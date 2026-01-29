@@ -163,6 +163,17 @@ namespace SalesApp.Controllers
                 var dbTemplate = await _templateRepository.GetByNameAsync(hardcodedTemplate.Name);
                 if (dbTemplate == null)
                 {
+                    var currentUserId = GetCurrentUserId();
+                    var currentUser = await _userRepository.GetByIdAsync(currentUserId);
+                    
+                    // Fallback to first available admin if current user is not found (stale session/reseeded DB)
+                    if (currentUser == null)
+                    {
+                        Console.WriteLine($"[ImportsController] Current user {currentUserId} not found. Falling back to first admin.");
+                        var anyAdmin = await _userRepository.GetRootUserAsync();
+                        currentUserId = anyAdmin?.Id ?? currentUserId;
+                    }
+
                     dbTemplate = new ImportTemplate
                     {
                         Name = hardcodedTemplate.Name,
@@ -171,7 +182,7 @@ namespace SalesApp.Controllers
                         RequiredFields = hardcodedTemplate.RequiredFields,
                         OptionalFields = hardcodedTemplate.OptionalFields,
                         DefaultMappings = hardcodedTemplate.DefaultMappings,
-                        CreatedByUserId = GetCurrentUserId(),
+                        CreatedByUserId = currentUserId,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
                     };

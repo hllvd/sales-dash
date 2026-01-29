@@ -1,5 +1,7 @@
 using SalesApp.Models;
 using SalesApp.Repositories;
+using SalesApp.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace SalesApp.Services
 {
@@ -11,6 +13,7 @@ namespace SalesApp.Services
         private readonly IRoleRepository _roleRepository;
         private readonly IUserMatriculaRepository _matriculaRepository;
         private readonly IEmailService _emailService;
+        private readonly AppDbContext _context;
 
         public ImportExecutionService(
             IContractRepository contractRepository,
@@ -18,7 +21,8 @@ namespace SalesApp.Services
             IUserRepository userRepository,
             IRoleRepository roleRepository,
             IUserMatriculaRepository matriculaRepository,
-            IEmailService emailService)
+            IEmailService emailService,
+            AppDbContext context)
         {
             _contractRepository = contractRepository;
             _groupRepository = groupRepository;
@@ -26,6 +30,7 @@ namespace SalesApp.Services
             _roleRepository = roleRepository;
             _matriculaRepository = matriculaRepository;
             _emailService = emailService;
+            _context = context;
         }
 
         public async Task<ImportResult> ExecuteContractImportAsync(
@@ -275,11 +280,13 @@ namespace SalesApp.Services
                     
                     if (user != null)
                     {
+                        Console.WriteLine($"[ImportExecutionService] User created successfully: {user.Email}");
                         result.CreatedUsers.Add(user);
                         result.ProcessedRows++;
                     }
                     else
                     {
+                        Console.WriteLine($"[ImportExecutionService] Failed to create user for row {i + 1}");
                         result.FailedRows++;
                         result.Errors.Add($"Row {i + 1}: Failed to create user");
                     }
@@ -317,6 +324,8 @@ namespace SalesApp.Services
             var surname = GetFieldValue(row, reverseMappings, "Surname");
             var roleName = GetFieldValue(row, reverseMappings, "Role");
             var parentEmail = GetFieldValue(row, reverseMappings, "ParentEmail");
+
+            Console.WriteLine($"[ImportExecutionService] Creating User: Name='{name}', Email='{email}', Surname='{surname}', Role='{roleName}', Parent='{parentEmail}'");
 
             // Combine name and surname if surname exists
             var fullName = name;
