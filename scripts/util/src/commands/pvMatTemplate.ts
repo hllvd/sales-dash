@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import { createObjectCsvWriter } from 'csv-writer';
 import { ensureOutputDirectory, generateOutputPath, getOutputDirectory } from '../utils/outputGenerator';
 import { readInputFile } from '../utils/fileReader';
@@ -8,13 +9,13 @@ import { readInputFile } from '../utils/fileReader';
 function getColumnValue(row: any, ...columnNames: string[]): string {
   for (const colName of columnNames) {
     // Try exact match first
-    if (row[colName]) {
+    if ((row[colName] ?? '') !== '') {
       return row[colName];
     }
     
     // Try case-insensitive match
     const key = Object.keys(row).find(k => k.toLowerCase() === colName.toLowerCase());
-    if (key && row[key]) {
+    if (key && (row[key] ?? '') !== '') {
       return row[key];
     }
   }
@@ -38,6 +39,9 @@ export async function pvMatTemplate(inputFile: string): Promise<string> {
   twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
   const startDate = twoYearsAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
   
+  // Write BOM first to ensure Excel compatibility with UTF-8
+  fs.writeFileSync(outputPath, '\uFEFF');
+
   // Define Matricula template structure
   const csvWriter = createObjectCsvWriter({
     path: outputPath,
@@ -47,7 +51,8 @@ export async function pvMatTemplate(inputFile: string): Promise<string> {
       { id: 'isOwner', title: 'isOwner' },
       { id: 'startDate', title: 'startDate' },
       { id: 'endDate', title: 'endDate' }
-    ]
+    ],
+    append: true
   });
   
   // Transform input rows to matricula template format

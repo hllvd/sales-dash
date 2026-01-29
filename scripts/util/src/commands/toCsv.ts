@@ -35,10 +35,14 @@ export async function toCsv(inputFile: string): Promise<string> {
     title: key
   }));
   
+  // Write BOM first to ensure Excel compatibility with UTF-8
+  fs.writeFileSync(outputPath, '\uFEFF');
+
   // Write to CSV
   const csvWriter = createObjectCsvWriter({
     path: outputPath,
-    header: headers
+    header: headers,
+    append: true
   });
   
   await csvWriter.writeRecords(processedRows);

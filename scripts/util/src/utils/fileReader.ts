@@ -2,9 +2,31 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import csvParser from 'csv-parser';
+import { Transform } from 'stream';
 
 export interface CsvRow {
   [key: string]: string;
+}
+
+/**
+ * Simple Transform stream to strip UTF-8 BOM (EF BB BF)
+ */
+class StripBomTransformer extends Transform {
+  private _firstChunk = true;
+
+  _transform(chunk: any, encoding: string, callback: Function) {
+    if (this._firstChunk) {
+      this._firstChunk = false;
+      // Buffer chunk can be checked for BOM
+      if (Buffer.isBuffer(chunk) && chunk.length >= 3) {
+        if (chunk[0] === 0xEF && chunk[1] === 0xBB && chunk[2] === 0xBF) {
+          chunk = chunk.slice(3);
+        }
+      }
+    }
+    this.push(chunk);
+    callback();
+  }
 }
 
 /**
@@ -31,6 +53,7 @@ export async function readInputFile(inputFile: string): Promise<any[]> {
     return new Promise((resolve, reject) => {
       const rows: CsvRow[] = [];
       fs.createReadStream(inputFile)
+        .pipe(new StripBomTransformer())
         .pipe(csvParser())
         .on('data', (row: CsvRow) => rows.push(row))
         .on('end', () => resolve(rows))

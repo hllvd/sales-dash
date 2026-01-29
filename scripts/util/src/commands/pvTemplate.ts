@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import { createObjectCsvWriter } from 'csv-writer';
 import { ensureOutputDirectory, generateOutputPath, getOutputDirectory } from '../utils/outputGenerator';
 import { readInputFile } from '../utils/fileReader';
@@ -8,13 +9,13 @@ import { readInputFile } from '../utils/fileReader';
 function getColumnValue(row: any, ...columnNames: string[]): string {
   for (const colName of columnNames) {
     // Try exact match first
-    if (row[colName]) {
+    if ((row[colName] ?? '') !== '') {
       return row[colName];
     }
     
     // Try case-insensitive match
     const key = Object.keys(row).find(k => k.toLowerCase() === colName.toLowerCase());
-    if (key && row[key]) {
+    if (key && (row[key] ?? '') !== '') {
       return row[key];
     }
   }
@@ -32,21 +33,23 @@ export async function pvTemplate(inputFile: string): Promise<string> {
   // Read input file
   const rows = await readInputFile(inputFile);
   
-  // Define PV template structure (added matricula)
+  // Write BOM first to ensure Excel compatibility with UTF-8
+  fs.writeFileSync(outputPath, '\uFEFF');
+
+  // Define PV template structure
   const csvWriter = createObjectCsvWriter({
     path: outputPath,
     header: [
       { id: 'codigoPv', title: 'Código PV' },
-      { id: 'nome', title: 'Nome' },
-      { id: 'endereco', title: 'Endereço' },
-      { id: 'matricula', title: 'Matricula' }
-    ]
+      { id: 'nome', title: 'PV' }
+    ],
+    append: true
   });
   
   // Transform input rows to PV template format
   const pvRows = rows.map(row => {
-    // Priority: 'Código PV' should be copied as is
-    const codigoPv = getColumnValue(row, 'Código PV', 'codigoPv', 'codigo_pv');
+    // Priority: 'Código PV' should be copied as is. Expand patterns to be more robust.
+    const codigoPv = getColumnValue(row, 'Código PV', 'codigoPv', 'codigo_pv', 'PvId', 'pvid', 'PV ID', 'PV_ID', 'Id', 'id', 'Código', 'codigo');
     
     // PV field from the source should be Name on the target file
     const nome = getColumnValue(row, 'PV', 'pv', 'Nome', 'Name', 'name');
@@ -54,8 +57,6 @@ export async function pvTemplate(inputFile: string): Promise<string> {
     return {
       codigoPv: codigoPv,
       nome: nome,
-      endereco: getColumnValue(row, 'endereco', 'Endereço', 'address', 'Address'),
-      matricula: getColumnValue(row, 'matricula', 'Matricula', 'Matrícula'),
       _pvKey: String(codigoPv).toLowerCase().trim()
     };
   });

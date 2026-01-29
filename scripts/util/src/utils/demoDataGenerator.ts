@@ -1,26 +1,32 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { createObjectCsvWriter } from 'csv-writer';
 
 interface DemoUser {
-  name: string;
-  email: string;
-  role: string;
-  parentEmail: string;
-  matricula: string;
-  owner_matricula: string;
+  Name: string;
+  Email: string;
+  Role: string;
+  ParentEmail: string;
+  Matricula: string;
+  Owner_Matricula: string;
 }
 
 /**
  * Converts a name like "John Wicker" to "john.wicker@example.com"
  */
 function nameToEmail(name: string): string {
-  return name.toLowerCase().trim().replace(/\s+/g, '.') + '@example.com';
+  return name.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/\s+/g, '.')            // spaces to dots
+    .replace(/[^a-z0-9.@]/g, '')     // safety: strip anything not alphanumeric/dots/etc
+    + '@example.com';
 }
 
 const FIRST_NAMES = [
-  'Carlos', 'Ana', 'Roberto', 'Patricia', 'João', 'Maria', 'Pedro', 'Juliana',
+  'Carlos', 'Ana', 'Roberto', 'Patricia', 'Jo\u00e3o', 'Maria', 'Pedro', 'Juliana',
   'Lucas', 'Fernanda', 'Rafael', 'Camila', 'Bruno', 'Amanda', 'Thiago', 'Larissa',
-  'Gabriel', 'Beatriz', 'Felipe', 'Letícia', 'Ricardo', 'Sônia', 'Marcelo', 'Débora'
+  'Gabriel', 'Beatriz', 'Felipe', 'Let\u00edcia', 'Ricardo', 'S\u00f4nia', 'Marcelo', 'D\u00e9bora'
 ];
 
 const LAST_NAMES = [
@@ -48,74 +54,73 @@ export function generateDemoData(inputRows: any[]): DemoUser[] {
     const matricula = matriculaKey ? String(row[matriculaKey]) : '0000';
     
     const name = getRandomName();
-    const role = Math.random() > 0.8 ? 'admin' : 'user'; // Basic distribution, will be adjusted
     
     return {
-      name,
-      email: nameToEmail(name),
-      role,
-      parentEmail: '', // Will be assigned later
-      matricula,
-      owner_matricula: '0' // Will be assigned later
+      Name: name,
+      Email: nameToEmail(name),
+      Role: Math.random() > 0.8 ? 'admin' : 'user',
+      ParentEmail: '', // Will be assigned later
+      Matricula: matricula,
+      Owner_Matricula: '0' // Will be assigned later
     };
   });
 
   // Ensure at least one superadmin for the whole set if it's large enough, or just promote the first admin
   if (users.length > 0) {
-    const adminIndex = users.findIndex(u => u.role === 'admin');
+    const adminIndex = users.findIndex(u => u.Role === 'admin');
     if (adminIndex !== -1) {
-      users[adminIndex].role = 'superadmin';
+      users[adminIndex].Role = 'superadmin';
     } else {
-      users[0].role = 'superadmin';
+      users[0].Role = 'superadmin';
     }
   }
 
   // Group all users by matricula to ensure exactly one owner per matricula
   const matriculaGroups = new Map<string, DemoUser[]>();
   users.forEach(user => {
-    if (!matriculaGroups.has(user.matricula)) {
-      matriculaGroups.set(user.matricula, []);
+    if (!matriculaGroups.has(user.Matricula)) {
+      matriculaGroups.set(user.Matricula, []);
     }
-    matriculaGroups.get(user.matricula)!.push(user);
+    matriculaGroups.get(user.Matricula)!.push(user);
   });
 
   // Apply ownership logic per matricula group
   matriculaGroups.forEach((groupUsers) => {
     // First, clear all ownership
-    groupUsers.forEach(u => u.owner_matricula = '0');
+    groupUsers.forEach(u => u.Owner_Matricula = '0');
     
     // Determine which user will be the owner
     // Prioritize superadmin or admins
-    const priorityOwner = groupUsers.find(u => u.role === 'superadmin' || u.role === 'admin');
+    const priorityOwner = groupUsers.find(u => u.Role === 'superadmin' || u.Role === 'admin');
     
     if (priorityOwner) {
-      priorityOwner.owner_matricula = '1';
+      priorityOwner.Owner_Matricula = '1';
     } else {
       // Pick one user randomly from the group to be the owner
       const randomIndex = Math.floor(Math.random() * groupUsers.length);
-      groupUsers[randomIndex].owner_matricula = '1';
+      groupUsers[randomIndex].Owner_Matricula = '1';
     }
   });
   
   // Create a pool of all matricula owners
-  const ownersPool = users.filter(u => u.owner_matricula === '1').map(u => u.email);
+  const ownersPool = users.filter(u => u.Owner_Matricula === '1').map(u => u.Email);
   
-  // Assign parentEmail randomly from the owners pool
+  // Assign ParentEmail randomly from the owners pool
   users.forEach(user => {
     // SuperAdmins are roots (no parent)
-    if (user.role === 'superadmin') {
-      user.parentEmail = '';
+    if (user.Role === 'superadmin') {
+      user.ParentEmail = '';
       return;
     }
     
     // Pick a random parent from the pool, excluding self
-    const potentialParents = ownersPool.filter(email => email !== user.email);
+    const potentialParents = ownersPool.filter(email => email !== user.Email);
     
     if (potentialParents.length > 0) {
       const randomIndex = Math.floor(Math.random() * potentialParents.length);
-      user.parentEmail = potentialParents[randomIndex];
+      user.ParentEmail = potentialParents[randomIndex];
     } else {
-      user.parentEmail = '';
+      user.ParentEmail = '';
     }
   });
 
@@ -128,21 +133,28 @@ export function generateDemoData(inputRows: any[]): DemoUser[] {
 export async function writeDemoDataToFile(outputPath: string, inputRows: any[]): Promise<void> {
   const users = generateDemoData(inputRows);
   
-  // Create CSV content
-  const header = 'Name,Email,Role,ParentEmail,Matricula,Owner_Matricula\n';
-  const rows = users.map(user => 
-    `"${user.name}","${user.email}","${user.role}","${user.parentEmail}","${user.matricula}","${user.owner_matricula}"`
-  ).join('\n');
-  
-  const csvContent = header + rows;
-  
   // Ensure directory exists
   const dir = path.dirname(outputPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
+
+  // Write BOM first to ensure Excel compatibility with UTF-8
+  fs.writeFileSync(outputPath, '\uFEFF');
+
+  const csvWriter = createObjectCsvWriter({
+    path: outputPath,
+    header: [
+      { id: 'Name', title: 'Name' },
+      { id: 'Email', title: 'Email' },
+      { id: 'Role', title: 'Role' },
+      { id: 'ParentEmail', title: 'ParentEmail' },
+      { id: 'Matricula', title: 'Matricula' },
+      { id: 'Owner_Matricula', title: 'Owner_Matricula' }
+    ],
+    append: true
+  });
   
-  // Write file
-  fs.writeFileSync(outputPath, csvContent, 'utf-8');
+  await csvWriter.writeRecords(users);
 }
 

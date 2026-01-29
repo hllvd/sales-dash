@@ -14,13 +14,13 @@ interface CsvRow {
 function getColumnValue(row: any, ...columnNames: string[]): string {
   for (const colName of columnNames) {
     // Try exact match first
-    if (row[colName]) {
+    if ((row[colName] ?? '') !== '') {
       return row[colName];
     }
     
     // Try case-insensitive match
     const key = Object.keys(row).find(k => k.toLowerCase() === colName.toLowerCase());
-    if (key && row[key]) {
+    if (key && (row[key] ?? '') !== '') {
       return row[key];
     }
   }
@@ -38,6 +38,9 @@ export async function userTemplate(inputFile: string): Promise<string> {
   // Read input file (CSV or XLSX)
   const rows = await readInputFile(inputFile);
   
+  // Write BOM first to ensure Excel compatibility with UTF-8
+  fs.writeFileSync(outputPath, '\uFEFF');
+
   // Define user template structure
   const csvWriter = createObjectCsvWriter({
     path: outputPath,
@@ -48,7 +51,8 @@ export async function userTemplate(inputFile: string): Promise<string> {
       { id: 'parentEmail', title: 'ParentEmail' },
       { id: 'matricula', title: 'Matricula' },
       { id: 'owner_matricula', title: 'Owner_Matricula' }
-    ]
+    ],
+    append: true
   });
   
   // Transform input rows to user template format
