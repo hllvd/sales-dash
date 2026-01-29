@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { createObjectCsvWriter } from 'csv-writer';
+import { createObjectCsvWriter, createObjectCsvStringifier } from 'csv-writer';
 import { ensureOutputDirectory, generateOutputPath, getOutputDirectory } from '../utils/outputGenerator';
 import { readInputFile } from '../utils/fileReader';
 
@@ -33,16 +33,20 @@ export async function pvTemplate(inputFile: string): Promise<string> {
   // Read input file
   const rows = await readInputFile(inputFile);
   
-  // Write BOM first to ensure Excel compatibility with UTF-8
-  fs.writeFileSync(outputPath, '\uFEFF');
+  const header = [
+    { id: 'codigoPv', title: 'Código PV' },
+    { id: 'nome', title: 'PV' }
+  ];
+
+  // Write BOM and headers first to ensure Excel compatibility + presence of columns
+  const stringifier = createObjectCsvStringifier({ header });
+  const headerRow = stringifier.getHeaderString();
+  fs.writeFileSync(outputPath, '\uFEFF' + (headerRow || ''));
 
   // Define PV template structure
   const csvWriter = createObjectCsvWriter({
     path: outputPath,
-    header: [
-      { id: 'codigoPv', title: 'Código PV' },
-      { id: 'nome', title: 'PV' }
-    ],
+    header,
     append: true
   });
   

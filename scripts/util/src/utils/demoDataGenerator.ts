@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { createObjectCsvWriter } from 'csv-writer';
+import { createObjectCsvWriter, createObjectCsvStringifier } from 'csv-writer';
 
 interface DemoUser {
   Name: string;
@@ -139,19 +139,23 @@ export async function writeDemoDataToFile(outputPath: string, inputRows: any[]):
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  // Write BOM first to ensure Excel compatibility with UTF-8
-  fs.writeFileSync(outputPath, '\uFEFF');
+  const header = [
+    { id: 'Name', title: 'Name' },
+    { id: 'Email', title: 'Email' },
+    { id: 'Role', title: 'Role' },
+    { id: 'ParentEmail', title: 'ParentEmail' },
+    { id: 'Matricula', title: 'Matricula' },
+    { id: 'Owner_Matricula', title: 'Owner_Matricula' }
+  ];
+
+  // Write BOM and headers first to ensure Excel compatibility + presence of columns
+  const stringifier = createObjectCsvStringifier({ header });
+  const headerRow = stringifier.getHeaderString();
+  fs.writeFileSync(outputPath, '\uFEFF' + (headerRow || ''));
 
   const csvWriter = createObjectCsvWriter({
     path: outputPath,
-    header: [
-      { id: 'Name', title: 'Name' },
-      { id: 'Email', title: 'Email' },
-      { id: 'Role', title: 'Role' },
-      { id: 'ParentEmail', title: 'ParentEmail' },
-      { id: 'Matricula', title: 'Matricula' },
-      { id: 'Owner_Matricula', title: 'Owner_Matricula' }
-    ],
+    header,
     append: true
   });
   

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { createObjectCsvWriter } from 'csv-writer';
+import { createObjectCsvWriter, createObjectCsvStringifier } from 'csv-writer';
 import { ensureOutputDirectory, generateOutputPath, getOutputDirectory } from '../utils/outputGenerator';
 import { readInputFile } from '../utils/fileReader';
 
@@ -38,20 +38,24 @@ export async function userTemplate(inputFile: string): Promise<string> {
   // Read input file (CSV or XLSX)
   const rows = await readInputFile(inputFile);
   
-  // Write BOM first to ensure Excel compatibility with UTF-8
-  fs.writeFileSync(outputPath, '\uFEFF');
+  const header = [
+    { id: 'name', title: 'Name' },
+    { id: 'email', title: 'Email' },
+    { id: 'role', title: 'Role' },
+    { id: 'parentEmail', title: 'ParentEmail' },
+    { id: 'matricula', title: 'Matricula' },
+    { id: 'owner_matricula', title: 'Owner_Matricula' }
+  ];
+
+  // Write BOM and headers first to ensure Excel compatibility + presence of columns
+  const stringifier = createObjectCsvStringifier({ header });
+  const headerRow = stringifier.getHeaderString();
+  fs.writeFileSync(outputPath, '\uFEFF' + (headerRow || ''));
 
   // Define user template structure
   const csvWriter = createObjectCsvWriter({
     path: outputPath,
-    header: [
-      { id: 'name', title: 'Name' },
-      { id: 'email', title: 'Email' },
-      { id: 'role', title: 'Role' },
-      { id: 'parentEmail', title: 'ParentEmail' },
-      { id: 'matricula', title: 'Matricula' },
-      { id: 'owner_matricula', title: 'Owner_Matricula' }
-    ],
+    header,
     append: true
   });
   

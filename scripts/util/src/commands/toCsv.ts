@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { createObjectCsvWriter } from 'csv-writer';
+import { createObjectCsvWriter, createObjectCsvStringifier } from 'csv-writer';
 import { ensureOutputDirectory, generateOutputPath, getOutputDirectory } from '../utils/outputGenerator';
 import { readInputFile } from '../utils/fileReader';
 import { ColumnFilterTransformer } from '../transformers/ColumnFilterTransformer';
@@ -35,8 +35,10 @@ export async function toCsv(inputFile: string): Promise<string> {
     title: key
   }));
   
-  // Write BOM first to ensure Excel compatibility with UTF-8
-  fs.writeFileSync(outputPath, '\uFEFF');
+  // Write BOM and headers first to ensure Excel compatibility + presence of columns
+  const stringifier = createObjectCsvStringifier({ header: headers });
+  const headerRow = stringifier.getHeaderString();
+  fs.writeFileSync(outputPath, '\uFEFF' + (headerRow || ''));
 
   // Write to CSV
   const csvWriter = createObjectCsvWriter({

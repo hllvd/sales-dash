@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { createObjectCsvWriter } from 'csv-writer';
+import { createObjectCsvWriter, createObjectCsvStringifier } from 'csv-writer';
 import { ensureOutputDirectory, generateOutputPath, getOutputDirectory } from '../utils/outputGenerator';
 import { readInputFile } from '../utils/fileReader';
 
@@ -39,19 +39,23 @@ export async function pvMatTemplate(inputFile: string): Promise<string> {
   twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
   const startDate = twoYearsAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
   
-  // Write BOM first to ensure Excel compatibility with UTF-8
-  fs.writeFileSync(outputPath, '\uFEFF');
+  const header = [
+    { id: 'matriculaNumber', title: 'matriculaNumber' },
+    { id: 'userEmail', title: 'userEmail' },
+    { id: 'isOwner', title: 'isOwner' },
+    { id: 'startDate', title: 'startDate' },
+    { id: 'endDate', title: 'endDate' }
+  ];
+
+  // Write BOM and headers first to ensure Excel compatibility + presence of columns
+  const stringifier = createObjectCsvStringifier({ header });
+  const headerRow = stringifier.getHeaderString();
+  fs.writeFileSync(outputPath, '\uFEFF' + (headerRow || ''));
 
   // Define Matricula template structure
   const csvWriter = createObjectCsvWriter({
     path: outputPath,
-    header: [
-      { id: 'matriculaNumber', title: 'matriculaNumber' },
-      { id: 'userEmail', title: 'userEmail' },
-      { id: 'isOwner', title: 'isOwner' },
-      { id: 'startDate', title: 'startDate' },
-      { id: 'endDate', title: 'endDate' }
-    ],
+    header,
     append: true
   });
   
