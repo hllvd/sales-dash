@@ -26,10 +26,10 @@ function getColumnValue(row: any, ...columnNames: string[]): string {
  * Generates a Matricula template CSV
  * Can accept user-temp output as input
  */
-export async function pvMatTemplate(inputFile: string): Promise<string> {
+export async function pvMatTemplate(inputFile: string, outputPath?: string): Promise<string> {
   const outputDir = getOutputDirectory();
   
-  const outputPath = generateOutputPath('mat-temp', outputDir, inputFile);
+  const finalOutputPath = outputPath || generateOutputPath('mat-temp', outputDir, inputFile);
   
   // Read input file
   const rows = await readInputFile(inputFile);
@@ -50,11 +50,11 @@ export async function pvMatTemplate(inputFile: string): Promise<string> {
   // Write BOM and headers first to ensure Excel compatibility + presence of columns
   const stringifier = createObjectCsvStringifier({ header });
   const headerRow = stringifier.getHeaderString();
-  fs.writeFileSync(outputPath, '\uFEFF' + (headerRow || ''));
+  fs.writeFileSync(finalOutputPath, '\uFEFF' + (headerRow || ''));
 
   // Define Matricula template structure
   const csvWriter = createObjectCsvWriter({
-    path: outputPath,
+    path: finalOutputPath,
     header,
     append: true
   });
@@ -129,5 +129,5 @@ export async function pvMatTemplate(inputFile: string): Promise<string> {
   const outputRows = processedRows.map(({ _matKey, ...rest }) => rest);
   
   await csvWriter.writeRecords(outputRows);
-  return outputPath;
+  return finalOutputPath;
 }

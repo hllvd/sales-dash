@@ -25,10 +25,10 @@ function getColumnValue(row: any, ...columnNames: string[]): string {
 /**
  * Generates a Ponto de Venda (Point of Sale) template CSV
  */
-export async function pvTemplate(inputFile: string): Promise<string> {
+export async function pvTemplate(inputFile: string, outputPath?: string): Promise<string> {
   const outputDir = getOutputDirectory();
   
-  const outputPath = generateOutputPath('pv-temp', outputDir, inputFile);
+  const finalOutputPath = outputPath || generateOutputPath('pv-temp', outputDir, inputFile);
   
   // Read input file
   const rows = await readInputFile(inputFile);
@@ -41,11 +41,11 @@ export async function pvTemplate(inputFile: string): Promise<string> {
   // Write BOM and headers first to ensure Excel compatibility + presence of columns
   const stringifier = createObjectCsvStringifier({ header });
   const headerRow = stringifier.getHeaderString();
-  fs.writeFileSync(outputPath, '\uFEFF' + (headerRow || ''));
+  fs.writeFileSync(finalOutputPath, '\uFEFF' + (headerRow || ''));
 
   // Define PV template structure
   const csvWriter = createObjectCsvWriter({
-    path: outputPath,
+    path: finalOutputPath,
     header,
     append: true
   });
@@ -79,5 +79,5 @@ export async function pvTemplate(inputFile: string): Promise<string> {
   const outputRows = uniqueRows.map(({ _pvKey, ...rest }) => rest);
   
   await csvWriter.writeRecords(outputRows);
-  return outputPath;
+  return finalOutputPath;
 }

@@ -67,3 +67,11 @@ export function generateOutputPath(templateName: string, baseOutputDir: string, 
   const filename = `${templateName}-${timestamp}.csv`;
   return path.join(targetOutputDir, filename);
 }
+
+/**
+ * Generates an idempotent output file path (fixed filename in same directory as input)
+ */
+export function generateIdempotentPath(filename: string, inputFile: string): string {
+  const inputDir = path.dirname(path.resolve(inputFile));
+  return path.join(inputDir, filename);
+}

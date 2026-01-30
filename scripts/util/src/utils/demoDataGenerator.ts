@@ -12,116 +12,65 @@ interface DemoUser {
 }
 
 /**
- * Converts a name like "John Wicker" to "john.wicker@example.com"
+ * Converts a name like "Jo\u00e3o da Silva" to "joaodasilva@example.com"
  */
 function nameToEmail(name: string): string {
   return name.toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // remove accents
-    .replace(/\s+/g, '.')            // spaces to dots
-    .replace(/[^a-z0-9.@]/g, '')     // safety: strip anything not alphanumeric/dots/etc
+    .replace(/\s+/g, '')            // remove spaces (no dots)
+    .replace(/[^a-z0-9@]/g, '')     // safety: strip anything not alphanumeric/@
     + '@example.com';
 }
-
-const FIRST_NAMES = [
-  'Carlos', 'Ana', 'Roberto', 'Patricia', 'Jo\u00e3o', 'Maria', 'Pedro', 'Juliana',
-  'Lucas', 'Fernanda', 'Rafael', 'Camila', 'Bruno', 'Amanda', 'Thiago', 'Larissa',
-  'Gabriel', 'Beatriz', 'Felipe', 'Let\u00edcia', 'Ricardo', 'S\u00f4nia', 'Marcelo', 'D\u00e9bora'
-];
-
-const LAST_NAMES = [
-  'Silva', 'Santos', 'Lima', 'Costa', 'Oliveira', 'Ferreira', 'Alves', 'Rocha',
-  'Martins', 'Souza', 'Pereira', 'Dias', 'Carvalho', 'Ribeiro', 'Gomes', 'Mendes',
-  'Barbosa', 'Rodrigues', 'Almeida', 'Nascimento', 'Cardoso', 'Teixeira', 'Borges'
-];
 
 function getRandomItem<T>(array: T[]): T {
   return array[Math.floor(Math.random() * array.length)];
 }
 
-function getRandomName(): string {
-  return `${getRandomItem(FIRST_NAMES)} ${getRandomItem(LAST_NAMES)}`;
-}
-
 /**
- * Generates realistic demo data based on input matriculas
+ * Generates realistic demo data based on input names and matriculas from users.csv
  */
 export function generateDemoData(inputRows: any[]): DemoUser[] {
-  // Map input rows to preliminary demo users, preserving matricula
+  // 1. Generate users with matriculas and names from input
   const users: DemoUser[] = inputRows.map(row => {
     // Detect matricula column case-insensitively
     const matriculaKey = Object.keys(row).find(k => k.toLowerCase() === 'matricula' || k.toLowerCase() === 'matrícula');
     const matricula = matriculaKey ? String(row[matriculaKey]) : '0000';
     
-    const name = getRandomName();
+    // Detect name column case-insensitively
+    const nameKey = Object.keys(row).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'nome');
+    const name = nameKey ? String(row[nameKey]) : 'Guest User';
     
     return {
       Name: name,
       Email: nameToEmail(name),
-      Role: Math.random() > 0.8 ? 'admin' : 'user',
-      ParentEmail: '', // Will be assigned later
+      Role: 'user',
+      ParentEmail: '',
       Matricula: matricula,
-      Owner_Matricula: '0' // Will be assigned later
+      Owner_Matricula: '0'
     };
   });
 
-  // Ensure at least one superadmin for the whole set if it's large enough, or just promote the first admin
-  if (users.length > 0) {
-    const adminIndex = users.findIndex(u => u.Role === 'admin');
-    if (adminIndex !== -1) {
-      users[adminIndex].Role = 'superadmin';
-    } else {
-      users[0].Role = 'superadmin';
-    }
-  }
+  // 2. Collect all generated emails for random parent assignment
+  const emailPool = users.map(u => u.Email);
 
-  // Group all users by matricula to ensure exactly one owner per matricula
-  const matriculaGroups = new Map<string, DemoUser[]>();
+  // 3. Assign ParentEmail and Owner logic
   users.forEach(user => {
-    if (!matriculaGroups.has(user.Matricula)) {
-      matriculaGroups.set(user.Matricula, []);
-    }
-    matriculaGroups.get(user.Matricula)!.push(user);
-  });
-
-  // Apply ownership logic per matricula group
-  matriculaGroups.forEach((groupUsers) => {
-    // First, clear all ownership
-    groupUsers.forEach(u => u.Owner_Matricula = '0');
-    
-    // Determine which user will be the owner
-    // Prioritize superadmin or admins
-    const priorityOwner = groupUsers.find(u => u.Role === 'superadmin' || u.Role === 'admin');
-    
-    if (priorityOwner) {
-      priorityOwner.Owner_Matricula = '1';
-    } else {
-      // Pick one user randomly from the group to be the owner
-      const randomIndex = Math.floor(Math.random() * groupUsers.length);
-      groupUsers[randomIndex].Owner_Matricula = '1';
-    }
-  });
-  
-  // Create a pool of all matricula owners
-  const ownersPool = users.filter(u => u.Owner_Matricula === '1').map(u => u.Email);
-  
-  // Assign ParentEmail randomly from the owners pool
-  users.forEach(user => {
-    // SuperAdmins are roots (no parent)
-    if (user.Role === 'superadmin') {
-      user.ParentEmail = '';
-      return;
-    }
-    
-    // Pick a random parent from the pool, excluding self
-    const potentialParents = ownersPool.filter(email => email !== user.Email);
-    
-    if (potentialParents.length > 0) {
-      const randomIndex = Math.floor(Math.random() * potentialParents.length);
-      user.ParentEmail = potentialParents[randomIndex];
+    // Only 10% of users get a ParentEmail
+    if (Math.random() < 0.1) {
+      // 30% of those 10% will be owners (ParentEmail == Email)
+      // 70% of those 10% will have a random parent
+      if (Math.random() < 0.3) {
+        user.ParentEmail = user.Email;
+      } else {
+        user.ParentEmail = getRandomItem(emailPool);
+      }
     } else {
       user.ParentEmail = '';
     }
+
+    // "When the parent is equal the mail, this is a matricula owner and it's true, otherwise it's false."
+    user.Owner_Matricula = (user.ParentEmail === user.Email) ? '1' : '0';
   });
 
   return users;

@@ -30,10 +30,10 @@ function getColumnValue(row: any, ...columnNames: string[]): string {
 /**
  * Generates a user template CSV from input CSV or XLSX
  */
-export async function userTemplate(inputFile: string): Promise<string> {
+export async function userTemplate(inputFile: string, outputPath?: string): Promise<string> {
   const outputDir = getOutputDirectory();
   
-  const outputPath = generateOutputPath('user-template', outputDir, inputFile);
+  const finalOutputPath = outputPath || generateOutputPath('user-template', outputDir, inputFile);
   
   // Read input file (CSV or XLSX)
   const rows = await readInputFile(inputFile);
@@ -50,11 +50,11 @@ export async function userTemplate(inputFile: string): Promise<string> {
   // Write BOM and headers first to ensure Excel compatibility + presence of columns
   const stringifier = createObjectCsvStringifier({ header });
   const headerRow = stringifier.getHeaderString();
-  fs.writeFileSync(outputPath, '\uFEFF' + (headerRow || ''));
+  fs.writeFileSync(finalOutputPath, '\uFEFF' + (headerRow || ''));
 
   // Define user template structure
   const csvWriter = createObjectCsvWriter({
-    path: outputPath,
+    path: finalOutputPath,
     header,
     append: true
   });
@@ -93,5 +93,5 @@ export async function userTemplate(inputFile: string): Promise<string> {
   const outputRows = uniqueRows.map(({ _compositeKey, ...rest }) => rest);
   
   await csvWriter.writeRecords(outputRows);
-  return outputPath;
+  return finalOutputPath;
 }

@@ -8,10 +8,10 @@ import { ColumnFilterTransformer } from '../transformers/ColumnFilterTransformer
 /**
  * Converts input file (CSV or XLSX) to CSV format, removing 'Total' and 'Numeric' columns
  */
-export async function toCsv(inputFile: string): Promise<string> {
+export async function toCsv(inputFile: string, outputPath?: string): Promise<string> {
   const outputDir = getOutputDirectory();
   
-  const outputPath = generateOutputPath('to-csv', outputDir, inputFile);
+  const finalOutputPath = outputPath || generateOutputPath('to-csv', outputDir, inputFile);
   
   // Read input file
   const rows = await readInputFile(inputFile);
@@ -38,16 +38,16 @@ export async function toCsv(inputFile: string): Promise<string> {
   // Write BOM and headers first to ensure Excel compatibility + presence of columns
   const stringifier = createObjectCsvStringifier({ header: headers });
   const headerRow = stringifier.getHeaderString();
-  fs.writeFileSync(outputPath, '\uFEFF' + (headerRow || ''));
+  fs.writeFileSync(finalOutputPath, '\uFEFF' + (headerRow || ''));
 
   // Write to CSV
   const csvWriter = createObjectCsvWriter({
-    path: outputPath,
+    path: finalOutputPath,
     header: headers,
     append: true
   });
   
   await csvWriter.writeRecords(processedRows);
   
-  return outputPath;
+  return finalOutputPath;
 }
