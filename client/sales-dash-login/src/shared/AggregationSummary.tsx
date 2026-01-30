@@ -31,7 +31,7 @@ const AggregationSummary: React.FC<AggregationSummaryProps> = ({
     if (isNaN(value) || value === null || value === undefined) {
       return '--';
     }
-    return `${(value * 100).toFixed(1)}%`;
+    return `${(value * 100).toFixed(2)}%`;
   };
 
   // Prepare donut chart data
