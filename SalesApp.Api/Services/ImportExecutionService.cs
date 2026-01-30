@@ -209,31 +209,6 @@ namespace SalesApp.Services
                 }
             }
 
-            // Extract and validate matricula (optional)
-            var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
-            int? matriculaId = null;
-            
-            if (!string.IsNullOrWhiteSpace(matriculaNumber))
-            {
-                var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(matriculaNumber);
-                
-                if (matricula == null)
-                {
-                    throw new ArgumentException($"Matricula '{matriculaNumber}' not found");
-                }
-                
-                if (!matricula.IsActive)
-                {
-                    throw new ArgumentException($"Matricula '{matriculaNumber}' is not active");
-                }
-                
-                if (matricula.UserId != user.Id)
-                {
-                    throw new ArgumentException($"Matricula '{matriculaNumber}' does not belong to user {userEmail}");
-                }
-                
-                matriculaId = matricula.Id;
-            }
 
             // ✅ Create contract object (don't save yet)
             var contract = new Contract
@@ -251,8 +226,7 @@ namespace SalesApp.Services
                 ContractType = contractType,
                 Quota = quota,
                 PvId = pvId,
-                CustomerName = customerName,
-                MatriculaId = matriculaId
+                CustomerName = customerName
             };
 
             return contract;

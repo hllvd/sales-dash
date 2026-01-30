@@ -19,6 +19,7 @@ namespace SalesApp.Repositories
             return await _context.Users
                 .Include(u => u.ParentUser)
                 .Include(u => u.Role)
+                .Include(u => u.UserMatriculas)
                 .FirstOrDefaultAsync(u => u.Id == id);
         }
         
@@ -27,6 +28,7 @@ namespace SalesApp.Repositories
             return await _context.Users
                 .AsNoTracking()
                 .Include(u => u.Role)
+                .Include(u => u.UserMatriculas)
                 .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
         }
 
@@ -45,7 +47,7 @@ namespace SalesApp.Repositories
             var users = await query
                 .Include(u => u.ParentUser)
                 .Include(u => u.Role)
-                .Include(u => u.UserMatriculas.Where(m => m.IsActive))
+                .Include(u => u.UserMatriculas)
                 .OrderByDescending(u => u.IsActive)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -85,6 +87,7 @@ namespace SalesApp.Repositories
                 .Where(u => u.RoleId == roleId && u.IsActive)
                 .Include(u => u.ParentUser)
                 .Include(u => u.Role)
+                .Include(u => u.UserMatriculas)
                 .ToListAsync();
         }
         

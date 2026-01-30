@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SalesApp.Data;
 using Serilog;
-using Serilog.Events;
 
 namespace SalesApp
 {

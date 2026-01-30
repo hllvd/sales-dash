@@ -18,7 +18,6 @@ namespace SalesApp.DTOs
         [Range(0.01, double.MaxValue)]
         public decimal TotalAmount { get; set; }
         
-        
         public int? GroupId { get; set; }
         
         [StringLength(20)]
@@ -36,10 +35,6 @@ namespace SalesApp.DTOs
         public string? CustomerName { get; set; }
         
         public int? PvId { get; set; }
-        [StringLength(50)]
-        [ValidateXSS]
-        [ValidateSQLInjection]
-        [ValidAlphanumeric(required: false)]
         public string? MatriculaNumber { get; set; }
     }
 }

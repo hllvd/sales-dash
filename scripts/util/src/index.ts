@@ -7,6 +7,7 @@ import { toCsv } from './commands/toCsv';
 import { userTemplate } from './commands/userTemplate';
 import { pvTemplate } from './commands/pvTemplate';
 import { pvMatTemplate } from './commands/pvMatTemplate';
+import { enrichContracts } from './commands/enrichContracts';
 import { readInputFile } from './utils/fileReader';
 import { preview } from './commands/preview';
 import { writeDemoDataToFile } from './utils/demoDataGenerator';
@@ -100,7 +101,8 @@ async function main() {
         let userSourcePath = usersCsvPath;
 
         if (fs.existsSync(usersDemoPath)) {
-          console.log('💡 Found users-demo.csv, using it as source.');
+          console.log('\n⚠️  HEADS UP: Using demo data from users-demo.csv');
+          console.log('   This data was automatically generated and contains randomized information.\n');
           userSourcePath = usersDemoPath;
         } else if (!fs.existsSync(usersCsvPath)) {
           console.error(`❌ Error: users.csv not found in ${path.dirname(usersCsvPath)}`);
@@ -113,6 +115,11 @@ async function main() {
         const matOut = generateIdempotentPath('matricula.csv', inputFile);
         await pvMatTemplate(userSourcePath, matOut);
         console.log(`✅ Matricula template created: ${matOut}`);
+
+        // 2. Generate Enriched Contracts CSV
+        const contractsOut = generateIdempotentPath('contracts.csv', inputFile);
+        await enrichContracts(inputFile, userSourcePath);
+        console.log(`✅ Enriched contracts created: ${contractsOut}`);
         
         console.log('\n✨ Step 2 completed successfully!');
         break;

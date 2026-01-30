@@ -93,11 +93,6 @@ namespace SalesApp.Data
                     .WithMany(p => p.Contracts)
                     .HasForeignKey(e => e.PvId)
                     .OnDelete(DeleteBehavior.Restrict);
-                    
-                entity.HasOne(e => e.UserMatricula)
-                    .WithMany(m => m.Contracts)
-                    .HasForeignKey(e => e.MatriculaId)
-                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             

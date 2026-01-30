@@ -270,7 +270,7 @@ namespace SalesApp.Controllers
         [HttpGet("by-matricula/{matricula}")]
         [HttpGet("lookup/{matricula}")]
         [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<List<UserLookupResponse>>>> LookupByMatricula(string matricula)
+        public ActionResult<ApiResponse<List<UserLookupResponse>>> LookupByMatricula(string matricula)
         {
             // This endpoint is deprecated - use UserMatriculas endpoints instead
             return Ok(new ApiResponse<List<UserLookupResponse>>
@@ -760,10 +760,13 @@ namespace SalesApp.Controllers
 
             contract.UserId = currentUserId;
             contract.User = user;
-            contract.MatriculaId = userMatricula?.Id;
-            contract.UserMatricula = userMatricula;
             await _contractRepository.UpdateAsync(contract);
             
+            var resolvedMatricula = user.UserMatriculas?
+                .OrderByDescending(m => m.IsOwner)
+                .ThenByDescending(m => m.StartDate)
+                .FirstOrDefault(m => m.IsActive);
+
             return Ok(new ApiResponse<ContractResponse>
             {
                 Success = true,
@@ -785,7 +788,8 @@ namespace SalesApp.Controllers
                     Quota = contract.Quota,
                     PvId = contract.PvId,
                     CustomerName = contract.CustomerName,
-                    MatriculaNumber = userMatricula?.MatriculaNumber
+                    MatriculaId = resolvedMatricula?.Id,
+                    MatriculaNumber = resolvedMatricula?.MatriculaNumber
                 },
                 Message = _messageService.Get(AppMessage.ContractAssignedSuccessfully)
             });

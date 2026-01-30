@@ -238,22 +238,6 @@ namespace SalesApp.Controllers
                 }
             }
             
-            // Validate and resolve matricula if provided
-            int? matriculaId = null;
-            if (!string.IsNullOrWhiteSpace(request.MatriculaNumber) && request.UserId.HasValue)
-            {
-                var (isValid, matricula, errorMessage) = await ValidateMatriculaForUser(request.MatriculaNumber, request.UserId.Value);
-                if (!isValid)
-                {
-                    return BadRequest(new ApiResponse<ContractResponse>
-                    {
-                        Success = false,
-                        Message = errorMessage ?? "Invalid matricula"
-                    });
-                }
-                matriculaId = matricula!.Id;
-            }
-            
             var contract = new Contract
             {
                 ContractNumber = request.ContractNumber,
@@ -265,8 +249,7 @@ namespace SalesApp.Controllers
                 ContractType = contractTypeInt,
                 Quota = request.Quota,
                 PvId = request.PvId,
-                CustomerName = request.CustomerName,
-                MatriculaId = matriculaId
+                CustomerName = request.CustomerName
             };
 
             
@@ -381,36 +364,6 @@ namespace SalesApp.Controllers
             if (request.PvId.HasValue) contract.PvId = request.PvId.Value;
             if (!string.IsNullOrEmpty(request.CustomerName)) contract.CustomerName = request.CustomerName;
             
-            // Validate and update matricula if provided
-            if (!string.IsNullOrWhiteSpace(request.MatriculaNumber))
-            {
-                var userId = contract.UserId ?? Guid.Empty;
-                if (userId == Guid.Empty)
-                {
-                    return BadRequest(new ApiResponse<ContractResponse>
-                    {
-                        Success = false,
-                        Message = "Cannot assign matricula to contract without a user"
-                    });
-                }
-                
-                var (isValid, matricula, errorMessage) = await ValidateMatriculaForUser(request.MatriculaNumber, userId);
-                if (!isValid)
-                {
-                    // Get user info for better error message
-                    var user = await _userRepository.GetByIdAsync(userId);
-                    var userName = user?.Name ?? "Unknown";
-                    var enhancedMessage = $"{errorMessage} (Contract assigned to: {userName}, User ID: {userId})";
-                    
-                    return BadRequest(new ApiResponse<ContractResponse>
-                    {
-                        Success = false,
-                        Message = enhancedMessage
-                    });
-                }
-                contract.MatriculaId = matricula!.Id;
-            }
-            
             if (request.IsActive.HasValue)
                 contract.IsActive = request.IsActive.Value;
             
@@ -454,6 +407,12 @@ namespace SalesApp.Controllers
         
         private ContractResponse MapToContractResponse(Contract contract)
         {
+            // Resolve matricula from user's matriculas (picking owner or latest active)
+            var userMatricula = contract.User?.UserMatriculas?
+                .OrderByDescending(m => m.IsOwner)
+                .ThenByDescending(m => m.StartDate)
+                .FirstOrDefault(m => m.IsActive);
+
             return new ContractResponse
             {
                 Id = contract.Id,
@@ -472,25 +431,11 @@ namespace SalesApp.Controllers
                 Quota = contract.Quota,
                 PvId = contract.PvId,
                 CustomerName = contract.CustomerName,
-                MatriculaId = contract.MatriculaId,
-                MatriculaNumber = contract.UserMatricula?.MatriculaNumber
+                MatriculaId = userMatricula?.Id,
+                MatriculaNumber = userMatricula?.MatriculaNumber
             };
         }
         
-        private async Task<(bool isValid, UserMatricula? matricula, string? errorMessage)> 
-            ValidateMatriculaForUser(string matriculaNumber, Guid userId)
-        {
-            // Query for matricula by BOTH number AND userId since multiple users can have the same number
-            var matricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, userId);
-            
-            if (matricula == null)
-                return (false, null, $"Matricula '{matriculaNumber}' not found for this user");
-            
-            if (!matricula.IsActive)
-                return (false, null, $"Matricula '{matriculaNumber}' is not active");
-            
-            return (true, matricula, null);
-        }
     
         private Guid GetCurrentUserId()
         {

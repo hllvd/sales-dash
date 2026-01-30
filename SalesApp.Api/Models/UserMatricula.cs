@@ -32,6 +32,5 @@ namespace SalesApp.Models
         
         // Navigation properties
         public virtual User User { get; set; } = null!;
-        public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
     }
 }

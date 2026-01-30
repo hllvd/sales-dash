@@ -18,9 +18,8 @@ namespace SalesApp.Repositories
         {
             // NOTE: No AsNoTracking - used after create/update, needs tracked entities
             return await _context.Contracts
-                .Include(c => c.User)
+                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Group)
-                .Include(c => c.UserMatricula)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
         
@@ -28,9 +27,8 @@ namespace SalesApp.Repositories
         {
             return await _context.Contracts
                 .AsNoTracking()
-                .Include(c => c.User)
+                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Group)
-                .Include(c => c.UserMatricula)
                 .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
         }
         
@@ -38,9 +36,8 @@ namespace SalesApp.Repositories
         {
             var query = _context.Contracts
                 .AsNoTracking()
-                .Include(c => c.User)
+                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Group)
-                .Include(c => c.UserMatricula)
                 .Where(c => c.IsActive);
             
             if (userId.HasValue)
@@ -62,9 +59,8 @@ namespace SalesApp.Repositories
         {
             var query = _context.Contracts
                 .AsNoTracking()
-                .Include(c => c.User)
+                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Group)
-                .Include(c => c.UserMatricula)
                 .Where(c => c.UserId == userId && c.IsActive);
             
             if (startDate.HasValue)
@@ -80,9 +76,8 @@ namespace SalesApp.Repositories
         {
             return await _context.Contracts
                 .AsNoTracking()
-                .Include(c => c.User)
+                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Group)
-                .Include(c => c.UserMatricula)
                 .Where(c => c.UploadId == uploadId)
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
@@ -110,9 +105,8 @@ namespace SalesApp.Repositories
             var contractIds = contracts.Select(c => c.Id).ToList();
             var reloadedContracts = await _context.Contracts
                 .AsNoTracking()
-                .Include(c => c.User)
+                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Group)
-                .Include(c => c.UserMatricula)
                 .Where(c => contractIds.Contains(c.Id))
                 .ToListAsync();
             
@@ -161,7 +155,6 @@ namespace SalesApp.Repositories
             // ✅ Null out navigation properties to prevent EF Core from tracking them
             contract.User = null;
             contract.Group = null;
-            contract.UserMatricula = null;
             
             _context.Contracts.Update(contract);
             await _context.SaveChangesAsync();

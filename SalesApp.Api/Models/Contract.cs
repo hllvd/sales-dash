@@ -42,12 +42,9 @@ namespace SalesApp.Models
         
         public int? Quota { get; set; }
         
-        public int? MatriculaId { get; set; } // Link to UserMatricula
-        
         // Navigation properties
         public User? User { get; set; }
         public Group? Group { get; set; }
         public PV? PV { get; set; }
-        public UserMatricula? UserMatricula { get; set; }
     }
 }

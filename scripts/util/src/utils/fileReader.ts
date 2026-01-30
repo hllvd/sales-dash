@@ -38,7 +38,8 @@ export async function readInputFile(inputFile: string): Promise<any[]> {
   
   if (ext === '.xlsx') {
     // Read XLSX file
-    const workbook = XLSX.readFile(inputFile);
+    // cellDates: true ensures dates are parsed as JS Date objects
+    const workbook = XLSX.readFile(inputFile, { cellDates: true });
     // Use the first sheet
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) {

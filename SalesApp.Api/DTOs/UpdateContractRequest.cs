@@ -31,19 +31,12 @@ namespace SalesApp.DTOs
         
         public int? Quota { get; set; }
         
-
-        
         public int? PvId { get; set; }
+        public string? MatriculaNumber { get; set; }
 
         [StringLength(200)]
         [ValidUserName]
         [ValidateXSS]
         public string? CustomerName { get; set; }
-        
-        [StringLength(50)]
-        [ValidateXSS]
-        [ValidateSQLInjection]
-        [ValidAlphanumeric(required: false)]
-        public string? MatriculaNumber { get; set; }
     }
 }
