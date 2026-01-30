@@ -196,9 +196,9 @@ namespace SalesApp.Data
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
                 entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("active");
                 
-                // Index for faster lookups
+                // Index for faster lookups - Unique per user
                 entity.HasIndex(e => e.MatriculaNumber);
-                entity.HasIndex(e => new { e.UserId, e.MatriculaNumber });
+                entity.HasIndex(e => new { e.UserId, e.MatriculaNumber }).IsUnique();
                 
                 entity.HasOne(e => e.User)
                     .WithMany(u => u.UserMatriculas)

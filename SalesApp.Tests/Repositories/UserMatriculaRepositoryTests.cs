@@ -269,6 +269,68 @@ namespace SalesApp.Tests.Repositories
             notExists.Should().BeFalse();
         }
 
+        [Fact]
+        public async Task CreateAsync_ShouldThrowException_WhenDuplicateMatriculaForSameUser()
+        {
+            // Arrange
+            var user = new User { Id = Guid.NewGuid(), Name = "Test User", Email = "duplicate@test.com", PasswordHash = "hash" };
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            var matricula1 = new UserMatricula
+            {
+                UserId = user.Id,
+                MatriculaNumber = "DUP001",
+                StartDate = DateTime.UtcNow,
+                IsActive = true
+            };
+            await _repository.CreateAsync(matricula1);
+
+            var matricula2 = new UserMatricula
+            {
+                UserId = user.Id,
+                MatriculaNumber = "DUP001",
+                StartDate = DateTime.UtcNow,
+                IsActive = true
+            };
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _repository.CreateAsync(matricula2));
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldThrowException_WhenDuplicateMatriculaForSameUser()
+        {
+            // Arrange
+            var user = new User { Id = Guid.NewGuid(), Name = "Test User", Email = "update-dup@test.com", PasswordHash = "hash" };
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            var matricula1 = new UserMatricula
+            {
+                UserId = user.Id,
+                MatriculaNumber = "ORIGINAL",
+                StartDate = DateTime.UtcNow,
+                IsActive = true
+            };
+            await _repository.CreateAsync(matricula1);
+
+            var matricula2 = new UserMatricula
+            {
+                UserId = user.Id,
+                MatriculaNumber = "OTHER",
+                StartDate = DateTime.UtcNow,
+                IsActive = true
+            };
+            await _repository.CreateAsync(matricula2);
+
+            // Act
+            matricula2.MatriculaNumber = "ORIGINAL";
+
+            // Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _repository.UpdateAsync(matricula2));
+        }
+
         public void Dispose()
         {
             _context.Database.EnsureDeleted();

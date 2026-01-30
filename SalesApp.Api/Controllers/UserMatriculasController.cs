@@ -204,17 +204,28 @@ namespace SalesApp.Controllers
                 IsActive = true
             };
 
-            var created = await _matriculaRepository.CreateAsync(matricula);
+            try
+            {
+                var created = await _matriculaRepository.CreateAsync(matricula);
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = created.Id },
-                new ApiResponse<UserMatriculaResponse>
+                return CreatedAtAction(
+                    nameof(GetById),
+                    new { id = created.Id },
+                    new ApiResponse<UserMatriculaResponse>
+                    {
+                        Success = true,
+                        Data = MapToResponse(created),
+                        Message = _messageService.Get(AppMessage.MatriculaCreatedSuccessfully)
+                    });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new ApiResponse<UserMatriculaResponse>
                 {
-                    Success = true,
-                    Data = MapToResponse(created),
-                    Message = _messageService.Get(AppMessage.MatriculaCreatedSuccessfully)
+                    Success = false,
+                    Message = ex.Message
                 });
+            }
         }
 
         // POST: api/usermatriculas/bulk
@@ -352,14 +363,25 @@ namespace SalesApp.Controllers
             if (request.Status != null)
                 matricula.Status = request.Status.ToLower();
 
-            var updated = await _matriculaRepository.UpdateAsync(matricula);
-
-            return Ok(new ApiResponse<UserMatriculaResponse>
+            try
             {
-                Success = true,
-                Data = MapToResponse(updated),
-                Message = _messageService.Get(AppMessage.MatriculaUpdatedSuccessfully)
-            });
+                var updated = await _matriculaRepository.UpdateAsync(matricula);
+
+                return Ok(new ApiResponse<UserMatriculaResponse>
+                {
+                    Success = true,
+                    Data = MapToResponse(updated),
+                    Message = _messageService.Get(AppMessage.MatriculaUpdatedSuccessfully)
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new ApiResponse<UserMatriculaResponse>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
         }
 
         // DELETE: api/usermatriculas/{id}

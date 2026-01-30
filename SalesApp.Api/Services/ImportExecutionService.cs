@@ -280,13 +280,11 @@ namespace SalesApp.Services
                     
                     if (user != null)
                     {
-                        Console.WriteLine($"[ImportExecutionService] User created successfully: {user.Email}");
                         result.CreatedUsers.Add(user);
                         result.ProcessedRows++;
                     }
                     else
                     {
-                        Console.WriteLine($"[ImportExecutionService] Failed to create user for row {i + 1}");
                         result.FailedRows++;
                         result.Errors.Add($"Row {i + 1}: Failed to create user");
                     }
@@ -325,7 +323,6 @@ namespace SalesApp.Services
             var roleName = GetFieldValue(row, reverseMappings, "Role");
             var parentEmail = GetFieldValue(row, reverseMappings, "ParentEmail");
 
-            Console.WriteLine($"[ImportExecutionService] Creating User: Name='{name}', Email='{email}', Surname='{surname}', Role='{roleName}', Parent='{parentEmail}'");
 
             // Combine name and surname if surname exists
             var fullName = name;
@@ -386,6 +383,37 @@ namespace SalesApp.Services
             };
 
             var createdUser = await _userRepository.CreateAsync(user);
+            
+            // Handle matricula assignment if provided
+            if (createdUser != null && !string.IsNullOrWhiteSpace(matricula))
+            {
+                try
+                {
+                    var userMatricula = new UserMatricula
+                    {
+                        UserId = createdUser.Id,
+                        MatriculaNumber = matricula,
+                        StartDate = DateTime.UtcNow,
+                        IsOwner = isMatriculaOwner,
+                        IsActive = true,
+                        Status = MatriculaStatus.Active.ToApiString()
+                    };
+                    
+                    await _matriculaRepository.CreateAsync(userMatricula);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    // Log but don't fail user creation - the user *was* created
+                    // The error will be handled by the caller of this method if we rethrow or handle it here
+                    // Given the loop in ExecuteUserImportAsync, we should probably throw a specific exception 
+                    // or just let this one bubble up to be caught by the row-level try-catch.
+                    throw new ArgumentException($"User created, but matricula failed: {ex.Message}");
+                }
+                catch (Exception ex)
+                {
+                    throw new ArgumentException($"User created, but matricula failed: {ex.Message}");
+                }
+            }
             
             // Send welcome email if requested
             if (sendEmail && createdUser != null)

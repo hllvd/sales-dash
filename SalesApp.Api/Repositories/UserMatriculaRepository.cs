@@ -71,6 +71,15 @@ namespace SalesApp.Repositories
 
         public async Task<UserMatricula> CreateAsync(UserMatricula matricula)
         {
+            // Check if user already has this matricula
+            var existing = await _context.UserMatriculas
+                .AnyAsync(m => m.UserId == matricula.UserId && m.MatriculaNumber == matricula.MatriculaNumber);
+            
+            if (existing)
+            {
+                throw new InvalidOperationException($"User already has matricula {matricula.MatriculaNumber}");
+            }
+
             matricula.CreatedAt = DateTime.UtcNow;
             matricula.UpdatedAt = DateTime.UtcNow;
             
@@ -88,6 +97,15 @@ namespace SalesApp.Repositories
 
         public async Task<UserMatricula> UpdateAsync(UserMatricula matricula)
         {
+            // Check if user already has this matricula (excluding this record)
+            var existing = await _context.UserMatriculas
+                .AnyAsync(m => m.UserId == matricula.UserId && m.MatriculaNumber == matricula.MatriculaNumber && m.Id != matricula.Id);
+            
+            if (existing)
+            {
+                throw new InvalidOperationException($"User already has matricula {matricula.MatriculaNumber}");
+            }
+
             matricula.UpdatedAt = DateTime.UtcNow;
             
             // If this matricula is being set as owner, remove owner flag from others
