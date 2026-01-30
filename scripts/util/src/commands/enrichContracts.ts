@@ -5,6 +5,29 @@ import { readInputFile } from '../utils/fileReader';
 import { generateIdempotentPath } from '../utils/outputGenerator';
 
 /**
+ * Maps input "conferencia" values to backend ContractStatus
+ */
+function mapConferenciaToStatus(conferencia: string): string {
+  const normalized = conferencia.trim().toUpperCase();
+  
+  switch (normalized) {
+    case 'NORMAL':
+      return 'Active';
+    case 'NCONT 1 AT':
+      return 'Late1';
+    case 'NCONT 2 AT':
+      return 'Late2';
+    case 'SUJ. A CANCELAMENTO':
+      return 'Late3';
+    case 'EXCLUIDO':
+    case 'DESISTENTE':
+      return 'Defaulted';
+    default:
+      return 'Active'; // Default to Active if unknown
+  }
+}
+
+/**
  * Helper function to get column value with case-insensitive matching
  */
 function getColumnValue(row: any, ...columnNames: string[]): string {
@@ -53,8 +76,16 @@ export async function enrichContracts(inputFile: string, userSourcePath: string)
     const lookupKey = `${name.toLowerCase()}|${matricula.toLowerCase()}`;
     const email = emailLookup.get(lookupKey) || '';
     
+    // Resolve Status from "conferencia"
+    const conferencia = getColumnValue(row, 'conferencia', 'Conferência');
+    const status = mapConferenciaToStatus(conferencia);
+    
     // Create enriched row and format any Date objects found
     const enrichedRow: any = { ...row, email };
+    
+    // Overwrite or add Status column
+    const statusKey = Object.keys(row).find(k => k.toLowerCase() === 'status') || 'Status';
+    enrichedRow[statusKey] = status;
     
     for (const key of Object.keys(enrichedRow)) {
       const value = enrichedRow[key];
