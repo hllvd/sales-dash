@@ -32,7 +32,7 @@ namespace SalesApp.Repositories
                 .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
         }
         
-        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null)
+        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -51,6 +51,9 @@ namespace SalesApp.Repositories
                 
             if (endDate.HasValue)
                 query = query.Where(c => c.SaleStartDate <= endDate.Value);
+
+            if (!string.IsNullOrEmpty(contractNumber))
+                query = query.Where(c => c.ContractNumber == contractNumber);
             
             return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
         }

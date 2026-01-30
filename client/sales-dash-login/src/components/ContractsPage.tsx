@@ -41,6 +41,8 @@ const ContractsPage: React.FC = () => {
   const [filterGroupId, setFilterGroupId] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterContractNumber, setFilterContractNumber] = useState('');
+  const [debouncedContractNumber, setDebouncedContractNumber] = useState('');
 
   useEffect(() => {
     loadFilters();
@@ -59,6 +61,15 @@ const ContractsPage: React.FC = () => {
       toast.error(err.message || 'Falha ao carregar opções de filtro');
     }
   };
+  
+  // Debounce contract number search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedContractNumber(filterContractNumber);
+    }, 3000); // 3-second debounce as requested
+
+    return () => clearTimeout(timer);
+  }, [filterContractNumber]);
 
   const loadContracts = async () => {
     setLoading(true);
@@ -69,7 +80,8 @@ const ContractsPage: React.FC = () => {
         filterUserId || undefined,
         filterGroupId ? parseInt(filterGroupId) : undefined,
         filterStartDate || undefined,
-        filterEndDate || undefined
+        filterEndDate || undefined,
+        debouncedContractNumber || undefined
       );
       setContracts(data);
       setAggregation(aggData || null);
@@ -86,7 +98,7 @@ const ContractsPage: React.FC = () => {
 
   useEffect(() => {
     loadContracts();
-  }, [filterUserId, filterGroupId, filterStartDate, filterEndDate]);
+  }, [filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber]);
 
   const handleCreateClick = () => {
     setEditingContract(null);
@@ -212,6 +224,17 @@ const ContractsPage: React.FC = () => {
         </div>
 
         <div className="filter-group">
+          <label htmlFor="filterContractNumber">Número do Contrato</label>
+          <input
+            type="text"
+            id="filterContractNumber"
+            value={filterContractNumber}
+            onChange={(e) => setFilterContractNumber(e.target.value)}
+            placeholder="Buscar por número..."
+          />
+        </div>
+
+        <div className="filter-group">
           <label htmlFor="filterStartDate">Data Início</label>
           <input
             type="date"
@@ -231,7 +254,7 @@ const ContractsPage: React.FC = () => {
           />
         </div>
 
-        {(filterUserId || filterGroupId || filterStartDate || filterEndDate) && (
+        {(filterUserId || filterGroupId || filterStartDate || filterEndDate || filterContractNumber) && (
           <button
             className="clear-filters-btn"
             onClick={() => {
@@ -239,6 +262,8 @@ const ContractsPage: React.FC = () => {
               setFilterGroupId('');
               setFilterStartDate('');
               setFilterEndDate('');
+              setFilterContractNumber('');
+              setDebouncedContractNumber('');
             }}
           >
             Limpar Filtros

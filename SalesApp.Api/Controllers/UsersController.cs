@@ -235,9 +235,10 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<PagedResponse<UserResponse>>>> GetUsers(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
-            [FromQuery] string? search = null)
+            [FromQuery] string? search = null,
+            [FromQuery] string? contractNumber = null)
         {
-            var (users, totalCount) = await _userRepository.GetAllAsync(page, pageSize, search);
+            var (users, totalCount) = await _userRepository.GetAllAsync(page, pageSize, search, contractNumber);
             
             return Ok(new ApiResponse<PagedResponse<UserResponse>>
             {

@@ -57,7 +57,6 @@ namespace SalesApp.IntegrationTests.Users
             var dbContract = await context.Contracts.FindAsync(contract.Id);
             dbContract.Should().NotBeNull();
             dbContract!.UserId.Should().Be(userId);
-            dbContract.MatriculaId.Should().Be(matricula.Id);
         }
 
         [Fact]

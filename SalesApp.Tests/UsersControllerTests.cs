@@ -573,7 +573,7 @@ namespace SalesApp.Tests
                 new User { Id = Guid.NewGuid(), Name = "User 2", Email = "user2@example.com" }
             };
 
-            _mockUserRepository.Setup(x => x.GetAllAsync(1, 10, It.IsAny<string?>())).ReturnsAsync((users, 2));
+            _mockUserRepository.Setup(x => x.GetAllAsync(1, 10, It.IsAny<string?>(), It.IsAny<string?>())).ReturnsAsync((users, 2));
 
             // Act
             var result = await _controller.GetUsers();

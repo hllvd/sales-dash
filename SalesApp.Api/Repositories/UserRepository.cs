@@ -34,13 +34,18 @@ namespace SalesApp.Repositories
 
 
         
-        public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null)
+        public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null, string? contractNumber = null)
         {
             var query = _context.Users.AsNoTracking();
             
             if (!string.IsNullOrEmpty(search))
             {
                 query = query.Where(u => u.Name.Contains(search) || u.Email.Contains(search));
+            }
+
+            if (!string.IsNullOrEmpty(contractNumber))
+            {
+                query = query.Where(u => _context.Contracts.Any(c => c.UserId == u.Id && c.ContractNumber == contractNumber));
             }
             
             var totalCount = await query.CountAsync();

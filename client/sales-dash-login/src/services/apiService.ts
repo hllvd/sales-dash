@@ -70,7 +70,8 @@ export const apiService = {
   async getUsers(
     page: number = 1,
     pageSize: number = 10,
-    search?: string
+    search?: string,
+    contractNumber?: string
   ): Promise<ApiResponse<PagedResponse<User>>> {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -79,6 +80,10 @@ export const apiService = {
 
     if (search) {
       params.append("search", search)
+    }
+
+    if (contractNumber) {
+      params.append("contractNumber", contractNumber)
     }
 
     const response = await authenticatedFetch(`${API_BASE_URL}/users?${params}`, {
