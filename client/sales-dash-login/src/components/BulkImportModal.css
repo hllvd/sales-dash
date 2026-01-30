@@ -52,12 +52,20 @@
   font-weight: 500;
 }
 
-.form-group input[type="file"] {
+.form-group input[type="file"],
+.template-select {
   color: #374151;
   border: 1px solid #d1d5db;
   padding: 10px;
   border-radius: 6px;
   width: 100%;
+  background-color: white;
+}
+
+.template-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .hint {

@@ -14,6 +14,10 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
+  // Template selection
+  const [templates, setTemplates] = useState<any[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<number>(templateId || 0)
+  
   // Step 1: File upload
   const [step, setStep] = useState<"upload" | "mapping" | "result">("upload")
   
@@ -28,6 +32,32 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   
   // Step 3: Result
   const [resultMessage, setResultMessage] = useState<string>("")
+  
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isSuperAdmin = user.role?.toLowerCase() === 'superadmin' || user.roleName?.toLowerCase() === 'superadmin';
+
+  React.useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const resp = await apiService.getImportTemplates();
+        if (resp.success && resp.data) {
+          setTemplates(resp.data);
+          // If a templateId was passed but not found in returned list, or not passed
+          if (resp.data.length > 0) {
+            const found = resp.data.find((t: any) => t.id === templateId);
+            if (found) {
+              setSelectedTemplate(found.id);
+            } else if (!isSuperAdmin || resp.data.length === 1) {
+              setSelectedTemplate(resp.data[0].id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch templates", err);
+      }
+    };
+    fetchTemplates();
+  }, [templateId, isSuperAdmin]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null)
@@ -49,8 +79,8 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
     setError(null)
     
     try {
-      // Upload file with provided templateId
-      const resp = await apiService.uploadImportFile(file, templateId)
+      // Upload file with selected template context
+      const resp = await apiService.uploadImportFile(file, selectedTemplate)
       
       if (resp.success && resp.data) {
         setUploadId(resp.data.uploadId)
@@ -162,6 +192,23 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                 </p>
               </div>
 
+              {isSuperAdmin && templates.length > 1 && (
+                <div className="form-group">
+                  <label htmlFor="templateSelection">Selecione o Modelo de Importação</label>
+                  <select 
+                    id="templateSelection"
+                    value={selectedTemplate}
+                    onChange={(e) => setSelectedTemplate(Number(e.target.value))}
+                    className="template-select"
+                  >
+                    <option value={0} disabled>-- Selecione um modelo --</option>
+                    {templates.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="form-actions">
                 <button
                   type="button"
@@ -174,7 +221,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                 <button
                   type="button"
                   className="btn-submit"
-                  disabled={!file || loading}
+                  disabled={!file || loading || !selectedTemplate}
                   onClick={handleUpload}
                 >
                   {loading ? "Enviando..." : "Próximo"}

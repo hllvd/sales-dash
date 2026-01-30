@@ -208,6 +208,19 @@ export const apiService = {
     return response.json()
   },
 
+  async getImportTemplates(entityType?: string): Promise<ApiResponse<any[]>> {
+    const params = entityType ? `?entityType=${entityType}` : "";
+    const response = await authenticatedFetch(`${API_BASE_URL}/imports/templates${params}`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch import templates");
+    }
+
+    return response.json();
+  },
+
   async uploadImportFile(
     file: File,
     templateId: number

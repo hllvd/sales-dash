@@ -79,6 +79,18 @@ namespace SalesApp.Controllers
                 DefaultMappings = "{}",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
+            },
+            new ImportTemplate
+            {
+                Id = 3,
+                Name = "contractDashboard",
+                EntityType = "Contract",
+                Description = "Template for contract dashboard import",
+                RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "Status", "SaleStartDate", "CustomerName" }),
+                DefaultMappings = "{}",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
             }
         };
 
@@ -86,9 +98,13 @@ namespace SalesApp.Controllers
         [Authorize(Roles = "admin,superadmin")]
         public ActionResult<ApiResponse<List<ImportTemplateResponse>>> GetTemplates([FromQuery] string? entityType = null)
         {
-            var templates = string.IsNullOrEmpty(entityType)
-                ? HardcodedTemplates
-                : HardcodedTemplates.Where(t => t.EntityType.Equals(entityType, StringComparison.OrdinalIgnoreCase)).ToList();
+            // Can be optimized the speed?
+            var isSuperAdmin = User.IsInRole("superadmin");
+            
+            var templates = HardcodedTemplates
+                .Where(t => isSuperAdmin || t.Name == "contractDashboard")
+                .Where(t => string.IsNullOrEmpty(entityType) || t.EntityType.Equals(entityType, StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
             var response = templates.Select(MapToTemplateResponse).ToList();
 
@@ -156,6 +172,16 @@ namespace SalesApp.Controllers
                     {
                         Success = false,
                         Message = "Template not found"
+                    });
+                }
+
+                // Security Check: Admins can only use contractDashboard
+                if (!User.IsInRole("superadmin") && hardcodedTemplate.Name != "contractDashboard")
+                {
+                    return StatusCode(403, new ApiResponse<ImportPreviewResponse>
+                    {
+                        Success = false,
+                        Message = "You do not have permission to use this template"
                     });
                 }
 
