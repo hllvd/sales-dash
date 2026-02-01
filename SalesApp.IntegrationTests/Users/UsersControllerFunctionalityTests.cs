@@ -83,6 +83,25 @@ namespace SalesApp.IntegrationTests.Users
         }
 
         [Fact]
+        public async Task GetUsers_AsAdmin_ShouldReturnOk()
+        {
+            // Arrange
+            var token = await GetAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Act
+            var response = await client.GetAsync("/api/users");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+        }
+
+        [Fact]
         public async Task GetUsers_ShouldReturnActiveUsersBeforeInactiveUsers()
         {
             // Arrange

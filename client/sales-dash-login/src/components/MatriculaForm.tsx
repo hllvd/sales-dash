@@ -1,8 +1,7 @@
-import React, { useState } from "react"
-import { TextInput, Select, Checkbox, Button, Group } from '@mantine/core';
-import { UserMatricula, apiService } from "../services/apiService"
+import React, { useState, useEffect, useRef } from "react"
+import { TextInput, Select, Checkbox, Button, Group, Loader, Text } from '@mantine/core';
+import { UserMatricula, apiService, User } from "../services/apiService"
 import StyledModal from './StyledModal';
-import { useUsers } from '../contexts/UsersContext';
 import FormField from './FormField';
 import { MatriculaStatus, MatriculaStatusLabels } from '../types/MatriculaStatus';
 
@@ -26,10 +25,48 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
     isOwner: matricula?.isOwner ?? false,
     status: matricula?.status || MatriculaStatus.Active,
   })
-  const { users } = useUsers() // Use UsersContext instead of local state
+  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const isEdit = !!matricula
+
+  // User search states
+  const [userSearch, setUserSearch] = useState("")
+  const [remoteUsers, setRemoteUsers] = useState<User[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const userCache = useRef<Record<string, User[]>>({})
+
+  // Debounced user search
+  useEffect(() => {
+    if (isEdit || !userSearch || userSearch.length < 2) {
+      setRemoteUsers([]);
+      return;
+    }
+
+    // Check cache
+    if (userCache.current[userSearch]) {
+      setRemoteUsers(userCache.current[userSearch]);
+      return;
+    }
+
+    setLoadingUsers(true);
+    const handler = setTimeout(async () => {
+      try {
+        const response = await apiService.getUsers(1, 20, userSearch);
+        if (response.success && response.data) {
+          const results = response.data.items;
+          userCache.current[userSearch] = results;
+          setRemoteUsers(results);
+        }
+      } catch (err) {
+        console.error("Failed to search users:", err);
+      } finally {
+        setLoadingUsers(false);
+      }
+    }, 3000); // 3 seconds debounce per user request
+
+    return () => clearTimeout(handler);
+  }, [userSearch, isEdit]);
 
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({
@@ -68,7 +105,7 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
     }
   }
 
-  const userOptions = users.map(user => ({
+  const userOptions = remoteUsers.map(user => ({
     value: user.id,
     label: `${user.name} (${user.email})`,
   }))
@@ -84,14 +121,22 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
 
         {!isEdit && (
-          <FormField label="Usuário" required>
+          <FormField 
+            label="Usuário" 
+            required
+            description={loadingUsers ? "Buscando usuários..." : "Digite o nome ou e-mail para buscar"}
+          >
             <Select
               required
               value={formData.userId}
               onChange={(value) => handleChange('userId', value)}
+              onSearchChange={setUserSearch}
+              searchValue={userSearch}
               data={userOptions}
-              placeholder="Selecione um usuário"
+              placeholder="Digite para buscar um usuário"
               searchable
+              nothingFoundMessage={userSearch.length < 2 ? "Digite pelo menos 2 caracteres" : (loadingUsers ? "Buscando..." : "Nenhum usuário encontrado")}
+              rightSection={loadingUsers ? <Loader size="xs" /> : null}
             />
           </FormField>
         )}

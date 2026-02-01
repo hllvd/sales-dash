@@ -231,7 +231,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(Roles = "admin,superadmin")]
         public async Task<ActionResult<ApiResponse<PagedResponse<UserResponse>>>> GetUsers(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
