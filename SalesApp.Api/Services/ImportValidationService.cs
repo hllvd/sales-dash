@@ -134,14 +134,31 @@ namespace SalesApp.Services
             {
                 if (row.TryGetValue(statusColumn, out var statusValue) && !string.IsNullOrWhiteSpace(statusValue))
                 {
-                    var status = statusValue.ToLowerInvariant();
-                    var validStatuses = new[] { "active", "delinquent", "paid_off" };
+                    var status = NormalizeStatus(statusValue);
+                    var validStatuses = new[] { "active", "late1", "late2", "late3", "defaulted" };
                     if (!validStatuses.Contains(status))
                     {
-                        errors.Add($"Invalid status: {status}. Must be one of: {string.Join(", ", validStatuses)}");
+                        errors.Add($"Invalid status: {statusValue} (normalized: {status}). Must be one of: {string.Join(", ", validStatuses)}");
                     }
                 }
             }
+        }
+
+        private string NormalizeStatus(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "active";
+
+            var normalized = value.Trim().ToUpperInvariant();
+
+            return normalized switch
+            {
+                "NORMAL" => "active",
+                "NCONT 1 AT" => "late1",
+                "NCONT 2 AT" => "late2",
+                "NCONT 3 AT" => "late3",
+                "EXCLUIDO" or "DESISTENTE" => "defaulted",
+                _ => normalized.ToLowerInvariant()
+            };
         }
 
         private async Task ValidateUserRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, Dictionary<string, string> reverseMappings, List<string> errors)

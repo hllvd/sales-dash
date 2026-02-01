@@ -815,13 +815,12 @@ namespace SalesApp.Services
             
             return normalized switch
             {
-                "SUJ. A CANCELAMENTO" or "SUJ. A  CANCELAMENTO" => "late3",
+                "NORMAL" => "active",
                 "NCONT 1 AT" => "late1",
                 "NCONT 2 AT" => "late2",
-                "NORMAL" => ContractStatus.Active.ToApiString(),
-                "EXCLUIDO" => ContractStatus.Defaulted.ToApiString(),
-                "DESISTENTE" => "canceled",
-                _ => ContractStatus.Active.ToApiString()
+                "NCONT 3 AT" or "SUJ. A CANCELAMENTO" or "SUJ. A  CANCELAMENTO" => "late3",
+                "EXCLUIDO" or "DESISTENTE" => "defaulted",
+                _ => ContractStatus.Active.ToApiString().ToLowerInvariant()
             };
         }
         

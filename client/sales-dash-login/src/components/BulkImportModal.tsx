@@ -129,6 +129,13 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         return
       }
 
+      // Check for validation errors during mapping phase
+      if (mappingResp.data?.errors && mappingResp.data.errors.length > 0) {
+        setError(mappingResp.data.errors.join("\n"))
+        setLoading(false)
+        return
+      }
+
       // Step 2: Confirm import
       const confirmResp = await apiService.confirmImport(uploadId, dateFormat, skipMissingContractNumber, allowAutoCreateGroups)
       
