@@ -7,6 +7,7 @@ namespace SalesApp.Repositories
     {
         Task<Contract?> GetByIdAsync(int id);
         Task<Contract?> GetByContractNumberAsync(string contractNumber);
+        Task<List<Contract>> GetByContractNumbersAsync(List<string> contractNumbers);
         Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null);
         Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null);
         Task<List<Contract>> GetByUploadIdAsync(string uploadId);

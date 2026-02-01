@@ -31,6 +31,18 @@ namespace SalesApp.Repositories
                 .Include(c => c.Group)
                 .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
         }
+
+        public async Task<List<Contract>> GetByContractNumbersAsync(List<string> contractNumbers)
+        {
+            if (contractNumbers == null || !contractNumbers.Any())
+                return new List<Contract>();
+
+            return await _context.Contracts
+                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
+                .Include(c => c.Group)
+                .Where(c => contractNumbers.Contains(c.ContractNumber))
+                .ToListAsync();
+        }
         
         public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null)
         {

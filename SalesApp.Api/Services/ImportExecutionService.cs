@@ -54,34 +54,54 @@ namespace SalesApp.Services
             // Dictionary to cache group name/ID lookups during this import session
             var groupCache = new Dictionary<string, int?>();
 
+            // 1. Pre-identify potential contract numbers for bulk fetch
+            var allContractNumbers = rows
+                .Select(r => GetFieldValue(r, reverseMappings, "ContractNumber"))
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .ToList();
+
+            // 2. Fetch existing contracts in bulk
+            var existingContracts = await _contractRepository.GetByContractNumbersAsync(allContractNumbers);
+            var existingMap = existingContracts.ToDictionary(c => c.ContractNumber);
+
             // ✅ Phase 1: Build all contracts (validation only, no DB saves)
             for (int i = 0; i < rows.Count; i++)
             {
                 try
                 {
                     var row = rows[i];
+                    var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
 
                     // Skip row if contract number is missing and skip option is enabled
                     if (skipMissingContractNumber)
                     {
-                        var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
                         if (string.IsNullOrWhiteSpace(contractNumber))
                         {
                             continue;
                         }
                     }
 
-                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat, groupCache, result, allowAutoCreateGroups);
+                    // Look for existing contract
+                    existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
+
+                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat, groupCache, result, allowAutoCreateGroups, existingContract);
 
                     if (contract != null)
                     {
-                        contractsToAdd.Add(contract);
+                        // If it's a new contract (not tracked), we add to list
+                        if (existingContract == null)
+                        {
+                            contractsToAdd.Add(contract);
+                        }
+                        // If it's existing, it's already updated and tracked by the context
+
                         result.ProcessedRows++;
                     }
                     else
                     {
                         result.FailedRows++;
-                        result.Errors.Add($"Row {i + 1}: Failed to create contract");
+                        result.Errors.Add($"Row {i + 1}: Failed to create/update contract");
                     }
                 }
                 catch (Exception ex)
@@ -97,16 +117,24 @@ namespace SalesApp.Services
                 try
                 {
                     await _contractRepository.CreateBatchAsync(contractsToAdd);
-                    result.CreatedContracts = contractsToAdd;
                 }
                 catch (Exception ex)
                 {
-                    // If batch fails, mark all as failed
                     result.FailedRows += contractsToAdd.Count;
                     result.ProcessedRows -= contractsToAdd.Count;
                     result.Errors.Add($"Batch insert failed: {ex.Message}");
-                    result.CreatedContracts.Clear();
                 }
+            }
+
+            // 4. Save updates to existing contracts
+            try
+            {
+                await _context.SaveChangesAsync();
+                result.CreatedContracts = contractsToAdd.Concat(existingContracts).ToList();
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add($"Failed to save updates to existing contracts: {ex.Message}");
             }
 
             return result;
@@ -119,7 +147,8 @@ namespace SalesApp.Services
             string dateFormat,
             Dictionary<string, int?> groupCache,
             ImportResult result,
-            bool allowAutoCreateGroups = false)
+            bool allowAutoCreateGroups = false,
+            Contract? existingContract = null)
         {
             // Extract required fields
             var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
@@ -218,24 +247,22 @@ namespace SalesApp.Services
             }
 
 
-            // ✅ Create contract object (don't save yet)
-            var contract = new Contract
-            {
-                ContractNumber = contractNumber,
-                UserId = user.Id,
-                TotalAmount = totalAmount,
-                GroupId = groupId,
-                Status = status,
-                SaleStartDate = saleStartDate,
-                UploadId = uploadId,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                ContractType = contractType,
-                Quota = quota,
-                PvId = pvId,
-                CustomerName = customerName
-            };
+            // ✅ Create or update contract object
+            var contract = existingContract ?? new Contract { CreatedAt = DateTime.UtcNow };
+
+            contract.ContractNumber = contractNumber;
+            contract.UserId = user.Id;
+            contract.TotalAmount = totalAmount;
+            contract.GroupId = groupId;
+            contract.Status = status;
+            contract.SaleStartDate = saleStartDate;
+            contract.UploadId = uploadId;
+            contract.IsActive = true;
+            contract.UpdatedAt = DateTime.UtcNow;
+            contract.ContractType = contractType;
+            contract.Quota = quota;
+            contract.PvId = pvId;
+            contract.CustomerName = customerName;
 
             return contract;
         }
@@ -574,54 +601,87 @@ namespace SalesApp.Services
             var contractsToAdd = new List<Contract>();
             var groupCache = new Dictionary<string, int?>();
 
+            // 1. Pre-identify potential contract numbers for bulk fetch
+            var allContractNumbers = new List<string>();
+            foreach (var row in rows)
+            {
+                var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+                if (string.IsNullOrWhiteSpace(contractNumber))
+                {
+                    var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
+                    if (string.IsNullOrWhiteSpace(cotaValue))
+                    {
+                        var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
+                        if (cotaKey != null) cotaValue = row[cotaKey];
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(cotaValue) && cotaValue.Contains(";"))
+                    {
+                        var cotaParts = cotaValue.Split(';');
+                        if (cotaParts.Length >= 5) contractNumber = cotaParts[^1].Trim();
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(contractNumber))
+                {
+                    allContractNumbers.Add(contractNumber);
+                }
+            }
+
+            // 2. Fetch existing contracts in bulk
+            var existingContracts = await _contractRepository.GetByContractNumbersAsync(allContractNumbers.Distinct().ToList());
+            var existingMap = existingContracts.ToDictionary(c => c.ContractNumber);
+
             for (int i = 0; i < rows.Count; i++)
             {
                 try
                 {
                     var row = rows[i];
 
-                    // Skip row if contract number is missing and skip option is enabled
-                    // Note: contractDashboard has specific contract number extraction logic
-                    if (skipMissingContractNumber)
+                    // Identify contract number again for skip check or lookup
+                    var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+                    if (string.IsNullOrWhiteSpace(contractNumber))
                     {
-                        var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
-                        if (string.IsNullOrWhiteSpace(contractNumber))
+                        // Same fallback as above
+                        var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
+                        if (string.IsNullOrWhiteSpace(cotaValue))
                         {
-                            // Try fallback to Cota split
-                            var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
-                            if (string.IsNullOrWhiteSpace(cotaValue))
-                            {
-                                var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
-                                if (cotaKey != null) cotaValue = row[cotaKey];
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(cotaValue) && cotaValue.Contains(";"))
-                            {
-                                var cotaParts = cotaValue.Split(';');
-                                if (cotaParts.Length >= 5)
-                                {
-                                    contractNumber = cotaParts[^1].Trim();
-                                }
-                            }
+                            var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
+                            if (cotaKey != null) cotaValue = row[cotaKey];
                         }
 
-                        if (string.IsNullOrWhiteSpace(contractNumber))
+                        if (!string.IsNullOrWhiteSpace(cotaValue) && cotaValue.Contains(";"))
                         {
-                            continue;
+                            var cotaParts = cotaValue.Split(';');
+                            if (cotaParts.Length >= 5) contractNumber = cotaParts[^1].Trim();
                         }
                     }
 
-                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, groupCache, result, allowAutoCreateGroups);
+                    if (skipMissingContractNumber && string.IsNullOrWhiteSpace(contractNumber))
+                    {
+                        continue;
+                    }
+
+                    // Look for existing contract
+                    existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
+
+                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, groupCache, result, allowAutoCreateGroups, existingContract);
 
                     if (contract != null)
                     {
-                        contractsToAdd.Add(contract);
+                        // If it's a new contract (not tracked), we add to list
+                        if (existingContract == null)
+                        {
+                            contractsToAdd.Add(contract);
+                        }
+                        // If it's existing, it's already updated and tracked by the context
+                        
                         result.ProcessedRows++;
                     }
                     else
                     {
                         result.FailedRows++;
-                        result.Errors.Add($"Row {i + 1}: Failed to create contract");
+                        result.Errors.Add($"Row {i + 1}: Failed to create/update contract");
                     }
                 }
                 catch (Exception ex)
@@ -631,20 +691,30 @@ namespace SalesApp.Services
                 }
             }
 
+            // 3. Batch insert new contracts
             if (contractsToAdd.Any())
             {
                 try
                 {
                     await _contractRepository.CreateBatchAsync(contractsToAdd);
-                    result.CreatedContracts = contractsToAdd;
                 }
                 catch (Exception ex)
                 {
                     result.FailedRows += contractsToAdd.Count;
                     result.ProcessedRows -= contractsToAdd.Count;
                     result.Errors.Add($"Batch insert failed: {ex.Message}");
-                    result.CreatedContracts.Clear();
                 }
+            }
+
+            // 4. Save updates to existing contracts
+            try
+            {
+                await _context.SaveChangesAsync();
+                result.CreatedContracts = contractsToAdd.Concat(existingContracts).ToList();
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add($"Failed to save updates to existing contracts: {ex.Message}");
             }
 
             return result;
@@ -656,7 +726,8 @@ namespace SalesApp.Services
             string uploadId,
             Dictionary<string, int?> groupCache,
             ImportResult result,
-            bool allowAutoCreateGroups = false)
+            bool allowAutoCreateGroups = false,
+            Contract? existingContract = null)
         {
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
             var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
@@ -779,27 +850,25 @@ namespace SalesApp.Services
                 planoVendaMetadataId = planoVendaMetadata.Id;
             }
             
-            // Create contract (UserId is null as per requirements)
-            var contract = new Contract
-            {
-                ContractNumber = contractNumber,
-                UserId = null,
-                TotalAmount = totalAmount,
-                GroupId = groupId,
-                Status = status,
-                SaleStartDate = saleStartDate,
-                UploadId = uploadId,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                CustomerName = customerName,
-                PvId = pvId,
-                Quota = quota,
-                Version = version,
-                TempMatricula = tempMatricula,
-                CategoryMetadataId = categoryMetadataId,
-                PlanoVendaMetadataId = planoVendaMetadataId
-            };
+            // Create or Update contract
+            var contract = existingContract ?? new Contract { CreatedAt = DateTime.UtcNow };
+
+            contract.ContractNumber = contractNumber;
+            contract.UserId = null;
+            contract.TotalAmount = totalAmount;
+            contract.GroupId = groupId;
+            contract.Status = status;
+            contract.SaleStartDate = saleStartDate;
+            contract.UploadId = uploadId;
+            contract.IsActive = true;
+            contract.UpdatedAt = DateTime.UtcNow;
+            contract.CustomerName = customerName;
+            contract.PvId = pvId;
+            contract.Quota = quota;
+            contract.Version = version;
+            contract.TempMatricula = tempMatricula;
+            contract.CategoryMetadataId = categoryMetadataId;
+            contract.PlanoVendaMetadataId = planoVendaMetadataId;
 
             return contract;
         }

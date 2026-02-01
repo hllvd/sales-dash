@@ -79,18 +79,8 @@ namespace SalesApp.Services
 
         private async Task ValidateContractRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, Dictionary<string, string> reverseMappings, List<string> errors, bool allowAutoCreateGroups = false)
         {
-            // Validate contract number uniqueness
-            if (reverseMappings.TryGetValue("ContractNumber", out var contractNumColumn))
-            {
-                if (row.TryGetValue(contractNumColumn, out var contractNumber) && !string.IsNullOrWhiteSpace(contractNumber))
-                {
-                    var exists = await _context.Contracts.AnyAsync(c => c.ContractNumber == contractNumber);
-                    if (exists)
-                    {
-                        errors.Add($"Contract number already exists: {contractNumber}");
-                    }
-                }
-            }
+// Validate contract number uniqueness
+            // REMOVED for Upsert logic: existing contracts will be updated instead of rejected.
 
             // Validate total amount is numeric
             if (reverseMappings.TryGetValue("TotalAmount", out var amountColumn))
