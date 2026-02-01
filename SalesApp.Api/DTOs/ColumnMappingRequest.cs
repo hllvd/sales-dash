@@ -8,5 +8,6 @@ namespace SalesApp.DTOs
         public Dictionary<string, string> Mappings { get; set; } = new();
         
         public string? SaveMappingAs { get; set; }
+        public bool AllowAutoCreateGroups { get; set; } = false;
     }
 }

@@ -20,7 +20,8 @@ namespace SalesApp.Services
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
             string dateFormat,
-            bool skipMissingContractNumber = false);
+            bool skipMissingContractNumber = false,
+            bool allowAutoCreateGroups = false);
 
         Task<ImportResult> ExecuteUserImportAsync(
             string uploadId,
@@ -31,6 +32,7 @@ namespace SalesApp.Services
             string uploadId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
-            bool skipMissingContractNumber = false);
+            bool skipMissingContractNumber = false,
+            bool allowAutoCreateGroups = false);
     }
 }

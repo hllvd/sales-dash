@@ -373,9 +373,11 @@ namespace SalesApp.Controllers
                 var allRows = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(session.FileData ?? "[]") ?? new();
 
                 var entityType = session.Template?.EntityType ?? "Contract";
+                var requiredFields = session.Template?.RequiredFields != null ? JsonSerializer.Deserialize<List<string>>(session.Template.RequiredFields) : new List<string>();
+                var allowAutoCreateGroups = request?.AllowAutoCreateGroups ?? false;
 
                 // Validate all rows
-                var validationErrors = await _validation.ValidateAllRowsAsync(allRows, request.Mappings, entityType);
+                var validationErrors = await _validation.ValidateAllRowsAsync(allRows, request.Mappings, entityType, requiredFields, allowAutoCreateGroups);
 
                 // Store mappings and update session status
                 session.Mappings = JsonSerializer.Serialize(request.Mappings);
@@ -548,6 +550,7 @@ namespace SalesApp.Controllers
                 var templateName = session.Template?.Name ?? "";
                 var dateFormat = request?.DateFormat ?? "MM/DD/YYYY";
                 var skipMissingContractNumber = request?.SkipMissingContractNumber ?? false;
+                var allowAutoCreateGroups = request?.AllowAutoCreateGroups ?? false;
 
                 if (entityType == "User")
                 {
@@ -563,7 +566,8 @@ namespace SalesApp.Controllers
                         uploadId,
                         allRows,
                         mappings,
-                        skipMissingContractNumber);
+                        skipMissingContractNumber,
+                        allowAutoCreateGroups);
                 }
                 else
                 {
@@ -573,7 +577,8 @@ namespace SalesApp.Controllers
                         allRows,
                         mappings,
                         dateFormat,
-                        skipMissingContractNumber);
+                        skipMissingContractNumber,
+                        allowAutoCreateGroups);
                 }
 
                 // Update session with results

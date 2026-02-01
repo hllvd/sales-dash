@@ -41,12 +41,11 @@ namespace SalesApp.Services
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
             string dateFormat,
-            bool skipMissingContractNumber = false)
+            bool skipMissingContractNumber = false,
+            bool allowAutoCreateGroups = false)
         {
-            var result = new ImportResult
-            {
-                TotalRows = rows.Count
-            };
+            var result = new ImportResult();
+            result.TotalRows = rows.Count;
 
             // Create reverse mapping (target field -> source column)
             var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
@@ -72,8 +71,8 @@ namespace SalesApp.Services
                         }
                     }
 
-                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat, groupCache, result);
-                    
+                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat, groupCache, result, allowAutoCreateGroups);
+
                     if (contract != null)
                     {
                         contractsToAdd.Add(contract);
@@ -119,7 +118,8 @@ namespace SalesApp.Services
             string uploadId,
             string dateFormat,
             Dictionary<string, int?> groupCache,
-            ImportResult result)
+            ImportResult result,
+            bool allowAutoCreateGroups = false)
         {
             // Extract required fields
             var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
@@ -141,9 +141,9 @@ namespace SalesApp.Services
             {
                 throw new ArgumentException($"Invalid total amount: {totalAmountStr}");
             }
-            
+
             // Resolve Group ID from name or ID value
-            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, result);
+            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, allowAutoCreateGroups, result);
 
             // Verify group exists if a value was provided but resolution failed
             if (!string.IsNullOrWhiteSpace(groupValue) && !groupId.HasValue)
@@ -259,7 +259,7 @@ namespace SalesApp.Services
                 {
                     var row = rows[i];
                     var user = await CreateUserFromRowAsync(row, reverseMappings);
-                    
+
                     if (user != null)
                     {
                         result.CreatedUsers.Add(user);
@@ -339,17 +339,17 @@ namespace SalesApp.Services
             var matricula = GetFieldValue(row, reverseMappings, "Matricula");
             var isMatriculaOwnerStr = GetFieldValue(row, reverseMappings, "IsMatriculaOwner");
             bool isMatriculaOwner = false;
-            
+
             if (!string.IsNullOrWhiteSpace(isMatriculaOwnerStr))
             {
                 var val = isMatriculaOwnerStr.Trim().ToLowerInvariant();
                 isMatriculaOwner = val == "true" || val == "1" || val == "yes" || val == "sim";
             }
-            
+
             // Extract SendEmail field
             var sendEmailStr = GetFieldValue(row, reverseMappings, "SendEmail");
             bool sendEmail = ParseBooleanValue(sendEmailStr);
-            
+
             // Create User
             var defaultPassword = "ChangeMe123!";
             var user = new User
@@ -365,7 +365,7 @@ namespace SalesApp.Services
             };
 
             var createdUser = await _userRepository.CreateAsync(user);
-            
+
             // Handle matricula assignment if provided
             if (createdUser != null && !string.IsNullOrWhiteSpace(matricula))
             {
@@ -380,14 +380,14 @@ namespace SalesApp.Services
                         IsActive = true,
                         Status = MatriculaStatus.Active.ToApiString()
                     };
-                    
+
                     await _matriculaRepository.CreateAsync(userMatricula);
                 }
                 catch (InvalidOperationException ex)
                 {
                     // Log but don't fail user creation - the user *was* created
                     // The error will be handled by the caller of this method if we rethrow or handle it here
-                    // Given the loop in ExecuteUserImportAsync, we should probably throw a specific exception 
+                    // Given the loop in ExecuteUserImportAsync, we should probably throw a specific exception
                     // or just let this one bubble up to be caught by the row-level try-catch.
                     throw new ArgumentException($"User created, but matricula failed: {ex.Message}");
                 }
@@ -396,7 +396,7 @@ namespace SalesApp.Services
                     throw new ArgumentException($"User created, but matricula failed: {ex.Message}");
                 }
             }
-            
+
             // Send welcome email if requested
             if (sendEmail && createdUser != null)
             {
@@ -410,7 +410,7 @@ namespace SalesApp.Services
                     Console.WriteLine($"[ImportExecutionService] Failed to send welcome email to {createdUser.Email}: {ex.Message}");
                 }
             }
-            
+
             return createdUser;
         }
 
@@ -436,7 +436,7 @@ namespace SalesApp.Services
         private bool TryParseBrazilianCurrency(string? input, out decimal result)
         {
             result = 0;
-            
+
             if (string.IsNullOrWhiteSpace(input))
             {
                 return false;
@@ -466,7 +466,7 @@ namespace SalesApp.Services
                     // Both separators present - determine which is decimal
                     int lastDotIndex = cleaned.LastIndexOf('.');
                     int lastCommaIndex = cleaned.LastIndexOf(',');
-                    
+
                     if (lastCommaIndex > lastDotIndex)
                     {
                         // Brazilian format: 1.000,00
@@ -483,7 +483,7 @@ namespace SalesApp.Services
                     // Only comma - check if it's decimal separator or thousand separator
                     int commaIndex = cleaned.IndexOf(',');
                     int digitsAfterComma = cleaned.Length - commaIndex - 1;
-                    
+
                     if (digitsAfterComma == 2)
                     {
                         // Likely decimal separator: 100,00
@@ -497,7 +497,7 @@ namespace SalesApp.Services
                 }
                 // If only dots or no separators, use as-is
 
-                return decimal.TryParse(cleaned, System.Globalization.NumberStyles.Number, 
+                return decimal.TryParse(cleaned, System.Globalization.NumberStyles.Number,
                     System.Globalization.CultureInfo.InvariantCulture, out result);
             }
             catch
@@ -509,7 +509,7 @@ namespace SalesApp.Services
         private bool TryParseFlexibleDate(string? input, out DateTime result)
         {
             result = DateTime.MinValue;
-            
+
             if (string.IsNullOrWhiteSpace(input))
             {
                 return false;
@@ -531,45 +531,44 @@ namespace SalesApp.Services
             };
 
             // Try parsing with explicit formats
-            if (DateTime.TryParseExact(cleanedInput, formats, 
-                System.Globalization.CultureInfo.InvariantCulture, 
+            if (DateTime.TryParseExact(cleanedInput, formats,
+                System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None, out result))
             {
                 return true;
             }
 
             // Fallback to general parsing
-            return DateTime.TryParse(cleanedInput, 
-                System.Globalization.CultureInfo.InvariantCulture, 
+            return DateTime.TryParse(cleanedInput,
+                System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None, out result);
         }
-        
+
         private bool ParseBooleanValue(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
                 return false;
             }
-            
+
             var normalized = value.Trim().ToLowerInvariant();
-            return normalized == "true" || 
-                   normalized == "1" || 
-                   normalized == "yes" || 
+            return normalized == "true" ||
+                   normalized == "1" ||
+                   normalized == "yes" ||
                    normalized == "sim" ||
                    normalized == "y" ||
                    normalized == "s";
         }
-        
+
         public async Task<ImportResult> ExecuteContractDashboardImportAsync(
             string uploadId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
-            bool skipMissingContractNumber = false)
+            bool skipMissingContractNumber = false,
+            bool allowAutoCreateGroups = false)
         {
-            var result = new ImportResult
-            {
-                TotalRows = rows.Count
-            };
+            var result = new ImportResult();
+            result.TotalRows = rows.Count;
 
             var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
             var contractsToAdd = new List<Contract>();
@@ -612,8 +611,8 @@ namespace SalesApp.Services
                         }
                     }
 
-                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, groupCache, result);
-                    
+                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, groupCache, result, allowAutoCreateGroups);
+
                     if (contract != null)
                     {
                         contractsToAdd.Add(contract);
@@ -650,18 +649,19 @@ namespace SalesApp.Services
 
             return result;
         }
-        
+
         private async Task<Contract?> BuildContractDashboardFromRowAsync(
             Dictionary<string, string> row,
             Dictionary<string, string> reverseMappings,
             string uploadId,
             Dictionary<string, int?> groupCache,
-            ImportResult result)
+            ImportResult result,
+            bool allowAutoCreateGroups = false)
         {
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
             var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
-            
+
             var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
 
@@ -690,9 +690,9 @@ namespace SalesApp.Services
                     }
                 }
             }
-            
+
             // Resolve Group ID
-            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, result);
+            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, allowAutoCreateGroups, result);
 
             // Resolve Quota (numeric)
             int? quota = null;
@@ -825,7 +825,7 @@ namespace SalesApp.Services
             };
         }
         
-        private async Task<int?> ResolveGroupIdAsync(string? groupValue, Dictionary<string, int?> cache, ImportResult? result = null)
+        private async Task<int?> ResolveGroupIdAsync(string? groupValue, Dictionary<string, int?> cache, bool allowAutoCreate = false, ImportResult? result = null)
         {
             if (string.IsNullOrWhiteSpace(groupValue)) return null;
             
@@ -849,11 +849,13 @@ namespace SalesApp.Services
                     return groupById.Id;
                 }
             }
-            
-            // 3. Automatic Creation (Only if it's a name, not just a failed numeric lookup)
-            // If the user provided a value that looks like a name (not just an ID that doesn't exist)
-            // Or if they provided something and want it created regardless.
-            // We'll create it if it's not numeric or if it's a numeric that's NOT found.
+
+            // 3. Automatic Creation (Only if enabled)
+            if (!allowAutoCreate)
+            {
+                return null;
+            }
+
             try
             {
                 var newGroup = new Group
@@ -869,10 +871,9 @@ namespace SalesApp.Services
                 var createdGroup = await _groupRepository.CreateAsync(newGroup);
                 cache[groupValue] = createdGroup.Id;
                 
-                // Track for UI
-                if (result != null && !result.CreatedGroups.Contains(groupValue.Trim()))
+                if (result != null && !result.CreatedGroups.Contains(createdGroup.Name))
                 {
-                    result.CreatedGroups.Add(groupValue.Trim());
+                    result.CreatedGroups.Add(createdGroup.Name);
                 }
                 
                 return createdGroup.Id;

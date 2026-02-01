@@ -269,7 +269,7 @@ export const apiService = {
   async configureImportMappings(
     uploadId: string,
     mappings: Record<string, string>,
-    dateFormat: string = "MM/DD/YYYY"
+    allowAutoCreateGroups: boolean = false
   ): Promise<
     ApiResponse<{
       uploadId: string
@@ -283,7 +283,7 @@ export const apiService = {
     const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/mappings`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ mappings }),
+      body: JSON.stringify({ mappings, allowAutoCreateGroups }),
     })
 
     if (!response.ok) {
@@ -299,7 +299,8 @@ export const apiService = {
   async confirmImport(
     uploadId: string,
     dateFormat: string = "MM/DD/YYYY",
-    skipMissingContractNumber: boolean = false
+    skipMissingContractNumber: boolean = false,
+    allowAutoCreateGroups: boolean = false
   ): Promise<
     ApiResponse<{
       uploadId: string
@@ -314,7 +315,7 @@ export const apiService = {
     const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/confirm`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ dateFormat, skipMissingContractNumber }),
+      body: JSON.stringify({ dateFormat, skipMissingContractNumber, allowAutoCreateGroups }),
     })
 
     if (!response.ok) {

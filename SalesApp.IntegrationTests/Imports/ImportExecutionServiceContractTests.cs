@@ -294,7 +294,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY", allowAutoCreateGroups: true);
 
             // Assert
             result.ProcessedRows.Should().Be(1);

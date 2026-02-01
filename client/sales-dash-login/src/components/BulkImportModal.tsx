@@ -30,9 +30,11 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [optionalFields, setOptionalFields] = useState<string[]>([])
   const [dateFormat, setDateFormat] = useState<string>("MM/DD/YYYY")
   const [skipMissingContractNumber, setSkipMissingContractNumber] = useState<boolean>(false)
+  const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState<boolean>(false)
   
   // Step 3: Result
   const [resultMessage, setResultMessage] = useState<string>("")
+  const [createdGroups, setCreatedGroups] = useState<string[]>([])
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role?.toLowerCase() === 'superadmin' || user.roleName?.toLowerCase() === 'superadmin';
@@ -119,7 +121,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         Object.entries(mappings).filter(([_, targetField]) => targetField !== "")
       )
 
-      const mappingResp = await apiService.configureImportMappings(uploadId, explicitlyMapped, dateFormat)
+      const mappingResp = await apiService.configureImportMappings(uploadId, explicitlyMapped, allowAutoCreateGroups)
       
       if (!mappingResp.success) {
         setError(mappingResp.message || "Falha ao configurar mapeamentos")
@@ -128,14 +130,18 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
       }
 
       // Step 2: Confirm import
-      const confirmResp = await apiService.confirmImport(uploadId, dateFormat, skipMissingContractNumber)
+      const confirmResp = await apiService.confirmImport(uploadId, dateFormat, skipMissingContractNumber, allowAutoCreateGroups)
       
       if (confirmResp.success && confirmResp.data) {
-        const { processedRows, failedRows, errors } = confirmResp.data
+        const { processedRows, failedRows, errors, createdGroups: newlyCreatedGroups } = confirmResp.data
         setResultMessage(
           `Importados: ${processedRows}` +
           (failedRows > 0 ? `, Erros: ${failedRows}` : "")
         )
+        
+        if (newlyCreatedGroups && newlyCreatedGroups.length > 0) {
+          setCreatedGroups(newlyCreatedGroups)
+        }
         
         if (errors && errors.length > 0) {
           setError(errors.join("\n"))
@@ -321,6 +327,19 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                       Pular linhas sem número de contrato (útil para arquivos com subtotais ou lixo)
                     </label>
                   </div>
+
+                  <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                    <input 
+                      type="checkbox" 
+                      id="allowAutoCreateGroups" 
+                      checked={allowAutoCreateGroups} 
+                      onChange={(e) => setAllowAutoCreateGroups(e.target.checked)}
+                      style={{ width: 'auto', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="allowAutoCreateGroups" style={{ cursor: 'pointer', marginBottom: 0 }}>
+                      Permitir criação automática de grupos
+                    </label>
+                  </div>
                 </div>
 
                 {!allRequiredFieldsMapped() && (
@@ -357,6 +376,17 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
               <div className="result-section">
                 <h3>Resultado da Importação</h3>
                 <p>{resultMessage}</p>
+                
+                {createdGroups.length > 0 && (
+                  <div className="created-groups-info" style={{ marginTop: '15px', padding: '10px', background: 'rgba(0, 255, 0, 0.05)', borderRadius: '4px', border: '1px solid rgba(0, 255, 0, 0.2)' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#81c784' }}>Grupos Criados Automaticamente:</h4>
+                    <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px' }}>
+                      {createdGroups.map(group => (
+                        <li key={group}>{group}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="form-actions">
