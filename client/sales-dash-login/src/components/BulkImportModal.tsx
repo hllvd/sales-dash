@@ -29,6 +29,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [requiredFields, setRequiredFields] = useState<string[]>([])
   const [optionalFields, setOptionalFields] = useState<string[]>([])
   const [dateFormat, setDateFormat] = useState<string>("MM/DD/YYYY")
+  const [skipMissingContractNumber, setSkipMissingContractNumber] = useState<boolean>(false)
   
   // Step 3: Result
   const [resultMessage, setResultMessage] = useState<string>("")
@@ -127,7 +128,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
       }
 
       // Step 2: Confirm import
-      const confirmResp = await apiService.confirmImport(uploadId, dateFormat)
+      const confirmResp = await apiService.confirmImport(uploadId, dateFormat, skipMissingContractNumber)
       
       if (confirmResp.success && confirmResp.data) {
         const { processedRows, failedRows, errors } = confirmResp.data
@@ -304,6 +305,22 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                       </div>
                     )
                   })}
+                </div>
+
+                <div className="import-options" style={{ marginTop: '20px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <h4>Opções de Importação:</h4>
+                  <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input 
+                      type="checkbox" 
+                      id="skipMissingContractNumber" 
+                      checked={skipMissingContractNumber} 
+                      onChange={(e) => setSkipMissingContractNumber(e.target.checked)}
+                      style={{ width: 'auto', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="skipMissingContractNumber" style={{ cursor: 'pointer', marginBottom: 0 }}>
+                      Pular linhas sem número de contrato (útil para arquivos com subtotais ou lixo)
+                    </label>
+                  </div>
                 </div>
 
                 {!allRequiredFieldsMapped() && (

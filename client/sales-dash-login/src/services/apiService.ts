@@ -298,7 +298,8 @@ export const apiService = {
 
   async confirmImport(
     uploadId: string,
-    dateFormat: string = "MM/DD/YYYY"
+    dateFormat: string = "MM/DD/YYYY",
+    skipMissingContractNumber: boolean = false
   ): Promise<
     ApiResponse<{
       uploadId: string
@@ -307,12 +308,13 @@ export const apiService = {
       processedRows: number
       failedRows: number
       errors: string[]
+      createdGroups: string[]
     }>
   > {
     const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/confirm`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ dateFormat }),
+      body: JSON.stringify({ dateFormat, skipMissingContractNumber }),
     })
 
     if (!response.ok) {

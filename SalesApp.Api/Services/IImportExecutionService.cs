@@ -19,7 +19,8 @@ namespace SalesApp.Services
             string uploadId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
-            string dateFormat);
+            string dateFormat,
+            bool skipMissingContractNumber = false);
 
         Task<ImportResult> ExecuteUserImportAsync(
             string uploadId,
@@ -29,6 +30,7 @@ namespace SalesApp.Services
         Task<ImportResult> ExecuteContractDashboardImportAsync(
             string uploadId,
             List<Dictionary<string, string>> rows,
-            Dictionary<string, string> mappings);
+            Dictionary<string, string> mappings,
+            bool skipMissingContractNumber = false);
     }
 }

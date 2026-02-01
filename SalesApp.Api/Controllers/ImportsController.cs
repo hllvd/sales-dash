@@ -547,6 +547,7 @@ namespace SalesApp.Controllers
                 var entityType = session.Template?.EntityType ?? "Contract";
                 var templateName = session.Template?.Name ?? "";
                 var dateFormat = request?.DateFormat ?? "MM/DD/YYYY";
+                var skipMissingContractNumber = request?.SkipMissingContractNumber ?? false;
 
                 if (entityType == "User")
                 {
@@ -561,7 +562,8 @@ namespace SalesApp.Controllers
                     result = await _importExecution.ExecuteContractDashboardImportAsync(
                         uploadId,
                         allRows,
-                        mappings);
+                        mappings,
+                        skipMissingContractNumber);
                 }
                 else
                 {
@@ -570,7 +572,8 @@ namespace SalesApp.Controllers
                         uploadId,
                         allRows,
                         mappings,
-                        dateFormat);
+                        dateFormat,
+                        skipMissingContractNumber);
                 }
 
                 // Update session with results

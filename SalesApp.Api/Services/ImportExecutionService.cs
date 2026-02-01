@@ -40,7 +40,8 @@ namespace SalesApp.Services
             string uploadId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
-            string dateFormat)
+            string dateFormat,
+            bool skipMissingContractNumber = false)
         {
             var result = new ImportResult
             {
@@ -60,6 +61,17 @@ namespace SalesApp.Services
                 try
                 {
                     var row = rows[i];
+
+                    // Skip row if contract number is missing and skip option is enabled
+                    if (skipMissingContractNumber)
+                    {
+                        var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+                        if (string.IsNullOrWhiteSpace(contractNumber))
+                        {
+                            continue;
+                        }
+                    }
+
                     var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat, groupCache, result);
                     
                     if (contract != null)
@@ -551,7 +563,8 @@ namespace SalesApp.Services
         public async Task<ImportResult> ExecuteContractDashboardImportAsync(
             string uploadId,
             List<Dictionary<string, string>> rows,
-            Dictionary<string, string> mappings)
+            Dictionary<string, string> mappings,
+            bool skipMissingContractNumber = false)
         {
             var result = new ImportResult
             {
@@ -567,6 +580,38 @@ namespace SalesApp.Services
                 try
                 {
                     var row = rows[i];
+
+                    // Skip row if contract number is missing and skip option is enabled
+                    // Note: contractDashboard has specific contract number extraction logic
+                    if (skipMissingContractNumber)
+                    {
+                        var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+                        if (string.IsNullOrWhiteSpace(contractNumber))
+                        {
+                            // Try fallback to Cota split
+                            var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
+                            if (string.IsNullOrWhiteSpace(cotaValue))
+                            {
+                                var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
+                                if (cotaKey != null) cotaValue = row[cotaKey];
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(cotaValue) && cotaValue.Contains(";"))
+                            {
+                                var cotaParts = cotaValue.Split(';');
+                                if (cotaParts.Length >= 5)
+                                {
+                                    contractNumber = cotaParts[^1].Trim();
+                                }
+                            }
+                        }
+
+                        if (string.IsNullOrWhiteSpace(contractNumber))
+                        {
+                            continue;
+                        }
+                    }
+
                     var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, groupCache, result);
                     
                     if (contract != null)
