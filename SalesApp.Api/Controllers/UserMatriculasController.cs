@@ -201,7 +201,8 @@ namespace SalesApp.Controllers
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
                 IsOwner = request.IsOwner,
-                IsActive = true
+                IsActive = request.IsActive ?? true,
+                Status = (request.Status ?? "active").ToLower()
             };
 
             try
@@ -297,7 +298,8 @@ namespace SalesApp.Controllers
                         StartDate = item.StartDate,
                         EndDate = item.EndDate,
                         IsOwner = item.IsOwner,
-                        IsActive = true
+                        IsActive = item.IsActive ?? true,
+                        Status = (item.Status ?? "active").ToLower()
                     };
 
                     var created = await _matriculaRepository.CreateAsync(matricula);

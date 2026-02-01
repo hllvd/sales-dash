@@ -286,10 +286,11 @@ User Four,{email4},s";
 
         private async Task<string> GetAdminToken()
         {
+            // User imports require superadmin role
             var loginRequest = new LoginRequest
             {
-                Email = "admin@test.com",
-                Password = "admin123"
+                Email = "superadmin@test.com",
+                Password = "superadmin123"
             };
 
             var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);

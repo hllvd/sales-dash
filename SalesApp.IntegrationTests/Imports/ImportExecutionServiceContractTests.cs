@@ -251,14 +251,17 @@ namespace SalesApp.IntegrationTests.Imports
         }
 
         [Fact]
-        public async Task ImportContracts_InvalidGroupId_ShouldFail()
+        public async Task ImportContracts_NonExistentGroup_ShouldCreateGroupAndSucceed()
         {
             // Arrange
             using var scope = _factory.Services.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IImportExecutionService>();
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var groupRepo = scope.ServiceProvider.GetRequiredService<IGroupRepository>();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var groupName = "NEW-GROUP-999";
 
             // Create test user
             var user = new User
@@ -278,7 +281,7 @@ namespace SalesApp.IntegrationTests.Imports
                     { "ContractNumber", $"CNT-{Guid.NewGuid().ToString()[..8]}" },
                     { "UserEmail", user.Email },
                     { "TotalAmount", "1000.00" },
-                    { "GroupId", "99999" } // Non-existent group
+                    { "GroupId", groupName } 
                 }
             };
 
@@ -294,10 +297,17 @@ namespace SalesApp.IntegrationTests.Imports
             var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
 
             // Assert
-            result.ProcessedRows.Should().Be(0);
-            result.FailedRows.Should().Be(1);
-            result.Errors.Should().NotBeEmpty();
-            result.Errors[0].Should().Contain("Group not found");
+            result.ProcessedRows.Should().Be(1);
+            result.FailedRows.Should().Be(0);
+            result.CreatedGroups.Should().Contain(groupName);
+            
+            // Verify group exists in DB
+            var createdGroup = await groupRepo.GetByNameAsync(groupName);
+            createdGroup.Should().NotBeNull();
+            createdGroup!.Name.Should().Be(groupName);
+            
+            var contract = result.CreatedContracts[0];
+            contract.GroupId.Should().Be(createdGroup.Id);
         }
 
         [Fact]

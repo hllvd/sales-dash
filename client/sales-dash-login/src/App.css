@@ -61,13 +61,13 @@ html {
   color: #b2342b !important;
 }
 
-/* Mantine Title Overrides - Black with Red First Letter */
-.mantine-Title-root {
-  color: #000 ;
+/* Mantine Title Overrides - Black with Red First Letter (restricted to page content) */
+.mantine-Title-root:not(.mantine-Modal-title) {
+  color: inherit;
 }
 
-.mantine-Title-root::first-letter {
-  color: #b2342b ;
+.mantine-Title-root:not(.mantine-Modal-title)::first-letter {
+  color: #b2342b;
   font-weight: bold;
 }
 

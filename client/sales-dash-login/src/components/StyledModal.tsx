@@ -26,8 +26,9 @@ const StyledModal: React.FC<StyledModalProps> = ({ title, children, ...props }) 
           padding: '20px 24px',
         },
         body: {
-          backgroundColor: '#f8f9fa',
+          backgroundColor: '#1a1b1e',
           padding: '24px',
+          color: '#fff',
         },
         content: {
           backgroundColor: '#1a1b1e',
@@ -46,7 +47,9 @@ const StyledModal: React.FC<StyledModalProps> = ({ title, children, ...props }) 
         },
       }}
     >
-      {children}
+      <div className="styled-form">
+        {children}
+      </div>
     </Modal>
   );
 };

@@ -42,9 +42,20 @@ namespace SalesApp.Models
         
         public int? Quota { get; set; }
         
+        public byte? Version { get; set; } // For contractDashboard import
+        
+        [MaxLength(50)]
+        public string? TempMatricula { get; set; } // Temporary matricula reference
+        
+        public int? PlanoVendaMetadataId { get; set; } // Reference to ContractMetadata for Plano Venda
+        
+        public int? CategoryMetadataId { get; set; } // Reference to ContractMetadata for Category
+        
         // Navigation properties
         public User? User { get; set; }
         public Group? Group { get; set; }
         public PV? PV { get; set; }
+        public ContractMetadata? PlanoVendaMetadata { get; set; }
+        public ContractMetadata? CategoryMetadata { get; set; }
     }
 }

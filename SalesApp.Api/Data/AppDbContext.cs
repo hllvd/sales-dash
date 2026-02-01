@@ -18,6 +18,7 @@ namespace SalesApp.Data
         public DbSet<PV> PVs { get; set; }
         public DbSet<UserMatricula> UserMatriculas { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<ContractMetadata> ContractMetadata { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -92,6 +93,16 @@ namespace SalesApp.Data
                 entity.HasOne(e => e.PV)
                     .WithMany(p => p.Contracts)
                     .HasForeignKey(e => e.PvId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.PlanoVendaMetadata)
+                    .WithMany(m => m.ContractsWithPlanoVenda)
+                    .HasForeignKey(e => e.PlanoVendaMetadataId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.CategoryMetadata)
+                    .WithMany(m => m.ContractsWithCategory)
+                    .HasForeignKey(e => e.CategoryMetadataId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -218,6 +229,18 @@ namespace SalesApp.Data
                     .WithMany()
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+            
+            // ContractMetadata entity configuration
+            modelBuilder.Entity<ContractMetadata>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Value).IsRequired().HasMaxLength(100);
+                
+                // Unique constraint on Name + Value combination
+                entity.HasIndex(e => new { e.Name, e.Value }).IsUnique();
             });
         }
     }

@@ -14,6 +14,7 @@ namespace SalesApp.Services
         private readonly IUserMatriculaRepository _matriculaRepository;
         private readonly IEmailService _emailService;
         private readonly AppDbContext _context;
+        private readonly IContractMetadataRepository _metadataRepository;
 
         public ImportExecutionService(
             IContractRepository contractRepository,
@@ -22,7 +23,8 @@ namespace SalesApp.Services
             IRoleRepository roleRepository,
             IUserMatriculaRepository matriculaRepository,
             IEmailService emailService,
-            AppDbContext context)
+            AppDbContext context,
+            IContractMetadataRepository metadataRepository)
         {
             _contractRepository = contractRepository;
             _groupRepository = groupRepository;
@@ -31,6 +33,7 @@ namespace SalesApp.Services
             _matriculaRepository = matriculaRepository;
             _emailService = emailService;
             _context = context;
+            _metadataRepository = metadataRepository;
         }
 
         public async Task<ImportResult> ExecuteContractImportAsync(
@@ -48,13 +51,16 @@ namespace SalesApp.Services
             var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
             var contractsToAdd = new List<Contract>();
 
+            // Dictionary to cache group name/ID lookups during this import session
+            var groupCache = new Dictionary<string, int?>();
+
             // ✅ Phase 1: Build all contracts (validation only, no DB saves)
             for (int i = 0; i < rows.Count; i++)
             {
                 try
                 {
                     var row = rows[i];
-                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat);
+                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat, groupCache, result);
                     
                     if (contract != null)
                     {
@@ -99,13 +105,15 @@ namespace SalesApp.Services
             Dictionary<string, string> row,
             Dictionary<string, string> reverseMappings,
             string uploadId,
-            string dateFormat)
+            string dateFormat,
+            Dictionary<string, int?> groupCache,
+            ImportResult result)
         {
             // Extract required fields
             var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
             var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
             var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
-            var groupIdStr = GetFieldValue(row, reverseMappings, "GroupId");
+            var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
 
             // Validate required fields
             // Validate required fields
@@ -122,25 +130,13 @@ namespace SalesApp.Services
                 throw new ArgumentException($"Invalid total amount: {totalAmountStr}");
             }
             
-            // Parse and validate group ID (optional - defaults to null)
-            int? groupId = null;
-            if (!string.IsNullOrWhiteSpace(groupIdStr))
-            {
-                if (!int.TryParse(groupIdStr, out var parsedGroupId))
-                {
-                    throw new ArgumentException($"Invalid group ID: {groupIdStr}");
-                }
-                groupId = parsedGroupId;
-            }
+            // Resolve Group ID from name or ID value
+            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, result);
 
-            // Verify group exists only if groupId is provided
-            if (groupId.HasValue)
+            // Verify group exists if a value was provided but resolution failed
+            if (!string.IsNullOrWhiteSpace(groupValue) && !groupId.HasValue)
             {
-                var group = await _groupRepository.GetByIdAsync(groupId.Value);
-                if (group == null || !group.IsActive)
-                {
-                    throw new ArgumentException($"Group not found: {groupId}");
-                }
+                throw new ArgumentException($"Group not found: {groupValue}");
             }
 
             // Look up user by email
@@ -550,6 +546,316 @@ namespace SalesApp.Services
                    normalized == "sim" ||
                    normalized == "y" ||
                    normalized == "s";
+        }
+        
+        public async Task<ImportResult> ExecuteContractDashboardImportAsync(
+            string uploadId,
+            List<Dictionary<string, string>> rows,
+            Dictionary<string, string> mappings)
+        {
+            var result = new ImportResult
+            {
+                TotalRows = rows.Count
+            };
+
+            var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+            var contractsToAdd = new List<Contract>();
+            var groupCache = new Dictionary<string, int?>();
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                try
+                {
+                    var row = rows[i];
+                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, groupCache, result);
+                    
+                    if (contract != null)
+                    {
+                        contractsToAdd.Add(contract);
+                        result.ProcessedRows++;
+                    }
+                    else
+                    {
+                        result.FailedRows++;
+                        result.Errors.Add($"Row {i + 1}: Failed to create contract");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.FailedRows++;
+                    result.Errors.Add($"Row {i + 1}: {ex.Message}");
+                }
+            }
+
+            if (contractsToAdd.Any())
+            {
+                try
+                {
+                    await _contractRepository.CreateBatchAsync(contractsToAdd);
+                    result.CreatedContracts = contractsToAdd;
+                }
+                catch (Exception ex)
+                {
+                    result.FailedRows += contractsToAdd.Count;
+                    result.ProcessedRows -= contractsToAdd.Count;
+                    result.Errors.Add($"Batch insert failed: {ex.Message}");
+                    result.CreatedContracts.Clear();
+                }
+            }
+
+            return result;
+        }
+        
+        private async Task<Contract?> BuildContractDashboardFromRowAsync(
+            Dictionary<string, string> row,
+            Dictionary<string, string> reverseMappings,
+            string uploadId,
+            Dictionary<string, int?> groupCache,
+            ImportResult result)
+        {
+            // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
+            var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+            var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
+            
+            var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
+            var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
+
+            // Fallback to Cota split only if critical fields are missing AND it actually looks like the grouped format
+            if (string.IsNullOrWhiteSpace(contractNumber) || string.IsNullOrWhiteSpace(customerName) || string.IsNullOrWhiteSpace(groupValue) || string.IsNullOrWhiteSpace(quotaStr))
+            {
+                // Look for "Cota" column directly in row if not mapped, or from mappings
+                var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
+                if (string.IsNullOrWhiteSpace(cotaValue))
+                {
+                    // Internal check: search for any column named "Cota" regardless of mapping
+                    var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
+                    if (cotaKey != null) cotaValue = row[cotaKey];
+                }
+
+                if (!string.IsNullOrWhiteSpace(cotaValue) && cotaValue.Contains(";"))
+                {
+                    var cotaParts = cotaValue.Split(';');
+                    if (cotaParts.Length >= 5)
+                    {
+                        // Safely fallback to values from Cota split if they weren't mapped directly
+                        if (string.IsNullOrWhiteSpace(contractNumber)) contractNumber = cotaParts[^1].Trim();
+                        if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaParts[3].Trim();
+                        if (string.IsNullOrWhiteSpace(groupValue)) groupValue = cotaParts[0].Trim();
+                        if (string.IsNullOrWhiteSpace(quotaStr)) quotaStr = cotaParts[1].Trim();
+                    }
+                }
+            }
+            
+            // Resolve Group ID
+            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, result);
+
+            // Resolve Quota (numeric)
+            int? quota = null;
+            if (!string.IsNullOrWhiteSpace(quotaStr) && int.TryParse(quotaStr, out var parsedQuota))
+            {
+                quota = parsedQuota;
+            }
+            
+            // Final validation for required data after all fallback attempts
+            if (string.IsNullOrWhiteSpace(contractNumber)) throw new ArgumentException("Contract Number is required");
+            if (!groupId.HasValue) throw new ArgumentException($"Group not found or required: {groupValue}");
+            if (!quota.HasValue) throw new ArgumentException("Quota is required");
+            
+            // Parse TotalAmount
+            var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
+            if (!TryParseBrazilianCurrency(totalAmountStr, out var totalAmount))
+            {
+                throw new ArgumentException($"Invalid Total Amount: '{totalAmountStr}' (empty or invalid format)");
+            }
+            
+            // Parse SaleStartDate - supports both Excel serial numbers and formatted dates
+            var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
+            DateTime saleStartDate;
+            
+            // Try parsing as Excel serial number first (e.g., 45747)
+            if (double.TryParse(saleStartDateStr, System.Globalization.NumberStyles.Any, 
+                System.Globalization.CultureInfo.InvariantCulture, out var excelDate))
+            {
+                // Excel dates are days since 1900-01-01 (with a leap year bug, so we use 1899-12-30)
+                saleStartDate = new DateTime(1899, 12, 30).AddDays(excelDate);
+            }
+            // Try parsing as YYYY-MM-DD
+            else if (!DateTime.TryParseExact(saleStartDateStr, "yyyy-MM-dd", 
+                System.Globalization.CultureInfo.InvariantCulture, 
+                System.Globalization.DateTimeStyles.None, out saleStartDate))
+            {
+                throw new ArgumentException($"Invalid Sale Start Date: '{saleStartDateStr}'");
+            }
+            
+            // Parse Version
+            var versionStr = GetFieldValue(row, reverseMappings, "Version");
+            byte? version = null;
+            if (!string.IsNullOrWhiteSpace(versionStr) && byte.TryParse(versionStr, out var parsedVersion))
+            {
+                version = parsedVersion;
+            }
+            
+            // Get TempMatricula
+            var tempMatricula = GetFieldValue(row, reverseMappings, "TempMatricula");
+            
+            // Parse PvId
+            var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
+            int? pvId = null;
+            if (!string.IsNullOrWhiteSpace(pvIdStr) && int.TryParse(pvIdStr, out var parsedPvId))
+            {
+                // Validate PV exists
+                var pvExists = await _context.PVs.AnyAsync(p => p.Id == parsedPvId);
+                if (!pvExists)
+                {
+                    throw new ArgumentException($"PV (Point of Sale) not found: {parsedPvId}");
+                }
+                pvId = parsedPvId;
+            }
+            
+            // Map Status
+            var statusStr = GetFieldValue(row, reverseMappings, "Status");
+            var status = MapSituacaoCobrancaToStatus(statusStr);
+            
+            // Handle Category metadata
+            int? categoryMetadataId = null;
+            var categoryValue = GetFieldValue(row, reverseMappings, "Category");
+            if (!string.IsNullOrWhiteSpace(categoryValue))
+            {
+                var categoryMetadata = await GetOrCreateMetadataAsync("Category", categoryValue);
+                categoryMetadataId = categoryMetadata.Id;
+            }
+            
+            // Handle PlanoVenda metadata
+            int? planoVendaMetadataId = null;
+            var planoVendaValue = GetFieldValue(row, reverseMappings, "PlanoVenda");
+            if (!string.IsNullOrWhiteSpace(planoVendaValue))
+            {
+                var planoVendaMetadata = await GetOrCreateMetadataAsync("PlanoVenda", planoVendaValue);
+                planoVendaMetadataId = planoVendaMetadata.Id;
+            }
+            
+            // Create contract (UserId is null as per requirements)
+            var contract = new Contract
+            {
+                ContractNumber = contractNumber,
+                UserId = null,
+                TotalAmount = totalAmount,
+                GroupId = groupId,
+                Status = status,
+                SaleStartDate = saleStartDate,
+                UploadId = uploadId,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CustomerName = customerName,
+                PvId = pvId,
+                Quota = quota,
+                Version = version,
+                TempMatricula = tempMatricula,
+                CategoryMetadataId = categoryMetadataId,
+                PlanoVendaMetadataId = planoVendaMetadataId
+            };
+
+            return contract;
+        }
+        
+        private string MapSituacaoCobrancaToStatus(string? situacaoCobranca)
+        {
+            if (string.IsNullOrWhiteSpace(situacaoCobranca))
+            {
+                return ContractStatus.Active.ToApiString();
+            }
+            
+            var normalized = situacaoCobranca.Trim().ToUpperInvariant();
+            
+            return normalized switch
+            {
+                "SUJ. A CANCELAMENTO" or "SUJ. A  CANCELAMENTO" => "late3",
+                "NCONT 1 AT" => "late1",
+                "NCONT 2 AT" => "late2",
+                "NORMAL" => ContractStatus.Active.ToApiString(),
+                "EXCLUIDO" => ContractStatus.Defaulted.ToApiString(),
+                "DESISTENTE" => "canceled",
+                _ => ContractStatus.Active.ToApiString()
+            };
+        }
+        
+        private async Task<int?> ResolveGroupIdAsync(string? groupValue, Dictionary<string, int?> cache, ImportResult? result = null)
+        {
+            if (string.IsNullOrWhiteSpace(groupValue)) return null;
+            
+            if (cache.TryGetValue(groupValue, out var cachedId)) return cachedId;
+            
+            // 1. Try lookup by Name (smart case or exact)
+            var groupByName = await _groupRepository.GetByNameAsync(groupValue.Trim());
+            if (groupByName != null)
+            {
+                cache[groupValue] = groupByName.Id;
+                return groupByName.Id;
+            }
+            
+            // 2. Try lookup by ID if numeric
+            if (int.TryParse(groupValue.Trim(), out var id))
+            {
+                var groupById = await _groupRepository.GetByIdAsync(id);
+                if (groupById != null)
+                {
+                    cache[groupValue] = groupById.Id;
+                    return groupById.Id;
+                }
+            }
+            
+            // 3. Automatic Creation (Only if it's a name, not just a failed numeric lookup)
+            // If the user provided a value that looks like a name (not just an ID that doesn't exist)
+            // Or if they provided something and want it created regardless.
+            // We'll create it if it's not numeric or if it's a numeric that's NOT found.
+            try
+            {
+                var newGroup = new Group
+                {
+                    Name = groupValue.Trim(),
+                    Description = $"Auto-created during import {DateTime.UtcNow:yyyy-MM-dd}",
+                    Commission = 0,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                
+                var createdGroup = await _groupRepository.CreateAsync(newGroup);
+                cache[groupValue] = createdGroup.Id;
+                
+                // Track for UI
+                if (result != null && !result.CreatedGroups.Contains(groupValue.Trim()))
+                {
+                    result.CreatedGroups.Add(groupValue.Trim());
+                }
+                
+                return createdGroup.Id;
+            }
+            catch (Exception)
+            {
+                // Fallback to null if creation fails (e.g. unique constraint if name just popped up)
+                cache[groupValue] = null;
+                return null;
+            }
+        }
+
+        private async Task<ContractMetadata> GetOrCreateMetadataAsync(string name, string value)
+        {
+            var existing = await _metadataRepository.GetByNameAndValueAsync(name, value);
+            if (existing != null)
+            {
+                return existing;
+            }
+            
+            var newMetadata = new ContractMetadata
+            {
+                Name = name,
+                Value = value,
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            return await _metadataRepository.CreateAsync(newMetadata);
         }
     }
 }

@@ -85,10 +85,31 @@ namespace SalesApp.Controllers
                 Id = 3,
                 Name = "contractDashboard",
                 EntityType = "Contract",
-                Description = "Template for contract dashboard import",
-                RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount" }),
-                OptionalFields = JsonSerializer.Serialize(new List<string> { "Status", "SaleStartDate", "CustomerName" }),
-                DefaultMappings = "{}",
+                Description = "Template for contract dashboard import from Power BI",
+                RequiredFields = JsonSerializer.Serialize(new List<string> { 
+                    "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName" 
+                }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { 
+                    "Status", "PvId", "Version", "TempMatricula", "Category", "PlanoVenda" 
+                }),
+                DefaultMappings = JsonSerializer.Serialize(new Dictionary<string, string> {
+                    { "cota.group", "GroupId" },
+                    { "cota.cota", "Quota" },
+                    { "cota.customer", "CustomerName" },
+                    { "cota.contract", "ContractNumber" },
+                    { "ProducaoAnalitica", "TotalAmount" },
+                    { "Produção Analitica", "TotalAmount" },
+                    { "Producao Analitica", "TotalAmount" },
+                    { "DtVenda", "SaleStartDate" },
+                    { "Dt Venda", "SaleStartDate" },
+                    { "SituacaoCobranca", "Status" },
+                    { "CodPV", "PvId" },
+                    { "Cód. PV", "PvId" },
+                    { "Versao", "Version" },
+                    { "Matricula", "TempMatricula" },
+                    { "Categoria", "Category" },
+                    { "PlanoVenda", "PlanoVenda" }
+                }),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             }
@@ -175,6 +196,40 @@ namespace SalesApp.Controllers
                     });
                 }
 
+                // If template is contractDashboard, split Cota into virtual columns for custom mapping
+                if (hardcodedTemplate.Name == "contractDashboard")
+                {
+                    // Add virtual column headers
+                    var virtualCols = new List<string> { "cota.group", "cota.cota", "cota.customer", "cota.contract" };
+                    foreach (var col in virtualCols)
+                    {
+                        if (!columns.Contains(col)) columns.Add(col);
+                    }
+
+                    // Process rows to extract values
+                    foreach (var row in allRows)
+                    {
+                        // Initialize virtual columns to avoid KeyNotFoundException during validation
+                        foreach (var col in virtualCols)
+                        {
+                            if (!row.ContainsKey(col)) row[col] = "";
+                        }
+
+                        var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
+                        if (cotaKey != null && !string.IsNullOrWhiteSpace(row[cotaKey]))
+                        {
+                            var parts = row[cotaKey].Split(';');
+                            if (parts.Length >= 5)
+                            {
+                                row["cota.group"] = parts[0].Trim();
+                                row["cota.cota"] = parts[1].Trim();
+                                row["cota.customer"] = parts[3].Trim();
+                                row["cota.contract"] = parts[^1].Trim();
+                            }
+                        }
+                    }
+                }
+
                 // Security Check: Admins can only use contractDashboard
                 if (!User.IsInRole("superadmin") && hardcodedTemplate.Name != "contractDashboard")
                 {
@@ -235,8 +290,20 @@ namespace SalesApp.Controllers
                 allTemplateFields.AddRange(requiredFields);
                 allTemplateFields.AddRange(optionalFields);
                 
-                // Use SuggestMappings with template fields for case-insensitive exact matching
+                // Use SuggestMappings for pattern/exact field matching
                 var suggestedMappings = _autoMapping.SuggestMappings(columns, entityType, allTemplateFields);
+                
+                // Overlay default mappings from template (high priority)
+                if (!string.IsNullOrEmpty(hardcodedTemplate.DefaultMappings) && hardcodedTemplate.DefaultMappings != "{}")
+                {
+                    var templateMappings = JsonSerializer.Deserialize<Dictionary<string, string>>(hardcodedTemplate.DefaultMappings) ?? new();
+                    var appliedMappings = _autoMapping.ApplyTemplateMappings(templateMappings, columns);
+                    
+                    foreach (var (src, target) in appliedMappings)
+                    {
+                        suggestedMappings[src] = target;
+                    }
+                }
 
                 // Create import session and store file data
                 var session = new ImportSession
@@ -478,11 +545,20 @@ namespace SalesApp.Controllers
                 // Execute import
                 ImportResult result;
                 var entityType = session.Template?.EntityType ?? "Contract";
+                var templateName = session.Template?.Name ?? "";
                 var dateFormat = request?.DateFormat ?? "MM/DD/YYYY";
 
                 if (entityType == "User")
                 {
                     result = await _importExecution.ExecuteUserImportAsync(
+                        uploadId,
+                        allRows,
+                        mappings);
+                }
+                else if (templateName == "contractDashboard")
+                {
+                    // Use specialized contractDashboard import
+                    result = await _importExecution.ExecuteContractDashboardImportAsync(
                         uploadId,
                         allRows,
                         mappings);
@@ -512,16 +588,24 @@ namespace SalesApp.Controllers
                     ProcessedRows = session.ProcessedRows,
                     FailedRows = session.FailedRows,
                     UnresolvedUsers = new List<UnresolvedUserInfo>(),
+                    CreatedGroups = result.CreatedGroups,
                     Errors = result.Errors
                 };
+
+                var successMessage = result.FailedRows > 0 
+                    ? $"Import completed with {result.FailedRows} errors. {result.ProcessedRows} contracts created successfully."
+                    : $"Import completed successfully. {result.ProcessedRows} contracts created.";
+
+                if (result.CreatedGroups.Any())
+                {
+                    successMessage += $" {result.CreatedGroups.Count} new groups were automatically created: {string.Join(", ", result.CreatedGroups)}";
+                }
 
                 return Ok(new ApiResponse<ImportStatusResponse>
                 {
                     Success = true,
                     Data = response,
-                    Message = result.FailedRows > 0 
-                        ? $"Import completed with {result.FailedRows} errors. {result.ProcessedRows} contracts created successfully."
-                        : $"Import completed successfully. {result.ProcessedRows} contracts created."
+                    Message = successMessage
                 });
             }
             catch (Exception ex)

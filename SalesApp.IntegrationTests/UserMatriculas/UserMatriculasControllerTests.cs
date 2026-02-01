@@ -69,6 +69,47 @@ namespace SalesApp.IntegrationTests.UserMatriculas
         }
 
         [Fact]
+        public async Task CreateUserMatricula_WithIsActiveAndStatus_ShouldSucceed()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var userId = Guid.NewGuid();
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var user = new User { Id = userId, Name = "Matricula Extra Fields User", Email = "extra@test.com", PasswordHash = "hash", RoleId = 1 };
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+            }
+
+            // Using an anonymous object to simulate the exact JSON the frontend might send
+            // ensuring property names and inclusion of fields previously causing 400
+            var payload = new
+            {
+                userId = userId,
+                matriculaNumber = "MAT-EXT-001",
+                startDate = DateTime.UtcNow.ToString("O"),
+                isActive = true,
+                status = "pending",
+                isOwner = true
+            };
+
+            // Act
+            var response = await _client.PostAsJsonAsync("/api/usermatriculas", payload);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserMatriculaResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.MatriculaNumber.Should().Be("MAT-EXT-001");
+            result.Data.IsActive.Should().BeTrue();
+            result.Data.Status.Should().Be("pending");
+        }
+
+        [Fact]
         public async Task GetAllUserMatriculas_AsAdmin_ShouldReturnList()
         {
             // Arrange

@@ -100,20 +100,30 @@ namespace SalesApp.Repositories
             if (contracts == null || !contracts.Any())
                 return new List<Contract>();
             
-            // ✅ Batch insert - single transaction, single SaveChanges
-            _context.Contracts.AddRange(contracts);
-            await _context.SaveChangesAsync();
-            
-            // ✅ Reload with navigation properties for API responses
-            var contractIds = contracts.Select(c => c.Id).ToList();
-            var reloadedContracts = await _context.Contracts
-                .AsNoTracking()
-                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Group)
-                .Where(c => contractIds.Contains(c.Id))
-                .ToListAsync();
-            
-            return reloadedContracts;
+            try
+            {
+                // ✅ Batch insert - single transaction, single SaveChanges
+                _context.Contracts.AddRange(contracts);
+                await _context.SaveChangesAsync();
+                
+                // ✅ Reload with navigation properties for API responses
+                var contractIds = contracts.Select(c => c.Id).ToList();
+                var reloadedContracts = await _context.Contracts
+                    .AsNoTracking()
+                    .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
+                    .Include(c => c.Group)
+                    .Where(c => contractIds.Contains(c.Id))
+                    .ToListAsync();
+                
+                return reloadedContracts;
+            }
+            catch (Exception)
+            {
+                // ✅ CRITICAL: Clear change tracker to avoid invalid entities lingering in the context
+                // This prevents subsequent SaveChangesAsync calls (like updating session status) from failing
+                _context.ChangeTracker.Clear();
+                throw;
+            }
         }
         
         public async Task<List<MonthlyProduction>> GetMonthlyProductionAsync(

@@ -80,48 +80,62 @@ namespace SalesApp.Services
         private async Task ValidateContractRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, Dictionary<string, string> reverseMappings, List<string> errors)
         {
             // Validate contract number uniqueness
-            if (reverseMappings.ContainsKey("ContractNumber"))
+            if (reverseMappings.TryGetValue("ContractNumber", out var contractNumColumn))
             {
-                var contractNumber = row[reverseMappings["ContractNumber"]];
-                var exists = await _context.Contracts.AnyAsync(c => c.ContractNumber == contractNumber);
-                if (exists)
+                if (row.TryGetValue(contractNumColumn, out var contractNumber) && !string.IsNullOrWhiteSpace(contractNumber))
                 {
-                    errors.Add($"Contract number already exists: {contractNumber}");
+                    var exists = await _context.Contracts.AnyAsync(c => c.ContractNumber == contractNumber);
+                    if (exists)
+                    {
+                        errors.Add($"Contract number already exists: {contractNumber}");
+                    }
                 }
             }
 
             // Validate total amount is numeric
-            if (reverseMappings.ContainsKey("TotalAmount"))
+            if (reverseMappings.TryGetValue("TotalAmount", out var amountColumn))
             {
-                var amountStr = row[reverseMappings["TotalAmount"]];
-                if (!decimal.TryParse(amountStr, out _))
+                if (row.TryGetValue(amountColumn, out var amountStr) && !string.IsNullOrWhiteSpace(amountStr))
                 {
-                    errors.Add($"Invalid total amount: {amountStr}");
+                    if (!decimal.TryParse(amountStr, out _))
+                    {
+                        // Some columns might have currency formatting handled in execution but not here
+                        // We'll be a bit more lenient or just skip if it looks like currency
+                        if (!amountStr.Contains("$") && !amountStr.Contains(","))
+                        {
+                            errors.Add($"Invalid total amount format: {amountStr}");
+                        }
+                    }
                 }
             }
 
             // Validate group exists (optional - only if provided and not 0)
-            if (reverseMappings.ContainsKey("GroupId"))
+            if (reverseMappings.TryGetValue("GroupId", out var groupColumn))
             {
-                var groupIdStr = row[reverseMappings["GroupId"]];
-                if (!string.IsNullOrWhiteSpace(groupIdStr) && int.TryParse(groupIdStr, out var groupId) && groupId != 0)
+                if (row.TryGetValue(groupColumn, out var groupIdStr) && !string.IsNullOrWhiteSpace(groupIdStr))
                 {
-                    var groupExists = await _context.Groups.AnyAsync(g => g.Id == groupId && g.IsActive);
-                    if (!groupExists)
+                    if (int.TryParse(groupIdStr, out var groupId) && groupId != 0)
                     {
-                        errors.Add($"Group not found: {groupId}");
+                        var groupExists = await _context.Groups.AnyAsync(g => g.Id == groupId && g.IsActive);
+                        if (!groupExists)
+                        {
+                            errors.Add($"Group not found: {groupId}");
+                        }
                     }
                 }
             }
 
             // Validate status if provided
-            if (reverseMappings.ContainsKey("Status"))
+            if (reverseMappings.TryGetValue("Status", out var statusColumn))
             {
-                var status = row[reverseMappings["Status"]].ToLowerInvariant();
-                var validStatuses = new[] { "active", "delinquent", "paid_off" };
-                if (!validStatuses.Contains(status))
+                if (row.TryGetValue(statusColumn, out var statusValue) && !string.IsNullOrWhiteSpace(statusValue))
                 {
-                    errors.Add($"Invalid status: {status}. Must be one of: {string.Join(", ", validStatuses)}");
+                    var status = statusValue.ToLowerInvariant();
+                    var validStatuses = new[] { "active", "delinquent", "paid_off" };
+                    if (!validStatuses.Contains(status))
+                    {
+                        errors.Add($"Invalid status: {status}. Must be one of: {string.Join(", ", validStatuses)}");
+                    }
                 }
             }
         }

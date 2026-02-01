@@ -18,6 +18,12 @@ namespace SalesApp.Repositories
             return await _context.Groups.FindAsync(id);
         }
         
+        public async Task<Group?> GetByNameAsync(string name)
+        {
+            return await _context.Groups
+                .FirstOrDefaultAsync(g => g.Name == name && g.IsActive);
+        }
+        
         public async Task<List<Group>> GetAllAsync()
         {
             return await _context.Groups.Where(g => g.IsActive).ToListAsync();

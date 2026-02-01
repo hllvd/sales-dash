@@ -10,6 +10,7 @@ namespace SalesApp.Services
         public List<string> Errors { get; set; } = new();
         public List<Contract> CreatedContracts { get; set; } = new();
         public List<User> CreatedUsers { get; set; } = new();
+        public List<string> CreatedGroups { get; set; } = new();
     }
 
     public interface IImportExecutionService
@@ -21,6 +22,11 @@ namespace SalesApp.Services
             string dateFormat);
 
         Task<ImportResult> ExecuteUserImportAsync(
+            string uploadId,
+            List<Dictionary<string, string>> rows,
+            Dictionary<string, string> mappings);
+            
+        Task<ImportResult> ExecuteContractDashboardImportAsync(
             string uploadId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings);

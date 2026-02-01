@@ -100,12 +100,13 @@ const MyContractsPage: React.FC = () => {
             new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
           );
           setUserMatriculas(activeMatriculas);
-          // Auto-select if only one
+          
+          // Auto-select ONLY if there is exactly one
           if (activeMatriculas.length === 1) {
             setSelectedMatricula(activeMatriculas[0].matriculaNumber);
-          } else if (activeMatriculas.length > 1) {
-            // Default to most recent
-            setSelectedMatricula(activeMatriculas[0].matriculaNumber);
+          } else {
+            // Keep empty if multiple exist, forcing manual selection
+            setSelectedMatricula('');
           }
         }
       }
@@ -138,6 +139,11 @@ const MyContractsPage: React.FC = () => {
 
   const handleConfirmAssignment = async () => {
     if (!contractNumber.trim()) return;
+
+    if (userMatriculas.length > 1 && !selectedMatricula) {
+      setAssignError('Por favor, selecione uma matrícula');
+      return;
+    }
 
     setAssignLoading(true);
     setAssignError('');
@@ -365,7 +371,7 @@ const MyContractsPage: React.FC = () => {
           title="Atribuir Contrato"
           size="md"
         >
-          {assignError && <div style={{ color: 'red', marginBottom: '1rem' }}>{assignError}</div>}
+          {assignError && <div style={{ color: '#fa5252', marginBottom: '1rem', fontSize: '14px' }}>{assignError}</div>}
 
           {!retrievedContract ? (
             <>
@@ -405,37 +411,38 @@ const MyContractsPage: React.FC = () => {
               <div style={{ marginBottom: '1.5rem' }}>
                 <h3 style={{ color: 'white', marginBottom: '1rem' }}>Detalhes do Contrato</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#a0a0a0' }}>Número:</span>
-                    <span style={{ color: 'white' }}>{retrievedContract.contractNumber}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
+                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Número:</span>
+                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.contractNumber}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#a0a0a0' }}>Cliente:</span>
-                    <span style={{ color: 'white' }}>{retrievedContract.customerName || '-'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
+                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Cliente:</span>
+                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.customerName || '-'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#a0a0a0' }}>Grupo:</span>
-                    <span style={{ color: 'white' }}>{retrievedContract.groupName}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
+                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Grupo:</span>
+                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.groupName}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#a0a0a0' }}>Valor Total:</span>
-                    <span style={{ color: 'white' }}>{formatCurrency(retrievedContract.totalAmount)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
+                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Valor Total:</span>
+                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{formatCurrency(retrievedContract.totalAmount)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#a0a0a0' }}>Status:</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
+                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Status:</span>
                     <Badge 
                       color={
                         retrievedContract.status === ContractStatus.Active ? 'green' :
                         retrievedContract.status === ContractStatus.Defaulted ? 'red' :
                         retrievedContract.status.startsWith('Late') ? 'orange' : 'gray'
                       }
+                      variant="light"
                     >
                       {getStatusLabel(retrievedContract.status)}
                     </Badge>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#a0a0a0' }}>Data Início:</span>
-                    <span style={{ color: 'white' }}>{formatDate(retrievedContract.contractStartDate)}</span>
+                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Data Início:</span>
+                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{formatDate(retrievedContract.contractStartDate)}</span>
                   </div>
                 </div>
               </div>
@@ -445,9 +452,8 @@ const MyContractsPage: React.FC = () => {
                 <FormField 
                   label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
                   description={
-                    userMatriculas.length === 0 ? 'Você não possui matrículas ativas' :
                     userMatriculas.length === 1 ? 'Matrícula será atribuída automaticamente' :
-                    'Selecione a matrícula para este contrato (padrão: mais recente)'
+                    'Selecione a matrícula para este contrato'
                   }
                 >
                   {userMatriculas.length === 1 ? (
@@ -458,6 +464,7 @@ const MyContractsPage: React.FC = () => {
                     />
                   ) : (
                     <Select
+                      placeholder="Selecione uma matrícula..."
                       value={selectedMatricula}
                       onChange={(value) => setSelectedMatricula(value || '')}
                       data={userMatriculas.map((m) => ({
@@ -481,7 +488,7 @@ const MyContractsPage: React.FC = () => {
                 </Button>
                 <Button
                   onClick={handleConfirmAssignment}
-                  disabled={assignLoading}
+                  disabled={assignLoading || (userMatriculas.length > 1 && !selectedMatricula)}
                   loading={assignLoading}
                 >
                   Confirmar Atribuição

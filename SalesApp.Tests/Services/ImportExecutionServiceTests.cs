@@ -18,6 +18,7 @@ namespace SalesApp.Tests.Services
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
         private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<AppDbContext> _mockContext;
+        private readonly Mock<IContractMetadataRepository> _mockMetadataRepository;
         private readonly ImportExecutionService _service;
 
         public ImportExecutionServiceTests()
@@ -29,6 +30,7 @@ namespace SalesApp.Tests.Services
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
             _mockEmailService = new Mock<IEmailService>();
             _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>());
+            _mockMetadataRepository = new Mock<IContractMetadataRepository>();
             
             _service = new ImportExecutionService(
                 _mockContractRepository.Object,
@@ -37,7 +39,8 @@ namespace SalesApp.Tests.Services
                 _mockRoleRepository.Object,
                 _mockMatriculaRepository.Object,
                 _mockEmailService.Object,
-                _mockContext.Object
+                _mockContext.Object,
+                _mockMetadataRepository.Object
             );
         }
 

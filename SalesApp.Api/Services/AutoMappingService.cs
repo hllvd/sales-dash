@@ -9,7 +9,7 @@ namespace SalesApp.Services
             {
                 ["ContractNumber"] = new[] { "contract number", "contract_number", "contractnumber", "number", "contract #", "contract#", "contrato" },
                 ["UserEmail"] = new[] { "user email", "useremail", "user_email", "email", "client email", "customer email", "e-mail" },
-                ["TotalAmount"] = new[] { "total amount", "totalamount", "total_amount", "amount", "value", "price", "valor" },
+                ["TotalAmount"] = new[] { "total amount", "totalamount", "total_amount", "amount", "value", "price", "valor", "produção analitica", "producao analitica" },
                 ["GroupId"] = new[] { "group id", "groupid", "group_id", "group", "team id", "teamid" },
                 ["Status"] = new[] { "status", "state", "contract status", "contract_status" },
                 ["SaleStartDate"] = new[] { "start date", "startdate", "start_date", "sale start", "contract start", "begin date", "data da venda", "data venda" },
@@ -73,7 +73,14 @@ namespace SalesApp.Services
                         continue;
                     }
                     
-                    if (patterns.Any(pattern => normalizedSource.Contains(NormalizeColumnName(pattern))))
+                    if (patterns.Any(pattern => {
+                        var normalizedPattern = NormalizeColumnName(pattern);
+                        // If pattern is short (like "cota"), require exact match or boundary to avoid partial matches like "Obs Cota"
+                        if (normalizedPattern.Length <= 4) {
+                            return normalizedSource == normalizedPattern || normalizedSource.EndsWith(" " + normalizedPattern) || normalizedSource.StartsWith(normalizedPattern + " ");
+                        }
+                        return normalizedSource.Contains(normalizedPattern);
+                    }))
                     {
                         mappings[sourceColumn] = targetField;
                         break;

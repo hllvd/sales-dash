@@ -763,10 +763,12 @@ namespace SalesApp.Controllers
             contract.User = user;
             await _contractRepository.UpdateAsync(contract);
             
+            
             var resolvedMatricula = user.UserMatriculas?
+                .Where(m => m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
                 .OrderByDescending(m => m.IsOwner)
                 .ThenByDescending(m => m.StartDate)
-                .FirstOrDefault(m => m.IsActive);
+                .FirstOrDefault();
 
             return Ok(new ApiResponse<ContractResponse>
             {

@@ -23,5 +23,10 @@ namespace SalesApp.DTOs
         public DateTime? EndDate { get; set; }
         
         public bool IsOwner { get; set; } = false;
+        
+        public bool? IsActive { get; set; }
+        
+        [StringLength(20)]
+        public string? Status { get; set; }
     }
 }

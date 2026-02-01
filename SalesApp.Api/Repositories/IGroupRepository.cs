@@ -5,6 +5,7 @@ namespace SalesApp.Repositories
     public interface IGroupRepository
     {
         Task<Group?> GetByIdAsync(int id);
+        Task<Group?> GetByNameAsync(string name);
         Task<List<Group>> GetAllAsync();
         Task<Group> CreateAsync(Group group);
         Task<Group> UpdateAsync(Group group);

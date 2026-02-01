@@ -22,7 +22,7 @@ namespace SalesApp.IntegrationTests.Imports
         [Fact]
         public async Task GetTemplates_AsAdmin_ShouldReturnHardcodedTemplates()
         {
-            // Arrange
+            // Arrange - Admins only see contractDashboard template
             var token = await GetAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -35,16 +35,15 @@ namespace SalesApp.IntegrationTests.Imports
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
             result.Data.Should().NotBeNull();
-            result.Data.Should().HaveCount(2); // Users and Contracts templates
-            result.Data.Should().Contain(t => t.Name == "Users" && t.EntityType == "User");
-            result.Data.Should().Contain(t => t.Name == "Contracts" && t.EntityType == "Contract");
+            result.Data.Should().HaveCount(1); // Only contractDashboard for admins
+            result.Data.Should().Contain(t => t.Name == "contractDashboard" && t.EntityType == "Contract");
         }
 
         [Fact]
         public async Task GetTemplates_FilterByEntityType_ShouldReturnFilteredTemplates()
         {
-            // Arrange
-            var token = await GetAdminToken();
+            // Arrange - Use superadmin to see User templates
+            var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Act
@@ -137,6 +136,19 @@ namespace SalesApp.IntegrationTests.Imports
             var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
             return result?.Data?.Token ?? throw new Exception("Failed to get admin token");
+        }
+
+        private async Task<string> GetSuperAdminToken()
+        {
+            var loginRequest = new LoginRequest
+            {
+                Email = "superadmin@test.com",
+                Password = "superadmin123"
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+            return result?.Data?.Token ?? throw new Exception("Failed to get superadmin token");
         }
     }
 }

@@ -359,6 +359,7 @@ namespace SalesApp.Controllers
                 }
             }
                 
+            
             if (request.Quota.HasValue)
                 contract.Quota = request.Quota.Value;
                 
@@ -408,11 +409,12 @@ namespace SalesApp.Controllers
         
         private ContractResponse MapToContractResponse(Contract contract)
         {
-            // Resolve matricula from user's matriculas (picking owner or latest active)
+            // Resolve matricula from user's matriculas (picking owner or latest active, excluding expired)
             var userMatricula = contract.User?.UserMatriculas?
+                .Where(m => m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
                 .OrderByDescending(m => m.IsOwner)
                 .ThenByDescending(m => m.StartDate)
-                .FirstOrDefault(m => m.IsActive);
+                .FirstOrDefault();
 
             return new ContractResponse
             {

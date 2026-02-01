@@ -27,8 +27,8 @@ namespace SalesApp.IntegrationTests.Imports
         [Fact]
         public async Task CompleteImportWorkflow_WithCSV_ShouldSucceed()
         {
-            // Arrange
-            var token = await GetAdminToken();
+            // Arrange - Contract imports require superadmin
+            var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Create CSV content
@@ -120,8 +120,8 @@ TEST-002,jane.smith@test.com,2000.75,0,active";
         [Fact]
         public async Task UploadCSVFile_ShouldReturnPreview()
         {
-            // Arrange
-            var token = await GetAdminToken();
+            // Arrange - Contract imports require superadmin
+            var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var csvContent = @"Contract Number,Total,Group
@@ -287,8 +287,8 @@ TMPL-001,Test,User,5000,0,active";
         [Fact]
         public async Task ImportWithExistingUser_ShouldMapCorrectly()
         {
-            // Arrange
-            var token = await GetAdminToken();
+            // Arrange - Contract imports require superadmin
+            var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Get existing user

@@ -9,7 +9,7 @@ interface FormFieldProps {
 
 /**
  * Reusable form field component for modals with consistent styling
- * Optimized for light background with dark text for maximum readability
+ * Optimized for dark backgrounds with high-contrast text
  */
 const FormField: React.FC<FormFieldProps> = ({ 
   label, 
@@ -31,7 +31,7 @@ const FormField: React.FC<FormFieldProps> = ({
           <label style={{ 
             fontSize: '14px', 
             fontWeight: 500,
-            color: '#212529',
+            color: '#e9ecef',
             cursor: 'pointer'
           }}>
             {label} {required && <span style={{ color: '#fa5252' }}>*</span>}
@@ -45,7 +45,7 @@ const FormField: React.FC<FormFieldProps> = ({
             marginBottom: '0.5rem', 
             fontSize: '14px', 
             fontWeight: 600,
-            color: '#212529',
+            color: '#e9ecef',
             letterSpacing: '0.01em'
           }}>
             {label} {required && <span style={{ color: '#fa5252' }}>*</span>}
@@ -56,7 +56,7 @@ const FormField: React.FC<FormFieldProps> = ({
       {description && (
         <div style={{ 
           fontSize: '12px', 
-          color: '#6c757d', 
+          color: '#adb5bd', 
           marginTop: '0.375rem',
           lineHeight: '1.4'
         }}>
