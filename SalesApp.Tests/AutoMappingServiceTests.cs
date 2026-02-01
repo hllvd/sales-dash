@@ -121,7 +121,8 @@ namespace SalesApp.Tests.Services
                 "total_amount",
                 "amount",
                 "value",
-                "price"
+                "price",
+                "total"
             };
 
             foreach (var columnName in testCases)
@@ -253,7 +254,7 @@ namespace SalesApp.Tests.Services
         public void SuggestMappings_NoMatches_ShouldReturnEmpty()
         {
             // Arrange
-            var sourceColumns = new List<string> { "xyz", "abc", "def" };
+            var sourceColumns = new List<string> { "xyz", "abc", "def", "Obs Cota" };
 
             // Act
             var result = _service.SuggestMappings(sourceColumns, "Contract");

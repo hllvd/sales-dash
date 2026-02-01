@@ -9,8 +9,8 @@ namespace SalesApp.Services
             {
                 ["ContractNumber"] = new[] { "contract number", "contract_number", "contractnumber", "number", "contract #", "contract#", "contrato" },
                 ["UserEmail"] = new[] { "user email", "useremail", "user_email", "email", "client email", "customer email", "e-mail" },
-                ["TotalAmount"] = new[] { "total amount", "totalamount", "total_amount", "amount", "value", "price", "valor", "produção analitica", "producao analitica" },
-                ["GroupId"] = new[] { "group id", "groupid", "group_id", "group", "team id", "teamid" },
+                ["TotalAmount"] = new[] { "total amount", "totalamount", "total_amount", "amount", "value", "price", "valor", "produção analitica", "producao analitica", "total" },
+                ["GroupId"] = new[] { "group id", "groupid", "group_id", "group", "team id", "teamid", "grupo" },
                 ["Status"] = new[] { "status", "state", "contract status", "contract_status" },
                 ["SaleStartDate"] = new[] { "start date", "startdate", "start_date", "sale start", "contract start", "begin date", "data da venda", "data venda" },
                 ["SaleEndDate"] = new[] { "end date", "enddate", "end_date", "sale end", "contract end", "finish date" },
@@ -73,14 +73,7 @@ namespace SalesApp.Services
                         continue;
                     }
                     
-                    if (patterns.Any(pattern => {
-                        var normalizedPattern = NormalizeColumnName(pattern);
-                        // If pattern is short (like "cota"), require exact match or boundary to avoid partial matches like "Obs Cota"
-                        if (normalizedPattern.Length <= 4) {
-                            return normalizedSource == normalizedPattern || normalizedSource.EndsWith(" " + normalizedPattern) || normalizedSource.StartsWith(normalizedPattern + " ");
-                        }
-                        return normalizedSource.Contains(normalizedPattern);
-                    }))
+                    if (patterns.Any(pattern => NormalizeColumnName(pattern) == normalizedSource))
                     {
                         mappings[sourceColumn] = targetField;
                         break;
