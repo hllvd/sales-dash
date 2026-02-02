@@ -373,9 +373,10 @@ namespace SalesApp.Controllers
                 var entityType = session.Template?.EntityType ?? "Contract";
                 var requiredFields = session.Template?.RequiredFields != null ? JsonSerializer.Deserialize<List<string>>(session.Template.RequiredFields) : new List<string>();
                 var allowAutoCreateGroups = request?.AllowAutoCreateGroups ?? false;
+                var skipMissingContractNumber = request?.SkipMissingContractNumber ?? false;
 
                 // Validate all rows
-                var validationErrors = await _validation.ValidateAllRowsAsync(allRows, request.Mappings, entityType, requiredFields, allowAutoCreateGroups);
+                var validationErrors = await _validation.ValidateAllRowsAsync(allRows, request.Mappings, entityType, requiredFields, allowAutoCreateGroups, skipMissingContractNumber);
 
                 // Store mappings and update session status
                 session.Mappings = JsonSerializer.Serialize(request.Mappings);

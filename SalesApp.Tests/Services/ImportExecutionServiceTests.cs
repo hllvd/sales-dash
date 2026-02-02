@@ -60,7 +60,8 @@ namespace SalesApp.Tests.Services
                     { "type", "1" },
                     { "quota_val", "10" },
                     { "pv_id", "5" },
-                    { "cust_name", "John Doe" }
+                    { "cust_name", "John Doe" },
+                    { "sale_date", "2024-01-01" }
                 }
             };
 
@@ -73,7 +74,8 @@ namespace SalesApp.Tests.Services
                 { "type", "ContractType" },
                 { "quota_val", "Quota" },
                 { "pv_id", "PvId" },
-                { "cust_name", "CustomerName" }
+                { "cust_name", "CustomerName" },
+                { "sale_date", "SaleStartDate" }
             };
 
             _mockGroupRepository.Setup(r => r.GetByIdAsync(1))
@@ -81,6 +83,9 @@ namespace SalesApp.Tests.Services
 
             _mockUserRepository.Setup(r => r.GetByEmailAsync("test@test.com"))
                 .ReturnsAsync(new User { Id = Guid.NewGuid(), IsActive = true });
+
+            _mockContractRepository.Setup(r => r.GetByContractNumbersAsync(It.IsAny<List<string>>()))
+                .ReturnsAsync(new List<Contract>());
 
             List<Contract>? capturedContracts = null;
             _mockContractRepository.Setup(r => r.CreateBatchAsync(It.IsAny<List<Contract>>()))

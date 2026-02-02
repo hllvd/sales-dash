@@ -28,7 +28,12 @@ namespace SalesApp.Models
         /// <summary>
         /// Inactive/defaulted
         /// </summary>
-        Defaulted
+        Defaulted,
+
+        /// <summary>
+        /// Transferred to another unit or entity
+        /// </summary>
+        Transferred
     }
 
     /// <summary>
@@ -59,7 +64,8 @@ namespace SalesApp.Models
                 "Late2" or "late2" => ContractStatus.Late2,
                 "Late3" or "late3" => ContractStatus.Late3,
                 "Defaulted" or "defaulted" => ContractStatus.Defaulted,
-                _ => throw new ArgumentException($"Invalid contract status: {value}. Valid values are: Active, Late1, Late2, Late3, Defaulted")
+                "Transferred" or "transferred" => ContractStatus.Transferred,
+                _ => throw new ArgumentException($"Invalid contract status: {value}. Valid values are: Active, Late1, Late2, Late3, Defaulted, Transferred")
             };
         }
 

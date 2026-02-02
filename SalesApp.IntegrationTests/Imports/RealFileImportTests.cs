@@ -199,7 +199,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "UserSurname", new[] { "sobrenome", "surname", "ultimo nome", "last name", "apelido" } },
                 { "TotalAmount", new[] { "valor", "total", "amount", "valor total", "total amount", "montante", "preco" } },
                 { "GroupId", new[] { "grupo", "group", "id grupo", "group id", "equipe", "team" } },
-                { "Status", new[] { "status", "estado", "state", "situacao", "ativo" } }
+                { "Status", new[] { "status", "estado", "state", "situacao", "ativo", "venda" } },
+                { "SaleStartDate", new[] { "data", "venda", "date", "início", "dt" } }
             };
 
             foreach (var column in detectedColumns)

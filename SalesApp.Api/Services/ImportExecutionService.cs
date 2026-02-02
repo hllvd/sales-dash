@@ -82,6 +82,13 @@ namespace SalesApp.Services
                         }
                     }
 
+                    // ✅ MANDATORY SILENT SKIP: mandatory for SaleStartDate (Requested by user)
+                    var startDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
+                    if (string.IsNullOrWhiteSpace(startDateStr))
+                    {
+                        continue;
+                    }
+
                     // Look for existing contract
                     existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
 
@@ -611,15 +618,20 @@ namespace SalesApp.Services
                     var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
                     if (string.IsNullOrWhiteSpace(cotaValue))
                     {
-                        var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
-                        if (cotaKey != null) cotaValue = row[cotaKey];
+                        continue; // Skip row if Cota is missing
                     }
 
-                    if (!string.IsNullOrWhiteSpace(cotaValue) && cotaValue.Contains(";"))
+                    if (cotaValue.Contains(";"))
                     {
                         var cotaParts = cotaValue.Split(';');
                         if (cotaParts.Length >= 5) contractNumber = cotaParts[^1].Trim();
                     }
+                }
+
+                // ✅ MANDATORY SILENT SKIP if no contract number found (New user request)
+                if (string.IsNullOrWhiteSpace(contractNumber))
+                {
+                    continue;
                 }
 
                 if (!string.IsNullOrWhiteSpace(contractNumber))
@@ -640,14 +652,13 @@ namespace SalesApp.Services
 
                     // Identify contract number again for skip check or lookup
                     var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+                    var cotaValue = GetFieldValue(row, reverseMappings, "Cota"); // Get cotaValue here for potential fallback
                     if (string.IsNullOrWhiteSpace(contractNumber))
                     {
                         // Same fallback as above
-                        var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
                         if (string.IsNullOrWhiteSpace(cotaValue))
                         {
-                            var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
-                            if (cotaKey != null) cotaValue = row[cotaKey];
+                            continue;
                         }
 
                         if (!string.IsNullOrWhiteSpace(cotaValue) && cotaValue.Contains(";"))
@@ -655,6 +666,19 @@ namespace SalesApp.Services
                             var cotaParts = cotaValue.Split(';');
                             if (cotaParts.Length >= 5) contractNumber = cotaParts[^1].Trim();
                         }
+                    }
+
+                    // ✅ MANDATORY SILENT SKIP if no contract number found (New user request)
+                    if (string.IsNullOrWhiteSpace(contractNumber))
+                    {
+                        continue;
+                    }
+
+                    // ✅ MANDATORY SILENT SKIP: mandatory for SaleStartDate (Requested by user)
+                    var startDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
+                    if (string.IsNullOrWhiteSpace(startDateStr))
+                    {
+                        continue;
                     }
 
                     if (skipMissingContractNumber && string.IsNullOrWhiteSpace(contractNumber))
@@ -885,8 +909,8 @@ namespace SalesApp.Services
             return normalized switch
             {
                 "NORMAL" => "active",
-                "NCONT 1 AT" => "late1",
-                "NCONT 2 AT" => "late2",
+                "NCONT 1 AT" or "CONT 1 ATR" => "late1",
+                "NCONT 2 AT" or "CONT NÃO ENTREGUE 2 ATR" or "CONT NAO ENTREGUE 2 ATR" or "CONT BEM PEND 2 ATR" => "late2",
                 "NCONT 3 AT" or "SUJ. A CANCELAMENTO" or "SUJ. A  CANCELAMENTO" => "late3",
                 "EXCLUIDO" or "DESISTENTE" => "defaulted",
                 _ => ContractStatus.Active.ToApiString().ToLowerInvariant()

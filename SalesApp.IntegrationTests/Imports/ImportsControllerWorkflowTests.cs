@@ -32,9 +32,9 @@ namespace SalesApp.IntegrationTests.Imports
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Create CSV content
-            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status
-TEST-001,john.doe@test.com,1000.50,0,active
-TEST-002,jane.smith@test.com,2000.75,0,active";
+            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate
+TEST-001,john.doe@test.com,1000.50,0,active,2024-01-01
+TEST-002,jane.smith@test.com,2000.75,0,active,2024-01-01";
 
             var uploadId = await UploadFile(csvContent, "contracts.csv", "text/csv");
 
@@ -47,7 +47,8 @@ TEST-002,jane.smith@test.com,2000.75,0,active";
                     { "User Email", "UserEmail" },
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
-                    { "Status", "Status" }
+                    { "Status", "Status" },
+                    { "SaleStartDate", "SaleStartDate" }
                 }
             };
 
@@ -124,9 +125,9 @@ TEST-002,jane.smith@test.com,2000.75,0,active";
             var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            var csvContent = @"Contract Number,Total,Group
-TEST-CSV-001,1500,0
-TEST-CSV-002,2500,0";
+            var csvContent = @"Contract Number,Total,Group,SaleStartDate
+TEST-CSV-001,1500,0,2024-01-01
+TEST-CSV-002,2500,0,2024-01-01";
 
             // Act
             var uploadId = await UploadFile(csvContent, "test.csv", "text/csv");
@@ -156,8 +157,8 @@ TEST-CSV-002,2500,0";
             var templateId = 2;
 
             // Upload file with template
-            var csvContent = @"Contract Number,User Name,User Surname,Total Amount,Group ID,Status
-TMPL-001,Test,User,5000,0,active";
+            var csvContent = @"Contract Number,User Name,User Surname,Total Amount,Group ID,Status,SaleStartDate
+TMPL-001,Test,User,5000,0,active,2024-01-01";
 
             var content = new MultipartFormDataContent();
             var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
@@ -307,8 +308,8 @@ TMPL-001,Test,User,5000,0,active";
             var firstName = names.Length > 0 ? names[0] : "Test";
             var lastName = names.Length > 1 ? names[1] : "User";
 
-            var csvContent = $@"Contract Number,User Name,User Surname,Total Amount,Group
-EXIST-001,{firstName},{lastName},1000,0";
+            var csvContent = $@"Contract Number,User Name,User Surname,Total Amount,Group,SaleStartDate
+EXIST-001,{firstName},{lastName},1000,0,2024-01-01";
 
             var uploadId = await UploadFile(csvContent, "existing-user.csv", "text/csv");
 
@@ -321,7 +322,8 @@ EXIST-001,{firstName},{lastName},1000,0";
                     { "User Name", "UserName" },
                     { "User Surname", "UserSurname" },
                     { "Total Amount", "TotalAmount" },
-                    { "Group", "GroupId" }
+                    { "Group", "GroupId" },
+                    { "SaleStartDate", "SaleStartDate" }
                 }
             };
 

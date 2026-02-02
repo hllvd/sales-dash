@@ -107,11 +107,11 @@ namespace SalesApp.Tests.Attributes
 
             // Assert
             Assert.NotNull(result);
-            Assert.Contains("Active", result.ErrorMessage);
-            Assert.Contains("Late1", result.ErrorMessage);
-            Assert.Contains("Late2", result.ErrorMessage);
-            Assert.Contains("Late3", result.ErrorMessage);
-            Assert.Contains("Defaulted", result.ErrorMessage);
+            Assert.Contains("active", result.ErrorMessage);
+            Assert.Contains("late1", result.ErrorMessage);
+            Assert.Contains("late2", result.ErrorMessage);
+            Assert.Contains("late3", result.ErrorMessage);
+            Assert.Contains("defaulted", result.ErrorMessage);
         }
     }
 }

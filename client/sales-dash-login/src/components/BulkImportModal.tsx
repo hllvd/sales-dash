@@ -121,7 +121,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         Object.entries(mappings).filter(([_, targetField]) => targetField !== "")
       )
 
-      const mappingResp = await apiService.configureImportMappings(uploadId, explicitlyMapped, allowAutoCreateGroups)
+      const mappingResp = await apiService.configureImportMappings(uploadId, explicitlyMapped, allowAutoCreateGroups, skipMissingContractNumber)
       
       if (!mappingResp.success) {
         setError(mappingResp.message || "Falha ao configurar mapeamentos")

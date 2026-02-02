@@ -16,10 +16,12 @@ namespace SalesApp.Services
             // ✅ Late1 aliases
             { "Late1", ContractStatus.Late1.ToApiString() },
             { "NCONT 1 AT", ContractStatus.Late1.ToApiString() },
+            { "CONT NÃO ENTREGUE 1 ATR", ContractStatus.Late1.ToApiString() },
             
             // ✅ Late2 aliases
             { "Late2", ContractStatus.Late2.ToApiString() },
             { "NCONT 2 AT", ContractStatus.Late2.ToApiString() },
+            { "CONT NÃO ENTREGUE 2 ATR", ContractStatus.Late2.ToApiString() },
             
             // ✅ Late3 aliases
             { "Late3", ContractStatus.Late3.ToApiString() },
@@ -32,6 +34,10 @@ namespace SalesApp.Services
             { "DESISTENTE", ContractStatus.Defaulted.ToApiString() },
             { "EXCLUIDO", ContractStatus.Defaulted.ToApiString() },
             { "paid_off", ContractStatus.Defaulted.ToApiString() }, // Legacy
+            
+            // ✅ Transferred aliases
+            { "Transferred", ContractStatus.Transferred.ToApiString() },
+            { "TRANSFERIDO", ContractStatus.Transferred.ToApiString() },
             
             // Late3 legacy
             { "delinquent", ContractStatus.Late3.ToApiString() } // Legacy
@@ -65,12 +71,8 @@ namespace SalesApp.Services
                 return false;
             }
 
-            // ✅ Use enum instead of hardcoded strings
-            return status == ContractStatus.Active.ToApiString() || 
-                   status == ContractStatus.Late1.ToApiString() || 
-                   status == ContractStatus.Late2.ToApiString() || 
-                   status == ContractStatus.Late3.ToApiString() || 
-                   status == ContractStatus.Defaulted.ToApiString();
+            var validStatuses = GetValidStatuses();
+            return validStatuses.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -85,7 +87,8 @@ namespace SalesApp.Services
                 ContractStatus.Late1.ToApiString(), 
                 ContractStatus.Late2.ToApiString(), 
                 ContractStatus.Late3.ToApiString(), 
-                ContractStatus.Defaulted.ToApiString() 
+                ContractStatus.Defaulted.ToApiString(),
+                ContractStatus.Transferred.ToApiString()
             };
         }
     }

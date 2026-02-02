@@ -269,7 +269,8 @@ export const apiService = {
   async configureImportMappings(
     uploadId: string,
     mappings: Record<string, string>,
-    allowAutoCreateGroups: boolean = false
+    allowAutoCreateGroups: boolean = false,
+    skipMissingContractNumber: boolean = false
   ): Promise<
     ApiResponse<{
       uploadId: string
@@ -283,7 +284,11 @@ export const apiService = {
     const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/mappings`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ mappings, allowAutoCreateGroups }),
+      body: JSON.stringify({ 
+        mappings, 
+        allowAutoCreateGroups,
+        skipMissingContractNumber
+      }),
     })
 
     if (!response.ok) {

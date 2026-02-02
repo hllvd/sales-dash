@@ -9,5 +9,6 @@ namespace SalesApp.DTOs
         
         public string? SaveMappingAs { get; set; }
         public bool AllowAutoCreateGroups { get; set; } = false;
+        public bool SkipMissingContractNumber { get; set; } = false;
     }
 }
