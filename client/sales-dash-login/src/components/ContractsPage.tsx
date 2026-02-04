@@ -50,7 +50,7 @@ const ContractsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(() => {
     const saved = localStorage.getItem('contracts_pageSize');
-    return saved ? parseInt(saved) : 50;
+    return saved ? parseInt(saved) : 100;
   });
 
   // Load saved filters from localStorage
