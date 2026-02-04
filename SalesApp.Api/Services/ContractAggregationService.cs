@@ -29,7 +29,7 @@ namespace SalesApp.Services
                     var active = acc.Active;
                     var late = acc.Late;
                     
-                    // ✅ Use enum instead of hardcoded strings
+                    // ✅ Use Mapper to check status more robustly
                     if (c.Status.Equals(ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase))
                     {
                         cancel += c.TotalAmount;

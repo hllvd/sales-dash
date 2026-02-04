@@ -33,7 +33,14 @@ namespace SalesApp.Services
             { "Defaulted", ContractStatus.Defaulted.ToApiString() },
             { "DESISTENTE", ContractStatus.Defaulted.ToApiString() },
             { "EXCLUIDO", ContractStatus.Defaulted.ToApiString() },
+            { "EXCLUÍDO", ContractStatus.Defaulted.ToApiString() },
+            { "CANCELADO", ContractStatus.Defaulted.ToApiString() },
+            { "DISTRATADO", ContractStatus.Defaulted.ToApiString() },
+            { "SUSPENSO", ContractStatus.Defaulted.ToApiString() },
             { "paid_off", ContractStatus.Defaulted.ToApiString() }, // Legacy
+            { "QUITADO", ContractStatus.Active.ToApiString() },
+            { "PAGO", ContractStatus.Active.ToApiString() },
+            { "CONT PAGO", ContractStatus.Active.ToApiString() },
             
             // ✅ Transferred aliases
             { "Transferred", ContractStatus.Transferred.ToApiString() },

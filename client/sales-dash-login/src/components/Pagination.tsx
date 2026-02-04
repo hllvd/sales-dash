@@ -38,7 +38,7 @@ const Pagination: React.FC<PaginationProps> = ({
   const TopControls = () => (
     <div className="pagination-controls" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        <span style={{ fontSize: '14px', color: '#e9ecef', fontWeight: '500' }}>Itens por página:</span>
+        <span style={{ fontSize: '14px', color: '#333', fontWeight: '500' }}>Itens por página:</span>
         {pageSizeOptions.map(size => (
           <button
             key={size}
@@ -60,7 +60,7 @@ const Pagination: React.FC<PaginationProps> = ({
         ))}
       </div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        <span style={{ fontSize: '14px', color: '#e9ecef', fontWeight: '500' }}>
+        <span style={{ fontSize: '14px', color: '#333', fontWeight: '500' }}>
           Página {currentPage} de {totalPages} ({totalItems} total)
         </span>
         <button

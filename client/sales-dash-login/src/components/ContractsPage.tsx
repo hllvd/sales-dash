@@ -38,6 +38,7 @@ const ContractsPage: React.FC = () => {
   const [aggregation, setAggregation] = useState<ContractAggregation | null>(null);
 
   // Filters
+  const [isInitializing, setIsInitializing] = useState(true);
   const [filterUserId, setFilterUserId] = useState('');
   const [filterGroupId, setFilterGroupId] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -59,6 +60,7 @@ const ContractsPage: React.FC = () => {
       setFilterStartDate(savedStartDate);
     }
     loadFilters();
+    setIsInitializing(false);
   }, []);
 
   const loadFilters = async () => {
@@ -110,8 +112,9 @@ const ContractsPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (isInitializing) return;
     loadContracts();
-  }, [filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber]);
+  }, [isInitializing, filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
