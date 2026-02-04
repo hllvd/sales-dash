@@ -115,7 +115,8 @@ export const getContracts = async (
   groupId?: number,
   startDate?: string,
   endDate?: string,
-  contractNumber?: string
+  contractNumber?: string,
+  showUnassigned?: boolean
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
@@ -123,6 +124,7 @@ export const getContracts = async (
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
   if (contractNumber) params.append('contractNumber', contractNumber);
+  if (showUnassigned !== undefined) params.append('showUnassigned', showUnassigned.toString());
 
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts${queryString ? `?${queryString}` : ''}`;
@@ -290,12 +292,14 @@ export const assignContract = async (contractNumber: string, matriculaNumber?: s
 export const getHistoricProduction = async (
   startDate?: string,
   endDate?: string,
-  userId?: string
+  userId?: string,
+  showUnassigned?: boolean
 ): Promise<HistoricProductionResponse> => {
   const params = new URLSearchParams();
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
   if (userId) params.append('userId', userId);
+  if (showUnassigned !== undefined) params.append('showUnassigned', showUnassigned.toString());
 
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts/aggregation/historic-production${queryString ? `?${queryString}` : ''}`;

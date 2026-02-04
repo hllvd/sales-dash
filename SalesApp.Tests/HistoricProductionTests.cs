@@ -68,7 +68,7 @@ namespace SalesApp.Tests
                 new MonthlyProduction { Period = "2024-07", TotalProduction = 300000, ContractCount = 3 }
             };
 
-            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, null, null))
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, null, null, null))
                 .ReturnsAsync(monthlyData);
 
             // Act
@@ -98,7 +98,7 @@ namespace SalesApp.Tests
                 new MonthlyProduction { Period = "2024-09", TotalProduction = 150000, ContractCount = 1 }
             };
 
-            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, null, null))
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, null, null, null))
                 .ReturnsAsync(monthlyData);
 
             // Act
@@ -129,7 +129,7 @@ namespace SalesApp.Tests
         public async Task GetHistoricProduction_NoContracts_ReturnsEmptyData()
         {
             // Arrange
-            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, null, null))
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, null, null, null))
                 .ReturnsAsync(new List<MonthlyProduction>());
 
             // Act
@@ -152,14 +152,14 @@ namespace SalesApp.Tests
             var startDate = new DateTime(2024, 1, 1);
             var endDate = new DateTime(2024, 12, 31);
             
-            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, startDate, endDate))
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(null, startDate, endDate, null))
                 .ReturnsAsync(new List<MonthlyProduction>());
 
             // Act
             await _controller.GetHistoricProduction(startDate, endDate);
 
             // Assert
-            _mockRepository.Verify(r => r.GetMonthlyProductionAsync(null, startDate, endDate), Times.Once);
+            _mockRepository.Verify(r => r.GetMonthlyProductionAsync(null, startDate, endDate, null), Times.Once);
         }
 
         [Fact]
@@ -168,14 +168,14 @@ namespace SalesApp.Tests
             // Arrange
             var userId = Guid.NewGuid();
             
-            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(userId, null, null))
+            _mockRepository.Setup(r => r.GetMonthlyProductionAsync(userId, null, null, null))
                 .ReturnsAsync(new List<MonthlyProduction>());
 
             // Act
             await _controller.GetHistoricProduction(null, null, userId);
 
             // Assert
-            _mockRepository.Verify(r => r.GetMonthlyProductionAsync(userId, null, null), Times.Once);
+            _mockRepository.Verify(r => r.GetMonthlyProductionAsync(userId, null, null, null), Times.Once);
         }
     }
 }

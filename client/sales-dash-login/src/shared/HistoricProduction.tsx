@@ -7,23 +7,24 @@ interface HistoricProductionProps {
   startDate?: string;
   endDate?: string;
   userId?: string;
+  showUnassigned?: boolean;
 }
 
-const HistoricProduction: React.FC<HistoricProductionProps> = ({ startDate, endDate, userId }) => {
+const HistoricProduction: React.FC<HistoricProductionProps> = ({ startDate, endDate, userId, showUnassigned }) => {
   const [data, setData] = useState<HistoricProductionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     loadData();
-  }, [startDate, endDate, userId]);
+  }, [startDate, endDate, userId, showUnassigned]);
 
   const loadData = async () => {
     setLoading(true);
     setError('');
 
     try {
-      const result = await getHistoricProduction(startDate, endDate, userId);
+      const result = await getHistoricProduction(startDate, endDate, userId, showUnassigned);
       setData(result);
     } catch (err: any) {
       setError(err.message || 'Falha ao carregar produção histórica');

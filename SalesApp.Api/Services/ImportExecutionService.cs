@@ -873,6 +873,14 @@ namespace SalesApp.Services
             // Create or Update contract
             var contract = existingContract ?? new Contract { CreatedAt = DateTime.UtcNow };
 
+            if (existingContract != null)
+            {
+                // If the contract already exists, just update the status (and UpdatedAt)
+                contract.Status = status;
+                contract.UpdatedAt = DateTime.UtcNow;
+                return contract;
+            }
+
             contract.ContractNumber = contractNumber;
             contract.UserId = null;
             contract.TotalAmount = totalAmount;

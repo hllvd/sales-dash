@@ -44,7 +44,7 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
         
-        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null)
+        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -54,6 +54,14 @@ namespace SalesApp.Repositories
             
             if (userId.HasValue)
                 query = query.Where(c => c.UserId == userId.Value);
+            
+            if (showUnassigned.HasValue)
+            {
+                if (showUnassigned.Value)
+                    query = query.Where(c => c.UserId == null);
+                else
+                    query = query.Where(c => c.UserId != null);
+            }
                 
             if (groupId.HasValue)
                 query = query.Where(c => c.GroupId == groupId.Value);
@@ -63,7 +71,7 @@ namespace SalesApp.Repositories
                 
             if (endDate.HasValue)
                 query = query.Where(c => c.SaleStartDate <= endDate.Value);
-
+ 
             if (!string.IsNullOrEmpty(contractNumber))
                 query = query.Where(c => c.ContractNumber == contractNumber);
             
@@ -91,7 +99,7 @@ namespace SalesApp.Repositories
         {
             return await _context.Contracts
                 .AsNoTracking()
-                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
+                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Group)
                 .Where(c => c.UploadId == uploadId)
                 .OrderByDescending(c => c.CreatedAt)
@@ -141,7 +149,8 @@ namespace SalesApp.Repositories
         public async Task<List<MonthlyProduction>> GetMonthlyProductionAsync(
             Guid? userId, 
             DateTime? startDate, 
-            DateTime? endDate)
+            DateTime? endDate,
+            bool? showUnassigned = null)
         {
             // ✅ Push grouping to database instead of loading all contracts into memory
             var query = _context.Contracts
@@ -150,6 +159,14 @@ namespace SalesApp.Repositories
             
             if (userId.HasValue)
                 query = query.Where(c => c.UserId == userId.Value);
+                
+            if (showUnassigned.HasValue)
+            {
+                if (showUnassigned.Value)
+                    query = query.Where(c => c.UserId == null);
+                else
+                    query = query.Where(c => c.UserId != null);
+            }
             
             if (startDate.HasValue)
                 query = query.Where(c => c.SaleStartDate >= startDate.Value);

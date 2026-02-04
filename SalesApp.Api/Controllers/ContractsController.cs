@@ -96,7 +96,8 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<HistoricProductionResponse>>> GetHistoricProduction(
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
-            [FromQuery] Guid? userId = null)
+            [FromQuery] Guid? userId = null,
+            [FromQuery] bool? showUnassigned = null)
         {
             var currentUserId = GetCurrentUserId();
             var currentUserRole = GetCurrentUserRole();
@@ -108,7 +109,7 @@ namespace SalesApp.Controllers
             }
             
             // ✅ Push grouping to database instead of loading all contracts into memory
-            var monthlyData = await _contractRepository.GetMonthlyProductionAsync(userId, startDate, endDate);
+            var monthlyData = await _contractRepository.GetMonthlyProductionAsync(userId, startDate, endDate, showUnassigned);
             
             var response = new HistoricProductionResponse
             {

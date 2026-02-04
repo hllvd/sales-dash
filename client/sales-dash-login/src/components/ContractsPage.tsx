@@ -45,6 +45,7 @@ const ContractsPage: React.FC = () => {
   const [filterEndDate, setFilterEndDate] = useState('');
   const [filterContractNumber, setFilterContractNumber] = useState('');
   const [debouncedContractNumber, setDebouncedContractNumber] = useState('');
+  const [filterShowUnassigned, setFilterShowUnassigned] = useState<string>('all');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -96,7 +97,8 @@ const ContractsPage: React.FC = () => {
         filterGroupId ? parseInt(filterGroupId) : undefined,
         filterStartDate || undefined,
         filterEndDate || undefined,
-        debouncedContractNumber || undefined
+        debouncedContractNumber || undefined,
+        filterShowUnassigned === 'unassigned' ? true : filterShowUnassigned === 'assigned' ? false : undefined
       );
       setContracts(data);
       setAggregation(aggData || null);
@@ -114,12 +116,12 @@ const ContractsPage: React.FC = () => {
   useEffect(() => {
     if (isInitializing) return;
     loadContracts();
-  }, [isInitializing, filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber]);
+  }, [isInitializing, filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber, filterShowUnassigned]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber]);
+  }, [filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber, filterShowUnassigned]);
 
   // Calculate pagination
   const totalPages = Math.ceil(contracts.length / pageSize);
@@ -251,6 +253,19 @@ const ContractsPage: React.FC = () => {
         </div>
 
         <div className="filter-group">
+          <label htmlFor="filterShowUnassigned">Vínculo de Usuário</label>
+          <select
+            id="filterShowUnassigned"
+            value={filterShowUnassigned}
+            onChange={(e) => setFilterShowUnassigned(e.target.value)}
+          >
+            <option value="all">Todos</option>
+            <option value="assigned">Vinculados</option>
+            <option value="unassigned">Não Vinculados</option>
+          </select>
+        </div>
+
+        <div className="filter-group">
           <label htmlFor="filterGroup">Grupo</label>
           <select
             id="filterGroup"
@@ -305,7 +320,7 @@ const ContractsPage: React.FC = () => {
           />
         </div>
 
-        {(filterUserId || filterGroupId || filterStartDate || filterEndDate || filterContractNumber) && (
+        {(filterUserId || filterGroupId || filterStartDate || filterEndDate || filterContractNumber || filterShowUnassigned !== 'all') && (
           <button
             className="clear-filters-btn"
             onClick={() => {
@@ -315,6 +330,7 @@ const ContractsPage: React.FC = () => {
               setFilterEndDate('');
               setFilterContractNumber('');
               setDebouncedContractNumber('');
+              setFilterShowUnassigned('all');
               localStorage.removeItem('contracts_filterStartDate');
             }}
           >
@@ -444,6 +460,7 @@ const ContractsPage: React.FC = () => {
         <HistoricProduction
           startDate={filterStartDate}
           endDate={filterEndDate}
+          showUnassigned={filterShowUnassigned === 'unassigned' ? true : filterShowUnassigned === 'assigned' ? false : undefined}
         />
       )}
 

@@ -120,7 +120,7 @@ const Pagination: React.FC<PaginationProps> = ({
       >
         ← Anterior
       </button>
-      <span style={{ fontSize: '14px', color: '#e9ecef', padding: '0 1rem', fontWeight: '500' }}>
+      <span style={{ fontSize: '14px', color: '#333', padding: '0 1rem', fontWeight: '500' }}>
         Página {currentPage} de {totalPages}
       </span>
       <button
