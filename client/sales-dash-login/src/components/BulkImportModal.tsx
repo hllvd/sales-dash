@@ -29,9 +29,9 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [requiredFields, setRequiredFields] = useState<string[]>([])
   const [optionalFields, setOptionalFields] = useState<string[]>([])
   const [dateFormat, setDateFormat] = useState<string>("MM/DD/YYYY")
-  const [skipMissingContractNumber, setSkipMissingContractNumber] = useState<boolean>(false)
-  const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState<boolean>(false)
-  const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState<boolean>(false)
+  const [skipMissingContractNumber, setSkipMissingContractNumber] = useState<boolean>(true)
+  const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState<boolean>(true)
+  const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState<boolean>(true)
   
   // Step 3: Result
   const [resultMessage, setResultMessage] = useState<string>("")
