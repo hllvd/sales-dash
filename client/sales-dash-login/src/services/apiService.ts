@@ -344,30 +344,6 @@ export const apiService = {
     return response.json()
   },
 
-  async getUsersByMatriculaNumber(matriculaNumber: string): Promise<ApiResponse<UserLookupByMatricula[]>> {
-    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas/by-number/${matriculaNumber}`, {
-      headers: getAuthHeaders(),
-    })
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch users by matricula number")
-    }
-
-    return response.json()
-  },
-
-  async getUsersByMatriculaId(matriculaId: number): Promise<ApiResponse<UserLookupByMatricula[]>> {
-    const response = await authenticatedFetch(`${API_BASE_URL}/usermatriculas/${matriculaId}/users`, {
-      headers: getAuthHeaders(),
-    })
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch users by matricula ID")
-    }
-
-    return response.json()
-  },
-
   // PV (Point of Sale) methods
   async getPVs(): Promise<ApiResponse<PV[]>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/point-of-sale`, {

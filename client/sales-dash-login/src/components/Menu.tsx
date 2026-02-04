@@ -99,18 +99,6 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {userRole === 'superadmin' && (
-            <NavLink
-              href="#/users-mapping"
-              label="Mapeamento"
-              leftSection={<IconMap size={20} />}
-              active={isActive('#/users-mapping')}
-              variant="filled"
-              color="red"
-              styles={navLinkStyles('#/users-mapping')}
-            />
-          )}
-
           {(userRole === 'admin' || userRole === 'superadmin') && (
             <NavLink
               href="#/point-of-sale"

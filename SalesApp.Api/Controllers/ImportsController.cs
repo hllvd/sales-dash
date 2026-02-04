@@ -16,38 +16,32 @@ namespace SalesApp.Controllers
     {
         private readonly IImportTemplateRepository _templateRepository;
         private readonly IImportSessionRepository _sessionRepository;
-        private readonly IImportUserMappingRepository _userMappingRepository;
         private readonly IContractRepository _contractRepository;
         private readonly IUserRepository _userRepository;
         private readonly IGroupRepository _groupRepository;
         private readonly IFileParserService _fileParser;
         private readonly IAutoMappingService _autoMapping;
-        private readonly IUserMatchingService _userMatching;
         private readonly IImportValidationService _validation;
         private readonly IImportExecutionService _importExecution;
 
         public ImportsController(
             IImportTemplateRepository templateRepository,
             IImportSessionRepository sessionRepository,
-            IImportUserMappingRepository userMappingRepository,
             IContractRepository contractRepository,
             IUserRepository userRepository,
             IGroupRepository groupRepository,
             IFileParserService fileParser,
             IAutoMappingService autoMapping,
-            IUserMatchingService userMatching,
             IImportValidationService validation,
             IImportExecutionService importExecution)
         {
             _templateRepository = templateRepository;
             _sessionRepository = sessionRepository;
-            _userMappingRepository = userMappingRepository;
             _contractRepository = contractRepository;
             _userRepository = userRepository;
             _groupRepository = groupRepository;
             _fileParser = fileParser;
             _autoMapping = autoMapping;
-            _userMatching = userMatching;
             _validation = validation;
             _importExecution = importExecution;
         }
@@ -432,89 +426,6 @@ namespace SalesApp.Controllers
                 {
                     Success = false,
                     Message = $"Error configuring mappings: {ex.Message}"
-                });
-            }
-        }
-
-        [HttpPost("{uploadId}/users")]
-        [Authorize(Roles = "admin,superadmin")]
-        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ResolveUsers(string uploadId, UserMappingRequest request)
-        {
-            var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
-            if (session == null)
-            {
-                return NotFound(new ApiResponse<ImportStatusResponse>
-                {
-                    Success = false,
-                    Message = "Import session not found"
-                });
-            }
-
-            try
-            {
-                var currentUserId = GetCurrentUserId();
-
-                foreach (var mapping in request.UserMappings)
-                {
-                    Guid? resolvedUserId = null;
-                    string action = "pending";
-
-                    if (mapping.Action == "map" && mapping.TargetUserId.HasValue)
-                    {
-                        resolvedUserId = mapping.TargetUserId.Value;
-                        action = "mapped";
-                    }
-                    else if (mapping.Action == "create" && !string.IsNullOrEmpty(mapping.NewUserEmail))
-                    {
-                        var newUser = await _userMatching.CreateUserFromImportAsync(
-                            mapping.SourceName,
-                            mapping.SourceSurname,
-                            mapping.NewUserEmail,
-                            currentUserId);
-
-                        resolvedUserId = newUser.Id;
-                        action = "created";
-                    }
-
-                    var userMapping = new ImportUserMapping
-                    {
-                        ImportSessionId = session.Id,
-                        SourceName = mapping.SourceName,
-                        SourceSurname = mapping.SourceSurname,
-                        ResolvedUserId = resolvedUserId,
-                        Action = action
-                    };
-
-                    await _userMappingRepository.CreateAsync(userMapping);
-                }
-
-                // Update session status
-                session.Status = "ready";
-                await _sessionRepository.UpdateAsync(session);
-
-                var response = new ImportStatusResponse
-                {
-                    UploadId = uploadId,
-                    Status = session.Status,
-                    TotalRows = session.TotalRows,
-                    ProcessedRows = 0,
-                    FailedRows = 0,
-                    UnresolvedUsers = new List<UnresolvedUserInfo>()
-                };
-
-                return Ok(new ApiResponse<ImportStatusResponse>
-                {
-                    Success = true,
-                    Data = response,
-                    Message = "User mappings resolved successfully"
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse<ImportStatusResponse>
-                {
-                    Success = false,
-                    Message = $"Error resolving users: {ex.Message}"
                 });
             }
         }

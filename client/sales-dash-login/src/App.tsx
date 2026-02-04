@@ -5,7 +5,6 @@ import LoginPage from './components/LoginPage';
 import WelcomePage from './components/WelcomePage';
 import UsersPage from './components/UsersPage';
 import ContractsPage from './components/ContractsPage';
-import UsersMappingPage from './components/UsersMappingPage';
 import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
 import MatriculasPage from './components/MatriculasPage';
@@ -45,8 +44,6 @@ function App() {
         return <UsersPage />;
       case '#/contracts':
         return <ContractsPage />;
-      case '#/users-mapping':
-        return <UsersMappingPage />;
       case '#/point-of-sale':
         return <PVPage />;
       case '#/my-contracts':

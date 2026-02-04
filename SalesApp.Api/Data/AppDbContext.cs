@@ -14,7 +14,6 @@ namespace SalesApp.Data
         public DbSet<ImportTemplate> ImportTemplates { get; set; }
         public DbSet<ImportSession> ImportSessions { get; set; }
         public DbSet<ImportColumnMapping> ImportColumnMappings { get; set; }
-        public DbSet<ImportUserMapping> ImportUserMappings { get; set; }
         public DbSet<PV> PVs { get; set; }
         public DbSet<UserMatricula> UserMatriculas { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
@@ -172,25 +171,6 @@ namespace SalesApp.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
             
-            // ImportUserMapping entity configuration
-            modelBuilder.Entity<ImportUserMapping>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).ValueGeneratedOnAdd();
-                entity.Property(e => e.SourceName).IsRequired();
-                entity.Property(e => e.SourceSurname).IsRequired();
-                entity.Property(e => e.Action).HasDefaultValue("pending");
-                
-                entity.HasOne(e => e.ImportSession)
-                    .WithMany()
-                    .HasForeignKey(e => e.ImportSessionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-                    
-                entity.HasOne(e => e.ResolvedUser)
-                    .WithMany()
-                    .HasForeignKey(e => e.ResolvedUserId)
-                    .OnDelete(DeleteBehavior.Restrict);
-            });
             
             // UserMatricula entity configuration
             modelBuilder.Entity<UserMatricula>(entity =>
