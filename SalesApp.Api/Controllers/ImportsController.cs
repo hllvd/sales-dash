@@ -319,6 +319,27 @@ namespace SalesApp.Controllers
 
                 await _sessionRepository.CreateAsync(session);
 
+                // Template verification logic
+                var mappedRequiredFieldsCount = requiredFields.Count(rf => suggestedMappings.Values.Contains(rf));
+                var isTemplateMatch = true;
+                string? matchMessage = null;
+
+                if (requiredFields.Any())
+                {
+                    // If less than 50% of required fields are matched, it's a likely mismatch
+                    if (mappedRequiredFieldsCount < (requiredFields.Count + 1) / 2)
+                    {
+                        isTemplateMatch = false;
+                        matchMessage = $"Atenção: O arquivo enviado não parece corresponder ao modelo '{hardcodedTemplate.Name}'. Foram identificados apenas {mappedRequiredFieldsCount} de {requiredFields.Count} campos obrigatórios.";
+                    }
+                    // Special case for contractDashboard: if it doesn't match the most critical fields
+                    else if (hardcodedTemplate.Name == "contractDashboard" && mappedRequiredFieldsCount < 3)
+                    {
+                        isTemplateMatch = false;
+                        matchMessage = "Atenção: Este arquivo não parece ser um dashboard de contratos válido.";
+                    }
+                }
+
                 var response = new ImportPreviewResponse
                 {
                     UploadId = uploadId,
@@ -332,7 +353,9 @@ namespace SalesApp.Controllers
                     TotalRows = allRows.Count,
                     SuggestedMappings = suggestedMappings,
                     RequiredFields = requiredFields,
-                    OptionalFields = optionalFields
+                    OptionalFields = optionalFields,
+                    IsTemplateMatch = isTemplateMatch,
+                    MatchMessage = matchMessage
                 };
 
                 return Ok(new ApiResponse<ImportPreviewResponse>

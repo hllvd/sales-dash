@@ -238,6 +238,8 @@ export const apiService = {
       suggestedMappings: Record<string, string>
       requiredFields: string[]
       optionalFields: string[]
+      isTemplateMatch?: boolean
+      matchMessage?: string
     }>
   > {
     const formData = new FormData()

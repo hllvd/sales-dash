@@ -14,5 +14,7 @@ namespace SalesApp.DTOs
         public Dictionary<string, string> SuggestedMappings { get; set; } = new();
         public List<string> RequiredFields { get; set; } = new();
         public List<string> OptionalFields { get; set; } = new();
+        public bool IsTemplateMatch { get; set; } = true;
+        public string? MatchMessage { get; set; }
     }
 }

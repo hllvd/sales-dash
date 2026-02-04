@@ -19,7 +19,9 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [selectedTemplate, setSelectedTemplate] = useState<number>(templateId || 0)
   
   // Step 1: File upload
-  const [step, setStep] = useState<"upload" | "mapping" | "result">("upload")
+  const [step, setStep] = useState<"upload" | "verification" | "mapping" | "result">("upload")
+  const [mismatchWarning, setMismatchWarning] = useState<string | null>(null)
+  const [pendingPreviewData, setPendingPreviewData] = useState<any>(null)
   
   // Step 2: Mapping data
   const [uploadId, setUploadId] = useState<string>("")
@@ -88,13 +90,19 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
       const resp = await apiService.uploadImportFile(file, selectedTemplate)
       
       if (resp.success && resp.data) {
-        setUploadId(resp.data.uploadId)
-        setDetectedColumns(resp.data.detectedColumns)
-        setSampleRows(resp.data.sampleRows.slice(0, 5)) // First 5 rows
-        setMappings(resp.data.suggestedMappings) // Auto-mapped columns
-        setRequiredFields(resp.data.requiredFields)
-        setOptionalFields(resp.data.optionalFields)
-        setStep("mapping")
+        if (resp.data.isTemplateMatch === false) {
+          setMismatchWarning(resp.data.matchMessage || "Aviso: O arquivo não parece corresponder ao modelo selecionado.")
+          setPendingPreviewData(resp.data)
+          setStep("verification")
+        } else {
+          setUploadId(resp.data.uploadId)
+          setDetectedColumns(resp.data.detectedColumns)
+          setSampleRows(resp.data.sampleRows.slice(0, 5)) // First 5 rows
+          setMappings(resp.data.suggestedMappings) // Auto-mapped columns
+          setRequiredFields(resp.data.requiredFields)
+          setOptionalFields(resp.data.optionalFields)
+          setStep("mapping")
+        }
       } else {
         setError(resp.message || "Falha ao fazer upload do arquivo")
       }
@@ -248,6 +256,48 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                 </button>
               </div>
             </>
+          )}
+
+          {/* Step 1.5: Verification Warning */}
+          {step === "verification" && (
+            <div className="verification-warning-section" style={{ textAlign: 'center', padding: '20px' }}>
+              <div className="warning-icon" style={{ fontSize: '48px', marginBottom: '15px' }}>⚠️</div>
+              <h3 style={{ color: '#ffcc00', marginBottom: '15px' }}>Modelo Divergente</h3>
+              <p style={{ fontSize: '16px', marginBottom: '25px', lineHeight: '1.5' }}>
+                {mismatchWarning}
+              </p>
+              <p className="hint" style={{ marginBottom: '30px' }}>
+                Este arquivo pode não ser processado corretamente com o modelo selecionado. Deseja prosseguir com o mapeamento manual ou carregar outro arquivo?
+              </p>
+              
+              <div className="form-actions" style={{ justifyContent: 'center', gap: '20px' }}>
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => setStep("upload")}
+                  style={{ minWidth: '150px' }}
+                >
+                  Tentar Outro
+                </button>
+                <button
+                  type="button"
+                  className="btn-submit"
+                  onClick={() => {
+                    const data = pendingPreviewData
+                    setUploadId(data.uploadId)
+                    setDetectedColumns(data.detectedColumns)
+                    setSampleRows(data.sampleRows.slice(0, 5))
+                    setMappings(data.suggestedMappings)
+                    setRequiredFields(data.requiredFields)
+                    setOptionalFields(data.optionalFields)
+                    setStep("mapping")
+                  }}
+                  style={{ minWidth: '150px', background: '#ffa000' }}
+                >
+                  Prosseguir Assim Mesmo
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Step 2: Mapping */}
