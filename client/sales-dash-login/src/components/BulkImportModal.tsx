@@ -31,10 +31,12 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [dateFormat, setDateFormat] = useState<string>("MM/DD/YYYY")
   const [skipMissingContractNumber, setSkipMissingContractNumber] = useState<boolean>(false)
   const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState<boolean>(false)
+  const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState<boolean>(false)
   
   // Step 3: Result
   const [resultMessage, setResultMessage] = useState<string>("")
   const [createdGroups, setCreatedGroups] = useState<string[]>([])
+  const [createdPVs, setCreatedPVs] = useState<string[]>([])
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role?.toLowerCase() === 'superadmin' || user.roleName?.toLowerCase() === 'superadmin';
@@ -121,7 +123,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         Object.entries(mappings).filter(([_, targetField]) => targetField !== "")
       )
 
-      const mappingResp = await apiService.configureImportMappings(uploadId, explicitlyMapped, allowAutoCreateGroups, skipMissingContractNumber)
+      const mappingResp = await apiService.configureImportMappings(uploadId, explicitlyMapped, allowAutoCreateGroups, allowAutoCreatePVs, skipMissingContractNumber)
       
       if (!mappingResp.success) {
         setError(mappingResp.message || "Falha ao configurar mapeamentos")
@@ -137,10 +139,10 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
       }
 
       // Step 2: Confirm import
-      const confirmResp = await apiService.confirmImport(uploadId, dateFormat, skipMissingContractNumber, allowAutoCreateGroups)
+      const confirmResp = await apiService.confirmImport(uploadId, dateFormat, skipMissingContractNumber, allowAutoCreateGroups, allowAutoCreatePVs)
       
       if (confirmResp.success && confirmResp.data) {
-        const { processedRows, failedRows, errors, createdGroups: newlyCreatedGroups } = confirmResp.data
+        const { processedRows, failedRows, errors, createdGroups: newlyCreatedGroups, createdPVs: newlyCreatedPVs } = confirmResp.data
         setResultMessage(
           `Importados: ${processedRows}` +
           (failedRows > 0 ? `, Erros: ${failedRows}` : "")
@@ -148,6 +150,10 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         
         if (newlyCreatedGroups && newlyCreatedGroups.length > 0) {
           setCreatedGroups(newlyCreatedGroups)
+        }
+
+        if (newlyCreatedPVs && newlyCreatedPVs.length > 0) {
+          setCreatedPVs(newlyCreatedPVs)
         }
         
         if (errors && errors.length > 0) {
@@ -320,34 +326,54 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                   })}
                 </div>
 
-                <div className="import-options" style={{ marginTop: '20px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                  <h4>Opções de Importação:</h4>
-                  <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <input 
-                      type="checkbox" 
-                      id="skipMissingContractNumber" 
-                      checked={skipMissingContractNumber} 
-                      onChange={(e) => setSkipMissingContractNumber(e.target.checked)}
-                      style={{ width: 'auto', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="skipMissingContractNumber" style={{ cursor: 'pointer', marginBottom: 0 }}>
-                      Pular linhas sem número de contrato (útil para arquivos com subtotais ou lixo)
-                    </label>
-                  </div>
+                {(selectedTemplate === 2 || selectedTemplate === 3) && (
+                  <div className="import-options" style={{ marginTop: '20px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                    <h4>Opções de Importação:</h4>
+                    
+                    {selectedTemplate === 3 && (
+                      <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <input 
+                          type="checkbox" 
+                          id="skipMissingContractNumber" 
+                          checked={skipMissingContractNumber} 
+                          onChange={(e) => setSkipMissingContractNumber(e.target.checked)}
+                          style={{ width: 'auto', cursor: 'pointer' }}
+                        />
+                        <label htmlFor="skipMissingContractNumber" style={{ cursor: 'pointer', marginBottom: 0 }}>
+                          Pular linhas sem número de contrato (útil para arquivos com subtotais ou lixo)
+                        </label>
+                      </div>
+                    )}
 
-                  <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-                    <input 
-                      type="checkbox" 
-                      id="allowAutoCreateGroups" 
-                      checked={allowAutoCreateGroups} 
-                      onChange={(e) => setAllowAutoCreateGroups(e.target.checked)}
-                      style={{ width: 'auto', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="allowAutoCreateGroups" style={{ cursor: 'pointer', marginBottom: 0 }}>
-                      Permitir criação automática de grupos
-                    </label>
+                    <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: selectedTemplate === 3 ? '10px' : '0' }}>
+                      <input 
+                        type="checkbox" 
+                        id="allowAutoCreateGroups" 
+                        checked={allowAutoCreateGroups} 
+                        onChange={(e) => setAllowAutoCreateGroups(e.target.checked)}
+                        style={{ width: 'auto', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="allowAutoCreateGroups" style={{ cursor: 'pointer', marginBottom: 0 }}>
+                        Permitir criação automática de grupos
+                      </label>
+                    </div>
+
+                    {selectedTemplate === 3 && (
+                      <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                        <input 
+                          type="checkbox" 
+                          id="allowAutoCreatePVs" 
+                          checked={allowAutoCreatePVs} 
+                          onChange={(e) => setAllowAutoCreatePVs(e.target.checked)}
+                          style={{ width: 'auto', cursor: 'pointer' }}
+                        />
+                        <label htmlFor="allowAutoCreatePVs" style={{ cursor: 'pointer', marginBottom: 0 }}>
+                          Permitir criação automática de PV
+                        </label>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
 
                 {!allRequiredFieldsMapped() && (
                   <div className="error-message">
@@ -390,6 +416,17 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                     <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px' }}>
                       {createdGroups.map(group => (
                         <li key={group}>{group}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {createdPVs.length > 0 && (
+                  <div className="created-groups-info" style={{ marginTop: '15px', padding: '10px', background: 'rgba(0, 255, 0, 0.05)', borderRadius: '4px', border: '1px solid rgba(0, 255, 0, 0.2)' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#81c784' }}>PVs Criados Automaticamente:</h4>
+                    <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px' }}>
+                      {createdPVs.map(pv => (
+                        <li key={pv}>{pv}</li>
                       ))}
                     </ul>
                   </div>

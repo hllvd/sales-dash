@@ -16,6 +16,7 @@ namespace SalesApp.DTOs
         public int FailedRows { get; set; }
         public List<UnresolvedUserInfo> UnresolvedUsers { get; set; } = new();
         public List<string> CreatedGroups { get; set; } = new();
+        public List<string> CreatedPVs { get; set; } = new();
         public List<string> Errors { get; set; } = new();
     }
 }

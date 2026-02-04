@@ -270,6 +270,7 @@ export const apiService = {
     uploadId: string,
     mappings: Record<string, string>,
     allowAutoCreateGroups: boolean = false,
+    allowAutoCreatePVs: boolean = false,
     skipMissingContractNumber: boolean = false
   ): Promise<
     ApiResponse<{
@@ -287,6 +288,7 @@ export const apiService = {
       body: JSON.stringify({ 
         mappings, 
         allowAutoCreateGroups,
+        allowAutoCreatePVs,
         skipMissingContractNumber
       }),
     })
@@ -305,7 +307,8 @@ export const apiService = {
     uploadId: string,
     dateFormat: string = "MM/DD/YYYY",
     skipMissingContractNumber: boolean = false,
-    allowAutoCreateGroups: boolean = false
+    allowAutoCreateGroups: boolean = false,
+    allowAutoCreatePVs: boolean = false
   ): Promise<
     ApiResponse<{
       uploadId: string
@@ -315,12 +318,18 @@ export const apiService = {
       failedRows: number
       errors: string[]
       createdGroups: string[]
+      createdPVs: string[]
     }>
   > {
     const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/confirm`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ dateFormat, skipMissingContractNumber, allowAutoCreateGroups }),
+      body: JSON.stringify({ 
+        dateFormat, 
+        skipMissingContractNumber, 
+        allowAutoCreateGroups,
+        allowAutoCreatePVs
+      }),
     })
 
     if (!response.ok) {

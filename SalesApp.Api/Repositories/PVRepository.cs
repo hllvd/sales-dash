@@ -25,6 +25,12 @@ namespace SalesApp.Repositories
             return await _context.PVs.FindAsync(id);
         }
         
+        public async Task<PV?> GetByNameAsync(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            return await _context.PVs.FirstOrDefaultAsync(p => p.Name.ToLower() == name.Trim().ToLower());
+        }
+        
         public async Task<PV> CreateAsync(PV pv)
         {
             pv.CreatedAt = DateTime.UtcNow;

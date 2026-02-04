@@ -75,7 +75,7 @@ namespace SalesApp.Controllers
                 EntityType = "Contract",
                 Description = "Template for importing contracts",
                 RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount" }),
-                OptionalFields = JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName", "Version" }),
                 DefaultMappings = "{}",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -90,7 +90,7 @@ namespace SalesApp.Controllers
                     "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName" 
                 }),
                 OptionalFields = JsonSerializer.Serialize(new List<string> { 
-                    "Status", "PvId", "Version", "TempMatricula", "Category", "PlanoVenda" 
+                    "Status", "PvId", "PvName", "Version", "TempMatricula", "Category", "PlanoVenda" 
                 }),
                 DefaultMappings = JsonSerializer.Serialize(new Dictionary<string, string> {
                     { "cota.group", "GroupId" },
@@ -103,6 +103,7 @@ namespace SalesApp.Controllers
                     { "SituacaoCobranca", "Status" },
                     { "CodPV", "PvId" },
                     { "Cód. PV", "PvId" },
+                    { "PV", "PvName" },
                     { "Versao", "Version" },
                     { "Matricula", "TempMatricula" },
                     { "Categoria", "Category" },
@@ -373,10 +374,11 @@ namespace SalesApp.Controllers
                 var entityType = session.Template?.EntityType ?? "Contract";
                 var requiredFields = session.Template?.RequiredFields != null ? JsonSerializer.Deserialize<List<string>>(session.Template.RequiredFields) : new List<string>();
                 var allowAutoCreateGroups = request?.AllowAutoCreateGroups ?? false;
+                var allowAutoCreatePVs = request?.AllowAutoCreatePVs ?? false;
                 var skipMissingContractNumber = request?.SkipMissingContractNumber ?? false;
 
                 // Validate all rows
-                var validationErrors = await _validation.ValidateAllRowsAsync(allRows, request.Mappings, entityType, requiredFields, allowAutoCreateGroups, skipMissingContractNumber);
+                var validationErrors = await _validation.ValidateAllRowsAsync(allRows, request.Mappings, entityType, requiredFields, allowAutoCreateGroups, allowAutoCreatePVs, skipMissingContractNumber);
 
                 // Store mappings and update session status
                 session.Mappings = JsonSerializer.Serialize(request.Mappings);
@@ -550,6 +552,7 @@ namespace SalesApp.Controllers
                 var dateFormat = request?.DateFormat ?? "MM/DD/YYYY";
                 var skipMissingContractNumber = request?.SkipMissingContractNumber ?? false;
                 var allowAutoCreateGroups = request?.AllowAutoCreateGroups ?? false;
+                var allowAutoCreatePVs = request?.AllowAutoCreatePVs ?? false;
 
                 if (entityType == "User")
                 {
@@ -566,7 +569,8 @@ namespace SalesApp.Controllers
                         allRows,
                         mappings,
                         skipMissingContractNumber,
-                        allowAutoCreateGroups);
+                        allowAutoCreateGroups,
+                        allowAutoCreatePVs);
                 }
                 else
                 {
@@ -577,7 +581,8 @@ namespace SalesApp.Controllers
                         mappings,
                         dateFormat,
                         skipMissingContractNumber,
-                        allowAutoCreateGroups);
+                        allowAutoCreateGroups,
+                        allowAutoCreatePVs);
                 }
 
                 // Update session with results
@@ -596,6 +601,7 @@ namespace SalesApp.Controllers
                     FailedRows = session.FailedRows,
                     UnresolvedUsers = new List<UnresolvedUserInfo>(),
                     CreatedGroups = result.CreatedGroups,
+                    CreatedPVs = result.CreatedPVs,
                     Errors = result.Errors
                 };
 
@@ -605,7 +611,12 @@ namespace SalesApp.Controllers
 
                 if (result.CreatedGroups.Any())
                 {
-                    successMessage += $" {result.CreatedGroups.Count} new groups were automatically created: {string.Join(", ", result.CreatedGroups)}";
+                    successMessage += $" {result.CreatedGroups.Count} novos grupos foram criados automaticamente: {string.Join(", ", result.CreatedGroups)}";
+                }
+
+                if (result.CreatedPVs.Any())
+                {
+                    successMessage += $" {result.CreatedPVs.Count} novos PVs foram criados automaticamente: {string.Join(", ", result.CreatedPVs)}";
                 }
 
                 return Ok(new ApiResponse<ImportStatusResponse>

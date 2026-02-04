@@ -11,6 +11,7 @@ namespace SalesApp.Services
         public List<Contract> CreatedContracts { get; set; } = new();
         public List<User> CreatedUsers { get; set; } = new();
         public List<string> CreatedGroups { get; set; } = new();
+        public List<string> CreatedPVs { get; set; } = new();
     }
 
     public interface IImportExecutionService
@@ -21,7 +22,8 @@ namespace SalesApp.Services
             Dictionary<string, string> mappings,
             string dateFormat,
             bool skipMissingContractNumber = false,
-            bool allowAutoCreateGroups = false);
+            bool allowAutoCreateGroups = false,
+            bool allowAutoCreatePVs = false);
 
         Task<ImportResult> ExecuteUserImportAsync(
             string uploadId,
@@ -33,6 +35,7 @@ namespace SalesApp.Services
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
             bool skipMissingContractNumber = false,
-            bool allowAutoCreateGroups = false);
+            bool allowAutoCreateGroups = false,
+            bool allowAutoCreatePVs = false);
     }
 }

@@ -6,5 +6,6 @@ namespace SalesApp.DTOs
         public string DateFormat { get; set; } = "MM/DD/YYYY";
         public bool SkipMissingContractNumber { get; set; } = false;
         public bool AllowAutoCreateGroups { get; set; } = false;
+        public bool AllowAutoCreatePVs { get; set; } = false;
     }
 }

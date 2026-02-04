@@ -15,6 +15,7 @@ namespace SalesApp.Services
         private readonly IEmailService _emailService;
         private readonly AppDbContext _context;
         private readonly IContractMetadataRepository _metadataRepository;
+        private readonly IPVRepository _pvRepository;
 
         public ImportExecutionService(
             IContractRepository contractRepository,
@@ -24,7 +25,8 @@ namespace SalesApp.Services
             IUserMatriculaRepository matriculaRepository,
             IEmailService emailService,
             AppDbContext context,
-            IContractMetadataRepository metadataRepository)
+            IContractMetadataRepository metadataRepository,
+            IPVRepository pvRepository)
         {
             _contractRepository = contractRepository;
             _groupRepository = groupRepository;
@@ -34,6 +36,7 @@ namespace SalesApp.Services
             _emailService = emailService;
             _context = context;
             _metadataRepository = metadataRepository;
+            _pvRepository = pvRepository;
         }
 
         public async Task<ImportResult> ExecuteContractImportAsync(
@@ -42,7 +45,8 @@ namespace SalesApp.Services
             Dictionary<string, string> mappings,
             string dateFormat,
             bool skipMissingContractNumber = false,
-            bool allowAutoCreateGroups = false)
+            bool allowAutoCreateGroups = false,
+            bool allowAutoCreatePVs = false)
         {
             var result = new ImportResult();
             result.TotalRows = rows.Count;
@@ -51,8 +55,9 @@ namespace SalesApp.Services
             var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
             var contractsToAdd = new List<Contract>();
 
-            // Dictionary to cache group name/ID lookups during this import session
+            // Dictionary to cache lookups during this import session
             var groupCache = new Dictionary<string, int?>();
+            var pvCache = new Dictionary<string, int?>();
 
             // 1. Pre-identify potential contract numbers for bulk fetch
             var allContractNumbers = rows
@@ -92,7 +97,7 @@ namespace SalesApp.Services
                     // Look for existing contract
                     existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
 
-                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat, groupCache, result, allowAutoCreateGroups, existingContract);
+                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
 
                     if (contract != null)
                     {
@@ -153,8 +158,10 @@ namespace SalesApp.Services
             string uploadId,
             string dateFormat,
             Dictionary<string, int?> groupCache,
+            Dictionary<string, int?> pvCache,
             ImportResult result,
             bool allowAutoCreateGroups = false,
+            bool allowAutoCreatePVs = false,
             Contract? existingContract = null)
         {
             // Extract required fields
@@ -243,15 +250,9 @@ namespace SalesApp.Services
                 }
             }
 
-            // Parse PvId
-            int? pvId = null;
-            if (!string.IsNullOrWhiteSpace(pvIdStr))
-            {
-                if (int.TryParse(pvIdStr, out var parsedPvId))
-                {
-                    pvId = parsedPvId;
-                }
-            }
+            // Parse PvId and PvName
+            var pvNameStr = GetFieldValue(row, reverseMappings, "PvName");
+            int? pvId = await ResolvePvIdAsync(pvIdStr, pvCache, allowAutoCreatePVs, result, pvNameStr);
 
 
             // ✅ Create or update contract object
@@ -599,7 +600,8 @@ namespace SalesApp.Services
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
             bool skipMissingContractNumber = false,
-            bool allowAutoCreateGroups = false)
+            bool allowAutoCreateGroups = false,
+            bool allowAutoCreatePVs = false)
         {
             var result = new ImportResult();
             result.TotalRows = rows.Count;
@@ -607,6 +609,7 @@ namespace SalesApp.Services
             var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
             var contractsToAdd = new List<Contract>();
             var groupCache = new Dictionary<string, int?>();
+            var pvCache = new Dictionary<string, int?>();
 
             // 1. Pre-identify potential contract numbers for bulk fetch
             var allContractNumbers = new List<string>();
@@ -689,7 +692,7 @@ namespace SalesApp.Services
                     // Look for existing contract
                     existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
 
-                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, groupCache, result, allowAutoCreateGroups, existingContract);
+                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
 
                     if (contract != null)
                     {
@@ -749,8 +752,10 @@ namespace SalesApp.Services
             Dictionary<string, string> reverseMappings,
             string uploadId,
             Dictionary<string, int?> groupCache,
+            Dictionary<string, int?> pvCache,
             ImportResult result,
             bool allowAutoCreateGroups = false,
+            bool allowAutoCreatePVs = false,
             Contract? existingContract = null)
         {
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
@@ -835,22 +840,13 @@ namespace SalesApp.Services
                 version = parsedVersion;
             }
             
-            // Get TempMatricula
-            var tempMatricula = GetFieldValue(row, reverseMappings, "TempMatricula");
-            
-            // Parse PvId
+            // Parse PvId and PvName
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
-            int? pvId = null;
-            if (!string.IsNullOrWhiteSpace(pvIdStr) && int.TryParse(pvIdStr, out var parsedPvId))
-            {
-                // Validate PV exists
-                var pvExists = await _context.PVs.AnyAsync(p => p.Id == parsedPvId);
-                if (!pvExists)
-                {
-                    throw new ArgumentException($"PV (Point of Sale) not found: {parsedPvId}");
-                }
-                pvId = parsedPvId;
-            }
+            var pvNameStr = GetFieldValue(row, reverseMappings, "PvName");
+            int? pvId = await ResolvePvIdAsync(pvIdStr, pvCache, allowAutoCreatePVs, result, pvNameStr);
+            
+            // Get TempMatricula if present
+            var tempMatricula = GetFieldValue(row, reverseMappings, "TempMatricula");
             
             // Map Status
             var statusStr = GetFieldValue(row, reverseMappings, "Status");
@@ -970,10 +966,91 @@ namespace SalesApp.Services
                 
                 return createdGroup.Id;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Fallback to null if creation fails (e.g. unique constraint if name just popped up)
                 cache[groupValue] = null;
+                result?.Errors.Add($"Error auto-creating group '{groupValue}': {ex.Message}");
+                return null;
+            }
+        }
+
+        private async Task<int?> ResolvePvIdAsync(
+            string? pvValue,
+            Dictionary<string, int?> cache,
+            bool allowAutoCreate,
+            ImportResult? result = null,
+            string? pvName = null)
+        {
+            if (string.IsNullOrWhiteSpace(pvValue))
+            {
+                return null;
+            }
+
+            // check cache
+            if (cache.TryGetValue(pvValue, out var cachedId))
+            {
+                return cachedId;
+            }
+
+            // 1. Try lookup by Name (case-insensitive)
+            var pvByName = await _pvRepository.GetByNameAsync(pvValue.Trim());
+            
+            if (pvByName != null)
+            {
+                cache[pvValue] = pvByName.Id;
+                return pvByName.Id;
+            }
+            
+            // 2. Try lookup by ID if numeric
+            if (int.TryParse(pvValue.Trim(), out var id))
+            {
+                var pvById = await _pvRepository.GetByIdAsync(id);
+                if (pvById != null)
+                {
+                    cache[pvValue] = pvById.Id;
+                    return pvById.Id;
+                }
+            }
+
+            // 3. Automatic Creation (Only if enabled)
+            if (!allowAutoCreate)
+            {
+                return null;
+            }
+
+            try
+            {
+                // Use input PV ID as the database ID (not auto-incremented)
+                // Use input PV Name (if provided) or fallback to ID
+                if (int.TryParse(pvValue.Trim(), out var newId))
+                {
+                    var newPV = new PV
+                    {
+                        Id = newId,
+                        Name = !string.IsNullOrWhiteSpace(pvName) ? pvName.Trim() : pvValue.Trim(),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    
+                    _context.PVs.Add(newPV);
+                    await _context.SaveChangesAsync();
+                    
+                    cache[pvValue] = newPV.Id;
+                    
+                    if (result != null && !result.CreatedPVs.Contains(newPV.Name))
+                    {
+                        result.CreatedPVs.Add(newPV.Name);
+                    }
+                    
+                    return newPV.Id;
+                }
+                
+                return null;
+            }
+            catch (Exception)
+            {
+                cache[pvValue] = null;
                 return null;
             }
         }

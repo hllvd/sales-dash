@@ -19,7 +19,7 @@ namespace SalesApp.Services
             _context = context;
         }
 
-        public async Task<List<string>> ValidateRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, string entityType, List<string>? customRequiredFields = null, bool allowAutoCreateGroups = false, bool skipMissingContractNumber = false)
+        public async Task<List<string>> ValidateRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, string entityType, List<string>? customRequiredFields = null, bool allowAutoCreateGroups = false, bool allowAutoCreatePVs = false, bool skipMissingContractNumber = false)
         {
             var errors = new List<string>();
 
@@ -117,7 +117,7 @@ namespace SalesApp.Services
             // Entity-specific validation
             if (entityType.Equals("Contract", StringComparison.OrdinalIgnoreCase))
             {
-                await ValidateContractRowAsync(row, mappings, reverseMappings, errors, allowAutoCreateGroups);
+                await ValidateContractRowAsync(row, mappings, reverseMappings, errors, allowAutoCreateGroups, allowAutoCreatePVs);
             }
             else if (entityType.Equals("User", StringComparison.OrdinalIgnoreCase))
             {
@@ -127,13 +127,13 @@ namespace SalesApp.Services
             return errors;
         }
 
-        public async Task<Dictionary<int, List<string>>> ValidateAllRowsAsync(List<Dictionary<string, string>> rows, Dictionary<string, string> mappings, string entityType, List<string>? requiredFields = null, bool allowAutoCreateGroups = false, bool skipMissingContractNumber = false)
+        public async Task<Dictionary<int, List<string>>> ValidateAllRowsAsync(List<Dictionary<string, string>> rows, Dictionary<string, string> mappings, string entityType, List<string>? requiredFields = null, bool allowAutoCreateGroups = false, bool allowAutoCreatePVs = false, bool skipMissingContractNumber = false)
         {
             var allErrors = new Dictionary<int, List<string>>();
 
             for (int i = 0; i < rows.Count; i++)
             {
-                var errors = await ValidateRowAsync(rows[i], mappings, entityType, requiredFields, allowAutoCreateGroups, skipMissingContractNumber);
+                var errors = await ValidateRowAsync(rows[i], mappings, entityType, requiredFields, allowAutoCreateGroups, allowAutoCreatePVs, skipMissingContractNumber);
                 if (errors.Any())
                 {
                     allErrors[i] = errors;
@@ -143,7 +143,7 @@ namespace SalesApp.Services
             return allErrors;
         }
 
-        private async Task ValidateContractRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, Dictionary<string, string> reverseMappings, List<string> errors, bool allowAutoCreateGroups = false)
+        private async Task ValidateContractRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, Dictionary<string, string> reverseMappings, List<string> errors, bool allowAutoCreateGroups = false, bool allowAutoCreatePVs = false)
         {
 // Validate contract number uniqueness
             // REMOVED for Upsert logic: existing contracts will be updated instead of rejected.

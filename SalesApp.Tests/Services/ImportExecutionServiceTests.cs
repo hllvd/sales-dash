@@ -19,6 +19,7 @@ namespace SalesApp.Tests.Services
         private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<AppDbContext> _mockContext;
         private readonly Mock<IContractMetadataRepository> _mockMetadataRepository;
+        private readonly Mock<IPVRepository> _mockPvRepository;
         private readonly ImportExecutionService _service;
 
         public ImportExecutionServiceTests()
@@ -31,6 +32,7 @@ namespace SalesApp.Tests.Services
             _mockEmailService = new Mock<IEmailService>();
             _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>());
             _mockMetadataRepository = new Mock<IContractMetadataRepository>();
+            _mockPvRepository = new Mock<IPVRepository>();
             
             _service = new ImportExecutionService(
                 _mockContractRepository.Object,
@@ -40,7 +42,8 @@ namespace SalesApp.Tests.Services
                 _mockMatriculaRepository.Object,
                 _mockEmailService.Object,
                 _mockContext.Object,
-                _mockMetadataRepository.Object
+                _mockMetadataRepository.Object,
+                _mockPvRepository.Object
             );
         }
 
@@ -86,6 +89,9 @@ namespace SalesApp.Tests.Services
 
             _mockContractRepository.Setup(r => r.GetByContractNumbersAsync(It.IsAny<List<string>>()))
                 .ReturnsAsync(new List<Contract>());
+
+            _mockPvRepository.Setup(r => r.GetByIdAsync(5))
+                .ReturnsAsync(new PV { Id = 5, Name = "Test PV" });
 
             List<Contract>? capturedContracts = null;
             _mockContractRepository.Setup(r => r.CreateBatchAsync(It.IsAny<List<Contract>>()))

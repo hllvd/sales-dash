@@ -20,8 +20,9 @@ namespace SalesApp.Repositories
         
         public async Task<Group?> GetByNameAsync(string name)
         {
+            if (string.IsNullOrWhiteSpace(name)) return null;
             return await _context.Groups
-                .FirstOrDefaultAsync(g => g.Name == name && g.IsActive);
+                .FirstOrDefaultAsync(g => g.Name.ToLower() == name.Trim().ToLower());
         }
         
         public async Task<List<Group>> GetAllAsync()
