@@ -16,7 +16,7 @@ namespace SalesApp.Services
                 ["SaleEndDate"] = new[] { "end date", "enddate", "end_date", "sale end", "contract end", "finish date" },
                 ["PvId"] = new[] { "pv id", "pvid", "pv_id", "point of sale", "código pv", "codigo pv" },
                 ["PvName"] = new[] { "pv name", "pvname", "point of sale name", "pv" },
-                ["Quota"] = new[] { "quota" },
+                ["Quota"] = new[] { "quota", "cota" },
                 ["Version"] = new[] { "version", "versão", "versao" },
                 ["ContractType"] = new[] { "contract type", "contracttype", "contract_type", "type", "tipo" },
                 ["CustomerName"] = new[] { "customer name", "customername", "customer_name", "client name", "clientname", "nome do cliente", "nome cliente", "cliente" }
