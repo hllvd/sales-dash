@@ -14,6 +14,7 @@ import {
   Alert,
 } from '@mantine/core';
 import { IconArrowBackUp, IconAlertCircle, IconCheck } from '@tabler/icons-react';
+import StandardModal from '../shared/StandardModal';
 import { apiService, ImportSession } from '../services/apiService';
 import { notifications } from '@mantine/notifications';
 import Menu from './Menu';
@@ -156,29 +157,35 @@ const ImportHistoryPage: React.FC = () => {
           </div>
         )}
 
-        <Modal
-          opened={confirmUndoId !== null}
+        <StandardModal
+          isOpen={confirmUndoId !== null}
           onClose={() => setConfirmUndoId(null)}
           title="Confirmar Desfazer"
-          centered
+          size="md"
+          footer={
+            <>
+              <button className="btn-cancel" onClick={() => setConfirmUndoId(null)}>
+                Cancelar
+              </button>
+              <button
+                className="btn-submit"
+                onClick={() => confirmUndoId && handleUndo(confirmUndoId)}
+                disabled={undoingSessionId !== null}
+              >
+                {undoingSessionId !== null ? "Processando..." : "Confirmar e Desfazer"}
+              </button>
+            </>
+          }
         >
-          <Alert icon={<IconAlertCircle size={16} />} color="red" title="Atenção" mb="md">
-            Desfazer uma importação irá deletar permanentemente todos os registros (Contratos, Usuários, PVs, etc.) que foram criados nesta sessão.
-          </Alert>
-          <Text size="sm" mb="xl">
-            Você tem certeza que deseja desfazer esta importação? Esta ação não pode ser revertida.
-          </Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setConfirmUndoId(null)}>Cancelar</Button>
-            <Button 
-              color="red" 
-              onClick={() => confirmUndoId && handleUndo(confirmUndoId)}
-              loading={undoingSessionId !== null}
-            >
-              Confirmar e Desfazer
-            </Button>
-          </Group>
-        </Modal>
+          <div style={{ padding: '10px 0' }}>
+            <Alert icon={<IconAlertCircle size={16} />} color="red" title="Atenção" mb="md">
+              Desfazer uma importação irá deletar permanentemente todos os registros (Contratos, Usuários, PVs, etc.) que foram criados nesta sessão.
+            </Alert>
+            <Text size="sm" mb="xl">
+              Você tem certeza que deseja desfazer esta importação? Esta ação não pode ser revertida.
+            </Text>
+          </div>
+        </StandardModal>
       </div>
     </Menu>
   );

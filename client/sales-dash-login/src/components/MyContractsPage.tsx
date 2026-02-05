@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Title, Button, Table, Badge, TextInput, Select } from '@mantine/core';
 import './MyContractsPage.css';
 import Menu from './Menu';
-import StyledModal from './StyledModal';
+import StandardModal from '../shared/StandardModal';
 import FormField from './FormField';
 import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
@@ -333,131 +333,130 @@ const MyContractsPage: React.FC = () => {
 
 
       {/* Assignment Modal */}
-      {showAssignModal && (
-        <StyledModal
-          opened={true}
-          onClose={() => setShowAssignModal(false)}
-          title="Atribuir Contrato"
-          size="md"
-        >
-          {assignError && <div style={{ color: '#fa5252', marginBottom: '1rem', fontSize: '14px' }}>{assignError}</div>}
-
-          {!retrievedContract ? (
+      <StandardModal
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        title="Atribuir Contrato"
+        size="md"
+        footer={
+          !retrievedContract ? (
             <>
-              <FormField label="Número do Contrato" required>
-                <TextInput
-                  required
-                  value={contractNumber}
-                  onChange={(e) => setContractNumber(e.target.value)}
-                  placeholder="Digite o número do contrato"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleRetrieveContract();
-                    }
-                  }}
-                />
-              </FormField>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '1.5rem' }}>
-                <Button
-                  variant="default"
-                  onClick={() => setShowAssignModal(false)}
-                  disabled={assignLoading}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleRetrieveContract}
-                  disabled={!contractNumber.trim() || assignLoading}
-                  loading={assignLoading}
-                >
-                  Buscar Contrato
-                </Button>
-              </div>
+              <button
+                className="btn-cancel"
+                onClick={() => setShowAssignModal(false)}
+                disabled={assignLoading}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn-submit"
+                onClick={handleRetrieveContract}
+                disabled={!contractNumber.trim() || assignLoading}
+              >
+                {assignLoading ? 'Buscando...' : 'Buscar Contrato'}
+              </button>
             </>
           ) : (
             <>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ color: 'white', marginBottom: '1rem' }}>Detalhes do Contrato</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
-                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Número:</span>
-                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.contractNumber}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
-                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Cliente:</span>
-                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.customerName || '-'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
-                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Grupo:</span>
-                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.groupName}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
-                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Valor Total:</span>
-                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{formatCurrency(retrievedContract.totalAmount)}</span>
-                  </div>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
-                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Status:</span>
-                    <ContractStatusBadge status={retrievedContract.status} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#adb5bd', fontSize: '13px' }}>Data Início:</span>
-                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{formatDate(retrievedContract.contractStartDate)}</span>
-                  </div>
+              <button
+                className="btn-cancel"
+                onClick={() => setRetrievedContract(null)}
+                disabled={assignLoading}
+              >
+                Voltar
+              </button>
+              <button
+                className="btn-submit"
+                onClick={handleConfirmAssignment}
+                disabled={assignLoading || (userMatriculas.length > 1 && !selectedMatricula)}
+              >
+                {assignLoading ? 'Atribuindo...' : 'Confirmar Atribuição'}
+              </button>
+            </>
+          )
+        }
+      >
+        {assignError && <div style={{ color: '#fa5252', marginBottom: '1rem', fontSize: '14px' }}>{assignError}</div>}
+
+        {!retrievedContract ? (
+          <FormField label="Número do Contrato" required>
+            <TextInput
+              required
+              value={contractNumber}
+              onChange={(e) => setContractNumber(e.target.value)}
+              placeholder="Digite o número do contrato"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleRetrieveContract();
+                }
+              }}
+            />
+          </FormField>
+        ) : (
+          <>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ color: '#111827', marginBottom: '1rem', fontSize: '16px', fontWeight: 600 }}>Detalhes do Contrato</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Número:</span>
+                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.contractNumber}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Cliente:</span>
+                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.customerName || '-'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Grupo:</span>
+                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.groupName}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Valor Total:</span>
+                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{formatCurrency(retrievedContract.totalAmount)}</span>
+                </div>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Status:</span>
+                  <ContractStatusBadge status={retrievedContract.status} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Data Início:</span>
+                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{formatDate(retrievedContract.contractStartDate)}</span>
                 </div>
               </div>
+            </div>
 
-              {/* Matricula Selection */}
-              {userMatriculas.length > 0 && (
-                <FormField 
-                  label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
-                  description={
-                    userMatriculas.length === 1 ? 'Matrícula será atribuída automaticamente' :
-                    'Selecione a matrícula para este contrato'
-                  }
-                >
-                  {userMatriculas.length === 1 ? (
-                    <TextInput
-                      value={`${userMatriculas[0].matriculaNumber} (${new Date(userMatriculas[0].startDate).toLocaleDateString('pt-BR')})`}
-                      readOnly
-                      disabled
-                    />
-                  ) : (
-                    <Select
-                      placeholder="Selecione uma matrícula..."
-                      value={selectedMatricula}
-                      onChange={(value) => setSelectedMatricula(value || '')}
-                      data={userMatriculas.map((m) => ({
-                        value: m.matriculaNumber,
-                        label: `${m.matriculaNumber} - ${new Date(m.startDate).toLocaleDateString('pt-BR')}${
-                          m.endDate ? ` até ${new Date(m.endDate).toLocaleDateString('pt-BR')}` : ''
-                        }${m.isOwner ? ' (Proprietário)' : ''}`
-                      }))}
-                    />
-                  )}
-                </FormField>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '1.5rem' }}>
-                <Button
-                  variant="default"
-                  onClick={() => setRetrievedContract(null)}
-                  disabled={assignLoading}
-                >
-                  Voltar
-                </Button>
-                <Button
-                  onClick={handleConfirmAssignment}
-                  disabled={assignLoading || (userMatriculas.length > 1 && !selectedMatricula)}
-                  loading={assignLoading}
-                >
-                  Confirmar Atribuição
-                </Button>
-              </div>
-            </>
-          )}
-        </StyledModal>
-      )}
+            {/* Matricula Selection */}
+            {userMatriculas.length > 0 && (
+              <FormField 
+                label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
+                description={
+                  userMatriculas.length === 1 ? 'Matrícula será atribuída automaticamente' :
+                  'Selecione a matrícula para este contrato'
+                }
+              >
+                {userMatriculas.length === 1 ? (
+                  <TextInput
+                    value={`${userMatriculas[0].matriculaNumber} (${new Date(userMatriculas[0].startDate).toLocaleDateString('pt-BR')})`}
+                    readOnly
+                    disabled
+                  />
+                ) : (
+                  <Select
+                    placeholder="Selecione uma matrícula..."
+                    value={selectedMatricula}
+                    onChange={(value) => setSelectedMatricula(value || '')}
+                    data={userMatriculas.map((m) => ({
+                      value: m.matriculaNumber,
+                      label: `${m.matriculaNumber} - ${new Date(m.startDate).toLocaleDateString('pt-BR')}${
+                        m.endDate ? ` até ${new Date(m.endDate).toLocaleDateString('pt-BR')}` : ''
+                      }${m.isOwner ? ' (Proprietário)' : ''}`
+                    }))}
+                  />
+                )}
+              </FormField>
+            )}
+          </>
+        )}
+      </StandardModal>
 
     </Menu>
   );

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, Table, ActionIcon, Group, Badge } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Badge, Text } from '@mantine/core';
 import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload } from '@tabler/icons-react';
 import "./UsersPage.css"
 import Menu from "./Menu"
 import UserForm from "./UserForm"
 import BulkImportModal from "./BulkImportModal"
+import StandardModal from "../shared/StandardModal"
 import {
   apiService,
   User,
@@ -308,14 +309,20 @@ const UsersPage: React.FC = () => {
           )}
         
 
-      {showForm && (
+      <StandardModal
+        isOpen={showForm}
+        onClose={closeForm}
+        title={editingUser ? "Editar Usuário" : "Novo Usuário"}
+        size="lg"
+        className="form-body" // Using form-body instead of import-form
+      >
         <UserForm
           user={editingUser}
           onSubmit={editingUser ? handleUpdateUser : handleCreateUser}
           onCancel={closeForm}
           isEdit={!!editingUser}
         />
-      )}
+      </StandardModal>
 
       {showImportModal && (
         <BulkImportModal
@@ -329,31 +336,36 @@ const UsersPage: React.FC = () => {
         />
       )}
 
-      {deleteConfirm && (
-        <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
-          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>Confirmar Exclusão</h3>
-            <p>
-              Tem certeza que deseja excluir este usuário? Esta ação irá
-              desativá-lo.
-            </p>
-            <div className="confirm-actions">
-              <button
-                className="btn-cancel"
-                onClick={() => setDeleteConfirm(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                className="btn-confirm-delete"
-                onClick={() => handleDeleteUser(deleteConfirm)}
-              >
-                Excluir
-              </button>
-            </div>
-          </div>
+      <StandardModal
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        title="Confirmar Exclusão"
+        size="md"
+        footer={
+          <>
+            <button
+              className="btn-cancel"
+              onClick={() => setDeleteConfirm(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn-submit"
+              onClick={() => handleDeleteUser(deleteConfirm!)}
+              style={{ backgroundColor: "#dc2626" }}
+            >
+              Excluir
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '10px 0' }}>
+          <Text size="sm">
+            Tem certeza que deseja excluir este usuário? Esta ação irá
+            desativá-lo.
+          </Text>
         </div>
-      )}
+      </StandardModal>
     </div>
     </Menu>
   )

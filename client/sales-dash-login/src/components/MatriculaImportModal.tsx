@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button, Group, Title, Progress, Text, Alert } from '@mantine/core';
 import { IconUpload, IconCheck, IconX, IconAlertCircle, IconFileDownload } from '@tabler/icons-react';
 import { apiService } from '../services/apiService';
-import StyledModal from './StyledModal';
+import StandardModal from '../shared/StandardModal';
 
 interface MatriculaImportModalProps {
   onClose: () => void;
@@ -133,159 +133,107 @@ const MatriculaImportModal: React.FC<MatriculaImportModalProps> = ({ onClose, on
   };
 
   return (
-    <StyledModal
-      opened={true}
+    <StandardModal
+      isOpen={true}
       onClose={onClose}
-      title="Importar Matrículas (CSV)"
+      title="Importar de Matrículas"
       size="lg"
+      footer={
+        !result ? (
+          <>
+            <button className="btn-cancel" onClick={onClose} disabled={loading}>
+              Cancelar
+            </button>
+            <button
+              className="btn-submit"
+              onClick={handleImport}
+              disabled={!file || loading}
+            >
+              {loading ? 'Importando...' : 'Próximo'}
+            </button>
+          </>
+        ) : (
+          <button className="btn-cancel" onClick={onClose}>
+            Fechar
+          </button>
+        )
+      }
     >
-      <div style={{ padding: '10px 0' }}>
+      <div className="result-section">
         {error && (
-          <Alert icon={<IconAlertCircle size={16} />} title="Erro" color="red" mb="md" variant="light">
+          <div className="error-message">
             {error}
-          </Alert>
+          </div>
         )}
 
         {!result ? (
-          <>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <Text size="sm" c="gray.4" mb="xs">
-                Formato do CSV: matriculaNumber, isOwner, userEmail, startDate, endDate
-              </Text>
-              <Text size="sm" c="gray.5" mb="md">
-                Exemplo: MAT-001,true,user@example.com,2024-01-01,2024-12-31
-              </Text>
-              
-              <div style={{ 
-                border: '2px dashed rgba(255, 255, 255, 0.1)', 
-                borderRadius: '8px', 
-                padding: '32px 24px', 
-                textAlign: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                position: 'relative',
-                transition: 'all 0.2s ease',
-                cursor: 'pointer'
-              }}>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileChange}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    opacity: 0,
-                    cursor: 'pointer',
-                    zIndex: 2
-                  }}
-                />
-                <IconUpload size={40} color="#b2342b" style={{ marginBottom: '12px', opacity: 0.8 }} />
-                <Text size="sm" fw={500} c="white">
-                  {file ? file.name : "Clique para selecionar ou arraste o arquivo CSV"}
-                </Text>
-                {file && (
-                  <Text size="xs" c="dimmed" mt="xs">
-                    {(file.size / 1024).toFixed(1)} KB
-                  </Text>
-                )}
-              </div>
+          <div className="form-group">
+            <label>Arquivo CSV</label>
+            <div className="file-input-wrapper">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+              />
             </div>
-
-            <Group justify="flex-end" mt="xl">
-              <Button variant="subtle" color="gray" onClick={onClose} disabled={loading}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleImport}
-                loading={loading}
-                disabled={!file}
-                leftSection={<IconUpload size={16} />}
-              >
-                Importar
-              </Button>
-            </Group>
-          </>
+            <div className="hint">
+              Formato esperado: matriculaNumber, isOwner, userEmail, startDate, endDate
+              <br />
+              Exemplo: MAT-001,true,user@example.com,2024-01-01,2024-12-31
+            </div>
+          </div>
         ) : (
           <>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <Title order={4} mb="md" c="white">Resultado da Importação</Title>
-              
-              <div style={{ marginBottom: '2rem' }}>
-                <Group justify="space-between" mb="xs">
-                  <Text size="sm" c="gray.4">
-                    Processado: <strong>{result.totalProcessed}</strong>
-                  </Text>
-                  <Group gap="md">
-                    <Text size="sm" c="green.4">
-                      <IconCheck size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                      Sucesso: <strong>{result.successCount}</strong>
-                    </Text>
-                    <Text size="sm" c="red.4">
-                      <IconX size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                      Erros: <strong>{result.errorCount}</strong>
-                    </Text>
-                  </Group>
-                </Group>
-
-                <Progress
-                  value={(result.successCount / result.totalProcessed) * 100}
-                  color={result.errorCount === 0 ? 'green' : 'orange'}
-                  size="xl"
-                  radius="xl"
-                  animated={loading}
-                />
+            <Title order={4} mb="md">Resultado da Importação</Title>
+            
+            <div className="result-stats">
+              <div className="result-stat">
+                Processado: <strong>{result.totalProcessed}</strong>
               </div>
-
-              {result.errors.length > 0 && (
-                <div>
-                  <Title order={5} mb="sm" c="gray.3">Erros Identificados:</Title>
-                  <div style={{ 
-                    maxHeight: '220px', 
-                    overflowY: 'auto', 
-                    border: '1px solid rgba(255, 255, 255, 0.1)', 
-                    borderRadius: '8px',
-                    padding: '12px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.2)'
-                  }}>
-                    {result.errors.map((err, idx) => (
-                      <div key={idx} style={{ 
-                        marginBottom: '10px', 
-                        paddingBottom: '10px', 
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                        fontSize: '13px' 
-                      }}>
-                        <Text fw={600} c="red.4">Linha {err.rowNumber}: {err.error}</Text>
-                        <Text size="xs" c="dimmed" mt={4}>
-                          Matrícula: {err.matriculaNumber || 'N/A'} | Email: {err.userEmail || 'N/A'}
-                        </Text>
-                      </div>
-                    ))}
-                  </div>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="orange"
-                    onClick={downloadErrorReport}
-                    mt="md"
-                    leftSection={<IconFileDownload size={14} />}
-                  >
-                    Baixar Relatório de Erros
-                  </Button>
-                </div>
-              )}
+              <div className="result-stat" style={{ color: '#059669' }}>
+                <IconCheck size={16} /> Sucesso: <strong>{result.successCount}</strong>
+              </div>
+              <div className="result-stat" style={{ color: '#dc2626' }}>
+                <IconX size={16} /> Erros: <strong>{result.errorCount}</strong>
+              </div>
             </div>
 
-            <Group justify="flex-end" mt="xl">
-              <Button onClick={onClose} variant="default">
-                Fechar
-              </Button>
-            </Group>
+            <Progress
+              value={(result.successCount / result.totalProcessed) * 100}
+              color={result.errorCount === 0 ? 'green' : 'orange'}
+              size="lg"
+              mb="md"
+            />
+
+            {result.errors.length > 0 && (
+              <>
+                <Text size="sm" fw={600} mb="xs">Erros Identificados:</Text>
+                <div className="errors-container">
+                  {result.errors.map((err, idx) => (
+                    <div key={idx} className="error-item">
+                      <strong>Linha {err.rowNumber}:</strong> {err.error}
+                      <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                        Matrícula: {err.matriculaNumber || 'N/A'} | Email: {err.userEmail || 'N/A'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="orange"
+                  onClick={downloadErrorReport}
+                  className="btn-download-errors"
+                  leftSection={<IconFileDownload size={14} />}
+                >
+                  Baixar Relatório de Erros
+                </Button>
+              </>
+            )}
           </>
         )}
       </div>
-    </StyledModal>
+    </StandardModal>
   );
 };
 

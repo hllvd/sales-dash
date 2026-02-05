@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Title, Button, Table, ActionIcon, Group, Badge } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Badge, Text } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
 import './ContractsPage.css';
 import Menu from './Menu';
 import ContractForm from './ContractForm';
 import BulkImportModal from './BulkImportModal';
+import StandardModal from '../shared/StandardModal';
 import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
 import Pagination from './Pagination';
@@ -416,13 +417,19 @@ const ContractsPage: React.FC = () => {
         />
       )}
 
-      {showForm && (
+      <StandardModal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        title={editingContract ? "Editar Contrato" : "Novo Contrato"}
+        size="xl"
+        className="form-body"
+      >
         <ContractForm
           contract={editingContract}
           onClose={() => setShowForm(false)}
           onSuccess={handleFormSuccess}
         />
-      )}
+      </StandardModal>
 
       {showImportModal && (
         <BulkImportModal
@@ -436,20 +443,30 @@ const ContractsPage: React.FC = () => {
         />
       )}
 
-      {deleteConfirm !== null && (
-        <div className="delete-confirm-overlay" onClick={() => setDeleteConfirm(null)}>
-          <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Confirmar Exclusão</h3>
-            <p>Tem certeza que deseja excluir este contrato?</p>
-            <div className="delete-confirm-actions">
-              <button onClick={() => setDeleteConfirm(null)}>Cancelar</button>
-              <button onClick={handleDeleteConfirm} className="delete-confirm-btn">
-                Excluir
-              </button>
-            </div>
-          </div>
+      <StandardModal
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        title="Confirmar Exclusão"
+        size="md"
+        footer={
+          <>
+            <button className="btn-cancel" onClick={() => setDeleteConfirm(null)}>
+              Cancelar
+            </button>
+            <button
+              className="btn-submit"
+              onClick={handleDeleteConfirm}
+              style={{ backgroundColor: "#dc2626" }}
+            >
+              Excluir
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '10px 0' }}>
+          <Text size="sm">Tem certeza que deseja excluir este contrato?</Text>
         </div>
-      )}
+      </StandardModal>
       </div>
     </Menu>
   );

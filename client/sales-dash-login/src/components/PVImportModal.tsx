@@ -1,6 +1,9 @@
 import React, { useState } from "react";
+import { Title, Progress, Button, Text } from "@mantine/core";
+import { IconCheck, IconX, IconFileDownload } from "@tabler/icons-react";
 import "./PVImportModal.css";
 import { apiService, PVRequest } from "../services/apiService";
+import StandardModal from "../shared/StandardModal";
 
 interface Props {
   onClose: () => void;
@@ -42,7 +45,6 @@ const PVImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
     }
   };
 
-  // Normalize string: remove accents, lowercase, remove spaces
   const normalizeString = (str: string): string => {
     return str
       .normalize("NFD")
@@ -51,29 +53,23 @@ const PVImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
       .replace(/\s+/g, "");
   };
 
-  // Parse CSV content
   const parseCSV = (content: string): ParsedPV[] => {
     const lines = content.split("\n").filter(line => line.trim());
     if (lines.length === 0) {
       throw new Error("Arquivo CSV vazio");
     }
 
-    // Parse header
     const header = lines[0].split(",").map(h => h.trim());
-    
-    // Find column indices (case and accent insensitive)
     const normalizedHeaders = header.map(h => normalizeString(h));
     
     let pvIdIndex = -1;
     let pvNameIndex = -1;
     
-    // Look for PV ID column
     const pvIdPatterns = ["codigopv", "códigopv", "pvid", "id"];
     pvIdIndex = normalizedHeaders.findIndex(h => 
       pvIdPatterns.some(pattern => h.includes(pattern))
     );
     
-    // Look for PV Name column
     const pvNamePatterns = ["pv", "nome", "name", "pontodevenda"];
     pvNameIndex = normalizedHeaders.findIndex(h => 
       pvNamePatterns.some(pattern => h === pattern || h.includes("pontodevenda"))
@@ -86,25 +82,24 @@ const PVImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
       );
     }
 
-    // Parse data rows
     const pvs: ParsedPV[] = [];
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(",").map(v => v.trim());
       
       if (values.length <= Math.max(pvIdIndex, pvNameIndex)) {
-        continue; // Skip incomplete rows
+        continue;
       }
       
       const idStr = values[pvIdIndex];
       const name = values[pvNameIndex];
       
       if (!idStr || !name) {
-        continue; // Skip rows with missing data
+        continue;
       }
       
       const id = parseInt(idStr, 10);
       if (isNaN(id)) {
-        continue; // Skip rows with invalid ID
+        continue;
       }
       
       pvs.push({ id, name });
@@ -113,7 +108,6 @@ const PVImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
     return pvs;
   };
 
-  // Remove duplicates by PV ID
   const removeDuplicates = (pvs: ParsedPV[]): ParsedPV[] => {
     const seen = new Set<number>();
     const unique: ParsedPV[] = [];
@@ -138,10 +132,7 @@ const PVImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
     setError(null);
     
     try {
-      // Read file content
       const content = await file.text();
-      
-      // Parse CSV
       const allPVs = parseCSV(content);
       const uniquePVs = removeDuplicates(allPVs);
       
@@ -166,7 +157,6 @@ const PVImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
     };
 
     try {
-      // Attempt to create each PV
       for (const pv of parsedPVs) {
         try {
           const pvData: PVRequest = { id: pv.id, name: pv.name };
@@ -174,8 +164,6 @@ const PVImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
           result.created.push(pv);
         } catch (err: any) {
           const errorMessage = err.message || "";
-          
-          // Check if error indicates PV already exists
           if (
             errorMessage.toLowerCase().includes("already exists") ||
             errorMessage.toLowerCase().includes("já existe") ||
@@ -191,7 +179,6 @@ const PVImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
       setImportResult(result);
       setStep("result");
       
-      // Refresh PV list if any were created
       if (result.created.length > 0) {
         onSuccess();
       }
@@ -202,202 +189,171 @@ const PVImportModal: React.FC<Props> = ({ onClose, onSuccess }) => {
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Importar Pontos de Venda</h2>
-          <button className="close-button" onClick={onClose}>
-            ×
+  const renderFooter = () => {
+    if (step === "upload") {
+      return (
+        <>
+          <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>
+            Cancelar
           </button>
+          <button type="button" className="btn-submit" disabled={!file || loading} onClick={handleUpload}>
+            {loading ? "Processando..." : "Próximo"}
+          </button>
+        </>
+      );
+    }
+    
+    if (step === "preview") {
+      return (
+        <>
+          <button type="button" className="btn-cancel" onClick={() => setStep("upload")} disabled={loading}>
+            Voltar
+          </button>
+          <button type="button" className="btn-submit" onClick={handleConfirmImport} disabled={loading}>
+            {loading ? "Importando..." : "Confirmar e Importar"}
+          </button>
+        </>
+      );
+    }
+    
+    return (
+      <button type="button" className="btn-submit" onClick={onClose}>
+        Fechar
+      </button>
+    );
+  };
+
+  return (
+    <StandardModal
+      isOpen={true}
+      onClose={onClose}
+      title="Importar Pontos de Venda"
+      size="lg"
+      footer={renderFooter()}
+    >
+      {error && <div className="error-message">{error}</div>}
+
+      {step === "upload" && (
+        <div className="form-group">
+          <label htmlFor="file">Arquivo CSV</label>
+          <input
+            id="file"
+            name="file"
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleFileChange}
+          />
+          <p className="hint">
+            Formato esperado: Colunas "Código PV" (ID numérico) e "PV" (nome).
+            <br />
+            A detecção de colunas é insensível a maiúsculas/minúsculas e acentuação.
+          </p>
         </div>
+      )}
 
-        <div className="import-form">
-          {error && <div className="error-message">{error}</div>}
+      {step === "preview" && (
+        <div className="preview-section">
+          <Title order={4} mb="md">Visualização dos Dados</Title>
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', fontSize: '14px', color: '#6b7280' }}>
+            <span>Total de PVs únicos: {parsedPVs.length}</span>
+            {duplicatesRemoved > 0 && (
+              <span style={{ color: "#fbbf24" }}>
+                Duplicados removidos: {duplicatesRemoved}
+              </span>
+            )}
+          </div>
 
-          {/* Step 1: Upload */}
-          {step === "upload" && (
-            <>
-              <div className="form-group">
-                <label htmlFor="file">Arquivo CSV</label>
-                <input
-                  id="file"
-                  name="file"
-                  type="file"
-                  accept=".csv,text/csv"
-                  onChange={handleFileChange}
-                />
-                <p className="hint">
-                  Formato esperado: Colunas "Código PV" (ID numérico) e "PV" (nome).
-                  <br />
-                  A detecção de colunas é insensível a maiúsculas/minúsculas e acentuação.
-                </p>
+          <div style={{ overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: 600 }}>Código PV</th>
+                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: 600 }}>Nome</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parsedPVs.slice(0, 10).map((pv: ParsedPV, idx: number) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <td style={{ padding: '10px 12px', fontSize: '13px' }}>{pv.id}</td>
+                    <td style={{ padding: '10px 12px', fontSize: '13px' }}>{pv.name}</td>
+                  </tr>
+                ))}
+                {parsedPVs.length > 10 && (
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: "center", padding: '12px', color: "#9ca3af", fontSize: '13px' }}>
+                      ... e mais {parsedPVs.length - 10} PVs
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {step === "result" && importResult && (
+        <div className="result-section">
+          <Title order={4} mb="md">Resultado da Importação</Title>
+          
+          <div className="result-stats">
+            <div className="result-stat" style={{ color: '#059669', marginBottom: '8px' }}>
+              <strong>{importResult.created.length}</strong> PVs criados com sucesso
+            </div>
+            
+            {importResult.alreadyExisting.length > 0 && (
+              <div className="result-stat" style={{ color: '#d97706', marginBottom: '8px' }}>
+                <strong>{importResult.alreadyExisting.length}</strong> PVs já existentes (não criados)
               </div>
-
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="btn-cancel"
-                  onClick={onClose}
-                  disabled={loading}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="btn-submit"
-                  disabled={!file || loading}
-                  onClick={handleUpload}
-                >
-                  {loading ? "Processando..." : "Próximo"}
-                </button>
+            )}
+            
+            {importResult.failed.length > 0 && (
+              <div className="result-stat" style={{ color: '#dc2626', marginBottom: '8px' }}>
+                <strong>{importResult.failed.length}</strong> PVs com erro
               </div>
-            </>
+            )}
+          </div>
+
+          {importResult.created.length > 0 && (
+            <div className="result-detail" style={{ marginTop: '20px' }}>
+              <Text fw={600} size="sm">Criados:</Text>
+              <ul style={{ listStyle: 'none', padding: 0, marginTop: '8px' }}>
+                {importResult.created.map((pv: ParsedPV, idx: number) => (
+                  <li key={idx} style={{ fontSize: '13px', color: '#4b5563', padding: '4px 0' }}>
+                    ID {pv.id}: {pv.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
-          {/* Step 2: Preview */}
-          {step === "preview" && (
-            <>
-              <div className="preview-section">
-                <h3>Visualização dos Dados</h3>
-                <div className="preview-stats">
-                  <span>Total de PVs únicos: {parsedPVs.length}</span>
-                  {duplicatesRemoved > 0 && (
-                    <span style={{ color: "#fbbf24" }}>
-                      Duplicados removidos: {duplicatesRemoved}
-                    </span>
-                  )}
-                </div>
-
-                <div className="preview-table-wrapper">
-                  <table className="preview-table">
-                    <thead>
-                      <tr>
-                        <th>Código PV</th>
-                        <th>Nome</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedPVs.slice(0, 10).map((pv, idx) => (
-                        <tr key={idx}>
-                          <td>{pv.id}</td>
-                          <td>{pv.name}</td>
-                        </tr>
-                      ))}
-                      {parsedPVs.length > 10 && (
-                        <tr>
-                          <td colSpan={2} style={{ textAlign: "center", color: "#9ca3af" }}>
-                            ... e mais {parsedPVs.length - 10} PVs
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="btn-cancel"
-                  onClick={() => setStep("upload")}
-                  disabled={loading}
-                >
-                  Voltar
-                </button>
-                <button
-                  type="button"
-                  className="btn-submit"
-                  onClick={handleConfirmImport}
-                  disabled={loading}
-                >
-                  {loading ? "Importando..." : "Confirmar e Importar"}
-                </button>
-              </div>
-            </>
+          {importResult.alreadyExisting.length > 0 && (
+            <div className="result-detail" style={{ marginTop: '20px' }}>
+              <Text fw={600} size="sm">Já Existentes:</Text>
+              <ul style={{ listStyle: 'none', padding: 0, marginTop: '8px' }}>
+                {importResult.alreadyExisting.map((pv: ParsedPV, idx: number) => (
+                  <li key={idx} style={{ fontSize: '13px', color: '#4b5563', padding: '4px 0' }}>
+                    ID {pv.id}: {pv.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
-          {/* Step 3: Result */}
-          {step === "result" && importResult && (
-            <>
-              <div className="result-section">
-                <h3>Resultado da Importação</h3>
-                
-                <div className="result-stats">
-                  <div className="result-stat success">
-                    <strong>{importResult.created.length}</strong> PVs criados com sucesso
-                  </div>
-                  
-                  {importResult.alreadyExisting.length > 0 && (
-                    <div className="result-stat warning">
-                      <strong>{importResult.alreadyExisting.length}</strong> PVs já existentes (não criados)
-                    </div>
-                  )}
-                  
-                  {importResult.failed.length > 0 && (
-                    <div className="result-stat error">
-                      <strong>{importResult.failed.length}</strong> PVs com erro
-                    </div>
-                  )}
-                </div>
-
-                {/* Show created PVs */}
-                {importResult.created.length > 0 && (
-                  <div className="result-detail">
-                    <h4>Criados:</h4>
-                    <ul>
-                      {importResult.created.map((pv, idx) => (
-                        <li key={idx}>
-                          ID {pv.id}: {pv.name}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Show already existing PVs */}
-                {importResult.alreadyExisting.length > 0 && (
-                  <div className="result-detail">
-                    <h4>Já Existentes:</h4>
-                    <ul>
-                      {importResult.alreadyExisting.map((pv, idx) => (
-                        <li key={idx}>
-                          ID {pv.id}: {pv.name}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Show failed PVs */}
-                {importResult.failed.length > 0 && (
-                  <div className="result-detail">
-                    <h4>Erros:</h4>
-                    <ul>
-                      {importResult.failed.map((item, idx) => (
-                        <li key={idx}>
-                          ID {item.pv.id}: {item.pv.name} - {item.error}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="btn-submit"
-                  onClick={onClose}
-                >
-                  Fechar
-                </button>
-              </div>
-            </>
+          {importResult.failed.length > 0 && (
+            <div className="result-detail" style={{ marginTop: '20px' }}>
+              <Text fw={600} size="sm" style={{ color: '#dc2626' }}>Erros:</Text>
+              <ul style={{ listStyle: 'none', padding: 0, marginTop: '8px' }}>
+                {importResult.failed.map((item: { pv: ParsedPV; error: string }, idx: number) => (
+                  <li key={idx} style={{ fontSize: '13px', color: '#dc2626', padding: '4px 0' }}>
+                    ID {item.pv.id}: {item.pv.name} - {item.error}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
-      </div>
-    </div>
+      )}
+    </StandardModal>
   );
 };
 
