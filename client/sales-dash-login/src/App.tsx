@@ -9,6 +9,7 @@ import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
 import MatriculasPage from './components/MatriculasPage';
 import MyProfilePage from './components/MyProfilePage';
+import ImportHistoryPage from './components/ImportHistoryPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -52,6 +53,8 @@ function App() {
         return <MatriculasPage />;
       case '#/my-profile':
         return <MyProfilePage />;
+      case '#/import-history':
+        return <ImportHistoryPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':

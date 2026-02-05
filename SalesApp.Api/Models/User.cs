@@ -34,9 +34,12 @@ namespace SalesApp.Models
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         
+        public int? ImportSessionId { get; set; } // Tracks if this user was created via import
+        
         // Navigation properties
         public User? ParentUser { get; set; }
         public ICollection<User> ChildUsers { get; set; } = new List<User>();
         public virtual ICollection<UserMatricula> UserMatriculas { get; set; } = new List<UserMatricula>();
+        public ImportSession? ImportSession { get; set; }
     }
 }

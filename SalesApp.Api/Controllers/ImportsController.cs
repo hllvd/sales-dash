@@ -492,6 +492,7 @@ namespace SalesApp.Controllers
                 {
                     result = await _importExecution.ExecuteUserImportAsync(
                         uploadId,
+                        session.Id,
                         allRows,
                         mappings);
                 }
@@ -500,6 +501,7 @@ namespace SalesApp.Controllers
                     // Use specialized contractDashboard import
                     result = await _importExecution.ExecuteContractDashboardImportAsync(
                         uploadId,
+                        session.Id,
                         allRows,
                         mappings,
                         skipMissingContractNumber,
@@ -511,6 +513,7 @@ namespace SalesApp.Controllers
                     // Contract imports now use UserEmail directly, no user mapping needed
                     result = await _importExecution.ExecuteContractImportAsync(
                         uploadId,
+                        session.Id,
                         allRows,
                         mappings,
                         dateFormat,

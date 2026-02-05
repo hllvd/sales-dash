@@ -99,7 +99,7 @@ namespace SalesApp.Tests.Services
                 .ReturnsAsync((List<Contract> contracts) => contracts);
 
             // Act
-            var result = await _service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await _service.ExecuteContractImportAsync(uploadId, 1, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(1);
@@ -148,7 +148,7 @@ namespace SalesApp.Tests.Services
                 .ReturnsAsync(new Role { Id = 3, Name = "user" });
 
             // Act
-            var result = await _service.ExecuteUserImportAsync(uploadId, rows, mappings);
+            var result = await _service.ExecuteUserImportAsync(uploadId, 1, rows, mappings);
 
             // Assert
             result.ProcessedRows.Should().Be(1);
@@ -195,7 +195,7 @@ namespace SalesApp.Tests.Services
                 .ThrowsAsync(new InvalidOperationException("User already has matricula DUP-123"));
 
             // Act
-            var result = await _service.ExecuteUserImportAsync(uploadId, rows, mappings);
+            var result = await _service.ExecuteUserImportAsync(uploadId, 1, rows, mappings);
 
             // Assert
             result.ProcessedRows.Should().Be(0);

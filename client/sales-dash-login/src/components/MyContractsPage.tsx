@@ -6,6 +6,7 @@ import StyledModal from './StyledModal';
 import FormField from './FormField';
 import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
+import ContractStatusBadge from '../shared/ContractStatusBadge';
 import {
   Contract,
   ContractAggregation,
@@ -208,31 +209,7 @@ const MyContractsPage: React.FC = () => {
     return date.toLocaleDateString('pt-BR');
   };
 
-  const getStatusBadgeClass = (status: string): string => {
-    switch (status) {
-      case 'active':
-        return 'status-active';
-      case 'delinquent':
-        return 'status-delinquent';
-      case 'paid_off':
-        return 'status-paid-off';
-      default:
-        return '';
-    }
-  };
 
-  const getStatusLabel = (status: string): string => {
-    switch (status) {
-      case 'active':
-        return 'Ativo';
-      case 'delinquent':
-        return 'Inadimplente';
-      case 'paid_off':
-        return 'Quitado';
-      default:
-        return status;
-    }
-  };
 
   return (
     <Menu>
@@ -322,15 +299,7 @@ const MyContractsPage: React.FC = () => {
                       <Table.Td>{contract.groupName}</Table.Td>
                       <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
                       <Table.Td>
-                        <Badge 
-                          color={
-                            contract.status === ContractStatus.Active ? 'green' :
-                            contract.status === ContractStatus.Defaulted ? 'red' :
-                            contract.status.startsWith('Late') ? 'orange' : 'gray'
-                          }
-                        >
-                          {getStatusLabel(contract.status)}
-                        </Badge>
+                        <ContractStatusBadge status={contract.status} />
                       </Table.Td>
                       <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
                     </Table.Tr>
@@ -427,18 +396,9 @@ const MyContractsPage: React.FC = () => {
                     <span style={{ color: '#adb5bd', fontSize: '13px' }}>Valor Total:</span>
                     <span style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{formatCurrency(retrievedContract.totalAmount)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
                     <span style={{ color: '#adb5bd', fontSize: '13px' }}>Status:</span>
-                    <Badge 
-                      color={
-                        retrievedContract.status === ContractStatus.Active ? 'green' :
-                        retrievedContract.status === ContractStatus.Defaulted ? 'red' :
-                        retrievedContract.status.startsWith('Late') ? 'orange' : 'gray'
-                      }
-                      variant="light"
-                    >
-                      {getStatusLabel(retrievedContract.status)}
-                    </Badge>
+                    <ContractStatusBadge status={retrievedContract.status} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#adb5bd', fontSize: '13px' }}>Data Início:</span>

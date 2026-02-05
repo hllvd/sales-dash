@@ -41,6 +41,7 @@ namespace SalesApp.Services
 
         public async Task<ImportResult> ExecuteContractImportAsync(
             string uploadId,
+            int importSessionId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
             string dateFormat,
@@ -97,7 +98,7 @@ namespace SalesApp.Services
                     // Look for existing contract
                     existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
 
-                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, dateFormat, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
+                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, importSessionId, dateFormat, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
 
                     if (contract != null)
                     {
@@ -156,6 +157,7 @@ namespace SalesApp.Services
             Dictionary<string, string> row,
             Dictionary<string, string> reverseMappings,
             string uploadId,
+            int importSessionId,
             string dateFormat,
             Dictionary<string, int?> groupCache,
             Dictionary<string, int?> pvCache,
@@ -186,7 +188,7 @@ namespace SalesApp.Services
             }
 
             // Resolve Group ID from name or ID value
-            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, allowAutoCreateGroups, result);
+            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, importSessionId, allowAutoCreateGroups, result);
 
             // Verify group exists if a value was provided but resolution failed
             if (!string.IsNullOrWhiteSpace(groupValue) && !groupId.HasValue)
@@ -252,7 +254,7 @@ namespace SalesApp.Services
 
             // Parse PvId and PvName
             var pvNameStr = GetFieldValue(row, reverseMappings, "PvName");
-            int? pvId = await ResolvePvIdAsync(pvIdStr, pvCache, allowAutoCreatePVs, result, pvNameStr);
+            int? pvId = await ResolvePvIdAsync(pvIdStr, pvCache, importSessionId, allowAutoCreatePVs, result, pvNameStr);
 
 
             // ✅ Create or update contract object
@@ -277,6 +279,7 @@ namespace SalesApp.Services
 
         public async Task<ImportResult> ExecuteUserImportAsync(
             string uploadId,
+            int importSessionId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings)
         {
@@ -293,7 +296,7 @@ namespace SalesApp.Services
                 try
                 {
                     var row = rows[i];
-                    var user = await CreateUserFromRowAsync(row, reverseMappings);
+                    var user = await CreateUserFromRowAsync(row, reverseMappings, importSessionId);
 
                     if (user != null)
                     {
@@ -318,7 +321,8 @@ namespace SalesApp.Services
 
         private async Task<User?> CreateUserFromRowAsync(
             Dictionary<string, string> row,
-            Dictionary<string, string> reverseMappings)
+            Dictionary<string, string> reverseMappings,
+            int importSessionId)
         {
             // Extract required fields
             var name = GetFieldValue(row, reverseMappings, "Name");
@@ -396,7 +400,8 @@ namespace SalesApp.Services
                 ParentUserId = parentId,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.UtcNow,
+                ImportSessionId = importSessionId
             };
 
             var createdUser = await _userRepository.CreateAsync(user);
@@ -413,7 +418,8 @@ namespace SalesApp.Services
                         StartDate = DateTime.UtcNow,
                         IsOwner = isMatriculaOwner,
                         IsActive = true,
-                        Status = MatriculaStatus.Active.ToApiString()
+                        Status = MatriculaStatus.Active.ToApiString(),
+                        ImportSessionId = importSessionId
                     };
 
                     await _matriculaRepository.CreateAsync(userMatricula);
@@ -597,6 +603,7 @@ namespace SalesApp.Services
 
         public async Task<ImportResult> ExecuteContractDashboardImportAsync(
             string uploadId,
+            int importSessionId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
             bool skipMissingContractNumber = false,
@@ -692,7 +699,7 @@ namespace SalesApp.Services
                     // Look for existing contract
                     existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
 
-                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
+                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, importSessionId, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
 
                     if (contract != null)
                     {
@@ -751,6 +758,7 @@ namespace SalesApp.Services
             Dictionary<string, string> row,
             Dictionary<string, string> reverseMappings,
             string uploadId,
+            int importSessionId,
             Dictionary<string, int?> groupCache,
             Dictionary<string, int?> pvCache,
             ImportResult result,
@@ -792,7 +800,7 @@ namespace SalesApp.Services
             }
 
             // Resolve Group ID
-            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, allowAutoCreateGroups, result);
+            var groupId = await ResolveGroupIdAsync(groupValue, groupCache, importSessionId, allowAutoCreateGroups, result);
 
             // Resolve Quota (numeric)
             int? quota = null;
@@ -843,7 +851,7 @@ namespace SalesApp.Services
             // Parse PvId and PvName
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
             var pvNameStr = GetFieldValue(row, reverseMappings, "PvName");
-            int? pvId = await ResolvePvIdAsync(pvIdStr, pvCache, allowAutoCreatePVs, result, pvNameStr);
+            int? pvId = await ResolvePvIdAsync(pvIdStr, pvCache, importSessionId, allowAutoCreatePVs, result, pvNameStr);
             
             // Get TempMatricula if present
             var tempMatricula = GetFieldValue(row, reverseMappings, "TempMatricula");
@@ -921,7 +929,7 @@ namespace SalesApp.Services
             };
         }
         
-        private async Task<int?> ResolveGroupIdAsync(string? groupValue, Dictionary<string, int?> cache, bool allowAutoCreate = false, ImportResult? result = null)
+        private async Task<int?> ResolveGroupIdAsync(string? groupValue, Dictionary<string, int?> cache, int importSessionId, bool allowAutoCreate = false, ImportResult? result = null)
         {
             if (string.IsNullOrWhiteSpace(groupValue)) return null;
             
@@ -961,7 +969,8 @@ namespace SalesApp.Services
                     Commission = 0,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    UpdatedAt = DateTime.UtcNow,
+                    ImportSessionId = importSessionId
                 };
                 
                 var createdGroup = await _groupRepository.CreateAsync(newGroup);
@@ -986,6 +995,7 @@ namespace SalesApp.Services
         private async Task<int?> ResolvePvIdAsync(
             string? pvValue,
             Dictionary<string, int?> cache,
+            int importSessionId,
             bool allowAutoCreate,
             ImportResult? result = null,
             string? pvName = null)
@@ -1038,7 +1048,8 @@ namespace SalesApp.Services
                         Id = newId,
                         Name = !string.IsNullOrWhiteSpace(pvName) ? pvName.Trim() : pvValue.Trim(),
                         CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        UpdatedAt = DateTime.UtcNow,
+                        ImportSessionId = importSessionId
                     };
                     
                     _context.PVs.Add(newPV);
@@ -1079,6 +1090,54 @@ namespace SalesApp.Services
             };
             
             return await _metadataRepository.CreateAsync(newMetadata);
+        }
+
+        public async Task<bool> UndoImportAsync(int importSessionId)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Delete Contracts
+                var contracts = await _context.Contracts
+                    .Where(c => c.ImportSessionId == importSessionId)
+                    .ToListAsync();
+                _context.Contracts.RemoveRange(contracts);
+
+                // 2. Delete UserMatriculas
+                var matriculas = await _context.UserMatriculas
+                    .Where(m => m.ImportSessionId == importSessionId)
+                    .ToListAsync();
+                _context.UserMatriculas.RemoveRange(matriculas);
+
+                // 3. Delete Users (only if created via import)
+                var users = await _context.Users
+                    .Where(u => u.ImportSessionId == importSessionId)
+                    .ToListAsync();
+                _context.Users.RemoveRange(users);
+
+                // 4. Delete PVs (only if created via import)
+                var pvs = await _context.PVs
+                    .Where(p => p.ImportSessionId == importSessionId)
+                    .ToListAsync();
+                _context.PVs.RemoveRange(pvs);
+
+                // 5. Delete Groups (only if created via import)
+                var groups = await _context.Groups
+                    .Where(g => g.ImportSessionId == importSessionId)
+                    .ToListAsync();
+                _context.Groups.RemoveRange(groups);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"[ImportExecutionService] Undo failed for session {importSessionId}: {ex.Message}");
+                return false;
+            }
         }
     }
 }

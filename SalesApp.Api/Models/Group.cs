@@ -21,5 +21,7 @@ namespace SalesApp.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public int? ImportSessionId { get; set; }
+        public ImportSession? ImportSession { get; set; }
     }
 }

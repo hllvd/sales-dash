@@ -17,6 +17,7 @@ import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
 import StyledModal from './StyledModal';
 import FormField from './FormField';
+import { CONTRACT_STATUS_OPTIONS } from '../shared/ContractStatusBadge';
 import { ContractType, ContractTypeLabels } from '../types/ContractType';
 
 interface ContractFormProps {
@@ -250,13 +251,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           <Select
             value={formData.status}
             onChange={(value) => handleChange('status', value)}
-            data={[
-              { value: ContractStatus.Active, label: 'Ativo' },
-              { value: ContractStatus.Late1, label: '1 mês atrasado' },
-              { value: ContractStatus.Late2, label: '2 meses atrasado' },
-              { value: ContractStatus.Late3, label: '3 meses atrasado' },
-              { value: ContractStatus.Defaulted, label: 'Inadimplente' },
-            ]}
+            data={CONTRACT_STATUS_OPTIONS}
           />
         </FormField>
 

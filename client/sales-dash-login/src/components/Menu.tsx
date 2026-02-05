@@ -11,6 +11,7 @@ import {
   IconUsersGroup,
   IconLogout,
   IconId,
+  IconHistory,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -120,6 +121,18 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/matriculas')}
+            />
+          )}
+
+          {(userRole === 'admin' || userRole === 'superadmin') && (
+            <NavLink
+              href="#/import-history"
+              label="Histórico de Importação"
+              leftSection={<IconHistory size={20} />}
+              active={isActive('#/import-history')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/import-history')}
             />
           )}
 

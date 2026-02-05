@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SalesApp.Data;
 
@@ -10,9 +11,11 @@ using SalesApp.Data;
 namespace SalesApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260205084602_AddImportSessionTracking")]
+    partial class AddImportSessionTracking
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.10");
@@ -155,9 +158,6 @@ namespace SalesApp.Api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("ImportSessionId")
-                        .HasColumnType("INTEGER");
-
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
@@ -172,8 +172,6 @@ namespace SalesApp.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ImportSessionId");
 
                     b.HasIndex("Name")
                         .IsUnique();
@@ -611,16 +609,6 @@ namespace SalesApp.Api.Migrations
                     b.Navigation("PlanoVendaMetadata");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SalesApp.Models.Group", b =>
-                {
-                    b.HasOne("SalesApp.Models.ImportSession", "ImportSession")
-                        .WithMany()
-                        .HasForeignKey("ImportSessionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("ImportSession");
                 });
 
             modelBuilder.Entity("SalesApp.Models.ImportColumnMapping", b =>

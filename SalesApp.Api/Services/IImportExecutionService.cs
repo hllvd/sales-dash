@@ -18,6 +18,7 @@ namespace SalesApp.Services
     {
         Task<ImportResult> ExecuteContractImportAsync(
             string uploadId,
+            int importSessionId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
             string dateFormat,
@@ -27,15 +28,19 @@ namespace SalesApp.Services
 
         Task<ImportResult> ExecuteUserImportAsync(
             string uploadId,
+            int importSessionId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings);
             
         Task<ImportResult> ExecuteContractDashboardImportAsync(
             string uploadId,
+            int importSessionId,
             List<Dictionary<string, string>> rows,
             Dictionary<string, string> mappings,
             bool skipMissingContractNumber = false,
             bool allowAutoCreateGroups = false,
             bool allowAutoCreatePVs = false);
+
+        Task<bool> UndoImportAsync(int importSessionId);
     }
 }

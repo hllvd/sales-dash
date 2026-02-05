@@ -30,7 +30,10 @@ namespace SalesApp.Models
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         
+        public int? ImportSessionId { get; set; } // Tracks if this matricula was created via import
+        
         // Navigation properties
         public virtual User User { get; set; } = null!;
+        public ImportSession? ImportSession { get; set; }
     }
 }

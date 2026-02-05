@@ -17,10 +17,13 @@ namespace SalesApp.Models
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         
+        public int? ImportSessionId { get; set; } // Tracks if this PV was created via import
+        
         // Optional foreign key to UserMatricula
         public int? MatriculaId { get; set; }
         
         // Navigation property
         public ICollection<Contract> Contracts { get; set; } = new List<Contract>();
+        public ImportSession? ImportSession { get; set; }
     }
 }

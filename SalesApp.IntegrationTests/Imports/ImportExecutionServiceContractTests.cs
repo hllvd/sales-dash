@@ -19,6 +19,22 @@ namespace SalesApp.IntegrationTests.Imports
             _factory = factory;
         }
 
+        private async Task<ImportSession> CreateTestSessionAsync(AppDbContext context, string uploadId, string fileName = "test.csv")
+        {
+            var admin = await context.Users.FirstOrDefaultAsync(u => u.Role.Name == "superadmin");
+            var session = new ImportSession
+            {
+                UploadId = uploadId,
+                FileName = fileName,
+                Status = "processing",
+                UploadedByUserId = admin?.Id ?? Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow
+            };
+            context.ImportSessions.Add(session);
+            await context.SaveChangesAsync();
+            return session;
+        }
+
         [Fact]
         public async Task ImportContracts_WithAllFields_ShouldSucceed()
         {
@@ -30,6 +46,7 @@ namespace SalesApp.IntegrationTests.Imports
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var session = await CreateTestSessionAsync(context, uploadId);
 
             // Create test group
             var group = new Group
@@ -74,7 +91,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(1);
@@ -100,6 +117,7 @@ namespace SalesApp.IntegrationTests.Imports
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var session = await CreateTestSessionAsync(context, uploadId);
 
             // Create test group
             var group = new Group
@@ -142,7 +160,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(1);
@@ -162,8 +180,9 @@ namespace SalesApp.IntegrationTests.Imports
             // Arrange
             using var scope = _factory.Services.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IImportExecutionService>();
-
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var uploadId = Guid.NewGuid().ToString();
+            var session = await CreateTestSessionAsync(context, uploadId);
 
             var rows = new List<Dictionary<string, string>>
             {
@@ -186,7 +205,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(0);
@@ -205,6 +224,8 @@ namespace SalesApp.IntegrationTests.Imports
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var session = await CreateTestSessionAsync(context, uploadId);
 
             // Create test group
             var group = new Group
@@ -247,7 +268,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(0);
@@ -265,6 +286,8 @@ namespace SalesApp.IntegrationTests.Imports
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var session = await CreateTestSessionAsync(context, uploadId);
 
             // Create test user
             var user = new User { Name = "Test", Email = "test@test.com", RoleId = 3, IsActive = true };
@@ -290,7 +313,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(0);
@@ -308,6 +331,7 @@ namespace SalesApp.IntegrationTests.Imports
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var session = await CreateTestSessionAsync(context, uploadId);
             var groupName = "NEW-GROUP-999";
 
             // Create test user
@@ -345,7 +369,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY", allowAutoCreateGroups: true);
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY", allowAutoCreateGroups: true);
 
             // Assert
             result.ProcessedRows.Should().Be(1);
@@ -370,6 +394,8 @@ namespace SalesApp.IntegrationTests.Imports
             var groupRepo = scope.ServiceProvider.GetRequiredService<IGroupRepository>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var session = await CreateTestSessionAsync(context, uploadId);
 
             // Create test group
             var group = new Group
@@ -401,7 +427,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(0);
@@ -420,6 +446,8 @@ namespace SalesApp.IntegrationTests.Imports
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var session = await CreateTestSessionAsync(context, uploadId);
 
             // Create test group
             var group = new Group
@@ -480,7 +508,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(2);
@@ -497,6 +525,8 @@ namespace SalesApp.IntegrationTests.Imports
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var session = await CreateTestSessionAsync(context, uploadId);
 
             // Create test user
             var user = new User
@@ -530,7 +560,7 @@ namespace SalesApp.IntegrationTests.Imports
             };
 
             // Act
-            var result = await service.ExecuteContractImportAsync(uploadId, rows, mappings, "MM/DD/YYYY");
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY");
 
             // Assert
             result.ProcessedRows.Should().Be(1);

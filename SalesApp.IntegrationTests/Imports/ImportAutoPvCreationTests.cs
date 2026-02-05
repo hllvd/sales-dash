@@ -19,6 +19,22 @@ namespace SalesApp.IntegrationTests.Imports
             _factory = factory;
         }
 
+        private async Task<ImportSession> CreateTestSessionAsync(AppDbContext context, string uploadId, string fileName = "test.csv")
+        {
+            var admin = await context.Users.FirstOrDefaultAsync(u => u.Role.Name == "superadmin");
+            var session = new ImportSession
+            {
+                UploadId = uploadId,
+                FileName = fileName,
+                Status = "processing",
+                UploadedByUserId = admin?.Id ?? Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow
+            };
+            context.ImportSessions.Add(session);
+            await context.SaveChangesAsync();
+            return session;
+        }
+
         [Fact]
         public async Task ImportContractDashboard_WithAutoCreatePVEnabled_ShouldCreatePV()
         {
@@ -29,6 +45,7 @@ namespace SalesApp.IntegrationTests.Imports
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var session = await CreateTestSessionAsync(context, uploadId);
             var pvId = 12345;
             var pvName = $"New PV {Guid.NewGuid().ToString()[..8]}";
 
@@ -70,6 +87,7 @@ namespace SalesApp.IntegrationTests.Imports
             // Act
             var result = await service.ExecuteContractDashboardImportAsync(
                 uploadId, 
+                session.Id,
                 rows, 
                 mappings, 
                 skipMissingContractNumber: false, 
@@ -99,6 +117,7 @@ namespace SalesApp.IntegrationTests.Imports
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             var uploadId = Guid.NewGuid().ToString();
+            var session = await CreateTestSessionAsync(context, uploadId);
             var pvId = 54321;
             var pvName = $"Another New PV {Guid.NewGuid().ToString()[..8]}";
 
@@ -132,6 +151,7 @@ namespace SalesApp.IntegrationTests.Imports
             // Act
             var result = await service.ExecuteContractDashboardImportAsync(
                 uploadId, 
+                session.Id,
                 rows, 
                 mappings, 
                 skipMissingContractNumber: false, 

@@ -31,7 +31,9 @@ namespace SalesApp.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         
         [MaxLength(50)]
-        public string? UploadId { get; set; } // Tracks which import session created this contract
+        public string? UploadId { get; set; } // Tracks which import session created this contract (legacy)
+        
+        public int? ImportSessionId { get; set; } // Tracks which import session created or updated this contract
         
         public int? PvId { get; set; } // Optional link to PV (Ponto de Venda)
 
@@ -57,5 +59,6 @@ namespace SalesApp.Models
         public PV? PV { get; set; }
         public ContractMetadata? PlanoVendaMetadata { get; set; }
         public ContractMetadata? CategoryMetadata { get; set; }
+        public ImportSession? ImportSession { get; set; }
     }
 }

@@ -39,10 +39,14 @@ namespace SalesApp.Data
                     .OnDelete(DeleteBehavior.Restrict);
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
                 
-                // Self-referencing relationship
                 entity.HasOne(e => e.ParentUser)
                     .WithMany(e => e.ChildUsers)
                     .HasForeignKey(e => e.ParentUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ImportSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImportSessionId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
             
@@ -55,6 +59,11 @@ namespace SalesApp.Data
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.Commission).HasColumnType("decimal(5,2)");
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+                entity.HasOne(e => e.ImportSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImportSessionId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
             
             // Role entity configuration
@@ -103,6 +112,11 @@ namespace SalesApp.Data
                     .WithMany(m => m.ContractsWithCategory)
                     .HasForeignKey(e => e.CategoryMetadataId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ImportSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImportSessionId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             
@@ -112,6 +126,11 @@ namespace SalesApp.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).ValueGeneratedNever(); // NOT auto-increment
                 entity.Property(e => e.Name).IsRequired().HasColumnType("text");
+
+                entity.HasOne(e => e.ImportSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImportSessionId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
             
             // ImportTemplate entity configuration
@@ -190,6 +209,11 @@ namespace SalesApp.Data
                     .WithMany(u => u.UserMatriculas)
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.ImportSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImportSessionId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
             
             // RefreshToken entity configuration

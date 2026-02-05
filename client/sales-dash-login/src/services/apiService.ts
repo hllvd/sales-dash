@@ -547,6 +547,32 @@ export const apiService = {
 
     return response.json()
   },
+
+  async getImportHistory(): Promise<ApiResponse<ImportSession[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/imports/history`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch import history");
+    }
+
+    return response.json();
+  },
+
+  async undoImport(id: number): Promise<ApiResponse<string>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/imports/${id}/undo`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to undo import");
+    }
+
+    return response.json();
+  },
 }
 
 export interface PV {
@@ -593,7 +619,6 @@ export interface UpdateMatriculaRequest {
   isOwner?: boolean
   status?: string
 }
-
 export interface BulkCreateMatriculaResponse {
   totalProcessed: number
   successCount: number
@@ -605,4 +630,20 @@ export interface BulkCreateMatriculaResponse {
     userEmail: string
     error: string
   }>
+}
+
+export interface ImportSession {
+  id: number;
+  uploadId: string;
+  templateId?: number;
+  templateName?: string;
+  fileName: string;
+  status: string;
+  totalRows: number;
+  processedRows: number;
+  failedRows: number;
+  uploadedByUserId: string;
+  uploadedBy?: { name: string };
+  createdAt: string;
+  completedAt?: string;
 }

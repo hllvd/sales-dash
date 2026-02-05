@@ -8,6 +8,7 @@ import BulkImportModal from './BulkImportModal';
 import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
 import Pagination from './Pagination';
+import ContractStatusBadge from '../shared/ContractStatusBadge';
 import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
 import {
@@ -182,41 +183,7 @@ const ContractsPage: React.FC = () => {
     return date.toLocaleDateString('pt-BR');
   };
 
-  const getStatusBadgeClass = (status: string): string => {
-    switch (status) {
-      case 'active':
-        return 'status-active';
-      case 'delinquent':
-        return 'status-delinquent';
-      case 'paid_off':
-        return 'status-paid-off';
-      default:
-        return '';
-    }
-  };
 
-  const getStatusLabel = (status: string): string => {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return 'Ativo';
-      case 'late1':
-        return 'Atrasado 1';
-      case 'late2':
-        return 'Atrasado 2';
-      case 'late3':
-        return 'Atrasado 3';
-      case 'defaulted':
-        return 'Cancelado';
-      case 'transferred':
-        return 'Transferido';
-      case 'paid_off':
-        return 'Quitado';
-      case 'delinquent':
-        return 'Inadimplente';
-      default:
-        return status;
-    }
-  };
 
   return (
     <Menu>
@@ -388,22 +355,7 @@ const ContractsPage: React.FC = () => {
                   <Table.Td>{contract.customerName || '-'}</Table.Td>
                   <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
                   <Table.Td>
-                    <Badge 
-                      color={
-                        contract.status.toLowerCase() === 'active' ? 'teal' :
-                        contract.status.toLowerCase() === 'late1' ? 'yellow' :
-                        contract.status.toLowerCase() === 'late2' ? 'orange' :
-                        contract.status.toLowerCase() === 'late3' ? 'red' :
-                        contract.status.toLowerCase() === 'defaulted' ? 'dark' :
-                        contract.status.toLowerCase() === 'transferred' ? 'blue' :
-                        contract.status.toLowerCase() === 'paid_off' ? 'green' :
-                        'gray'
-                      }
-                      title={getStatusLabel(contract.status)}
-                      style={{ cursor: 'help' }}
-                    >
-                      {getStatusLabel(contract.status)}
-                    </Badge>
+                    <ContractStatusBadge status={contract.status} />
                   </Table.Td>
                   <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
                   <Table.Td>
