@@ -10,6 +10,7 @@ import MyContractsPage from './components/MyContractsPage';
 import MatriculasPage from './components/MatriculasPage';
 import MyProfilePage from './components/MyProfilePage';
 import ImportHistoryPage from './components/ImportHistoryPage';
+import ImportWizardPage from './components/ImportWizardPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -55,6 +56,8 @@ function App() {
         return <MyProfilePage />;
       case '#/import-history':
         return <ImportHistoryPage />;
+      case '#/import-wizard':
+        return <ImportWizardPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':

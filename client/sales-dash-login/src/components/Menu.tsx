@@ -12,6 +12,7 @@ import {
   IconLogout,
   IconId,
   IconHistory,
+  IconWand,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -133,6 +134,18 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/import-history')}
+            />
+          )}
+
+          {(userRole === 'admin' || userRole === 'superadmin') && (
+            <NavLink
+              href="#/import-wizard"
+              label="Assistente de Importação"
+              leftSection={<IconWand size={20} />}
+              active={isActive('#/import-wizard')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/import-wizard')}
             />
           )}
 

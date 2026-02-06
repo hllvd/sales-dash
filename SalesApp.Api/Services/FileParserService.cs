@@ -158,7 +158,18 @@ namespace SalesApp.Services
                 for (int col = 1; col <= columnCount; col++)
                 {
                     var header = headers[col - 1];
-                    var cellValue = worksheet.Cells[row, col].Value?.ToString()?.Trim() ?? string.Empty;
+                    var cell = worksheet.Cells[row, col];
+                    string cellValue;
+                    
+                    if (cell.Value is DateTime dt)
+                    {
+                        cellValue = dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                    }
+                    else
+                    {
+                        cellValue = cell.Value?.ToString()?.Trim() ?? string.Empty;
+                    }
+                    
                     rowData[header] = cellValue;
                 }
                 rows.Add(rowData);

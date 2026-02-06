@@ -573,6 +573,96 @@ export const apiService = {
 
     return response.json();
   },
+
+  async uploadWizardStep1(file: File): Promise<ApiResponse<any>> {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    const token = localStorage.getItem("token")
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/wizard/step1-upload`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to upload file" }))
+      throw new Error(error.message || "Failed to upload file")
+    }
+
+    return response.json()
+  },
+
+  async downloadWizardTemplate(uploadId: string): Promise<Blob> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/wizard/step1-template/${uploadId}`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to download template")
+    }
+
+    return response.blob()
+  },
+
+  async runWizardStep2(uploadId: string, usersFile: File): Promise<ApiResponse<ImportStatusResponse>> {
+    const formData = new FormData();
+    formData.append('uploadId', uploadId);
+    formData.append('usersFile', usersFile);
+
+    const token = localStorage.getItem("token")
+    const response = await authenticatedFetch(`${API_BASE_URL}/wizard/step2-import`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to run step 2" }))
+      throw new Error(error.message || "Failed to run step 2")
+    }
+
+    return response.json()
+  },
+
+  async downloadWizardContracts(uploadId: string): Promise<void> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/wizard/step3-contracts/${uploadId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) throw new Error('Failed to download contracts');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'contracts.csv';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+}
+
+export interface ImportStatusResponse {
+  uploadId: string;
+  status: string;
+  totalRows: number;
+  processedRows: number;
+  failedRows: number;
+  errors?: string[];
+  createdGroups?: string[];
+  createdPVs?: string[];
 }
 
 export interface PV {

@@ -53,7 +53,7 @@ namespace SalesApp.Services
             result.TotalRows = rows.Count;
 
             // Create reverse mapping (target field -> source column)
-            var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+            var reverseMappings = mappings.GroupBy(kvp => kvp.Value).ToDictionary(g => g.Key, g => g.First().Key);
             var contractsToAdd = new List<Contract>();
 
             // Dictionary to cache lookups during this import session
@@ -289,7 +289,7 @@ namespace SalesApp.Services
             };
 
             // Create reverse mapping (target field -> source column)
-            var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+            var reverseMappings = mappings.GroupBy(kvp => kvp.Value).ToDictionary(g => g.Key, g => g.First().Key);
 
             for (int i = 0; i < rows.Count; i++)
             {
@@ -579,7 +579,18 @@ namespace SalesApp.Services
                 return true;
             }
 
-            // Fallback to general parsing
+            // Fallback 1: Try as Excel OADate (serial number) if it's numeric
+            if (double.TryParse(cleanedInput, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double oaDate))
+            {
+                try
+                {
+                    result = DateTime.FromOADate(oaDate);
+                    return true;
+                }
+                catch { } // Not a valid OADate
+            }
+
+            // Fallback 2: General parsing
             return DateTime.TryParse(cleanedInput,
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None, out result);
@@ -613,7 +624,7 @@ namespace SalesApp.Services
             var result = new ImportResult();
             result.TotalRows = rows.Count;
 
-            var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+            var reverseMappings = mappings.GroupBy(kvp => kvp.Value).ToDictionary(g => g.Key, g => g.First().Key);
             var contractsToAdd = new List<Contract>();
             var groupCache = new Dictionary<string, int?>();
             var pvCache = new Dictionary<string, int?>();
@@ -878,19 +889,32 @@ namespace SalesApp.Services
                 planoVendaMetadataId = planoVendaMetadata.Id;
             }
             
+            // Resolve User if email is provided (Wizard support)
+            Guid? userId = null;
+            var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
+            if (!string.IsNullOrWhiteSpace(userEmail))
+            {
+                var user = await _userRepository.GetByEmailAsync(userEmail);
+                if (user != null && user.IsActive)
+                {
+                    userId = user.Id;
+                }
+            }
+            
             // Create or Update contract
             var contract = existingContract ?? new Contract { CreatedAt = DateTime.UtcNow };
 
             if (existingContract != null)
             {
-                // If the contract already exists, just update the status (and UpdatedAt)
+                // If the contract already exists, update status and potentially user
                 contract.Status = status;
+                if (userId.HasValue) contract.UserId = userId;
                 contract.UpdatedAt = DateTime.UtcNow;
                 return contract;
             }
 
             contract.ContractNumber = contractNumber;
-            contract.UserId = null;
+            contract.UserId = userId;
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
             contract.Status = status;
