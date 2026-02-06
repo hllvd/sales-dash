@@ -42,12 +42,17 @@ const ContractsPage: React.FC = () => {
   // Filters
   const [isInitializing, setIsInitializing] = useState(true);
   const [filterUserId, setFilterUserId] = useState('');
+  const [debouncedUserId, setDebouncedUserId] = useState('');
   const [filterGroupId, setFilterGroupId] = useState('');
+  const [debouncedGroupId, setDebouncedGroupId] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  const [debouncedStartDate, setDebouncedStartDate] = useState('');
   const [filterContractNumber, setFilterContractNumber] = useState('');
   const [debouncedContractNumber, setDebouncedContractNumber] = useState('');
   const [filterShowUnassigned, setFilterShowUnassigned] = useState<string>('all');
+  const [debouncedShowUnassigned, setDebouncedShowUnassigned] = useState<string>('all');
+  const [filterMatricula, setFilterMatricula] = useState('');
+  const [debouncedMatricula, setDebouncedMatricula] = useState('');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,6 +66,7 @@ const ContractsPage: React.FC = () => {
     const savedStartDate = localStorage.getItem('contracts_filterStartDate');
     if (savedStartDate) {
       setFilterStartDate(savedStartDate);
+      setDebouncedStartDate(savedStartDate);
     }
     loadFilters();
     setIsInitializing(false);
@@ -80,14 +86,19 @@ const ContractsPage: React.FC = () => {
     }
   };
   
-  // Debounce contract number search
+  // Debounce all filters
   useEffect(() => {
     const timer = setTimeout(() => {
+      setDebouncedUserId(filterUserId);
+      setDebouncedGroupId(filterGroupId);
+      setDebouncedStartDate(filterStartDate);
       setDebouncedContractNumber(filterContractNumber);
-    }, 3000); // 3-second debounce as requested
+      setDebouncedShowUnassigned(filterShowUnassigned);
+      setDebouncedMatricula(filterMatricula);
+    }, 3000); // 3-second debounce for all fields
 
     return () => clearTimeout(timer);
-  }, [filterContractNumber]);
+  }, [filterUserId, filterGroupId, filterStartDate, filterContractNumber, filterShowUnassigned, filterMatricula]);
 
   const loadContracts = async () => {
     setLoading(true);
@@ -95,12 +106,13 @@ const ContractsPage: React.FC = () => {
 
     try {
       const { contracts: data, aggregation: aggData } = await getContracts(
-        filterUserId || undefined,
-        filterGroupId ? parseInt(filterGroupId) : undefined,
-        filterStartDate || undefined,
-        filterEndDate || undefined,
+        debouncedUserId || undefined,
+        debouncedGroupId ? parseInt(debouncedGroupId) : undefined,
+        debouncedStartDate || undefined,
+        undefined, // Removed endDate
         debouncedContractNumber || undefined,
-        filterShowUnassigned === 'unassigned' ? true : filterShowUnassigned === 'assigned' ? false : undefined
+        debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
+        debouncedMatricula || undefined
       );
       setContracts(data);
       setAggregation(aggData || null);
@@ -118,12 +130,12 @@ const ContractsPage: React.FC = () => {
   useEffect(() => {
     if (isInitializing) return;
     loadContracts();
-  }, [isInitializing, filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber, filterShowUnassigned]);
+  }, [isInitializing, debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula]);
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters change (using debounced values to avoid flickering)
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber, filterShowUnassigned]);
+  }, [debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula]);
 
   // Calculate pagination
   const totalPages = Math.ceil(contracts.length / pageSize);
@@ -250,6 +262,17 @@ const ContractsPage: React.FC = () => {
         </div>
 
         <div className="filter-group">
+          <label htmlFor="filterMatricula">Matrícula</label>
+          <input
+            type="text"
+            id="filterMatricula"
+            value={filterMatricula}
+            onChange={(e) => setFilterMatricula(e.target.value)}
+            placeholder="Filtrar por matrícula..."
+          />
+        </div>
+
+        <div className="filter-group">
           <label htmlFor="filterContractNumber">Número do Contrato</label>
           <input
             type="text"
@@ -278,27 +301,23 @@ const ContractsPage: React.FC = () => {
           />
         </div>
 
-        <div className="filter-group">
-          <label htmlFor="filterEndDate">Data Fim</label>
-          <input
-            type="date"
-            id="filterEndDate"
-            value={filterEndDate}
-            onChange={(e) => setFilterEndDate(e.target.value)}
-          />
-        </div>
 
-        {(filterUserId || filterGroupId || filterStartDate || filterEndDate || filterContractNumber || filterShowUnassigned !== 'all') && (
+        {(filterUserId || filterGroupId || filterStartDate || filterContractNumber || filterMatricula || filterShowUnassigned !== 'all') && (
           <button
             className="clear-filters-btn"
             onClick={() => {
               setFilterUserId('');
+              setDebouncedUserId('');
               setFilterGroupId('');
+              setDebouncedGroupId('');
               setFilterStartDate('');
-              setFilterEndDate('');
+              setDebouncedStartDate('');
               setFilterContractNumber('');
               setDebouncedContractNumber('');
+              setFilterMatricula('');
+              setDebouncedMatricula('');
               setFilterShowUnassigned('all');
+              setDebouncedShowUnassigned('all');
               localStorage.removeItem('contracts_filterStartDate');
             }}
           >
@@ -412,7 +431,7 @@ const ContractsPage: React.FC = () => {
       {contracts.length > 0 && (
         <HistoricProduction
           startDate={filterStartDate}
-          endDate={filterEndDate}
+          endDate={undefined}
           showUnassigned={filterShowUnassigned === 'unassigned' ? true : filterShowUnassigned === 'assigned' ? false : undefined}
         />
       )}

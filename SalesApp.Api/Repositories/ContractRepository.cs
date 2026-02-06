@@ -44,7 +44,7 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
         
-        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null)
+        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -74,6 +74,9 @@ namespace SalesApp.Repositories
  
             if (!string.IsNullOrEmpty(contractNumber))
                 query = query.Where(c => c.ContractNumber == contractNumber);
+
+            if (!string.IsNullOrEmpty(matriculaNumber))
+                query = query.Where(c => c.User != null && c.User.UserMatriculas.Any(m => m.MatriculaNumber == matriculaNumber && m.IsActive));
             
             return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
         }

@@ -44,9 +44,10 @@ namespace SalesApp.Controllers
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
             [FromQuery] string? contractNumber = null,
-            [FromQuery] bool? showUnassigned = null)
+            [FromQuery] bool? showUnassigned = null,
+            [FromQuery] string? matricula = null)
         {
-            var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned);
+            var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula);
             
             var contractResponses = contracts.Select(MapToContractResponse).ToList();
             
