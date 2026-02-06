@@ -436,19 +436,13 @@ const ContractsPage: React.FC = () => {
         />
       )}
 
-      <StandardModal
-        isOpen={showForm}
-        onClose={() => setShowForm(false)}
-        title={editingContract ? "Editar Contrato" : "Novo Contrato"}
-        size="xl"
-        className="form-body"
-      >
+      {showForm && (
         <ContractForm
           contract={editingContract}
           onClose={() => setShowForm(false)}
           onSuccess={handleFormSuccess}
         />
-      </StandardModal>
+      )}
 
       {showImportModal && (
         <BulkImportModal
