@@ -193,10 +193,14 @@ namespace SalesApp.Services
                 userMappings
             );
 
-            // 3. Update session status
-            session.Status = "wizard_step2_completed";
+            // 3. Update session status for History tracking
+            // Use standard statuses so it appears in "Histórico de Importação"
+            session.Status = userResult.FailedRows > 0 ? "completed_with_errors" : "completed";
+            session.CompletedAt = DateTime.UtcNow;
             session.ProcessedRows = userResult.ProcessedRows;
             session.FailedRows = userResult.FailedRows;
+            session.TemplateId = 1; // Link to Users template for correct display in history
+            
             await _sessionRepository.UpdateAsync(session);
 
             return new ImportStatusResponse
