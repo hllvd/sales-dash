@@ -326,7 +326,7 @@ namespace SalesApp.Services
         {
             // Extract required fields
             var name = GetFieldValue(row, reverseMappings, "Name");
-            var email = GetFieldValue(row, reverseMappings, "Email");
+            var email = GetFieldValue(row, reverseMappings, "Email")?.ToLowerInvariant(); // Force lowercase
 
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email))
             {
@@ -334,15 +334,13 @@ namespace SalesApp.Services
             }
 
             // Check if email exists
-            if (await _userRepository.GetByEmailAsync(email) != null)
-            {
-                throw new ArgumentException($"User with email {email} already exists");
-            }
+            var existingUser = await _userRepository.GetByEmailAsync(email);
+            bool isNewUser = existingUser == null;
 
             // Extract optional fields
             var surname = GetFieldValue(row, reverseMappings, "Surname");
             var roleName = GetFieldValue(row, reverseMappings, "Role");
-            var parentEmail = GetFieldValue(row, reverseMappings, "ParentEmail");
+            var parentEmail = GetFieldValue(row, reverseMappings, "ParentEmail")?.ToLowerInvariant(); // Force lowercase
 
 
             // Combine name and surname if surname exists
@@ -389,40 +387,64 @@ namespace SalesApp.Services
             var sendEmailStr = GetFieldValue(row, reverseMappings, "SendEmail");
             bool sendEmail = ParseBooleanValue(sendEmailStr);
 
-            // Create User
+            // Upsert User
             var defaultPassword = "ChangeMe123!";
-            var user = new User
+            var user = existingUser ?? new User
             {
-                Name = fullName,
                 Email = email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultPassword),
-                RoleId = roleId,
-                ParentUserId = parentId,
-                IsActive = true,
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                ImportSessionId = importSessionId
+                IsActive = true
             };
 
-            var createdUser = await _userRepository.CreateAsync(user);
+            user.Name = fullName;
+            user.RoleId = roleId;
+            user.ParentUserId = parentId;
+            user.UpdatedAt = DateTime.UtcNow;
+            user.ImportSessionId = importSessionId;
+
+            User? createdUser;
+            if (isNewUser)
+            {
+                createdUser = await _userRepository.CreateAsync(user);
+            }
+            else
+            {
+                await _userRepository.UpdateAsync(user);
+                createdUser = user;
+            }
 
             // Handle matricula assignment if provided
             if (createdUser != null && !string.IsNullOrWhiteSpace(matricula))
             {
                 try
                 {
-                    var userMatricula = new UserMatricula
-                    {
-                        UserId = createdUser.Id,
-                        MatriculaNumber = matricula,
-                        StartDate = DateTime.UtcNow,
-                        IsOwner = isMatriculaOwner,
-                        IsActive = true,
-                        Status = MatriculaStatus.Active.ToApiString(),
-                        ImportSessionId = importSessionId
-                    };
+                    // Use upsert logic for matricula as well
+                    var existingMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matricula, createdUser.Id);
 
-                    await _matriculaRepository.CreateAsync(userMatricula);
+                    if (existingMatricula == null)
+                    {
+                        var userMatricula = new UserMatricula
+                        {
+                            UserId = createdUser.Id,
+                            MatriculaNumber = matricula,
+                            StartDate = DateTime.UtcNow,
+                            IsOwner = isMatriculaOwner,
+                            IsActive = true,
+                            Status = MatriculaStatus.Active.ToApiString(),
+                            ImportSessionId = importSessionId
+                        };
+
+                        await _matriculaRepository.CreateAsync(userMatricula);
+                    }
+                    else
+                    {
+                        // Update existing matricula properties
+                        existingMatricula.IsOwner = isMatriculaOwner;
+                        existingMatricula.UpdatedAt = DateTime.UtcNow;
+                        existingMatricula.ImportSessionId = importSessionId;
+                        await _matriculaRepository.UpdateAsync(existingMatricula);
+                    }
                 }
                 catch (InvalidOperationException ex)
                 {

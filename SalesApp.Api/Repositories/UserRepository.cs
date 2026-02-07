@@ -25,8 +25,8 @@ namespace SalesApp.Repositories
         
         public async Task<User?> GetByEmailAsync(string email)
         {
+            // NOTE: Tracking needed for import upserts
             return await _context.Users
-                .AsNoTracking()
                 .Include(u => u.Role)
                 .Include(u => u.UserMatriculas)
                 .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
@@ -72,10 +72,24 @@ namespace SalesApp.Repositories
         
         public async Task<User> UpdateAsync(User user)
         {
-
-
             user.UpdatedAt = DateTime.UtcNow;
-            _context.Users.Update(user);
+
+            // ✅ Ensure entity is tracked before updating (prevents conflicts with multiple instances)
+            var existingEntry = _context.ChangeTracker.Entries<User>()
+                .FirstOrDefault(e => e.Entity.Id == user.Id);
+            
+            if (existingEntry == null)
+            {
+                _context.Users.Update(user);
+            }
+            else if (existingEntry.Entity != user)
+            {
+                // Different instance tracked, update its values
+                _context.Entry(existingEntry.Entity).CurrentValues.SetValues(user);
+                user = existingEntry.Entity;
+            }
+            // else: same instance already tracked, no action needed besides SaveChanges
+
             await _context.SaveChangesAsync();
             return user;
         }

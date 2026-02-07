@@ -186,7 +186,6 @@ namespace SalesApp.Repositories
         public async Task<UserMatricula?> GetByMatriculaNumberAndUserIdAsync(string matriculaNumber, Guid userId)
         {
             return await _context.UserMatriculas
-                .AsNoTracking()
                 .Include(m => m.User)
                 .FirstOrDefaultAsync(m => m.MatriculaNumber == matriculaNumber && m.UserId == userId);
         }

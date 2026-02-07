@@ -66,6 +66,61 @@ namespace SalesApp.Data
                 context.Users.Add(superAdminUser);
             }
             
+            // Seed ImportTemplates
+            var usersTemplate = await context.ImportTemplates.FirstOrDefaultAsync(t => t.Name == "Users");
+            if (usersTemplate == null)
+            {
+                context.ImportTemplates.Add(new ImportTemplate
+                {
+                    Id = 1,
+                    Name = "Users",
+                    EntityType = "User",
+                    Description = "Template for importing users",
+                    RequiredFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Name", "Email" }),
+                    OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Surname", "Role", "ParentEmail", "SendEmail", "Matricula", "IsMatriculaOwner" }),
+                    DefaultMappings = "{}",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedByUserId = superAdminUser?.Id ?? adminUser?.Id ?? Guid.Parse("080a0aea-4cbd-490f-9d6c-bc001391b005")
+                });
+            }
+            
+            var contractsTemplate = await context.ImportTemplates.FirstOrDefaultAsync(t => t.Name == "Contracts");
+            if (contractsTemplate == null)
+            {
+                context.ImportTemplates.Add(new ImportTemplate
+                {
+                    Id = 2,
+                    Name = "Contracts",
+                    EntityType = "Contract",
+                    Description = "Template for importing contracts",
+                    RequiredFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount" }),
+                    OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName", "Version" }),
+                    DefaultMappings = "{}",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedByUserId = superAdminUser?.Id ?? adminUser?.Id ?? Guid.Parse("080a0aea-4cbd-490f-9d6c-bc001391b005")
+                });
+            }
+            
+            var dashboardTemplate = await context.ImportTemplates.FirstOrDefaultAsync(t => t.Name == "contractDashboard");
+            if (dashboardTemplate == null)
+            {
+                context.ImportTemplates.Add(new ImportTemplate
+                {
+                    Id = 3,
+                    Name = "contractDashboard",
+                    EntityType = "Contract",
+                    Description = "Template for contract dashboard import from Power BI",
+                    RequiredFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName" }),
+                    OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Status", "PvId", "PvName", "Version", "TempMatricula", "Category", "PlanoVenda" }),
+                    DefaultMappings = "{}",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedByUserId = superAdminUser?.Id ?? adminUser?.Id ?? Guid.Parse("080a0aea-4cbd-490f-9d6c-bc001391b005")
+                });
+            }
+            
             await context.SaveChangesAsync();
         }
     }

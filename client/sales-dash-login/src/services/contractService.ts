@@ -62,6 +62,15 @@ export interface UpdateContractRequest {
   matriculaNumber?: string;
 }
 
+export interface UserMatriculaInfo {
+  id: number;
+  matriculaNumber: string;
+  isOwner: boolean;
+  status: string;
+  startDate: string;
+  endDate: string | null;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -71,6 +80,7 @@ export interface User {
   matriculaId?: number;
   matriculaNumber?: string;
   isMatriculaOwner: boolean;
+  activeMatriculas?: UserMatriculaInfo[];
 }
 
 export interface Group {

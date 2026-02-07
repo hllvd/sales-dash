@@ -56,18 +56,12 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        // Use cached users and groups if available, otherwise fetch
-        if (cachedUsers.length > 0 && cachedGroups.length > 0) {
-          setUsers(cachedUsers);
-          setGroups(cachedGroups);
-        } else {
-          const [usersData, groupsData] = await Promise.all([
-            getUsers(),
-            getGroups(),
-          ]);
-          setUsers(usersData);
-          setGroups(groupsData);
-        }
+        const [usersData, groupsData] = await Promise.all([
+          getUsers(),
+          getGroups(),
+        ]);
+        setUsers(usersData);
+        setGroups(groupsData);
         
         // Always fetch PVs (smaller dataset)
         const pvsResponse = await apiService.getPVs();
@@ -93,6 +87,17 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   }, [cachedUsers, cachedGroups, contract]);
 
   const handleChange = (name: string, value: any) => {
+    // Special logic for unified selection dropdown
+    if (name === 'userMatriculaSelection') {
+      const [userId, matriculaNumber] = (value || '').split('|');
+      setFormData((prev) => ({
+        ...prev,
+        userId: userId || '',
+        matriculaNumber: matriculaNumber || '',
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -199,15 +204,26 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           />
         </FormField>
 
-        <FormField label="Usuário">
+        <FormField label="Vendedor">
           <Select
-            value={formData.userId}
-            onChange={(value) => handleChange('userId', value)}
+            placeholder="Selecione o vendedor"
             data={[
-              { value: '', label: 'Sem usuário atribuído' },
-              ...users.map(user => ({ value: user.id, label: `${user.name} (${user.email})` }))
+              { value: '', label: 'Sem vendedor atribuído' },
+              ...users.flatMap((u) => {
+                const matriculas = u.activeMatriculas && u.activeMatriculas.length > 0
+                  ? u.activeMatriculas
+                  : [{ matriculaNumber: '' }];
+                
+                return matriculas.map((m) => ({
+                  value: `${u.id}|${m.matriculaNumber}`,
+                  label: `${u.name} (${u.email})${m.matriculaNumber ? ` - ${m.matriculaNumber}` : ''}`,
+                }));
+              })
             ]}
+            value={formData.userId ? `${formData.userId}|${formData.matriculaNumber}` : ''}
+            onChange={(value) => handleChange('userMatriculaSelection', value)}
             searchable
+            clearable
           />
         </FormField>
 
@@ -300,6 +316,15 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           />
         </FormField>
 
+        <FormField label="Número da Matrícula (Opcional)">
+          <TextInput
+            value={formData.matriculaNumber}
+            onChange={(e) => handleChange('matriculaNumber', e.target.value)}
+            placeholder="Ex: MAT-001"
+            maxLength={50}
+            disabled
+          />
+        </FormField>
 
 
         <Group justify="flex-end" mt="xl">

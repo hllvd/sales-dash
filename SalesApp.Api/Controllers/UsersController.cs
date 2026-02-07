@@ -455,7 +455,23 @@ namespace SalesApp.Controllers
                 // Matricula information
                 MatriculaId = primaryMatricula?.Id,
                 MatriculaNumber = primaryMatricula?.MatriculaNumber,
-                IsMatriculaOwner = primaryMatricula != null
+                IsMatriculaOwner = primaryMatricula != null,
+
+                // Active matriculas for current user
+                ActiveMatriculas = user.UserMatriculas?
+                    .Where(m => m.IsActive) // Just check IsActive for now
+                    .OrderByDescending(m => m.IsOwner)
+                    .ThenByDescending(m => m.StartDate)
+                    .Select(m => new UserMatriculaInfo
+                    {
+                        Id = m.Id,
+                        MatriculaNumber = m.MatriculaNumber,
+                        IsOwner = m.IsOwner,
+                        Status = m.Status,
+                        StartDate = m.StartDate,
+                        EndDate = m.EndDate
+                    })
+                    .ToList() ?? new List<UserMatriculaInfo>()
             };
         }
         

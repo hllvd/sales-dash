@@ -199,7 +199,10 @@ namespace SalesApp.Services
             session.CompletedAt = DateTime.UtcNow;
             session.ProcessedRows = userResult.ProcessedRows;
             session.FailedRows = userResult.FailedRows;
-            session.TemplateId = 1; // Link to Users template for correct display in history
+            
+            // Resolve Users template by name to avoid FK errors
+            var usersTemplate = await _templateRepository.GetByNameAsync("Users");
+            session.TemplateId = usersTemplate?.Id;
             
             await _sessionRepository.UpdateAsync(session);
 

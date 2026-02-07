@@ -228,12 +228,15 @@ namespace SalesApp.Services
                     errors.Add($"Invalid email format: {email}");
                 }
 
-                // Check email uniqueness
+                // Check email uniqueness - REMOVED for Upsert logic: 
+                // existing users will be updated instead of rejected.
+                /*
                 var emailExists = await _context.Users.AnyAsync(u => u.Email == email);
                 if (emailExists)
                 {
                     errors.Add($"Email already exists: {email}");
                 }
+                */
             }
         }
 
