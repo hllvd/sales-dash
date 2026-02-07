@@ -75,8 +75,14 @@ namespace SalesApp.Repositories
             if (!string.IsNullOrEmpty(contractNumber))
                 query = query.Where(c => c.ContractNumber == contractNumber);
 
-            if (!string.IsNullOrEmpty(matriculaNumber))
-                query = query.Where(c => c.User != null && c.User.UserMatriculas.Any(m => m.MatriculaNumber == matriculaNumber && m.IsActive));
+            if (!string.IsNullOrWhiteSpace(matriculaNumber))
+            {
+                var normalizedMatricula = matriculaNumber.Trim().ToLower();
+                query = query.Where(c => c.User != null && c.User.UserMatriculas.Any(m => 
+                    m.IsActive && 
+                    (m.EndDate == null || m.EndDate > DateTime.UtcNow) &&
+                    m.MatriculaNumber.ToLower().Contains(normalizedMatricula)));
+            }
             
             return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
         }
