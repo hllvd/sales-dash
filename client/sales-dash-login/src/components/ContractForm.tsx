@@ -300,14 +300,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           />
         </FormField>
 
-        <FormField label="Número da Matrícula (Opcional)">
-          <TextInput
-            value={formData.matriculaNumber}
-            onChange={(e) => handleChange('matriculaNumber', e.target.value)}
-            placeholder="Ex: MAT-001"
-            maxLength={50}
-          />
-        </FormField>
+
 
         <Group justify="flex-end" mt="xl">
           <Button variant="default" onClick={onClose} disabled={loading}>
