@@ -19,7 +19,27 @@ namespace SalesApp
                 // Seed database
                 using (var scope = host.Services.CreateScope())
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var services = scope.ServiceProvider;
+                    var context = services.GetRequiredService<AppDbContext>();
+                    var environment = services.GetRequiredService<IHostEnvironment>();
+
+                    if (environment.IsEnvironment("E2E"))
+                    {
+                        Log.Warning("==========================================================");
+                        Log.Warning("E2E ENVIRONMENT DETECTED: DELETING AND RECREATING DATABASE");
+                        Log.Warning("==========================================================");
+                        
+                        // Safety Double Check: Ensure we are NOT in Production
+                        if (environment.IsProduction())
+                        {
+                            Log.Fatal("CRITICAL ERROR: Attempted to run E2E reset in PRODUCTION environment. Aborting startup.");
+                            return;
+                        }
+
+                        await context.Database.EnsureDeletedAsync();
+                        Log.Information("E2E database deleted successfully.");
+                    }
+
                     await DbSeeder.SeedAsync(context);
                 }
                 
