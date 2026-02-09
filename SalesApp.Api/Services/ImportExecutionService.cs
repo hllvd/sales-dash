@@ -267,6 +267,7 @@ namespace SalesApp.Services
             contract.Status = status;
             contract.SaleStartDate = saleStartDate;
             contract.UploadId = uploadId;
+            contract.ImportSessionId = importSessionId; // ✅ Track import session for undo
             contract.IsActive = true;
             contract.UpdatedAt = DateTime.UtcNow;
             contract.ContractType = contractType;
@@ -1143,23 +1144,43 @@ namespace SalesApp.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // 1. Delete Contracts
+                // 1. Delete Contracts from this session
                 var contracts = await _context.Contracts
                     .Where(c => c.ImportSessionId == importSessionId)
                     .ToListAsync();
                 _context.Contracts.RemoveRange(contracts);
 
-                // 2. Delete UserMatriculas
+                // 2. Delete UserMatriculas from this session
                 var matriculas = await _context.UserMatriculas
                     .Where(m => m.ImportSessionId == importSessionId)
                     .ToListAsync();
                 _context.UserMatriculas.RemoveRange(matriculas);
 
-                // 3. Delete Users (only if created via import)
-                var users = await _context.Users
+                // 3. Delete Users ONLY if they have no external dependencies
+                var usersFromSession = await _context.Users
                     .Where(u => u.ImportSessionId == importSessionId)
                     .ToListAsync();
-                _context.Users.RemoveRange(users);
+
+                foreach (var user in usersFromSession)
+                {
+                    // Check if user has any contracts NOT from this session
+                    var hasExternalContracts = await _context.Contracts
+                        .AnyAsync(c => c.UserId == user.Id && c.ImportSessionId != importSessionId);
+
+                    // Check if user has any matriculas NOT from this session
+                    var hasExternalMatriculas = await _context.UserMatriculas
+                        .AnyAsync(m => m.UserId == user.Id && m.ImportSessionId != importSessionId);
+
+                    // Check if user has any child users (is a parent)
+                    var hasChildUsers = await _context.Users
+                        .AnyAsync(u => u.ParentUserId == user.Id);
+
+                    // Only delete if user has NO external dependencies
+                    if (!hasExternalContracts && !hasExternalMatriculas && !hasChildUsers)
+                    {
+                        _context.Users.Remove(user);
+                    }
+                }
 
                 // 4. Delete PVs (only if created via import)
                 var pvs = await _context.PVs
