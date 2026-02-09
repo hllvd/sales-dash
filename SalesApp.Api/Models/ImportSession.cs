@@ -41,8 +41,12 @@ namespace SalesApp.Models
         
         public DateTime? CompletedAt { get; set; }
         
+        
         // Navigation properties
         public ImportTemplate? Template { get; set; }
         public User UploadedBy { get; set; } = null!;
+        
+        // Computed property for frontend convenience
+        public string? TemplateName => Template?.Name;
     }
 }
