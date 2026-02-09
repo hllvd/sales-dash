@@ -12,24 +12,32 @@ const ImportWizardPage: React.FC = () => {
   // Step 1: Upload Contract File
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [uploadData, setUploadData] = useState<any>(null);
+  const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
 
   // Step 2: Users File
   const [usersFile, setUsersFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
 
-  const handleStep1Upload = async () => {
+  const handleStep1Upload = async (forceMatch: boolean = false) => {
     if (!contractFile) {
       toast.error('Por favor, selecione o arquivo de contratos');
       return;
     }
 
     setLoading(true);
+    setMismatchWarning(null);
     try {
       const response = await apiService.uploadWizardStep1(contractFile);
       if (response.success) {
-        setUploadData(response.data);
-        setActiveStep(1);
-        toast.success('Arquivo processado com sucesso');
+        if (!forceMatch && response.data.isTemplateMatch === false) {
+          setMismatchWarning(response.data.matchMessage || 'Aviso: O arquivo não parece corresponder ao modelo selecionado.');
+          setUploadData(response.data);
+          toast.warning('Aviso: Modelo de arquivo divergente');
+        } else {
+          setUploadData(response.data);
+          setActiveStep(1);
+          toast.success('Arquivo processado com sucesso');
+        }
       }
     } catch (err: any) {
       toast.error(err.message || 'Falha ao processar arquivo');
@@ -117,21 +125,40 @@ const ImportWizardPage: React.FC = () => {
                   placeholder="Selecione o arquivo .csv ou .xlsx"
                   required
                   value={contractFile}
-                  onChange={setContractFile}
+                  onChange={(f) => {
+                    setContractFile(f);
+                    setMismatchWarning(null);
+                  }}
                   accept=".csv,.xlsx"
                   leftSection={<IconUpload size={16} />}
                 />
 
-                <Group justify="flex-end" mt="md">
-                  <Button 
-                    onClick={handleStep1Upload} 
-                    loading={loading}
-                    disabled={!contractFile}
-                    rightSection={<IconChevronRight size={16} />}
-                  >
-                    Próximo Passo
-                  </Button>
-                </Group>
+                {mismatchWarning && (
+                  <Alert icon={<IconAlertCircle size={16} />} title="Modelo Divergente" color="orange" mt="md">
+                    <Text size="sm" mb="md">{mismatchWarning}</Text>
+                    <Group>
+                      <Button variant="outline" color="orange" size="xs" onClick={() => setContractFile(null)}>
+                        Tentar outro
+                      </Button>
+                      <Button color="orange" size="xs" onClick={() => setActiveStep(1)}>
+                        Prosseguir assim mesmo
+                      </Button>
+                    </Group>
+                  </Alert>
+                )}
+
+                {!mismatchWarning && (
+                  <Group justify="flex-end" mt="md">
+                    <Button 
+                      onClick={() => handleStep1Upload()} 
+                      loading={loading}
+                      disabled={!contractFile}
+                      rightSection={<IconChevronRight size={16} />}
+                    >
+                      Próximo Passo
+                    </Button>
+                  </Group>
+                )}
               </Stack>
             </Paper>
           </Stepper.Step>

@@ -95,6 +95,55 @@ namespace SalesApp.Services
 
             await _sessionRepository.CreateAsync(session);
 
+            // Template verification logic
+            var isTemplateMatch = true;
+            string? matchMessage = null;
+            Dictionary<string, string> suggestedMappings = new();
+            List<string> requiredFields = new();
+            List<string> optionalFields = new();
+
+            if (template != null)
+            {
+                requiredFields = JsonSerializer.Deserialize<List<string>>(template.RequiredFields) ?? new();
+                optionalFields = JsonSerializer.Deserialize<List<string>>(template.OptionalFields) ?? new();
+                
+                var allTemplateFields = new List<string>();
+                allTemplateFields.AddRange(requiredFields);
+                allTemplateFields.AddRange(optionalFields);
+
+                suggestedMappings = _autoMapping.SuggestMappings(columns, template.EntityType, allTemplateFields);
+                
+                // Overlay default mappings from template (high priority) - CRITICAL for dashboard aliased columns
+                if (!string.IsNullOrEmpty(template.DefaultMappings) && template.DefaultMappings != "{}")
+                {
+                    var templateMappings = JsonSerializer.Deserialize<Dictionary<string, string>>(template.DefaultMappings) ?? new();
+                    var appliedMappings = _autoMapping.ApplyTemplateMappings(templateMappings, columns);
+                    
+                    foreach (var (src, target) in appliedMappings)
+                    {
+                        suggestedMappings[src] = target;
+                    }
+                }
+                
+                var mappedRequiredFieldsCount = requiredFields.Count(rf => suggestedMappings.Values.Contains(rf));
+
+                if (requiredFields.Any())
+                {
+                    // If less than 50% of required fields are matched, it's a likely mismatch
+                    if (mappedRequiredFieldsCount < (requiredFields.Count + 1) / 2)
+                    {
+                        isTemplateMatch = false;
+                        matchMessage = $"Atenção: O arquivo enviado não parece corresponder ao modelo '{template.Name}'. Foram identificados apenas {mappedRequiredFieldsCount} de {requiredFields.Count} campos obrigatórios.";
+                    }
+                    // Special case for contractDashboard: if it doesn't match the most critical fields
+                    else if (template.Name == "contractDashboard" && mappedRequiredFieldsCount < 3)
+                    {
+                        isTemplateMatch = false;
+                        matchMessage = "Atenção: Este arquivo não parece ser um dashboard de contratos válido.";
+                    }
+                }
+            }
+
             return new ImportPreviewResponse
             {
                 UploadId = uploadId,
@@ -106,7 +155,11 @@ namespace SalesApp.Services
                 DetectedColumns = columns,
                 SampleRows = allRows.Take(5).ToList(),
                 TotalRows = allRows.Count,
-                IsTemplateMatch = true // We assume the user uploaded the right file as instructed
+                IsTemplateMatch = isTemplateMatch,
+                MatchMessage = matchMessage,
+                SuggestedMappings = suggestedMappings,
+                RequiredFields = requiredFields,
+                OptionalFields = optionalFields
             };
         }
 
