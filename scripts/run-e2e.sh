@@ -7,7 +7,7 @@ set -e
 API_DIR="../SalesApp.Api"
 CLIENT_DIR="../client/sales-dash"
 E2E_DIR="../client/e2e-test"
-API_URL="http://localhost:5000"
+API_URL="http://localhost:5017"
 CLIENT_URL="http://localhost:3000"
 
 echo "🚀 Starting E2E Test Suite..."
