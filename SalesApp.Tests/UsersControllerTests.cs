@@ -74,6 +74,18 @@ namespace SalesApp.Tests
                 new Claim(ClaimTypes.NameIdentifier, userId),
                 new Claim(ClaimTypes.Role, role)
             };
+
+            if (role == "superadmin")
+            {
+                claims.Add(new Claim("perm", "system:superadmin"));
+            }
+            else if (role == "admin")
+            {
+                claims.Add(new Claim("perm", "users:read"));
+                claims.Add(new Claim("perm", "users:update"));
+                claims.Add(new Claim("perm", "users:delete"));
+            }
+
             var identity = new ClaimsIdentity(claims, "TestAuth");
             var principal = new ClaimsPrincipal(identity);
             _controller.ControllerContext = new ControllerContext
@@ -183,7 +195,7 @@ namespace SalesApp.Tests
             };
 
             _mockUserRepository.Setup(x => x.GetByEmailAsync(request.Email)).ReturnsAsync(user);
-            _mockJwtService.Setup(x => x.GenerateToken(user)).Returns("test_token");
+            _mockJwtService.Setup(x => x.GenerateToken(user)).ReturnsAsync("test_token");
             _mockJwtService.Setup(x => x.GenerateRefreshToken()).Returns("test_refresh_token");
             _mockConfiguration.Setup(x => x["Jwt:RefreshTokenExpirationDays"]).Returns("7");
 

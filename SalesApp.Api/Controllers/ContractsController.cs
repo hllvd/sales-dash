@@ -4,6 +4,7 @@ using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Attributes;
 using System.Security.Claims;
 
 namespace SalesApp.Controllers
@@ -37,7 +38,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("contracts:read")]
         public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetContracts(
             [FromQuery] Guid? userId = null,
             [FromQuery] int? groupId = null,
@@ -64,15 +65,16 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("user/{userId}")]
+        [HasPermission("contracts:read")]
         public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetUserContracts(
             Guid userId,
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
         {
             var currentUserId = GetCurrentUserId();
-            var currentUserRole = GetCurrentUserRole();
+            var hasReadPermission = User.HasClaim("perm", "contracts:read") || User.HasClaim("perm", "system:superadmin");
             
-            if (currentUserRole != "admin" && currentUserRole != "superadmin" && currentUserId != userId)
+            if (!hasReadPermission && currentUserId != userId)
             {
                 return Forbid();
             }
@@ -94,6 +96,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("aggregation/historic-production")]
+        [HasPermission("contracts:read")]
         public async Task<ActionResult<ApiResponse<HistoricProductionResponse>>> GetHistoricProduction(
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
@@ -101,10 +104,10 @@ namespace SalesApp.Controllers
             [FromQuery] bool? showUnassigned = null)
         {
             var currentUserId = GetCurrentUserId();
-            var currentUserRole = GetCurrentUserRole();
+            var hasReadPermission = User.HasClaim("perm", "contracts:read") || User.HasClaim("perm", "system:superadmin");
             
-            // If userId is specified and user is not admin/superadmin, verify it's their own data
-            if (userId.HasValue && currentUserRole != "admin" && currentUserRole != "superadmin" && currentUserId != userId.Value)
+            // If userId is specified and user does not have read-all permission, verify it's their own data
+            if (userId.HasValue && !hasReadPermission && currentUserId != userId.Value)
             {
                 return Forbid();
             }
@@ -128,6 +131,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("{id}")]
+        [HasPermission("contracts:read")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> GetContract(int id)
         {
             var contract = await _contractRepository.GetByIdAsync(id);
@@ -149,7 +153,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("number/{contractNumber}")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("contracts:read")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> GetContractByNumber(string contractNumber)
         {
             var contract = await _contractRepository.GetByContractNumberAsync(contractNumber);
@@ -171,7 +175,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("contracts:create")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> CreateContract(ContractRequest request)
         {
             // Validate contract number doesn't already exist
@@ -268,7 +272,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("contracts:update")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> UpdateContract(int id, UpdateContractRequest request)
         {
             var contract = await _contractRepository.GetByIdAsync(id);
@@ -387,7 +391,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("contracts:delete")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteContract(int id)
         {
             var contract = await _contractRepository.GetByIdAsync(id);

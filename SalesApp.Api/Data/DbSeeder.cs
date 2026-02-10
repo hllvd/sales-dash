@@ -121,6 +121,62 @@ namespace SalesApp.Data
                 });
             }
             
+            await SeedPermissions(context);
+            
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedPermissions(AppDbContext context)
+        {
+            var permissions = new List<string>
+            {
+                "users:read", "users:create", "users:update", "users:delete",
+                "contracts:read", "contracts:create", "contracts:update", "contracts:delete",
+                "pvs:read", "pvs:create", "pvs:update", "pvs:delete",
+                "imports:execute", "imports:history", "imports:rollback",
+                "groups:read", "groups:write",
+                "matriculas:read", "matriculas:write",
+                "roles:read", "roles:create", "roles:update", "roles:delete",
+                "system:admin", "system:superadmin"
+            };
+
+            foreach (var permName in permissions)
+            {
+                if (!await context.Permissions.AnyAsync(p => p.Name == permName))
+                {
+                    context.Permissions.Add(new Permission { Name = permName, Description = $"Permission to {permName}" });
+                }
+            }
+            await context.SaveChangesAsync();
+
+            // Assign to SuperAdmin (All)
+            var allPerms = await context.Permissions.ToListAsync();
+            await AssignPermissionsToRole(context, (int)Models.RoleId.SuperAdmin, allPerms);
+
+            // Assign to Admin (Most permissions except high-risk ones)
+            var adminPerms = allPerms.Where(p => 
+                p.Name != "users:delete" && 
+                p.Name != "imports:rollback" && 
+                p.Name != "system:superadmin" &&
+                p.Name != "roles:delete" &&
+                !p.Name.StartsWith("pvs:")
+            ).ToList();
+            await AssignPermissionsToRole(context, (int)Models.RoleId.Admin, adminPerms);
+
+            // Assign to User (Basic)
+            var userPerms = allPerms.Where(p => p.Name == "contracts:read" || p.Name == "pvs:read").ToList();
+            await AssignPermissionsToRole(context, (int)Models.RoleId.User, userPerms);
+        }
+
+        private static async Task AssignPermissionsToRole(AppDbContext context, int roleId, List<Permission> permissions)
+        {
+            foreach (var perm in permissions)
+            {
+                if (!await context.RolePermissions.AnyAsync(rp => rp.RoleId == roleId && rp.PermissionId == perm.Id))
+                {
+                    context.RolePermissions.Add(new RolePermission { RoleId = roleId, PermissionId = perm.Id });
+                }
+            }
             await context.SaveChangesAsync();
         }
     }

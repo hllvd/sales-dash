@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import config from '../config';
 import './LoginPage.css';
 
 const LoginPage: React.FC = () => {
@@ -13,7 +14,7 @@ const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5017/api/users/login', {
+      const response = await fetch(`${config.apiUrl}/users/login`, {
 
         method: 'POST',
         headers: {

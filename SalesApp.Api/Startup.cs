@@ -11,6 +11,8 @@ using Microsoft.OpenApi.Models;
 using SalesApp.Data;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
@@ -27,11 +29,19 @@ namespace SalesApp
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddHttpContextAccessor();
 
             
             // Database (SQLite)
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
+            {
+                var connectionString = Configuration.GetConnectionString("DefaultConnection");
+                if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "E2E")
+                {
+                    connectionString = connectionString? .Replace("SalesApp.db", "SalesApp.E2E.db");
+                }
+                options.UseSqlite(connectionString);
+            });
 
             // Data Protection (fix encryption warning)
             services.AddDataProtection()
@@ -46,8 +56,11 @@ namespace SalesApp
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IPVRepository, PVRepository>();
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
-            services.AddScoped<IDynamicRoleAuthorizationService, DynamicRoleAuthorizationService>();
-            services.AddScoped<IEndpointDiscoveryService, EndpointDiscoveryService>();
+            
+            // Production-Grade RBAC
+            services.AddSingleton<IRbacCache, RbacCache>();
+            services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+            services.AddScoped<IAuthorizationHandler, PermissionHandler>();
             
             // Import repositories
             services.AddScoped<IImportTemplateRepository, ImportTemplateRepository>();

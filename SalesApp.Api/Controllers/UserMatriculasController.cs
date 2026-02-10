@@ -4,12 +4,12 @@ using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Attributes;
 
 namespace SalesApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "admin,superadmin")]
     public class UserMatriculasController : ControllerBase
     {
         private readonly IUserMatriculaRepository _matriculaRepository;
@@ -28,6 +28,7 @@ namespace SalesApp.Controllers
 
         // GET: api/usermatriculas
         [HttpGet]
+        [HasPermission("matriculas:read")]
         public async Task<ActionResult<ApiResponse<List<UserMatriculaResponse>>>> GetAll()
         {
             var matriculas = await _matriculaRepository.GetAllAsync();
@@ -43,6 +44,7 @@ namespace SalesApp.Controllers
 
         // GET: api/usermatriculas/{id}
         [HttpGet("{id}")]
+        [HasPermission("matriculas:read")]
         public async Task<ActionResult<ApiResponse<UserMatriculaResponse>>> GetById(int id)
         {
             var matricula = await _matriculaRepository.GetByIdAsync(id);
@@ -66,6 +68,7 @@ namespace SalesApp.Controllers
 
         // GET: api/usermatriculas/user/{userId}
         [HttpGet("user/{userId}")]
+        [HasPermission("matriculas:read")]
         public async Task<ActionResult<ApiResponse<List<UserMatriculaResponse>>>> GetByUserId(Guid userId)
         {
             var matriculas = await _matriculaRepository.GetByUserIdAsync(userId);
@@ -81,6 +84,7 @@ namespace SalesApp.Controllers
 
         // POST: api/usermatriculas
         [HttpPost]
+        [HasPermission("matriculas:write")]
         public async Task<ActionResult<ApiResponse<UserMatriculaResponse>>> Create(
             [FromBody] CreateUserMatriculaRequest request)
         {
@@ -161,7 +165,7 @@ namespace SalesApp.Controllers
 
         // POST: api/usermatriculas/bulk
         [HttpPost("bulk")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("matriculas:write")]
         public async Task<ActionResult<ApiResponse<BulkCreateMatriculaResponse>>> BulkCreate(
             [FromBody] BulkCreateMatriculaRequest request)
         {
@@ -262,6 +266,7 @@ namespace SalesApp.Controllers
         // PUT: api/usermatriculas/{id}
 
         [HttpPut("{id}")]
+        [HasPermission("matriculas:write")]
         public async Task<ActionResult<ApiResponse<UserMatriculaResponse>>> Update(
             int id,
             [FromBody] UpdateUserMatriculaRequest request)
@@ -318,6 +323,7 @@ namespace SalesApp.Controllers
 
         // DELETE: api/usermatriculas/{id}
         [HttpDelete("{id}")]
+        [HasPermission("matriculas:write")]
         public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         {
             var matricula = await _matriculaRepository.GetByIdAsync(id);
@@ -342,6 +348,7 @@ namespace SalesApp.Controllers
 
         // POST: api/usermatriculas/bulk-assign
         [HttpPost("bulk-assign")]
+        [HasPermission("matriculas:write")]
         public async Task<ActionResult<ApiResponse<BulkAssignResult>>> BulkAssign(
             [FromBody] BulkAssignMatriculasRequest request)
         {

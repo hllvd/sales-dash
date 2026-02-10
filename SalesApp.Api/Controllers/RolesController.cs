@@ -10,7 +10,6 @@ namespace SalesApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "admin,superadmin")]
     public class RolesController : ControllerBase
     {
         private readonly IRoleRepository _roleRepository;
@@ -23,6 +22,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet]
+        [HasPermission("roles:read")]
         public async Task<ActionResult<ApiResponse<List<RoleResponse>>>> GetRoles()
         {
             var roles = await _roleRepository.GetAllAsync();
@@ -36,6 +36,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("{id}")]
+        [HasPermission("roles:read")]
         public async Task<ActionResult<ApiResponse<RoleResponse>>> GetRole(int id)
         {
             var role = await _roleRepository.GetByIdAsync(id);
@@ -57,6 +58,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost]
+        [HasPermission("roles:create")]
         public async Task<ActionResult<ApiResponse<RoleResponse>>> CreateRole(RoleRequest request)
         {
             if (await _roleRepository.NameExistsAsync(request.Name))
@@ -87,6 +89,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
+        [HasPermission("roles:update")]
         public async Task<ActionResult<ApiResponse<RoleResponse>>> UpdateRole(int id, UpdateRoleRequest request)
         {
             var role = await _roleRepository.GetByIdAsync(id);
@@ -135,7 +138,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("roles:delete")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteRole(int id)
         {
             var role = await _roleRepository.GetByIdAsync(id);

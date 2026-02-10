@@ -18,6 +18,8 @@ namespace SalesApp.Data
         public DbSet<UserMatricula> UserMatriculas { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<ContractMetadata> ContractMetadata { get; set; }
+        public DbSet<Permission> Permissions { get; set; }
+        public DbSet<RolePermission> RolePermissions { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -242,9 +244,28 @@ namespace SalesApp.Data
                 entity.Property(e => e.Id).ValueGeneratedOnAdd();
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.Value).IsRequired().HasMaxLength(100);
+            });
                 
-                // Unique constraint on Name + Value combination
-                entity.HasIndex(e => new { e.Name, e.Value }).IsUnique();
+            // Permission entity configuration
+            modelBuilder.Entity<Permission>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Name).IsUnique();
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            });
+
+            // RolePermission (Many-to-Many join) configuration
+            modelBuilder.Entity<RolePermission>(entity =>
+            {
+                entity.HasKey(rp => new { rp.RoleId, rp.PermissionId });
+
+                entity.HasOne(rp => rp.Role)
+                    .WithMany(r => r.RolePermissions)
+                    .HasForeignKey(rp => rp.RoleId);
+
+                entity.HasOne(rp => rp.Permission)
+                    .WithMany(p => p.RolePermissions)
+                    .HasForeignKey(rp => rp.PermissionId);
             });
         }
     }

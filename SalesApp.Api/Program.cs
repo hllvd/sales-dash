@@ -3,6 +3,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SalesApp.Data;
+using SalesApp.Services;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace SalesApp
@@ -26,7 +28,7 @@ namespace SalesApp
                     if (environment.IsEnvironment("E2E"))
                     {
                         Log.Warning("==========================================================");
-                        Log.Warning("E2E ENVIRONMENT DETECTED: DELETING AND RECREATING DATABASE");
+                        Log.Warning("E2E ENVIRONMENT DETECTED: DATA WILL BE RESET BY SEEDER");
                         Log.Warning("==========================================================");
                         
                         // Safety Double Check: Ensure we are NOT in Production
@@ -35,12 +37,49 @@ namespace SalesApp
                             Log.Fatal("CRITICAL ERROR: Attempted to run E2E reset in PRODUCTION environment. Aborting startup.");
                             return;
                         }
-
-                        await context.Database.EnsureDeletedAsync();
-                        Log.Information("E2E database deleted successfully.");
                     }
 
-                    await DbSeeder.SeedAsync(context);
+                    int retries = 5;
+                    while (retries > 0)
+                    {
+                        try
+                        {
+                            await DbSeeder.SeedAsync(context);
+                            break;
+                        }
+                        catch (Exception ex) when (retries > 1)
+                        {
+                            Log.Warning(ex, $"Database migration/seeding failed. Retrying... ({retries} attempts left)");
+                            retries--;
+                            await Task.Delay(1000); // Wait 1 second before retry
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Fatal(ex, "Database migration/seeding failed after multiple attempts.");
+                            throw;
+                        }
+                    }
+
+                    // 🚀 Final Safety: Small delay for SQLite filesystem release
+                    await Task.Delay(500);
+
+                    // 🚀 Initialize RBAC Cache here, AFTER migrations and seeding are complete
+                    var rbacCache = services.GetRequiredService<IRbacCache>();
+                    var rolePerms = await context.Roles
+                        .Include(r => r.RolePermissions)
+                        .ThenInclude(rp => rp.Permission)
+                        .ToListAsync();
+
+                    var cacheData = rolePerms.ToDictionary(
+                        r => r.Id,
+                        r => r.RolePermissions
+                            .Select(rp => rp.Permission?.Name)
+                            .Where(name => name != null)
+                            .Cast<string>()
+                            .ToHashSet()
+                    );
+                    rbacCache.Initialize(cacheData);
+                    Log.Information("RBAC Cache initialized successfully.");
                 }
                 
                 host.Run();

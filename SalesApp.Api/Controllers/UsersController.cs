@@ -5,6 +5,7 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Data;
+using SalesApp.Attributes;
 using System.Security.Claims;
 using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
@@ -182,6 +183,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<ActionResult<ApiResponse<LoginResponse>>> Login(LoginRequest request)
         {
             // Normalize email to lowercase
@@ -197,7 +199,7 @@ namespace SalesApp.Controllers
                 });
             }
             
-            var token = _jwtService.GenerateToken(user);
+            var token = await _jwtService.GenerateToken(user);
             var refreshToken = _jwtService.GenerateRefreshToken();
             
             // Get refresh token expiration from config
@@ -231,7 +233,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("users:read")]
         public async Task<ActionResult<ApiResponse<PagedResponse<UserResponse>>>> GetUsers(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
@@ -255,7 +257,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("role/{roleId}")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("users:read")]
         public async Task<ActionResult<ApiResponse<List<UserResponse>>>> GetUsersByRole(int roleId)
         {
             var users = await _userRepository.GetByRoleIdAsync(roleId);
@@ -270,7 +272,7 @@ namespace SalesApp.Controllers
 
         [HttpGet("by-matricula/{matricula}")]
         [HttpGet("lookup/{matricula}")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("users:read")]
         public ActionResult<ApiResponse<List<UserLookupResponse>>> LookupByMatricula(string matricula)
         {
             // This endpoint is deprecated - use UserMatriculas endpoints instead
@@ -283,13 +285,13 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("{id}")]
-        [Authorize(Roles = "admin,superadmin,user")]
+        [Authorize]
         public async Task<ActionResult<ApiResponse<UserResponse>>> GetUser(Guid id)
         {
             var currentUserId = GetCurrentUserId();
-            var currentUserRole = GetCurrentUserRole();
+            var hasReadPermission = User.HasClaim("perm", "users:read") || User.HasClaim("perm", "system:superadmin");
             
-            if (currentUserRole != "admin" && currentUserRole != "superadmin" && currentUserId != id)
+            if (!hasReadPermission && currentUserId != id)
             {
                 return Forbid();
             }
@@ -313,11 +315,11 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("users:update")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> UpdateUser(Guid id, UpdateUserRequest request)
         {
             var currentUserId = GetCurrentUserId();
-            var currentUserRole = GetCurrentUserRole();
+            var hasAdminPermission = User.HasClaim("perm", "users:update") || User.HasClaim("perm", "system:superadmin");
             
             var user = await _userRepository.GetByIdAsync(id);
             if (user == null)
@@ -351,7 +353,7 @@ namespace SalesApp.Controllers
             if (!string.IsNullOrEmpty(request.Password))
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
                 
-            if (!string.IsNullOrEmpty(request.Role) && (currentUserRole == "admin" || currentUserRole == "superadmin"))
+            if (!string.IsNullOrEmpty(request.Role) && hasAdminPermission)
             {
                 if (!UserRole.IsValid(request.Role))
                 {
@@ -370,7 +372,7 @@ namespace SalesApp.Controllers
             }
                 
             // Handle parent user assignment
-            if (request.ParentUserId.HasValue && (currentUserRole == "admin" || currentUserRole == "superadmin"))
+            if (request.ParentUserId.HasValue && hasAdminPermission)
             {
                 var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(id, request.ParentUserId);
                 if (hierarchyError != null)
@@ -411,7 +413,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("users:delete")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteUser(Guid id)
         {
             var user = await _userRepository.GetByIdAsync(id);
@@ -481,11 +483,6 @@ namespace SalesApp.Controllers
             return Guid.TryParse(userIdClaim, out var userId) ? userId : Guid.Empty;
         }
         
-        private string GetCurrentUserRole()
-        {
-            return User.FindFirst(ClaimTypes.Role)?.Value ?? UserRole.User;
-        }
-        
         [HttpGet("{id}/parent")]
         [Authorize]
         public async Task<ActionResult<ApiResponse<UserHierarchyResponse?>>> GetParent(Guid id)
@@ -515,7 +512,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("{id}/tree")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("users:read")]
         public async Task<ActionResult<ApiResponse<UserTreeResponse>>> GetTree(Guid id, [FromQuery] int depth = -1)
         {
             var tree = await _hierarchyService.GetTreeAsync(id, depth);
@@ -548,7 +545,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("root")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("users:read")]
         public async Task<ActionResult<ApiResponse<UserHierarchyResponse?>>> GetRoot()
         {
             var root = await _hierarchyService.GetRootUserAsync();
@@ -651,7 +648,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost("{id}/reset-password")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("users:update")]
         public async Task<ActionResult<ApiResponse<ResetPasswordResponse>>> ResetPassword(Guid id, [FromBody] ResetPasswordRequest request)
         {
             var currentUserId = GetCurrentUserId();

@@ -4,12 +4,12 @@ using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Attributes;
 
 namespace SalesApp.Controllers
 {
     [ApiController]
     [Route("api/imports")]
-    [Authorize(Roles = "admin,superadmin")]
     public class ImportHistoryController : ControllerBase
     {
         private readonly IImportSessionRepository _sessionRepository;
@@ -24,6 +24,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpGet("history")]
+        [HasPermission("imports:history")]
         public async Task<ActionResult<ApiResponse<List<ImportSession>>>> GetHistory()
         {
             var history = await _sessionRepository.GetAllAsync();
@@ -41,6 +42,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpDelete("{id}/undo")]
+        [HasPermission("imports:rollback")]
         public async Task<ActionResult<ApiResponse<string>>> UndoImport(int id)
         {
             var session = await _sessionRepository.GetByIdAsync(id);

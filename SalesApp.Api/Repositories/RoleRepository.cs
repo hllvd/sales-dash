@@ -15,12 +15,18 @@ namespace SalesApp.Repositories
         
         public async Task<Role?> GetByIdAsync(int id)
         {
-            return await _context.Roles.FirstOrDefaultAsync(r => r.Id == id);
+            return await _context.Roles
+                .Include(r => r.RolePermissions)
+                .ThenInclude(rp => rp.Permission)
+                .FirstOrDefaultAsync(r => r.Id == id);
         }
         
         public async Task<Role?> GetByNameAsync(string name)
         {
-            return await _context.Roles.FirstOrDefaultAsync(r => r.Name == name);
+            return await _context.Roles
+                .Include(r => r.RolePermissions)
+                .ThenInclude(rp => rp.Permission)
+                .FirstOrDefaultAsync(r => r.Name == name);
         }
         
         public async Task<List<Role>> GetAllAsync()

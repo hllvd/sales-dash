@@ -1,7 +1,7 @@
+import config from '../config'
 import { authenticatedFetch, getAuthHeaders } from '../utils/httpInterceptor'
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "http://localhost:5017/api"
+const API_BASE_URL = config.apiUrl
 
 interface ApiResponse<T> {
   success: boolean
@@ -651,6 +651,56 @@ export const apiService = {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
+  },
+
+  // Generic methods
+  async get<T = any>(endpoint: string): Promise<T> {
+    const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: `Failed to fetch ${endpoint}` }));
+      throw new Error(error.message || `Failed to fetch ${endpoint}`);
+    }
+    return response.json();
+  },
+
+  async post<T = any>(endpoint: string, data: any): Promise<T> {
+    const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: `Failed to post to ${endpoint}` }));
+      throw new Error(error.message || `Failed to post to ${endpoint}`);
+    }
+    return response.json();
+  },
+
+  async put<T = any>(endpoint: string, data: any): Promise<T> {
+    const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: `Failed to put to ${endpoint}` }));
+      throw new Error(error.message || `Failed to put to ${endpoint}`);
+    }
+    return response.json();
+  },
+
+  async delete<T = any>(endpoint: string): Promise<T> {
+    const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: `Failed to delete ${endpoint}` }));
+      throw new Error(error.message || `Failed to delete ${endpoint}`);
+    }
+    return response.json();
   },
 }
 

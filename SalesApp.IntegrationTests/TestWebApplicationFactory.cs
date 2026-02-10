@@ -106,6 +106,64 @@ namespace SalesApp.IntegrationTests
                 context.Users.AddRange(superAdminUser, adminUser, regularUser);
                 await context.SaveChangesAsync();
             }
+
+            // Seed permissions if none exist
+            if (!context.Permissions.Any())
+            {
+                var perms = new List<SalesApp.Models.Permission>
+                {
+                    new SalesApp.Models.Permission { Name = "users:read", Description = "Read users" },
+                    new SalesApp.Models.Permission { Name = "users:create", Description = "Create users" },
+                    new SalesApp.Models.Permission { Name = "users:update", Description = "Update users" },
+                    new SalesApp.Models.Permission { Name = "users:delete", Description = "Delete users" },
+                    new SalesApp.Models.Permission { Name = "contracts:read", Description = "Read contracts" },
+                    new SalesApp.Models.Permission { Name = "contracts:create", Description = "Create contracts" },
+                    new SalesApp.Models.Permission { Name = "contracts:update", Description = "Update contracts" },
+                    new SalesApp.Models.Permission { Name = "contracts:delete", Description = "Delete contracts" },
+                    new SalesApp.Models.Permission { Name = "pvs:read", Description = "Read PVs" },
+                    new SalesApp.Models.Permission { Name = "pvs:create", Description = "Create PVs" },
+                    new SalesApp.Models.Permission { Name = "pvs:update", Description = "Update PVs" },
+                    new SalesApp.Models.Permission { Name = "pvs:delete", Description = "Delete PVs" },
+                    new SalesApp.Models.Permission { Name = "groups:read", Description = "Read groups" },
+                    new SalesApp.Models.Permission { Name = "groups:write", Description = "Write groups" },
+                    new SalesApp.Models.Permission { Name = "roles:read", Description = "Read roles" },
+                    new SalesApp.Models.Permission { Name = "roles:create", Description = "Create roles" },
+                    new SalesApp.Models.Permission { Name = "roles:update", Description = "Update roles" },
+                    new SalesApp.Models.Permission { Name = "roles:delete", Description = "Delete roles" },
+                    new SalesApp.Models.Permission { Name = "matriculas:read", Description = "Read matriculas" },
+                    new SalesApp.Models.Permission { Name = "matriculas:write", Description = "Write matriculas" },
+                    new SalesApp.Models.Permission { Name = "imports:execute", Description = "Execute imports" },
+                    new SalesApp.Models.Permission { Name = "imports:history", Description = "View import history" },
+                    new SalesApp.Models.Permission { Name = "imports:rollback", Description = "Rollback imports" },
+                    new SalesApp.Models.Permission { Name = "system:admin", Description = "Admin access" },
+                    new SalesApp.Models.Permission { Name = "system:superadmin", Description = "Super admin access" }
+                };
+                context.Permissions.AddRange(perms);
+                await context.SaveChangesAsync();
+
+                // Assign all to superadmin
+                var superAdminRole = context.Roles.First(r => r.Name == "superadmin");
+                foreach (var p in perms)
+                {
+                    context.RolePermissions.Add(new SalesApp.Models.RolePermission { RoleId = superAdminRole.Id, PermissionId = p.Id });
+                }
+
+                // Assign to Admin (matching test expectations)
+                var adminRole = context.Roles.First(r => r.Name == "admin");
+                var adminPerms = perms.Where(p => 
+                    p.Name != "users:delete" && 
+                    p.Name != "imports:rollback" && 
+                    p.Name != "system:superadmin" &&
+                    p.Name != "roles:delete" &&
+                    !p.Name.StartsWith("pvs:")
+                ).ToList();
+                foreach (var p in adminPerms)
+                {
+                    context.RolePermissions.Add(new SalesApp.Models.RolePermission { RoleId = adminRole.Id, PermissionId = p.Id });
+                }
+
+                await context.SaveChangesAsync();
+            }
             
             // Seed PVs for testing
             if (!context.PVs.Any())
@@ -118,6 +176,24 @@ namespace SalesApp.IntegrationTests
                 context.PVs.AddRange(pvs);
                 await context.SaveChangesAsync();
             }
+
+            // 🚀 Initialize RBAC Cache for Tests
+            var rbacCache = scope.ServiceProvider.GetRequiredService<SalesApp.Services.IRbacCache>();
+            var rolePerms = await context.Roles
+                .Include(r => r.RolePermissions)
+                .ThenInclude(rp => rp.Permission)
+                .ToListAsync();
+
+            var cacheData = rolePerms.ToDictionary(
+                r => r.Id,
+                r => r.RolePermissions
+                    .Select(rp => rp.Permission?.Name)
+                    .Where(name => name != null)
+                    .Cast<string>()
+                    .ToHashSet()
+            );
+
+            rbacCache.Initialize(cacheData);
         }
 
         public void Dispose()

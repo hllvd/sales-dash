@@ -3,6 +3,9 @@
 # Exit on error
 set -e
 
+# Port Configuration
+export ASPNETCORE_URLS=http://localhost:5017
+
 # Configuration
 API_DIR="../SalesApp.Api"
 CLIENT_DIR="../client/sales-dash"
@@ -14,9 +17,17 @@ echo "🚀 Starting E2E Test Suite..."
 
 # 1. Start Backend in E2E mode
 echo "📂 Starting Backend in E2E mode (this will reset the E2E database)..."
-cd "$API_DIR"
-export ASPNETCORE_ENVIRONMENT=E2E
-dotnet run &
+# Aggressively kill any process holding a lock on the E2E DB files
+DB_PIDS=$(lsof -t SalesApp.E2E.db SalesApp.E2E.db-shm SalesApp.E2E.db-wal 2>/dev/null)
+if [ ! -z "$DB_PIDS" ]; then
+    echo "🔒 Removing E2E DB locks (Processes: $DB_PIDS)..."
+    kill -9 $DB_PIDS 2>/dev/null || true
+fi
+# Explicitly remove the E2E database file to ensure a clean start
+rm -f SalesApp.E2E.db SalesApp.E2E.db-shm SalesApp.E2E.db-wal
+sleep 1
+echo "🚀 Starting Backend with --environment E2E..."
+dotnet run --environment E2E --no-launch-profile &
 API_PID=$!
 
 # 2. Start Frontend

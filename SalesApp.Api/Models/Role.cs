@@ -25,5 +25,6 @@ namespace SalesApp.Models
         
         // Navigation property
         public virtual ICollection<User> Users { get; set; } = new List<User>();
+        public virtual ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
     }
 }

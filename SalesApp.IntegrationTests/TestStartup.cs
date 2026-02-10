@@ -14,6 +14,8 @@ using SalesApp.Repositories;
 using SalesApp.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using SalesApp.Authorization;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SalesApp.IntegrationTests
 {
@@ -28,6 +30,7 @@ namespace SalesApp.IntegrationTests
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddHttpContextAccessor();
             // Database (SQLite for tests) - connection string provided by TestWebApplicationFactory
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
@@ -48,8 +51,11 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
 
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
-            services.AddScoped<IDynamicRoleAuthorizationService, DynamicRoleAuthorizationService>();
-            services.AddScoped<IEndpointDiscoveryService, EndpointDiscoveryService>();
+            
+            // Production-Grade RBAC
+            services.AddSingleton<IRbacCache, RbacCache>();
+            services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+            services.AddScoped<IAuthorizationHandler, PermissionHandler>();
             
             // Import repositories
             services.AddScoped<IImportTemplateRepository, ImportTemplateRepository>();

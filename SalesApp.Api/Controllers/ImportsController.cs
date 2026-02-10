@@ -4,6 +4,7 @@ using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Attributes;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -109,11 +110,11 @@ namespace SalesApp.Controllers
         };
 
         [HttpGet("templates")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("imports:execute")]
         public ActionResult<ApiResponse<List<ImportTemplateResponse>>> GetTemplates([FromQuery] string? entityType = null)
         {
             // Can be optimized the speed?
-            var isSuperAdmin = User.IsInRole("superadmin");
+            var isSuperAdmin = User.HasClaim("perm", "system:superadmin");
             
             var templates = HardcodedTemplates
                 .Where(t => isSuperAdmin || t.Name == "contractDashboard")
@@ -131,7 +132,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpGet("templates/{id}")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("imports:execute")]
         public ActionResult<ApiResponse<ImportTemplateResponse>> GetTemplate(int id)
         {
             var template = HardcodedTemplates.FirstOrDefault(t => t.Id == id);
@@ -157,7 +158,7 @@ namespace SalesApp.Controllers
         #region Import Workflow
 
         [HttpPost("upload")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("imports:execute")]
         public async Task<ActionResult<ApiResponse<ImportPreviewResponse>>> UploadFile(IFormFile file, int templateId)
         {
             if (file == null || file.Length == 0)
@@ -224,7 +225,7 @@ namespace SalesApp.Controllers
                 }
 
                 // Security Check: Admins can only use contractDashboard
-                if (!User.IsInRole("superadmin") && hardcodedTemplate.Name != "contractDashboard")
+                if (!User.HasClaim("perm", "system:superadmin") && hardcodedTemplate.Name != "contractDashboard")
                 {
                     return StatusCode(403, new ApiResponse<ImportPreviewResponse>
                     {
@@ -370,7 +371,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpPost("{uploadId}/mappings")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("imports:execute")]
         public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfigureMappings(string uploadId, ColumnMappingRequest request)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
@@ -431,7 +432,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpPost("{uploadId}/confirm")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("imports:execute")]
         public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmImport(
             string uploadId,
             [FromBody] ConfirmImportRequest? request)
@@ -577,7 +578,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpGet("{uploadId}/status")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("imports:execute")]
         public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> GetStatus(string uploadId)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
@@ -609,7 +610,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpDelete("{uploadId}")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("imports:rollback")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteByUploadId(string uploadId)
         {
             var contracts = await _contractRepository.GetByUploadIdAsync(uploadId);
@@ -637,7 +638,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpGet("sessions")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("imports:history")]
         public async Task<ActionResult<ApiResponse<List<object>>>> GetSessions()
         {
             var sessions = await _sessionRepository.GetAllAsync();

@@ -2,13 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesApp.DTOs;
 using SalesApp.Services;
+using SalesApp.Attributes;
 using System.Security.Claims;
 
 namespace SalesApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "admin,superadmin")]
+    [HasPermission("imports:execute")]
     public class WizardController : ControllerBase
     {
         private readonly IWizardService _wizardService;

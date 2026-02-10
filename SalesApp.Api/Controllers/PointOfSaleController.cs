@@ -4,6 +4,7 @@ using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Attributes;
 
 namespace SalesApp.Controllers
 {
@@ -21,7 +22,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("pvs:read")]
         public async Task<ActionResult<ApiResponse<List<PVResponse>>>> GetAll()
         {
             var pvs = await _pvRepository.GetAllAsync();
@@ -43,7 +44,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("pvs:read")]
         public async Task<ActionResult<ApiResponse<PVResponse>>> GetById(int id)
         {
             var pv = await _pvRepository.GetByIdAsync(id);
@@ -75,7 +76,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("pvs:create")]
         public async Task<ActionResult<ApiResponse<PVResponse>>> Create(PVRequest request)
         {
             // Check if ID already exists
@@ -118,7 +119,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("pvs:update")]
         public async Task<ActionResult<ApiResponse<PVResponse>>> Update(int id, PVRequest request)
         {
             if (id != request.Id)
@@ -162,7 +163,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("pvs:delete")]
         public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         {
             var deleted = await _pvRepository.DeleteAsync(id);

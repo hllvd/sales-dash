@@ -4,6 +4,7 @@ using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using SalesApp.Attributes;
 
 namespace SalesApp.Controllers
 {
@@ -22,7 +23,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpGet]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("groups:read")]
         public async Task<ActionResult<ApiResponse<List<GroupResponse>>>> GetGroups()
         {
             var groups = await _groupRepository.GetAllAsync();
@@ -57,7 +58,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("groups:write")]
         public async Task<ActionResult<ApiResponse<GroupResponse>>> CreateGroup(GroupRequest request)
         {
             if (await _groupRepository.NameExistsAsync(request.Name))
@@ -87,7 +88,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
-        [Authorize(Roles = "admin,superadmin")]
+        [HasPermission("groups:write")]
         public async Task<ActionResult<ApiResponse<GroupResponse>>> UpdateGroup(int id, UpdateGroupRequest request)
         {
             var group = await _groupRepository.GetByIdAsync(id);
@@ -133,7 +134,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpDelete("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [HasPermission("groups:write")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteGroup(int id)
         {
             var group = await _groupRepository.GetByIdAsync(id);

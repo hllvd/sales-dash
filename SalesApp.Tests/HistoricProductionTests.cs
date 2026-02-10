@@ -50,7 +50,8 @@ namespace SalesApp.Tests
             var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
             {
                 new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.Role, "admin")
+                new Claim(ClaimTypes.Role, "admin"),
+                new Claim("perm", "contracts:read")
             }));
 
             _controller.ControllerContext = new ControllerContext

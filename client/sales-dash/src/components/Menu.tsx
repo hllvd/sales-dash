@@ -13,6 +13,7 @@ import {
   IconId,
   IconHistory,
   IconWand,
+  IconLock,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -122,6 +123,18 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/matriculas')}
+            />
+          )}
+
+          {userRole === 'superadmin' && (
+            <NavLink
+              href="#/access-control"
+              label="Controle de Acesso"
+              leftSection={<IconLock size={20} />}
+              active={isActive('#/access-control')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/access-control')}
             />
           )}
 

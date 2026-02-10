@@ -1,6 +1,7 @@
+import config from '../config';
 import { authenticatedFetch, getAuthHeaders } from '../utils/httpInterceptor';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5017/api';
+const API_BASE_URL = config.apiUrl;
 
 // Contract Status Enum
 export enum ContractStatus {

@@ -34,7 +34,7 @@ namespace SalesApp.Controllers
                 return Unauthorized(new { error = "invalid_grant" });
             }
             
-            var token = _jwtService.GenerateToken(user);
+            var token = await _jwtService.GenerateToken(user);
             
             return Ok(new
             {
