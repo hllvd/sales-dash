@@ -38,5 +38,6 @@ namespace SalesApp.DTOs
         [ValidUserName]
         [ValidateXSS]
         public string? CustomerName { get; set; }
+        public int? UserMatriculaId { get; set; }
     }
 }

@@ -53,8 +53,11 @@ namespace SalesApp.Models
         
         public int? CategoryMetadataId { get; set; } // Reference to ContractMetadata for Category
         
+        public int? UserMatriculaId { get; set; }
+        
         // Navigation properties
         public User? User { get; set; }
+        public UserMatricula? UserMatricula { get; set; }
         public Group? Group { get; set; }
         public PV? PV { get; set; }
         public ContractMetadata? PlanoVendaMetadata { get; set; }

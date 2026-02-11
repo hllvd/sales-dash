@@ -5,6 +5,7 @@ interface FormFieldProps {
   required?: boolean
   children: ReactNode
   description?: string
+  labelColor?: string
 }
 
 /**
@@ -15,7 +16,8 @@ const FormField: React.FC<FormFieldProps> = ({
   label, 
   required = false, 
   children,
-  description 
+  description,
+  labelColor = '#e9ecef'
 }) => {
   // Check if children is a checkbox by checking if it's a React element with type.displayName or type.name containing 'Checkbox'
   const isCheckbox = React.isValidElement(children) && 
@@ -31,7 +33,7 @@ const FormField: React.FC<FormFieldProps> = ({
           <label style={{ 
             fontSize: '14px', 
             fontWeight: 500,
-            color: '#e9ecef',
+            color: labelColor,
             cursor: 'pointer'
           }}>
             {label} {required && <span style={{ color: '#fa5252' }}>*</span>}
@@ -45,7 +47,7 @@ const FormField: React.FC<FormFieldProps> = ({
             marginBottom: '0.5rem', 
             fontSize: '14px', 
             fontWeight: 600,
-            color: '#e9ecef',
+            color: labelColor,
             letterSpacing: '0.01em'
           }}>
             {label} {required && <span style={{ color: '#fa5252' }}>*</span>}

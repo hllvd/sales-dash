@@ -114,6 +114,11 @@ namespace SalesApp.Data
                     .WithMany(m => m.ContractsWithCategory)
                     .HasForeignKey(e => e.CategoryMetadataId)
                     .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.UserMatricula)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserMatriculaId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(e => e.ImportSession)
                     .WithMany()

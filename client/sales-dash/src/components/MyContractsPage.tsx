@@ -150,8 +150,16 @@ const MyContractsPage: React.FC = () => {
     setAssignError('');
 
     try {
+      // Resolve the ID of the selected matricula
+      const selectedMatriculaObj = userMatriculas.find(m => m.matriculaNumber === selectedMatricula);
+      
       // Pass selected matricula if available
-      await assignContract(contractNumber, selectedMatricula || undefined);
+      await assignContract(
+        contractNumber, 
+        selectedMatricula || undefined,
+        selectedMatriculaObj?.id
+      );
+      
       setShowAssignModal(false);
       setContractNumber('');
       setRetrievedContract(null);
@@ -379,7 +387,7 @@ const MyContractsPage: React.FC = () => {
         {assignError && <div style={{ color: '#fa5252', marginBottom: '1rem', fontSize: '14px' }}>{assignError}</div>}
 
         {!retrievedContract ? (
-          <FormField label="Número do Contrato" required>
+          <FormField label="Número do Contrato" required labelColor="#333">
             <TextInput
               required
               value={contractNumber}

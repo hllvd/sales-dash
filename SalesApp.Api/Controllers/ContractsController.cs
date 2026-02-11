@@ -260,6 +260,55 @@ namespace SalesApp.Controllers
                 CustomerName = request.CustomerName
             };
 
+            // Matricula validation
+            if (request.UserId.HasValue && (request.UserMatriculaId.HasValue || !string.IsNullOrEmpty(request.MatriculaNumber)))
+            {
+                UserMatricula? userMatricula = null;
+                if (request.UserMatriculaId.HasValue)
+                {
+                    userMatricula = await _matriculaRepository.GetByIdAsync(request.UserMatriculaId.Value);
+                    if (userMatricula == null || userMatricula.UserId != request.UserId.Value)
+                    {
+                        return BadRequest(new ApiResponse<ContractResponse>
+                        {
+                            Success = false,
+                            Message = "Matricula not found for this user"
+                        });
+                    }
+                }
+                else if (!string.IsNullOrEmpty(request.MatriculaNumber))
+                {
+                    userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, request.UserId.Value);
+                    if (userMatricula == null)
+                    {
+                        return BadRequest(new ApiResponse<ContractResponse>
+                        {
+                            Success = false,
+                            Message = "Matricula not found for this user"
+                        });
+                    }
+                }
+
+                if (userMatricula != null)
+                {
+                    if (!userMatricula.IsActive || (userMatricula.EndDate.HasValue && userMatricula.EndDate.Value < DateTime.UtcNow))
+                    {
+                        return BadRequest(new ApiResponse<ContractResponse>
+                        {
+                            Success = false,
+                            Message = "Selected matricula is not active or has expired"
+                        });
+                    }
+                    contract.UserMatriculaId = userMatricula.Id;
+                    contract.TempMatricula = userMatricula.MatriculaNumber;
+                }
+            }
+            else if (!string.IsNullOrEmpty(request.MatriculaNumber))
+            {
+                // Fallback for when UserId is not provided but MatriculaNumber is (unassigned contract with trace)
+                contract.TempMatricula = request.MatriculaNumber;
+            }
+
             
             await _contractRepository.CreateAsync(contract);
             
@@ -372,6 +421,56 @@ namespace SalesApp.Controllers
                 
             if (request.PvId.HasValue) contract.PvId = request.PvId.Value;
             if (!string.IsNullOrEmpty(request.CustomerName)) contract.CustomerName = request.CustomerName;
+
+            // Matricula validation
+            if (contract.UserId.HasValue && (request.UserMatriculaId.HasValue || !string.IsNullOrEmpty(request.MatriculaNumber)))
+            {
+                UserMatricula? userMatricula = null;
+                if (request.UserMatriculaId.HasValue)
+                {
+                    userMatricula = await _matriculaRepository.GetByIdAsync(request.UserMatriculaId.Value);
+                    if (userMatricula == null || userMatricula.UserId != contract.UserId.Value)
+                    {
+                        return BadRequest(new ApiResponse<ContractResponse>
+                        {
+                            Success = false,
+                            Message = "Matricula not found for this user"
+                        });
+                    }
+                }
+                else if (!string.IsNullOrEmpty(request.MatriculaNumber))
+                {
+                    userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, contract.UserId.Value);
+                    if (userMatricula == null)
+                    {
+                        return BadRequest(new ApiResponse<ContractResponse>
+                        {
+                            Success = false,
+                            Message = "Matricula not found for this user"
+                        });
+                    }
+                }
+
+                if (userMatricula != null)
+                {
+                    if (!userMatricula.IsActive || (userMatricula.EndDate.HasValue && userMatricula.EndDate.Value < DateTime.UtcNow))
+                    {
+                        return BadRequest(new ApiResponse<ContractResponse>
+                        {
+                            Success = false,
+                            Message = "Selected matricula is not active or has expired"
+                        });
+                    }
+                    contract.UserMatriculaId = userMatricula.Id;
+                    contract.TempMatricula = userMatricula.MatriculaNumber;
+                }
+            }
+            else if (request.MatriculaNumber == string.Empty)
+            {
+                // Clear matricula if explicitly set to empty
+                contract.UserMatriculaId = null;
+                contract.TempMatricula = null;
+            }
             
             if (request.IsActive.HasValue)
                 contract.IsActive = request.IsActive.Value;
@@ -416,8 +515,11 @@ namespace SalesApp.Controllers
         
         private ContractResponse MapToContractResponse(Contract contract)
         {
-            // Resolve matricula from user's matriculas (picking owner or latest active, excluding expired)
-            var userMatricula = contract.User?.UserMatriculas?
+            // Prioritize the explicit link, then fallback to TempMatricula, then to owner heuristic
+            var userMatricula = contract.UserMatricula 
+                ?? contract.User?.UserMatriculas?
+                .FirstOrDefault(m => m.MatriculaNumber == contract.TempMatricula && m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
+                ?? contract.User?.UserMatriculas?
                 .Where(m => m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
                 .OrderByDescending(m => m.IsOwner)
                 .ThenByDescending(m => m.StartDate)

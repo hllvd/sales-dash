@@ -36,5 +36,6 @@ namespace SalesApp.DTOs
         
         public int? PvId { get; set; }
         public string? MatriculaNumber { get; set; }
+        public int? UserMatriculaId { get; set; }
     }
 }

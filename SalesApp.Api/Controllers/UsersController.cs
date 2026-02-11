@@ -713,13 +713,26 @@ namespace SalesApp.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> AssignContract(
             string contractNumber,
-            [FromQuery] string? matriculaNumber = null)
+            [FromQuery] string? matriculaNumber = null,
+            [FromQuery] int? userMatriculaId = null)
         {
             var currentUserId = GetCurrentUserId();
             
             // Validate and get matricula if provided
             UserMatricula? userMatricula = null;
-            if (!string.IsNullOrEmpty(matriculaNumber))
+            if (userMatriculaId.HasValue)
+            {
+                userMatricula = await _matriculaRepository.GetByIdAsync(userMatriculaId.Value);
+                if (userMatricula == null || userMatricula.UserId != currentUserId)
+                {
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = _messageService.Get(AppMessage.MatriculaDoesNotBelongToUser)
+                    });
+                }
+            }
+            else if (!string.IsNullOrEmpty(matriculaNumber))
             {
                 userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, currentUserId);
                 
@@ -731,7 +744,10 @@ namespace SalesApp.Controllers
                         Message = _messageService.Get(AppMessage.MatriculaDoesNotBelongToUser)
                     });
                 }
-                
+            }
+
+            if (userMatricula != null)
+            {
                 if (!userMatricula.IsActive)
                 {
                     return BadRequest(new ApiResponse<ContractResponse>
@@ -774,10 +790,14 @@ namespace SalesApp.Controllers
 
             contract.UserId = currentUserId;
             contract.User = user;
+            contract.TempMatricula = matriculaNumber;
+            contract.UserMatriculaId = userMatricula?.Id;
             await _contractRepository.UpdateAsync(contract);
             
-            
+            // Prioritize the selected matricula for the response if provided
             var resolvedMatricula = user.UserMatriculas?
+                .FirstOrDefault(m => m.MatriculaNumber == matriculaNumber && m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
+                ?? user.UserMatriculas?
                 .Where(m => m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
                 .OrderByDescending(m => m.IsOwner)
                 .ThenByDescending(m => m.StartDate)

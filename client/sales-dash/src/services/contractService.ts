@@ -32,6 +32,7 @@ export interface Contract {
   quota?: number;
   customerName?: string;
   matriculaNumber?: string;
+  userMatriculaId?: number | null;
 }
 
 export interface CreateContractRequest {
@@ -46,6 +47,7 @@ export interface CreateContractRequest {
   quota?: number;
   customerName?: string;
   matriculaNumber?: string;
+  userMatriculaId?: number;
 }
 
 export interface UpdateContractRequest {
@@ -61,6 +63,7 @@ export interface UpdateContractRequest {
   quota?: number;
   customerName?: string;
   matriculaNumber?: string;
+  userMatriculaId?: number;
 }
 
 export interface UserMatriculaInfo {
@@ -284,8 +287,13 @@ export const getContractByNumber = async (contractNumber: string): Promise<Contr
 };
 
 // Assign contract to current user
-export const assignContract = async (contractNumber: string, matriculaNumber?: string): Promise<Contract> => {
-  const url = `${API_BASE_URL}/users/assign-contract/${contractNumber}${matriculaNumber ? `?matriculaNumber=${encodeURIComponent(matriculaNumber)}` : ''}`;
+export const assignContract = async (contractNumber: string, matriculaNumber?: string, userMatriculaId?: number): Promise<Contract> => {
+  const params = new URLSearchParams();
+  if (matriculaNumber) params.append('matriculaNumber', matriculaNumber);
+  if (userMatriculaId) params.append('userMatriculaId', userMatriculaId.toString());
+  
+  const queryString = params.toString();
+  const url = `${API_BASE_URL}/users/assign-contract/${contractNumber}${queryString ? `?${queryString}` : ''}`;
   
   const response = await authenticatedFetch(url, {
     method: 'POST',
