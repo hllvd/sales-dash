@@ -40,7 +40,7 @@ const StandardModal: React.FC<StandardModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div 
         className={`modal-content size-${size}`} 
         onClick={(e) => e.stopPropagation()}

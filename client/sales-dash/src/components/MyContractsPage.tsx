@@ -444,6 +444,7 @@ const MyContractsPage: React.FC = () => {
                     placeholder="Selecione uma matrícula..."
                     value={selectedMatricula}
                     onChange={(value) => setSelectedMatricula(value || '')}
+                    comboboxProps={{ zIndex: 2000 }}
                     data={userMatriculas.map((m) => ({
                       value: m.matriculaNumber,
                       label: `${m.matriculaNumber} - ${new Date(m.startDate).toLocaleDateString('pt-BR')}${
