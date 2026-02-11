@@ -950,6 +950,7 @@ namespace SalesApp.Services
             contract.Quota = quota;
             contract.Version = version;
             contract.TempMatricula = tempMatricula;
+            contract.ImportSessionId = importSessionId;
             contract.CategoryMetadataId = categoryMetadataId;
             contract.PlanoVendaMetadataId = planoVendaMetadataId;
 
@@ -1182,17 +1183,37 @@ namespace SalesApp.Services
                     }
                 }
 
-                // 4. Delete PVs (only if created via import)
-                var pvs = await _context.PVs
+                // 4. Delete PVs (only if created via import and no external dependencies)
+                var pvsFromSession = await _context.PVs
                     .Where(p => p.ImportSessionId == importSessionId)
                     .ToListAsync();
-                _context.PVs.RemoveRange(pvs);
+                
+                foreach (var pv in pvsFromSession)
+                {
+                    var hasExternalContracts = await _context.Contracts
+                        .AnyAsync(c => c.PvId == pv.Id && c.ImportSessionId != importSessionId);
+                    
+                    if (!hasExternalContracts)
+                    {
+                        _context.PVs.Remove(pv);
+                    }
+                }
 
-                // 5. Delete Groups (only if created via import)
-                var groups = await _context.Groups
+                // 5. Delete Groups (only if created via import and no external dependencies)
+                var groupsFromSession = await _context.Groups
                     .Where(g => g.ImportSessionId == importSessionId)
                     .ToListAsync();
-                _context.Groups.RemoveRange(groups);
+                
+                foreach (var group in groupsFromSession)
+                {
+                    var hasExternalContracts = await _context.Contracts
+                        .AnyAsync(c => c.GroupId == group.Id && c.ImportSessionId != importSessionId);
+                    
+                    if (!hasExternalContracts)
+                    {
+                        _context.Groups.Remove(group);
+                    }
+                }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
