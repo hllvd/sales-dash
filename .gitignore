@@ -378,6 +378,9 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
+# Mac OS files
+*.DS_Store
+
 # JetBrains Rider
 .idea/
 *.sln.iml
