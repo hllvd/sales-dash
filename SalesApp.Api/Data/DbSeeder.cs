@@ -130,7 +130,7 @@ namespace SalesApp.Data
         {
             var permissions = new List<string>
             {
-                "users:read", "users:create", "users:update", "users:delete",
+                "users:read", "users:create", "users:update", "users:delete", "users:profile-update", "users:reset-password",
                 "contracts:read", "contracts:create", "contracts:update", "contracts:delete",
                 "pvs:read", "pvs:create", "pvs:update", "pvs:delete",
                 "imports:execute", "imports:history", "imports:rollback",
@@ -164,7 +164,12 @@ namespace SalesApp.Data
             await AssignPermissionsToRole(context, (int)Models.RoleId.Admin, adminPerms);
 
             // Assign to User (Basic)
-            var userPerms = allPerms.Where(p => p.Name == "contracts:read" || p.Name == "pvs:read").ToList();
+            var userPerms = allPerms.Where(p => 
+                p.Name == "contracts:read" || 
+                p.Name == "pvs:read" || 
+                p.Name == "users:profile-update" || 
+                p.Name == "users:reset-password"
+            ).ToList();
             await AssignPermissionsToRole(context, (int)Models.RoleId.User, userPerms);
         }
 

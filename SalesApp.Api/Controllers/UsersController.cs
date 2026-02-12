@@ -315,11 +315,17 @@ namespace SalesApp.Controllers
         }
         
         [HttpPut("{id}")]
-        [HasPermission("users:update")]
+        [HasPermission("users:profile-update")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> UpdateUser(Guid id, UpdateUserRequest request)
         {
             var currentUserId = GetCurrentUserId();
-            var hasAdminPermission = User.HasClaim("perm", "users:update") || User.HasClaim("perm", "system:superadmin");
+            var hasUpdatePermission = User.HasClaim("perm", "users:update") || User.HasClaim("perm", "system:superadmin");
+            
+            // Ownership check: users can only update themselves unless they have broader update permissions
+            if (!hasUpdatePermission && currentUserId != id)
+            {
+                return Forbid();
+            }
             
             var user = await _userRepository.GetByIdAsync(id);
             if (user == null)
@@ -353,7 +359,7 @@ namespace SalesApp.Controllers
             if (!string.IsNullOrEmpty(request.Password))
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
                 
-            if (!string.IsNullOrEmpty(request.Role) && hasAdminPermission)
+            if (!string.IsNullOrEmpty(request.Role) && hasUpdatePermission)
             {
                 if (!UserRole.IsValid(request.Role))
                 {
@@ -372,7 +378,7 @@ namespace SalesApp.Controllers
             }
                 
             // Handle parent user assignment
-            if (request.ParentUserId.HasValue && hasAdminPermission)
+            if (request.ParentUserId.HasValue && hasUpdatePermission)
             {
                 var hierarchyError = await _hierarchyService.ValidateHierarchyChangeAsync(id, request.ParentUserId);
                 if (hierarchyError != null)
@@ -386,7 +392,7 @@ namespace SalesApp.Controllers
                 user.ParentUserId = request.ParentUserId;
             }
             
-            if (request.IsActive.HasValue)
+            if (request.IsActive.HasValue && hasUpdatePermission)
             {
                 user.IsActive = request.IsActive.Value;
             }
@@ -648,7 +654,7 @@ namespace SalesApp.Controllers
         }
         
         [HttpPost("{id}/reset-password")]
-        [HasPermission("users:update")]
+        [HasPermission("users:reset-password")]
         public async Task<ActionResult<ApiResponse<ResetPasswordResponse>>> ResetPassword(Guid id, [FromBody] ResetPasswordRequest request)
         {
             var currentUserId = GetCurrentUserId();
