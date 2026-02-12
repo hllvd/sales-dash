@@ -51,7 +51,7 @@ const MyProfilePage: React.FC = () => {
         return;
       }
       if (formData.newPassword.length < 12) {
-        toast.error('A nova senha deve ter pelo menos 12 caracteres');
+        toast.error('A nova senha deve ter pelo menos 12 caracteres. Será ncessário pelo menos um caracter especial, uma letra maiúscula, uma letra minúscula e um número.');
         return;
       }
     }
