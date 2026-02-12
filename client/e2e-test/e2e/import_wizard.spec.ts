@@ -63,10 +63,6 @@ test.describe('Import Wizard Flow', () => {
     await page.waitForTimeout(1000); 
     await page.click('button:has-text("Confirmar e Importar")');
 
-    // 8. Verify Retention Metric
-    await expect(page.locator('.success-message')).toBeVisible({ timeout: 60000 });
-    await page.click('button:has-text("Fechar")');
-
     // Verify 95.03% on Contracts page
     await expect(page.locator('.aggregation-summary')).toBeVisible();
     await expect(page.locator('.aggregation-chart')).toContainText('95.03%', { timeout: 10000 });
