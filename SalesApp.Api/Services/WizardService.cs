@@ -200,6 +200,7 @@ namespace SalesApp.Services
                     csv.WriteField("ParentEmail");
                     csv.WriteField("Matricula");
                     csv.WriteField("Owner_Matricula");
+                    csv.WriteField("Password");
                     csv.NextRecord();
 
                     foreach (var user in userMap.OrderBy(u => u.Name))
@@ -209,6 +210,7 @@ namespace SalesApp.Services
                         csv.WriteField(""); // ParentEmail
                         csv.WriteField(user.Matricula);
                         csv.WriteField("1"); // Default to owner/proprietário
+                        csv.WriteField(""); // Password
                         csv.NextRecord();
                     }
                 }
@@ -235,7 +237,8 @@ namespace SalesApp.Services
                 ["Email"] = "Email",
                 ["ParentEmail"] = "ParentEmail",
                 ["Matricula"] = "Matricula",
-                ["Owner_Matricula"] = "IsMatriculaOwner"
+                ["Owner_Matricula"] = "IsMatriculaOwner",
+                ["Password"] = "Password"
             };
 
             // Execute user import

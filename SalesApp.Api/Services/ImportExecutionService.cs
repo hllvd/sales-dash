@@ -388,15 +388,25 @@ namespace SalesApp.Services
             var sendEmailStr = GetFieldValue(row, reverseMappings, "SendEmail");
             bool sendEmail = ParseBooleanValue(sendEmailStr);
 
-            // Upsert User
+            // Extract custom password if provided
+            var customPassword = GetFieldValue(row, reverseMappings, "Password");
             var defaultPassword = "ChangeMe123!";
+            var passwordToUse = !string.IsNullOrWhiteSpace(customPassword) ? customPassword : defaultPassword;
+
+            // Upsert User
             var user = existingUser ?? new User
             {
                 Email = email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultPassword),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordToUse),
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
             };
+
+            // If existing user and custom password provided, update it
+            if (existingUser != null && !string.IsNullOrWhiteSpace(customPassword))
+            {
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(customPassword);
+            }
 
             user.Name = fullName;
             user.RoleId = roleId;

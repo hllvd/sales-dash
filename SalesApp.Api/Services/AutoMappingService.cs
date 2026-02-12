@@ -26,7 +26,8 @@ namespace SalesApp.Services
                 ["Name"] = new[] { "name", "first name", "firstname", "user name", "username" },
                 ["Email"] = new[] { "email", "e-mail", "email address", "mail" },
                 ["RoleId"] = new[] { "role id", "roleid", "role_id", "role" },
-                ["SendEmail"] = new[] { "send email", "sendemail", "send_email", "send-email", "sendmail", "send mail" }
+                ["SendEmail"] = new[] { "send email", "sendemail", "send_email", "send-email", "sendmail", "send mail" },
+                ["Password"] = new[] { "password", "senha" }
             }
         };
 
