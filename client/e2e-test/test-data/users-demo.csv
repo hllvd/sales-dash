@@ -1,6 +1,6 @@
-﻿Name,Email,Role,ParentEmail,Matricula,Owner_Matricula
-Arthur Terplak,arthurterplak@example.com,user,,6111,0
-Bryan Lopes,bryanlopes@example.com,user,,6111,0
+﻿Name,Email,Role,ParentEmail,Matricula,Owner_Matricula,Password
+Arthur Terplak,arthurterplak@example.com,user,,6111,0,123456
+Bryan Lopes,bryanlopes@example.com,user,,6111,0,654321
 Richard Wesley,richardwesley@example.com,user,,6111,0
 Paulo Carvalho,paulocarvalho@example.com,user,,6111,0
 Carla Franciele,carlafranciele@example.com,user,,6111,0
