@@ -174,7 +174,7 @@ const UserForm: React.FC<UserFormProps> = ({
         <FormField 
           label="Senha" 
           required={!isEdit}
-          description={isEdit ? "Deixe em branco para manter a atual" : "Mínimo 6 caracteres"}
+          description={isEdit ? "Deixe em branco para manter a atual" : "Mínimo 12 caracteres"}
         >
           <PasswordInput
             required={!isEdit}

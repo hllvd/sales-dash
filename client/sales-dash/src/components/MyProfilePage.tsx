@@ -50,8 +50,8 @@ const MyProfilePage: React.FC = () => {
         toast.error('As senhas não coincidem');
         return;
       }
-      if (formData.newPassword.length < 6) {
-        toast.error('A nova senha deve ter pelo menos 6 caracteres');
+      if (formData.newPassword.length < 12) {
+        toast.error('A nova senha deve ter pelo menos 12 caracteres');
         return;
       }
     }

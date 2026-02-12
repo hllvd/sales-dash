@@ -116,6 +116,8 @@ namespace SalesApp.IntegrationTests
                     new SalesApp.Models.Permission { Name = "users:create", Description = "Create users" },
                     new SalesApp.Models.Permission { Name = "users:update", Description = "Update users" },
                     new SalesApp.Models.Permission { Name = "users:delete", Description = "Delete users" },
+                    new SalesApp.Models.Permission { Name = "users:profile-update", Description = "Update profile" },
+                    new SalesApp.Models.Permission { Name = "users:reset-password", Description = "Reset password" },
                     new SalesApp.Models.Permission { Name = "contracts:read", Description = "Read contracts" },
                     new SalesApp.Models.Permission { Name = "contracts:create", Description = "Create contracts" },
                     new SalesApp.Models.Permission { Name = "contracts:update", Description = "Update contracts" },
@@ -160,6 +162,18 @@ namespace SalesApp.IntegrationTests
                 foreach (var p in adminPerms)
                 {
                     context.RolePermissions.Add(new SalesApp.Models.RolePermission { RoleId = adminRole.Id, PermissionId = p.Id });
+                }
+
+                // Assign to User (Basic)
+                var userRole = context.Roles.First(r => r.Name == "user");
+                var userPerms = perms.Where(p => 
+                    p.Name == "contracts:read" || 
+                    p.Name == "users:profile-update" || 
+                    p.Name == "users:reset-password"
+                ).ToList();
+                foreach (var p in userPerms)
+                {
+                    context.RolePermissions.Add(new SalesApp.Models.RolePermission { RoleId = userRole.Id, PermissionId = p.Id });
                 }
 
                 await context.SaveChangesAsync();

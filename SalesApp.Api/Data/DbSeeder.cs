@@ -166,7 +166,6 @@ namespace SalesApp.Data
             // Assign to User (Basic)
             var userPerms = allPerms.Where(p => 
                 p.Name == "contracts:read" || 
-                p.Name == "pvs:read" || 
                 p.Name == "users:profile-update" || 
                 p.Name == "users:reset-password"
             ).ToList();

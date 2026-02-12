@@ -114,7 +114,7 @@ namespace SalesApp.IntegrationTests.Users
             };
 
             // Act
-            var response = await client.PutAsJsonAsync("/api/users/1", updateUserRequest);
+            var response = await client.PutAsJsonAsync($"/api/users/{Guid.NewGuid()}", updateUserRequest);
 
             // Assert - Regular users should not be able to update users
             response.StatusCode.Should().Be(HttpStatusCode.Forbidden);

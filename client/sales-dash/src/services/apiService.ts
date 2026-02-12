@@ -66,6 +66,41 @@ export interface UpdateUserRequest {
   isActive?: boolean
 }
 
+/**
+ * Parses and extracts a user-friendly error message from an API response.
+ * Handles both custom ApiResponse structure and standard ASP.NET Core ProblemDetails.
+ */
+async function extractErrorMessage(response: Response, defaultMessage: string): Promise<string> {
+  try {
+    const errorData = await response.json();
+    
+    // 1. Try our custom ApiResponse structure
+    if (errorData.message && !errorData.errors) {
+      return errorData.message;
+    }
+
+    // 2. Try ASP.NET Core validation errors (ProblemDetails)
+    if (errorData.errors) {
+      const errorEntries = Object.entries(errorData.errors);
+      if (errorEntries.length > 0) {
+        const [field, messages] = errorEntries[0];
+        if (Array.isArray(messages) && messages.length > 0) {
+          return messages[0];
+        }
+      }
+    }
+
+    // 3. Fallback to title if available
+    if (errorData.title) {
+      return errorData.title;
+    }
+  } catch (e) {
+    // Parsing failed, ignore
+  }
+  
+  return defaultMessage;
+}
+
 export const apiService = {
   async getUsers(
     page: number = 1,
@@ -129,8 +164,7 @@ export const apiService = {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Failed to request matricula")
+      throw new Error(await extractErrorMessage(response, "Failed to request matricula"))
     }
 
     return response.json()
@@ -144,8 +178,7 @@ export const apiService = {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Failed to create user")
+      throw new Error(await extractErrorMessage(response, "Failed to create user"))
     }
 
     return response.json()
@@ -162,8 +195,7 @@ export const apiService = {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Failed to update user")
+      throw new Error(await extractErrorMessage(response, "Failed to update user"))
     }
 
     return response.json()
