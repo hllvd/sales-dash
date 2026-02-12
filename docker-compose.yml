@@ -10,6 +10,11 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
     ports:
       - "5000:5000"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.5'
     depends_on:
       - nginx
 

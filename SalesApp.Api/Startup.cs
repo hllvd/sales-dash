@@ -43,6 +43,20 @@ namespace SalesApp
                 options.UseSqlite(connectionString);
             });
 
+            // SQLite Performance PRAGMAs (applied at startup)
+            var sp = services.BuildServiceProvider();
+            using (var scope = sp.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var dbConnection = dbContext.Database.GetDbConnection();
+                dbConnection.Open();
+                using (var command = dbConnection.CreateCommand())
+                {
+                    command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA cache_size=-100000;";
+                    command.ExecuteNonQuery();
+                }
+            }
+
             // Data Protection (fix encryption warning)
             services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Directory.GetCurrentDirectory(), "keys")))
