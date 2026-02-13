@@ -45,6 +45,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     strategy:
       matrix:
         include:
@@ -67,7 +68,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lowercase Repository Owner
@@ -119,27 +120,46 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const owner = context.repo.owner;
+            const owner = '${{ steps.owner.outputs.owner }}';
             const packages = ['salesapp-api', 'salesapp-client'];
             
             for (const pkgName of packages) {
-              const { data: versions } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByAuthenticatedUser({
-                package_type: 'container',
-                package_name: pkgName
-              });
-              
-              // Sort by date, descending
-              versions.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-              
-              // Keep latest version + top 5 SHA-tagged versions
-              const toDelete = versions.slice(6); 
-              
-              for (const version of toDelete) {
-                await github.rest.packages.deletePackageVersionForAuthenticatedUser({
+              try {
+                const { data: versions } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
                   package_type: 'container',
                   package_name: pkgName,
-                  package_version_id: version.id
+                  org: owner
                 });
-                console.log(`Deleted version ${version.id} of ${pkgName}`);
+                
+                // Sort by date, descending
+                versions.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+                
+                // Keep latest version + top 5 SHA-tagged versions
+                const toDelete = versions.slice(6); 
+                
+                for (const version of toDelete) {
+                  await github.rest.packages.deletePackageVersionForOrg({
+                    package_type: 'container',
+                    package_name: pkgName,
+                    package_version_id: version.id,
+                    org: owner
+                  });
+                  console.log(`Deleted version ${version.id} of ${pkgName}`);
+                }
+              } catch (e) {
+                console.log(`Failed to process ${pkgName} for org ${owner}, trying user scope...`);
+                const { data: versions } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByAuthenticatedUser({
+                  package_type: 'container',
+                  package_name: pkgName
+                });
+                versions.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+                const toDelete = versions.slice(6);
+                for (const version of toDelete) {
+                  await github.rest.packages.deletePackageVersionForAuthenticatedUser({
+                    package_type: 'container',
+                    package_name: pkgName,
+                    package_version_id: version.id
+                  });
+                }
               }
             }
