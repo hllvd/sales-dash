@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button, Group, Title, Progress, Text, Alert } from '@mantine/core';
-import { IconUpload, IconCheck, IconX, IconAlertCircle, IconFileDownload } from '@tabler/icons-react';
+import { Button, Title, Progress, Text } from '@mantine/core';
+import { IconCheck, IconX, IconFileDownload } from '@tabler/icons-react';
 import { apiService } from '../services/apiService';
 import StandardModal from '../shared/StandardModal';
 

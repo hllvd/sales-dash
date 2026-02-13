@@ -44,29 +44,6 @@ const AggregationSummary: React.FC<AggregationSummaryProps> = ({
     { name: 'Inadimplentes', value: defaultedPercent, color: '#ef4444' }
   ];
 
-  // Prepare horizontal bar chart data
-  const barChartData = [
-    {
-      status: 'Total Geral',
-      value: total,
-      color: '#6366f1'
-    },
-    {
-      status: 'Total Ativo',
-      value: totalActive,
-      color: '#22c55e'
-    },
-    {
-      status: 'Total Atrasado',
-      value: totalLate,
-      color: '#f59e0b'
-    },
-    {
-      status: 'Total Cancelado',
-      value: totalCancel,
-      color: '#ef4444'
-    }
-  ];
 
   return (
     <div className="aggregation-summary">

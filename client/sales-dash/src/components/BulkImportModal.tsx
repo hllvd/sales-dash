@@ -2,7 +2,6 @@ import React, { useState } from "react"
 import "./BulkImportModal.css"
 import { apiService } from "../services/apiService"
 import StandardModal from "../shared/StandardModal"
-import { Progress, Select } from "@mantine/core"
 
 interface Props {
   onClose: () => void
@@ -32,7 +31,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [mappings, setMappings] = useState<Record<string, string>>({})
   const [requiredFields, setRequiredFields] = useState<string[]>([])
   const [optionalFields, setOptionalFields] = useState<string[]>([])
-  const [dateFormat, setDateFormat] = useState<string>("MM/DD/YYYY")
+  const [dateFormat] = useState<string>("MM/DD/YYYY")
   const [skipMissingContractNumber, setSkipMissingContractNumber] = useState<boolean>(true)
   const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState<boolean>(true)
   const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState<boolean>(true)

@@ -83,7 +83,7 @@ async function extractErrorMessage(response: Response, defaultMessage: string): 
     if (errorData.errors) {
       const errorEntries = Object.entries(errorData.errors);
       if (errorEntries.length > 0) {
-        const [field, messages] = errorEntries[0];
+        const [, messages] = errorEntries[0];
         if (Array.isArray(messages) && messages.length > 0) {
           return messages[0];
         }

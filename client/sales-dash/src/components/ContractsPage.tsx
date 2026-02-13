@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Title, Button, Table, ActionIcon, Group, Badge, Text } from '@mantine/core';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Title, Button, Table, ActionIcon, Group, Text } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
 import './ContractsPage.css';
 import Menu from './Menu';
@@ -14,7 +14,6 @@ import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
 import {
   Contract,
-  ContractStatus,
   User,
   Group as ContractGroup,
   ContractAggregation,
@@ -61,18 +60,7 @@ const ContractsPage: React.FC = () => {
     return saved ? parseInt(saved) : 100;
   });
 
-  // Load saved filters from localStorage
-  useEffect(() => {
-    const savedStartDate = localStorage.getItem('contracts_filterStartDate');
-    if (savedStartDate) {
-      setFilterStartDate(savedStartDate);
-      setDebouncedStartDate(savedStartDate);
-    }
-    loadFilters();
-    setIsInitializing(false);
-  }, []);
-
-  const loadFilters = async () => {
+  const loadFilters = useCallback(async () => {
     try {
       const [usersData, groupsData] = await Promise.all([getUsers(), getGroups()]);
       setUsers(usersData);
@@ -84,23 +72,9 @@ const ContractsPage: React.FC = () => {
       console.error('Failed to load filter options:', err);
       toast.error(err.message || 'Falha ao carregar opções de filtro');
     }
-  };
-  
-  // Debounce all filters
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedUserId(filterUserId);
-      setDebouncedGroupId(filterGroupId);
-      setDebouncedStartDate(filterStartDate);
-      setDebouncedContractNumber(filterContractNumber);
-      setDebouncedShowUnassigned(filterShowUnassigned);
-      setDebouncedMatricula(filterMatricula);
-    }, 3000); // 3-second debounce for all fields
+  }, [setCachedUsers, setCachedGroups]);
 
-    return () => clearTimeout(timer);
-  }, [filterUserId, filterGroupId, filterStartDate, filterContractNumber, filterShowUnassigned, filterMatricula]);
-
-  const loadContracts = async () => {
+  const loadContracts = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -125,12 +99,37 @@ const ContractsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, setCachedContracts]);
+
+  // Load saved filters from localStorage
+  useEffect(() => {
+    const savedStartDate = localStorage.getItem('contracts_filterStartDate');
+    if (savedStartDate) {
+      setFilterStartDate(savedStartDate);
+      setDebouncedStartDate(savedStartDate);
+    }
+    loadFilters();
+    setIsInitializing(false);
+  }, [loadFilters]);
+  
+  // Debounce all filters
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedUserId(filterUserId);
+      setDebouncedGroupId(filterGroupId);
+      setDebouncedStartDate(filterStartDate);
+      setDebouncedContractNumber(filterContractNumber);
+      setDebouncedShowUnassigned(filterShowUnassigned);
+      setDebouncedMatricula(filterMatricula);
+    }, 3000); // 3-second debounce for all fields
+
+    return () => clearTimeout(timer);
+  }, [filterUserId, filterGroupId, filterStartDate, filterContractNumber, filterShowUnassigned, filterMatricula]);
 
   useEffect(() => {
     if (isInitializing) return;
     loadContracts();
-  }, [isInitializing, debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula]);
+  }, [isInitializing, loadContracts]);
 
   // Reset to page 1 when filters change (using debounced values to avoid flickering)
   useEffect(() => {

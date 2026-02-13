@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Title, Button, Table, Badge, TextInput, Select } from '@mantine/core';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Title, Button, Table, TextInput, Select } from '@mantine/core';
 import './MyContractsPage.css';
 import Menu from './Menu';
 import StandardModal from '../shared/StandardModal';
@@ -10,8 +10,6 @@ import ContractStatusBadge from '../shared/ContractStatusBadge';
 import {
   Contract,
   ContractAggregation,
-  ContractStatus,
-  getContracts,
   getUserContracts,
   getContractByNumber,
   assignContract,
@@ -37,19 +35,7 @@ const MyContractsPage: React.FC = () => {
   const [userMatriculas, setUserMatriculas] = useState<UserMatricula[]>([]);
   const [selectedMatricula, setSelectedMatricula] = useState<string>('');
 
-  // Load saved date filters from localStorage
-  useEffect(() => {
-    const savedStart = localStorage.getItem('myContracts_startDate');
-    const savedEnd = localStorage.getItem('myContracts_endDate');
-    if (savedStart) setStartDate(savedStart);
-    if (savedEnd) setEndDate(savedEnd);
-  }, []);
-
-  useEffect(() => {
-    loadMyContracts();
-  }, []);
-
-  const loadMyContracts = async () => {
+  const loadMyContracts = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -76,7 +62,19 @@ const MyContractsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate]);
+
+  // Load saved date filters from localStorage
+  useEffect(() => {
+    const savedStart = localStorage.getItem('myContracts_startDate');
+    const savedEnd = localStorage.getItem('myContracts_endDate');
+    if (savedStart) setStartDate(savedStart);
+    if (savedEnd) setEndDate(savedEnd);
+  }, []);
+
+  useEffect(() => {
+    loadMyContracts();
+  }, [loadMyContracts]);
 
   const handleNewClick = async () => {
     setContractNumber('');

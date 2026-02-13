@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import LoginPage from './components/LoginPage';
-import WelcomePage from './components/WelcomePage';
 import UsersPage from './components/UsersPage';
 import ContractsPage from './components/ContractsPage';
 import PVPage from './components/PVPage';

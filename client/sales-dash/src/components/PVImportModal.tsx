@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Title, Progress, Button, Text } from "@mantine/core";
-import { IconCheck, IconX, IconFileDownload } from "@tabler/icons-react";
+import { Title, Text } from "@mantine/core";
 import "./PVImportModal.css";
 import { apiService, PVRequest } from "../services/apiService";
 import StandardModal from "../shared/StandardModal";

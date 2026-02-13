@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LineChart } from '@mantine/charts';
 import { getHistoricProduction, HistoricProductionResponse } from '../services/contractService';
 import './HistoricProduction.css';
@@ -15,11 +15,7 @@ const HistoricProduction: React.FC<HistoricProductionProps> = ({ startDate, endD
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, [startDate, endDate, userId, showUnassigned]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -31,7 +27,11 @@ const HistoricProduction: React.FC<HistoricProductionProps> = ({ startDate, endD
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate, userId, showUnassigned]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', {

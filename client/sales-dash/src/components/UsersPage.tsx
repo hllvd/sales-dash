@@ -15,7 +15,7 @@ import {
 import { useUsers } from "../contexts/UsersContext"
 
 const UsersPage: React.FC = () => {
-  const { users: cachedUsers, setUsers: setCachedUsers, getUserById } = useUsers()
+  const { setUsers: setCachedUsers, getUserById } = useUsers()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -132,16 +132,6 @@ const UsersPage: React.FC = () => {
     })
   }
 
-  const getRoleBadgeClass = (role: string) => {
-    switch (role.toLowerCase()) {
-      case "superadmin":
-        return "role-badge role-superadmin"
-      case "admin":
-        return "role-badge role-admin"
-      default:
-        return "role-badge role-user"
-    }
-  }
 
   return (
     <Menu>

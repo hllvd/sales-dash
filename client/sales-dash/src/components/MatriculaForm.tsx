@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
-import { TextInput, Select, Checkbox, Button, Group, Loader, Text } from '@mantine/core';
+import { TextInput, Select, Checkbox, Button, Group, Loader } from '@mantine/core';
 import { UserMatricula, apiService, User } from "../services/apiService"
 import StyledModal from './StyledModal';
 import FormField from './FormField';
