@@ -18,13 +18,13 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: .NET Restore
-        run: dotnet restore
+        run: dotnet restore SalesApp.sln
 
       - name: .NET Test
-        run: dotnet test --no-restore --verbosity normal
+        run: dotnet test SalesApp.sln --no-restore --verbosity normal
 
       - name: Setup Node
         uses: actions/setup-node@v4

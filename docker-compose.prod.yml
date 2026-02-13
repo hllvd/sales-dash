@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   salesapp-api:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/salesapp-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/salesapp-api:${IMAGE_TAG:-latest}
     container_name: salesapp-api
     restart: always
     environment:
@@ -14,15 +14,28 @@ services:
         limits:
           memory: 2G
           cpus: '1.5'
-    depends_on:
-      - nginx
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   client:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/salesapp-client:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/salesapp-client:${IMAGE_TAG:-latest}
     container_name: salesapp-client
     restart: always
     stdin_open: true
     tty: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:latest
@@ -36,8 +49,15 @@ services:
       - "80:80"
       - "443:443"
     depends_on:
-      - salesapp-api
-      - client
+      salesapp-api:
+        condition: service_healthy
+      client:
+        condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   certbot:
     image: certbot/certbot
@@ -47,3 +67,8 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
