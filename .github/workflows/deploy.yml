@@ -87,6 +87,7 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Lowercase Repository Owner
         id: owner
@@ -102,8 +103,8 @@ jobs:
             cd ~/sales-dash
             export GITHUB_REPOSITORY_OWNER=${{ steps.owner.outputs.owner }}
             export IMAGE_TAG=${{ github.sha }}
-            docker compose pull
-            docker compose up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
   cleanup:
     needs: deploy
