@@ -1,6 +1,8 @@
 name: Deploy to Production
 
 on:
+  push:
+    branches: [development]
   pull_request:
     types: [closed]
     branches:
@@ -52,7 +54,7 @@ jobs:
             image: ghcr.io/${{ github.repository_owner }}/salesapp-api
           - service: frontend
             context: .
-            dockerfile: Dockerfile.client
+            dockerfile: Dockerfile.client 
             image: ghcr.io/${{ github.repository_owner }}/salesapp-client
 
     steps:

@@ -379,7 +379,7 @@ FodyWeavers.xsd
 *.msp
 
 # Mac OS files
-*.DS_Store
+.DS_Store
 
 # JetBrains Rider
 .idea/
