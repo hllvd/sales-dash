@@ -115,8 +115,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd ~/sales-dash
-            mkdir -p data keys
-            chmod 777 data keys
+            mkdir -p data keys certbot/conf certbot/www
+            chmod -R 777 data keys certbot
             export GITHUB_REPOSITORY_OWNER=${{ steps.owner.outputs.owner }}
             export IMAGE_TAG=${{ github.sha }}
             docker compose -f docker-compose.prod.yml pull
