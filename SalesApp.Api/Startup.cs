@@ -199,10 +199,7 @@ namespace SalesApp
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "SalesApp API v1"));
             }
-            else
-            {
-                app.UseHttpsRedirection();
-            }
+            // Removed app.UseHttpsRedirection() as it's handled by Nginx proxy
 
             app.UseRouting();
             
