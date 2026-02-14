@@ -30,6 +30,7 @@ namespace SalesApp
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddHttpContextAccessor();
+            services.AddHealthChecks();
 
             
             // Database (SQLite)
@@ -213,6 +214,7 @@ namespace SalesApp
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+                endpoints.MapHealthChecks("/health");
             });
         }
     }
