@@ -6,6 +6,7 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/SalesApp.db;Cache=Shared;Mode=ReadWriteCreate;
     volumes:
       - ./data:/app/data
@@ -53,7 +54,7 @@ services:
       - "443:443"
     depends_on:
       salesapp-api:
-        condition: service_healthy
+        condition: service_started
       client:
         condition: service_started
     logging:
