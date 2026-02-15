@@ -299,20 +299,14 @@ const UsersPage: React.FC = () => {
           )}
         
 
-      <StandardModal
-        isOpen={showForm}
-        onClose={closeForm}
-        title={editingUser ? "Editar Usuário" : "Novo Usuário"}
-        size="lg"
-        className="form-body" // Using form-body instead of import-form
-      >
+      {showForm && (
         <UserForm
           user={editingUser}
           onSubmit={editingUser ? handleUpdateUser : handleCreateUser}
           onCancel={closeForm}
           isEdit={!!editingUser}
         />
-      </StandardModal>
+      )}
 
       {showImportModal && (
         <BulkImportModal
