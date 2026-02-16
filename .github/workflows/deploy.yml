@@ -104,7 +104,7 @@ jobs:
           host: ${{ vars.VPS_HOST }}
           username: ${{ vars.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.prod.yml,nginx.conf,certbot/*"
+          source: "docker-compose.prod.yml,nginx.conf,certbot/*,backup/*"
           target: "~/sales-dash"
 
       - name: Deploy to VPS
@@ -115,8 +115,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd ~/sales-dash
-            mkdir -p data keys certbot/conf certbot/www
-            chmod -R 777 data keys certbot
+            mkdir -p data keys certbot/conf certbot/www backup
+            chmod -R 777 data keys certbot backup
             export GITHUB_REPOSITORY_OWNER=${{ steps.owner.outputs.owner }}
             export IMAGE_TAG=${{ github.sha }}
             docker compose -f docker-compose.prod.yml pull

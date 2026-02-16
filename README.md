@@ -163,6 +163,49 @@ npm test
 npm run test:coverage
 ```
 
+---
+
+## ☁️ Backups S3 (Produção)
+
+O projeto inclui um serviço de backup automatizado que sincroniza o banco de dados SQLite para um bucket S3 a cada 24 horas.
+
+### Como Funciona
+O serviço utiliza uma imagem Docker do `rclone` configurada para rodar em segundo plano. Ele monta o volume de dados do banco de dados (em modo leitura) e sincroniza o conteúdo com o provedor S3 configurado.
+
+### Configuração
+Para ativar os backups no VPS, siga estes passos:
+
+1.  **Acesse o VPS**:
+    ```bash
+    ssh usuario@seu-ip
+    cd ~/sales-dash/backup
+    ```
+
+2.  **Crie o arquivo de configuração**:
+    ```bash
+    nano rclone.conf
+    ```
+
+3.  **Configure suas credenciais S3**:
+    Cole o seguinte conteúdo e preencha com seus dados:
+    ```ini
+    [mys3]
+    type = s3
+    provider = AWS
+    access_key_id = SU_ACCESS_KEY
+    secret_access_key = SUA_SECRET_KEY
+    region = sua-regiao
+    endpoint = s3.sua-regiao.amazonaws.com
+    ```
+
+4.  **Reinicie o serviço** (opcional):
+    O serviço irá detectar o arquivo automaticamente, mas você pode garantir rodando:
+    ```bash
+    docker compose -f docker-compose.prod.yml restart backup
+    ```
+
+---
+
 ### Ajuda
 
 Para ver todas as opções disponíveis:

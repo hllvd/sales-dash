@@ -76,3 +76,18 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  backup:
+    image: rclone/rclone:latest
+    container_name: backup
+    restart: always
+    volumes:
+      - ./data:/app/data:ro
+      - ./backup:/config
+      - ./backup/backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
