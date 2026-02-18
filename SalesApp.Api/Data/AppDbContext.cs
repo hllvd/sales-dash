@@ -1,11 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 using SalesApp.Models;
+using System.Security.Claims;
+using System.Text.Json;
 
 namespace SalesApp.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAccessor httpContextAccessor) 
+            : base(options) 
+        { 
+            _httpContextAccessor = httpContextAccessor;
+        }
         
         public DbSet<User> Users { get; set; }
         public DbSet<Group> Groups { get; set; }
@@ -20,6 +28,7 @@ namespace SalesApp.Data
         public DbSet<ContractMetadata> ContractMetadata { get; set; }
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -272,6 +281,176 @@ namespace SalesApp.Data
                     .WithMany(p => p.RolePermissions)
                     .HasForeignKey(rp => rp.PermissionId);
             });
+
+            // AuditLog entity configuration
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.Action).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.EntityName).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.EntityId).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.UserId).IsRequired();
+                
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var auditEntries = OnBeforeSaveChanges();
+            var result = await base.SaveChangesAsync(cancellationToken);
+            await OnAfterSaveChanges(auditEntries);
+            return result;
+        }
+
+        private List<AuditEntry> OnBeforeSaveChanges()
+        {
+            ChangeTracker.DetectChanges();
+            var auditEntries = new List<AuditEntry>();
+
+            // Get current User ID from claims
+            var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Guid userId = Guid.Empty;
+            if (Guid.TryParse(userIdString, out var parsedGuid))
+            {
+                userId = parsedGuid;
+            }
+
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+                    continue;
+
+                var entityName = entry.Entity.GetType().Name;
+                if (entityName.EndsWith("Proxy")) entityName = entry.Entity.GetType().BaseType!.Name;
+
+                var auditableEntities = new[] { "User", "Contract", "UserMatricula", "Group", "PV" };
+                if (!auditableEntities.Contains(entityName))
+                    continue;
+
+                var auditEntry = new AuditEntry(entry)
+                {
+                    EntityName = entityName,
+                    UserId = userId,
+                };
+                auditEntries.Add(auditEntry);
+
+                foreach (var property in entry.Properties)
+                {
+                    string propertyName = property.Metadata.Name;
+                    var skipFields = new[] { "PasswordHash", "CreatedAt", "UpdatedAt", "Id", "UserId" };
+                    if (skipFields.Contains(propertyName)) continue;
+
+                    if (property.Metadata.IsPrimaryKey())
+                    {
+                        auditEntry.KeyValues[propertyName] = property.CurrentValue!;
+                        continue;
+                    }
+
+                    switch (entry.State)
+                    {
+                        case EntityState.Added:
+                            auditEntry.AuditType = "Create";
+                            if (property.CurrentValue != null) auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            if (property.IsTemporary) auditEntry.TemporaryProperties.Add(property);
+                            break;
+
+                        case EntityState.Deleted:
+                            auditEntry.AuditType = "Delete";
+                            if (property.OriginalValue != null) auditEntry.OldValues[propertyName] = property.OriginalValue;
+                            break;
+
+                        case EntityState.Modified:
+                            if (property.IsModified)
+                            {
+                                if (!Equals(property.OriginalValue, property.CurrentValue))
+                                {
+                                    auditEntry.AuditType = "Update";
+                                    if (property.OriginalValue != null) auditEntry.OldValues[propertyName] = property.OriginalValue;
+                                    if (property.CurrentValue != null) auditEntry.NewValues[propertyName] = property.CurrentValue;
+                                }
+                            }
+                            break;
+                    }
+                }
+            }
+
+            foreach (var auditEntry in auditEntries.Where(_ => !_.HasTemporaryProperties))
+            {
+                AuditLogs.Add(auditEntry.ToAudit());
+            }
+
+            return auditEntries.Where(_ => _.HasTemporaryProperties).ToList();
+        }
+
+        private async Task OnAfterSaveChanges(List<AuditEntry> auditEntries)
+        {
+            if (auditEntries == null || auditEntries.Count == 0)
+                return;
+
+            foreach (var auditEntry in auditEntries)
+            {
+                foreach (var prop in auditEntry.TemporaryProperties)
+                {
+                    if (prop.Metadata.IsPrimaryKey())
+                    {
+                        auditEntry.KeyValues[prop.Metadata.Name] = prop.CurrentValue!;
+                    }
+                    else
+                    {
+                        auditEntry.NewValues[prop.Metadata.Name] = prop.CurrentValue!;
+                    }
+                }
+                AuditLogs.Add(auditEntry.ToAudit());
+            }
+
+            await base.SaveChangesAsync();
+        }
+
+        private class AuditEntry
+        {
+            public AuditEntry(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry) { Entry = entry; }
+            public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry Entry { get; }
+            public Guid UserId { get; set; }
+            public string EntityName { get; set; } = string.Empty;
+            public string AuditType { get; set; } = string.Empty;
+            public Dictionary<string, object> KeyValues { get; } = new();
+            public Dictionary<string, object> OldValues { get; } = new();
+            public Dictionary<string, object> NewValues { get; } = new();
+            public List<Microsoft.EntityFrameworkCore.ChangeTracking.PropertyEntry> TemporaryProperties { get; } = new();
+            public bool HasTemporaryProperties => TemporaryProperties.Any();
+
+            public AuditLog ToAudit()
+            {
+                var audit = new AuditLog
+                {
+                    UserId = UserId,
+                    Action = AuditType,
+                    EntityName = EntityName,
+                    Timestamp = DateTime.UtcNow,
+                    EntityId = JsonSerializer.Serialize(KeyValues)
+                };
+
+                var changes = new Dictionary<string, object[]>();
+                foreach (var key in OldValues.Keys)
+                {
+                    changes[key] = new[] { OldValues[key], NewValues.ContainsKey(key) ? NewValues[key] : null! };
+                }
+                foreach (var key in NewValues.Keys.Where(k => !OldValues.ContainsKey(k)))
+                {
+                    changes[key] = new[] { null!, NewValues[key] };
+                }
+
+                if (changes.Count > 0)
+                {
+                    audit.Changes = JsonSerializer.Serialize(changes);
+                }
+
+                return audit;
+            }
         }
     }
 }
