@@ -5,6 +5,7 @@ using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using Xunit;
 
 namespace SalesApp.Tests.Services
@@ -30,7 +31,7 @@ namespace SalesApp.Tests.Services
             _mockRoleRepository = new Mock<IRoleRepository>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
             _mockEmailService = new Mock<IEmailService>();
-            _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>());
+            _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>(), new Mock<IHttpContextAccessor>().Object);
             _mockMetadataRepository = new Mock<IContractMetadataRepository>();
             _mockPvRepository = new Mock<IPVRepository>();
             

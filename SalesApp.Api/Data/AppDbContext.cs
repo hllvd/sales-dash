@@ -22,6 +22,7 @@ namespace SalesApp.Data
         public DbSet<ImportTemplate> ImportTemplates { get; set; }
         public DbSet<ImportSession> ImportSessions { get; set; }
         public DbSet<ImportColumnMapping> ImportColumnMappings { get; set; }
+        public DbSet<ImportRow> ImportRows { get; set; }
         public DbSet<PV> PVs { get; set; }
         public DbSet<UserMatricula> UserMatriculas { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
@@ -189,6 +190,22 @@ namespace SalesApp.Data
                     .HasForeignKey(e => e.UploadedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+
+            // ImportRow entity configuration
+            modelBuilder.Entity<ImportRow>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.RowData).IsRequired();
+                entity.Property(e => e.RowIndex).IsRequired();
+
+                entity.HasOne(e => e.ImportSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImportSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.ImportSessionId);
+            });
             
             // ImportColumnMapping entity configuration
             modelBuilder.Entity<ImportColumnMapping>(entity =>
@@ -317,6 +334,12 @@ namespace SalesApp.Data
             if (Guid.TryParse(userIdString, out var parsedGuid))
             {
                 userId = parsedGuid;
+            }
+
+            // Skip auditing if there's no authenticated user (e.g., during seeding or unauthenticated requests)
+            if (userId == Guid.Empty)
+            {
+                return auditEntries;
             }
 
             foreach (var entry in ChangeTracker.Entries())

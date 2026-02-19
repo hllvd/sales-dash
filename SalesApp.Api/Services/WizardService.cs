@@ -43,20 +43,41 @@ namespace SalesApp.Services
             var fileType = _fileParser.GetFileType(file);
             var uploadId = $"{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8]}";
 
-            // Parse file
-            var allRows = await _fileParser.ParseFileAsync(file);
-            var columns = await _fileParser.GetColumnsAsync(file);
+            // Try to find the contractDashboard template to link the session
+            var template = await _templateRepository.GetByNameAsync("contractDashboard");
+            int? templateId = template?.Id;
 
-            // Inject virtual columns for dashboard files if needed (same logic as ImportsController)
-            // This helps the preview and suggested mappings
+            // Create import session (initially without rows)
+            var session = new ImportSession
+            {
+                UploadId = uploadId,
+                TemplateId = templateId,
+                FileName = file.FileName,
+                FileType = fileType,
+                UploadedByUserId = userId,
+                Status = "wizard_step1",
+                TotalRows = 0
+            };
+
+            await _sessionRepository.CreateAsync(session);
+
+            // Stream parse file and save rows in batches to avoid OOM
+            var allRowsForPreview = new List<Dictionary<string, string>>();
+            var columns = await _fileParser.GetColumnsAsync(file);
+            
+            // Inject virtual columns for dashboard
             var virtualCols = new List<string> { "cota.group", "cota.cota", "cota.customer", "cota.contract" };
             foreach (var col in virtualCols)
             {
                 if (!columns.Contains(col)) columns.Add(col);
             }
 
-            foreach (var row in allRows)
+            var batch = new List<ImportRow>();
+            int rowIndex = 0;
+
+            await foreach (var row in _fileParser.ParseFileStreamedAsync(file))
             {
+                // Inject virtual columns logic
                 foreach (var col in virtualCols)
                 {
                     if (!row.ContainsKey(col)) row[col] = "";
@@ -74,26 +95,36 @@ namespace SalesApp.Services
                         row["cota.contract"] = parts[^1].Trim();
                     }
                 }
+
+                // Keep first 10 rows for preview response
+                if (rowIndex < 10) allRowsForPreview.Add(new Dictionary<string, string>(row));
+
+                batch.Add(new ImportRow
+                {
+                    ImportSessionId = session.Id,
+                    RowIndex = rowIndex,
+                    RowData = JsonSerializer.Serialize(row)
+                });
+
+                rowIndex++;
+
+                if (batch.Count >= 500)
+                {
+                    await _context.ImportRows.AddRangeAsync(batch);
+                    await _context.SaveChangesAsync();
+                    batch.Clear();
+                }
             }
 
-            // Try to find the contractDashboard template to link the session
-            var template = await _templateRepository.GetByNameAsync("contractDashboard");
-            int? templateId = template?.Id;
-
-            // Create import session and store file data
-            var session = new ImportSession
+            if (batch.Count > 0)
             {
-                UploadId = uploadId,
-                TemplateId = templateId,
-                FileName = file.FileName,
-                FileType = fileType,
-                UploadedByUserId = userId,
-                Status = "wizard_step1",
-                TotalRows = allRows.Count,
-                FileData = JsonSerializer.Serialize(allRows)
-            };
+                await _context.ImportRows.AddRangeAsync(batch);
+                await _context.SaveChangesAsync();
+            }
 
-            await _sessionRepository.CreateAsync(session);
+            // Update session total rows
+            session.TotalRows = rowIndex;
+            await _sessionRepository.UpdateAsync(session);
 
             // Template verification logic
             var isTemplateMatch = true;
@@ -113,7 +144,6 @@ namespace SalesApp.Services
 
                 suggestedMappings = _autoMapping.SuggestMappings(columns, template.EntityType, allTemplateFields);
                 
-                // Overlay default mappings from template (high priority) - CRITICAL for dashboard aliased columns
                 if (!string.IsNullOrEmpty(template.DefaultMappings) && template.DefaultMappings != "{}")
                 {
                     var templateMappings = JsonSerializer.Deserialize<Dictionary<string, string>>(template.DefaultMappings) ?? new();
@@ -129,13 +159,11 @@ namespace SalesApp.Services
 
                 if (requiredFields.Any())
                 {
-                    // If less than 50% of required fields are matched, it's a likely mismatch
                     if (mappedRequiredFieldsCount < (requiredFields.Count + 1) / 2)
                     {
                         isTemplateMatch = false;
                         matchMessage = $"Atenção: O arquivo enviado não parece corresponder ao modelo '{template.Name}'. Foram identificados apenas {mappedRequiredFieldsCount} de {requiredFields.Count} campos obrigatórios.";
                     }
-                    // Special case for contractDashboard: if it doesn't match the most critical fields
                     else if (template.Name == "contractDashboard" && mappedRequiredFieldsCount < 3)
                     {
                         isTemplateMatch = false;
@@ -153,8 +181,8 @@ namespace SalesApp.Services
                 EntityType = "Contract",
                 FileName = file.FileName,
                 DetectedColumns = columns,
-                SampleRows = allRows.Take(5).ToList(),
-                TotalRows = allRows.Count,
+                SampleRows = allRowsForPreview.Take(5).ToList(),
+                TotalRows = rowIndex,
                 IsTemplateMatch = isTemplateMatch,
                 MatchMessage = matchMessage,
                 SuggestedMappings = suggestedMappings,
@@ -166,33 +194,46 @@ namespace SalesApp.Services
         public async Task<byte[]> GenerateUsersTemplateAsync(string uploadId)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
-            if (session == null || string.IsNullOrEmpty(session.FileData))
+            if (session == null)
             {
-                throw new ArgumentException("Session not found or empty");
+                throw new ArgumentException("Session not found");
             }
 
-            var rows = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(session.FileData) ?? new();
-            
-            // Extract unique Name and Matricula
             var userMap = new HashSet<(string Name, string Matricula)>();
 
-            foreach (var row in rows)
+            // Fetch rows chunked from DB instead of memory
+            int skip = 0;
+            int take = 500;
+            while (true)
             {
-                var nameVal = GetColumnValue(row, "Comissionado", "Name", "name", "Nome", "Vendedor", "Usuário");
-                var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
+                var rowBatch = await _context.ImportRows
+                    .Where(r => r.ImportSessionId == session.Id)
+                    .OrderBy(r => r.RowIndex)
+                    .Skip(skip)
+                    .Take(take)
+                    .ToListAsync();
 
-                if (!string.IsNullOrEmpty(nameVal) && !string.IsNullOrEmpty(matVal))
+                if (rowBatch.Count == 0) break;
+
+                foreach (var dbRow in rowBatch)
                 {
-                    userMap.Add((nameVal.Trim(), matVal.Trim()));
-                }
-            }
+                    var row = JsonSerializer.Deserialize<Dictionary<string, string>>(dbRow.RowData) ?? new();
+                    var nameVal = GetColumnValue(row, "Comissionado", "Name", "name", "Nome", "Vendedor", "Usuário");
+                    var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
 
+                    if (!string.IsNullOrEmpty(nameVal) && !string.IsNullOrEmpty(matVal))
+                    {
+                        userMap.Add((nameVal.Trim(), matVal.Trim()));
+                    }
+                }
+
+                skip += take;
+            }
+            
             using var memoryStream = new MemoryStream();
             using (var writer = new StreamWriter(memoryStream))
             {
-                // Add UTF-8 BOM for Excel compatibility
                 writer.Write('\uFEFF');
-                
                 using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)))
                 {
                     csv.WriteField("Name");
@@ -206,11 +247,11 @@ namespace SalesApp.Services
                     foreach (var user in userMap.OrderBy(u => u.Name))
                     {
                         csv.WriteField(user.Name);
-                        csv.WriteField(""); // Email
-                        csv.WriteField(""); // ParentEmail
+                        csv.WriteField(""); 
+                        csv.WriteField(""); 
                         csv.WriteField(user.Matricula);
-                        csv.WriteField("1"); // Default to owner/proprietário
-                        csv.WriteField(""); // Password
+                        csv.WriteField("1");
+                        csv.WriteField(""); 
                         csv.NextRecord();
                     }
                 }
@@ -222,15 +263,13 @@ namespace SalesApp.Services
         public async Task<ImportStatusResponse> ProcessStep2ImportAsync(string uploadId, IFormFile usersFile, Guid userId)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
-            if (session == null || string.IsNullOrEmpty(session.FileData))
+            if (session == null)
             {
                 throw new ArgumentException("Original session not found");
             }
 
-            // 1. Parse users file
             var userRows = await _fileParser.ParseFileAsync(usersFile);
             
-            // 2. Import Users (and matriculas via user import)
             var userMappings = new Dictionary<string, string>
             {
                 ["Name"] = "Name",
@@ -241,7 +280,6 @@ namespace SalesApp.Services
                 ["Password"] = "Password"
             };
 
-            // Execute user import
             var userResult = await _importExecution.ExecuteUserImportAsync(
                 uploadId,
                 session.Id,
@@ -249,14 +287,11 @@ namespace SalesApp.Services
                 userMappings
             );
 
-            // 3. Update session status for History tracking
-            // Use standard statuses so it appears in "Histórico de Importação"
             session.Status = userResult.FailedRows > 0 ? "completed_with_errors" : "completed";
             session.CompletedAt = DateTime.UtcNow;
             session.ProcessedRows = userResult.ProcessedRows;
             session.FailedRows = userResult.FailedRows;
             
-            // Resolve Users template by name to avoid FK errors
             var usersTemplate = await _templateRepository.GetByNameAsync("Users");
             session.TemplateId = usersTemplate?.Id;
             
@@ -276,18 +311,22 @@ namespace SalesApp.Services
         public async Task<byte[]> GenerateEnrichedContractsAsync(string uploadId)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
-            if (session == null || string.IsNullOrEmpty(session.FileData))
+            if (session == null)
             {
-                throw new ArgumentException("Session not found or empty");
+                throw new ArgumentException("Session not found");
             }
 
-            var originalRows = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(session.FileData) ?? new();
-            if (originalRows.Count == 0) return Array.Empty<byte>();
+            // Get column list from first row
+            var firstDbRow = await _context.ImportRows
+                .Where(r => r.ImportSessionId == session.Id)
+                .OrderBy(r => r.RowIndex)
+                .FirstOrDefaultAsync();
 
-            // Get original columns in order
-            var columns = originalRows.First().Keys.ToList();
+            if (firstDbRow == null) return Array.Empty<byte>();
+
+            var firstRow = JsonSerializer.Deserialize<Dictionary<string, string>>(firstDbRow.RowData) ?? new();
+            var columns = firstRow.Keys.ToList();
             
-            // Build database lookups for fancy resolution
             var allActiveUsers = await _context.Users
                 .AsNoTracking()
                 .Include(u => u.UserMatriculas)
@@ -314,72 +353,83 @@ namespace SalesApp.Services
             using var memoryStream = new MemoryStream();
             using (var writer = new StreamWriter(memoryStream))
             {
-                writer.Write('\uFEFF'); // BOM
+                writer.Write('\uFEFF');
                 
                 using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)))
                 {
-                    // Filter columns: remove Q (16) and R (17) and virtual helper columns
                     var filteredColumns = columns
                         .Where((c, index) => index != 16 && index != 17)
                         .Where(c => !c.StartsWith("cota.", StringComparison.OrdinalIgnoreCase))
                         .ToList();
                     
-                    // Add Email column
                     foreach (var col in filteredColumns) csv.WriteField(col);
                     csv.WriteField("Email");
                     csv.NextRecord();
 
-                    foreach (var row in originalRows)
+                    int skip = 0;
+                    int take = 500;
+                    while (true)
                     {
-                        var nameRaw = GetColumnValue(row, "Comissionado", "Name", "name", "Nome", "Vendedor", "Usuário");
-                        var matRaw = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
-                        
-                        var nameVal = nameRaw.ToLower().Trim();
-                        var matVal = matRaw.ToLower().Trim();
-                        
-                        string? email = null;
-                        if (!string.IsNullOrEmpty(matVal) && dbMatriculaLookup.TryGetValue(matVal, out var dbEmailByMat))
-                        {
-                            email = dbEmailByMat;
-                        }
-                        else if (!string.IsNullOrEmpty(nameVal) && dbNameLookup.TryGetValue(nameVal, out var dbEmailByName))
-                        {
-                            email = dbEmailByName;
-                        }
+                        var rowBatch = await _context.ImportRows
+                            .Where(r => r.ImportSessionId == session.Id)
+                            .OrderBy(r => r.RowIndex)
+                            .Skip(skip)
+                            .Take(take)
+                            .ToListAsync();
 
-                        // Resolve and update Status if "Conferência" exists
-                        var confKey = row.Keys.FirstOrDefault(k => k.Equals("Conferência", StringComparison.OrdinalIgnoreCase) || k.Equals("conferencia", StringComparison.OrdinalIgnoreCase));
-                        var statusKey = row.Keys.FirstOrDefault(k => k.Equals("Status", StringComparison.OrdinalIgnoreCase));
-                        
-                        if (confKey != null)
-                        {
-                            var statusValue = MapConferenciaToStatus(row[confKey]);
-                            if (statusKey != null) row[statusKey] = statusValue;
-                            else row["Status"] = statusValue; // Add if not exists
-                        }
+                        if (rowBatch.Count == 0) break;
 
-                        foreach (var col in filteredColumns)
+                        foreach (var dbRow in rowBatch)
                         {
-                            var val = row[col];
+                            var row = JsonSerializer.Deserialize<Dictionary<string, string>>(dbRow.RowData) ?? new();
                             
-                            // Try to format dates
-                            if (col.Contains("Data", StringComparison.OrdinalIgnoreCase) || col.Contains("Dt", StringComparison.OrdinalIgnoreCase))
+                            var nameRaw = GetColumnValue(row, "Comissionado", "Name", "name", "Nome", "Vendedor", "Usuário");
+                            var matRaw = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
+                            
+                            var nameVal = nameRaw.ToLower().Trim();
+                            var matVal = matRaw.ToLower().Trim();
+                            
+                            string? email = null;
+                            if (!string.IsNullOrEmpty(matVal) && dbMatriculaLookup.TryGetValue(matVal, out var dbEmailByMat))
                             {
-                                if (DateTime.TryParse(val, out var dt))
+                                email = dbEmailByMat;
+                            }
+                            else if (!string.IsNullOrEmpty(nameVal) && dbNameLookup.TryGetValue(nameVal, out var dbEmailByName))
+                            {
+                                email = dbEmailByName;
+                            }
+
+                            var confKey = row.Keys.FirstOrDefault(k => k.Equals("Conferência", StringComparison.OrdinalIgnoreCase) || k.Equals("conferencia", StringComparison.OrdinalIgnoreCase));
+                            var statusKey = row.Keys.FirstOrDefault(k => k.Equals("Status", StringComparison.OrdinalIgnoreCase));
+                            
+                            if (confKey != null)
+                            {
+                                var statusValue = MapConferenciaToStatus(row[confKey]);
+                                if (statusKey != null) row[statusKey] = statusValue;
+                                else row["Status"] = statusValue; 
+                            }
+
+                            foreach (var col in filteredColumns)
+                            {
+                                var val = row[col];
+                                if (col.Contains("Data", StringComparison.OrdinalIgnoreCase) || col.Contains("Dt", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    val = dt.ToString("MM/dd/yyyy");
+                                    if (DateTime.TryParse(val, out var dt))
+                                    {
+                                        val = dt.ToString("MM/dd/yyyy");
+                                    }
+                                    else if (double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double oaDate))
+                                    {
+                                        try { val = DateTime.FromOADate(oaDate).ToString("MM/dd/yyyy"); } catch { }
+                                    }
                                 }
-                                else if (double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double oaDate))
-                                {
-                                    try { val = DateTime.FromOADate(oaDate).ToString("MM/dd/yyyy"); } catch { }
-                                }
+                                csv.WriteField(val);
                             }
                             
-                            csv.WriteField(val);
+                            csv.WriteField(email ?? "");
+                            csv.NextRecord();
                         }
-                        
-                        csv.WriteField(email ?? "");
-                        csv.NextRecord();
+                        skip += take;
                     }
                 }
             }

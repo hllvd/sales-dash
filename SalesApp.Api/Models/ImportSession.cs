@@ -33,8 +33,6 @@ namespace SalesApp.Models
         
         public int FailedRows { get; set; }
         
-        public string? FileData { get; set; } // JSON array of row data
-        
         public string? Mappings { get; set; } // JSON object of column mappings
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

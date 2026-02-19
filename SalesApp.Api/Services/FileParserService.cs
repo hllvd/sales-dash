@@ -40,20 +40,38 @@ namespace SalesApp.Services
             throw new ArgumentException($"Unsupported file type: {fileType}");
         }
 
-        public async Task<List<Dictionary<string, string>>> ParseFileAsync(IFormFile file)
+        public async Task<List<Dictionary<string, string>> > ParseFileAsync(IFormFile file)
+        {
+            var rows = new List<Dictionary<string, string>>();
+            await foreach (var row in ParseFileStreamedAsync(file))
+            {
+                rows.Add(row);
+            }
+            return rows;
+        }
+
+        public async IAsyncEnumerable<Dictionary<string, string>> ParseFileStreamedAsync(IFormFile file)
         {
             var fileType = GetFileType(file);
             
             if (fileType == "csv")
             {
-                return await ParseCsvAsync(file);
+                await foreach (var row in ParseCsvStreamedAsync(file))
+                {
+                    yield return row;
+                }
             }
             else if (fileType == "xlsx")
             {
-                return await ParseExcelAsync(file);
+                await foreach (var row in ParseExcelStreamedAsync(file))
+                {
+                    yield return row;
+                }
             }
-            
-            throw new ArgumentException($"Unsupported file type: {fileType}");
+            else
+            {
+                throw new ArgumentException($"Unsupported file type: {fileType}");
+            }
         }
 
         private async Task<List<string>> GetCsvColumnsAsync(IFormFile file)
@@ -71,17 +89,15 @@ namespace SalesApp.Services
             return csv.HeaderRecord?.ToList() ?? new List<string>();
         }
 
-        private async Task<List<Dictionary<string, string>>> ParseCsvAsync(IFormFile file)
+        private async IAsyncEnumerable<Dictionary<string, string>> ParseCsvStreamedAsync(IFormFile file)
         {
-            var rows = new List<Dictionary<string, string>>();
-            
             using var stream = file.OpenReadStream();
             using var reader = new StreamReader(stream);
             using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 HasHeaderRecord = true,
                 TrimOptions = TrimOptions.Trim,
-                MissingFieldFound = null // Ignore missing fields
+                MissingFieldFound = null
             });
 
             await csv.ReadAsync();
@@ -95,9 +111,17 @@ namespace SalesApp.Services
                 {
                     row[header] = csv.GetField(header)?.Trim() ?? string.Empty;
                 }
+                yield return row;
+            }
+        }
+
+        private async Task<List<Dictionary<string, string>>> ParseCsvAsync(IFormFile file)
+        {
+            var rows = new List<Dictionary<string, string>>();
+            await foreach (var row in ParseCsvStreamedAsync(file))
+            {
                 rows.Add(row);
             }
-
             return rows;
         }
 
@@ -127,10 +151,8 @@ namespace SalesApp.Services
             return await Task.FromResult(columns);
         }
 
-        private async Task<List<Dictionary<string, string>>> ParseExcelAsync(IFormFile file)
+        private async IAsyncEnumerable<Dictionary<string, string>> ParseExcelStreamedAsync(IFormFile file)
         {
-            var rows = new List<Dictionary<string, string>>();
-            
             using var stream = file.OpenReadStream();
             using var package = new ExcelPackage(stream);
             
@@ -143,7 +165,7 @@ namespace SalesApp.Services
             var rowCount = worksheet.Dimension?.Rows ?? 0;
             var columnCount = worksheet.Dimension?.Columns ?? 0;
 
-            // Read headers from first row
+            // Read headers
             var headers = new List<string>();
             for (int col = 1; col <= columnCount; col++)
             {
@@ -151,7 +173,7 @@ namespace SalesApp.Services
                 headers.Add(headerValue);
             }
 
-            // Read data rows (starting from row 2)
+            // Read data rows
             for (int row = 2; row <= rowCount; row++)
             {
                 var rowData = new Dictionary<string, string>();
@@ -172,10 +194,18 @@ namespace SalesApp.Services
                     
                     rowData[header] = cellValue;
                 }
-                rows.Add(rowData);
+                yield return rowData;
             }
+        }
 
-            return await Task.FromResult(rows);
+        private async Task<List<Dictionary<string, string>>> ParseExcelAsync(IFormFile file)
+        {
+            var rows = new List<Dictionary<string, string>>();
+            await foreach (var row in ParseExcelStreamedAsync(file))
+            {
+                rows.Add(row);
+            }
+            return rows;
         }
     }
 }

@@ -45,7 +45,7 @@ namespace SalesApp.Tests
             var options = new DbContextOptionsBuilder<AppDbContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
-            _context = new AppDbContext(options);
+            _context = new AppDbContext(options, new Mock<IHttpContextAccessor>().Object);
             
             _controller = new UsersController(
                 _mockUserRepository.Object, 

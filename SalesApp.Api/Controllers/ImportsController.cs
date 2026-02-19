@@ -5,8 +5,10 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Attributes;
+using SalesApp.Data;
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace SalesApp.Controllers
 {
@@ -24,6 +26,7 @@ namespace SalesApp.Controllers
         private readonly IAutoMappingService _autoMapping;
         private readonly IImportValidationService _validation;
         private readonly IImportExecutionService _importExecution;
+        private readonly AppDbContext _context;
 
         public ImportsController(
             IImportTemplateRepository templateRepository,
@@ -34,7 +37,8 @@ namespace SalesApp.Controllers
             IFileParserService fileParser,
             IAutoMappingService autoMapping,
             IImportValidationService validation,
-            IImportExecutionService importExecution)
+            IImportExecutionService importExecution,
+            AppDbContext context)
         {
             _templateRepository = templateRepository;
             _sessionRepository = sessionRepository;
@@ -45,6 +49,7 @@ namespace SalesApp.Controllers
             _autoMapping = autoMapping;
             _validation = validation;
             _importExecution = importExecution;
+            _context = context;
         }
 
         #region Template Management
@@ -85,7 +90,7 @@ namespace SalesApp.Controllers
                     "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName" 
                 }),
                 OptionalFields = JsonSerializer.Serialize(new List<string> { 
-                    "Status", "PvId", "PvName", "Version", "TempMatricula", "Category", "PlanoVenda" 
+                    "Status", "PvId", "PvName", "Version", "Matricula", "Category", "PlanoVenda" 
                 }),
                 DefaultMappings = JsonSerializer.Serialize(new Dictionary<string, string> {
                     { "cota.group", "GroupId" },
@@ -113,7 +118,6 @@ namespace SalesApp.Controllers
         [HasPermission("imports:execute")]
         public ActionResult<ApiResponse<List<ImportTemplateResponse>>> GetTemplates([FromQuery] string? entityType = null)
         {
-            // Can be optimized the speed?
             var isSuperAdmin = User.HasClaim("perm", "system:superadmin");
             
             var templates = HardcodedTemplates
@@ -175,11 +179,6 @@ namespace SalesApp.Controllers
                 var fileType = _fileParser.GetFileType(file);
                 var uploadId = $"{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8]}";
 
-                // Parse file
-                var allRows = await _fileParser.ParseFileAsync(file);
-                var columns = await _fileParser.GetColumnsAsync(file);
-
-                // Get template (Hardcoded)
                 var hardcodedTemplate = HardcodedTemplates.FirstOrDefault(t => t.Id == templateId);
                 if (hardcodedTemplate == null)
                 {
@@ -190,41 +189,6 @@ namespace SalesApp.Controllers
                     });
                 }
 
-                // If template is contractDashboard, split Cota into virtual columns for custom mapping
-                if (hardcodedTemplate.Name == "contractDashboard")
-                {
-                    // Add virtual column headers
-                    var virtualCols = new List<string> { "cota.group", "cota.cota", "cota.customer", "cota.contract" };
-                    foreach (var col in virtualCols)
-                    {
-                        if (!columns.Contains(col)) columns.Add(col);
-                    }
-
-                    // Process rows to extract values
-                    foreach (var row in allRows)
-                    {
-                        // Initialize virtual columns to avoid KeyNotFoundException during validation
-                        foreach (var col in virtualCols)
-                        {
-                            if (!row.ContainsKey(col)) row[col] = "";
-                        }
-
-                        var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
-                        if (cotaKey != null && !string.IsNullOrWhiteSpace(row[cotaKey]))
-                        {
-                            var parts = row[cotaKey].Split(';');
-                            if (parts.Length >= 5)
-                            {
-                                row["cota.group"] = parts[0].Trim();
-                                row["cota.cota"] = parts[1].Trim();
-                                row["cota.customer"] = parts[3].Trim();
-                                row["cota.contract"] = parts[^1].Trim();
-                            }
-                        }
-                    }
-                }
-
-                // Security Check: Admins can only use contractDashboard
                 if (!User.HasClaim("perm", "system:superadmin") && hardcodedTemplate.Name != "contractDashboard")
                 {
                     return StatusCode(403, new ApiResponse<ImportPreviewResponse>
@@ -234,17 +198,13 @@ namespace SalesApp.Controllers
                     });
                 }
 
-                // Sync with DB to ensure FK validity and keep fields updated
                 var dbTemplate = await _templateRepository.GetByNameAsync(hardcodedTemplate.Name);
                 if (dbTemplate == null)
                 {
                     var currentUserId = GetCurrentUserId();
                     var currentUser = await _userRepository.GetByIdAsync(currentUserId);
-                    
-                    // Fallback to first available admin if current user is not found (stale session/reseeded DB)
                     if (currentUser == null)
                     {
-                        Console.WriteLine($"[ImportsController] Current user {currentUserId} not found. Falling back to first admin.");
                         var anyAdmin = await _userRepository.GetRootUserAsync();
                         currentUserId = anyAdmin?.Id ?? currentUserId;
                     }
@@ -265,7 +225,6 @@ namespace SalesApp.Controllers
                 }
                 else
                 {
-                    // Update existing template to match hardcoded values
                     dbTemplate.RequiredFields = hardcodedTemplate.RequiredFields;
                     dbTemplate.OptionalFields = hardcodedTemplate.OptionalFields;
                     dbTemplate.Description = hardcodedTemplate.Description;
@@ -273,61 +232,112 @@ namespace SalesApp.Controllers
                     await _templateRepository.UpdateAsync(dbTemplate);
                 }
 
-                var entityType = hardcodedTemplate.EntityType;
-                
-                // Get required and optional fields
-                var requiredFields = JsonSerializer.Deserialize<List<string>>(hardcodedTemplate.RequiredFields) ?? new();
-                var optionalFields = JsonSerializer.Deserialize<List<string>>(hardcodedTemplate.OptionalFields) ?? new();
-                
-                // Combine all template fields for auto-mapping
-                var allTemplateFields = new List<string>();
-                allTemplateFields.AddRange(requiredFields);
-                allTemplateFields.AddRange(optionalFields);
-                
-                // Use SuggestMappings for pattern/exact field matching
-                var suggestedMappings = _autoMapping.SuggestMappings(columns, entityType, allTemplateFields);
-                
-                // Overlay default mappings from template (high priority)
-                if (!string.IsNullOrEmpty(hardcodedTemplate.DefaultMappings) && hardcodedTemplate.DefaultMappings != "{}")
-                {
-                    var templateMappings = JsonSerializer.Deserialize<Dictionary<string, string>>(hardcodedTemplate.DefaultMappings) ?? new();
-                    var appliedMappings = _autoMapping.ApplyTemplateMappings(templateMappings, columns);
-                    
-                    foreach (var (src, target) in appliedMappings)
-                    {
-                        suggestedMappings[src] = target;
-                    }
-                }
-
-                // Create import session and store file data
                 var session = new ImportSession
                 {
                     UploadId = uploadId,
-                    TemplateId = dbTemplate.Id, // Use DB ID
+                    TemplateId = dbTemplate.Id,
                     FileName = file.FileName,
                     FileType = fileType,
                     UploadedByUserId = GetCurrentUserId(),
                     Status = "preview",
-                    TotalRows = allRows.Count,
-                    FileData = JsonSerializer.Serialize(allRows) // Store file data for later
+                    TotalRows = 0
                 };
 
                 await _sessionRepository.CreateAsync(session);
 
-                // Template verification logic
+                var allRowsForPreview = new List<Dictionary<string, string>>();
+                var columns = await _fileParser.GetColumnsAsync(file);
+                var virtualCols = new List<string> { "cota.group", "cota.cota", "cota.customer", "cota.contract" };
+                
+                if (hardcodedTemplate.Name == "contractDashboard")
+                {
+                    foreach (var col in virtualCols)
+                    {
+                        if (!columns.Contains(col)) columns.Add(col);
+                    }
+                }
+
+                var batch = new List<ImportRow>();
+                int rowIndex = 0;
+
+                await foreach (var row in _fileParser.ParseFileStreamedAsync(file))
+                {
+                    if (hardcodedTemplate.Name == "contractDashboard")
+                    {
+                        foreach (var col in virtualCols)
+                        {
+                            if (!row.ContainsKey(col)) row[col] = "";
+                        }
+
+                        var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
+                        if (cotaKey != null && !string.IsNullOrWhiteSpace(row[cotaKey]))
+                        {
+                            var parts = row[cotaKey].Split(';');
+                            if (parts.Length >= 5)
+                            {
+                                row["cota.group"] = parts[0].Trim();
+                                row["cota.cota"] = parts[1].Trim();
+                                row["cota.customer"] = parts[3].Trim();
+                                row["cota.contract"] = parts[^1].Trim();
+                            }
+                        }
+                    }
+
+                    if (rowIndex < 10) allRowsForPreview.Add(new Dictionary<string, string>(row));
+
+                    batch.Add(new ImportRow
+                    {
+                        ImportSessionId = session.Id,
+                        RowIndex = rowIndex,
+                        RowData = JsonSerializer.Serialize(row)
+                    });
+
+                    rowIndex++;
+
+                    if (batch.Count >= 500)
+                    {
+                        await _context.ImportRows.AddRangeAsync(batch);
+                        await _context.SaveChangesAsync();
+                        batch.Clear();
+                    }
+                }
+
+                if (batch.Count > 0)
+                {
+                    await _context.ImportRows.AddRangeAsync(batch);
+                    await _context.SaveChangesAsync();
+                }
+
+                session.TotalRows = rowIndex;
+                await _sessionRepository.UpdateAsync(session);
+
+                var entityType = hardcodedTemplate.EntityType;
+                var requiredFields = JsonSerializer.Deserialize<List<string>>(hardcodedTemplate.RequiredFields) ?? new();
+                var optionalFields = JsonSerializer.Deserialize<List<string>>(hardcodedTemplate.OptionalFields) ?? new();
+                var allTemplateFields = new List<string>();
+                allTemplateFields.AddRange(requiredFields);
+                allTemplateFields.AddRange(optionalFields);
+                
+                var suggestedMappings = _autoMapping.SuggestMappings(columns, entityType, allTemplateFields);
+                
+                if (!string.IsNullOrEmpty(hardcodedTemplate.DefaultMappings) && hardcodedTemplate.DefaultMappings != "{}")
+                {
+                    var templateMappings = JsonSerializer.Deserialize<Dictionary<string, string>>(hardcodedTemplate.DefaultMappings) ?? new();
+                    var appliedMappings = _autoMapping.ApplyTemplateMappings(templateMappings, columns);
+                    foreach (var (src, target) in appliedMappings) suggestedMappings[src] = target;
+                }
+
                 var mappedRequiredFieldsCount = requiredFields.Count(rf => suggestedMappings.Values.Contains(rf));
                 var isTemplateMatch = true;
                 string? matchMessage = null;
 
                 if (requiredFields.Any())
                 {
-                    // If less than 50% of required fields are matched, it's a likely mismatch
                     if (mappedRequiredFieldsCount < (requiredFields.Count + 1) / 2)
                     {
                         isTemplateMatch = false;
                         matchMessage = $"Atenção: O arquivo enviado não parece corresponder ao modelo '{hardcodedTemplate.Name}'. Foram identificados apenas {mappedRequiredFieldsCount} de {requiredFields.Count} campos obrigatórios.";
                     }
-                    // Special case for contractDashboard: if it doesn't match the most critical fields
                     else if (hardcodedTemplate.Name == "contractDashboard" && mappedRequiredFieldsCount < 3)
                     {
                         isTemplateMatch = false;
@@ -335,28 +345,26 @@ namespace SalesApp.Controllers
                     }
                 }
 
-                var response = new ImportPreviewResponse
-                {
-                    UploadId = uploadId,
-                    SessionId = uploadId,
-                    TemplateId = templateId,
-                    TemplateName = hardcodedTemplate.Name,
-                    EntityType = entityType,
-                    FileName = file.FileName,
-                    DetectedColumns = columns,
-                    SampleRows = allRows.Take(5).ToList(),
-                    TotalRows = allRows.Count,
-                    SuggestedMappings = suggestedMappings,
-                    RequiredFields = requiredFields,
-                    OptionalFields = optionalFields,
-                    IsTemplateMatch = isTemplateMatch,
-                    MatchMessage = matchMessage
-                };
-
                 return Ok(new ApiResponse<ImportPreviewResponse>
                 {
                     Success = true,
-                    Data = response,
+                    Data = new ImportPreviewResponse
+                    {
+                        UploadId = uploadId,
+                        SessionId = uploadId,
+                        TemplateId = templateId,
+                        TemplateName = hardcodedTemplate.Name,
+                        EntityType = entityType,
+                        FileName = file.FileName,
+                        DetectedColumns = columns,
+                        SampleRows = allRowsForPreview.Take(5).ToList(),
+                        TotalRows = rowIndex,
+                        SuggestedMappings = suggestedMappings,
+                        RequiredFields = requiredFields,
+                        OptionalFields = optionalFields,
+                        IsTemplateMatch = isTemplateMatch,
+                        MatchMessage = matchMessage
+                    },
                     Message = "File uploaded and preview generated successfully"
                 });
             }
@@ -386,8 +394,21 @@ namespace SalesApp.Controllers
 
             try
             {
-                // Get file data from session
-                var allRows = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(session.FileData ?? "[]") ?? new();
+                var allRows = new List<Dictionary<string, string>>();
+                int skip = 0;
+                while (true)
+                {
+                    var chunk = await _context.ImportRows
+                        .Where(r => r.ImportSessionId == session.Id)
+                        .OrderBy(r => r.RowIndex)
+                        .Skip(skip)
+                        .Take(500)
+                        .ToListAsync();
+                    if (chunk.Count == 0) break;
+                    allRows.AddRange(chunk.Select(c => JsonSerializer.Deserialize<Dictionary<string, string>>(c.RowData) ?? new()));
+                    skip += 500;
+                    if (allRows.Count > 5000) break;
+                }
 
                 var entityType = session.Template?.EntityType ?? "Contract";
                 var requiredFields = session.Template?.RequiredFields != null ? JsonSerializer.Deserialize<List<string>>(session.Template.RequiredFields) : new List<string>();
@@ -395,29 +416,25 @@ namespace SalesApp.Controllers
                 var allowAutoCreatePVs = request?.AllowAutoCreatePVs ?? false;
                 var skipMissingContractNumber = request?.SkipMissingContractNumber ?? false;
 
-                // Validate all rows
                 var validationErrors = await _validation.ValidateAllRowsAsync(allRows, request.Mappings, entityType, requiredFields, allowAutoCreateGroups, allowAutoCreatePVs, skipMissingContractNumber);
 
-                // Store mappings and update session status
                 session.Mappings = JsonSerializer.Serialize(request.Mappings);
-                session.Status = "ready"; // No user resolution needed for contracts anymore
+                session.Status = "ready";
                 await _sessionRepository.UpdateAsync(session);
-
-                var response = new ImportStatusResponse
-                {
-                    UploadId = uploadId,
-                    Status = session.Status,
-                    TotalRows = session.TotalRows,
-                    ProcessedRows = 0,
-                    FailedRows = validationErrors.Count,
-                    UnresolvedUsers = new List<UnresolvedUserInfo>(),
-                    Errors = validationErrors.SelectMany(kvp => kvp.Value.Select(err => $"Row {kvp.Key + 1}: {err}")).ToList()
-                };
 
                 return Ok(new ApiResponse<ImportStatusResponse>
                 {
                     Success = true,
-                    Data = response,
+                    Data = new ImportStatusResponse
+                    {
+                        UploadId = uploadId,
+                        Status = session.Status,
+                        TotalRows = session.TotalRows,
+                        ProcessedRows = 0,
+                        FailedRows = validationErrors.Count,
+                        UnresolvedUsers = new List<UnresolvedUserInfo>(),
+                        Errors = validationErrors.SelectMany(kvp => kvp.Value.Select(err => $"Row {kvp.Key + 1}: {err}")).ToList()
+                    },
                     Message = "Mappings configured successfully"
                 });
             }
@@ -452,36 +469,23 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<ImportStatusResponse>
                 {
                     Success = false,
-                    Message = "Import session is not ready. Please configure mappings and resolve users first."
+                    Message = "Import session is not ready."
                 });
             }
 
             try
             {
-                // Get stored file data and mappings
-                var allRows = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(session.FileData ?? "[]") ?? new();
                 var mappings = JsonSerializer.Deserialize<Dictionary<string, string>>(session.Mappings ?? "{}") ?? new();
-
-                if (allRows.Count == 0)
-                {
-                    return BadRequest(new ApiResponse<ImportStatusResponse>
-                    {
-                        Success = false,
-                        Message = "No file data found. Please upload file again."
-                    });
-                }
-
                 if (mappings.Count == 0)
                 {
                     return BadRequest(new ApiResponse<ImportStatusResponse>
                     {
                         Success = false,
-                        Message = "No mappings configured. Please configure mappings first."
+                        Message = "No mappings configured."
                     });
                 }
 
-                // Execute import
-                ImportResult result;
+                ImportResult totalResult = new();
                 var entityType = session.Template?.EntityType ?? "Contract";
                 var templateName = session.Template?.Name ?? "";
                 var dateFormat = request?.DateFormat ?? "MM/DD/YYYY";
@@ -489,78 +493,68 @@ namespace SalesApp.Controllers
                 var allowAutoCreateGroups = request?.AllowAutoCreateGroups ?? false;
                 var allowAutoCreatePVs = request?.AllowAutoCreatePVs ?? false;
 
-                if (entityType == "User")
+                int skipRows = 0;
+                while (true)
                 {
-                    result = await _importExecution.ExecuteUserImportAsync(
-                        uploadId,
-                        session.Id,
-                        allRows,
-                        mappings);
-                }
-                else if (templateName == "contractDashboard")
-                {
-                    // Use specialized contractDashboard import
-                    result = await _importExecution.ExecuteContractDashboardImportAsync(
-                        uploadId,
-                        session.Id,
-                        allRows,
-                        mappings,
-                        skipMissingContractNumber,
-                        allowAutoCreateGroups,
-                        allowAutoCreatePVs);
-                }
-                else
-                {
-                    // Contract imports now use UserEmail directly, no user mapping needed
-                    result = await _importExecution.ExecuteContractImportAsync(
-                        uploadId,
-                        session.Id,
-                        allRows,
-                        mappings,
-                        dateFormat,
-                        skipMissingContractNumber,
-                        allowAutoCreateGroups,
-                        allowAutoCreatePVs);
+                    var chunk = await _context.ImportRows
+                        .Where(r => r.ImportSessionId == session.Id)
+                        .OrderBy(r => r.RowIndex)
+                        .Skip(skipRows)
+                        .Take(500)
+                        .ToListAsync();
+
+                    if (chunk.Count == 0) break;
+
+                    var rows = chunk.Select(c => JsonSerializer.Deserialize<Dictionary<string, string>>(c.RowData) ?? new()).ToList();
+                    
+                    ImportResult result;
+                    if (entityType == "User")
+                    {
+                        result = await _importExecution.ExecuteUserImportAsync(uploadId, session.Id, rows, mappings);
+                    }
+                    else if (templateName == "contractDashboard")
+                    {
+                        result = await _importExecution.ExecuteContractDashboardImportAsync(uploadId, session.Id, rows, mappings, skipMissingContractNumber, allowAutoCreateGroups, allowAutoCreatePVs);
+                    }
+                    else
+                    {
+                        result = await _importExecution.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, dateFormat, skipMissingContractNumber, allowAutoCreateGroups, allowAutoCreatePVs);
+                    }
+
+                    totalResult.ProcessedRows += result.ProcessedRows;
+                    totalResult.FailedRows += result.FailedRows;
+                    totalResult.Errors.AddRange(result.Errors);
+                    totalResult.CreatedGroups.AddRange(result.CreatedGroups);
+                    totalResult.CreatedPVs.AddRange(result.CreatedPVs);
+
+                    skipRows += 500;
                 }
 
-                // Update session with results
-                session.Status = result.FailedRows > 0 ? "completed_with_errors" : "completed";
+                session.Status = totalResult.FailedRows > 0 ? "completed_with_errors" : "completed";
                 session.CompletedAt = DateTime.UtcNow;
-                session.ProcessedRows = result.ProcessedRows;
-                session.FailedRows = result.FailedRows;
+                session.ProcessedRows = totalResult.ProcessedRows;
+                session.FailedRows = totalResult.FailedRows;
                 await _sessionRepository.UpdateAsync(session);
 
-                var response = new ImportStatusResponse
-                {
-                    UploadId = uploadId,
-                    Status = session.Status,
-                    TotalRows = session.TotalRows,
-                    ProcessedRows = session.ProcessedRows,
-                    FailedRows = session.FailedRows,
-                    UnresolvedUsers = new List<UnresolvedUserInfo>(),
-                    CreatedGroups = result.CreatedGroups,
-                    CreatedPVs = result.CreatedPVs,
-                    Errors = result.Errors
-                };
-
-                var successMessage = result.FailedRows > 0 
-                    ? $"Import completed with {result.FailedRows} errors. {result.ProcessedRows} contracts created successfully."
-                    : $"Import completed successfully. {result.ProcessedRows} contracts created.";
-
-                if (result.CreatedGroups.Any())
-                {
-                    successMessage += $" {result.CreatedGroups.Count} novos grupos foram criados automaticamente: {string.Join(", ", result.CreatedGroups)}";
-                }
-
-                if (result.CreatedPVs.Any())
-                {
-                    successMessage += $" {result.CreatedPVs.Count} novos PVs foram criados automaticamente: {string.Join(", ", result.CreatedPVs)}";
-                }
+                var successMessage = totalResult.FailedRows > 0 
+                    ? $"Import completed with {totalResult.FailedRows} errors. {totalResult.ProcessedRows} items created."
+                    : $"Import completed successfully. {totalResult.ProcessedRows} items created.";
 
                 return Ok(new ApiResponse<ImportStatusResponse>
                 {
                     Success = true,
-                    Data = response,
+                    Data = new ImportStatusResponse
+                    {
+                        UploadId = uploadId,
+                        Status = session.Status,
+                        TotalRows = session.TotalRows,
+                        ProcessedRows = totalResult.ProcessedRows,
+                        FailedRows = totalResult.FailedRows,
+                        UnresolvedUsers = new List<UnresolvedUserInfo>(),
+                        CreatedGroups = totalResult.CreatedGroups.Distinct().ToList(),
+                        CreatedPVs = totalResult.CreatedPVs.Distinct().ToList(),
+                        Errors = totalResult.Errors
+                    },
                     Message = successMessage
                 });
             }
@@ -568,12 +562,7 @@ namespace SalesApp.Controllers
             {
                 session.Status = "failed";
                 await _sessionRepository.UpdateAsync(session);
-
-                return BadRequest(new ApiResponse<ImportStatusResponse>
-                {
-                    Success = false,
-                    Message = $"Error executing import: {ex.Message}"
-                });
+                return BadRequest(new ApiResponse<ImportStatusResponse> { Success = false, Message = $"Error executing import: {ex.Message}" });
             }
         }
 

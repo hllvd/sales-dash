@@ -4,6 +4,8 @@ using SalesApp.Data;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using Xunit;
+using Moq;
+using Microsoft.AspNetCore.Http;
 
 namespace SalesApp.Tests.Repositories
 {
@@ -18,7 +20,7 @@ namespace SalesApp.Tests.Repositories
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
 
-            _context = new AppDbContext(options);
+            _context = new AppDbContext(options, new Mock<IHttpContextAccessor>().Object);
             _repository = new PVRepository(_context);
         }
 
