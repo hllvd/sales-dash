@@ -9,6 +9,10 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
     ports:
       - "5000:5000"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     logging:
       driver: "json-file"
       options:
