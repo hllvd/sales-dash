@@ -9,6 +9,34 @@ Estrutura base para iniciar um projeto fullstack com:
 
 ---
 
+## 🏷️ Build ID
+
+Every build generates a unique **Build ID** in the format `YYYYMMDD-HHMMSS-<git-short-sha>` (e.g. `20260223-171007-a3f9c12`).  
+It is baked into the API image at build time and displayed as a tooltip when hovering over **Painel de Vendas** in the sidebar.
+
+### CI/CD (automático)
+
+The build ID is generated and injected **automatically** by the GitHub Actions workflow on every push to `main`. No action required.
+
+### Build local (manual)
+
+When building locally with `docker compose`, set `BUILD_ID` before running the build:
+
+```bash
+export BUILD_ID="$(date -u +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
+docker compose build
+```
+
+Or in a single line:
+
+```bash
+BUILD_ID="$(date -u +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)" docker compose build
+```
+
+> **Note:** Without `BUILD_ID`, the API falls back to `local-<runtime-timestamp>` — fine for local development.
+
+---
+
 ## CSV Utility Script
 
 Utilitário TypeScript para processamento de arquivos CSV e geração de templates.
