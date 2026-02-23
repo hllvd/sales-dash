@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Title, Button, Stepper, Group, FileInput, Text, Paper, Badge, Alert, Stack, List } from '@mantine/core';
+import { Title, Button, Stepper, Group, FileInput, Text, Paper, Badge, Alert, Stack, List, LoadingOverlay, Box } from '@mantine/core';
 import { IconUpload, IconDownload, IconCheck, IconAlertCircle, IconChevronRight, IconChevronLeft } from '@tabler/icons-react';
 import Menu from './Menu';
 import { apiService } from '../services/apiService';
@@ -8,6 +8,7 @@ import { toast } from '../utils/toast';
 const ImportWizardPage: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Aguarde...');
   
   // Step 1: Upload Contract File
   const [contractFile, setContractFile] = useState<File | null>(null);
@@ -24,6 +25,7 @@ const ImportWizardPage: React.FC = () => {
       return;
     }
 
+    setLoadingMessage('Processando arquivo de contratos…');
     setLoading(true);
     setMismatchWarning(null);
     try {
@@ -71,6 +73,7 @@ const ImportWizardPage: React.FC = () => {
       return;
     }
 
+    setLoadingMessage('Importando usuários e matrículas…');
     setLoading(true);
     try {
       const response = await apiService.runWizardStep2(uploadData.uploadId, usersFile);
@@ -104,7 +107,35 @@ const ImportWizardPage: React.FC = () => {
 
   return (
     <Menu>
-      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
+      <Box pos="relative" style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
+        <LoadingOverlay
+          visible={loading}
+          overlayProps={{ radius: 'sm', blur: 3, backgroundOpacity: 0.55 }}
+          loaderProps={{ type: 'dots', size: 'xl', color: 'blue' }}
+          zIndex={300}
+        />
+
+        {loading && (
+          <Box
+            style={{
+              position: 'fixed',
+              bottom: '2rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 400,
+              background: 'rgba(0,0,0,0.75)',
+              color: '#fff',
+              padding: '10px 24px',
+              borderRadius: '2rem',
+              fontSize: '0.9rem',
+              fontWeight: 500,
+              letterSpacing: '0.02em',
+              pointerEvents: 'none',
+            }}
+          >
+            {loadingMessage}
+          </Box>
+        )}
         <Title order={2} mb="xl" className="page-title-break">Assistente de Importação Completa</Title>
 
         <Stepper active={activeStep} allowNextStepsSelect={false}>
@@ -333,7 +364,7 @@ const ImportWizardPage: React.FC = () => {
             </Paper>
           </Stepper.Completed>
         </Stepper>
-      </div>
+      </Box>
     </Menu>
   );
 };
