@@ -14,6 +14,7 @@ import AccessControlPage from './components/AccessControlPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
+import { BuildInfoProvider } from './contexts/BuildInfoContext';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/charts/styles.css';
@@ -69,16 +70,18 @@ function App() {
   };
 
   return (
-    <CurrentUserProvider>
-      <UsersProvider>
-        <ContractsProvider>
-          <MantineProvider>
-            <Notifications />
-            {renderPage()}
-          </MantineProvider>
-        </ContractsProvider>
-      </UsersProvider>
-    </CurrentUserProvider>
+    <BuildInfoProvider>
+      <CurrentUserProvider>
+        <UsersProvider>
+          <ContractsProvider>
+            <MantineProvider>
+              <Notifications />
+              {renderPage()}
+            </MantineProvider>
+          </ContractsProvider>
+        </UsersProvider>
+      </CurrentUserProvider>
+    </BuildInfoProvider>
   );
 }
 

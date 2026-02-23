@@ -9,7 +9,10 @@ RUN dotnet restore "SalesApp.Api/SalesApp.Api.csproj"
 # Copy everything else and build
 COPY . .
 WORKDIR "/src/SalesApp.Api"
+# Build ID (injected at build time, e.g. "20260223-170052-abc1234")
+ARG BUILD_ID=local
 RUN dotnet publish "SalesApp.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN echo "$BUILD_ID" > /app/publish/build-info.txt
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final

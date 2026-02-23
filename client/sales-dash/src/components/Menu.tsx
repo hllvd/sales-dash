@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AppShell, NavLink, Text, Group, Button } from '@mantine/core';
+import { AppShell, NavLink, Text, Group, Button, Tooltip } from '@mantine/core';
+import { useBuildInfo } from '../contexts/BuildInfoContext';
 import {
   IconUsers,
   IconFileText,
@@ -19,6 +20,7 @@ interface MenuProps {
 const Menu: React.FC<MenuProps> = ({ children }) => {
   const [userRole, setUserRole] = useState('');
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/home');
+  const { buildInfo } = useBuildInfo();
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -65,9 +67,24 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
       <AppShell.Navbar p="md" style={{ backgroundColor: '#1f2937' }}>
         <AppShell.Section>
           <Group mb="lg">
-            <Text size="xl" fw={700} c="white">
-              Painel de Vendas
-            </Text>
+            <Tooltip
+              label={buildInfo ? `Build: ${buildInfo.buildId}` : 'Carregando build info…'}
+              position="right"
+              withArrow
+              arrowSize={6}
+              styles={{
+                tooltip: {
+                  fontSize: '0.75rem',
+                  fontFamily: 'monospace',
+                  background: 'rgba(0,0,0,0.85)',
+                  color: '#a5f3a0',
+                },
+              }}
+            >
+              <Text size="xl" fw={700} c="white" style={{ cursor: 'default' }}>
+                Painel de Vendas
+              </Text>
+            </Tooltip>
           </Group>
         </AppShell.Section>
 

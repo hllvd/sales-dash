@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.api
+      args:
+        BUILD_ID: "${BUILD_ID:-}"
     container_name: salesapp-api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
