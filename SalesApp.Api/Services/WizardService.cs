@@ -250,7 +250,7 @@ namespace SalesApp.Services
                         csv.WriteField(""); 
                         csv.WriteField(""); 
                         csv.WriteField(user.Matricula);
-                        csv.WriteField("1");
+                        csv.WriteField("0");
                         csv.WriteField(""); 
                         csv.NextRecord();
                     }
