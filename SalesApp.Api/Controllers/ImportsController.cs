@@ -245,23 +245,33 @@ namespace SalesApp.Controllers
 
                 await _sessionRepository.CreateAsync(session);
 
-                var allRowsForPreview = new List<Dictionary<string, string>>();
-                var columns = await _fileParser.GetColumnsAsync(file);
-                var virtualCols = new List<string> { "cota.group", "cota.cota", "cota.customer", "cota.contract" };
-                
-                if (hardcodedTemplate.Name == "contractDashboard")
+                // ✅ Parse the entire file into a bounded list first.
+                // Streaming iterators (IAsyncEnumerable) can loop indefinitely when the underlying
+                // file format reports a row-count that is far larger than actual data (e.g. XLSX
+                // worksheet.Dimension.Rows, or CsvHelper on a malformed file). By collecting all
+                // rows upfront we get a guaranteed termination point and can apply a hard cap.
+                const int maxAllowedRows = 100_000;
+                var parsedRows = await _fileParser.ParseFileAsync(file);
+
+                if (parsedRows.Count > maxAllowedRows)
                 {
-                    foreach (var col in virtualCols)
+                    return BadRequest(new ApiResponse<ImportPreviewResponse>
                     {
-                        if (!columns.Contains(col)) columns.Add(col);
-                    }
+                        Success = false,
+                        Message = $"O arquivo contém mais de {maxAllowedRows:N0} linhas. Divida o arquivo em partes menores."
+                    });
                 }
 
-                var batch = new List<ImportRow>();
-                int rowIndex = 0;
+                var virtualCols = new List<string> { "cota.group", "cota.cota", "cota.customer", "cota.contract" };
 
-                await foreach (var row in _fileParser.ParseFileStreamedAsync(file))
+                // Enrich contractDashboard rows and extract preview
+                var allRowsForPreview = new List<Dictionary<string, string>>();
+                var importRows = new List<ImportRow>();
+
+                for (int rowIndex = 0; rowIndex < parsedRows.Count; rowIndex++)
                 {
+                    var row = parsedRows[rowIndex];
+
                     if (hardcodedTemplate.Name == "contractDashboard")
                     {
                         foreach (var col in virtualCols)
@@ -285,30 +295,33 @@ namespace SalesApp.Controllers
 
                     if (rowIndex < 10) allRowsForPreview.Add(new Dictionary<string, string>(row));
 
-                    batch.Add(new ImportRow
+                    importRows.Add(new ImportRow
                     {
                         ImportSessionId = session.Id,
                         RowIndex = rowIndex,
                         RowData = JsonSerializer.Serialize(row)
                     });
-
-                    rowIndex++;
-
-                    if (batch.Count >= 500)
-                    {
-                        await _context.ImportRows.AddRangeAsync(batch);
-                        await _context.SaveChangesAsync();
-                        batch.Clear();
-                    }
                 }
 
-                if (batch.Count > 0)
+                // Batch-insert all ImportRows
+                for (int i = 0; i < importRows.Count; i += 500)
                 {
+                    var batch = importRows.Skip(i).Take(500).ToList();
                     await _context.ImportRows.AddRangeAsync(batch);
                     await _context.SaveChangesAsync();
                 }
 
-                session.TotalRows = rowIndex;
+                // Extract columns from the first parsed row
+                var columns = parsedRows.Count > 0 ? parsedRows[0].Keys.ToList() : new List<string>();
+                if (hardcodedTemplate.Name == "contractDashboard")
+                {
+                    foreach (var col in virtualCols)
+                    {
+                        if (!columns.Contains(col)) columns.Add(col);
+                    }
+                }
+
+                session.TotalRows = parsedRows.Count;
                 await _sessionRepository.UpdateAsync(session);
 
                 var entityType = hardcodedTemplate.EntityType;
@@ -358,7 +371,7 @@ namespace SalesApp.Controllers
                         FileName = file.FileName,
                         DetectedColumns = columns,
                         SampleRows = allRowsForPreview.Take(5).ToList(),
-                        TotalRows = rowIndex,
+                        TotalRows = parsedRows.Count,
                         SuggestedMappings = suggestedMappings,
                         RequiredFields = requiredFields,
                         OptionalFields = optionalFields,
@@ -494,8 +507,14 @@ namespace SalesApp.Controllers
                 var allowAutoCreatePVs = request?.AllowAutoCreatePVs ?? false;
 
                 int skipRows = 0;
+                // ✅ Safety guard: cap iterations to prevent any possibility of an infinite loop.
+                // Even with 0 rows, we loop at most once (chunk.Count == 0 triggers break).
+                int maxChunks = (session.TotalRows / 500) + 2;
+                int chunkIteration = 0;
                 while (true)
                 {
+                    if (chunkIteration++ > maxChunks) break;
+
                     var chunk = await _context.ImportRows
                         .Where(r => r.ImportSessionId == session.Id)
                         .OrderBy(r => r.RowIndex)

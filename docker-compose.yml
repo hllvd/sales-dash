@@ -8,7 +8,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
     ports:
-      - "5000:5000"
+      - "5001:5000"
     deploy:
       resources:
         limits:
@@ -21,8 +21,8 @@ services:
 
   client:
     build:
-      context: ./client
-      dockerfile: ../Dockerfile.client
+      context: .
+      dockerfile: Dockerfile.client
     container_name: salesapp-client
     stdin_open: true
     tty: true
@@ -36,7 +36,7 @@ services:
     image: nginx:latest
     container_name: nginx
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx.local.conf:/etc/nginx/nginx.conf:ro
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     ports:

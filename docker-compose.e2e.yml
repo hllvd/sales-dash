@@ -1,0 +1,49 @@
+services:
+  salesapp-api-e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: salesapp-api-e2e
+    environment:
+      - ASPNETCORE_ENVIRONMENT=E2E
+    volumes:
+      - ./data_e2e:/app/data
+      - ./keys:/app/keys
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  salesapp-client-e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: salesapp-client-e2e
+    stdin_open: true
+    tty: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx-e2e:
+    image: nginx:latest
+    container_name: nginx-e2e
+    volumes:
+      - ./nginx.e2e.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - salesapp-api-e2e
+      - salesapp-client-e2e
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
