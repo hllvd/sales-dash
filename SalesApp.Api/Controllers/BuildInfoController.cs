@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace SalesApp.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/build-info")]
     public class BuildInfoController : ControllerBase
     {
         private readonly IWebHostEnvironment _env;
