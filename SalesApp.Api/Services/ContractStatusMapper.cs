@@ -12,6 +12,7 @@ namespace SalesApp.Services
             // ✅ Active aliases
             { "Active", ContractStatus.Active.ToApiString() },
             { "Normal", ContractStatus.Active.ToApiString() },
+            { "Ativa", ContractStatus.Active.ToApiString() },
             
             // ✅ Late1 aliases
             { "Late1", ContractStatus.Late1.ToApiString() },
@@ -35,6 +36,7 @@ namespace SalesApp.Services
             { "EXCLUIDO", ContractStatus.Defaulted.ToApiString() },
             { "EXCLUÍDO", ContractStatus.Defaulted.ToApiString() },
             { "CANCELADO", ContractStatus.Defaulted.ToApiString() },
+            { "Cancelada", ContractStatus.Defaulted.ToApiString() },
             { "DISTRATADO", ContractStatus.Defaulted.ToApiString() },
             { "SUSPENSO", ContractStatus.Defaulted.ToApiString() },
             { "paid_off", ContractStatus.Defaulted.ToApiString() }, // Legacy
