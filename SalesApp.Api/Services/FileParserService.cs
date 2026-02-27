@@ -62,9 +62,11 @@ namespace SalesApp.Services
         private async Task<List<Dictionary<string, string>>> ParseCsvDirectAsync(IFormFile file)
         {
             string csvContent;
+            char delimiter;
             using (var stream = file.OpenReadStream())
-            using (var reader = new StreamReader(stream))
             {
+                delimiter = CsvDelimiterDetector.Detect(stream); // resets stream to 0
+                using var reader = new StreamReader(stream);
                 csvContent = await reader.ReadToEndAsync();
             }
 
@@ -74,7 +76,8 @@ namespace SalesApp.Services
             {
                 HasHeaderRecord = true,
                 TrimOptions = TrimOptions.Trim,
-                MissingFieldFound = null
+                MissingFieldFound = null,
+                Delimiter = delimiter.ToString()
             });
 
             await csv.ReadAsync();
@@ -189,11 +192,13 @@ namespace SalesApp.Services
         private async Task<List<string>> GetCsvColumnsAsync(IFormFile file)
         {
             using var stream = file.OpenReadStream();
+            var delimiter = CsvDelimiterDetector.Detect(stream); // resets stream to 0
             using var reader = new StreamReader(stream);
             using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 HasHeaderRecord = true,
-                TrimOptions = TrimOptions.Trim
+                TrimOptions = TrimOptions.Trim,
+                Delimiter = delimiter.ToString()
             });
 
             await csv.ReadAsync();
@@ -204,12 +209,14 @@ namespace SalesApp.Services
         private async IAsyncEnumerable<Dictionary<string, string>> ParseCsvStreamedAsync(IFormFile file)
         {
             using var stream = file.OpenReadStream();
+            var delimiter = CsvDelimiterDetector.Detect(stream); // resets stream to 0
             using var reader = new StreamReader(stream);
             using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 HasHeaderRecord = true,
                 TrimOptions = TrimOptions.Trim,
-                MissingFieldFound = null
+                MissingFieldFound = null,
+                Delimiter = delimiter.ToString()
             });
 
             await csv.ReadAsync();
