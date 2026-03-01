@@ -44,7 +44,7 @@ test.describe('CSV Delimiter Auto-Detection', () => {
   // Scenario 1: Semicolon-delimited users file (Excel pt-BR save)
   // ---------------------------------------------------------------------------
   test('should accept a semicolon-delimited users CSV (Excel pt-BR behaviour)', async ({ page }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(10_000);
 
     await loginAndGoToWizard(page);
     await uploadContractsStep1(page);
@@ -60,7 +60,7 @@ test.describe('CSV Delimiter Auto-Detection', () => {
     await page.locator('button:has-text("Importar Usuários e Avançar")').click();
 
     // 'Usuários Importados!' is the Alert shown only when step 3 body is active
-    await expect(page.getByText('Usuários Importados!')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('Usuários Importados!')).toBeVisible({ timeout: 30_000 });
   });
 
   // ---------------------------------------------------------------------------

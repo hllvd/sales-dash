@@ -5,7 +5,7 @@ import path from 'path';
 test.describe('Import Wizard Flow', () => {
   test('should complete the full import process and verify retention metric', async ({ page }) => {
     // Set timeout for this specific test
-    test.setTimeout(300000);
+    test.setTimeout(30_000);
     // Helper to get absolute path for test data
     const getTestDataPath = (filename: string) => path.resolve(process.cwd(), 'test-data', filename);
 
