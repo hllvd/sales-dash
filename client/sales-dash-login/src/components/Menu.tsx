@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { AppShell, NavLink, Text, Group, Button } from '@mantine/core';
 import {
-  IconHome,
-  IconChartBar,
   IconUsers,
   IconFileText,
   IconMap,
   IconBuilding,
   IconClipboardList,
-  IconUsersGroup,
   IconLogout,
   IconId,
 } from '@tabler/icons-react';

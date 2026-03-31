@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Title, Button, Table, ActionIcon, Group, Badge } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
 import './ContractsPage.css';
@@ -44,11 +44,7 @@ const ContractsPage: React.FC = () => {
   const [filterContractNumber, setFilterContractNumber] = useState('');
   const [debouncedContractNumber, setDebouncedContractNumber] = useState('');
 
-  useEffect(() => {
-    loadFilters();
-  }, []);
-
-  const loadFilters = async () => {
+  const loadFilters = useCallback(async () => {
     try {
       const [usersData, groupsData] = await Promise.all([getUsers(), getGroups()]);
       setUsers(usersData);
@@ -60,7 +56,11 @@ const ContractsPage: React.FC = () => {
       console.error('Failed to load filter options:', err);
       toast.error(err.message || 'Falha ao carregar opções de filtro');
     }
-  };
+  }, [setCachedUsers, setCachedGroups]);
+
+  useEffect(() => {
+    loadFilters();
+  }, [loadFilters]);
   
   // Debounce contract number search
   useEffect(() => {
@@ -71,7 +71,7 @@ const ContractsPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [filterContractNumber]);
 
-  const loadContracts = async () => {
+  const loadContracts = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -94,11 +94,11 @@ const ContractsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber, setCachedContracts]);
 
   useEffect(() => {
     loadContracts();
-  }, [filterUserId, filterGroupId, filterStartDate, filterEndDate, debouncedContractNumber]);
+  }, [loadContracts]);
 
   const handleCreateClick = () => {
     setEditingContract(null);
@@ -145,19 +145,6 @@ const ContractsPage: React.FC = () => {
     if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR');
-  };
-
-  const getStatusBadgeClass = (status: string): string => {
-    switch (status) {
-      case 'active':
-        return 'status-active';
-      case 'delinquent':
-        return 'status-delinquent';
-      case 'paid_off':
-        return 'status-paid-off';
-      default:
-        return '';
-    }
   };
 
   const getStatusLabel = (status: string): string => {

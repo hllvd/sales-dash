@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { TextInput, Select, Checkbox, Button, Group } from '@mantine/core';
-import { UserMatricula, apiService } from "../services/apiService"
+import { UserMatricula } from "../services/apiService"
 import StyledModal from './StyledModal';
 import { useUsers } from '../contexts/UsersContext';
 import FormField from './FormField';

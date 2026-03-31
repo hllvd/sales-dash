@@ -24,7 +24,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [mappings, setMappings] = useState<Record<string, string>>({})
   const [requiredFields, setRequiredFields] = useState<string[]>([])
   const [optionalFields, setOptionalFields] = useState<string[]>([])
-  const [dateFormat, setDateFormat] = useState<string>("MM/DD/YYYY")
+  const [dateFormat] = useState<string>("MM/DD/YYYY")
   
   // Step 3: Result
   const [resultMessage, setResultMessage] = useState<string>("")

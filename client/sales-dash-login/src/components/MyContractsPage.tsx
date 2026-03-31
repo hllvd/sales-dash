@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Title, Button, Table, Badge, TextInput, Select } from '@mantine/core';
 import './MyContractsPage.css';
 import Menu from './Menu';
@@ -10,7 +10,6 @@ import {
   Contract,
   ContractAggregation,
   ContractStatus,
-  getContracts,
   getUserContracts,
   getContractByNumber,
   assignContract,
@@ -44,11 +43,7 @@ const MyContractsPage: React.FC = () => {
     if (savedEnd) setEndDate(savedEnd);
   }, []);
 
-  useEffect(() => {
-    loadMyContracts();
-  }, []);
-
-  const loadMyContracts = async () => {
+  const loadMyContracts = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -75,7 +70,11 @@ const MyContractsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    loadMyContracts();
+  }, [loadMyContracts]);
 
   const handleNewClick = async () => {
     setContractNumber('');
@@ -200,19 +199,6 @@ const MyContractsPage: React.FC = () => {
     if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR');
-  };
-
-  const getStatusBadgeClass = (status: string): string => {
-    switch (status) {
-      case 'active':
-        return 'status-active';
-      case 'delinquent':
-        return 'status-delinquent';
-      case 'paid_off':
-        return 'status-paid-off';
-      default:
-        return '';
-    }
   };
 
   const getStatusLabel = (status: string): string => {

@@ -2,4 +2,7 @@ FROM node:20 AS build
 WORKDIR /app
 COPY . .
 RUN npm install && npm run build
+ENV HOST=0.0.0.0
+ENV PORT=3000
+
 CMD ["npm", "start"]

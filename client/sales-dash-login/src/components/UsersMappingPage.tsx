@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Title, Button } from '@mantine/core';
 import { apiService } from '../services/apiService';
 import Menu from './Menu';

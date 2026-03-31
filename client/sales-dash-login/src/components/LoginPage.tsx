@@ -13,7 +13,7 @@ const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5017/api/users/login', {
+      const response = await fetch('/api/users/login', {
 
         method: 'POST',
         headers: {

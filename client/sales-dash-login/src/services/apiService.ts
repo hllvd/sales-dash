@@ -1,7 +1,7 @@
 import { authenticatedFetch, getAuthHeaders } from '../utils/httpInterceptor'
 
 const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "http://localhost:5017/api"
+  process.env.REACT_APP_API_URL || "/api"
 
 interface ApiResponse<T> {
   success: boolean

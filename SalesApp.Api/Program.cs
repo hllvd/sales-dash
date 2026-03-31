@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SalesApp.Data;
 using Serilog;
+using System.IO;
+using Microsoft.EntityFrameworkCore;
 
 namespace SalesApp
 {
@@ -20,6 +22,20 @@ namespace SalesApp
                 using (var scope = host.Services.CreateScope())
                 {
                     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    
+                    // Ensure database directory exists for SQLite
+                    var connectionString = context.Database.GetDbConnection().ConnectionString;
+                    if (connectionString.Contains("Data Source="))
+                    {
+                        var dataSource = connectionString.Split("Data Source=")[1].Split(";")[0];
+                        var directory = Path.GetDirectoryName(dataSource);
+                        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                        {
+                            Log.Information("Creating database directory: {Directory}", directory);
+                            Directory.CreateDirectory(directory);
+                        }
+                    }
+
                     await DbSeeder.SeedAsync(context);
                 }
                 
