@@ -272,7 +272,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
             </p>
           </div>
 
-          {isSuperAdmin && templates.length > 1 && (
+          {templates.length > 1 && (
             <div className="form-group">
               <label htmlFor="templateSelection">Selecione o Modelo de Importação</label>
               <select 

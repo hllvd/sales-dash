@@ -13,6 +13,7 @@ namespace SalesApp.Services
             { "Active", ContractStatus.Active.ToApiString() },
             { "Normal", ContractStatus.Active.ToApiString() },
             { "Ativa", ContractStatus.Active.ToApiString() },
+            { "Ativo", ContractStatus.Active.ToApiString() },
             
             // ✅ Late1 aliases
             { "Late1", ContractStatus.Late1.ToApiString() },
@@ -35,8 +36,11 @@ namespace SalesApp.Services
             { "DESISTENTE", ContractStatus.Defaulted.ToApiString() },
             { "EXCLUIDO", ContractStatus.Defaulted.ToApiString() },
             { "EXCLUÍDO", ContractStatus.Defaulted.ToApiString() },
+            { "EXCLUIDA", ContractStatus.Defaulted.ToApiString() },
+            { "EXCLUÍDA", ContractStatus.Defaulted.ToApiString() },
             { "CANCELADO", ContractStatus.Defaulted.ToApiString() },
             { "Cancelada", ContractStatus.Defaulted.ToApiString() },
+            { "CACELADO", ContractStatus.Defaulted.ToApiString() }, // User-provided typo
             { "DISTRATADO", ContractStatus.Defaulted.ToApiString() },
             { "SUSPENSO", ContractStatus.Defaulted.ToApiString() },
             { "paid_off", ContractStatus.Defaulted.ToApiString() }, // Legacy
@@ -80,8 +84,15 @@ namespace SalesApp.Services
                 return false;
             }
 
+            var trimmed = status.Trim();
+
+            // Accept canonical values (Active, Late1, etc.)
             var validStatuses = GetValidStatuses();
-            return validStatuses.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase);
+            if (validStatuses.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+                return true;
+
+            // Also accept any known alias (Ativa, Ativo, CANCELADO, etc.)
+            return StatusAliases.ContainsKey(trimmed);
         }
 
         /// <summary>

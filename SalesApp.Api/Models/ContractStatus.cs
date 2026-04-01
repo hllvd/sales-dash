@@ -46,7 +46,7 @@ namespace SalesApp.Models
         /// </summary>
         public static string ToApiString(this ContractStatus status)
         {
-            return status.ToString().ToLowerInvariant();
+            return status.ToString();
         }
 
         /// <summary>

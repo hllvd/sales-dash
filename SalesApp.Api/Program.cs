@@ -37,6 +37,10 @@ namespace SalesApp
                             Log.Fatal("CRITICAL ERROR: Attempted to run E2E reset in PRODUCTION environment. Aborting startup.");
                             return;
                         }
+
+                        // ✅ Force delete the E2E database file to ensure a completely fresh start
+                        await context.Database.EnsureDeletedAsync();
+                        Log.Warning("E2E DATABASE DELETED FOR FRESH START.");
                     }
 
                     int retries = 5;
