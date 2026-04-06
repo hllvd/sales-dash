@@ -24,8 +24,12 @@ services:
       context: .
       dockerfile: Dockerfile.client
     container_name: salesapp-client-e2e
-    stdin_open: true
-    tty: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     logging:
       driver: "json-file"
       options:
@@ -40,8 +44,10 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - salesapp-api-e2e
-      - salesapp-client-e2e
+      salesapp-api-e2e:
+        condition: service_started
+      salesapp-client-e2e:
+        condition: service_healthy
     logging:
       driver: "json-file"
       options:

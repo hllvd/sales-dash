@@ -26,8 +26,12 @@ services:
       context: .
       dockerfile: Dockerfile.client
     container_name: salesapp-client
-    stdin_open: true
-    tty: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     logging:
       driver: "json-file"
       options:
@@ -45,8 +49,10 @@ services:
       - "80:80"
       - "443:443"
     depends_on:
-      - salesapp-api
-      - client
+      salesapp-api:
+        condition: service_started
+      client:
+        condition: service_healthy
     logging:
       driver: "json-file"
       options:
