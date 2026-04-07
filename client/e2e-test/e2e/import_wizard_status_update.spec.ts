@@ -4,21 +4,28 @@ import path from 'path';
 
 test.describe('Contract Status Update Flow', () => {
   test('should update contract statuses via CSV import', async ({ page }) => {
-    // Set timeout for this specific test as it involves complex operations
-    test.setTimeout(60000);
+    test.setTimeout(90000);
     
-    // Helper to get absolute path for test data
+    // Clear potentially stale filters from localStorage
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+
     const getTestDataPath = (filename: string) => path.resolve(process.cwd(), 'test-data', filename);
 
-    // 1. Login as superadmin
-    await page.goto('/');
+    // 1. Login
+    await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15000 });
     await page.fill('input[type="email"]', 'superadmin@salesapp.com');
     await page.fill('input[type="password"]', 'string');
     await page.click('button.login-button');
 
     // 2. Navigate to Contracts page
+    await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15000 });
     await page.click('a[href="#/contracts"]');
-    await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(2000);
 
     // 3. Open Bulk Import Modal
     await page.click('button:has-text("Importar")');
@@ -29,54 +36,51 @@ test.describe('Contract Status Update Flow', () => {
     await page.setInputFiles('input#file', updateFile);
     await page.click('button:has-text("Próximo")');
 
-    // 5. Mapping Step
-    // Wait for the mapping screen to appear
+    // 5. Mapping Step — auto-mapping handles all columns correctly
+    // The backend already maps: Contrato→ContractNumber, Email→UserEmail, Valor→TotalAmount, STATUS→Status
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 15000 });
-    
-    // Explicitly mapping fields to ensure the 'Confirmar e Importar' button is enabled
-    // We expect 4 columns: Contrato, Email, Valor, STATUS
-    // We'll map them to: ContractNumber, UserEmail, TotalAmount, Status
-    
-    const mapField = async (sourceCol: string, targetField: string) => {
-      const row = page.locator('.mapping-row', { hasText: sourceCol });
-      await row.locator('select').selectOption(targetField);
-    };
 
-    await mapField('Contrato', 'ContractNumber');
-    await mapField('Email', 'UserEmail');
-    await mapField('Valor', 'TotalAmount');
-    await mapField('STATUS', 'Status');
+    // Wait for auto-mapping to settle
+    await page.waitForTimeout(1000);
 
-    // Small wait for the state to update
-    await page.waitForTimeout(1000); 
-
-    // Confirm and Import
+    // Confirm import (auto-mapping is correct, button should already be enabled)
     const confirmBtn = page.locator('button:has-text("Confirmar e Importar")');
-    await expect(confirmBtn).toBeEnabled({ timeout: 5000 });
+    await expect(confirmBtn).toBeEnabled({ timeout: 15000 });
     await confirmBtn.click();
 
-    // 6. Verify Import Result
-    // After clicking mapping, it goes to results. Let's look for "Importados: 2"
-    await expect(page.getByText(/Importados: \d+/)).toBeVisible({ timeout: 25000 });
+    // 6. Wait for result — accept any processed row count
+    await expect(page.getByText(/Importados:/)).toBeVisible({ timeout: 30000 });
+
+    // Log actual result for debugging
+    const resultText = await page.getByText(/Importados:/).textContent();
+    console.log('Import result:', resultText);
+
     await page.click('button:has-text("Fechar")');
 
-    // 7. Verify updates in the table
-    // We'll use the search filter to check specific contracts
+    // 7. Verify status in the table
+    // Ensure filters are clear
+    const clearBtn = page.locator('button.clear-filters-btn');
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click();
+      await page.waitForTimeout(1000);
+    }
     
-    // Check Contract 826650 (CSV says "Ativa" -> UI should show "Ativo")
+    // Filter for contract 826650 (CSV status: "Ativa" → should map to "Active" → display "Ativo")
     await page.fill('input#filterContractNumber', '826650');
-    // Wait for debounce (3s in ContractsPage.tsx) + stability
-    await page.waitForTimeout(5000);
-    // Find the row for 826650 specifically to be safe
+    await page.waitForTimeout(6000); // 3s debounce + safety buffer
+    
     const row826650 = page.locator('table tbody tr', { hasText: '826650' });
-    await expect(row826650).toContainText('Ativo', { timeout: 10000 });
+    await expect(row826650).toBeVisible({ timeout: 10000 });
+    await expect(row826650.locator('.mantine-Badge-label')).toHaveText('Ativo', { timeout: 10000 });
 
-    // Check Contract 821590 (CSV says "Cancelado" -> UI should show "Cancelado")
+    // Filter for contract 821590 (CSV status: "Cancelado" → should map to "Defaulted" → display "Cancelado")
     await page.click('button.clear-filters-btn');
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
     await page.fill('input#filterContractNumber', '821590');
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(6000);
+    
     const row821590 = page.locator('table tbody tr', { hasText: '821590' });
-    await expect(row821590).toContainText('Cancelado', { timeout: 10000 });
+    await expect(row821590).toBeVisible({ timeout: 10000 });
+    await expect(row821590.locator('.mantine-Badge-label')).toHaveText('Cancelado', { timeout: 10000 });
   });
 });

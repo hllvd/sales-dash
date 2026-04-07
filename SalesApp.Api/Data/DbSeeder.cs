@@ -113,12 +113,22 @@ namespace SalesApp.Data
                     EntityType = "Contract",
                     Description = "Template for contract dashboard import from Power BI",
                     RequiredFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName" }),
-                    OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Status", "PvId", "PvName", "Version", "TempMatricula", "Category", "PlanoVenda" }),
+                    OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Status", "PvId", "PvName", "Version", "TempMatricula", "Category", "PlanoVenda", "UserEmail" }),
                     DefaultMappings = "{}",
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     CreatedByUserId = superAdminUser?.Id ?? adminUser?.Id ?? Guid.Parse("080a0aea-4cbd-490f-9d6c-bc001391b005")
                 });
+            }
+            else
+            {
+                var optFields = System.Text.Json.JsonSerializer.Deserialize<List<string>>(dashboardTemplate.OptionalFields) ?? new List<string>();
+                if (!optFields.Contains("UserEmail"))
+                {
+                    optFields.Add("UserEmail");
+                    dashboardTemplate.OptionalFields = System.Text.Json.JsonSerializer.Serialize(optFields);
+                    context.ImportTemplates.Update(dashboardTemplate);
+                }
             }
             
             await SeedPermissions(context);

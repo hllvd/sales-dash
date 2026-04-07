@@ -333,20 +333,28 @@ namespace SalesApp.Services
                 .Where(u => u.IsActive)
                 .ToListAsync();
 
-            var dbMatriculaLookup = new Dictionary<string, string>();
-            var dbNameLookup = new Dictionary<string, string>();
+            var exactMatchLookup = new Dictionary<(string mat, string name), string>();
+            var nameLookup = new Dictionary<string, string>();
+            var matriculaOwnerLookup = new Dictionary<string, string>();
+            var matriculaAnyLookup = new Dictionary<string, string>();
 
             foreach (var u in allActiveUsers)
             {
+                var normalizedName = u.Name.ToLower().Trim();
+                nameLookup[normalizedName] = u.Email;
+
                 foreach (var m in u.UserMatriculas.Where(m => m.IsActive))
                 {
-                    dbMatriculaLookup[m.MatriculaNumber.ToLower().Trim()] = u.Email;
-                }
-                
-                var nomalizedName = u.Name.ToLower().Trim();
-                if (!dbNameLookup.ContainsKey(nomalizedName))
-                {
-                    dbNameLookup[nomalizedName] = u.Email;
+                    var normalizedMat = m.MatriculaNumber.ToLower().Trim();
+                    exactMatchLookup[(normalizedMat, normalizedName)] = u.Email;
+                    
+                    if (m.IsOwner) {
+                        matriculaOwnerLookup[normalizedMat] = u.Email;
+                    }
+                    
+                    if (!matriculaAnyLookup.ContainsKey(normalizedMat)) {
+                        matriculaAnyLookup[normalizedMat] = u.Email;
+                    }
                 }
             }
 
@@ -390,13 +398,21 @@ namespace SalesApp.Services
                             var matVal = matRaw.ToLower().Trim();
                             
                             string? email = null;
-                            if (!string.IsNullOrEmpty(matVal) && dbMatriculaLookup.TryGetValue(matVal, out var dbEmailByMat))
+                            if (!string.IsNullOrEmpty(matVal) && !string.IsNullOrEmpty(nameVal) && exactMatchLookup.TryGetValue((matVal, nameVal), out var exactEmail))
                             {
-                                email = dbEmailByMat;
+                                email = exactEmail;
                             }
-                            else if (!string.IsNullOrEmpty(nameVal) && dbNameLookup.TryGetValue(nameVal, out var dbEmailByName))
+                            else if (!string.IsNullOrEmpty(nameVal) && nameLookup.TryGetValue(nameVal, out var nameEmail))
                             {
-                                email = dbEmailByName;
+                                email = nameEmail;
+                            }
+                            else if (!string.IsNullOrEmpty(matVal))
+                            {
+                                if (matriculaOwnerLookup.TryGetValue(matVal, out var ownerEmail)) {
+                                    email = ownerEmail;
+                                } else if (matriculaAnyLookup.TryGetValue(matVal, out var anyEmail)) {
+                                    email = anyEmail;
+                                }
                             }
 
                             var confKey = row.Keys.FirstOrDefault(k => k.Equals("Conferência", StringComparison.OrdinalIgnoreCase) || k.Equals("conferencia", StringComparison.OrdinalIgnoreCase));

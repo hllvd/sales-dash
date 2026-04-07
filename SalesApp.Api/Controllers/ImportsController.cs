@@ -90,7 +90,7 @@ namespace SalesApp.Controllers
                     "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName" 
                 }),
                 OptionalFields = JsonSerializer.Serialize(new List<string> { 
-                    "Status", "PvId", "PvName", "Version", "Matricula", "Category", "PlanoVenda" 
+                    "Status", "PvId", "PvName", "Version", "Matricula", "Category", "PlanoVenda", "UserEmail"
                 }),
                 DefaultMappings = JsonSerializer.Serialize(new Dictionary<string, string> {
                     { "cota.group", "GroupId" },
@@ -107,7 +107,8 @@ namespace SalesApp.Controllers
                     { "Versao", "Version" },
                     { "Matricula", "TempMatricula" },
                     { "Categoria", "Category" },
-                    { "PlanoVenda", "PlanoVenda" }
+                    { "PlanoVenda", "PlanoVenda" },
+                    { "Email", "UserEmail" }
                 }),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -159,11 +160,89 @@ namespace SalesApp.Controllers
 
         #endregion
 
-        #region Import Workflow
+        #region Specific Import Endpoints
+
+        [HttpPost("contracts/upload")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportPreviewResponse>>> UploadContracts(IFormFile file)
+        {
+            return await UploadFileInternal(file, 2);
+        }
+
+        [HttpPost("contracts/{uploadId}/mappings")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfigureContractsMappings(string uploadId, ColumnMappingRequest request)
+        {
+            return await ConfigureMappingsInternal(uploadId, request);
+        }
+
+        [HttpPost("contracts/{uploadId}/confirm")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmContractsImport(string uploadId, [FromBody] ConfirmImportRequest? request)
+        {
+            return await ConfirmImportInternal(uploadId, request);
+        }
+
+        [HttpPost("dashboard/upload")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportPreviewResponse>>> UploadDashboard(IFormFile file)
+        {
+            return await UploadFileInternal(file, 3);
+        }
+
+        [HttpPost("dashboard/{uploadId}/mappings")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfigureDashboardMappings(string uploadId, ColumnMappingRequest request)
+        {
+            return await ConfigureMappingsInternal(uploadId, request);
+        }
+
+        [HttpPost("dashboard/{uploadId}/confirm")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmDashboardImport(string uploadId, [FromBody] ConfirmImportRequest? request)
+        {
+            return await ConfirmImportInternal(uploadId, request);
+        }
+
+        [HttpPost("users/upload")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportPreviewResponse>>> UploadUsers(IFormFile file)
+        {
+            return await UploadFileInternal(file, 1);
+        }
+
+        #endregion
+
+        #region Import Workflow (Legacy/Generic)
 
         [HttpPost("upload")]
         [HasPermission("imports:execute")]
         public async Task<ActionResult<ApiResponse<ImportPreviewResponse>>> UploadFile(IFormFile file, int templateId)
+        {
+            return await UploadFileInternal(file, templateId);
+        }
+
+        [HttpPost("{uploadId}/mappings")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfigureMappings(string uploadId, ColumnMappingRequest request)
+        {
+            return await ConfigureMappingsInternal(uploadId, request);
+        }
+
+        [HttpPost("{uploadId}/confirm")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmImport(
+            string uploadId,
+            [FromBody] ConfirmImportRequest? request)
+        {
+            return await ConfirmImportInternal(uploadId, request);
+        }
+
+        #endregion
+
+        #region Internal Implementation Helpers
+
+        private async Task<ActionResult> UploadFileInternal(IFormFile file, int templateId)
         {
             if (file == null || file.Length == 0)
             {
@@ -245,11 +324,6 @@ namespace SalesApp.Controllers
 
                 await _sessionRepository.CreateAsync(session);
 
-                // ✅ Parse the entire file into a bounded list first.
-                // Streaming iterators (IAsyncEnumerable) can loop indefinitely when the underlying
-                // file format reports a row-count that is far larger than actual data (e.g. XLSX
-                // worksheet.Dimension.Rows, or CsvHelper on a malformed file). By collecting all
-                // rows upfront we get a guaranteed termination point and can apply a hard cap.
                 const int maxAllowedRows = 100_000;
                 var parsedRows = await _fileParser.ParseFileAsync(file);
 
@@ -263,8 +337,6 @@ namespace SalesApp.Controllers
                 }
 
                 var virtualCols = new List<string> { "cota.group", "cota.cota", "cota.customer", "cota.contract" };
-
-                // Enrich contractDashboard rows and extract preview
                 var allRowsForPreview = new List<Dictionary<string, string>>();
                 var importRows = new List<ImportRow>();
 
@@ -303,7 +375,6 @@ namespace SalesApp.Controllers
                     });
                 }
 
-                // Batch-insert all ImportRows
                 for (int i = 0; i < importRows.Count; i += 500)
                 {
                     var batch = importRows.Skip(i).Take(500).ToList();
@@ -311,7 +382,6 @@ namespace SalesApp.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                // Extract columns from the first parsed row
                 var columns = parsedRows.Count > 0 ? parsedRows[0].Keys.ToList() : new List<string>();
                 if (hardcodedTemplate.Name == "contractDashboard")
                 {
@@ -391,9 +461,7 @@ namespace SalesApp.Controllers
             }
         }
 
-        [HttpPost("{uploadId}/mappings")]
-        [HasPermission("imports:execute")]
-        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfigureMappings(string uploadId, ColumnMappingRequest request)
+        private async Task<ActionResult> ConfigureMappingsInternal(string uploadId, ColumnMappingRequest request)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
             if (session == null)
@@ -461,11 +529,7 @@ namespace SalesApp.Controllers
             }
         }
 
-        [HttpPost("{uploadId}/confirm")]
-        [HasPermission("imports:execute")]
-        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmImport(
-            string uploadId,
-            [FromBody] ConfirmImportRequest? request)
+        private async Task<ActionResult> ConfirmImportInternal(string uploadId, ConfirmImportRequest? request)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
             if (session == null)
@@ -507,8 +571,6 @@ namespace SalesApp.Controllers
                 var allowAutoCreatePVs = request?.AllowAutoCreatePVs ?? false;
 
                 int skipRows = 0;
-                // ✅ Safety guard: cap iterations to prevent any possibility of an infinite loop.
-                // Even with 0 rows, we loop at most once (chunk.Count == 0 triggers break).
                 int maxChunks = (session.TotalRows / 500) + 2;
                 int chunkIteration = 0;
                 while (true)
@@ -584,6 +646,10 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<ImportStatusResponse> { Success = false, Message = $"Error executing import: {ex.Message}" });
             }
         }
+
+        #endregion
+
+        #region Status and Management
 
         [HttpGet("{uploadId}/status")]
         [HasPermission("imports:execute")]

@@ -278,9 +278,15 @@ export const apiService = {
     formData.append("file", file)
 
     const token = localStorage.getItem("token")
+    
+    // Resolve specific endpoint if possible
+    let endpoint = "upload"
+    if (templateId === 1) endpoint = "users/upload"
+    else if (templateId === 2) endpoint = "contracts/upload"
+    else if (templateId === 3) endpoint = "dashboard/upload"
 
     const response = await authenticatedFetch(
-      `${API_BASE_URL}/imports/upload?templateId=${templateId}`,
+      `${API_BASE_URL}/imports/${endpoint}${endpoint === "upload" ? `?templateId=${templateId}` : ""}`,
       {
         method: "POST",
         headers: {
@@ -305,7 +311,8 @@ export const apiService = {
     mappings: Record<string, string>,
     allowAutoCreateGroups: boolean = false,
     allowAutoCreatePVs: boolean = false,
-    skipMissingContractNumber: boolean = false
+    skipMissingContractNumber: boolean = false,
+    templateName?: string
   ): Promise<
     ApiResponse<{
       uploadId: string
@@ -316,7 +323,12 @@ export const apiService = {
       errors: string[]
     }>
   > {
-    const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/mappings`, {
+    let prefix = "imports"
+    if (templateName === "Contracts") prefix = "imports/contracts"
+    else if (templateName === "contractDashboard") prefix = "imports/dashboard"
+    else if (templateName === "Users") prefix = "imports/users"
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/${prefix}/${uploadId}/mappings`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ 
@@ -342,7 +354,8 @@ export const apiService = {
     dateFormat: string = "MM/DD/YYYY",
     skipMissingContractNumber: boolean = false,
     allowAutoCreateGroups: boolean = false,
-    allowAutoCreatePVs: boolean = false
+    allowAutoCreatePVs: boolean = false,
+    templateName?: string
   ): Promise<
     ApiResponse<{
       uploadId: string
@@ -355,7 +368,12 @@ export const apiService = {
       createdPVs: string[]
     }>
   > {
-    const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/confirm`, {
+    let prefix = "imports"
+    if (templateName === "Contracts") prefix = "imports/contracts"
+    else if (templateName === "contractDashboard") prefix = "imports/dashboard"
+    else if (templateName === "Users") prefix = "imports/users"
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/${prefix}/${uploadId}/confirm`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ 

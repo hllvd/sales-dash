@@ -17,18 +17,32 @@ export default defineConfig({
   projects: [
     {
       name: 'setup-and-import',
-      testMatch: /import_wizard\.spec\.ts/,
+      testMatch: 'import_wizard.spec.ts',
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'contract-updates',
-      testMatch: /import_wizard_status_update\.spec\.ts/,
+      testMatch: 'import_wizard_status_update.spec.ts',
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup-and-import'],
     },
     {
-      name: 'remaining-tests',
-      testIgnore: [/import_wizard\.spec\.ts/, /import_wizard_status_update\.spec\.ts/],
+      name: 'wizard-validations',
+      testMatch: [
+        'import_wizard_csv_delimiter.spec.ts',
+        'import_wizard_email_mapping.spec.ts'
+      ],
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup-and-import'],
+    },
+    {
+      name: 'other-tests',
+      testIgnore: [
+        'import_wizard.spec.ts',
+        'import_wizard_status_update.spec.ts',
+        'import_wizard_csv_delimiter.spec.ts',
+        'import_wizard_email_mapping.spec.ts'
+      ],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

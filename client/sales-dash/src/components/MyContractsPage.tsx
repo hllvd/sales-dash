@@ -22,11 +22,11 @@ const MyContractsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [aggregation, setAggregation] = useState<ContractAggregation | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  
+
   // Date filter state
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  
+
   // Contract assignment state
   const [contractNumber, setContractNumber] = useState('');
   const [retrievedContract, setRetrievedContract] = useState<Contract | null>(null);
@@ -81,7 +81,7 @@ const MyContractsPage: React.FC = () => {
     setRetrievedContract(null);
     setAssignError('');
     setSelectedMatricula('');
-    
+
     // Fetch user's active matriculas
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -91,15 +91,15 @@ const MyContractsPage: React.FC = () => {
         if (response.success && response.data) {
           // Filter active matriculas
           const now = new Date();
-          const activeMatriculas = response.data.filter(m => 
+          const activeMatriculas = response.data.filter(m =>
             m.isActive && (!m.endDate || new Date(m.endDate) > now)
           );
           // Sort by most recent (startDate descending)
-          activeMatriculas.sort((a, b) => 
+          activeMatriculas.sort((a, b) =>
             new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
           );
           setUserMatriculas(activeMatriculas);
-          
+
           // Auto-select ONLY if there is exactly one
           if (activeMatriculas.length === 1) {
             setSelectedMatricula(activeMatriculas[0].matriculaNumber);
@@ -112,7 +112,7 @@ const MyContractsPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch matriculas:', err);
     }
-    
+
     setShowAssignModal(true);
   };
 
@@ -150,14 +150,14 @@ const MyContractsPage: React.FC = () => {
     try {
       // Resolve the ID of the selected matricula
       const selectedMatriculaObj = userMatriculas.find(m => m.matriculaNumber === selectedMatricula);
-      
+
       // Pass selected matricula if available
       await assignContract(
-        contractNumber, 
+        contractNumber,
         selectedMatricula || undefined,
         selectedMatriculaObj?.id
       );
-      
+
       setShowAssignModal(false);
       setContractNumber('');
       setRetrievedContract(null);
@@ -220,101 +220,105 @@ const MyContractsPage: React.FC = () => {
   return (
     <Menu>
       <div className="my-contracts-page">
-          <div className="my-contracts-header">
-            <Title order={2} size="h2" className="page-title-break">Meus Contratos</Title>
-            <Button onClick={handleNewClick} leftSection="+">
-              Novo
-            </Button>
-          </div>
+        <div className="my-contracts-header">
+          <Title order={2} size="h2" className="page-title-break">Meus Contratos</Title>
+          <Button onClick={handleNewClick} leftSection="+">
+            Novo
+          </Button>
+        </div>
 
-          {error && <div className="my-contracts-error">{error}</div>}
+        {error && <div className="my-contracts-error">{error}</div>}
 
-          {/* Date Filters */}
-          {!loading && contracts.length > 0 && (
-            <div className="date-filters">
-              <div className="filter-group">
-                <label htmlFor="startDate">Data Início:</label>
-                <input
-                  id="startDate"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                />
-              </div>
-              <div className="filter-group">
-                <label htmlFor="endDate">Data Fim:</label>
-                <input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => handleEndDateChange(e.target.value)}
-                />
-              </div>
-              <div className="filter-actions">
-                <Button onClick={handleApplyFilters} size="sm">
-                  Aplicar Filtros
+        {/* Date Filters */}
+        {(
+          <div className="date-filters">
+            <div className="filter-group">
+              <label htmlFor="startDate">Data Início:</label>
+              <input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => handleStartDateChange(e.target.value)}
+              />
+            </div>
+            <div className="filter-group">
+              <label htmlFor="endDate">Data Fim:</label>
+              <input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => handleEndDateChange(e.target.value)}
+              />
+            </div>
+            <div className="filter-actions">
+              <Button onClick={handleApplyFilters} size="sm">
+                Aplicar Filtros
+              </Button>
+              {(startDate || endDate) && (
+                <Button onClick={handleClearFilters} variant="subtle" size="sm">
+                  Limpar Filtros
                 </Button>
-                {(startDate || endDate) && (
-                  <Button onClick={handleClearFilters} variant="subtle" size="sm">
-                    Limpar Filtros
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
 
-          {loading ? (
-            <div className="my-contracts-loading">
-              <div className="spinner"></div>
-              <p>Carregando contratos...</p>
-            </div>
-          ) : contracts.length === 0 ? (
-            <div className="my-contracts-empty">
-              <p>Você ainda não possui contratos atribuídos.</p>
-              <Button onClick={handleNewClick}>
-                Atribuir Primeiro Contrato
-              </Button>
-            </div>
-          ) : contracts.length === 0 ? (
-            <div className="my-contracts-empty">
-              <p>Nenhum contrato encontrado para o período selecionado.</p>
-              <Button onClick={handleClearFilters}>
-                Limpar Filtros
-              </Button>
-            </div>
-          ) : (
-            <div className="my-contracts-table-container">
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Número do Contrato</Table.Th>
-                    <Table.Th>Cliente</Table.Th>
-                    <Table.Th>Matrícula</Table.Th>
-                    <Table.Th>Grupo</Table.Th>
-                    <Table.Th>Valor Total</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th>Data Início</Table.Th>
+        {loading ? (
+          <div className="my-contracts-loading">
+            <div className="spinner"></div>
+            <p>Carregando contratos...</p>
+          </div>
+        ) : contracts.length === 0 ? (
+          <div className="my-contracts-empty">
+            {startDate || endDate ? (
+              <>
+                <p>Nenhum contrato encontrado para o período selecionado.</p>
+                <Button onClick={handleClearFilters}>
+                  Limpar Filtros
+                </Button>
+              </>
+            ) : (
+              <>
+                <p>Você ainda não possui contratos atribuídos.</p>
+                <Button onClick={handleNewClick}>
+                  Atribuir Primeiro Contrato
+                </Button>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="my-contracts-table-container">
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Número do Contrato</Table.Th>
+                  <Table.Th>Cliente</Table.Th>
+                  <Table.Th>Matrícula</Table.Th>
+                  <Table.Th>Grupo</Table.Th>
+                  <Table.Th>Valor Total</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th>Data Início</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {contracts.map((contract) => (
+                  <Table.Tr key={contract.id}>
+                    <Table.Td>{contract.contractNumber}</Table.Td>
+                    <Table.Td>{contract.customerName || '-'}</Table.Td>
+                    <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
+                    <Table.Td>{contract.groupName}</Table.Td>
+                    <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
+                    <Table.Td>
+                      <ContractStatusBadge status={contract.status} />
+                    </Table.Td>
+                    <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
                   </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {contracts.map((contract) => (
-                    <Table.Tr key={contract.id}>
-                      <Table.Td>{contract.contractNumber}</Table.Td>
-                      <Table.Td>{contract.customerName || '-'}</Table.Td>
-                      <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
-                      <Table.Td>{contract.groupName}</Table.Td>
-                      <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
-                      <Table.Td>
-                        <ContractStatusBadge status={contract.status} />
-                      </Table.Td>
-                      <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </div>
-          )}
-          {/* Aggregation Summary */}
+                ))}
+              </Table.Tbody>
+            </Table>
+          </div>
+        )}
+        {/* Aggregation Summary */}
         {aggregation && contracts.length > 0 && (
           <AggregationSummary
             total={aggregation?.total || 0}
@@ -333,9 +337,9 @@ const MyContractsPage: React.FC = () => {
             userId={JSON.parse(localStorage.getItem('user') || '{}').id}
           />
         )}
-        </div>
+      </div>
 
-        
+
 
 
       {/* Assignment Modal */}
@@ -419,7 +423,7 @@ const MyContractsPage: React.FC = () => {
                   <span style={{ color: '#6b7280', fontSize: '13px' }}>Valor Total:</span>
                   <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{formatCurrency(retrievedContract.totalAmount)}</span>
                 </div>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
                   <span style={{ color: '#6b7280', fontSize: '13px' }}>Status:</span>
                   <ContractStatusBadge status={retrievedContract.status} />
                 </div>
@@ -432,11 +436,11 @@ const MyContractsPage: React.FC = () => {
 
             {/* Matricula Selection */}
             {userMatriculas.length > 0 && (
-              <FormField 
+              <FormField
                 label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
                 description={
                   userMatriculas.length === 1 ? 'Matrícula será atribuída automaticamente' :
-                  'Selecione a matrícula para este contrato'
+                    'Selecione a matrícula para este contrato'
                 }
               >
                 {userMatriculas.length === 1 ? (
@@ -453,9 +457,8 @@ const MyContractsPage: React.FC = () => {
                     comboboxProps={{ zIndex: 2000 }}
                     data={userMatriculas.map((m) => ({
                       value: m.matriculaNumber,
-                      label: `${m.matriculaNumber} - ${new Date(m.startDate).toLocaleDateString('pt-BR')}${
-                        m.endDate ? ` até ${new Date(m.endDate).toLocaleDateString('pt-BR')}` : ''
-                      }${m.isOwner ? ' (Proprietário)' : ''}`
+                      label: `${m.matriculaNumber} - ${new Date(m.startDate).toLocaleDateString('pt-BR')}${m.endDate ? ` até ${new Date(m.endDate).toLocaleDateString('pt-BR')}` : ''
+                        }${m.isOwner ? ' (Proprietário)' : ''}`
                     }))}
                   />
                 )}

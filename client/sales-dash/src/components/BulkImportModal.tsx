@@ -26,6 +26,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   
   // Step 2: Mapping data
   const [uploadId, setUploadId] = useState<string>("")
+  const [selectedTemplateName, setSelectedTemplateName] = useState<string>("")
   const [detectedColumns, setDetectedColumns] = useState<string[]>([])
   const [sampleRows, setSampleRows] = useState<Record<string, string>[]>([])
   const [mappings, setMappings] = useState<Record<string, string>>({})
@@ -95,6 +96,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
           setStep("verification")
         } else {
           setUploadId(resp.data.uploadId)
+          setSelectedTemplateName(resp.data.templateName)
           setDetectedColumns(resp.data.detectedColumns)
           setSampleRows(resp.data.sampleRows.slice(0, 5))
           setMappings(resp.data.suggestedMappings)
@@ -128,7 +130,14 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         Object.entries(mappings).filter(([_, targetField]) => targetField !== "")
       )
 
-      const mappingResp = await apiService.configureImportMappings(uploadId, explicitlyMapped, allowAutoCreateGroups, allowAutoCreatePVs, skipMissingContractNumber)
+      const mappingResp = await apiService.configureImportMappings(
+        uploadId, 
+        explicitlyMapped, 
+        allowAutoCreateGroups, 
+        allowAutoCreatePVs, 
+        skipMissingContractNumber,
+        selectedTemplateName
+      )
       
       if (!mappingResp.success) {
         setError(mappingResp.message || "Falha ao configurar mapeamentos")
@@ -142,7 +151,14 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         return
       }
 
-      const confirmResp = await apiService.confirmImport(uploadId, dateFormat, skipMissingContractNumber, allowAutoCreateGroups, allowAutoCreatePVs)
+      const confirmResp = await apiService.confirmImport(
+        uploadId, 
+        dateFormat, 
+        skipMissingContractNumber, 
+        allowAutoCreateGroups, 
+        allowAutoCreatePVs,
+        selectedTemplateName
+      )
       
       if (confirmResp.success && confirmResp.data) {
         const { processedRows, failedRows, errors, createdGroups: newlyCreatedGroups, createdPVs: newlyCreatedPVs } = confirmResp.data
