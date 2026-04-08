@@ -180,10 +180,6 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         }
         
         setStep("result")
-        
-        if (failedRows === 0) {
-          onSuccess()
-        }
       } else {
         setError(confirmResp.message || "Falha ao confirmar importação")
       }
@@ -255,7 +251,9 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
     }
 
     return (
-      <button type="button" className="btn-submit" onClick={onClose}>
+      <button type="button" className="btn-submit" onClick={() => {
+        onSuccess() // This reloads data and closes the modal via the parent component
+      }}>
         Fechar
       </button>
     )

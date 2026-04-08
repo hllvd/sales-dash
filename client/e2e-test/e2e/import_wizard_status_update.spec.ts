@@ -34,7 +34,20 @@ test.describe('Contract Status Update Flow', () => {
     // 4. Upload the update CSV
     const updateFile = getTestDataPath('contracts-update-status.csv');
     await page.setInputFiles('input#file', updateFile);
-    await page.click('button:has-text("Próximo")');
+    
+    const nextBtn = page.locator('button:has-text("Próximo")');
+    await expect(nextBtn).toBeEnabled({ timeout: 10000 });
+    await nextBtn.click();
+
+    // Handle "Mismatch" warning step if it appears (common for update-only CSVs)
+    const proceedAnywayBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
+    try {
+      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+        await proceedAnywayBtn.click();
+      }
+    } catch (e) {
+      // Ignore if not present
+    }
 
     // 5. Mapping Step — auto-mapping handles all columns correctly
     // The backend already maps: Contrato→ContractNumber, Email→UserEmail, Valor→TotalAmount, STATUS→Status
