@@ -81,4 +81,32 @@ test.describe('Contracts Filtering', () => {
     // Check if table has exactly 14 rows
     await expect(page.locator('table tbody tr')).toHaveCount(14, { timeout: 15000 });
   });
+
+  test('should filter by start date and return 12 results for 2025-10-15', async ({ page }) => {
+    test.setTimeout(30_000);
+
+    // 1. Login as admin
+    await page.goto('/');
+    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
+    await page.fill('input[type="password"]', 'string');
+    await page.click('button.login-button');
+
+    // 2. Go specifically to Contracts page
+    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
+
+    // 3. Filter by Start Date
+    const startDatePromise = page.waitForRequest(request =>
+      request.url().includes('/api/contracts') &&
+      !request.url().includes('/user/') && 
+      request.url().includes('startDate=2025-10-15') && 
+      request.method() === 'GET',
+      { timeout: 10000 }
+    );
+    await page.fill('input#filterStartDate', '2025-10-15');
+    await startDatePromise;
+
+    // Check if table has exactly 12 rows (6 from Oct 15, 2 from Oct 16, 3 from Oct 17, 1 from Oct 21)
+    await expect(page.locator('table tbody tr')).toHaveCount(12, { timeout: 15000 });
+  });
 });
