@@ -88,15 +88,15 @@ namespace SalesApp.Services
                         }
                     }
 
-                    // ✅ MANDATORY SILENT SKIP: mandatory for SaleStartDate (Requested by user)
+                    // Look for existing contract
+                    existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
+
+                    // ✅ MANDATORY SILENT SKIP: mandatory for SaleStartDate IF NEW CONTRACT
                     var startDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
-                    if (string.IsNullOrWhiteSpace(startDateStr))
+                    if (existingContract == null && string.IsNullOrWhiteSpace(startDateStr))
                     {
                         continue;
                     }
-
-                    // Look for existing contract
-                    existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
 
                     var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, importSessionId, dateFormat, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
 
@@ -214,13 +214,14 @@ namespace SalesApp.Services
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
 
             // Parse dates if provided
-            DateTime saleStartDate = DateTime.UtcNow;
+            DateTime? saleStartDate = null;
             if (!string.IsNullOrWhiteSpace(saleStartDateStr))
             {
-                if (!TryParseFlexibleDate(saleStartDateStr, out saleStartDate))
+                if (!TryParseFlexibleDate(saleStartDateStr, out var parsedDate))
                 {
                     throw new ArgumentException($"Invalid start date: {saleStartDateStr}");
                 }
+                saleStartDate = parsedDate;
             }
 
             // Parse ContractType - try string first, then fallback to int for backwards compatibility
@@ -265,7 +266,7 @@ namespace SalesApp.Services
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
             contract.Status = status;
-            contract.SaleStartDate = saleStartDate;
+            if (saleStartDate.HasValue) contract.SaleStartDate = saleStartDate.Value;
             contract.UploadId = uploadId;
             contract.ImportSessionId = importSessionId; // ✅ Track import session for undo
             contract.IsActive = true;
@@ -728,20 +729,15 @@ namespace SalesApp.Services
                         continue;
                     }
 
-                    // ✅ MANDATORY SILENT SKIP: mandatory for SaleStartDate (Requested by user)
-                    var startDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
-                    if (string.IsNullOrWhiteSpace(startDateStr))
-                    {
-                        continue;
-                    }
-
-                    if (skipMissingContractNumber && string.IsNullOrWhiteSpace(contractNumber))
-                    {
-                        continue;
-                    }
-
                     // Look for existing contract
                     existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
+
+                    // ✅ MANDATORY SILENT SKIP: mandatory for SaleStartDate IF NEW CONTRACT
+                    var startDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
+                    if (existingContract == null && string.IsNullOrWhiteSpace(startDateStr))
+                    {
+                        continue;
+                    }
 
                     var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, importSessionId, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
 
@@ -867,21 +863,32 @@ namespace SalesApp.Services
             
             // Parse SaleStartDate - supports both Excel serial numbers and formatted dates
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
-            DateTime saleStartDate;
+            DateTime? saleStartDate = null;
             
-            // Try parsing as Excel serial number first (e.g., 45747)
-            if (double.TryParse(saleStartDateStr, System.Globalization.NumberStyles.Any, 
-                System.Globalization.CultureInfo.InvariantCulture, out var excelDate))
+            if (!string.IsNullOrWhiteSpace(saleStartDateStr))
             {
-                // Excel dates are days since 1900-01-01 (with a leap year bug, so we use 1899-12-30)
-                saleStartDate = new DateTime(1899, 12, 30).AddDays(excelDate);
+                // Try parsing as Excel serial number first (e.g., 45747)
+                if (double.TryParse(saleStartDateStr, System.Globalization.NumberStyles.Any, 
+                    System.Globalization.CultureInfo.InvariantCulture, out var excelDate))
+                {
+                    // Excel dates are days since 1900-01-01 (with a leap year bug, so we use 1899-12-30)
+                    saleStartDate = new DateTime(1899, 12, 30).AddDays(excelDate);
+                }
+                // Try parsing as YYYY-MM-DD
+                else if (DateTime.TryParseExact(saleStartDateStr, "yyyy-MM-dd", 
+                    System.Globalization.CultureInfo.InvariantCulture, 
+                    System.Globalization.DateTimeStyles.None, out var parsedSaleStartDate))
+                {
+                    saleStartDate = parsedSaleStartDate;
+                }
+                else
+                {
+                    throw new ArgumentException($"Invalid Sale Start Date: '{saleStartDateStr}'");
+                }
             }
-            // Try parsing as YYYY-MM-DD
-            else if (!DateTime.TryParseExact(saleStartDateStr, "yyyy-MM-dd", 
-                System.Globalization.CultureInfo.InvariantCulture, 
-                System.Globalization.DateTimeStyles.None, out saleStartDate))
+            else if (existingContract == null)
             {
-                throw new ArgumentException($"Invalid Sale Start Date: '{saleStartDateStr}'");
+                throw new ArgumentException("Sale Start Date is required for new contracts");
             }
             
             // Parse Version
@@ -951,7 +958,7 @@ namespace SalesApp.Services
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
             contract.Status = status;
-            contract.SaleStartDate = saleStartDate;
+            if (saleStartDate.HasValue) contract.SaleStartDate = saleStartDate.Value;
             contract.UploadId = uploadId;
             contract.IsActive = true;
             contract.UpdatedAt = DateTime.UtcNow;

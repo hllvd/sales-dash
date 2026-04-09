@@ -155,6 +155,22 @@ namespace SalesApp.Services
                     }
                 }
                 
+                if (template.Name == "contractDashboard")
+                {
+                    // Ensure virtual columns are mapped to their corresponding fields
+                    if (columns.Contains("cota.cota")) suggestedMappings["cota.cota"] = "Quota";
+                    if (columns.Contains("cota.contract")) suggestedMappings["cota.contract"] = "ContractNumber";
+                    if (columns.Contains("cota.group")) suggestedMappings["cota.group"] = "GroupId";
+                    if (columns.Contains("cota.customer")) suggestedMappings["cota.customer"] = "CustomerName";
+                    
+                    // Remove "Cota" from automapping to prevent conflict (User request)
+                    var cotaSource = suggestedMappings.FirstOrDefault(m => string.Equals(m.Key, "Cota", StringComparison.OrdinalIgnoreCase)).Key;
+                    if (cotaSource != null && suggestedMappings[cotaSource] == "Quota")
+                    {
+                        suggestedMappings.Remove(cotaSource);
+                    }
+                }
+                
                 var mappedRequiredFieldsCount = requiredFields.Count(rf => suggestedMappings.Values.Contains(rf));
 
                 if (requiredFields.Any())

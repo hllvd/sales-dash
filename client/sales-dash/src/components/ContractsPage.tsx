@@ -10,6 +10,7 @@ import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
 import Pagination from './Pagination';
 import ContractStatusBadge from '../shared/ContractStatusBadge';
+import SearchableDropdown from '../shared/SearchableDropdown';
 import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
 import {
@@ -48,6 +49,8 @@ const ContractsPage: React.FC = () => {
   const [debouncedStartDate, setDebouncedStartDate] = useState('');
   const [filterContractNumber, setFilterContractNumber] = useState('');
   const [debouncedContractNumber, setDebouncedContractNumber] = useState('');
+  const [filterUserEmail, setFilterUserEmail] = useState('');
+  const [debouncedUserEmail, setDebouncedUserEmail] = useState('');
   const [filterShowUnassigned, setFilterShowUnassigned] = useState<string>('all');
   const [debouncedShowUnassigned, setDebouncedShowUnassigned] = useState<string>('all');
   const [filterMatricula, setFilterMatricula] = useState('');
@@ -86,7 +89,8 @@ const ContractsPage: React.FC = () => {
         undefined, // Removed endDate
         debouncedContractNumber || undefined,
         debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
-        debouncedMatricula || undefined
+        debouncedMatricula || undefined,
+        debouncedUserEmail || undefined
       );
       setContracts(data);
       setAggregation(aggData || null);
@@ -99,7 +103,7 @@ const ContractsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, setCachedContracts]);
+  }, [debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedUserEmail, setCachedContracts]);
 
   // Load saved filters from localStorage
   useEffect(() => {
@@ -121,10 +125,11 @@ const ContractsPage: React.FC = () => {
       setDebouncedContractNumber(filterContractNumber);
       setDebouncedShowUnassigned(filterShowUnassigned);
       setDebouncedMatricula(filterMatricula);
+      setDebouncedUserEmail(filterUserEmail);
     }, 3000); // 3-second debounce for all fields
 
     return () => clearTimeout(timer);
-  }, [filterUserId, filterGroupId, filterStartDate, filterContractNumber, filterShowUnassigned, filterMatricula]);
+  }, [filterUserId, filterGroupId, filterStartDate, filterContractNumber, filterShowUnassigned, filterMatricula, filterUserEmail]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -134,7 +139,7 @@ const ContractsPage: React.FC = () => {
   // Reset to page 1 when filters change (using debounced values to avoid flickering)
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula]);
+  }, [debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedUserEmail]);
 
   // Calculate pagination
   const totalPages = Math.ceil(contracts.length / pageSize);
@@ -232,6 +237,20 @@ const ContractsPage: React.FC = () => {
         </div>
 
         <div className="filter-group">
+          <label htmlFor="filterUserEmail">Email</label>
+          <SearchableDropdown
+            id="filterUserEmail"
+            placeholder="Buscar por email..."
+            value={filterUserEmail}
+            onChange={(val) => setFilterUserEmail(val || '')}
+            data={users
+              .filter((u) => u.email)
+              .map((u) => ({ value: u.email, label: u.email }))}
+            className="searchable-dropdown"
+          />
+        </div>
+
+        <div className="filter-group">
           <label htmlFor="filterShowUnassigned">Vínculo de Usuário</label>
           <select
             id="filterShowUnassigned"
@@ -301,12 +320,14 @@ const ContractsPage: React.FC = () => {
         </div>
 
 
-        {(filterUserId || filterGroupId || filterStartDate || filterContractNumber || filterMatricula || filterShowUnassigned !== 'all') && (
+        {(filterUserId || filterUserEmail || filterGroupId || filterStartDate || filterContractNumber || filterMatricula || filterShowUnassigned !== 'all') && (
           <button
             className="clear-filters-btn"
             onClick={() => {
               setFilterUserId('');
               setDebouncedUserId('');
+              setFilterUserEmail('');
+              setDebouncedUserEmail('');
               setFilterGroupId('');
               setDebouncedGroupId('');
               setFilterStartDate('');

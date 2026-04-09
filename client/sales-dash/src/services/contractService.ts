@@ -131,7 +131,8 @@ export const getContracts = async (
   endDate?: string,
   contractNumber?: string,
   showUnassigned?: boolean,
-  matricula?: string
+  matricula?: string,
+  userEmail?: string
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
@@ -141,6 +142,7 @@ export const getContracts = async (
   if (contractNumber) params.append('contractNumber', contractNumber);
   if (showUnassigned !== undefined) params.append('showUnassigned', showUnassigned.toString());
   if (matricula) params.append('matricula', matricula);
+  if (userEmail) params.append('userEmail', userEmail);
 
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts${queryString ? `?${queryString}` : ''}`;

@@ -47,7 +47,7 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
         
-        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null)
+        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -58,6 +58,12 @@ namespace SalesApp.Repositories
             
             if (userId.HasValue)
                 query = query.Where(c => c.UserId == userId.Value);
+                
+            if (!string.IsNullOrEmpty(userEmail))
+            {
+                var normalizedEmail = userEmail.Trim().ToLower();
+                query = query.Where(c => c.User != null && c.User.Email.ToLower() == normalizedEmail);
+            }
             
             if (showUnassigned.HasValue)
             {

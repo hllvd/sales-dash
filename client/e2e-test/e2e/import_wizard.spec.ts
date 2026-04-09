@@ -18,7 +18,7 @@ test.describe('Import Wizard Flow', () => {
     // 2. Verify no contracts are present initially
     await page.click('a[href="#/contracts"]');
     await expect(page.getByRole('heading', { name: 'Contratos' })).toBeVisible();
-    
+
     // Check if table is empty
     const rows = page.locator('table tbody tr');
     // It might take a moment to load
@@ -30,12 +30,12 @@ test.describe('Import Wizard Flow', () => {
 
     // 4. Step 1: Upload historical contracts
     const historicalFile = getTestDataPath('historical_contracts.xlsx');
-    await page.waitForTimeout(5000); 
+    await page.waitForTimeout(5000);
     await page.setInputFiles('input[type="file"]', historicalFile);
     await page.click('button:has-text("Próximo Passo")');
 
     // 5. Step 2: Upload filled users.csv
-    await page.waitForTimeout(5000); 
+    await page.waitForTimeout(5000);
     await expect(page.getByText('Preenchimento de Usuários')).toBeVisible();
     const usersFile = getTestDataPath('users-demo.csv');
     await page.setInputFiles('input[type="file"]', usersFile);
@@ -46,13 +46,13 @@ test.describe('Import Wizard Flow', () => {
     await page.click('button:has-text("Ir para Mapeamento")');
 
     // 7. Bulk Import Modal
-    await page.waitForTimeout(5000); 
+    await page.waitForTimeout(5000);
     await expect(page.getByRole('heading', { name: 'Contratos' })).toBeVisible();
     await page.click('button:has-text("Importar")');
-    
+
     const finalContractFile = getTestDataPath('contracts.csv');
     await page.setInputFiles('input#file', finalContractFile);
-    
+
     // Select template "Dashboard" (ID 3 matches ContractDashboard)
     //await page.selectOption('select#templateSelection', { label: 'Dashboard' }); 
     await page.click('button:has-text("Próximo")');
@@ -60,8 +60,9 @@ test.describe('Import Wizard Flow', () => {
     // Mappings
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 10000 });
     // Aggressive wait for auto-mapping to settle
-    await page.waitForTimeout(1000); 
+    await page.waitForTimeout(1000);
     await page.click('button:has-text("Confirmar e Importar")');
+    await page.click('button:has-text("Fechar")');
 
     // Verify 95.03% on Contracts page
     await expect(page.locator('.aggregation-summary')).toBeVisible();
