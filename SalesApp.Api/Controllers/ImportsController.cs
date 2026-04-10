@@ -74,9 +74,9 @@ namespace SalesApp.Controllers
                 Name = "Contracts",
                 EntityType = "Contract",
                 Description = "Template for importing contracts",
-                RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount" }),
-                OptionalFields = JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName", "Version", "MatriculaNumber" }),
-                DefaultMappings = "{}",
+                RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount", "MatriculaNumber" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName", "Version" }),
+                DefaultMappings = JsonSerializer.Serialize(new Dictionary<string, string> { { "Matrícula", "MatriculaNumber" } }),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             },
@@ -87,10 +87,10 @@ namespace SalesApp.Controllers
                 EntityType = "Contract",
                 Description = "Template for contract dashboard import from Power BI",
                 RequiredFields = JsonSerializer.Serialize(new List<string> { 
-                    "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName" 
+                    "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName", "MatriculaNumber" 
                 }),
                 OptionalFields = JsonSerializer.Serialize(new List<string> { 
-                    "Status", "PvId", "PvName", "Version", "Matricula", "Category", "PlanoVenda", "UserEmail"
+                    "Status", "PvId", "PvName", "Version", "Category", "PlanoVenda", "UserEmail"
                 }),
                 DefaultMappings = JsonSerializer.Serialize(new Dictionary<string, string> {
                     { "cota.group", "GroupId" },
@@ -105,7 +105,7 @@ namespace SalesApp.Controllers
                     { "Cód. PV", "PvId" },
                     { "PV", "PvName" },
                     { "Versao", "Version" },
-                    { "Matricula", "TempMatricula" },
+                    { "Matricula", "MatriculaNumber" },
                     { "Categoria", "Category" },
                     { "PlanoVenda", "PlanoVenda" },
                     { "Email", "UserEmail" }

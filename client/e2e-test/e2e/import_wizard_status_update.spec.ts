@@ -54,7 +54,12 @@ test.describe('Contract Status Update Flow', () => {
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 15000 });
 
     // Wait for auto-mapping to settle
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
+
+    // Explicitly map Matricula if not auto-mapped
+    const matriculaRow = page.locator('.mapping-row', { hasText: 'Matrícula' });
+    const matriculaSelect = matriculaRow.locator('select');
+    await matriculaSelect.selectOption('MatriculaNumber');
 
     // Confirm import (auto-mapping is correct, button should already be enabled)
     const confirmBtn = page.locator('button:has-text("Confirmar e Importar")');

@@ -60,7 +60,13 @@ test.describe('Import Wizard Flow', () => {
     // Mappings
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 10000 });
     // Aggressive wait for auto-mapping to settle
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
+
+    // Explicitly map Matricula if not auto-mapped
+    const matriculaRow = page.locator('.mapping-row', { hasText: 'Matrícula' });
+    const matriculaSelect = matriculaRow.locator('select');
+    await matriculaSelect.selectOption('MatriculaNumber');
+
     await page.click('button:has-text("Confirmar e Importar")');
     await page.click('button:has-text("Fechar")');
 
