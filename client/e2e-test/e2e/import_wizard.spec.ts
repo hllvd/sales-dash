@@ -18,7 +18,7 @@ test.describe('Import Wizard Flow', () => {
     // 2. Check if data is already imported (Smart Check)
     await page.click('a[href="#/contracts"]');
     await expect(page.getByRole('heading', { name: 'Contratos' })).toBeVisible();
-    
+
     // Check if the aggregation summary already shows the expected data from a previous run
     const aggregationChart = page.locator('.aggregation-summary');
     const isAlreadyImported = await aggregationChart.isVisible().then(async visible => {
