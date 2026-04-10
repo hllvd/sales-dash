@@ -47,7 +47,7 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
         
-        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null)
+        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null, UserScopeContext? scope = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -55,6 +55,17 @@ namespace SalesApp.Repositories
                 .Include(c => c.UserMatricula)
                 .Include(c => c.Group)
                 .Where(c => c.IsActive);
+
+            // Apply hierarchical data scope before any other filters
+            if (scope != null && !scope.IsGlobal)
+            {
+                // Sargable IN clauses for efficient filtering
+                query = query.Where(c => 
+                    (c.UserId != null && scope.AllowedUserIds.Contains(c.UserId.Value)) ||
+                    (!string.IsNullOrEmpty(c.TempMatricula) && scope.AllowedMatriculas.Contains(c.TempMatricula)) ||
+                    (c.UserMatricula != null && scope.AllowedMatriculas.Contains(c.UserMatricula.MatriculaNumber))
+                );
+            }
             
             if (userId.HasValue)
                 query = query.Where(c => c.UserId == userId.Value);

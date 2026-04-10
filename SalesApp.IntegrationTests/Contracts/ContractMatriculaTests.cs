@@ -264,7 +264,91 @@ namespace SalesApp.IntegrationTests.Contracts
             contract.MatriculaNumber.Should().Be(matriculaNumber);
         }
 
+        [Fact]
+        public async Task GetContracts_AsAdmin_ShouldOnlySeeContractsForAssignedMatriculas_EvenWhenNotOwner()
+        {
+            // Arrange
+            // 1. Create an admin user 
+            var adminEmail = $"admin_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var adminId = Guid.NewGuid();
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superAdmin = await context.Users.FirstOrDefaultAsync(u => u.Email == "superadmin@test.com");
+                var admin = new User
+                {
+                    Id = adminId,
+                    Name = "Test Admin",
+                    Email = adminEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                    RoleId = 2, // Admin 
+                    ParentUserId = superAdmin?.Id, // Attach to superadmin as parent
+                    IsActive = true
+                };
+                context.Users.Add(admin);
+                await context.SaveChangesAsync();
+            }
+
+            var matricula1 = $"MAT-ADM1-{Guid.NewGuid().ToString()[..8]}";
+            var matricula2 = $"MAT-ADM2-{Guid.NewGuid().ToString()[..8]}";
+            
+            // Assign as non-owner (IsOwner = false)
+            var m1Id = await CreateMatriculaAsync(adminId, matricula1, isOwner: false);
+            var m2Id = await CreateMatriculaAsync(adminId, matricula2, isOwner: false);
+
+            // Create another user 
+            var otherUserId = await CreateTestUserAsync("Other User");
+            var matriculaOther = $"MAT-OTH-{Guid.NewGuid().ToString()[..8]}";
+            var mOtherId = await CreateMatriculaAsync(otherUserId, matriculaOther, isOwner: true);
+
+            // Create contracts directly into the DB with these matriculas
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var contract1 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = adminId, TempMatricula = matricula1, UserMatriculaId = m1Id, TotalAmount = 100, Status = "Active", IsActive = true };
+                var contract2 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = null, TempMatricula = matricula2, UserMatriculaId = m2Id, TotalAmount = 200, Status = "Active", IsActive = true }; // Ensure unassigned contracts are still visible if matricula matches!
+                var contractOther = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = otherUserId, TempMatricula = matriculaOther, UserMatriculaId = mOtherId, TotalAmount = 300, Status = "Active", IsActive = true };
+                
+                context.Contracts.AddRange(contract1, contract2, contractOther);
+                await context.SaveChangesAsync();
+            }
+
+            // Act
+            var adminToken = await GetUserTokenAsync(adminEmail, "password123");
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", adminToken);
+
+            var response = await _client.GetAsync("/api/contracts");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
+            
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            
+            var contracts = result.Data!;
+            // The admin should see contracts associated with matricula1 and matricula2.
+            contracts.Should().Contain(c => c.MatriculaNumber == matricula1);
+            contracts.Should().Contain(c => c.MatriculaNumber == matricula2);
+            
+            // The admin should NOT see contractOther
+            contracts.Should().NotContain(c => c.MatriculaNumber == matriculaOther);
+        }
+
         // Helper methods
+        private async Task<string> GetUserTokenAsync(string email, string password)
+        {
+            var loginRequest = new LoginRequest
+            {
+                Email = email,
+                Password = password
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+            return result?.Data?.Token ?? throw new Exception($"Failed to get token for {email}");
+        }
+
         private async Task<string> GetSuperAdminTokenAsync()
         {
             var loginRequest = new LoginRequest

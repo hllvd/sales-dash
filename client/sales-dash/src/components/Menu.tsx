@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppShell, NavLink, Text, Group, Button, Tooltip } from '@mantine/core';
 import { useBuildInfo } from '../contexts/BuildInfoContext';
+import { UserRole } from '../types/UserRole';
 import {
   IconUsers,
   IconFileText,
@@ -19,12 +20,32 @@ interface MenuProps {
 
 const Menu: React.FC<MenuProps> = ({ children }) => {
   const [userRole, setUserRole] = useState('');
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/home');
   const { buildInfo } = useBuildInfo();
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setUserRole(user.role || '');
+
+    // Extract dynamic PBAC Permissions
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = token.split('.')[1];
+        const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => 
+          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join(''));
+        
+        const decoded = JSON.parse(jsonPayload);
+        if (decoded.perm) {
+          setUserPermissions(Array.isArray(decoded.perm) ? decoded.perm : [decoded.perm]);
+        }
+      } catch (e) {
+        console.error('Failed to parse token permissions', e);
+      }
+    }
 
     const handleHashChange = () => {
       setCurrentPath(window.location.hash || '#/my-contracts');
@@ -33,6 +54,10 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  const hasPermission = (permission: string) => {
+    return userPermissions.includes(permission) || userPermissions.includes('system:superadmin') || userRole === UserRole.SUPERADMIN;
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -91,7 +116,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         <AppShell.Section grow>
 
 
-          {userRole === 'superadmin' && (
+          {hasPermission('users:read') && (
             <NavLink
               href="#/users"
               label="Usuários"
@@ -103,7 +128,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {userRole === 'superadmin' && (
+          {hasPermission('system:admin') && (
             <NavLink
               href="#/contracts"
               label="Contratos"
@@ -115,7 +140,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {(userRole === 'admin' || userRole === 'superadmin') && (
+          {hasPermission('pvs:read') && (
             <NavLink
               href="#/point-of-sale"
               label="Pontos de Venda"
@@ -127,7 +152,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {userRole === 'superadmin' && (
+          {(hasPermission('matriculas:read') && hasPermission('system:superadmin')) && (
             <NavLink
               href="#/matriculas"
               label="Matrículas"
@@ -139,7 +164,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {userRole === 'superadmin' && (
+          {hasPermission('roles:read') && (
             <NavLink
               href="#/access-control"
               label="Controle de Acesso"
@@ -151,7 +176,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {(userRole === 'admin' || userRole === 'superadmin') && (
+          {hasPermission('imports:history') && (
             <NavLink
               href="#/import-history"
               label="Histórico de Importação"
@@ -163,7 +188,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {(userRole === 'admin' || userRole === 'superadmin') && (
+          {hasPermission('imports:execute') && (
             <NavLink
               href="#/import-wizard"
               label="Assistente de Importação"

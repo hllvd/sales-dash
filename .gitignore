@@ -399,3 +399,7 @@ keys/
 .env.development
 .env.test
 .env.production
+
+# Local directories
+.local/
+Library/

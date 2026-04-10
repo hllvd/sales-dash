@@ -71,6 +71,7 @@ namespace SalesApp
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IPVRepository, PVRepository>();
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
+            services.AddScoped<IUserScopeService, UserScopeService>();
             
             // Production-Grade RBAC
             services.AddSingleton<IRbacCache, RbacCache>();

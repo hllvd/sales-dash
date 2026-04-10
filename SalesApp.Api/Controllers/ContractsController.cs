@@ -20,6 +20,7 @@ namespace SalesApp.Controllers
         private readonly IContractAggregationService _aggregationService;
         private readonly IUserMatriculaRepository _matriculaRepository;
         private readonly IMessageService _messageService;
+        private readonly IUserScopeService _userScopeService;
         
         public ContractsController(
             IContractRepository contractRepository, 
@@ -27,7 +28,8 @@ namespace SalesApp.Controllers
             IGroupRepository groupRepository,
             IContractAggregationService aggregationService,
             IUserMatriculaRepository matriculaRepository,
-            IMessageService messageService)
+            IMessageService messageService,
+            IUserScopeService userScopeService)
         {
             _contractRepository = contractRepository;
             _userRepository = userRepository;
@@ -35,6 +37,7 @@ namespace SalesApp.Controllers
             _aggregationService = aggregationService;
             _matriculaRepository = matriculaRepository;
             _messageService = messageService;
+            _userScopeService = userScopeService;
         }
         
         [HttpGet]
@@ -49,7 +52,8 @@ namespace SalesApp.Controllers
             [FromQuery] string? matricula = null,
             [FromQuery] string? userEmail = null)
         {
-            var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail);
+            var scope = await _userScopeService.GetContractScopeAsync(User);
+            var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope);
             
             var contractResponses = contracts.Select(MapToContractResponse).ToList();
             
