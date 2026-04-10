@@ -322,6 +322,11 @@ namespace SalesApp.Services
             // Create reverse mapping (target field -> source column)
             var reverseMappings = mappings.GroupBy(kvp => kvp.Value).ToDictionary(g => g.Key, g => g.First().Key);
 
+            // ✅ Topological sort: ensure parent users are always created before their children.
+            // Without this, if Julio Mota (parentEmail=carlos) appears before Carlos in the CSV,
+            // the GetByEmailAsync(carlos) call returns null and parentId is silently lost.
+            rows = SortRowsTopologically(rows, reverseMappings);
+
             for (int i = 0; i < rows.Count; i++)
             {
                 try
@@ -346,6 +351,123 @@ namespace SalesApp.Services
                     result.Errors.Add($"Row {i + 1}: {ex.Message}");
                 }
             }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Sorts user import rows in topological order so that a user whose parentEmail
+        /// references another user in the same batch is always processed AFTER that parent.
+        ///
+        /// Algorithm: Kahn's BFS on a DAG where nodes are unique email addresses and
+        /// edges represent parent→child dependencies within the batch.
+        ///
+        /// Rows whose parent email is NOT in the batch (resolves from existing DB users)
+        /// are treated as root nodes and processed first.
+        ///
+        /// If a cycle is detected (should not happen in valid data) the remaining rows
+        /// are appended at the end unchanged, so no rows are ever dropped.
+        /// </summary>
+        private List<Dictionary<string, string>> SortRowsTopologically(
+            List<Dictionary<string, string>> rows,
+            Dictionary<string, string> reverseMappings)
+        {
+            string? GetEmail(Dictionary<string, string> row) =>
+                GetFieldValue(row, reverseMappings, "Email")?.ToLowerInvariant();
+
+            string? GetParentEmail(Dictionary<string, string> row) =>
+                GetFieldValue(row, reverseMappings, "ParentEmail")?.ToLowerInvariant();
+
+            // 1. Collect every unique email that appears in this batch
+            var allEmailsInBatch = new HashSet<string>(
+                rows.Select(GetEmail).Where(e => e != null)!,
+                StringComparer.OrdinalIgnoreCase);
+
+            // 2. Build a dependency map: email → parent email within the batch.
+            //    If multiple rows exist for the same email, the FIRST row that declares
+            //    an in-batch parent wins (subsequent rows only add matriculas).
+            var parentMap = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in rows)
+            {
+                var email = GetEmail(row);
+                if (email == null) continue;
+
+                var parentEmail = GetParentEmail(row);
+                bool hasInBatchParent = !string.IsNullOrWhiteSpace(parentEmail)
+                    && allEmailsInBatch.Contains(parentEmail);
+
+                // Record the dependency if any row for this email references an in-batch parent
+                if (hasInBatchParent && (!parentMap.ContainsKey(email) || parentMap[email] == null))
+                    parentMap[email] = parentEmail;
+                else if (!parentMap.ContainsKey(email))
+                    parentMap[email] = null;
+            }
+
+            // 3. Initialise Kahn's structures
+            var inDegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var childrenOf = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var email in allEmailsInBatch)
+            {
+                inDegree[email] = 0;
+                childrenOf[email] = new List<string>();
+            }
+
+            foreach (var (email, parent) in parentMap)
+            {
+                if (parent != null)
+                {
+                    inDegree[email]++;
+                    childrenOf[parent].Add(email);
+                }
+            }
+
+            // 4. Kahn's BFS – start from all roots (no unresolved in-batch parent)
+            var queue = new Queue<string>(
+                allEmailsInBatch.Where(e => inDegree.GetValueOrDefault(e, 0) == 0));
+
+            var sortedEmails = new List<string>();
+            while (queue.Count > 0)
+            {
+                var email = queue.Dequeue();
+                sortedEmails.Add(email);
+
+                foreach (var child in childrenOf.GetValueOrDefault(email, new List<string>()))
+                {
+                    inDegree[child]--;
+                    if (inDegree[child] == 0)
+                        queue.Enqueue(child);
+                }
+            }
+
+            // 5. Append any remaining emails (only possible if there is a cycle – safe fallback)
+            var sortedSet = new HashSet<string>(sortedEmails, StringComparer.OrdinalIgnoreCase);
+            foreach (var email in allEmailsInBatch)
+                if (!sortedSet.Contains(email))
+                    sortedEmails.Add(email);
+
+            // 6. Group all rows by email, preserving original relative order within each email
+            var rowsByEmail = new Dictionary<string, List<Dictionary<string, string>>>(
+                StringComparer.OrdinalIgnoreCase);
+
+            const string unknownKey = "__no_email__";
+            foreach (var row in rows)
+            {
+                var key = GetEmail(row) ?? unknownKey;
+                if (!rowsByEmail.ContainsKey(key))
+                    rowsByEmail[key] = new List<Dictionary<string, string>>();
+                rowsByEmail[key].Add(row);
+            }
+
+            // 7. Reconstruct the sorted rows list
+            var result = new List<Dictionary<string, string>>(rows.Count);
+            foreach (var email in sortedEmails)
+                if (rowsByEmail.TryGetValue(email, out var bucket))
+                    result.AddRange(bucket);
+
+            // Rows without any email come last
+            if (rowsByEmail.TryGetValue(unknownKey, out var noEmailRows))
+                result.AddRange(noEmailRows);
 
             return result;
         }
@@ -451,7 +573,15 @@ namespace SalesApp.Services
                     user.RoleId = newRole.Id;
                 }
             }
-            user.ParentUserId = parentId;
+            // Only set ParentUserId if:
+            //   - it's a new user (first time we see this email), OR
+            //   - this row explicitly declares a parent (never silently clear an existing link)
+            // Without this guard, a second row for juliomota@example.com with empty ParentEmail
+            // would overwrite the parentId correctly set by the first row.
+            if (isNewUser || parentId.HasValue)
+            {
+                user.ParentUserId = parentId;
+            }
             user.UpdatedAt = DateTime.UtcNow;
             user.ImportSessionId = importSessionId;
 
