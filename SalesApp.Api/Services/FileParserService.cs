@@ -249,7 +249,7 @@ namespace SalesApp.Services
             return rows;
         }
 
-        private async Task<List<string>> GetExcelColumnsAsync(IFormFile file)
+        private Task<List<string>> GetExcelColumnsAsync(IFormFile file)
         {
             using var stream = file.OpenReadStream();
             using var package = new ExcelPackage(stream);
@@ -272,7 +272,7 @@ namespace SalesApp.Services
                 }
             }
 
-            return await Task.FromResult(columns);
+            return Task.FromResult(columns);
         }
 
         private async IAsyncEnumerable<Dictionary<string, string>> ParseExcelStreamedAsync(IFormFile file)

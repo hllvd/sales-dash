@@ -109,4 +109,48 @@ test.describe('Contracts Filtering', () => {
     // Check if table has exactly 12 rows (6 from Oct 15, 2 from Oct 16, 3 from Oct 17, 1 from Oct 21)
     await expect(page.locator('table tbody tr')).toHaveCount(12, { timeout: 15000 });
   });
+
+  test('admin Carlos Mendes should see his child Julio Mota contracts', async ({ page }) => {
+    test.setTimeout(45_000);
+
+    // 1. Login as Admin Carlos Mendes (updated in users-demo.csv)
+    await page.goto('/');
+    await page.fill('input[type="email"]', 'carlosmendes@example.com');
+    await page.fill('input[type="password"]', '123456');
+    await page.click('button.login-button');
+
+    // Wait for the menu/app to load properly
+    await expect(page.locator('.mantine-AppShell-navbar')).toBeVisible({ timeout: 15000 });
+
+    // 2. Go to Contracts page (available to admin role)
+    // Using test-id to avoid confusion with "Meus Contratos"
+    await page.getByTestId('nav-contracts').click();
+    
+    // Ensure we are on the right page
+    await expect(page).toHaveURL(/.*#\/contracts/);
+    await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15000 });
+
+    // 3. Filter by child's email (juliomota@example.com)
+    await page.locator('input[placeholder="Buscar por email..."]').click();
+    await page.locator('input[placeholder="Buscar por email..."]').fill('juliomota@example.com');
+    
+    // Select Julio Mota from autocomplete
+    await page.getByRole('option', { name: 'juliomota@example.com' }).first().click();
+
+    // Wait for the debounced search request
+    const searchRequestPromise = page.waitForRequest(request =>
+      request.url().includes('/api/contracts') &&
+      request.url().includes('userEmail=juliomota%40example.com') &&
+      request.method() === 'GET',
+      { timeout: 15000 }
+    );
+    await searchRequestPromise;
+
+    // 4. Assert that he can see Julio's 22 contracts (we updated them to matricula 9999)
+    // Even if he is not the owner, the hierarchy allows it.
+    await expect(page.locator('table tbody tr')).toHaveCount(22, { timeout: 15000 });
+    
+    // Verify at least one row contains the child's matricula
+    await expect(page.locator('table tbody tr').first()).toContainText('9999');
+  });
 });

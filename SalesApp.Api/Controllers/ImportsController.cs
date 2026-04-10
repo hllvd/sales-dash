@@ -75,7 +75,7 @@ namespace SalesApp.Controllers
                 EntityType = "Contract",
                 Description = "Template for importing contracts",
                 RequiredFields = JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount" }),
-                OptionalFields = JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName", "Version" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName", "Version", "MatriculaNumber" }),
                 DefaultMappings = "{}",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -257,6 +257,18 @@ namespace SalesApp.Controllers
             {
                 var fileType = _fileParser.GetFileType(file);
                 var uploadId = $"{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8]}";
+                
+                var currentUserId = GetCurrentUserId();
+                var currentUser = await _userRepository.GetByIdAsync(currentUserId);
+
+                if (currentUser == null || !currentUser.IsActive)
+                {
+                    return Unauthorized(new ApiResponse<ImportPreviewResponse>
+                    {
+                        Success = false,
+                        Message = "Your session is invalid. Please log in again."
+                    });
+                }
 
                 var hardcodedTemplate = HardcodedTemplates.FirstOrDefault(t => t.Id == templateId);
                 if (hardcodedTemplate == null)
@@ -280,12 +292,11 @@ namespace SalesApp.Controllers
                 var dbTemplate = await _templateRepository.GetByNameAsync(hardcodedTemplate.Name);
                 if (dbTemplate == null)
                 {
-                    var currentUserId = GetCurrentUserId();
-                    var currentUser = await _userRepository.GetByIdAsync(currentUserId);
-                    if (currentUser == null)
+                    var templateUserId = currentUserId;
+                    if (currentUser == null) // This shouldn't happen now due to the check above, but keeping logic safe
                     {
                         var anyAdmin = await _userRepository.GetRootUserAsync();
-                        currentUserId = anyAdmin?.Id ?? currentUserId;
+                        templateUserId = anyAdmin?.Id ?? currentUserId;
                     }
 
                     dbTemplate = new ImportTemplate
@@ -296,7 +307,7 @@ namespace SalesApp.Controllers
                         RequiredFields = hardcodedTemplate.RequiredFields,
                         OptionalFields = hardcodedTemplate.OptionalFields,
                         DefaultMappings = hardcodedTemplate.DefaultMappings,
-                        CreatedByUserId = currentUserId,
+                        CreatedByUserId = templateUserId,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
                     };
@@ -317,7 +328,7 @@ namespace SalesApp.Controllers
                     TemplateId = dbTemplate.Id,
                     FileName = file.FileName,
                     FileType = fileType,
-                    UploadedByUserId = GetCurrentUserId(),
+                    UploadedByUserId = currentUserId,
                     Status = "preview",
                     TotalRows = 0
                 };

@@ -19,16 +19,12 @@ interface MenuProps {
 }
 
 const Menu: React.FC<MenuProps> = ({ children }) => {
-  const [userRole, setUserRole] = useState('');
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/home');
   const { buildInfo } = useBuildInfo();
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    setUserRole(user.role || '');
-
-    // Extract dynamic PBAC Permissions
+    // Extract dynamic PBAC Permissions from JWT
     const token = localStorage.getItem('token');
     if (token) {
       try {
@@ -56,7 +52,10 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   }, []);
 
   const hasPermission = (permission: string) => {
-    return userPermissions.includes(permission) || userPermissions.includes('system:superadmin') || userRole === UserRole.SUPERADMIN;
+    const isSuperAdmin = userPermissions.includes('system:superadmin');
+    
+    if (isSuperAdmin) return true;
+    return userPermissions.includes(permission);
   };
 
   const handleLogout = () => {
@@ -137,6 +136,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/contracts')}
+              data-testid="nav-contracts"
             />
           )}
 
@@ -208,6 +208,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             variant="filled"
             color="red"
             styles={navLinkStyles('#/my-contracts')}
+            data-testid="nav-my-contracts"
           />
 
 

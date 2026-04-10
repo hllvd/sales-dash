@@ -1,4 +1,4 @@
-﻿Name,Email,Role,ParentEmail,Matricula,Owner_Matricula,Password
+Name,Email,Role,ParentEmail,Matricula,Owner_Matricula,Password
 Arthur Terplak,arthurterplak@example.com,user,,6111,0,123456
 Bryan Lopes,bryanlopes@example.com,user,,6111,0,654321
 Richard Wesley,richardwesley@example.com,user,,6111,0
@@ -6,8 +6,8 @@ Paulo Carvalho,paulocarvalho@example.com,user,,6111,0
 Carla Franciele,carlafranciele@example.com,user,,6111,0
 Gabriel Felipe,gabrielfelipe@example.com,user,,6111,0
 Jaqueline Gonçalves,jaquelinegoncalves@example.com,user,gabrielfelipe@example.com,6111,0
-Carlos Mendes,carlosmendes@example.com,user,,6111,0
-Julio Mota,juliomota@example.com,user,,6111,0
+Carlos Mendes,carlosmendes@example.com,admin,,6111,0,123456
+Julio Mota,juliomota@example.com,user,carlosmendes@example.com,9999,0
 Luna Isabela,lunaisabela@example.com,user,,6111,0
 Lucas Pereira,lucaspereira@example.com,user,mariaeduarda@example.com,6111,0
 Salatiel Mendes,salatielmendes@example.com,user,,11177,0

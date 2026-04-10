@@ -59,12 +59,14 @@ namespace SalesApp.Services
             // Dictionary to cache lookups during this import session
             var groupCache = new Dictionary<string, int?>();
             var pvCache = new Dictionary<string, int?>();
+            var matriculaCache = new Dictionary<string, int?>();
 
             // 1. Pre-identify potential contract numbers for bulk fetch
             var allContractNumbers = rows
                 .Select(r => GetFieldValue(r, reverseMappings, "ContractNumber"))
                 .Where(n => !string.IsNullOrWhiteSpace(n))
                 .Distinct()
+                .Select(n => n!) // Cast to non-nullable as we filtered out null/whitespace
                 .ToList();
 
             // 2. Fetch existing contracts in bulk
@@ -98,7 +100,7 @@ namespace SalesApp.Services
                         continue;
                     }
 
-                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, importSessionId, dateFormat, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
+                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, importSessionId, dateFormat, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract, matriculaCache);
 
                     if (contract != null)
                     {
@@ -164,7 +166,8 @@ namespace SalesApp.Services
             ImportResult result,
             bool allowAutoCreateGroups = false,
             bool allowAutoCreatePVs = false,
-            Contract? existingContract = null)
+            Contract? existingContract = null,
+            Dictionary<string, int?>? matriculaCache = null)
         {
             // Extract required fields
             var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
@@ -201,6 +204,27 @@ namespace SalesApp.Services
             if (user == null || !user.IsActive)
             {
                 throw new ArgumentException($"User not found or inactive: {userEmail}");
+            }
+
+            // Resolve the specific UserMatricula from the CSV row (e.g., column "Matricula" = "6241")
+            var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
+            int? userMatriculaId = null;
+            if (!string.IsNullOrWhiteSpace(matriculaNumber))
+            {
+                var cacheKey = $"{user.Id}:{matriculaNumber}";
+                if (matriculaCache != null && matriculaCache.TryGetValue(cacheKey, out var cachedMatriculaId))
+                {
+                    userMatriculaId = cachedMatriculaId;
+                }
+                else
+                {
+                    var userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, user.Id);
+                    userMatriculaId = userMatricula?.Id;
+                    if (matriculaCache != null)
+                    {
+                        matriculaCache[cacheKey] = userMatriculaId;
+                    }
+                }
             }
 
             // Extract optional fields
@@ -268,13 +292,18 @@ namespace SalesApp.Services
             contract.Status = status;
             if (saleStartDate.HasValue) contract.SaleStartDate = saleStartDate.Value;
             contract.UploadId = uploadId;
-            contract.ImportSessionId = importSessionId; // ✅ Track import session for undo
+            contract.ImportSessionId = importSessionId;
             contract.IsActive = true;
             contract.UpdatedAt = DateTime.UtcNow;
             contract.ContractType = contractType;
             contract.Quota = quota;
             contract.PvId = pvId;
             contract.CustomerName = customerName;
+            // ✅ Link contract to correct UserMatricula from the CSV
+            if (userMatriculaId.HasValue)
+            {
+                contract.UserMatriculaId = userMatriculaId;
+            }
 
             return contract;
         }
@@ -353,15 +382,13 @@ namespace SalesApp.Services
             }
 
             // Resolve Role
-            int roleId = (int)Models.RoleId.User; // Default User
+            Role? newRole = null;
             if (!string.IsNullOrWhiteSpace(roleName))
             {
-                var role = await _roleRepository.GetByNameAsync(roleName);
-                if (role != null)
-                {
-                    roleId = role.Id;
-                }
+                newRole = await _roleRepository.GetByNameAsync(roleName);
             }
+            
+            int resolvedRoleId = newRole?.Id ?? (int)Models.RoleId.User;
 
             // Resolve Parent
             Guid? parentId = null;
@@ -410,7 +437,20 @@ namespace SalesApp.Services
             }
 
             user.Name = fullName;
-            user.RoleId = roleId;
+            
+            // Only update RoleId if new role has higher priority (lower Level) or if it's a new user
+            if (isNewUser)
+            {
+                user.RoleId = resolvedRoleId;
+            }
+            else if (newRole != null && existingUser!.Role != null)
+            {
+                // Lower Level numerical value means higher priority (1:SuperAdmin, 2:Admin, 3:User)
+                if (newRole.Level < existingUser.Role.Level)
+                {
+                    user.RoleId = newRole.Id;
+                }
+            }
             user.ParentUserId = parentId;
             user.UpdatedAt = DateTime.UtcNow;
             user.ImportSessionId = importSessionId;

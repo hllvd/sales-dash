@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SalesApp.DTOs;
 using SalesApp.Services;
 using SalesApp.Attributes;
+using SalesApp.Repositories;
 using System.Security.Claims;
 
 namespace SalesApp.Controllers
@@ -13,10 +14,12 @@ namespace SalesApp.Controllers
     public class WizardController : ControllerBase
     {
         private readonly IWizardService _wizardService;
+        private readonly IUserRepository _userRepository;
 
-        public WizardController(IWizardService wizardService)
+        public WizardController(IWizardService wizardService, IUserRepository userRepository)
         {
             _wizardService = wizardService;
+            _userRepository = userRepository;
         }
 
         [HttpPost("step1-upload")]
@@ -30,6 +33,14 @@ namespace SalesApp.Controllers
             try
             {
                 var userId = GetCurrentUserId();
+                
+                // Validate user exists (protects against stale tokens after DB resets)
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null || !user.IsActive)
+                {
+                    return Unauthorized(new ApiResponse<ImportPreviewResponse> { Success = false, Message = "Your session is invalid. Please log in again." });
+                }
+
                 var response = await _wizardService.ProcessStep1UploadAsync(file, userId);
                 return Ok(new ApiResponse<ImportPreviewResponse> 
                 { 
@@ -69,6 +80,14 @@ namespace SalesApp.Controllers
             try
             {
                 var userId = GetCurrentUserId();
+
+                // Validate user exists (protects against stale tokens after DB resets)
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null || !user.IsActive)
+                {
+                    return Unauthorized(new ApiResponse<ImportStatusResponse> { Success = false, Message = "Your session is invalid. Please log in again." });
+                }
+
                 var response = await _wizardService.ProcessStep2ImportAsync(uploadId, usersFile, userId);
                 return Ok(new ApiResponse<ImportStatusResponse> 
                 { 

@@ -199,7 +199,7 @@ namespace SalesApp.Services
             }
         }
 
-        private async Task ValidateUserRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, Dictionary<string, string> reverseMappings, List<string> errors)
+        private Task ValidateUserRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, Dictionary<string, string> reverseMappings, List<string> errors)
         {
             // Validate email format
             if (reverseMappings.ContainsKey("Email"))
@@ -220,6 +220,7 @@ namespace SalesApp.Services
                 }
                 */
             }
+            return Task.CompletedTask;
         }
 
         private bool IsValidEmail(string email)
