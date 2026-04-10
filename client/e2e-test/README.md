@@ -25,9 +25,20 @@ npx playwright install chromium
 ## Running Tests
 
 ```bash
-# Run all tests headlessly
+# Run all tests (executes TEAR 1 -> TEAR 2 -> TEAR 3)
 npm test
 
 # Run tests with UI mode
 npm run test:ui
 ```
+
+## Test Structure (TEARS)
+
+To handle application state and dependencies, tests are organized into sequential tiers (TEARS):
+
+1. **TEAR 1 (Setup & Import)**: Handles the initial data import from CSV/Excel.
+2. **TEAR 2 (Account Setup)**: Configures user roles and roles-based access (e.g., promoting Carlos Mendes to Admin).
+3. **TEAR 3 (General Logic)**: Verifies functional logic like filtering, basic login, and smoke tests.
+
+Each Tier verifies if its state is already achieved (e.g., checking if data exists) and will skip redundant heavy work if possible.
+

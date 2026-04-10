@@ -16,41 +16,38 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'setup-and-import',
-      testMatch: 'import_wizard.spec.ts',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'contract-updates',
-      testMatch: 'import_wizard_status_update.spec.ts',
-      use: { ...devices['Desktop Chrome'] },
-      dependencies: ['setup-and-import'],
-    },
-    {
-      name: 'wizard-validations',
+      name: 'tear-1-setup-and-import',
       testMatch: [
+        'import_wizard.spec.ts',
+        'login.spec.ts',
+        'smoke.spec.ts'
+      ],
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'tear-2-roles-testing',
+      testMatch: 'user_role_management.spec.ts',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['tear-1-setup-and-import']
+    },
+    {
+      name: 'tear-3',
+      testMatch: [
+        'import_wizard.spec.ts',
+        'import_wizard_status_update.spec.ts',
         'import_wizard_csv_delimiter.spec.ts',
         'import_wizard_email_mapping.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
-      dependencies: ['setup-and-import'],
+      dependencies: ['tear-2-roles-testing']
     },
     {
-      name: 'contract-filters',
-      testMatch: 'contracts_filtering.spec.ts',
-      use: { ...devices['Desktop Chrome'] },
-      dependencies: ['setup-and-import'],
-    },
-    {
-      name: 'other-tests',
-      testIgnore: [
-        'import_wizard.spec.ts',
-        'import_wizard_status_update.spec.ts',
-        'import_wizard_csv_delimiter.spec.ts',
-        'import_wizard_email_mapping.spec.ts',
+      name: 'tear-4',
+      testMatch: [
         'contracts_filtering.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
+      dependencies: ['tear-3'],
     },
   ],
 });
