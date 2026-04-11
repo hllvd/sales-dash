@@ -11,6 +11,9 @@ import HistoricProduction from '../shared/HistoricProduction';
 import Pagination from './Pagination';
 import ContractStatusBadge from '../shared/ContractStatusBadge';
 import SearchableDropdown from '../shared/SearchableDropdown';
+import ExportButton from '../shared/ExportButton';
+import ExportProgressIndicator from '../shared/ExportProgressIndicator';
+import { apiService } from '../services/apiService';
 import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
 import {
@@ -38,6 +41,11 @@ const ContractsPage: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [aggregation, setAggregation] = useState<ContractAggregation | null>(null);
+
+  // Export state
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportToken = localStorage.getItem('token') || '';
 
   // Filters
   const [isInitializing, setIsInitializing] = useState(true);
@@ -207,7 +215,28 @@ const ContractsPage: React.FC = () => {
       <div className="contracts-page">
           <div className="contracts-header">
             <Title order={2} size="h2" className="page-title-break">Gerenciamento de Contratos</Title>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <ExportButton
+                onExport={async () => {
+                  setIsExporting(true);
+                  try {
+                    const job = await apiService.startContractExport({
+                      userId: debouncedUserId || undefined,
+                      groupId: debouncedGroupId ? parseInt(debouncedGroupId) : undefined,
+                      startDate: debouncedStartDate || undefined,
+                      contractNumber: debouncedContractNumber || undefined,
+                      userEmail: debouncedUserEmail || undefined,
+                      showUnassigned: debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
+                      matricula: debouncedMatricula || undefined,
+                    });
+                    setExportJobId(job.jobId);
+                  } catch (e: any) {
+                    toast.error(e.message || 'Falha ao iniciar exportação');
+                    setIsExporting(false);
+                  }
+                }}
+                isExporting={isExporting}
+              />
               <Button onClick={() => setShowImportModal(true)} leftSection={<IconUpload size={16} />}>
                 Importar
               </Button>
@@ -216,6 +245,15 @@ const ContractsPage: React.FC = () => {
               </Button>
             </div>
           </div>
+
+          <ExportProgressIndicator
+            jobId={exportJobId}
+            pollUrl={apiService.contractExportPollUrl.bind(apiService)}
+            downloadUrl={apiService.contractExportDownloadUrl.bind(apiService)}
+            token={exportToken}
+            onComplete={() => { setIsExporting(false); setExportJobId(null); }}
+            onError={(msg) => { toast.error(msg); setIsExporting(false); setExportJobId(null); }}
+          />
 
           {error && <div className="contracts-error">{error}</div>}
 

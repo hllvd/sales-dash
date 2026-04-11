@@ -752,7 +752,70 @@ export const apiService = {
     }
     return response.json();
   },
+
+  // ── Contract Export ──────────────────────────────────────────────────────
+
+
+  async startContractExport(filters: {
+    userId?: string;
+    groupId?: number;
+    startDate?: string;
+    endDate?: string;
+    contractNumber?: string;
+    showUnassigned?: boolean;
+    matricula?: string;
+    userEmail?: string;
+  }): Promise<{ jobId: string; status: string; totalRows: number; processedRows: number }> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/contracts/export`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(filters),
+    });
+    if (!response.ok) throw new Error('Falha ao iniciar exportação');
+    const json = await response.json();
+    return json.data;
+  },
+
+  async getContractExportStatus(jobId: string): Promise<{ jobId: string; status: string; totalRows: number; processedRows: number; errorMessage?: string }> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/contracts/export/${jobId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Job não encontrado ou expirado');
+    const json = await response.json();
+    return json.data;
+  },
+
+  contractExportDownloadUrl(jobId: string): string {
+    return `${API_BASE_URL}/contracts/export/${jobId}/download`;
+  },
+
+  contractExportPollUrl(jobId: string): string {
+    return `${API_BASE_URL}/contracts/export/${jobId}`;
+  },
+
+  async startMyContractExport(filters: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{ jobId: string; status: string; totalRows: number; processedRows: number }> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/contracts/export`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(filters),
+    });
+    if (!response.ok) throw new Error('Falha ao iniciar exportação');
+    const json = await response.json();
+    return json.data;
+  },
+
+  myContractExportDownloadUrl(jobId: string): string {
+    return `${API_BASE_URL}/users/me/contracts/export/${jobId}/download`;
+  },
+
+  myContractExportPollUrl(jobId: string): string {
+    return `${API_BASE_URL}/users/me/contracts/export/${jobId}`;
+  },
 }
+
 
 export interface ImportStatusResponse {
   uploadId: string;

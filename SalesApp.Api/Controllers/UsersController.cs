@@ -26,6 +26,7 @@ namespace SalesApp.Controllers
         private readonly AppDbContext _context;
         private readonly IMessageService _messageService;
         private readonly IEmailService _emailService;
+        private readonly IExportService _exportService;
         
         public UsersController(
             IUserRepository userRepository, 
@@ -37,7 +38,8 @@ namespace SalesApp.Controllers
             IConfiguration configuration,
             AppDbContext context,
             IMessageService messageService,
-            IEmailService emailService)
+            IEmailService emailService,
+            IExportService exportService)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
@@ -49,7 +51,58 @@ namespace SalesApp.Controllers
             _context = context;
             _messageService = messageService;
             _emailService = emailService;
+            _exportService = exportService;
         }
+
+        // ── My-Contracts Export endpoints ────────────────────────────────────
+        
+        /// <summary>
+        /// Queue an async XLSX export scoped strictly to the current user's own contracts.
+        /// </summary>
+        [HttpPost("me/contracts/export")]
+        [Authorize]
+        public ActionResult<ApiResponse<ExportJobResponse>> StartMyExport([FromBody] ContractExportRequest request)
+        {
+            var currentUserId = GetCurrentUserId();
+            // Scope: only this user's contracts
+            var scope = new Models.UserScopeContext
+            {
+                IsGlobal = false,
+                AllowedUserIds = new HashSet<Guid> { currentUserId }
+            };
+            // Force filters to current user only — ignore any userId override from body
+            request.UserId = currentUserId;
+            var requestingUserId = currentUserId.ToString();
+            var jobId = _exportService.StartExport(request, scope, requestingUserId);
+            var status = _exportService.GetJobStatus(jobId)!;
+            return Ok(new ApiResponse<ExportJobResponse> { Success = true, Data = status, Message = "Export started" });
+        }
+
+        [HttpGet("me/contracts/export/{jobId}")]
+        [Authorize]
+        public ActionResult<ApiResponse<ExportJobResponse>> GetMyExportStatus(string jobId)
+        {
+            var status = _exportService.GetJobStatus(jobId);
+            if (status == null)
+                return NotFound(new ApiResponse<ExportJobResponse> { Success = false, Message = "Job not found or expired" });
+            return Ok(new ApiResponse<ExportJobResponse> { Success = true, Data = status, Message = "OK" });
+        }
+
+        [HttpGet("me/contracts/export/{jobId}/download")]
+        [Authorize]
+        public ActionResult DownloadMyExport(string jobId)
+        {
+            var requestingUserId = GetCurrentUserId().ToString();
+            var bytes = _exportService.GetJobBytes(jobId, requestingUserId);
+            if (bytes == null)
+                return NotFound(new { success = false, message = "File not ready, expired, or not found" });
+
+            return File(bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"meus_contratos_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
+        }
+
+
         
         [HttpPost("register")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> Register(RegisterRequest request)

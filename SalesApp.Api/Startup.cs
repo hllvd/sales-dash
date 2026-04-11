@@ -93,6 +93,9 @@ namespace SalesApp
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
             services.AddScoped<IWizardService, WizardService>();
             
+            // Export service (singleton — holds in-memory export jobs)
+            services.AddSingleton<IExportService, ExportService>();
+            
             // Message service for translations
             services.AddScoped<IMessageService, MessageService>();
             
@@ -142,9 +145,26 @@ namespace SalesApp
                     ValidateIssuer = false,
                     ValidateAudience = false,
                     ClockSkew = TimeSpan.Zero,
+                };
 
+                // Support token in query string for file downloads
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            (path.StartsWithSegments("/api/contracts/export") ||
+                             path.StartsWithSegments("/api/users/me/contracts/export")))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
                 };
             });
+
             
             services.AddAuthorization();
 

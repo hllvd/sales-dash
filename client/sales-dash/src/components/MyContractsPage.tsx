@@ -7,6 +7,8 @@ import FormField from './FormField';
 import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
 import ContractStatusBadge from '../shared/ContractStatusBadge';
+import ExportButton from '../shared/ExportButton';
+import ExportProgressIndicator from '../shared/ExportProgressIndicator';
 import {
   Contract,
   ContractAggregation,
@@ -22,6 +24,11 @@ const MyContractsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [aggregation, setAggregation] = useState<ContractAggregation | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
+
+  // Export state
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportToken = localStorage.getItem('token') || '';
 
   // Date filter state
   const [startDate, setStartDate] = useState<string>('');
@@ -222,10 +229,37 @@ const MyContractsPage: React.FC = () => {
       <div className="my-contracts-page">
         <div className="my-contracts-header">
           <Title order={2} size="h2" className="page-title-break">Meus Contratos</Title>
-          <Button onClick={handleNewClick} leftSection="+">
-            Novo
-          </Button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <ExportButton
+              onExport={async () => {
+                setIsExporting(true);
+                try {
+                  const job = await apiService.startMyContractExport({
+                    startDate: startDate || undefined,
+                    endDate: endDate || undefined,
+                  });
+                  setExportJobId(job.jobId);
+                } catch (e: any) {
+                  setError(e.message || 'Falha ao iniciar exportação');
+                  setIsExporting(false);
+                }
+              }}
+              isExporting={isExporting}
+            />
+            <Button onClick={handleNewClick} leftSection="+">
+              Novo
+            </Button>
+          </div>
         </div>
+
+        <ExportProgressIndicator
+          jobId={exportJobId}
+          pollUrl={apiService.myContractExportPollUrl.bind(apiService)}
+          downloadUrl={apiService.myContractExportDownloadUrl.bind(apiService)}
+          token={exportToken}
+          onComplete={() => { setIsExporting(false); setExportJobId(null); }}
+          onError={(msg) => { setError(msg); setIsExporting(false); setExportJobId(null); }}
+        />
 
         {error && <div className="my-contracts-error">{error}</div>}
 

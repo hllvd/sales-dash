@@ -21,6 +21,7 @@ namespace SalesApp.Controllers
         private readonly IUserMatriculaRepository _matriculaRepository;
         private readonly IMessageService _messageService;
         private readonly IUserScopeService _userScopeService;
+        private readonly IExportService _exportService;
         
         public ContractsController(
             IContractRepository contractRepository, 
@@ -29,7 +30,8 @@ namespace SalesApp.Controllers
             IContractAggregationService aggregationService,
             IUserMatriculaRepository matriculaRepository,
             IMessageService messageService,
-            IUserScopeService userScopeService)
+            IUserScopeService userScopeService,
+            IExportService exportService)
         {
             _contractRepository = contractRepository;
             _userRepository = userRepository;
@@ -38,7 +40,57 @@ namespace SalesApp.Controllers
             _matriculaRepository = matriculaRepository;
             _messageService = messageService;
             _userScopeService = userScopeService;
+            _exportService = exportService;
         }
+
+        // ── Export endpoints ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Queue an async XLSX export. Returns a jobId immediately.
+        /// The export respects the same scope/filters as GET /api/contracts.
+        /// </summary>
+        [HttpPost("export")]
+        [HasPermission("contracts:read")]
+        public async Task<ActionResult<ApiResponse<ExportJobResponse>>> StartExport([FromBody] ContractExportRequest request)
+        {
+            var scope = await _userScopeService.GetContractScopeAsync(User);
+            var requestingUserId = GetCurrentUserId().ToString();
+            var jobId = _exportService.StartExport(request, scope, requestingUserId);
+            var status = _exportService.GetJobStatus(jobId)!;
+            return Ok(new ApiResponse<ExportJobResponse> { Success = true, Data = status, Message = "Export started" });
+        }
+
+        /// <summary>
+        /// Poll export job status. Returns null when job has expired.
+        /// </summary>
+        [HttpGet("export/{jobId}")]
+        [HasPermission("contracts:read")]
+        public ActionResult<ApiResponse<ExportJobResponse>> GetExportStatus(string jobId)
+        {
+            var status = _exportService.GetJobStatus(jobId);
+            if (status == null)
+                return NotFound(new ApiResponse<ExportJobResponse> { Success = false, Message = "Job not found or expired" });
+            return Ok(new ApiResponse<ExportJobResponse> { Success = true, Data = status, Message = "OK" });
+        }
+
+        /// <summary>
+        /// Download the completed XLSX file.
+        /// </summary>
+        [HttpGet("export/{jobId}/download")]
+        [HasPermission("contracts:read")]
+        public ActionResult DownloadExport(string jobId)
+        {
+            var requestingUserId = GetCurrentUserId().ToString();
+            var bytes = _exportService.GetJobBytes(jobId, requestingUserId);
+            if (bytes == null)
+                return NotFound(new { success = false, message = "File not ready, expired, or not found" });
+
+            return File(bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"contratos_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
+        }
+
+
         
         [HttpGet]
         [HasPermission("contracts:read")]
