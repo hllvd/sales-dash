@@ -39,7 +39,8 @@ export default defineConfig({
       name: 'tear-3',
       testMatch: [
         'hierarchy_contract_visibility.spec.ts',
-        'contracts_filtering.spec.ts'
+        'contracts_filtering.spec.ts',
+        'contract_export.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']
