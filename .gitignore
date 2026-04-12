@@ -403,3 +403,4 @@ keys/
 # Local directories
 .local/
 Library/
+.dotnet/

@@ -36,6 +36,9 @@ namespace SalesApp.Models
         
         public int? ImportSessionId { get; set; } // Tracks if this user was created via import
         
+        public string? PowerBiUsername { get; set; }
+        public string? PowerBiPassword { get; set; }
+
         // Navigation properties
         public User? ParentUser { get; set; }
         public ICollection<User> ChildUsers { get; set; } = new List<User>();

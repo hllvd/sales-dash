@@ -38,6 +38,8 @@ export interface User {
   createdAt: string
   updatedAt: string
   activeMatriculas?: UserMatriculaInfo[]
+  powerBiUsername?: string
+  hasPowerBiCredentials?: boolean
 }
 
 export interface UserLookupByMatricula {
@@ -64,6 +66,8 @@ export interface UpdateUserRequest {
   role?: string
   parentUserId?: string
   isActive?: boolean
+  powerBiUsername?: string
+  powerBiPassword?: string
 }
 
 /**
@@ -209,6 +213,20 @@ export const apiService = {
 
     if (!response.ok) {
       throw new Error("Failed to delete user")
+    }
+
+    return response.json()
+  },
+
+  async savePowerBiCredentials(username: string, password?: string): Promise<ApiResponse<User>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/powerbi-credentials`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ username, password }),
+    })
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to save PowerBI credentials"))
     }
 
     return response.json()
