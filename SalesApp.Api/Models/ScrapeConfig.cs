@@ -8,11 +8,10 @@ namespace SalesApp.Models
         [Key]
         public int Id { get; set; }
 
-        [Required]
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
 
         [ForeignKey("UserId")]
-        public virtual User User { get; set; } = null!;
+        public virtual User? User { get; set; }
 
         [Required]
         [MaxLength(200)]

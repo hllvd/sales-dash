@@ -38,8 +38,14 @@ namespace SalesApp.Controllers
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             
+            // Auto-fill UserId if not provided or if the user is not a superadmin
+            if (!config.UserId.HasValue || config.UserId == Guid.Empty || !User.IsInRole("superadmin"))
+            {
+                config.UserId = userId;
+            }
+
             // Check if user is admin but trying to create for someone else
-            if (User.IsInRole("admin") && config.UserId != userId)
+            if (User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId)
             {
                 return Forbid();
             }
@@ -72,7 +78,7 @@ namespace SalesApp.Controllers
             var config = await _context.ScrapeConfigs.FindAsync(configId);
 
             if (config == null) return NotFound();
-            if (User.IsInRole("admin") && config.UserId != userId) return Forbid();
+            if (User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
 
             var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true);
             return Accepted(new { jobId });

@@ -26,22 +26,18 @@ const ENDPOINT_PREFIX = '/scrape';
 
 export const scrapeService = {
     getConfigs: async (): Promise<ScrapeConfig[]> => {
-        const response = await apiService.get(`${ENDPOINT_PREFIX}/configs/me`);
-        return response.data;
+        return apiService.get(`${ENDPOINT_PREFIX}/configs/me`);
     },
 
     saveConfig: async (data: Partial<ScrapeConfig>): Promise<ScrapeConfig> => {
-        const response = await apiService.post(`${ENDPOINT_PREFIX}/configs`, data);
-        return response.data;
+        return apiService.post(`${ENDPOINT_PREFIX}/configs`, data);
     },
 
     getJobs: async (): Promise<ScrapeJob[]> => {
-        const response = await apiService.get(`${ENDPOINT_PREFIX}/jobs/me`);
-        return response.data;
+        return apiService.get(`${ENDPOINT_PREFIX}/jobs/me`);
     },
 
     triggerScrape: async (configId: number): Promise<{ jobId: string }> => {
-        const response = await apiService.post(`${ENDPOINT_PREFIX}/jobs/${configId}`, {});
-        return response.data;
+        return apiService.post(`${ENDPOINT_PREFIX}/jobs/${configId}`, {});
     }
 };

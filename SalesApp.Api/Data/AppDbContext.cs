@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SalesApp.Models;
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace SalesApp.Data
 {
@@ -330,6 +331,15 @@ namespace SalesApp.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }
+        
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            base.OnConfiguring(optionsBuilder);
+            
+            // Suppress warning about pending model changes in development/E2E environments
+            optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+        }
+
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             var auditEntries = OnBeforeSaveChanges();

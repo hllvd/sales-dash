@@ -13,8 +13,9 @@ import {
   Card,
   ActionIcon,
   Tooltip,
+  Alert,
 } from '@mantine/core';
-import { IconRefresh, IconSettings, IconPlay, IconAlertCircle, IconCheck } from '@tabler/icons-react';
+import { IconRefresh, IconSettings, IconPlayerPlay, IconAlertCircle, IconCheck } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { scrapeService, ScrapeConfig, ScrapeJob } from '../../services/scrapeService';
 import Menu from '../Menu';
@@ -85,10 +86,10 @@ const ScrapeDashboard: React.FC = () => {
         scrapeService.getConfigs(),
         scrapeService.getJobs()
       ]);
-      setConfigs(configsRes);
-      setJobs(jobsRes);
+      setConfigs(configsRes || []);
+      setJobs(jobsRes || []);
 
-      if (configsRes.length > 0) {
+      if (configsRes && configsRes.length > 0) {
         setSelectedStore(configsRes[0].store);
         setMatricula(configsRes[0].matricula);
       }
@@ -173,7 +174,7 @@ const ScrapeDashboard: React.FC = () => {
     }
   };
 
-  const jobRows = jobs.map((job) => (
+  const jobRows = (jobs || []).map((job) => (
     <Table.Tr key={job.jobId}>
       <Table.Td>{new Date(job.createdAt).toLocaleString('pt-BR')}</Table.Td>
       <Table.Td>{job.store}</Table.Td>
@@ -195,7 +196,7 @@ const ScrapeDashboard: React.FC = () => {
   return (
     <Menu>
       <div className="scrape-dashboard">
-        <LoadingOverlay visible={loading && jobs.length === 0} />
+        <LoadingOverlay visible={loading && (!jobs || jobs.length === 0)} />
         
         <Title order={2} mb="xl">Extração Automática PowerBI</Title>
 
@@ -239,9 +240,9 @@ const ScrapeDashboard: React.FC = () => {
             </Button>
           </Group>
 
-          {configs.length > 0 && (
+          {configs && configs.length > 0 && (
             <div style={{ marginTop: '20px' }}>
-                <Alert color="blue" icon={<IconPlay size={16}/>}>
+                <Alert color="blue" icon={<IconPlayerPlay size={16}/>}>
                     <Group justify="space-between">
                         <Text size="sm">
                             Sua configuração está pronta. Clique no botão ao lado para iniciar uma extração agora.
@@ -249,7 +250,7 @@ const ScrapeDashboard: React.FC = () => {
                         <Button 
                             color="blue" 
                             size="xs"
-                            leftSection={<IconPlay size={14}/>}
+                            leftSection={<IconPlayerPlay size={14}/>}
                             onClick={() => handleTrigger(configs[0].id)}
                             loading={triggering === configs[0].id}
                         >
@@ -263,7 +264,7 @@ const ScrapeDashboard: React.FC = () => {
 
         <Paper withBorder radius="md" p="md">
           <Title order={4} mb="md">Histórico de Extrações</Title>
-          {jobs.length === 0 ? (
+          {!jobs || jobs.length === 0 ? (
             <Text ta="center" c="dimmed" p="xl">Nenhuma extração realizada ainda.</Text>
           ) : (
             <Table striped highlightOnHover verticalSpacing="sm">

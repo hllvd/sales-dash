@@ -1,5 +1,6 @@
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace SalesApp.Services
@@ -29,11 +30,13 @@ namespace SalesApp.Services
     {
         private readonly IAmazonDynamoDB _dynamoDb;
         private readonly string _tableName;
+        private readonly ILogger<ScrapeDynamoLogService> _logger;
 
-        public ScrapeDynamoLogService(IAmazonDynamoDB dynamoDb, IConfiguration configuration)
+        public ScrapeDynamoLogService(IAmazonDynamoDB dynamoDb, IConfiguration configuration, ILogger<ScrapeDynamoLogService> logger)
         {
             _dynamoDb = dynamoDb;
             _tableName = configuration["AWS:DynamoDbTable"] ?? "pbi_scrape_logs";
+            _logger = logger;
         }
 
         public async Task WriteJobStatusAsync(string jobId, string userId, string status, string store, string matricula, object? additionalData = null)
@@ -70,7 +73,15 @@ namespace SalesApp.Services
                 }
             }
 
-            await _dynamoDb.PutItemAsync(_tableName, item);
+            try
+            {
+                await _dynamoDb.PutItemAsync(_tableName, item);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to write job status to DynamoDB table '{_tableName}'");
+                // Do not throw, allowing the process to continue
+            }
         }
 
         public async Task<List<ScrapeLogEntry>> GetJobsByUserAsync(Guid userId, int limit = 50)
@@ -88,8 +99,16 @@ namespace SalesApp.Services
                 Limit = limit
             };
 
-            var response = await _dynamoDb.QueryAsync(request);
-            return response.Items.Select(MapToEntry).ToList();
+            try
+            {
+                var response = await _dynamoDb.QueryAsync(request);
+                return response.Items.Select(MapToEntry).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"Failed to query jobs for user {userId} from DynamoDB table '{_tableName}'. Returning empty list.");
+                return new List<ScrapeLogEntry>();
+            }
         }
 
         public async Task<List<ScrapeLogEntry>> GetAllJobsAsync(int limit = 100)
@@ -107,8 +126,16 @@ namespace SalesApp.Services
                 Limit = limit
             };
 
-            var response = await _dynamoDb.QueryAsync(request);
-            return response.Items.Select(MapToEntry).ToList();
+            try
+            {
+                var response = await _dynamoDb.QueryAsync(request);
+                return response.Items.Select(MapToEntry).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"Failed to query all jobs from DynamoDB table '{_tableName}'. Returning empty list.");
+                return new List<ScrapeLogEntry>();
+            }
         }
 
         private ScrapeLogEntry MapToEntry(Dictionary<string, AttributeValue> item)
