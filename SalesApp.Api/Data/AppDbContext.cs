@@ -30,6 +30,7 @@ namespace SalesApp.Data
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<ScrapeConfig> ScrapeConfigs { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -313,6 +314,20 @@ namespace SalesApp.Data
                     .WithMany()
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ScrapeConfig entity configuration
+            modelBuilder.Entity<ScrapeConfig>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.UserId).IsRequired();
+                entity.Property(e => e.Store).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Matricula).IsRequired().HasMaxLength(100);
+                
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.ScrapeConfigs)
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

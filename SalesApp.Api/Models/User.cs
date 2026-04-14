@@ -43,6 +43,7 @@ namespace SalesApp.Models
         public User? ParentUser { get; set; }
         public ICollection<User> ChildUsers { get; set; } = new List<User>();
         public virtual ICollection<UserMatricula> UserMatriculas { get; set; } = new List<UserMatricula>();
+        public virtual ICollection<ScrapeConfig> ScrapeConfigs { get; set; } = new List<ScrapeConfig>();
         public ImportSession? ImportSession { get; set; }
     }
 }

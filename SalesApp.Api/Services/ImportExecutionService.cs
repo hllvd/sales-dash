@@ -1146,22 +1146,7 @@ namespace SalesApp.Services
         
         private string MapSituacaoCobrancaToStatus(string? situacaoCobranca)
         {
-            if (string.IsNullOrWhiteSpace(situacaoCobranca))
-            {
-                return ContractStatus.Active.ToApiString();
-            }
-            
-            var normalized = situacaoCobranca.Trim().ToUpperInvariant();
-            
-            return normalized switch
-            {
-                "NORMAL" => "active",
-                "NCONT 1 AT" or "CONT 1 ATR" => "late1",
-                "NCONT 2 AT" or "CONT NÃO ENTREGUE 2 ATR" or "CONT NAO ENTREGUE 2 ATR" or "CONT BEM PEND 2 ATR" => "late2",
-                "NCONT 3 AT" or "SUJ. A CANCELAMENTO" or "SUJ. A  CANCELAMENTO" => "late3",
-                "EXCLUIDO" or "DESISTENTE" => "defaulted",
-                _ => ContractStatus.Active.ToApiString().ToLowerInvariant()
-            };
+            return ContractStatusMapper.MapStatus(situacaoCobranca) ?? ContractStatus.Active.ToApiString();
         }
         
         private async Task<int?> ResolveGroupIdAsync(string? groupValue, Dictionary<string, int?> cache, int importSessionId, bool allowAutoCreate = false, ImportResult? result = null)

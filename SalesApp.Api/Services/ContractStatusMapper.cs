@@ -19,15 +19,23 @@ namespace SalesApp.Services
             { "Late1", ContractStatus.Late1.ToApiString() },
             { "NCONT 1 AT", ContractStatus.Late1.ToApiString() },
             { "CONT NÃO ENTREGUE 1 ATR", ContractStatus.Late1.ToApiString() },
+            { "CONT NAO ENTREGUE 1 ATR", ContractStatus.Late1.ToApiString() },
+            { "CONT 1 ATR", ContractStatus.Late1.ToApiString() },
+            { "CONT BEM PEND 1 ATR", ContractStatus.Late1.ToApiString() },
             
             // ✅ Late2 aliases
             { "Late2", ContractStatus.Late2.ToApiString() },
             { "NCONT 2 AT", ContractStatus.Late2.ToApiString() },
             { "CONT NÃO ENTREGUE 2 ATR", ContractStatus.Late2.ToApiString() },
+            { "CONT NAO ENTREGUE 2 ATR", ContractStatus.Late2.ToApiString() },
+            { "CONT NÃO ENTREGUE 2 ATR ", ContractStatus.Late2.ToApiString() },
+            { "CONT 2 ATR", ContractStatus.Late2.ToApiString() },
+            { "CONT BEM PEND 2 ATR", ContractStatus.Late2.ToApiString() },
             
             // ✅ Late3 aliases
             { "Late3", ContractStatus.Late3.ToApiString() },
             { "NCONT 3 AT", ContractStatus.Late3.ToApiString() },
+            { "CONT BEM PEND 3 ATR", ContractStatus.Late3.ToApiString() },
             { "SUJ. A CANCELAMENTO", ContractStatus.Late3.ToApiString() },
             { "SUJ. A  CANCELAMENTO", ContractStatus.Late3.ToApiString() }, // Handle double space
             

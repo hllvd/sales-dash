@@ -12,6 +12,7 @@ import {
   IconHistory,
   IconWand,
   IconLock,
+  IconRefresh,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -210,6 +211,18 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             styles={navLinkStyles('#/my-contracts')}
             data-testid="nav-my-contracts"
           />
+          
+          {hasPermission('system:admin') && (
+            <NavLink
+              href="#/scrapes"
+              label="Extração PowerBI"
+              leftSection={<IconRefresh size={20} />}
+              active={isActive('#/scrapes')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/scrapes')}
+            />
+          )}
 
 
         </AppShell.Section>

@@ -1,4 +1,3 @@
-
 services:
   salesapp-api:
     build:
@@ -20,6 +19,25 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    volumes:
+      - scrape-data:/app/outputs
+
+  pbi-scraper:
+    build:
+      context: ./pbi-scraper
+      dockerfile: Dockerfile
+    container_name: pbi-scraper
+    environment:
+      - PBI_TOKEN=${PBI_TOKEN}
+      - PORT=3001
+      - OUTPUT_DIR=/app/outputs
+    volumes:
+      - scrape-data:/app/outputs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   client:
     build:
@@ -27,7 +45,7 @@ services:
       dockerfile: Dockerfile.client
     container_name: salesapp-client
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
+      test: [ "CMD", "curl", "-f", "http://localhost/" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -70,3 +88,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  scrape-data: {}

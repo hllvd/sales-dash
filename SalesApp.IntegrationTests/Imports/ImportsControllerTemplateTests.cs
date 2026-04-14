@@ -37,6 +37,7 @@ namespace SalesApp.IntegrationTests.Imports
             result.Data.Should().NotBeNull();
             result.Data.Should().HaveCount(1); // Only contractDashboard for admins
             result.Data.Should().Contain(t => t.Name == "contractDashboard" && t.EntityType == "Contract");
+            result.Data.First(t => t.Name == "contractDashboard").RequiredFields.Should().Contain("MatriculaNumber");
         }
 
         [Fact]
@@ -106,6 +107,7 @@ namespace SalesApp.IntegrationTests.Imports
             result.Data.RequiredFields.Should().Contain("ContractNumber");
             result.Data.RequiredFields.Should().Contain("UserEmail");
             result.Data.RequiredFields.Should().Contain("TotalAmount");
+            result.Data.RequiredFields.Should().Contain("MatriculaNumber");
             result.Data.OptionalFields.Should().Contain("GroupId");
             result.Data.OptionalFields.Should().Contain("Status");
             result.Data.OptionalFields.Should().Contain("SaleStartDate");

@@ -1,0 +1,45 @@
+using System.Text;
+using Newtonsoft.Json;
+
+namespace SalesApp.Services
+{
+    public class ScrapeJobRequest
+    {
+        public string Store { get; set; } = string.Empty;
+        public string Matricula { get; set; } = string.Empty;
+        public string CallbackUrl { get; set; } = string.Empty;
+        public string JobId { get; set; } = string.Empty;
+    }
+
+    public class PbiScraperClient
+    {
+        private readonly HttpClient _httpClient;
+        private readonly string _callbackBaseUrl;
+
+        public PbiScraperClient(HttpClient httpClient, IConfiguration configuration)
+        {
+            _httpClient = httpClient;
+            _callbackBaseUrl = configuration["PbiScraper:CallbackBaseUrl"] ?? "http://salesapp-api:5000";
+        }
+
+        public async Task<string> EnqueueJobAsync(string jobId, string userId, string store, string matricula)
+        {
+            var request = new ScrapeJobRequest
+            {
+                JobId = jobId,
+                Store = store,
+                Matricula = matricula,
+                CallbackUrl = $"{_callbackBaseUrl}/api/scrape/callback"
+            };
+
+            var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync("/jobs", content);
+
+            response.EnsureSuccessStatusCode();
+
+            var resultJson = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<dynamic>(resultJson);
+            return result?.jobId?.ToString() ?? jobId;
+        }
+    }
+}

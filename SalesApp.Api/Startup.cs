@@ -15,6 +15,8 @@ using SalesApp.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Amazon;
+using Amazon.DynamoDBv2;
 
 namespace SalesApp
 {
@@ -43,20 +45,6 @@ namespace SalesApp
                 }
                 options.UseSqlite(connectionString);
             });
-
-            // SQLite Performance PRAGMAs (applied at startup)
-            var sp = services.BuildServiceProvider();
-            using (var scope = sp.CreateScope())
-            {
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var dbConnection = dbContext.Database.GetDbConnection();
-                dbConnection.Open();
-                using (var command = dbConnection.CreateCommand())
-                {
-                    command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA cache_size=-100000;";
-                    command.ExecuteNonQuery();
-                }
-            }
 
             // Data Protection (fix encryption warning)
             services.AddDataProtection()
@@ -102,6 +90,28 @@ namespace SalesApp
             // Email services
             services.AddScoped<IEmailSender, SesEmailSender>();
             services.AddScoped<IEmailService, EmailService>();
+
+            // AWS DynamoDB
+            services.AddSingleton<IAmazonDynamoDB>(sp => {
+                var config = sp.GetRequiredService<IConfiguration>();
+                var dynamoDbConfig = new AmazonDynamoDBConfig
+                {
+                    RegionEndpoint = RegionEndpoint.GetBySystemName(config["AWS:Region"] ?? "us-east-1")
+                };
+                return new AmazonDynamoDBClient(dynamoDbConfig);
+            });
+
+            // Scraping Services
+            services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();
+            services.AddScoped<IScrapeImportService, ScrapeImportService>();
+            services.AddScoped<IScrapeOrchestrator, ScrapeOrchestrator>();
+
+            // Typed HttpClient for pbi-scraper
+            services.AddHttpClient<PbiScraperClient>(client =>
+            {
+                client.BaseAddress = new Uri(Configuration["PbiScraper:BaseUrl"] ?? "http://pbi-scraper:3001");
+                client.Timeout = TimeSpan.FromMinutes(5);
+            });
 
             
             // CORS
@@ -223,6 +233,27 @@ namespace SalesApp
             // Removed app.UseHttpsRedirection() as it's handled by Nginx proxy
 
             app.UseRouting();
+            
+            // Apply SQLite Performance PRAGMAs
+            using (var scope = app.ApplicationServices.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                try
+                {
+                    var dbConnection = dbContext.Database.GetDbConnection();
+                    dbConnection.Open();
+                    using (var command = dbConnection.CreateCommand())
+                    {
+                        command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA cache_size=-100000;";
+                        command.ExecuteNonQuery();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log error but don't crash startup at this point
+                    Console.WriteLine($"[Startup] Failed to apply SQLite PRAGMAs: {ex.Message}");
+                }
+            }
             
             app.UseCors("AllowAll");
 

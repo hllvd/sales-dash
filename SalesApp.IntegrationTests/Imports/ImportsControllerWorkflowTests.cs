@@ -32,9 +32,9 @@ namespace SalesApp.IntegrationTests.Imports
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Create CSV content
-            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate
-TEST-001,john.doe@test.com,1000.50,0,active,2024-01-01
-TEST-002,jane.smith@test.com,2000.75,0,active,2024-01-01";
+            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate,MatriculaNumber
+TEST-001,john.doe@test.com,1000.50,0,active,2024-01-01,MAT-001
+TEST-002,jane.smith@test.com,2000.75,0,active,2024-01-01,MAT-002";
 
             var uploadId = await UploadFile(csvContent, "contracts.csv", "text/csv");
 
@@ -48,7 +48,8 @@ TEST-002,jane.smith@test.com,2000.75,0,active,2024-01-01";
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
                     { "Status", "Status" },
-                    { "SaleStartDate", "SaleStartDate" }
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
                 }
             };
 
@@ -125,9 +126,9 @@ TEST-002,jane.smith@test.com,2000.75,0,active,2024-01-01";
             var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            var csvContent = @"Contract Number,Total,Group,SaleStartDate
-TEST-CSV-001,1500,0,2024-01-01
-TEST-CSV-002,2500,0,2024-01-01";
+            var csvContent = @"Contract Number,Total,Group,SaleStartDate,MatriculaNumber
+TEST-CSV-001,1500,0,2024-01-01,MAT-CSV-1
+TEST-CSV-002,2500,0,2024-01-01,MAT-CSV-2";
 
             // Act
             var uploadId = await UploadFile(csvContent, "test.csv", "text/csv");
@@ -157,8 +158,8 @@ TEST-CSV-002,2500,0,2024-01-01";
             var templateId = 2;
 
             // Upload file with template
-            var csvContent = @"Contract Number,User Name,User Surname,Total Amount,Group ID,Status,SaleStartDate
-TMPL-001,Test,User,5000,0,active,2024-01-01";
+            var csvContent = @"Contract Number,User Name,User Surname,Total Amount,Group ID,Status,SaleStartDate,MatriculaNumber
+TMPL-001,Test,User,5000,0,active,2024-01-01,MAT-TMPL";
 
             var content = new MultipartFormDataContent();
             var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
@@ -308,8 +309,8 @@ TMPL-001,Test,User,5000,0,active,2024-01-01";
             var firstName = names.Length > 0 ? names[0] : "Test";
             var lastName = names.Length > 1 ? names[1] : "User";
 
-            var csvContent = $@"Contract Number,User Name,User Surname,Total Amount,Group,SaleStartDate
-EXIST-001,{firstName},{lastName},1000,0,2024-01-01";
+            var csvContent = $@"Contract Number,User Name,User Surname,Total Amount,Group,SaleStartDate,MatriculaNumber
+EXIST-001,{firstName},{lastName},1000,0,2024-01-01,MAT-EXIST";
 
             var uploadId = await UploadFile(csvContent, "existing-user.csv", "text/csv");
 
@@ -323,7 +324,8 @@ EXIST-001,{firstName},{lastName},1000,0,2024-01-01";
                     { "User Surname", "UserSurname" },
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
-                    { "SaleStartDate", "SaleStartDate" }
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
                 }
             };
 

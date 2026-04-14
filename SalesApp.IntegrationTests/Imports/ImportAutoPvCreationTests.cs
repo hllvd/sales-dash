@@ -68,7 +68,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "Quota", "1" },
                     { "CustomerName", "Test Customer" },
                     { "PvId", pvId.ToString() },
-                    { "PvName", pvName }
+                    { "PvName", pvName },
+                    { "MatriculaNumber", "MAT-PV-1" }
                 }
             };
 
@@ -81,7 +82,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "Quota", "Quota" },
                 { "CustomerName", "CustomerName" },
                 { "PvId", "PvId" },
-                { "PvName", "PvName" }
+                { "PvName", "PvName" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act
@@ -132,7 +134,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "Quota", "1" },
                     { "CustomerName", "Test Customer" },
                     { "PvId", pvId.ToString() },
-                    { "PvName", pvName }
+                    { "PvName", pvName },
+                    { "MatriculaNumber", "MAT-PV-2" }
                 }
             };
 
@@ -145,7 +148,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "Quota", "Quota" },
                 { "CustomerName", "CustomerName" },
                 { "PvId", "PvId" },
-                { "PvName", "PvName" }
+                { "PvName", "PvName" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act

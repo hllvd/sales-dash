@@ -7,10 +7,10 @@ namespace SalesApp.Tests
     public class ContractStatusMapperTests
     {
         [Theory]
-        [InlineData("Active", "active")]
-        [InlineData("Normal", "active")]
-        [InlineData("NORMAL", "active")]
-        [InlineData("active", "active")]
+        [InlineData("Active", "Active")]
+        [InlineData("Normal", "Active")]
+        [InlineData("NORMAL", "Active")]
+        [InlineData("active", "Active")]
         public void MapStatus_ActiveAliases_ShouldMapToActive(string input, string expected)
         {
             // Act
@@ -21,10 +21,10 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Late1", "late1")]
-        [InlineData("NCONT 1 AT", "late1")]
-        [InlineData("ncont 1 at", "late1")]
-        [InlineData("CONT NÃO ENTREGUE 1 ATR", "late1")]
+        [InlineData("Late1", "Late1")]
+        [InlineData("NCONT 1 AT", "Late1")]
+        [InlineData("ncont 1 at", "Late1")]
+        [InlineData("CONT NÃO ENTREGUE 1 ATR", "Late1")]
         public void MapStatus_Late1Aliases_ShouldMapToLate1(string input, string expected)
         {
             // Act
@@ -35,10 +35,10 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Late2", "late2")]
-        [InlineData("NCONT 2 AT", "late2")]
-        [InlineData("ncont 2 at", "late2")]
-        [InlineData("CONT NÃO ENTREGUE 2 ATR", "late2")]
+        [InlineData("Late2", "Late2")]
+        [InlineData("NCONT 2 AT", "Late2")]
+        [InlineData("ncont 2 at", "Late2")]
+        [InlineData("CONT NÃO ENTREGUE 2 ATR", "Late2")]
         public void MapStatus_Late2Aliases_ShouldMapToLate2(string input, string expected)
         {
             // Act
@@ -49,12 +49,12 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Late3", "late3")]
-        [InlineData("NCONT 3 AT", "late3")]
-        [InlineData("SUJ. A CANCELAMENTO", "late3")]
-        [InlineData("SUJ. A  CANCELAMENTO", "late3")] // Double space
-        [InlineData("suj. a cancelamento", "late3")]
-        [InlineData("delinquent", "late3")] // Legacy
+        [InlineData("Late3", "Late3")]
+        [InlineData("NCONT 3 AT", "Late3")]
+        [InlineData("SUJ. A CANCELAMENTO", "Late3")]
+        [InlineData("SUJ. A  CANCELAMENTO", "Late3")] // Double space
+        [InlineData("suj. a cancelamento", "Late3")]
+        [InlineData("delinquent", "Late3")] // Legacy
         public void MapStatus_Late3Aliases_ShouldMapToLate3(string input, string expected)
         {
             // Act
@@ -65,12 +65,12 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Defaulted", "defaulted")]
-        [InlineData("DESISTENTE", "defaulted")]
-        [InlineData("EXCLUIDO", "defaulted")]
-        [InlineData("desistente", "defaulted")]
-        [InlineData("excluido", "defaulted")]
-        [InlineData("paid_off", "defaulted")] // Legacy
+        [InlineData("Defaulted", "Defaulted")]
+        [InlineData("DESISTENTE", "Defaulted")]
+        [InlineData("EXCLUIDO", "Defaulted")]
+        [InlineData("desistente", "Defaulted")]
+        [InlineData("excluido", "Defaulted")]
+        [InlineData("paid_off", "Defaulted")] // Legacy
         public void MapStatus_DefaultedAliases_ShouldMapToDefaulted(string input, string expected)
         {
             // Act
@@ -81,9 +81,9 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Transferred", "transferred")]
-        [InlineData("TRANSFERIDO", "transferred")]
-        [InlineData("transferred", "transferred")]
+        [InlineData("Transferred", "Transferred")]
+        [InlineData("TRANSFERIDO", "Transferred")]
+        [InlineData("transferred", "Transferred")]
         public void MapStatus_TransferredAliases_ShouldMapToTransferred(string input, string expected)
         {
             // Act
@@ -116,7 +116,7 @@ namespace SalesApp.Tests
         [InlineData("Transferred", true)]
         [InlineData("active", true)] // lowercase IS valid now
         [InlineData("transferred", true)]
-        [InlineData("Normal", false)] // alias not valid (only canonical)
+        [InlineData("Normal", true)] // alias IS valid now
         [InlineData("Invalid", false)]
         [InlineData(null, false)]
         public void IsValidStatus_ShouldValidateCorrectly(string? input, bool expected)
@@ -136,12 +136,12 @@ namespace SalesApp.Tests
 
             // Assert
             statuses.Should().HaveCount(6);
-            statuses.Should().Contain("active");
-            statuses.Should().Contain("late1");
-            statuses.Should().Contain("late2");
-            statuses.Should().Contain("late3");
-            statuses.Should().Contain("defaulted");
-            statuses.Should().Contain("transferred");
+            statuses.Should().Contain("Active");
+            statuses.Should().Contain("Late1");
+            statuses.Should().Contain("Late2");
+            statuses.Should().Contain("Late3");
+            statuses.Should().Contain("Defaulted");
+            statuses.Should().Contain("Transferred");
         }
     }
 }

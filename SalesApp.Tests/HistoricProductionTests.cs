@@ -20,6 +20,8 @@ namespace SalesApp.Tests
         private readonly Mock<IContractAggregationService> _mockAggregationService;
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
         private readonly Mock<IMessageService> _mockMessageService;
+        private readonly Mock<IUserScopeService> _mockUserScopeService;
+        private readonly Mock<IExportService> _mockExportService;
         private readonly ContractsController _controller;
 
         public HistoricProductionTests()
@@ -30,13 +32,17 @@ namespace SalesApp.Tests
             _mockAggregationService = new Mock<IContractAggregationService>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
             _mockMessageService = new Mock<IMessageService>();
+            _mockUserScopeService = new Mock<IUserScopeService>();
+            _mockExportService = new Mock<IExportService>();
             _controller = new ContractsController(
                 _mockRepository.Object,
                 _mockUserRepository.Object,
                 _mockGroupRepository.Object,
                 _mockAggregationService.Object,
                 _mockMatriculaRepository.Object,
-                _mockMessageService.Object
+                _mockMessageService.Object,
+                _mockUserScopeService.Object,
+                _mockExportService.Object
             );
 
             // Setup MessageService to return English messages for tests

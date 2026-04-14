@@ -24,13 +24,38 @@ namespace SalesApp.IntegrationTests.Imports
 
         private async Task SetupTestDataAsync(AppDbContext context)
         {
-            // Clear existing users and matriculas
+            // Clear existing data in correct order (child to parent) to avoid FK constraint violations
+            context.AuditLogs.RemoveRange(context.AuditLogs);
+            context.Contracts.RemoveRange(context.Contracts);
+            context.ImportRows.RemoveRange(context.ImportRows);
+            context.ImportSessions.RemoveRange(context.ImportSessions);
+            context.Groups.RemoveRange(context.Groups);
+            context.PVs.RemoveRange(context.PVs);
             context.UserMatriculas.RemoveRange(context.UserMatriculas);
-            var users = await context.Users.Where(u => u.Email != "superadmin@test.com" && u.Email != "admin@test.com" && u.Email != "user@test.com").ToListAsync();
+            context.RefreshTokens.RemoveRange(context.RefreshTokens);
+            context.ScrapeConfigs.RemoveRange(context.ScrapeConfigs);
+            
+            var users = await context.Users
+                .Where(u => u.Email != "superadmin@test.com" && u.Email != "admin@test.com" && u.Email != "user@test.com")
+                .ToListAsync();
             context.Users.RemoveRange(users);
             await context.SaveChangesAsync();
-
+            
             var role = await context.Roles.FirstAsync();
+
+            // Ensure we have an admin user for the tests
+            if (!await context.Users.AnyAsync(u => u.Email == "admin@test.com"))
+            {
+                context.Users.Add(new User 
+                { 
+                    Name = "Admin", 
+                    Email = "admin@test.com", 
+                    PasswordHash = "hash", 
+                    RoleId = role.Id, 
+                    IsActive = true 
+                });
+                await context.SaveChangesAsync();
+            }
 
             var carlos = new User { Name = "Carlos Eduardo Pereira", Email = "carlos@test.com", PasswordHash = "hash", RoleId = role.Id, IsActive = true };
             var anthony = new User { Name = "Anthony Francys Bryan Pereira", Email = "anthony@test.com", PasswordHash = "hash", RoleId = role.Id, IsActive = true };
@@ -62,8 +87,16 @@ namespace SalesApp.IntegrationTests.Imports
 
             var wizardService = scope.ServiceProvider.GetRequiredService<IWizardService>();
             
-            // 1. Create a dummy session
-            var session = new ImportSession { UploadId = Guid.NewGuid().ToString(), FileName = "test.csv", Status = "ready", TotalRows = 2 };
+            var adminUser = await context.Users.FirstAsync(u => u.Email.Contains("admin"));
+            var session = new ImportSession 
+            { 
+                UploadId = Guid.NewGuid().ToString(), 
+                FileName = "test.csv", 
+                FileType = "csv",
+                UploadedByUserId = adminUser.Id,
+                Status = "ready", 
+                TotalRows = 2 
+            };
             context.ImportSessions.Add(session);
             await context.SaveChangesAsync();
 
@@ -113,7 +146,16 @@ namespace SalesApp.IntegrationTests.Imports
 
             var wizardService = scope.ServiceProvider.GetRequiredService<IWizardService>();
             
-            var session = new ImportSession { UploadId = Guid.NewGuid().ToString(), FileName = "test.csv", Status = "ready", TotalRows = 1 };
+            var adminUser = await context.Users.FirstAsync(u => u.Email.Contains("admin"));
+            var session = new ImportSession 
+            { 
+                UploadId = Guid.NewGuid().ToString(), 
+                FileName = "test.csv", 
+                FileType = "csv",
+                UploadedByUserId = adminUser.Id,
+                Status = "ready", 
+                TotalRows = 1 
+            };
             context.ImportSessions.Add(session);
             await context.SaveChangesAsync();
 
@@ -144,7 +186,16 @@ namespace SalesApp.IntegrationTests.Imports
 
             var wizardService = scope.ServiceProvider.GetRequiredService<IWizardService>();
             
-            var session = new ImportSession { UploadId = Guid.NewGuid().ToString(), FileName = "test.csv", Status = "ready", TotalRows = 1 };
+            var adminUser = await context.Users.FirstAsync(u => u.Email.Contains("admin"));
+            var session = new ImportSession 
+            { 
+                UploadId = Guid.NewGuid().ToString(), 
+                FileName = "test.csv", 
+                FileType = "csv",
+                UploadedByUserId = adminUser.Id,
+                Status = "ready", 
+                TotalRows = 1 
+            };
             context.ImportSessions.Add(session);
             await context.SaveChangesAsync();
 
@@ -176,7 +227,16 @@ namespace SalesApp.IntegrationTests.Imports
 
             var wizardService = scope.ServiceProvider.GetRequiredService<IWizardService>();
             
-            var session = new ImportSession { UploadId = Guid.NewGuid().ToString(), FileName = "test.csv", Status = "ready", TotalRows = 1 };
+            var adminUser = await context.Users.FirstAsync(u => u.Email.Contains("admin"));
+            var session = new ImportSession 
+            { 
+                UploadId = Guid.NewGuid().ToString(), 
+                FileName = "test.csv", 
+                FileType = "csv",
+                UploadedByUserId = adminUser.Id,
+                Status = "ready", 
+                TotalRows = 1 
+            };
             context.ImportSessions.Add(session);
             await context.SaveChangesAsync();
 

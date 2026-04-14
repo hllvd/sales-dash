@@ -12,6 +12,8 @@ using SalesApp.Data;
 using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
+using Moq;
+using Amazon.DynamoDBv2;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using SalesApp.Authorization;
@@ -51,6 +53,17 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
 
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
+            services.AddScoped<IUserScopeService, UserScopeService>();
+            services.AddSingleton<IExportService, ExportService>();
+            services.AddScoped<IWizardService, WizardService>();
+            
+            // AWS DynamoDB Mock/Placeholder for activation
+            services.AddSingleton<IAmazonDynamoDB>(new Mock<IAmazonDynamoDB>().Object);
+
+            // Scraping Services
+            services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();
+            services.AddScoped<IScrapeImportService, ScrapeImportService>();
+            services.AddScoped<IScrapeOrchestrator, ScrapeOrchestrator>();
             
             // Production-Grade RBAC
             services.AddSingleton<IRbacCache, RbacCache>();
