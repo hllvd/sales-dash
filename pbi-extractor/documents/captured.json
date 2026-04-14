@@ -1,0 +1,190 @@
+const https = require('https');
+const fs    = require('fs');
+
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const CONFIG = {
+  // Paste a fresh MWCToken here when it expires (~1hr)
+  token: 'MWCToken PASTE_FRESH_TOKEN_HERE',
+
+  endpoint:   '7a8110990e16404daec259c355434bc6.pbidedicated.windows.net',
+  path:       '/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query',
+
+  store:      'BALNEARIO CAMBORIU - SC',  // change to extract other stores
+  outputFile: './output.csv',
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildPayload(store) {
+  return {
+    version: "1.0.0",
+    queries: [{
+      Query: {
+        Commands: [{
+          SemanticQueryDataShapeCommand: {
+            Query: {
+              Version: 2,
+              From: [
+                { Name: "m", Entity: "1_Medidas",        Type: 0 },
+                { Name: "t", Entity: "tbl_cotas",        Type: 0 },
+                { Name: "r", Entity: "Regiões",          Type: 0 },
+                { Name: "c", Entity: "Calendario",       Type: 0 },
+                { Name: "p", Entity: "Parâmetro_Senhas", Type: 0 },
+                { Name: "a", Entity: "acessos",          Type: 0 }
+              ],
+              Select: [
+                { Measure: { Expression: { SourceRef: { Source: "m" } }, Property: "Produção Oficial"      }, Name: "Medidas.Produção Oficial",         NativeReferenceName: "Produção Oficial"  },
+                { Measure: { Expression: { SourceRef: { Source: "m" } }, Property: "Retenção"              }, Name: "Medidas.Retenção",                  NativeReferenceName: "Retenção"          },
+                { Column:  { Expression: { SourceRef: { Source: "t" } }, Property: "id_consultor"          }, Name: "tbl_cotas.id_consultor",            NativeReferenceName: "CNPJ"              },
+                { Column:  { Expression: { SourceRef: { Source: "r" } }, Property: "regiao"                }, Name: "Regiões.regiao",                    NativeReferenceName: "Região"            },
+                { Column:  { Expression: { SourceRef: { Source: "t" } }, Property: "Consultor_Matricula"   }, Name: "tbl_cotas.Consultor_Matricula",     NativeReferenceName: "Consultor"         },
+                { Column:  { Expression: { SourceRef: { Source: "t" } }, Property: "nm_unidade_bi_original"}, Name: "tbl_cotas.nm_unidade_bi_original",  NativeReferenceName: "Unidade Original"  }
+              ],
+              Where: [
+                // Produção Oficial > 0
+                { Condition: { Comparison: { ComparisonKind: 1, Left: { Measure: { Expression: { SourceRef: { Source: "m" } }, Property: "Produção Oficial" } }, Right: { Literal: { Value: "0L" } } } }, Target: [ { Column: { Expression: { SourceRef: { Source: "t" } }, Property: "id_consultor" } }, { Column: { Expression: { SourceRef: { Source: "t" } }, Property: "Consultor_Matricula" } }, { Column: { Expression: { SourceRef: { Source: "t" } }, Property: "nm_unidade_bi_original" } }, { Column: { Expression: { SourceRef: { Source: "r" } }, Property: "regiao" } } ] },
+                // Filtro de Cotas > 0
+                { Condition: { Comparison: { ComparisonKind: 1, Left: { Measure: { Expression: { SourceRef: { Source: "m" } }, Property: "Filtro de Cotas" } }, Right: { Literal: { Value: "0L" } } } }, Target: [ { Column: { Expression: { SourceRef: { Source: "t" } }, Property: "id_consultor" } }, { Column: { Expression: { SourceRef: { Source: "t" } }, Property: "Consultor_Matricula" } }, { Column: { Expression: { SourceRef: { Source: "t" } }, Property: "nm_unidade_bi_original" } }, { Column: { Expression: { SourceRef: { Source: "r" } }, Property: "regiao" } } ] },
+                // Grupo Ativo = 'Sim'
+                { Condition: { In: { Expressions: [{ Column: { Expression: { SourceRef: { Source: "t" } }, Property: "Grupo Ativo" } }], Values: [[{ Literal: { Value: "'Sim'" } }]] } } },
+                // Ano = 2026
+                { Condition: { In: { Expressions: [{ Column: { Expression: { SourceRef: { Source: "c" } }, Property: "Ano" } }], Values: [[{ Literal: { Value: "2026L" } }]] } } },
+                // Store filter (dynamic)
+                { Condition: { In: { Expressions: [{ Column: { Expression: { SourceRef: { Source: "t" } }, Property: "nm_unidade_bi_original" } }], Values: [[{ Literal: { Value: `'${store}'` } }]] } } }
+              ],
+              OrderBy: [{ Direction: 2, Expression: { Measure: { Expression: { SourceRef: { Source: "m" } }, Property: "Produção Oficial" } } }]
+            },
+            Binding: {
+              Primary: { Groupings: [{ Projections: [0,1,2,3,4,5], Subtotal: 1 }] },
+              DataReduction: { DataVolume: 3, Primary: { Window: { Count: 500 } } },
+              Version: 1
+            },
+            ExecutionMetricsKind: 1
+          }
+        }]
+      },
+      QueryId: ""
+    }],
+    cancelQueries: [],
+    modelId: 5258155,
+    userPreferredLocale: "en-US",
+    allowLongRunningQueries: true
+  };
+}
+
+function post(body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req  = https.request({
+      hostname: CONFIG.endpoint,
+      path:     CONFIG.path,
+      method:   'POST',
+      headers: {
+        'Authorization':  CONFIG.token,
+        'Content-Type':   'application/json',
+        'Accept':         'application/json, text/plain, */*',
+        'Origin':         'https://dashboardbi.ademicon.com.br',
+        'Referer':        'https://dashboardbi.ademicon.com.br/',
+        'User-Agent':     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Content-Length': Buffer.byteLength(data),
+      }
+    }, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => {
+        console.log(`HTTP ${res.statusCode}`);
+        if (res.statusCode !== 200) {
+          console.error('Error response:', raw.substring(0, 600));
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+        try { resolve(JSON.parse(raw)); }
+        catch(e) { reject(new Error('JSON parse failed:\n' + raw.substring(0, 300))); }
+      });
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
+// Column names matching the Select order above
+const COLUMNS = ['Produção Oficial', 'Retenção', 'CNPJ', 'Região', 'Consultor', 'Unidade Original'];
+
+function parseRows(data) {
+  // Always save raw for debugging
+  fs.writeFileSync('./raw_response.json', JSON.stringify(data, null, 2));
+  console.log('Raw response saved → raw_response.json');
+
+  // ── Path 1: flat rows (standard executeQueries) ──────────────
+  const flat = data?.results?.[0]?.tables?.[0]?.rows;
+  if (flat && flat.length > 0) {
+    console.log('Format detected: flat');
+    return flat.map(r => {
+      const row = {};
+      COLUMNS.forEach((col, i) => { row[col] = Object.values(r)[i] ?? null; });
+      return row;
+    });
+  }
+
+  // ── Path 2: DSR compressed format (Premium / pbidedicated) ───
+  const ds = data?.results?.[0]?.result?.data?.dsr?.DS?.[0];
+  if (ds) {
+    console.log('Format detected: DSR');
+    console.log('DS keys:', Object.keys(ds));
+
+    const rows = [];
+    const ph   = ds.PH || [];
+
+    for (const group of ph) {
+      const items = group.DM0 || group.D || [];
+      for (const item of items) {
+        const row = {};
+        if (Array.isArray(item)) {
+          COLUMNS.forEach((col, i) => { row[col] = item[i] ?? null; });
+        } else {
+          COLUMNS.forEach((col, i) => { row[col] = item[i] ?? item[col] ?? null; });
+        }
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
+
+  // ── Path 3: unknown format ────────────────────────────────────
+  console.log('Unknown format. Top-level keys:', Object.keys(data || {}));
+  console.log('Share raw_response.json and I will fix the parser.');
+  return [];
+}
+
+function toCsv(rows) {
+  if (!rows.length) return '';
+  const headers = Object.keys(rows[0]);
+  const esc = v => {
+    const s = (v === null || v === undefined) ? '' : String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [
+    headers.join(','),
+    ...rows.map(r => headers.map(h => esc(r[h])).join(','))
+  ].join('\n');
+}
+
+async function main() {
+  console.log(`\nStore   : ${CONFIG.store}`);
+  console.log(`Endpoint: ${CONFIG.endpoint}\n`);
+
+  const data = await post(buildPayload(CONFIG.store));
+  const rows = parseRows(data);
+
+  console.log(`\nRows parsed : ${rows.length}`);
+
+  if (rows.length > 0) {
+    console.log('Sample row  :', rows[0]);
+    fs.writeFileSync(CONFIG.outputFile, toCsv(rows), 'utf8');
+    console.log(`\n✓ ${rows.length} rows saved to ${CONFIG.outputFile}`);
+  } else {
+    console.log('\n⚠ No rows. Share raw_response.json for parser fix.');
+  }
+}
+
+main().catch(e => { console.error('\nFailed:', e.message); process.exit(1); });

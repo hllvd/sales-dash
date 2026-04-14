@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "TokenExpired",
+    "message": "Access token has expired, resubmit with a new access token"
+  }
+}

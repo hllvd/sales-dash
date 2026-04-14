@@ -1,0 +1,432 @@
+
+ENDPOINT
+https://7a8110990e16404daec259c355434bc6.pbidedicated.windows.net/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query
+
+
+PAYLOAD
+{"version":"1.0.0","queries":[{"Query":{"Commands":[{"SemanticQueryDataShapeCommand":{"Query":{"Version":2,"From":[{"Name":"t","Entity":"tbl_cotas","Type":0},{"Name":"p","Entity":"Parâmetro_Senhas","Type":0},{"Name":"a","Entity":"acessos","Type":0}],"Select":[{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_original"},"Name":"tbl_cotas.nm_unidade_bi_original","NativeReferenceName":"Unidade"}],"Where":[{"Condition":{"And":{"Left":{"Comparison":{"ComparisonKind":2,"Left":{"Column":{"Expression":{"SourceRef":{"Source":"p"}},"Property":"Parâmetro_Senhas"}},"Right":{"Literal":{"Value":"929009D"}}}},"Right":{"Comparison":{"ComparisonKind":4,"Left":{"Column":{"Expression":{"SourceRef":{"Source":"p"}},"Property":"Parâmetro_Senhas"}},"Right":{"Literal":{"Value":"929009D"}}}}}}},{"Condition":{"In":{"Expressions":[{"Column":{"Expression":{"SourceRef":{"Source":"a"}},"Property":"matricula"}}],"Values":[[{"Literal":{"Value":"'011177'"}}]]}}}]},"Binding":{"Primary":{"Groupings":[{"Projections":[0]}]},"DataReduction":{"DataVolume":3,"Primary":{"Window":{}}},"IncludeEmptyGroups":true,"Version":1},"ExecutionMetricsKind":1}}]},"QueryId":"","ApplicationContext":{"DatasetId":"ecfe45f3-4e9f-4a6e-9d56-91020972365d","Sources":[{"ReportId":"0fdd545d-8c7f-4a8a-9723-daf16cac10d6","VisualId":"b266eb40c9dca1d7d913"}]}}],"cancelQueries":[],"modelId":5258155,"userPreferredLocale":"en-US","allowLongRunningQueries":true}
+
+
+RESPONSE
+{
+    "results": [
+        {
+            "jobId": "0",
+            "fromCache": false,
+            "result": {
+                "data": {
+                    "timestamp": "/Date(1776030443448)/",
+                    "rootActivityId": "d8e1db6e-447d-4e5e-9d46-fddef04565c8",
+                    "descriptor": {
+                        "Select": [
+                            {
+                                "Kind": 1,
+                                "Depth": 0,
+                                "Value": "G0",
+                                "GroupKeys": [
+                                    {
+                                        "Source": {
+                                            "Entity": "tbl_cotas",
+                                            "Property": "nm_unidade_bi_original"
+                                        },
+                                        "Calc": "G0",
+                                        "IsSameAsSelect": true
+                                    }
+                                ],
+                                "Name": "tbl_cotas.nm_unidade_bi_original"
+                            }
+                        ],
+                        "Expressions": {
+                            "Primary": {
+                                "Groupings": [
+                                    {
+                                        "Keys": [
+                                            {
+                                                "Source": {
+                                                    "Entity": "tbl_cotas",
+                                                    "Property": "nm_unidade_bi_original"
+                                                },
+                                                "Select": 0
+                                            }
+                                        ],
+                                        "Member": "DM0"
+                                    }
+                                ]
+                            }
+                        },
+                        "Version": 2
+                    },
+                    "dsr": {
+                        "Version": 2,
+                        "MinorVersion": 1,
+                        "DS": [
+                            {
+                                "N": "DS0",
+                                "PH": [
+                                    {
+                                        "DM0": [
+                                            {
+                                                "S": [
+                                                    {
+                                                        "N": "G0",
+                                                        "T": 1
+                                                    }
+                                                ],
+                                                "G0": "AHU - PR"
+                                            },
+                                            {
+                                                "G0": "ALMIRANTE TAMANDARE - PR"
+                                            },
+                                            {
+                                                "G0": "ALPHAVILLE BARUERI - SP"
+                                            },
+                                            {
+                                                "G0": "ALPHAVILLE MONTREAL - SP"
+                                            },
+                                            {
+                                                "G0": "ALPHAVILLE MURANO - SP"
+                                            },
+                                            {
+                                                "G0": "ALTO DA XV - PR"
+                                            },
+                                            {
+                                                "G0": "AMERICANA - SP"
+                                            },
+                                            {
+                                                "G0": "ANAPOLIS - GO"
+                                            },
+                                            {
+                                                "G0": "APUCARANA - PR"
+                                            },
+                                            {
+                                                "G0": "ARACAJU - SE"
+                                            },
+                                            {
+                                                "G0": "ARACATUBA - SP"
+                                            },
+                                            {
+                                                "G0": "ARAPONGAS - PR"
+                                            },
+                                            {
+                                                "G0": "ARAQUARI ITINGA - SC"
+                                            },
+                                            {
+                                                "G0": "ARARAQUARA - SP"
+                                            },
+                                            {
+                                                "G0": "ARAUCARIA - PR"
+                                            },
+                                            {
+                                                "G0": "ARIQUEMES - RO"
+                                            },
+                                            {
+                                                "G0": "ASSIS AV D ANTONIO  - SP"
+                                            },
+                                            {
+                                                "G0": "AVENIDA DAS TORRES - PR"
+                                            },
+                                            {
+                                                "G0": "BACACHERI - PR"
+                                            },
+                                            {
+                                                "G0": "BAGE - RS"
+                                            },
+                                            {
+                                                "G0": "BALNEARIO CAMBORIU - SC"
+                                            },
+                                            {
+                                                "G0": "BALNEARIO PICARRAS \u2013 SC"
+                                            },
+                                            {
+                                                "G0": "BALSAS SANTO AMARO - MA"
+                                            },
+                                            {
+                                                "G0": "BARRA DO GARCAS - MT"
+                                            },
+                                            {
+                                                "G0": "BARREIRAS - BA"
+                                            },
+                                            {
+                                                "G0": "BATEL I - PR"
+                                            },
+                                            {
+                                                "G0": "BATEL II - PR"
+                                            },
+                                            {
+                                                "G0": "BAURU - SP"
+                                            },
+                                            {
+                                                "G0": "BELEM - PA"
+                                            },
+                                            {
+                                                "G0": "BENTO GONCALVES - RS"
+                                            },
+                                            {
+                                                "G0": "BH - BELVEDERE - MG"
+                                            },
+                                            {
+                                                "G0": "BH - LOURDES - MG"
+                                            },
+                                            {
+                                                "G0": "BH - LOURDES II  - MG"
+                                            },
+                                            {
+                                                "G0": "BH - RAJA - MG"
+                                            },
+                                            {
+                                                "G0": "BH ANCHIETA - MG"
+                                            },
+                                            {
+                                                "G0": "BIGUACU - SC"
+                                            },
+                                            {
+                                                "G0": "BLUMENAU - SC"
+                                            },
+                                            {
+                                                "G0": "BRACO DO NORTE - SC"
+                                            },
+                                            {
+                                                "G0": "BRASILIA - AGUAS CLARAS - DF"
+                                            },
+                                            {
+                                                "G0": "BRASILIA - DF"
+                                            },
+                                            {
+                                                "G0": "BRUSQUE - SC"
+                                            },
+                                            {
+                                                "G0": "CACADOR - SC"
+                                            },
+                                            {
+                                                "G0": "CACOAL CENTRO - RO"
+                                            },
+                                            {
+                                                "G0": "CAJURU - PR"
+                                            },
+                                            {
+                                                "G0": "CAMACARI - BA"
+                                            },
+                                            {
+                                                "G0": "CAMBE CENTRO - PR"
+                                            },
+                                            {
+                                                "G0": "CAMBORIU - SC"
+                                            },
+                                            {
+                                                "G0": "CAMPINA GRANDE - PB"
+                                            },
+                                            {
+                                                "G0": "CAMPINAS - NOVA CAMPINAS - SP"
+                                            },
+                                            {
+                                                "G0": "CAMPINAS - SP"
+                                            },
+                                            {
+                                                "G0": "CAMPINAS TAQUARAL - SP"
+                                            },
+                                            {
+                                                "G0": "CAMPO GRANDE - MS"
+                                            },
+                                            {
+                                                "G0": "CAMPO GRANDE - RJ"
+                                            },
+                                            {
+                                                "G0": "CAMPO GRANDE CENTRO - MS"
+                                            },
+                                            {
+                                                "G0": "CAMPO GRANDE II - MS"
+                                            },
+                                            {
+                                                "G0": "CAMPO LARGO - PR"
+                                            },
+                                            {
+                                                "G0": "CAMPO MOURAO - PR"
+                                            },
+                                            {
+                                                "G0": "CAMPO VERDE - MT"
+                                            },
+                                            {
+                                                "G0": "CAMPOS DOS GOYTACAZES - RJ"
+                                            },
+                                            {
+                                                "G0": "CANOAS - RS"
+                                            },
+                                            {
+                                                "G0": "CANOINHAS - SC"
+                                            },
+                                            {
+                                                "G0": "CAPAO DA CANOA - RS"
+                                            },
+                                            {
+                                                "G0": "CAPAO RASO - PR"
+                                            },
+                                            {
+                                                "G0": "CARAMBEI - PR"
+                                            },
+                                            {
+                                                "G0": "CARUARU - PE"
+                                            },
+                                            {
+                                                "G0": "CASCAVEL - PR"
+                                            },
+                                            {
+                                                "G0": "CASCAVEL CENTRO - PR"
+                                            },
+                                            {
+                                                "G0": "CASTRO - PR"
+                                            },
+                                            {
+                                                "G0": "CAXIAS DO SUL - RS"
+                                            },
+                                            {
+                                                "G0": "CHAMPAGNAT - PR"
+                                            },
+                                            {
+                                                "G0": "CHAPECO - SC"
+                                            },
+                                            {
+                                                "G0": "CHAPECO EFAPI - SC"
+                                            },
+                                            {
+                                                "G0": "CIANORTE - PR"
+                                            },
+                                            {
+                                                "G0": "COLOMBO - PR"
+                                            },
+                                            {
+                                                "G0": "CONCORDIA - SC"
+                                            },
+                                            {
+                                                "G0": "CONSELHEIRO LAFAIETE - MG"
+                                            },
+                                            {
+                                                "G0": "CONTAGEM - MG"
+                                            },
+                                            {
+                                                "G0": "CRICIUMA - SC"
+                                            },
+                                            {
+                                                "G0": "CUIABA - MT"
+                                            },
+                                            {
+                                                "G0": "CURITIBANOS - SC"
+                                            },
+                                            {
+                                                "G0": "CWB - AGUA VERDE - PR"
+                                            },
+                                            {
+                                                "G0": "CWB - CENTRO - PR"
+                                            },
+                                            {
+                                                "G0": "CWB - ESTACAO - PR"
+                                            },
+                                            {
+                                                "G0": "CWB - FAZENDINHA - PR"
+                                            },
+                                            {
+                                                "G0": "CWB - PINHEIRINHO - PR"
+                                            },
+                                            {
+                                                "G0": "CWB - UBERABA - PR"
+                                            },
+                                            {
+                                                "G0": "CWB - XAXIM - PR"
+                                            },
+                                            {
+                                                "G0": "DOIS VIZINHOS CENTRO - PR"
+                                            },
+                                            {
+                                                "G0": "DOURADOS - MS"
+                                            },
+                                            {
+                                                "G0": "DOURADOS JD S\u00c3O PEDRO - MS"
+                                            },
+                                            {
+                                                "G0": "ECOMMERCE ADEMICON"
+                                            },
+                                            {
+                                                "G0": "ECOVILLE - PR"
+                                            },
+                                            {
+                                                "G0": "ERECHIM - RS"
+                                            },
+                                            {
+                                                "G0": "FAZENDA RIO GRANDE - PR"
+                                            },
+                                            {
+                                                "G0": "FLORIANOPOLIS - CAMPECHE - SC"
+                                            },
+                                            {
+                                                "G0": "FLORIANOPOLIS - SC"
+                                            },
+                                            {
+                                                "G0": "FORTALEZA - CE"
+                                            },
+                                            {
+                                                "G0": "FORTALEZA EDSON QUEIROZ - CE"
+                                            },
+                                            {
+                                                "G0": "FOZ DO IGUACU - PR"
+                                            },
+                                            {
+                                                "G0": "FRANCISCO BELTRAO - PR"
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "IC": false,
+                                "RT": [
+                                    [
+                                        "\u0027FRANCISCO BELTRAO - PR\u0027"
+                                    ]
+                                ]
+                            }
+                        ]
+                    },
+                    "metrics": {
+                        "Version": "1.0.0",
+                        "Events": [
+                            {
+                                "Id": "4d0c57ab-74e2-482e-bea7-7df9a5da9825",
+                                "Name": "Execute Semantic Query",
+                                "Component": "DSE",
+                                "Start": "2026-04-12T21:47:23.4488083Z",
+                                "End": "2026-04-12T21:47:23.4808332Z"
+                            },
+                            {
+                                "Id": "b186f707-57c0-40a3-bef6-b362c64502cd",
+                                "ParentId": "4d0c57ab-74e2-482e-bea7-7df9a5da9825",
+                                "Name": "Execute DAX Query",
+                                "Component": "DSE",
+                                "Start": "2026-04-12T21:47:23.4488083Z",
+                                "End": "2026-04-12T21:47:23.4808332Z",
+                                "Metrics": {
+                                    "RowCount": 101
+                                }
+                            },
+                            {
+                                "Id": "946413BA-3773-432B-857F-19E79A7475B7",
+                                "ParentId": "b186f707-57c0-40a3-bef6-b362c64502cd",
+                                "Name": "Execute Query",
+                                "Component": "AS",
+                                "Start": "2026-04-12T21:47:23.477Z",
+                                "End": "2026-04-12T21:47:23.48Z"
+                            },
+                            {
+                                "Id": "6FA22382-D407-4A80-A603-1DC15AD81325",
+                                "ParentId": "946413BA-3773-432B-857F-19E79A7475B7",
+                                "Name": "Serialize Rowset",
+                                "Component": "AS",
+                                "Start": "2026-04-12T21:47:23.48Z",
+                                "End": "2026-04-12T21:47:23.48Z"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    ],
+    "jobIds": [
+        "0"
+    ]
+}
