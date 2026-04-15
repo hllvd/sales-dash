@@ -105,57 +105,8 @@ namespace SalesApp.Controllers
         [HttpPut("callback")]
         public async Task<IActionResult> HandleCallback([FromBody] ScrapeResult result)
         {
-            // 1. Update DynamoDB status
-            await _logService.WriteJobStatusAsync(
-                jobId: result.JobId,
-                userId: result.UserId,
-                status: result.Status,
-                store: result.Store ?? "Unknown",
-                matricula: result.Matricula ?? "Unknown",
-                additionalData: new
-                {
-                    RowCount = result.RowCount,
-                    FileRelativePath = result.FileRelativePath,
-                    ErrorMessage = result.Error,
-                    CompletedAt = DateTime.UtcNow.ToString("O")
-                }
-            );
-
-            // 2. Trigger Auto-Import if success
-            if (result.Status == "Succeeded" && !string.IsNullOrEmpty(result.FileRelativePath))
-            {
-                var filePath = Path.Combine(_outputDir, result.FileRelativePath);
-                try
-                {
-                    await _importService.AutoImportAsync(filePath, Guid.Parse(result.UserId));
-                }
-                catch (Exception ex)
-                {
-                    // Update log with import error
-                    await _logService.WriteJobStatusAsync(
-                        jobId: result.JobId,
-                        userId: result.UserId,
-                        status: "Failed",
-                        store: result.Store ?? "Unknown",
-                        matricula: result.Matricula ?? "Unknown",
-                        additionalData: new { ImportErrorMessage = ex.Message }
-                    );
-                }
-            }
-
+            await _orchestrator.HandleCallbackAsync(result);
             return Ok();
         }
-    }
-
-    public class ScrapeResult
-    {
-        public string JobId { get; set; } = string.Empty;
-        public string UserId { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-        public string? Store { get; set; }
-        public string? Matricula { get; set; }
-        public int RowCount { get; set; }
-        public string? FileRelativePath { get; set; }
-        public string? Error { get; set; }
     }
 }

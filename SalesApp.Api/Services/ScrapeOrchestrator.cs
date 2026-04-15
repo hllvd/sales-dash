@@ -7,7 +7,7 @@ namespace SalesApp.Services
     public interface IScrapeOrchestrator
     {
         Task<string> TriggerScrapeAsync(int configId, bool isManual = true);
-        Task HandleCallbackAsync(string jobId, string status, string? fileRelativePath, int rowCount, string? error);
+        Task HandleCallbackAsync(ScrapeResult result);
     }
 
     public class ScrapeOrchestrator : IScrapeOrchestrator
@@ -55,7 +55,14 @@ namespace SalesApp.Services
             // 2. Call Node.js service
             try
             {
-                await _scraperClient.EnqueueJobAsync(jobId, config.UserId.ToString(), config.Store, config.Matricula);
+                await _scraperClient.EnqueueJobAsync(
+                    jobId: jobId,
+                    userId: config.UserId.ToString(),
+                    store: config.Store,
+                    matricula: config.Matricula,
+                    avaproUsername: config.User?.PowerBiUsername,
+                    avaproPassword: config.User?.PowerBiPassword
+                );
                 
                 // Update status to Running
                 await _logService.WriteJobStatusAsync(
@@ -82,20 +89,45 @@ namespace SalesApp.Services
             return jobId;
         }
 
-        public async Task HandleCallbackAsync(string jobId, string status, string? fileRelativePath, int rowCount, string? error)
+        public async Task HandleCallbackAsync(ScrapeResult result)
         {
-            // Update DynamoDB with result
-            // Note: We need the userId, store, and matricula to update the correct DynamoDB key.
-            // In a real scenario, we'd either look up the job or pass this info in the callback.
-            // For now, we'll use a GSI or search. 
-            // Better: Scraper service returns everything it received.
+            // 1. Update DynamoDB status
+            await _logService.WriteJobStatusAsync(
+                jobId: result.JobId,
+                userId: result.UserId,
+                status: result.Status,
+                store: result.Store ?? "Unknown",
+                matricula: result.Matricula ?? "Unknown",
+                additionalData: new
+                {
+                    RowCount = result.RowCount,
+                    FileRelativePath = result.FileRelativePath,
+                    ErrorMessage = result.Error,
+                    CompletedAt = DateTime.UtcNow.ToString("O")
+                }
+            );
 
-            // 1. Get Job from DynamoDB to find UserId (needed for the PK)
-            // Implementation detail: for now we'll assume the callback includes all info
-            // but the simplified plan said "updates DynamoDB".
-            
-            // Let's assume HandleCallbackAsync is called from the controller with full info
-            // provided by the scraper callback.
+            // 2. Trigger Auto-Import if success
+            if (result.Status == "Succeeded" && !string.IsNullOrEmpty(result.FileRelativePath))
+            {
+                var filePath = Path.Combine(_outputDir, result.FileRelativePath);
+                try
+                {
+                    await _importService.AutoImportAsync(filePath, Guid.Parse(result.UserId));
+                }
+                catch (Exception ex)
+                {
+                    // Update log with import error
+                    await _logService.WriteJobStatusAsync(
+                        jobId: result.JobId,
+                        userId: result.UserId,
+                        status: "Failed",
+                        store: result.Store ?? "Unknown",
+                        matricula: result.Matricula ?? "Unknown",
+                        additionalData: new { ImportErrorMessage = ex.Message }
+                    );
+                }
+            }
         }
     }
 }

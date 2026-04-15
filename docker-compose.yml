@@ -29,6 +29,8 @@ services:
     container_name: pbi-scraper
     environment:
       - PBI_TOKEN=${PBI_TOKEN}
+      - AVAPRO_MATRICULA=${AVAPRO_MATRICULA:-}
+      - AVAPRO_PASSWORD=${AVAPRO_PASSWORD:-}
       - PORT=3001
       - OUTPUT_DIR=/app/outputs
     volumes:

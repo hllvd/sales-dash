@@ -1,0 +1,218 @@
+{
+  "results": [
+    {
+      "jobId": "0",
+      "fromCache": false,
+      "result": {
+        "data": {
+          "timestamp": "/Date(1776260104011)/",
+          "rootActivityId": "e948562f-acb4-4008-8f12-e1c19da5b59c",
+          "descriptor": {
+            "Select": [
+              {
+                "Kind": 2,
+                "Value": "M0",
+                "Subtotal": [
+                  "A0"
+                ],
+                "Name": "Medidas.Produção Oficial"
+              },
+              {
+                "Kind": 2,
+                "Value": "M1",
+                "Format": "0%;-0%;0%",
+                "Subtotal": [
+                  "A1"
+                ],
+                "Name": "Medidas.Retenção"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G0",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "id_consultor"
+                    },
+                    "Calc": "G0",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.id_consultor"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G1",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "Regiões",
+                      "Property": "regiao"
+                    },
+                    "Calc": "G1",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "Regiões.regiao"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G2",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "Consultor_Matricula"
+                    },
+                    "Calc": "G2",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.Consultor_Matricula"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G3",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "nm_unidade_bi_original"
+                    },
+                    "Calc": "G3",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.nm_unidade_bi_original"
+              }
+            ],
+            "Expressions": {
+              "Primary": {
+                "Groupings": [
+                  {
+                    "Keys": [
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "id_consultor"
+                        },
+                        "Select": 2
+                      },
+                      {
+                        "Source": {
+                          "Entity": "Regiões",
+                          "Property": "regiao"
+                        },
+                        "Select": 3
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "Consultor_Matricula"
+                        },
+                        "Select": 4
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "nm_unidade_bi_original"
+                        },
+                        "Select": 5
+                      }
+                    ],
+                    "Member": "DM1",
+                    "SubtotalMember": "DM0"
+                  }
+                ]
+              }
+            },
+            "Version": 2
+          },
+          "dsr": {
+            "Version": 2,
+            "MinorVersion": 1,
+            "DS": [
+              {
+                "N": "DS0",
+                "PH": [
+                  {
+                    "DM0": [
+                      {
+                        "S": [
+                          {
+                            "N": "A0",
+                            "T": 3
+                          },
+                          {
+                            "N": "A1",
+                            "T": 3
+                          }
+                        ],
+                        "C": [
+                          1
+                        ],
+                        "Ø": 1
+                      }
+                    ]
+                  },
+                  {
+                    "DM1": []
+                  }
+                ],
+                "IC": true,
+                "HAD": true
+              }
+            ]
+          },
+          "metrics": {
+            "Version": "1.0.0",
+            "Events": [
+              {
+                "Id": "dc4edb0d-fba3-4e14-9bb5-f084daa5cb11",
+                "Name": "Execute Semantic Query",
+                "Component": "DSE",
+                "Start": "2026-04-15T13:35:04.0119924Z",
+                "End": "2026-04-15T13:35:07.2331212Z"
+              },
+              {
+                "Id": "ca436b21-c89f-40a1-88df-1bdb515a21ac",
+                "ParentId": "dc4edb0d-fba3-4e14-9bb5-f084daa5cb11",
+                "Name": "Execute DAX Query",
+                "Component": "DSE",
+                "Start": "2026-04-15T13:35:06.4987323Z",
+                "End": "2026-04-15T13:35:07.2331212Z",
+                "Metrics": {
+                  "RowCount": 1
+                }
+              },
+              {
+                "Id": "B1C0007A-E35B-41D9-9B75-F9465DB79DC6",
+                "ParentId": "ca436b21-c89f-40a1-88df-1bdb515a21ac",
+                "Name": "Execute Query",
+                "Component": "AS",
+                "Start": "2026-04-15T13:35:06.797Z",
+                "End": "2026-04-15T13:35:07.197Z"
+              },
+              {
+                "Id": "B42A3BF8-C86B-49CE-BA7D-E70CC07E575C",
+                "ParentId": "B1C0007A-E35B-41D9-9B75-F9465DB79DC6",
+                "Name": "Serialize Rowset",
+                "Component": "AS",
+                "Start": "2026-04-15T13:35:07.197Z",
+                "End": "2026-04-15T13:35:07.197Z"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "jobIds": [
+    "0"
+  ]
+}
