@@ -5,18 +5,223 @@ const ENDPOINT = '7a8110990e16404daec259c355434bc6.pbidedicated.windows.net';
 const PATH     = '/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query';
 const URL      = `https://${ENDPOINT}${PATH}`;
 
-function buildPayload1(store, matricula) {
-  const paddedMatricula = matricula.padStart(6, '0');
-  const currentYear = new Date().getFullYear();
-  
-  return {"version":"1.0.0","queries":[{"Query":{"Commands":[{"SemanticQueryDataShapeCommand":{"Query":{"Version":2,"From":[{"Name":"m","Entity":"1_Medidas","Type":0},{"Name":"t","Entity":"tbl_cotas","Type":0},{"Name":"r","Entity":"Regiões","Type":0},{"Name":"c","Entity":"Calendario","Type":0},{"Name":"p","Entity":"Parâmetro_Senhas","Type":0},{"Name":"a","Entity":"acessos","Type":0}],"Select":[{"Measure":{"Expression":{"SourceRef":{"Source":"m"}},"Property":"Produção Oficial"},"Name":"Medidas.Produção Oficial","NativeReferenceName":"Produção Oficial"},{"Measure":{"Expression":{"SourceRef":{"Source":"m"}},"Property":"Retenção"},"Name":"Medidas.Retenção","NativeReferenceName":"Retenção"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"id_consultor"},"Name":"tbl_cotas.id_consultor","NativeReferenceName":"CNPJ"},{"Column":{"Expression":{"SourceRef":{"Source":"r"}},"Property":"regiao"},"Name":"Regiões.regiao","NativeReferenceName":"Região"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"Consultor_Matricula"},"Name":"tbl_cotas.Consultor_Matricula","NativeReferenceName":"Consultor"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_original"},"Name":"tbl_cotas.nm_unidade_bi_original","NativeReferenceName":"Unidade Original"}],"Where":[{"Condition":{"Comparison":{"ComparisonKind":1,"Left":{"Measure":{"Expression":{"SourceRef":{"Source":"m"}},"Property":"Produção Oficial"}},"Right":{"Literal":{"Value":"0L"}}}},"Target":[{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"id_consultor"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"Consultor_Matricula"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_original"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"regiao"}}]},{"Condition":{"Comparison":{"ComparisonKind":1,"Left":{"Measure":{"Expression":{"SourceRef":{"Source":"m"}},"Property":"Filtro de Cotas"}},"Right":{"Literal":{"Value":"0L"}}}},"Target":[{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"id_consultor"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"Consultor_Matricula"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_original"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"regiao"}}]},{"Condition":{"In":{"Expressions":[{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"Grupo Ativo"}}],"Values":[[{"Literal":{"Value":"'Sim'"}}]]}}},{"Condition":{"In":{"Expressions":[{"Column":{"Expression":{"SourceRef":{"Source":"c"}},"Property":"Ano"}}],"Values":[[{"Literal":{"Value":`${currentYear}L`}}]]}}},{"Condition":{"In":{"Expressions":[{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_original"}}],"Values":[[{"Literal":{"Value":`'${store}'`}}]]}}},{"Condition":{"And":{"Left":{"Comparison":{"ComparisonKind":2,"Left":{"Column":{"Expression":{"SourceRef":{"Source":"p"}},"Property":"Parâmetro_Senhas"}},"Right":{"Literal":{"Value":"929009D"}}}},"Right":{"Comparison":{"ComparisonKind":4,"Left":{"Column":{"Expression":{"SourceRef":{"Source":"p"}},"Property":"Parâmetro_Senhas"}},"Right":{"Literal":{"Value":"929009D"}}}}}}},{"Condition":{"In":{"Expressions":[{"Column":{"Expression":{"SourceRef":{"Source":"a"}},"Property":"matricula"}}],"Values":[[{"Literal":{"Value":`'${paddedMatricula}'`}}]]}}}],"OrderBy":[{"Direction":2,"Expression":{"Measure":{"Expression":{"SourceRef":{"Source":"m"}},"Property":"Produção Oficial"}}}]},"Binding":{"Primary":{"Groupings":[{"Projections":[0,1,2,3,4,5],"Subtotal":1}]},"DataReduction":{"DataVolume":3,"Primary":{"Window":{"Count":500}}},"Version":1},"ExecutionMetricsKind":1}}]},"QueryId":"","ApplicationContext":{"DatasetId":"ecfe45f3-4e9f-4a6e-9d56-91020972365d","Sources":[{"ReportId":"0fdd545d-8c7f-4a8a-9723-daf16cac10d6","VisualId":"081f7f5c60a98980243b"}]}}],"cancelQueries":[],"modelId":5258155,"userPreferredLocale":"en-US","allowLongRunningQueries":true};
+function getCalendarFilters(dateString) {
+  if (!dateString) {
+    const currentYear = new Date().getFullYear();
+    return [{
+      "Condition": {
+        "In": {
+          "Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "c"}}, "Property": "Ano"}}],
+          "Values": [[{"Literal": {"Value": `${currentYear}L` }}]]
+        }
+      }
+    }];
+  }
+
+  const parts = dateString.split('-');
+  const filters = [];
+
+  // Year (YYYY)
+  if (parts[0]) {
+    filters.push({
+      "Condition": {
+        "In": {
+          "Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "c"}}, "Property": "Ano"}}],
+          "Values": [[{"Literal": {"Value": `${parts[0]}L` }}]]
+        }
+      }
+    });
+  }
+
+  // Month (MM)
+  if (parts[1]) {
+    const month = parseInt(parts[1], 10);
+    filters.push({
+      "Condition": {
+        "In": {
+          "Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "c"}}, "Property": "Mês"}}],
+          "Values": [[{"Literal": {"Value": `${month}L` }}]]
+        }
+      }
+    });
+  }
+
+  // Day (DD)
+  if (parts[2]) {
+    const day = parseInt(parts[2], 10);
+    filters.push({
+      "Condition": {
+        "In": {
+          "Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "c"}}, "Property": "Dia"}}],
+          "Values": [[{"Literal": {"Value": `${day}L` }}]]
+        }
+      }
+    });
+  }
+
+  return filters;
 }
 
-function buildPayload2(store, matricula) {
+function buildPayload1(store, matricula, scrapeDate) {
   const paddedMatricula = matricula.padStart(6, '0');
-  const currentYear = new Date().getFullYear();
+  const calendarFilters = getCalendarFilters(scrapeDate);
+  
+  return {
+    "version": "1.0.0",
+    "queries": [{
+      "Query": {
+        "Commands": [{
+          "SemanticQueryDataShapeCommand": {
+            "Query": {
+              "Version": 2,
+              "From": [
+                {"Name": "m", "Entity": "1_Medidas", "Type": 0},
+                {"Name": "t", "Entity": "tbl_cotas", "Type": 0},
+                {"Name": "r", "Entity": "Regiões", "Type": 0},
+                {"Name": "c", "Entity": "Calendario", "Type": 0},
+                {"Name": "p", "Entity": "Parâmetro_Senhas", "Type": 0},
+                {"Name": "a", "Entity": "acessos", "Type": 0}
+              ],
+              "Select": [
+                {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Produção Oficial"}, "Name": "Medidas.Produção Oficial", "NativeReferenceName": "Produção Oficial"},
+                {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Retenção"}, "Name": "Medidas.Retenção", "NativeReferenceName": "Retenção"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "id_consultor"}, "Name": "tbl_cotas.id_consultor", "NativeReferenceName": "CNPJ"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "r"}}, "Property": "regiao"}, "Name": "Regiões.regiao", "NativeReferenceName": "Região"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "Consultor_Matricula"}, "Name": "tbl_cotas.Consultor_Matricula", "NativeReferenceName": "Consultor"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}, "Name": "tbl_cotas.nm_unidade_bi_original", "NativeReferenceName": "Unidade Original"}
+              ],
+              "Where": [
+                {
+                  "Condition": {"Comparison": {"ComparisonKind": 1, "Left": {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Produção Oficial"}}, "Right": {"Literal": {"Value": "0L"}}}},
+                  "Target": [
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "id_consultor"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "Consultor_Matricula"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "r"}}, "Property": "regiao"}}
+                  ]
+                },
+                {
+                  "Condition": {"Comparison": {"ComparisonKind": 1, "Left": {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Filtro de Cotas"}}, "Right": {"Literal": {"Value": "0L"}}}},
+                  "Target": [
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "id_consultor"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "Consultor_Matricula"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "r"}}, "Property": "regiao"}}
+                  ]
+                },
+                {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "Grupo Ativo"}}], "Values": [[{"Literal": {"Value": "'Sim'"}}]]}}},
+                ...calendarFilters,
+                {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property":"nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store}'` }}]]}}},
+                {"Condition": {"And": {"Left": {"Comparison": {"ComparisonKind": 2, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal": {"Value": "929009D"}}}}, "Right": {"Comparison": {"ComparisonKind": 4, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal": {"Value": "929009D"}}}}}}},
+                {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "a"}}, "Property": "matricula"}}], "Values": [[{"Literal": {"Value": `'${paddedMatricula}'` }}]]}}}
+              ],
+              "OrderBy": [{"Direction": 2, "Expression": {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Produção Oficial"}}}]
+            },
+            "Binding": {"Primary": {"Groupings": [{"Projections": [0, 1, 2, 3, 4, 5], "Subtotal": 1}]}, "DataReduction": {"DataVolume": 3, "Primary": {"Window": {"Count": 500}}}, "Version": 1},
+            "ExecutionMetricsKind": 1
+          }
+        }],
+        "QueryId": "",
+        "ApplicationContext": {"DatasetId": "ecfe45f3-4e9f-4a6e-9d56-91020972365d", "Sources": [{"ReportId": "0fdd545d-8c7f-4a8a-9723-daf16cac10d6", "VisualId": "081f7f5c60a98980243b"}]}
+      }
+    }],
+    "cancelQueries": [],
+    "modelId": 5258155,
+    "userPreferredLocale": "en-US",
+    "allowLongRunningQueries": true
+  };
+}
 
-  return {"version":"1.0.0","queries":[{"Query":{"Commands":[{"SemanticQueryDataShapeCommand":{"Query":{"Version":2,"From":[{"Name":"2","Entity":"2_Medidas_Tabela","Type":0},{"Name":"t","Entity":"tbl_cotas","Type":0},{"Name":"m","Entity":"1_Medidas","Type":0},{"Name":"c","Entity":"Calendario","Type":0},{"Name":"p","Entity":"Parâmetro_Senhas","Type":0},{"Name":"a","Entity":"acessos","Type":0}],"Select":[{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"versao"},"Name":"Sum(tbl_cotas.versao)","NativeReferenceName":"Versao"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_consultor"},"Name":"tbl_cotas.nm_consultor","NativeReferenceName":"Consultor"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"id_matricula"},"Name":"tbl_cotas.id_matricula","NativeReferenceName":"Matricula"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_pv"},"Name":"tbl_cotas.nm_pv","NativeReferenceName":"PV"},{"Aggregation":{"Expression":{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"vl_credito_venda"}},"Function":0},"Name":"Sum(tbl_cotas.vl_credito_venda)","NativeReferenceName":"Crédito Venda"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"dt_producao"},"Name":"tbl_cotas.dt_producao","NativeReferenceName":"Dt Produção"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"dt_venda"},"Name":"tbl_cotas.dt_venda","NativeReferenceName":"Dt Venda"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"categoria_consultor"},"Name":"tbl_cotas.categoria_consultor","NativeReferenceName":"Categoria"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"cd_ponto_venda"},"Name":"tbl_cotas.cd_ponto_venda","NativeReferenceName":"Cód. PV"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"dt_cancelamento"},"Name":"tbl_cotas.dt_cancelamento","NativeReferenceName":"Dt Cancelamento"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_atual"},"Name":"tbl_cotas.nm_unidade_bi_atual","NativeReferenceName":"Unidade Atual"},{"Measure":{"Expression":{"SourceRef":{"Source":"m"}},"Property":"Obs Cota"},"Name":"1_Medidas.Obs Restrições Cota","NativeReferenceName":"Obs Cota"},{"Measure":{"Expression":{"SourceRef":{"Source":"m"}},"Property":"Produção Analitica"},"Name":"1_Medidas.Produção Analitica","NativeReferenceName":"Produção Analitica"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"rn"},"Name":"Sum(tbl_cotas.rn)","NativeReferenceName":"id_bi"},{"Measure":{"Expression":{"SourceRef":{"Source":"2"}},"Property":"Cota"},"Name":"2_Medidas_Tabela.id_cota","NativeReferenceName":"Cota"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"pz_cota"},"Name":"Sum(tbl_cotas.pz_cota)","NativeReferenceName":"Prazo Cota"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"pz_comercializacao"},"Name":"Sum(tbl_cotas.pz_comercializacao)","NativeReferenceName":"Prazo Grupo"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"tem_pagamento"},"Name":"tbl_cotas.tem_pagamento","NativeReferenceName":"Tem Pagamento?"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"dt_contemplacao"},"Name":"tbl_cotas.dt_contemplacao","NativeReferenceName":"Dt Contemplacao"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_original"},"Name":"tbl_cotas.nm_unidade_bi_original","NativeReferenceName":"Unidade Original"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"qtd_pc_atraso"},"Name":"Sum(tbl_cotas.qtd_pc_atraso)","NativeReferenceName":"Qtd Parcelas Atraso"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_plano_venda"},"Name":"tbl_cotas.nm_plano_venda","NativeReferenceName":"Plano Venda"},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_situacao_cobranca"},"Name":"tbl_cotas.nm_situacao_cobranca","NativeReferenceName":"Situação Cobrança"}],"Where":[{"Condition":{"Comparison":{"ComparisonKind":0,"Left":{"Measure":{"Expression":{"SourceRef":{"Source":"m"}},"Property":"Filtro de Cotas"}},"Right":{"Literal":{"Value":"1L"}}}},"Target":[{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"versao"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"dt_venda"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"dt_producao"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"dt_cancelamento"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"dt_contemplacao"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"id_matricula"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"categoria_consultor"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_consultor"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"cd_ponto_venda"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_pv"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_original"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_atual"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"tem_pagamento"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"pz_cota"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"pz_comercializacao"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"qtd_pc_atraso"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_situacao_cobranca"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_plano_venda"}},{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"rn"}}]},{"Condition":{"In":{"Expressions":[{"Column":{"Expression":{"SourceRef":{"Source":"c"}},"Property":"Ano"}}],"Values":[[{"Literal":{"Value":`${currentYear}L`}}]]}}},{"Condition":{"In":{"Expressions":[{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"nm_unidade_bi_original"}}],"Values":[[{"Literal":{"Value":`'${store}'`}}]]}}},{"Condition":{"And":{"Left":{"Comparison":{"ComparisonKind":2,"Left":{"Column":{"Expression":{"SourceRef":{"Source":"p"}},"Property":"Parâmetro_Senhas"}},"Right":{"Literal":{"Value":"929009D"}}}},"Right":{"Comparison":{"ComparisonKind":4,"Left":{"Column":{"Expression":{"SourceRef":{"Source":"p"}},"Property":"Parâmetro_Senhas"}},"Right":{"Literal":{"Value":"929009D"}}}}}}},{"Condition":{"In":{"Expressions":[{"Column":{"Expression":{"SourceRef":{"Source":"a"}},"Property":"matricula"}}],"Values":[[{"Literal":{"Value":`'${paddedMatricula}'`}}]]}}}],"OrderBy":[{"Direction":2,"Expression":{"Column":{"Expression":{"SourceRef":{"Source":"t"}},"Property":"dt_producao"}}}]},"Binding":{"Primary":{"Groupings":[{"Projections":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22],"Subtotal":1}]},"DataReduction":{"DataVolume":3,"Primary":{"Window":{"Count":500}}},"Version":1},"ExecutionMetricsKind":1}}]},"QueryId":"","ApplicationContext":{"DatasetId":"ecfe45f3-4e9f-4a6e-9d56-91020972365d","Sources":[{"ReportId":"0fdd545d-8c7f-4a8a-9723-daf16cac10d6","VisualId":"cc96a767b12339a67c49"}]}}],"cancelQueries":[],"modelId":5258155,"userPreferredLocale":"en-US","allowLongRunningQueries":true};
+function buildPayload2(store, matricula, scrapeDate) {
+  const paddedMatricula = matricula.padStart(6, '0');
+  const calendarFilters = getCalendarFilters(scrapeDate);
+
+  return {
+    "version": "1.0.0",
+    "queries": [{
+      "Query": {
+        "Commands": [{
+          "SemanticQueryDataShapeCommand": {
+            "Query": {
+              "Version": 2,
+              "From": [
+                {"Name": "2", "Entity": "2_Medidas_Tabela", "Type": 0},
+                {"Name": "t", "Entity": "tbl_cotas", "Type": 0},
+                {"Name": "m", "Entity": "1_Medidas", "Type": 0},
+                {"Name": "c", "Entity": "Calendario", "Type": 0},
+                {"Name": "p", "Entity": "Parâmetro_Senhas", "Type": 0},
+                {"Name": "a", "Entity": "acessos", "Type": 0}
+              ],
+              "Select": [
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "versao"}, "Name": "Sum(tbl_cotas.versao)", "NativeReferenceName": "Versao"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_consultor"}, "Name": "tbl_cotas.nm_consultor", "NativeReferenceName": "Consultor"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "id_matricula"}, "Name": "tbl_cotas.id_matricula", "NativeReferenceName": "Matricula"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_pv"}, "Name": "tbl_cotas.nm_pv", "NativeReferenceName": "PV"},
+                {"Aggregation": {"Expression": {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "vl_credito_venda"}}, "Function": 0}, "Name": "Sum(tbl_cotas.vl_credito_venda)", "NativeReferenceName": "Crédito Venda"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}, "Name": "tbl_cotas.dt_producao", "NativeReferenceName": "Dt Produção"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_venda"}, "Name": "tbl_cotas.dt_venda", "NativeReferenceName": "Dt Venda"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "categoria_consultor"}, "Name": "tbl_cotas.categoria_consultor", "NativeReferenceName": "Categoria"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "cd_ponto_venda"}, "Name": "tbl_cotas.cd_ponto_venda", "NativeReferenceName": "Cód. PV"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_cancelamento"}, "Name": "tbl_cotas.dt_cancelamento", "NativeReferenceName": "Dt Cancelamento"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_atual"}, "Name": "tbl_cotas.nm_unidade_bi_atual", "NativeReferenceName": "Unidade Atual"},
+                {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Obs Cota"}, "Name": "1_Medidas.Obs Restrições Cota", "NativeReferenceName": "Obs Cota"},
+                {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Produção Analitica"}, "Name": "1_Medidas.Produção Analitica", "NativeReferenceName": "Produção Analitica"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "rn"}, "Name": "Sum(tbl_cotas.rn)", "NativeReferenceName": "id_bi"},
+                {"Measure": {"Expression": {"SourceRef": {"Source": "2"}}, "Property": "Cota"}, "Name": "2_Medidas_Tabela.id_cota", "NativeReferenceName": "Cota"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "pz_cota"}, "Name": "Sum(tbl_cotas.pz_cota)", "NativeReferenceName": "Prazo Cota"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "pz_comercializacao"}, "Name": "Sum(tbl_cotas.pz_comercializacao)", "NativeReferenceName": "Prazo Grupo"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "tem_pagamento"}, "Name": "tbl_cotas.tem_pagamento", "NativeReferenceName": "Tem Pagamento?"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_contemplacao"}, "Name": "tbl_cotas.dt_contemplacao", "NativeReferenceName": "Dt Contemplacao"},
+                {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property":"nm_unidade_bi_original"}, "Name": "tbl_cotas.nm_unidade_bi_original", "NativeReferenceName": "Unidade Original"},
+                {"Column": {"Expression": {"SourceRef": {"Source":"t"}}, "Property": "qtd_pc_atraso"}, "Name": "Sum(tbl_cotas.qtd_pc_atraso)", "NativeReferenceName": "Qtd Parcelas Atraso"},
+                {"Column": {"Expression": {"SourceRef": {"Source":"t"}}, "Property": "nm_plano_venda"}, "Name": "tbl_cotas.nm_plano_venda", "NativeReferenceName": "Plano Venda"},
+                {"Column": {"Expression": {"SourceRef": {"Source":"t"}}, "Property": "nm_situacao_cobranca"}, "Name": "tbl_cotas.nm_situacao_cobranca", "NativeReferenceName": "Situação Cobrança"}
+              ],
+              "Where": [
+                {
+                  "Condition": {"Comparison": {"ComparisonKind": 0, "Left": {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Filtro de Cotas"}}, "Right": {"Literal": {"Value": "1L"}}}},
+                  "Target": [
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "versao"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_venda"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_cancelamento"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_contemplacao"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "id_matricula"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "categoria_consultor"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_consultor"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "cd_ponto_venda"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_pv"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_atual"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "tem_pagamento"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "pz_cota"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "pz_comercializacao"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "qtd_pc_atraso"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_situacao_cobranca"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_plano_venda"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "rn"}}
+                  ]
+                },
+                ...calendarFilters,
+                {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store}'` }}]]}}},
+                {"Condition": {"And": {"Left": {"Comparison": {"ComparisonKind": 2, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal": {"Value": "929009D"}}}}, "Right": {"Comparison": {"ComparisonKind": 4, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal":{"Value": "929009D"}}}}}}},
+                {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "a"}}, "Property": "matricula"}}], "Values": [[{"Literal": {"Value": `'${paddedMatricula}'` }}]]}}}
+              ],
+              "OrderBy": [{"Direction": 2, "Expression": {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}}}]
+            },
+            "Binding": {"Primary": {"Groupings": [{"Projections": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], "Subtotal": 1}]}, "DataReduction": {"DataVolume": 3, "Primary": {"Window": {"Count": 500}}}, "Version": 1},
+            "ExecutionMetricsKind": 1
+          }
+        }],
+        "QueryId": "",
+        "ApplicationContext": {"DatasetId": "ecfe45f3-4e9f-4a6e-9d56-91020972365d", "Sources": [{"ReportId": "0fdd545d-8c7f-4a8a-9723-daf16cac10d6", "VisualId": "cc96a767b12339a67c49"}]}
+      }
+    }],
+    "cancelQueries": [],
+    "modelId": 5258155,
+    "userPreferredLocale": "en-US",
+    "allowLongRunningQueries": true
+  };
 }
 
 
@@ -164,7 +369,7 @@ async function postWithRetry(url, payload, headers, label) {
   throw new Error(`${label} failed after ${maxRetries + 1} attempts. Last error: ${lastError.message}`);
 }
 
-async function scrape(store, matricula, token) {
+async function scrape(store, matricula, token, scrapeDate) {
   const headers = {
     'Authorization':  token,
     'Content-Type':   'application/json',
@@ -173,10 +378,27 @@ async function scrape(store, matricula, token) {
     'Referer':        'https://dashboardbi.ademicon.com.br/'
   };
 
-  console.log(`[Extractor] Querying for Store: "${store}", Matricula: "${matricula}"`);
+  console.log(`[Extractor] Querying for Store: "${store}", Matricula: "${matricula}", Date: "${scrapeDate || 'Default'}"`);
 
-  const payload1 = buildPayload1(store, matricula);
-  const payload2 = buildPayload2(store, matricula);
+  const payload1 = buildPayload1(store, matricula, scrapeDate);
+  const payload2 = buildPayload2(store, matricula, scrapeDate);
+
+  // DEBUG: Write payloads to temp files so they can be inspected manually
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const debugDir = path.join(__dirname, 'scratch', 'debug');
+    if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+    fs.writeFileSync(path.join(debugDir, 'payload1.json'), JSON.stringify(payload1, null, 2));
+    fs.writeFileSync(path.join(debugDir, 'payload2.json'), JSON.stringify(payload2, null, 2));
+    console.log(`[Extractor] Payloads saved to ${debugDir} for debugging.`);
+    
+    // Log the date filter being sent specifically
+    const q1Filter = payload1.queries[0].Query.Where.find(w => w.Condition?.In?.Expressions?.[0]?.Column?.Property === 'Ano');
+    if (q1Filter) {
+      console.log(`[Extractor] Year Filter being sent: ${q1Filter.Condition.In.Values[0][0].Literal.Value}`);
+    }
+  } catch (e) {}
 
   console.log('[Extractor] Sending Query 1 and Query 2 via Promise.all with retries...');
 

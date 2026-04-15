@@ -70,7 +70,7 @@ app.post('/jobs', (req, res) => {
 
     try {
       const token = await getToken(avaproUsername, avaproPassword);
-      const { rows, csv } = await scrape(store, matricula, token);
+      const { rows, csv } = await scrape(store, matricula, token, scrapeDate);
       
       if (rows.length > 0) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

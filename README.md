@@ -214,6 +214,9 @@ Para testar o fluxo sem usar credenciais reais de produção, utilize o script d
 ```bash
 cd pbi-scraper
 node scratch/test_scraper_logic.js
+
+# Testar a nova lógica de datas (Mês, Ano, Dia)
+node scratch/test_date_logic.js
 ```
 
 Para simular o callback da API:
