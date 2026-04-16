@@ -45,6 +45,12 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']
     },
+    {
+      name: 'tear-4-aliases-testing',
+      testMatch: ['import_wizard_aliases.spec.ts'],
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['tear-3']
+    },
 
   ],
 });

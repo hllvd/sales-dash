@@ -1,0 +1,4 @@
+﻿Contrato,Código PV,Nome PV,Matrícula,Consultor,Grupo,Cota,Data da Venda,Valor,Nome do Cliente,Tipo,Status,Email
+TEST-001,PV100,Loja Sul,MAT-001,João Silva,G1,001,05/01/2024,1000.00,Cliente A,Normal,Ativo,joao.silva@salesapp.com
+TEST-002,PV101,Loja Norte,MAT-002,Maria Souza,G1,002,05/02/2024,2000.00,Cliente B,Normal,Ativo,maria.souza@salesapp.com
+TEST-003,PV100,Loja Sul,MAT-003,Pedro Alves,G1,003,05/03/2024,1500.00,Cliente C,Normal,Ativo,pedro.alves@salesapp.com
