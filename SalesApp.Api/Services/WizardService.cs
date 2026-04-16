@@ -74,6 +74,7 @@ namespace SalesApp.Services
 
             var batch = new List<ImportRow>();
             int rowIndex = 0;
+            bool foundAtLeastOneValidRow = false;
 
             await foreach (var row in _fileParser.ParseFileStreamedAsync(file))
             {
@@ -93,6 +94,17 @@ namespace SalesApp.Services
                         row["cota.cota"] = parts[1].Trim();
                         row["cota.customer"] = parts[3].Trim();
                         row["cota.contract"] = parts[^1].Trim();
+                    }
+                }
+
+                // Check if this row is "valid" for user extraction (has both name and matricula candidates)
+                if (!foundAtLeastOneValidRow)
+                {
+                    var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "Nome", "Usuário");
+                    var matVal = GetColumnValue(row, "Matrícula", "Matricula", "Mat", "ID");
+                    if (!string.IsNullOrEmpty(nameVal) && !string.IsNullOrEmpty(matVal))
+                    {
+                        foundAtLeastOneValidRow = true;
                     }
                 }
 
@@ -186,6 +198,13 @@ namespace SalesApp.Services
                         matchMessage = "Atenção: Este arquivo não parece ser um dashboard de contratos válido.";
                     }
                 }
+
+                // Final check for wizard-specific requirements (Consultor + Matricula)
+                if (!foundAtLeastOneValidRow && rowIndex > 0)
+                {
+                    isTemplateMatch = false;
+                    matchMessage = "Aviso: O sistema não conseguiu identificar as colunas de 'Consultor/Vendedor' ou 'Matrícula' necessárias para o assistente. O arquivo users.csv poderá vir vazio.";
+                }
             }
 
             return new ImportPreviewResponse
@@ -234,7 +253,7 @@ namespace SalesApp.Services
                 foreach (var dbRow in rowBatch)
                 {
                     var row = JsonSerializer.Deserialize<Dictionary<string, string>>(dbRow.RowData) ?? new();
-                    var nameVal = GetColumnValue(row, "Comissionado", "Name", "name", "Nome", "Vendedor", "Usuário");
+                    var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "name", "Nome", "Usuário");
                     var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
 
                     if (!string.IsNullOrEmpty(nameVal) && !string.IsNullOrEmpty(matVal))
@@ -407,26 +426,26 @@ namespace SalesApp.Services
                         {
                             var row = JsonSerializer.Deserialize<Dictionary<string, string>>(dbRow.RowData) ?? new();
                             
-                            var nameRaw = GetColumnValue(row, "Comissionado", "Name", "name", "Nome", "Vendedor", "Usuário");
-                            var matRaw = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
+                            var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "name", "Nome", "Usuário");
+                            var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
                             
-                            var nameVal = nameRaw.ToLower().Trim();
-                            var matVal = matRaw.ToLower().Trim();
+                            var nameNorm = nameVal.ToLower().Trim();
+                            var matNorm = matVal.ToLower().Trim();
                             
                             string? email = null;
-                            if (!string.IsNullOrEmpty(matVal) && !string.IsNullOrEmpty(nameVal) && exactMatchLookup.TryGetValue((matVal, nameVal), out var exactEmail))
+                            if (!string.IsNullOrEmpty(matNorm) && !string.IsNullOrEmpty(nameNorm) && exactMatchLookup.TryGetValue((matNorm, nameNorm), out var exactEmail))
                             {
                                 email = exactEmail;
                             }
-                            else if (!string.IsNullOrEmpty(nameVal) && nameLookup.TryGetValue(nameVal, out var nameEmail))
+                            else if (!string.IsNullOrEmpty(nameNorm) && nameLookup.TryGetValue(nameNorm, out var nameEmail))
                             {
                                 email = nameEmail;
                             }
-                            else if (!string.IsNullOrEmpty(matVal))
+                            else if (!string.IsNullOrEmpty(matNorm))
                             {
-                                if (matriculaOwnerLookup.TryGetValue(matVal, out var ownerEmail)) {
+                                if (matriculaOwnerLookup.TryGetValue(matNorm, out var ownerEmail)) {
                                     email = ownerEmail;
-                                } else if (matriculaAnyLookup.TryGetValue(matVal, out var anyEmail)) {
+                                } else if (matriculaAnyLookup.TryGetValue(matNorm, out var anyEmail)) {
                                     email = anyEmail;
                                 }
                             }

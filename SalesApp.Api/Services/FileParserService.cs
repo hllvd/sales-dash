@@ -287,12 +287,6 @@ namespace SalesApp.Services
             }
 
             var columnCount = worksheet.Dimension?.Columns ?? 0;
-            // ✅ FIX: Do NOT use worksheet.Dimension.Rows as the row limit.
-            // EPPlus sets Dimension.Rows to the last "used" row per Excel's internal tracking,
-            // which can be 1,048,576 even when only a handful of rows have real data
-            // (e.g. a cell was clicked / formatted far below the data and saved).
-            // Instead we iterate until we find consecutive empty rows, which is the
-            // correct end-of-data signal for spreadsheet files.
             const int maxConsecutiveEmptyRows = 5;
             int consecutiveEmptyRows = 0;
 
@@ -314,6 +308,8 @@ namespace SalesApp.Services
                 for (int col = 1; col <= columnCount; col++)
                 {
                     var header = headers[col - 1];
+                    if (string.IsNullOrEmpty(header)) header = $"Column_{col}";
+                    
                     var cell = worksheet.Cells[row, col];
                     string cellValue;
 

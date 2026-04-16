@@ -42,6 +42,11 @@ namespace SalesApp.Controllers
                 }
 
                 var response = await _wizardService.ProcessStep1UploadAsync(file, userId);
+                
+                // Diagnostic logging
+                Console.WriteLine($"[Wizard] Step 1: File '{file.FileName}' uploaded by {userId}.");
+                Console.WriteLine($"[Wizard] Step 1: Detected {response.TotalRows} rows. Match: {response.IsTemplateMatch}. Message: {response.MatchMessage}");
+                
                 return Ok(new ApiResponse<ImportPreviewResponse> 
                 { 
                     Success = true, 
