@@ -20,23 +20,23 @@ namespace SalesApp.IntegrationTests.Imports
         }
 
         [Fact]
-        public async Task Step1Upload_MissingRepHeader_ShouldReturnErrorMessage()
+        public async Task Step1Upload_MissingContratoHeader_ShouldReturnErrorMessage()
         {
             // Arrange
             var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            // Create a CSV with "REP" missing
-            var csvContent = "Contrato,Código PV,PV,Matrícula,Comissionado,Grupo,Cota,Versão,Data da Venda,Valor,Nome do Cliente,Tipo,Status\n" +
-                             "123,PV1,PV Name,M1,Seller,G1,C1,V1,2024-01-01,100,Customer,T1,Active";
+            // Create a CSV with "Contrato" missing
+            var csvContent = "Código PV,PV,Matrícula,Comissionado,Grupo,Cota,Versão,Data da Venda,Valor,Nome do Cliente,Tipo,Status\n" +
+                             "PV1,PV Name,M1,Seller,G1,C1,V1,2024-01-01,100,Customer,T1,Active";
             
             // Act
-            var response = await UploadCsvAndGetPreview(csvContent, "test_missing_rep.csv");
+            var response = await UploadCsvAndGetPreview(csvContent, "test_missing_contrato.csv");
 
             // Assert
             response.IsTemplateMatch.Should().BeFalse();
-            response.MatchMessage.Should().Contain("REP");
-            response.MatchMessage.Should().Contain("Atenção: O arquivo não possui todos os cabeçalhos esperados.");
+            response.MatchMessage.Should().Contain("Contrato");
+            response.MatchMessage.Should().Contain("Colunas ausentes: Contrato");
         }
 
         [Fact]
@@ -47,8 +47,9 @@ namespace SalesApp.IntegrationTests.Imports
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Create a CSV with all headers, using "Comissionada" (alias) instead of "Comissionado"
-            var headers = new[] { "Contrato", "REP", "Código PV", "PV", "Matrícula", "Comissionada", "Grupo", "Cota", "Versão", "Data da Venda", "Valor", "Nome do Cliente", "Tipo", "Status" };
-            var csvContent = string.Join(",", headers) + "\n123,R1,PV1,PV Name,M1,Seller,G1,C1,V1,2024-01-01,100,Customer,T1,Active";
+            // Note: REP is no longer mandatory
+            var headers = new[] { "Contrato", "Código PV", "PV", "Matrícula", "Comissionada", "Grupo", "Cota", "Versão", "Data da Venda", "Valor", "Nome do Cliente", "Tipo", "Status" };
+            var csvContent = string.Join(",", headers) + "\n123,PV1,PV Name,M1,Seller,G1,C1,V1,2024-01-01,100,Customer,T1,Active";
 
             // Act
             var response = await UploadCsvAndGetPreview(csvContent, "test_comissionada.csv");
@@ -66,8 +67,8 @@ namespace SalesApp.IntegrationTests.Imports
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Create a CSV with "Comissionado" misspelled as "Comisionado"
-            var headers = new[] { "Contrato", "REP", "Código PV", "PV", "Matrícula", "Comisionado", "Grupo", "Cota", "Versão", "Data da Venda", "Valor", "Nome do Cliente", "Tipo", "Status" };
-            var csvContent = string.Join(",", headers) + "\n123,R1,PV1,PV Name,M1,Seller,G1,C1,V1,2024-01-01,100,Customer,T1,Active";
+            var headers = new[] { "Contrato", "Código PV", "PV", "Matrícula", "Comisionado", "Grupo", "Cota", "Versão", "Data da Venda", "Valor", "Nome do Cliente", "Tipo", "Status" };
+            var csvContent = string.Join(",", headers) + "\n123,PV1,PV Name,M1,Seller,G1,C1,V1,2024-01-01,100,Customer,T1,Active";
 
             // Act
             var response = await UploadCsvAndGetPreview(csvContent, "test_misspelled.csv");
@@ -75,6 +76,99 @@ namespace SalesApp.IntegrationTests.Imports
             // Assert
             response.IsTemplateMatch.Should().BeFalse();
             response.MatchMessage.Should().Contain("Comissionado");
+        }
+
+        [Fact]
+        public async Task Step1Upload_WithConsultorAlias_ShouldPassAndExtractUsers()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Create a CSV with "Consultor" instead of "Comissionado"
+            // Note: Also included "Estado" variation for Status as user manually updated the validator
+            var headers = new[] { "Contrato", "REP", "Código PV", "PV", "Matrícula", "Consultor", "Grupo", "Cota", "Versão", "Data da Venda", "Valor", "Nome do Cliente", "Tipo", "Estado" };
+            var csvContent = string.Join(",", headers) + "\n123,REP-001,PV-101,PV-Center,MAT-999,John Consultant,GR-A,QT-1,V1,2024-04-16,500.00,Alice Customer,Normal,Active";
+
+            // Act: Step 1 Upload
+            var preview = await UploadCsvAndGetPreview(csvContent, "test_consultor.csv");
+
+            // Assert: Step 1 Success
+            preview.IsTemplateMatch.Should().BeTrue();
+            preview.UploadId.Should().NotBeNullOrEmpty();
+
+            // Act: Download Template (Step 2 Preview)
+            var templateBytes = await DownloadWizardTemplate(preview.UploadId);
+            var templateContent = System.Text.Encoding.UTF8.GetString(templateBytes);
+
+            // Assert: Template content contains extracted data
+            templateContent.Should().Contain("John Consultant");
+            templateContent.Should().Contain("MAT-999");
+            // Template headers for users.csv are: Name,Email,ParentEmail,Matricula,Owner_Matricula,Password
+            templateContent.Should().Contain("Name,Email,ParentEmail,Matricula,Owner_Matricula,Password");
+        }
+
+        [Fact]
+        public async Task Step1Upload_WithNomePVAlias_ShouldPassValidation()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Create a CSV with "Nome PV" (alias) instead of "PV"
+            var headers = new[] { "Contrato", "Código PV", "Nome PV", "Matrícula", "Comissionado", "Grupo", "Cota", "Versão", "Data da Venda", "Valor", "Nome do Cliente", "Tipo", "Status" };
+            var csvContent = string.Join(",", headers) + "\n123,PV1,PV Name,M1,Seller,G1,C1,V1,2024-01-01,100,Customer,T1,Active";
+
+            // Act
+            var response = await UploadCsvAndGetPreview(csvContent, "test_nome_pv.csv");
+
+            // Assert
+            response.IsTemplateMatch.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task Step1Upload_WithNoVersion_ShouldPassValidation()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Create a CSV with "Versão" missing (now optional)
+            var headers = new[] { "Contrato", "Código PV", "PV", "Matrícula", "Comissionado", "Grupo", "Cota", "Data da Venda", "Valor", "Nome do Cliente", "Tipo", "Status" };
+            var csvContent = string.Join(",", headers) + "\n123,PV1,PV Name,M1,Seller,G1,C1,2024-01-01,100,Customer,T1,Active";
+
+            // Act
+            var response = await UploadCsvAndGetPreview(csvContent, "test_no_version.csv");
+
+            // Assert
+            response.IsTemplateMatch.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task Step1Upload_WithBadHeaderConsult_ShouldReturnFail()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Create a CSV with "Consult" (wrong header) instead of "Consultor"
+            var headers = new[] { "Contrato", "Código PV", "PV", "Matrícula", "Consult", "Grupo", "Cota", "Versão", "Data da Venda", "Valor", "Nome do Cliente", "Tipo", "Status" };
+            var csvContent = string.Join(",", headers) + "\n123,PV1,PV Name,M1,Seller,G1,C1,V1,2024-01-01,100,Customer,T1,Active";
+
+            // Act
+            var response = await UploadCsvAndGetPreview(csvContent, "test_bad_consult.csv");
+
+            // Assert
+            response.IsTemplateMatch.Should().BeFalse();
+            response.MatchMessage.Should().Contain("Comissionado");
+            response.MatchMessage.Should().Contain("Atenção: O arquivo não possui todos os cabeçalhos esperados.");
+        }
+
+        private async Task<byte[]> DownloadWizardTemplate(string uploadId)
+        {
+            var response = await _client.GetAsync($"/api/wizard/step1-template/{uploadId}");
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsByteArrayAsync();
         }
 
         private async Task<ImportPreviewResponse> UploadCsvAndGetPreview(string csvContent, string fileName)

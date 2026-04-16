@@ -5,14 +5,12 @@ namespace SalesApp.Services
         private static readonly Dictionary<string, List<string>> _headerAliases = new(StringComparer.OrdinalIgnoreCase)
         {
             ["Contrato"] = new() { "Contrato", "Contract" },
-            ["REP"] = new() { "REP", "Representante" },
             ["Código PV"] = new() { "Código PV", "Codigo PV", "PV Code", "Cod PV" },
-            ["PV"] = new() { "PV", "Ponto de Venda" },
-            ["Matrícula"] = new() { "Matrícula", "Matricula", "Enrollment" },
-            ["Comissionado"] = new() { "Comissionado", "Comissionada", "Consultor", "Vendedor", "Seller" },
-            ["Grupo"] = new() { "Grupo", "Group" },
+            ["PV"] = new() { "PV", "Ponto de Venda", "Nome PV" },
+            ["Matrícula"] = new() { "Matrícula", "Matricula", "Enrollment", "Mat", "ID" },
+            ["Comissionado"] = new() { "Comissionado", "Comissionada", "Consultor", "Consultar", "Vendedor", "Seller", "Vendedor(a)", "Consultor(a)", "Usuário", "Usuario" },
+            ["Grupo"] = new() { "Grupo", "Group", "Equipe" },
             ["Cota"] = new() { "Cota", "Quota" },
-            ["Versão"] = new() { "Versão", "Versao", "Version" },
             ["Data da Venda"] = new() { "Data da Venda", "Data Venda", "Sale Date" },
             ["Valor"] = new() { "Valor", "Value", "Amount" },
             ["Nome do Cliente"] = new() { "Nome do Cliente", "Nome Cliente", "Customer Name", "Cliente" },

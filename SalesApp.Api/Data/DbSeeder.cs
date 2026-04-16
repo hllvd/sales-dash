@@ -95,7 +95,7 @@ namespace SalesApp.Data
                     EntityType = "Contract",
                     Description = "Template for importing contracts",
                     RequiredFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount", "MatriculaNumber" }),
-                    OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName", "Version" }),
+                    OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "PvName", "CustomerName", "Version" }),
                     DefaultMappings = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { { "Matrícula", "MatriculaNumber" } }),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
@@ -106,7 +106,7 @@ namespace SalesApp.Data
             {
                 // Ensure existing template is updated to the new required/optional fields and mappings
                 contractsTemplate.RequiredFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "ContractNumber", "UserEmail", "TotalAmount", "MatriculaNumber" });
-                contractsTemplate.OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "CustomerName", "Version" });
+                contractsTemplate.OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "GroupId", "Status", "SaleStartDate", "SaleEndDate", "ContractType", "Quota", "PvId", "PvName", "CustomerName", "Version" });
                 contractsTemplate.DefaultMappings = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { { "Matrícula", "MatriculaNumber" } });
                 context.ImportTemplates.Update(contractsTemplate);
             }

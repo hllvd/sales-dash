@@ -145,8 +145,9 @@ namespace SalesApp.Services
 
             if (!isTemplateMatch)
             {
-                matchMessage = "Atenção: O arquivo não possui todos os cabeçalhos esperados. Esperamos as seguintes colunas como cabeçalho: " + 
-                               string.Join(", ", validationResult.ExpectedHeaders) + ".";
+                var missingList = string.Join(", ", validationResult.MissingHeaders);
+                var expectedList = string.Join(", ", validationResult.ExpectedHeaders);
+                matchMessage = $"Atenção: O arquivo não possui todos os cabeçalhos esperados. Colunas ausentes: {missingList}. Esperamos as seguintes colunas como cabeçalho: {expectedList}.";
             }
 
             Dictionary<string, string> suggestedMappings = new();
