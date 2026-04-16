@@ -138,9 +138,17 @@ namespace SalesApp.Services
             session.TotalRows = rowIndex;
             await _sessionRepository.UpdateAsync(session);
 
-            // Template verification logic
-            var isTemplateMatch = true;
+            // Strict Header Validation (User requested)
+            var validationResult = WizardHeaderValidator.Validate(columns);
+            var isTemplateMatch = validationResult.IsValid;
             string? matchMessage = null;
+
+            if (!isTemplateMatch)
+            {
+                matchMessage = "Atenção: O arquivo não possui todos os cabeçalhos esperados. Esperamos as seguintes colunas como cabeçalho: " + 
+                               string.Join(", ", validationResult.ExpectedHeaders) + ".";
+            }
+
             Dictionary<string, string> suggestedMappings = new();
             List<string> requiredFields = new();
             List<string> optionalFields = new();
@@ -181,29 +189,6 @@ namespace SalesApp.Services
                     {
                         suggestedMappings.Remove(cotaSource);
                     }
-                }
-                
-                var mappedRequiredFieldsCount = requiredFields.Count(rf => suggestedMappings.Values.Contains(rf));
-
-                if (requiredFields.Any())
-                {
-                    if (mappedRequiredFieldsCount < (requiredFields.Count + 1) / 2)
-                    {
-                        isTemplateMatch = false;
-                        matchMessage = $"Atenção: O arquivo enviado não parece corresponder ao modelo '{template.Name}'. Foram identificados apenas {mappedRequiredFieldsCount} de {requiredFields.Count} campos obrigatórios.";
-                    }
-                    else if (template.Name == "contractDashboard" && mappedRequiredFieldsCount < 3)
-                    {
-                        isTemplateMatch = false;
-                        matchMessage = "Atenção: Este arquivo não parece ser um dashboard de contratos válido.";
-                    }
-                }
-
-                // Final check for wizard-specific requirements (Consultor + Matricula)
-                if (!foundAtLeastOneValidRow && rowIndex > 0)
-                {
-                    isTemplateMatch = false;
-                    matchMessage = "Aviso: O sistema não conseguiu identificar as colunas de 'Consultor/Vendedor' ou 'Matrícula' necessárias para o assistente. O arquivo users.csv poderá vir vazio.";
                 }
             }
 

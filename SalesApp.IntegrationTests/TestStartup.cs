@@ -56,6 +56,7 @@ namespace SalesApp.IntegrationTests
             services.AddSingleton<IRbacCache, RbacCache>();
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
+            services.AddScoped<IUserScopeService, UserScopeService>();
             
             // Import repositories
             services.AddScoped<IImportTemplateRepository, ImportTemplateRepository>();
@@ -75,6 +76,9 @@ namespace SalesApp.IntegrationTests
             // Email services
             services.AddScoped<IEmailSender, SesEmailSender>();
             services.AddScoped<IEmailService, EmailService>();
+            
+            services.AddScoped<IWizardService, WizardService>();
+            services.AddSingleton<IExportService, ExportService>();
             
             // CORS
             services.AddCors(options =>
