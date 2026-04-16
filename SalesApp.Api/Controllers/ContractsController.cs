@@ -22,6 +22,7 @@ namespace SalesApp.Controllers
         private readonly IMessageService _messageService;
         private readonly IUserScopeService _userScopeService;
         private readonly IExportService _exportService;
+        private readonly IContractStatusMapper _statusMapper;
         
         public ContractsController(
             IContractRepository contractRepository, 
@@ -31,7 +32,8 @@ namespace SalesApp.Controllers
             IUserMatriculaRepository matriculaRepository,
             IMessageService messageService,
             IUserScopeService userScopeService,
-            IExportService exportService)
+            IExportService exportService,
+            IContractStatusMapper statusMapper)
         {
             _contractRepository = contractRepository;
             _userRepository = userRepository;
@@ -41,6 +43,7 @@ namespace SalesApp.Controllers
             _messageService = messageService;
             _userScopeService = userScopeService;
             _exportService = exportService;
+            _statusMapper = statusMapper;
         }
 
         // ── Export endpoints ─────────────────────────────────────────────────
@@ -261,12 +264,12 @@ namespace SalesApp.Controllers
             }
             
             // Validate status
-            if (!Services.ContractStatusMapper.IsValidStatus(request.Status))
+            if (!_statusMapper.IsValidStatus(request.Status))
             {
                 return BadRequest(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = $"Invalid status. Must be one of: {string.Join(", ", Services.ContractStatusMapper.GetValidStatuses())}"
+                    Message = $"Invalid status. Must be one of: {string.Join(", ", _statusMapper.GetValidStatuses())}"
                 });
             }
             
@@ -439,12 +442,12 @@ namespace SalesApp.Controllers
                 
             if (!string.IsNullOrEmpty(request.Status))
             {
-                if (!Services.ContractStatusMapper.IsValidStatus(request.Status))
+                if (!_statusMapper.IsValidStatus(request.Status))
                 {
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = $"Invalid status. Must be one of: {string.Join(", ", Services.ContractStatusMapper.GetValidStatuses())}"
+                        Message = $"Invalid status. Must be one of: {string.Join(", ", _statusMapper.GetValidStatuses())}"
                     });
                 }
                 contract.Status = request.Status.ToLowerInvariant();

@@ -103,6 +103,10 @@ namespace SalesApp
             services.AddScoped<IEmailSender, SesEmailSender>();
             services.AddScoped<IEmailService, EmailService>();
 
+            // Contract Status Aliases Mapping
+            services.Configure<Models.Configuration.ContractStatusOptions>(Configuration.GetSection("ContractStatusMappings"));
+            services.AddSingleton<IContractStatusMapper, ContractStatusMapper>();
+
             
             // CORS
             services.AddCors(options =>

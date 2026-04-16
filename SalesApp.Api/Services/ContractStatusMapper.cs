@@ -1,67 +1,70 @@
+using Microsoft.Extensions.Options;
 using SalesApp.Models;
+using SalesApp.Models.Configuration;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SalesApp.Services
 {
     /// <summary>
-    /// Maps import status aliases to canonical ContractStatus values
+    /// Maps import status aliases to canonical ContractStatus values using JSON configuration
     /// </summary>
-    public class ContractStatusMapper
+    public class ContractStatusMapper : IContractStatusMapper
     {
-        private static readonly Dictionary<string, string> StatusAliases = new(StringComparer.OrdinalIgnoreCase)
+        private readonly Dictionary<string, string> _statusAliases;
+        private readonly string[] _validStatuses;
+
+        public ContractStatusMapper(IOptions<ContractStatusOptions> options)
         {
-            // ✅ Active aliases
-            { "Active", ContractStatus.Active.ToApiString() },
-            { "Normal", ContractStatus.Active.ToApiString() },
-            { "Ativa", ContractStatus.Active.ToApiString() },
-            { "Ativo", ContractStatus.Active.ToApiString() },
+            _statusAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             
-            // ✅ Late1 aliases
-            { "Late1", ContractStatus.Late1.ToApiString() },
-            { "NCONT 1 AT", ContractStatus.Late1.ToApiString() },
-            { "CONT NÃO ENTREGUE 1 ATR", ContractStatus.Late1.ToApiString() },
+            // Build the flattened alias dictionary from the hierarchical configuration
+            foreach (var mapping in options.Value.Mappings)
+            {
+                var canonical = mapping.Key;
+                foreach (var alias in mapping.Value)
+                {
+                    if (!string.IsNullOrWhiteSpace(alias))
+                    {
+                        // Map the alias to the canonical key
+                        _statusAliases[alias.Trim()] = canonical.ToLowerInvariant();
+                    }
+                }
+                
+                // Also ensure the canonical keys themselves are in the dictionary
+                if (!_statusAliases.ContainsKey(canonical))
+                {
+                    _statusAliases[canonical.Trim()] = canonical.ToLowerInvariant();
+                }
+            }
+
+            // Valid statuses are the keys from the configuration
+            _validStatuses = options.Value.Mappings.Keys
+                .Select(k => k.ToLowerInvariant())
+                .ToArray();
             
-            // ✅ Late2 aliases
-            { "Late2", ContractStatus.Late2.ToApiString() },
-            { "NCONT 2 AT", ContractStatus.Late2.ToApiString() },
-            { "CONT NÃO ENTREGUE 2 ATR", ContractStatus.Late2.ToApiString() },
-            
-            // ✅ Late3 aliases
-            { "Late3", ContractStatus.Late3.ToApiString() },
-            { "NCONT 3 AT", ContractStatus.Late3.ToApiString() },
-            { "SUJ. A CANCELAMENTO", ContractStatus.Late3.ToApiString() },
-            { "SUJ. A  CANCELAMENTO", ContractStatus.Late3.ToApiString() }, // Handle double space
-            
-            // ✅ Defaulted aliases
-            { "Defaulted", ContractStatus.Defaulted.ToApiString() },
-            { "DESISTENTE", ContractStatus.Defaulted.ToApiString() },
-            { "EXCLUIDO", ContractStatus.Defaulted.ToApiString() },
-            { "EXCLUÍDO", ContractStatus.Defaulted.ToApiString() },
-            { "EXCLUIDA", ContractStatus.Defaulted.ToApiString() },
-            { "EXCLUÍDA", ContractStatus.Defaulted.ToApiString() },
-            { "CANCELADO", ContractStatus.Defaulted.ToApiString() },
-            { "Cancelada", ContractStatus.Defaulted.ToApiString() },
-            { "CACELADO", ContractStatus.Defaulted.ToApiString() }, // User-provided typo
-            { "DISTRATADO", ContractStatus.Defaulted.ToApiString() },
-            { "SUSPENSO", ContractStatus.Defaulted.ToApiString() },
-            { "paid_off", ContractStatus.Defaulted.ToApiString() }, // Legacy
-            { "QUITADO", ContractStatus.Active.ToApiString() },
-            { "PAGO", ContractStatus.Active.ToApiString() },
-            { "CONT PAGO", ContractStatus.Active.ToApiString() },
-            
-            // ✅ Transferred aliases
-            { "Transferred", ContractStatus.Transferred.ToApiString() },
-            { "TRANSFERIDO", ContractStatus.Transferred.ToApiString() },
-            
-            // Late3 legacy
-            { "delinquent", ContractStatus.Late3.ToApiString() } // Legacy
-        };
+            // Fallback if config is empty (though it shouldn't be)
+            if (_validStatuses.Length == 0)
+            {
+                _validStatuses = new[] 
+                { 
+                    ContractStatus.Active.ToApiString(), 
+                    ContractStatus.Late1.ToApiString(), 
+                    ContractStatus.Late2.ToApiString(), 
+                    ContractStatus.Late3.ToApiString(), 
+                    ContractStatus.Defaulted.ToApiString(),
+                    ContractStatus.Transferred.ToApiString()
+                };
+            }
+        }
 
         /// <summary>
         /// Maps an input status string to the canonical status value
         /// </summary>
         /// <param name="input">Input status string</param>
         /// <returns>Canonical status string or null if not found</returns>
-        public static string? MapStatus(string? input)
+        public string? MapStatus(string? input)
         {
             if (string.IsNullOrWhiteSpace(input))
             {
@@ -69,15 +72,15 @@ namespace SalesApp.Services
             }
 
             var trimmed = input.Trim();
-            return StatusAliases.TryGetValue(trimmed, out var canonical) ? canonical : null;
+            return _statusAliases.TryGetValue(trimmed, out var canonical) ? canonical : null;
         }
 
         /// <summary>
-        /// Validates if a status string is a valid canonical status
+        /// Validates if a status string is a valid canonical status or known alias
         /// </summary>
         /// <param name="status">Status string to validate</param>
         /// <returns>True if valid, false otherwise</returns>
-        public static bool IsValidStatus(string? status)
+        public bool IsValidStatus(string? status)
         {
             if (string.IsNullOrWhiteSpace(status))
             {
@@ -87,29 +90,19 @@ namespace SalesApp.Services
             var trimmed = status.Trim();
 
             // Accept canonical values (Active, Late1, etc.)
-            var validStatuses = GetValidStatuses();
-            if (validStatuses.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+            if (_validStatuses.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
                 return true;
 
             // Also accept any known alias (Ativa, Ativo, CANCELADO, etc.)
-            return StatusAliases.ContainsKey(trimmed);
+            return _statusAliases.ContainsKey(trimmed);
         }
 
         /// <summary>
         /// Gets all valid canonical status values
         /// </summary>
-        public static string[] GetValidStatuses()
+        public string[] GetValidStatuses()
         {
-            // ✅ Use enum instead of hardcoded strings
-            return new[] 
-            { 
-                ContractStatus.Active.ToApiString(), 
-                ContractStatus.Late1.ToApiString(), 
-                ContractStatus.Late2.ToApiString(), 
-                ContractStatus.Late3.ToApiString(), 
-                ContractStatus.Defaulted.ToApiString(),
-                ContractStatus.Transferred.ToApiString()
-            };
+            return _validStatuses;
         }
     }
 }

@@ -16,6 +16,7 @@ namespace SalesApp.Services
         private readonly AppDbContext _context;
         private readonly IContractMetadataRepository _metadataRepository;
         private readonly IPVRepository _pvRepository;
+        private readonly IContractStatusMapper _statusMapper;
 
         public ImportExecutionService(
             IContractRepository contractRepository,
@@ -26,7 +27,8 @@ namespace SalesApp.Services
             IEmailService emailService,
             AppDbContext context,
             IContractMetadataRepository metadataRepository,
-            IPVRepository pvRepository)
+            IPVRepository pvRepository,
+            IContractStatusMapper statusMapper)
         {
             _contractRepository = contractRepository;
             _groupRepository = groupRepository;
@@ -37,6 +39,7 @@ namespace SalesApp.Services
             _context = context;
             _metadataRepository = metadataRepository;
             _pvRepository = pvRepository;
+            _statusMapper = statusMapper;
         }
 
         public async Task<ImportResult> ExecuteContractImportAsync(
@@ -230,7 +233,7 @@ namespace SalesApp.Services
             // Extract optional fields
             var statusInput = GetFieldValue(row, reverseMappings, "Status");
             // ✅ Use enum for default status
-            var status = ContractStatusMapper.MapStatus(statusInput) ?? ContractStatus.Active.ToApiString();
+            var status = _statusMapper.MapStatus(statusInput) ?? ContractStatus.Active.ToApiString();
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
             var contractTypeStr = GetFieldValue(row, reverseMappings, "ContractType");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");

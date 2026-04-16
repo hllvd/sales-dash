@@ -6,6 +6,7 @@ namespace SalesApp.Services
     public class ImportValidationService : IImportValidationService
     {
         private readonly AppDbContext _context;
+        private readonly IContractStatusMapper _statusMapper;
 
         // Define required fields for each entity type
         private readonly Dictionary<string, List<string>> _requiredFields = new()
@@ -14,9 +15,10 @@ namespace SalesApp.Services
             ["User"] = new List<string> { "Name", "Email" }
         };
 
-        public ImportValidationService(AppDbContext context)
+        public ImportValidationService(AppDbContext context, IContractStatusMapper statusMapper)
         {
             _context = context;
+            _statusMapper = statusMapper;
         }
 
         public async Task<List<string>> ValidateRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, string entityType, List<string>? customRequiredFields = null, bool allowAutoCreateGroups = false, bool allowAutoCreatePVs = false, bool skipMissingContractNumber = false)
@@ -190,9 +192,9 @@ namespace SalesApp.Services
             {
                 if (row.TryGetValue(statusColumn, out var statusValue) && !string.IsNullOrWhiteSpace(statusValue))
                 {
-                    if (!ContractStatusMapper.IsValidStatus(statusValue))
+                    if (!_statusMapper.IsValidStatus(statusValue))
                     {
-                        var validStatuses = ContractStatusMapper.GetValidStatuses();
+                        var validStatuses = _statusMapper.GetValidStatuses();
                         errors.Add($"Invalid status: {statusValue}. Must be one of: {string.Join(", ", validStatuses)}");
                     }
                 }
