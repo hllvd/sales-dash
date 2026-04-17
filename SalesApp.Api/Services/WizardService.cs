@@ -7,6 +7,7 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using System.Globalization;
 using System.Text.Json;
+using OfficeOpenXml;
 
 namespace SalesApp.Services
 {
@@ -252,30 +253,28 @@ namespace SalesApp.Services
             }
             
             using var memoryStream = new MemoryStream();
-            using (var writer = new StreamWriter(memoryStream))
+            ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
+            using (var package = new ExcelPackage(memoryStream))
             {
-                writer.Write('\uFEFF');
-                using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)))
-                {
-                    csv.WriteField("Name");
-                    csv.WriteField("Email");
-                    csv.WriteField("ParentEmail");
-                    csv.WriteField("Matricula");
-                    csv.WriteField("Owner_Matricula");
-                    csv.WriteField("Password");
-                    csv.NextRecord();
+                var worksheet = package.Workbook.Worksheets.Add("Users");
 
-                    foreach (var user in userMap.OrderBy(u => u.Name))
-                    {
-                        csv.WriteField(user.Name);
-                        csv.WriteField(""); 
-                        csv.WriteField(""); 
-                        csv.WriteField(user.Matricula);
-                        csv.WriteField("0");
-                        csv.WriteField(""); 
-                        csv.NextRecord();
-                    }
+                worksheet.Cells[1, 1].Value = "Name";
+                worksheet.Cells[1, 2].Value = "Email";
+                worksheet.Cells[1, 3].Value = "ParentEmail";
+                worksheet.Cells[1, 4].Value = "Matricula";
+                worksheet.Cells[1, 5].Value = "Owner_Matricula";
+                worksheet.Cells[1, 6].Value = "Password";
+
+                int row = 2;
+                foreach (var user in userMap.OrderBy(u => u.Name))
+                {
+                    worksheet.Cells[row, 1].Value = user.Name;
+                    worksheet.Cells[row, 4].Value = user.Matricula;
+                    worksheet.Cells[row, 5].Value = "0";
+                    row++;
                 }
+
+                package.Save();
             }
 
             return memoryStream.ToArray();

@@ -22,6 +22,7 @@ namespace SalesApp.Tests
         private readonly Mock<IMessageService> _mockMessageService;
         private readonly Mock<IUserScopeService> _mockUserScopeService;
         private readonly Mock<IExportService> _mockExportService;
+        private readonly Mock<IContractStatusMapper> _mockStatusMapper;
         private readonly ContractsController _controller;
 
         public ContractsControllerTests()
@@ -34,6 +35,7 @@ namespace SalesApp.Tests
             _mockMessageService = new Mock<IMessageService>();
             _mockUserScopeService = new Mock<IUserScopeService>();
             _mockExportService = new Mock<IExportService>();
+            _mockStatusMapper = new Mock<IContractStatusMapper>();
             _controller = new ContractsController(
                 _mockContractRepository.Object, 
                 _mockUserRepository.Object, 
@@ -42,7 +44,8 @@ namespace SalesApp.Tests
                 _mockMatriculaRepository.Object, 
                 _mockMessageService.Object,
                 _mockUserScopeService.Object,
-                _mockExportService.Object);
+                _mockExportService.Object,
+                _mockStatusMapper.Object);
             
             // Setup MessageService to return English messages for tests
             var enumToMessage = new System.Func<AppMessage, string>(msg => {

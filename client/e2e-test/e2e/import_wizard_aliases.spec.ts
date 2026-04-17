@@ -2,6 +2,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
+import * as XLSX from 'xlsx';
 
 test.describe('Import Wizard Aliases Flow', () => {
   test('should process Consultor and Nome PV aliases correctly', async ({ page }) => {
@@ -25,7 +26,7 @@ test.describe('Import Wizard Aliases Flow', () => {
     const historicalFile = getTestDataPath('wizard_demo_aliases.csv');
     // Ensure the system settles before uploading to avoid flaky tests
     await page.waitForTimeout(2000);
-    await page.setInputFiles('input[type="file"]', historicalFile);
+    await page.locator('#wizard-step1-input').setInputFiles(historicalFile);
     await page.click('button:has-text("Próximo Passo")');
 
     // 5. Verify Step 2 transition and Download users.csv template to verify extraction
@@ -33,24 +34,33 @@ test.describe('Import Wizard Aliases Flow', () => {
     
     const [downloadUsers] = await Promise.all([
       page.waitForEvent('download'),
-      page.click('button:has-text("Baixar users.csv para Preencher")')
+      page.click('button:has-text("Baixar users.xlsx para Preencher")')
     ]);
     
     // Read the downloaded file content to ensure extraction worked
     const usersPath = await downloadUsers.path();
     if (!usersPath) throw new Error("usersPath is null");
-    const usersContent = fs.readFileSync(usersPath, 'utf8');
+    
+    const workbook = XLSX.readFile(usersPath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const usersData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-    // Assert that 'Consultor' names and other data were extracted successfully
-    expect(usersContent).toContain('João Silva');
-    expect(usersContent).toContain('MAT-001');
-    expect(usersContent).toContain('Maria Souza');
-    expect(usersContent).toContain('MAT-002');
-    expect(usersContent).toContain('Pedro Alves');
+    // Assert that 'Name' and 'Matricula' were extracted successfully
+    const joao = usersData.find(u => u.Name === 'João Silva');
+    expect(joao).toBeDefined();
+    expect(joao.Matricula).toBe('MAT-001');
+
+    const maria = usersData.find(u => u.Name === 'Maria Souza');
+    expect(maria).toBeDefined();
+    expect(maria.Matricula).toBe('MAT-002');
+
+    const pedro = usersData.find(u => u.Name === 'Pedro Alves');
+    expect(pedro).toBeDefined();
 
     // 6. Upload pre-filled users to proceed
-    const usersFileFilled = getTestDataPath('users_demo_aliases_filled.csv');
-    await page.setInputFiles('input[type="file"]', usersFileFilled);
+    const usersFileFilled = getTestDataPath('users_demo_aliases_filled.xlsx');
+    await page.locator('#wizard-step2-input').setInputFiles(usersFileFilled);
     await page.click('button:has-text("Importar Usuários e Avançar")');
 
     // 7. Verify Step 3 and Download enriched contracts.csv

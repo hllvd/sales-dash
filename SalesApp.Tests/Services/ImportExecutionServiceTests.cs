@@ -21,6 +21,7 @@ namespace SalesApp.Tests.Services
         private readonly Mock<AppDbContext> _mockContext;
         private readonly Mock<IContractMetadataRepository> _mockMetadataRepository;
         private readonly Mock<IPVRepository> _mockPvRepository;
+        private readonly Mock<IContractStatusMapper> _mockStatusMapper;
         private readonly ImportExecutionService _service;
 
         public ImportExecutionServiceTests()
@@ -34,6 +35,7 @@ namespace SalesApp.Tests.Services
             _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>(), new Mock<IHttpContextAccessor>().Object);
             _mockMetadataRepository = new Mock<IContractMetadataRepository>();
             _mockPvRepository = new Mock<IPVRepository>();
+            _mockStatusMapper = new Mock<IContractStatusMapper>();
             
             _service = new ImportExecutionService(
                 _mockContractRepository.Object,
@@ -44,7 +46,8 @@ namespace SalesApp.Tests.Services
                 _mockEmailService.Object,
                 _mockContext.Object,
                 _mockMetadataRepository.Object,
-                _mockPvRepository.Object
+                _mockPvRepository.Object,
+                _mockStatusMapper.Object
             );
         }
 

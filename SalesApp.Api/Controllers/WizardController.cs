@@ -65,11 +65,17 @@ namespace SalesApp.Controllers
         {
             try
             {
-                var csvBytes = await _wizardService.GenerateUsersTemplateAsync(uploadId);
-                return File(csvBytes, "text/csv", "users.csv");
+                Console.WriteLine($"[Wizard] Requesting users.xlsx template for session: {uploadId}");
+                var xlsxBytes = await _wizardService.GenerateUsersTemplateAsync(uploadId);
+                Console.WriteLine($"[Wizard] Successfully generated users.xlsx ({xlsxBytes.Length} bytes) for session: {uploadId}");
+                return File(xlsxBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "users.xlsx");
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[Wizard] ERROR generating template for {uploadId}: {ex.Message}");
+                if (ex.InnerException != null) 
+                    Console.WriteLine($"[Wizard] INNER ERROR: {ex.InnerException.Message}");
+                    
                 return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message });
             }
         }

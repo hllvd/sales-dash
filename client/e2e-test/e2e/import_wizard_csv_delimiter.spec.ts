@@ -31,8 +31,8 @@ test.describe('CSV Delimiter Auto-Detection', () => {
    * Helper: step 1 — upload the contracts xlsx and wait for "Próximo Passo" to be ready.
    */
   async function uploadContractsStep1(page: Page) {
-    // Step 1's FileInput accepts .csv AND .xlsx — use that to distinguish it from Step 2's input
-    const step1Input = page.locator('input[type="file"][accept=".csv,.xlsx"]');
+    // Step 1's FileInput targeted by id
+    const step1Input = page.locator('#wizard-step1-input');
     await expect(step1Input).toBeAttached({ timeout: 10_000 });
     await step1Input.setInputFiles(getTestDataPath('historical_contracts.xlsx'));
     const nextBtn = page.locator('button:has-text("Próximo Passo")');
@@ -50,14 +50,14 @@ test.describe('CSV Delimiter Auto-Detection', () => {
     await uploadContractsStep1(page);
 
     // Step 2
-    // Step 2's FileInput accepts only .csv — use that to target it specifically
-    // (Step 1's input is still in the DOM but has accept=".csv,.xlsx")
-    const step2Input = page.locator('input[type="file"][accept=".csv"]');
+    // Targeted by id
+    const step2Input = page.locator('#wizard-step2-input');
     await expect(step2Input).toBeAttached({ timeout: 10_000 });
     await step2Input.setInputFiles(getTestDataPath('users-semicolon.csv'));
     // Give Mantine's FileInput onChange a moment to update React state
-    await page.waitForTimeout(1000);
-    await page.locator('button:has-text("Importar Usuários e Avançar")').click();
+    const importBtn = page.locator('button:has-text("Importar Usuários e Avançar")');
+    await expect(importBtn).toBeEnabled({ timeout: 10000 });
+    await importBtn.click();
 
     // 'Usuários Importados!' is the Alert shown only when step 3 body is active
     await expect(page.getByText('Usuários Importados!')).toBeVisible({ timeout: 30_000 });
@@ -74,11 +74,12 @@ test.describe('CSV Delimiter Auto-Detection', () => {
 
     // Step 2
     // Step 2's FileInput accepts only .csv — use that to target it specifically
-    const step2Input = page.locator('input[type="file"][accept=".csv"]');
+    const step2Input = page.locator('#wizard-step2-input');
     await expect(step2Input).toBeAttached({ timeout: 10_000 });
     await step2Input.setInputFiles(getTestDataPath('users-demo.csv'));
-    await page.waitForTimeout(1000);
-    await page.locator('button:has-text("Importar Usuários e Avançar")').click();
+    const importBtn = page.locator('button:has-text("Importar Usuários e Avançar")');
+    await expect(importBtn).toBeEnabled({ timeout: 10000 });
+    await importBtn.click();
 
     await expect(page.getByText('Usuários Importados!')).toBeVisible({ timeout: 60_000 });
   });
@@ -94,11 +95,12 @@ test.describe('CSV Delimiter Auto-Detection', () => {
 
     // Step 2
     // Step 2's FileInput accepts only .csv — use that to target it specifically
-    const step2Input = page.locator('input[type="file"][accept=".csv"]');
+    const step2Input = page.locator('#wizard-step2-input');
     await expect(step2Input).toBeAttached({ timeout: 10_000 });
     await step2Input.setInputFiles(getTestDataPath('users-ambiguous.csv'));
-    await page.waitForTimeout(1000);
-    await page.locator('button:has-text("Importar Usuários e Avançar")').click();
+    const importBtn = page.locator('button:has-text("Importar Usuários e Avançar")');
+    await expect(importBtn).toBeEnabled({ timeout: 10000 });
+    await importBtn.click();
 
     // Expect a Mantine error toast — wizard must NOT advance.
     // Errors in this app use toast.error() which renders via @mantine/notifications
@@ -121,11 +123,12 @@ test.describe('CSV Delimiter Auto-Detection', () => {
     await uploadContractsStep1(page);
 
     // Step 2
-    const step2Input = page.locator('input[type="file"][accept=".csv"]');
+    const step2Input = page.locator('#wizard-step2-input');
     await expect(step2Input).toBeAttached({ timeout: 10_000 });
     await step2Input.setInputFiles(getTestDataPath('users-unsupported-delimiter.csv'));
-    await page.waitForTimeout(1000);
-    await page.locator('button:has-text("Importar Usuários e Avançar")').click();
+    const importBtn = page.locator('button:has-text("Importar Usuários e Avançar")');
+    await expect(importBtn).toBeEnabled({ timeout: 10000 });
+    await importBtn.click();
 
     // Backend should throw because neither ',' nor ';' appear in the file
     await expect(

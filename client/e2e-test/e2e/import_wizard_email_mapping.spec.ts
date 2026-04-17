@@ -25,7 +25,7 @@ test.describe('Email Mapping to contracts.csv', () => {
     ).toBeVisible({ timeout: 10_000 });
 
     // 3. Step 1: Upload historical contracts
-    const step1Input = page.locator('input[type="file"][accept=".csv,.xlsx"]');
+    const step1Input = page.locator('#wizard-step1-input');
     await expect(step1Input).toBeAttached({ timeout: 10_000 });
     await step1Input.setInputFiles(getTestDataPath('historical_contracts.xlsx'));
     
@@ -36,13 +36,14 @@ test.describe('Email Mapping to contracts.csv', () => {
     // 4. Step 2: Upload users-demo.csv
     // Wait for the "Assistente" step to advance visually
     await expect(page.getByText('Preenchimento de Usuários')).toBeVisible();
-    const step2Input = page.locator('input[type="file"][accept=".csv"]');
+    const step2Input = page.locator('#wizard-step2-input');
     await expect(step2Input).toBeAttached({ timeout: 10_000 });
     await step2Input.setInputFiles(getTestDataPath('users-demo.csv'));
     
     // Give state a moment to settle
-    await page.waitForTimeout(1000);
-    await page.locator('button:has-text("Importar Usuários e Avançar")').click();
+    const importBtn = page.locator('button:has-text("Importar Usuários e Avançar")');
+    await expect(importBtn).toBeEnabled({ timeout: 10000 });
+    await importBtn.click();
 
     // 5. Wait for Step 3: Download Contracts Enriched
     await expect(page.getByText('Usuários Importados!')).toBeVisible({ timeout: 30_000 });

@@ -10,7 +10,7 @@ namespace SalesApp.Services
         public FileParserService()
         {
             // Set EPPlus license context (required for EPPlus 5+)
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
         }
 
         public string GetFileType(IFormFile file)

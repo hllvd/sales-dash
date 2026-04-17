@@ -39,7 +39,7 @@ namespace SalesApp.Services
         public ExportService(IServiceScopeFactory scopeFactory)
         {
             _scopeFactory = scopeFactory;
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
         }
 
         public string StartExport(ContractExportRequest filters, UserScopeContext scope, string requestingUserId)

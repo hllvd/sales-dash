@@ -56,12 +56,12 @@ const ImportWizardPage: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'users.csv';
+      a.download = 'users.xlsx';
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      toast.success('Modelo users.csv baixado');
+      toast.success('Modelo users.xlsx baixado');
     } catch (err: any) {
       toast.error('Falha ao baixar modelo');
     }
@@ -161,6 +161,7 @@ const ImportWizardPage: React.FC = () => {
                     setMismatchWarning(null);
                   }}
                   accept=".csv,.xlsx"
+                  fileInputProps={{ id: 'wizard-step1-input' }}
                   leftSection={<IconUpload size={16} />}
                 />
 
@@ -209,7 +210,7 @@ const ImportWizardPage: React.FC = () => {
 
                 <Group>
                   <Button variant="outline" leftSection={<IconDownload size={16} />} onClick={handleDownloadTemplate}>
-                    Baixar users.csv para Preencher
+                    Baixar users.xlsx para Preencher
                   </Button>
                 </Group>
 
@@ -218,12 +219,13 @@ const ImportWizardPage: React.FC = () => {
                 </Text>
 
                 <FileInput
-                  label="Upload do arquivo users.csv preenchido"
-                  placeholder="Selecione o arquivo users.csv atualizado"
+                  label="Upload do arquivo users.xlsx preenchido"
+                  placeholder="Selecione o arquivo users.xlsx atualizado"
                   required
                   value={usersFile}
                   onChange={setUsersFile}
-                  accept=".csv"
+                  accept=".csv,.xlsx"
+                  fileInputProps={{ id: 'wizard-step2-input' }}
                   leftSection={<IconUpload size={16} />}
                 />
 

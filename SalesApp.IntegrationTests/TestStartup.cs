@@ -79,6 +79,10 @@ namespace SalesApp.IntegrationTests
             
             services.AddScoped<IWizardService, WizardService>();
             services.AddSingleton<IExportService, ExportService>();
+
+            // Contract Status Aliases Mapping
+            services.Configure<Models.Configuration.ContractStatusOptions>(Configuration.GetSection("ContractStatusMappings"));
+            services.AddSingleton<IContractStatusMapper, ContractStatusMapper>();
             
             // CORS
             services.AddCors(options =>
