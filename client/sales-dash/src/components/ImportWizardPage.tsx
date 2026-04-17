@@ -254,9 +254,14 @@ const ImportWizardPage: React.FC = () => {
           >
             <Paper withBorder p="md" mt="md" style={{ backgroundColor: '#f0f9ff' }}>
               <Stack gap="md">
-                <Alert icon={<IconCheck size={16} />} title="Usuários Importados!" color="green">
-                  Os {importResult?.processedRows || 0} vendedores e suas matrículas foram importados com sucesso. 
-                  Agora você pode baixar o arquivo de contratos final.
+                <Alert 
+                  icon={importResult?.processedRows > 0 ? <IconCheck size={16} /> : <IconAlertCircle size={16} />} 
+                  title={importResult?.processedRows > 0 ? "Usuários Importados!" : "Nenhum usuário importado"} 
+                  color={importResult?.processedRows > 0 ? "green" : "orange"}
+                >
+                  {importResult?.processedRows > 0 
+                    ? `Os ${importResult?.processedRows} vendedores e suas matrículas foram importados com sucesso. Agora você pode baixar o arquivo de contratos final.`
+                    : "Não foi possível importar nenhum vendedor. Verifique se as colunas Nome, Email e Matricula estão preenchidas no arquivo users.xlsx."}
                 </Alert>
                 
                 <Text size="sm">

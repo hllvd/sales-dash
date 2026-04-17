@@ -38,6 +38,12 @@ test.describe('CSV Delimiter Auto-Detection', () => {
     const nextBtn = page.locator('button:has-text("Próximo Passo")');
     await expect(nextBtn).toBeEnabled({ timeout: 15_000 });
     await nextBtn.click();
+
+    // Handle possible 'Modelo Divergente' warning
+    const prosseguirBtn = page.locator('button:has-text("Prosseguir assim mesmo")');
+    if (await prosseguirBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await prosseguirBtn.click();
+    }
   }
 
   // ---------------------------------------------------------------------------

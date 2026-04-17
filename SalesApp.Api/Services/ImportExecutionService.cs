@@ -484,9 +484,12 @@ namespace SalesApp.Services
             var name = GetFieldValue(row, reverseMappings, "Name");
             var email = GetFieldValue(row, reverseMappings, "Email")?.ToLowerInvariant(); // Force lowercase
 
-            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email))
+            // Extract Matricula fields early for validation
+            var matricula = GetFieldValue(row, reverseMappings, "Matricula");
+
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(matricula))
             {
-                throw new ArgumentException("Missing required fields");
+                throw new ArgumentException("Nome, Email and Matricula are required fields for each row.");
             }
 
             // Check if email exists
@@ -527,7 +530,7 @@ namespace SalesApp.Services
             }
 
             // Extract Matricula fields
-            var matricula = GetFieldValue(row, reverseMappings, "Matricula");
+            matricula = GetFieldValue(row, reverseMappings, "Matricula");
             var isMatriculaOwnerStr = GetFieldValue(row, reverseMappings, "IsMatriculaOwner");
             bool isMatriculaOwner = false;
 

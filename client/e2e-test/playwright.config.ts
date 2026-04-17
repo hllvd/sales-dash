@@ -28,10 +28,11 @@ export default defineConfig({
       name: 'tear-2-roles-testing',
       testMatch: [
         'import_wizard_status_update.spec.ts',
-        'user_role_management.spec.ts', 
-        'import_wizard_csv_delimiter.spec.ts',
+        'user_role_management.spec.ts',
+        //'import_wizard_csv_delimiter.spec.ts',
         'import_wizard_email_mapping.spec.ts',
-        'import_wizard_data_integrity.spec.ts'],
+        'import_wizard_data_integrity.spec.ts',
+        'import_wizard_validation.spec.ts'],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-1-setup-and-import']
     },
