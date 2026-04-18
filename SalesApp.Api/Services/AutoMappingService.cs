@@ -9,7 +9,7 @@ namespace SalesApp.Services
             {
                 ["ContractNumber"] = new[] { "contract number", "contract_number", "contractnumber", "number", "contract #", "contract#", "contrato" },
                 ["UserEmail"] = new[] { "user email", "useremail", "user_email", "email", "client email", "customer email", "e-mail" },
-                ["TotalAmount"] = new[] { "total amount", "totalamount", "total_amount", "amount", "value", "price", "valor", "credito venda", "crédito venda", "total" },
+                ["TotalAmount"] = new[] { "total amount", "totalamount", "total_amount", "amount", "value", "price", "valor", "credito venda", "crédito venda", "total", "total amount" },
                 ["GroupId"] = new[] { "group id", "groupid", "group_id", "group", "team id", "teamid", "grupo" },
                 ["Status"] = new[] { "status", "state", "contract status", "contract_status" },
                 ["SaleStartDate"] = new[] { "start date", "startdate", "start_date", "sale start", "contract start", "begin date", "data da venda", "data venda" },
@@ -21,8 +21,7 @@ namespace SalesApp.Services
                 ["ContractType"] = new[] { "contract type", "contracttype", "contract_type", "type", "tipo" },
                 ["CustomerName"] = new[] { "customer name", "customername", "customer_name", "client name", "clientname", "nome do cliente", "nome cliente", "cliente" },
                 ["SellerName"] = new[] { "consultor", "consultar", "vendedor", "comissionado", "vendedor(a)", "consultor(a)", "comissionada", "name", "nome" },
-                ["Matricula"] = new[] { "matrícula", "matricula", "enrollment", "id", "mat" },
-                ["REP"] = new[] { "rep", "representante" }
+                ["MatriculaNumber"] = new[] { "matrícula", "matricula", "enrollment", "id", "mat", "matriculanumber" }
             },
             ["User"] = new Dictionary<string, string[]>
             {
@@ -118,11 +117,37 @@ namespace SalesApp.Services
 
         private string NormalizeColumnName(string columnName)
         {
-            return columnName
+            if (string.IsNullOrEmpty(columnName)) return "";
+
+            // Remove Byte Order Mark (BOM) if present
+            if (columnName.StartsWith("\uFEFF"))
+                columnName = columnName.Substring(1);
+
+            return RemoveAccents(columnName)
                 .ToLowerInvariant()
                 .Replace("_", " ")
                 .Replace("-", " ")
                 .Trim();
+        }
+
+        private string RemoveAccents(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return text;
+
+            var normalizedString = text.Normalize(System.Text.NormalizationForm.FormD);
+            var stringBuilder = new System.Text.StringBuilder();
+
+            foreach (var c in normalizedString)
+            {
+                var unicodeCategory = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != System.Globalization.UnicodeCategory.NonSpacingMark)
+                {
+                    stringBuilder.Append(c);
+                }
+            }
+
+            return stringBuilder.ToString().Normalize(System.Text.NormalizationForm.FormC);
         }
     }
 }

@@ -95,7 +95,7 @@ const ImportWizardPage: React.FC = () => {
     setLoading(true);
     try {
       await apiService.downloadWizardContracts(uploadData.uploadId);
-      toast.success('Arquivo contracts.csv baixado com sucesso');
+      toast.success('Arquivo contracts.xlsx baixado com sucesso');
     } catch (err: any) {
       toast.error('Falha ao baixar contratos enriquecidos');
     } finally {
@@ -277,7 +277,7 @@ const ImportWizardPage: React.FC = () => {
                     onClick={handleDownloadContracts}
                     loading={loading}
                   >
-                    Baixar contracts.csv Enriquecido
+                    Baixar contracts.xlsx Enriquecido
                   </Button>
                 </Group>
 

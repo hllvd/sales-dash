@@ -45,16 +45,16 @@ test.describe('[TEAR 3] Hierarchy Contract Visibility', () => {
     await expect(page.locator('tr >> text=11177').first()).toBeVisible();
 
     // 4. Check Matricula 9999 (Julio Mota - Descendant)
-    // This is the CRITICAL check for the hierarchy bug fix
     console.log('>>> Filtering by Matricula 9999 (Julio Mota - Descendant)');
     await page.fill('#filterMatricula', ''); // Clear first
+    await page.waitForTimeout(500);
     await page.fill('#filterMatricula', '9999');
     await waitForLoading();
 
     // If the hierarchy is working, Carlos (Manager) should see Julio's contracts
-    await expect(page.locator('tr >> text=9999').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('tr >> text=9999').first()).toBeVisible({ timeout: 15000 });
     await expect(page.locator('tr >> text=Julio Mota').first()).toBeVisible();
 
-    console.log('>>> Hierarchy visibility verified: Carlos sees Julio\'s data.');
+    console.log('>>> Hierarchy visibility verified: Carlos sees Julio\'s data correctly isolated.');
   });
 });

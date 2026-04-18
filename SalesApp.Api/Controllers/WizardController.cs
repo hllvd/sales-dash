@@ -118,8 +118,8 @@ namespace SalesApp.Controllers
         {
             try
             {
-                var csvBytes = await _wizardService.GenerateEnrichedContractsAsync(uploadId);
-                return File(csvBytes, "text/csv", "contracts.csv");
+                var xlsxBytes = await _wizardService.GenerateEnrichedContractsAsync(uploadId);
+                return File(xlsxBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "contracts.xlsx");
             }
             catch (Exception ex)
             {

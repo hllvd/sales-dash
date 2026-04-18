@@ -378,99 +378,112 @@ namespace SalesApp.Services
                 }
             }
 
-            using var memoryStream = new MemoryStream();
-            using (var writer = new StreamWriter(memoryStream))
+            using var package = new ExcelPackage();
+            var worksheet = package.Workbook.Worksheets.Add("Contratos");
+            int excelRow = 1;
+
+            // Write headers
+            var filteredColumns = columns
+                .Where((c, index) => index != 16 && index != 17)
+                .Where(c => !c.StartsWith("cota.", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            int col = 1;
+            foreach (var header in filteredColumns)
             {
-                writer.Write('\uFEFF');
-                
-                using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)))
+                worksheet.Cells[excelRow, col].Value = header;
+                col++;
+            }
+            worksheet.Cells[excelRow, col].Value = "Email";
+            excelRow++;
+
+            // Write data rows in batches
+            int skip = 0;
+            int take = 500;
+            while (true)
+            {
+                var rowBatch = await _context.ImportRows
+                    .Where(r => r.ImportSessionId == session.Id)
+                    .OrderBy(r => r.RowIndex)
+                    .Skip(skip)
+                    .Take(take)
+                    .ToListAsync();
+
+                if (rowBatch.Count == 0) break;
+
+                foreach (var dbRow in rowBatch)
                 {
-                    var filteredColumns = columns
-                        .Where((c, index) => index != 16 && index != 17)
-                        .Where(c => !c.StartsWith("cota.", StringComparison.OrdinalIgnoreCase))
-                        .ToList();
-                    
-                    foreach (var col in filteredColumns) csv.WriteField(col);
-                    csv.WriteField("Email");
-                    csv.NextRecord();
+                    var row = JsonSerializer.Deserialize<Dictionary<string, string>>(dbRow.RowData) ?? new();
 
-                    int skip = 0;
-                    int take = 500;
-                    while (true)
+                    var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "name", "Nome", "Usuário");
+                    var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
+
+                    var nameNorm = nameVal.ToLower().Trim();
+                    var matNorm = matVal.ToLower().Trim();
+
+                    string? email = null;
+                    if (!string.IsNullOrEmpty(matNorm) && !string.IsNullOrEmpty(nameNorm) && exactMatchLookup.TryGetValue((matNorm, nameNorm), out var exactEmail))
                     {
-                        var rowBatch = await _context.ImportRows
-                            .Where(r => r.ImportSessionId == session.Id)
-                            .OrderBy(r => r.RowIndex)
-                            .Skip(skip)
-                            .Take(take)
-                            .ToListAsync();
-
-                        if (rowBatch.Count == 0) break;
-
-                        foreach (var dbRow in rowBatch)
-                        {
-                            var row = JsonSerializer.Deserialize<Dictionary<string, string>>(dbRow.RowData) ?? new();
-                            
-                            var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "name", "Nome", "Usuário");
-                            var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
-                            
-                            var nameNorm = nameVal.ToLower().Trim();
-                            var matNorm = matVal.ToLower().Trim();
-                            
-                            string? email = null;
-                            if (!string.IsNullOrEmpty(matNorm) && !string.IsNullOrEmpty(nameNorm) && exactMatchLookup.TryGetValue((matNorm, nameNorm), out var exactEmail))
-                            {
-                                email = exactEmail;
-                            }
-                            else if (!string.IsNullOrEmpty(nameNorm) && nameLookup.TryGetValue(nameNorm, out var nameEmail))
-                            {
-                                email = nameEmail;
-                            }
-                            else if (!string.IsNullOrEmpty(matNorm))
-                            {
-                                if (matriculaOwnerLookup.TryGetValue(matNorm, out var ownerEmail)) {
-                                    email = ownerEmail;
-                                } else if (matriculaAnyLookup.TryGetValue(matNorm, out var anyEmail)) {
-                                    email = anyEmail;
-                                }
-                            }
-
-                            var confKey = row.Keys.FirstOrDefault(k => k.Equals("Conferência", StringComparison.OrdinalIgnoreCase) || k.Equals("conferencia", StringComparison.OrdinalIgnoreCase));
-                            var statusKey = row.Keys.FirstOrDefault(k => k.Equals("Status", StringComparison.OrdinalIgnoreCase));
-                            
-                            if (confKey != null)
-                            {
-                                var statusValue = MapConferenciaToStatus(row[confKey]);
-                                if (statusKey != null) row[statusKey] = statusValue;
-                                else row["Status"] = statusValue; 
-                            }
-
-                            foreach (var col in filteredColumns)
-                            {
-                                var val = row[col];
-                                if (col.Contains("Data", StringComparison.OrdinalIgnoreCase) || col.Contains("Dt", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    if (DateTime.TryParse(val, out var dt))
-                                    {
-                                        val = dt.ToString("MM/dd/yyyy");
-                                    }
-                                    else if (double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double oaDate))
-                                    {
-                                        try { val = DateTime.FromOADate(oaDate).ToString("MM/dd/yyyy"); } catch { }
-                                    }
-                                }
-                                csv.WriteField(val);
-                            }
-                            
-                            csv.WriteField(email ?? "");
-                            csv.NextRecord();
-                        }
-                        skip += take;
+                        email = exactEmail;
                     }
+                    else if (!string.IsNullOrEmpty(nameNorm) && nameLookup.TryGetValue(nameNorm, out var nameEmail))
+                    {
+                        email = nameEmail;
+                    }
+                    else if (!string.IsNullOrEmpty(matNorm))
+                    {
+                        if (matriculaOwnerLookup.TryGetValue(matNorm, out var ownerEmail)) {
+                            email = ownerEmail;
+                        } else if (matriculaAnyLookup.TryGetValue(matNorm, out var anyEmail)) {
+                            email = anyEmail;
+                        }
+                    }
+
+                    var confKey = row.Keys.FirstOrDefault(k => k.Equals("Conferência", StringComparison.OrdinalIgnoreCase) || k.Equals("conferencia", StringComparison.OrdinalIgnoreCase));
+                    var statusKey = row.Keys.FirstOrDefault(k => k.Equals("Status", StringComparison.OrdinalIgnoreCase));
+
+                    if (confKey != null)
+                    {
+                        var statusValue = MapConferenciaToStatus(row[confKey]);
+                        if (statusKey != null) row[statusKey] = statusValue;
+                        else row["Status"] = statusValue;
+                    }
+
+                    col = 1;
+                    foreach (var header in filteredColumns)
+                    {
+                        var val = row.TryGetValue(header, out var cellVal) ? cellVal : string.Empty;
+                        if (header.Contains("Data", StringComparison.OrdinalIgnoreCase) || header.Contains("Dt", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (DateTime.TryParse(val, out var dt))
+                            {
+                                worksheet.Cells[excelRow, col].Value = dt.ToString("MM/dd/yyyy");
+                                col++;
+                                continue;
+                            }
+                            else if (double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double oaDate))
+                            {
+                                try
+                                {
+                                    worksheet.Cells[excelRow, col].Value = DateTime.FromOADate(oaDate).ToString("MM/dd/yyyy");
+                                    col++;
+                                    continue;
+                                }
+                                catch { }
+                            }
+                        }
+                        worksheet.Cells[excelRow, col].Value = val;
+                        col++;
+                    }
+
+                    worksheet.Cells[excelRow, col].Value = email ?? string.Empty;
+                    excelRow++;
                 }
+
+                skip += take;
             }
 
-            return memoryStream.ToArray();
+            return package.GetAsByteArray();
         }
 
         private string MapConferenciaToStatus(string conferencia)

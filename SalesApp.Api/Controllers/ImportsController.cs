@@ -412,6 +412,10 @@ namespace SalesApp.Controllers
                 allTemplateFields.AddRange(requiredFields);
                 allTemplateFields.AddRange(optionalFields);
                 
+                Console.WriteLine($"--- DEBUG: Import Upload [{hardcodedTemplate.Name}] ---");
+                Console.WriteLine($"Required Fields: {string.Join(", ", requiredFields)}");
+                Console.WriteLine($"Detected Columns: {string.Join(", ", columns)}");
+                
                 var suggestedMappings = _autoMapping.SuggestMappings(columns, entityType, allTemplateFields);
                 
                 if (!string.IsNullOrEmpty(hardcodedTemplate.DefaultMappings) && hardcodedTemplate.DefaultMappings != "{}")
@@ -420,6 +424,9 @@ namespace SalesApp.Controllers
                     var appliedMappings = _autoMapping.ApplyTemplateMappings(templateMappings, columns);
                     foreach (var (src, target) in appliedMappings) suggestedMappings[src] = target;
                 }
+
+                Console.WriteLine($"Suggested Mappings: {string.Join(", ", suggestedMappings.Select(kv => $"{kv.Key}->{kv.Value}"))}");
+                Console.WriteLine("--------------------------------------------");
 
                 var mappedRequiredFieldsCount = requiredFields.Count(rf => suggestedMappings.Values.Contains(rf));
                 var isTemplateMatch = true;

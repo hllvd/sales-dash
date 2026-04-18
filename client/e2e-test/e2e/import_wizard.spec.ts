@@ -24,12 +24,15 @@ test.describe('Import Wizard Flow', () => {
     const aggregationVisible = await page.locator('.aggregation-summary').isVisible();
 
     // If we have rows and the aggregation summary is visible, we can safely assume data is imported
+    // FORCED RE-IMPORT: Temporarily disabled skip logic to fix bad data mapping
+    /*
     const isAlreadyImported = rowCount > 0 && aggregationVisible;
 
     if (isAlreadyImported) {
       console.log(`>>> [Tear 1] Data already imported (${rowCount} rows). Skipping import wizard steps.`);
       return;
     }
+    */
 
     // 3. Verify no contracts are present initially (only if not already imported)
     // If we reach here, we expect the table to be empty
@@ -61,7 +64,7 @@ test.describe('Import Wizard Flow', () => {
     await expect(page.getByRole('heading', { name: 'Contratos' })).toBeVisible();
     await page.click('button:has-text("Importar")');
 
-    const finalContractFile = getTestDataPath('contracts.csv');
+    const finalContractFile = getTestDataPath('contracts.xlsx');
     await page.setInputFiles('input#file', finalContractFile);
 
     // Select template "Dashboard" (ID 3 matches ContractDashboard)
@@ -74,10 +77,15 @@ test.describe('Import Wizard Flow', () => {
     await page.waitForTimeout(2000);
 
     // Explicitly map Matricula if not auto-mapped
-    const matriculaRow = page.locator('.mapping-row', { hasText: 'Matrícula' });
+    // Use a strict locator for the row to avoid matching "Matrícula" text inside other selects
+    const matriculaRow = page.locator('.mapping-row').filter({ 
+      has: page.locator('strong', { hasText: /^Matrícula$/ }) 
+    });
     const matriculaSelect = matriculaRow.locator('select');
     await matriculaSelect.selectOption('MatriculaNumber');
 
+    // Wait for the button to be enabled (meaning all required fields are mapped)
+    await expect(page.locator('button:has-text("Confirmar e Importar")')).toBeEnabled({ timeout: 10000 });
     await page.click('button:has-text("Confirmar e Importar")');
     await page.click('button:has-text("Fechar")');
 

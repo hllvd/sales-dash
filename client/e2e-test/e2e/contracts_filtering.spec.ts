@@ -146,11 +146,12 @@ test.describe('Contracts Filtering', () => {
     );
     await searchRequestPromise;
 
-    // 4. Assert that he can see Julio's 22 contracts (we updated them to matricula 9999)
+    // 4. Assert that he can see Julio's 22 contracts
     // Even if he is not the owner, the hierarchy allows it.
     await expect(page.locator('table tbody tr')).toHaveCount(22, { timeout: 15000 });
     
-    // Verify at least one row contains the child's matricula
-    await expect(page.locator('table tbody tr').first()).toContainText('9999');
+    // Julio has contracts with both 9999 and 11177 matriculas, so we verify
+    // that 9999 appears somewhere in the table (not necessarily in the first row).
+    await expect(page.locator('table tbody tr').filter({ hasText: '9999' }).first()).toBeVisible({ timeout: 5000 });
   });
 });

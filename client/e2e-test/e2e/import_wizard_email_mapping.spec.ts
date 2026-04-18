@@ -1,13 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
+import * as XLSX from 'xlsx';
 
 const getTestDataPath = (filename: string) =>
   path.resolve(process.cwd(), 'test-data', filename);
 
-test.describe('Email Mapping to contracts.csv', () => {
+test.describe('Email Mapping to contracts.xlsx', () => {
 
-  test('should accurately map Emails from users.csv into the final contracts.csv', async ({ page }) => {
+  test('should accurately map Emails from users.csv into the final contracts.xlsx', async ({ page }) => {
     test.setTimeout(45_000);
 
     // 1. Login as superadmin
@@ -47,7 +48,7 @@ test.describe('Email Mapping to contracts.csv', () => {
 
     // 5. Wait for Step 3: Download Contracts Enriched
     await expect(page.getByText('Usuários Importados!')).toBeVisible({ timeout: 30_000 });
-    const downloadBtn = page.getByRole('button', { name: /Baixar contracts\.csv Enriquecido/i });
+    const downloadBtn = page.getByRole('button', { name: /Baixar contracts\.xlsx Enriquecido/i });
     await expect(downloadBtn).toBeVisible({ timeout: 10_000 });
 
     // 6. Intercept download
@@ -55,21 +56,27 @@ test.describe('Email Mapping to contracts.csv', () => {
     await downloadBtn.click();
     const download = await downloadPromise;
 
-    // 7. Process downloaded CSV memory stream
+    // 7. Process downloaded XLSX file
     const downloadPath = await download.path();
-    const csvContent = fs.readFileSync(downloadPath, 'utf8');
+    if (!downloadPath) throw new Error("downloadPath is null");
+
+    const workbook = XLSX.readFile(downloadPath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(worksheet) as any[];
 
     // Asserts:
     // We expect the backend email resolver mapping algorithm to have parsed users-demo.csv 
     // and matched it correctly against the XLSX data. 
-
-    // E.g. Matricula 6111 with Comissionado Arthur Terplak -> arthurterplak@example.com
-    expect(csvContent).toContain('arthurterplak@example.com');
-    // Ensure another shared user on 6111 didn't overwrite Arthur
-    expect(csvContent).toContain('gabrielfelipe@example.com');
-    expect(csvContent).toContain('carlosmendes@example.com');
     
-    // Validate CSV column headers structure is preserved
-    expect(csvContent).toContain('Email');
+    // Check if any row has the expected emails
+    const emails = data.map(row => row.Email);
+    expect(emails).toContain('arthurterplak@example.com');
+    expect(emails).toContain('gabrielfelipe@example.com');
+    expect(emails).toContain('carlosmendes@example.com');
+    
+    // Validate Header structure (sheet_to_json maps keys from headers)
+    const firstRow = data[0];
+    expect(firstRow).toHaveProperty('Email');
   });
 });

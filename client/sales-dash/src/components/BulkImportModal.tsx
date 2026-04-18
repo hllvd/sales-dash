@@ -45,6 +45,18 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role?.toLowerCase() === 'superadmin' || user.roleName?.toLowerCase() === 'superadmin';
 
+  // Debug logging for mapping state
+  React.useEffect(() => {
+    if (step === "mapping") {
+      console.log("--- DEBUG: Mapping State ---");
+      console.log("Required Fields:", requiredFields);
+      console.log("Mappings:", mappings);
+      console.log("Detected Columns:", detectedColumns);
+      console.log("Missing Fields:", requiredFields.filter(f => !Object.values(mappings).includes(f)));
+      console.log("----------------------------");
+    }
+  }, [step, mappings, requiredFields, detectedColumns]);
+
   React.useEffect(() => {
     const fetchTemplates = async () => {
       try {
@@ -190,10 +202,14 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
     }
   }
 
-  const allRequiredFieldsMapped = () => {
-    return requiredFields.every(field => 
-      Object.values(mappings).includes(field)
+  const getMissingRequiredFields = () => {
+    return requiredFields.filter(field => 
+      !Object.values(mappings).includes(field)
     )
+  }
+
+  const allRequiredFieldsMapped = () => {
+    return getMissingRequiredFields().length === 0
   }
 
   const renderFooter = () => {
@@ -381,7 +397,8 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                       ))}
                     </optgroup>
                   </select>
-                  {isRequired && <span style={{ color: "red", marginLeft: "8px" }}>*</span>}
+                  {isRequired && !mappings[column] && <span style={{ color: "#d97706", marginLeft: "8px", fontSize: "12px" }}>(Recomendado)</span>}
+                  {isRequired && mappings[column] && <span style={{ color: "#059669", marginLeft: "8px" }}>✓</span>}
                 </div>
               )
             })}
@@ -436,8 +453,8 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
           )}
 
           {!allRequiredFieldsMapped() && (
-            <div className="error-message" style={{ marginTop: '20px' }}>
-              Todos os campos obrigatórios devem ser mapeados: {requiredFields.join(", ")}
+            <div className="error-message" style={{ marginTop: '20px', background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}>
+              <strong>Atenção:</strong> Faltam os seguintes campos obrigatórios: {getMissingRequiredFields().join(", ")}
             </div>
           )}
         </div>

@@ -63,15 +63,15 @@ test.describe('Import Wizard Aliases Flow', () => {
     await page.locator('#wizard-step2-input').setInputFiles(usersFileFilled);
     await page.click('button:has-text("Importar Usuários e Avançar")');
 
-    // 7. Verify Step 3 and Download enriched contracts.csv
+    // 7. Verify Step 3 and Download enriched contracts.xlsx
     await expect(page.getByText('Download de Contratos')).toBeVisible({ timeout: 15000 });
     
     const [downloadContracts] = await Promise.all([
       page.waitForEvent('download'),
-      page.click('button:has-text("Baixar contracts.csv Enriquecido")')
+      page.click('button:has-text("Baixar contracts.xlsx Enriquecido")')
     ]);
     
-    const finalContractsPath = getTestDataPath('downloaded_contracts_aliases.csv');
+    const finalContractsPath = getTestDataPath('downloaded_contracts_aliases.xlsx');
     await downloadContracts.saveAs(finalContractsPath);
 
     // 8. Navigate to Contracts Page and perform standard import to prove mapping
