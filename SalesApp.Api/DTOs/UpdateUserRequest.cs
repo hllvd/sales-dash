@@ -26,5 +26,7 @@ namespace SalesApp.DTOs
         public Guid? ParentUserId { get; set; }
         
         public bool? IsActive { get; set; }
+        public string? PowerBiUsername { get; set; }
+        public string? PowerBiPassword { get; set; }
     }
 }

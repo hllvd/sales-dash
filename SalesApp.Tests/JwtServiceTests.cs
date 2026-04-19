@@ -74,9 +74,10 @@ namespace SalesApp.Tests
             permClaim.Should().NotBeNull();
             permClaim!.Value.Should().Be("users:read");
             
-            // Should NOT have role claim anymore
-            var roleClaim = jsonToken.Claims.FirstOrDefault(c => c.Type == "role");
-            roleClaim.Should().BeNull();
+            // Should have role claim
+            var roleClaim = jsonToken.Claims.FirstOrDefault(c => c.Type == "role" || c.Type == ClaimTypes.Role);
+            roleClaim.Should().NotBeNull();
+            roleClaim!.Value.Should().Be("user");
         }
 
         [Fact]
@@ -117,6 +118,11 @@ namespace SalesApp.Tests
             var nameClaim = claims.FirstOrDefault(c => c.Type == "unique_name");
             nameClaim.Should().NotBeNull();
             nameClaim!.Value.Should().Be("Test User");
+
+            // Check Role claim
+            var roleClaim = claims.FirstOrDefault(c => c.Type == "role" || c.Type == ClaimTypes.Role);
+            roleClaim.Should().NotBeNull();
+            roleClaim!.Value.Should().Be("admin");
         }
 
         [Fact]

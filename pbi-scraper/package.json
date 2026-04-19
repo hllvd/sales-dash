@@ -1,0 +1,17 @@
+{
+  "name": "pbi-scraper",
+  "version": "1.0.0",
+  "description": "PowerBI Scraping Microservice",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.7",
+    "express": "^4.18.2",
+    "p-queue": "^6.6.2",
+    "puppeteer": "^22.0.0",
+    "uuid": "^9.0.1"
+  }
+}

@@ -193,6 +193,41 @@ npm run test:coverage
 
 ---
 
+
+---
+
+## 📊 PowerBI Scraper
+
+Microserviço em Node.js para raspagem de dados do PowerBI com suporte a múltiplos usuários.
+
+### Funcionamento
+O sistema permite que cada usuário armazene suas próprias credenciais do PowerBI (`PowerBiUsername` e `PowerBiPassword`) de forma segura (texto plano no banco de dados C#). 
+
+1. **Trigger**: O C# API solicita um job ao Scraper, enviando as credenciais do usuário.
+2. **Scraper**: O serviço Node.js utiliza Puppeteer para autenticar no Avapro e capturar o token do PowerBI.
+3. **Callback**: O Scraper devolve um CSV com os dados raspados.
+4. **Auto-Import**: A API processa o CSV e importa os contratos automaticamente.
+
+### Mock Testing
+Para testar o fluxo sem usar credenciais reais de produção, utilize o script de mock:
+
+```bash
+cd pbi-scraper
+node scratch/test_scraper_logic.js
+
+# Testar a nova lógica de datas (Mês, Ano, Dia)
+node scratch/test_date_logic.js
+```
+
+Para simular o callback da API:
+```bash
+curl -X PUT http://localhost:5000/api/scrape/callback \
+  -H "Content-Type: application/json" \
+  -d '{"jobId":"test","userId":"d290f1ee-6c54-4b01-90e6-d701748f0851","status":"Succeeded","store":"Mock","matricula":"MOCK","fileRelativePath":"sample.csv"}'
+```
+
+---
+
 ## ☁️ Backups S3 (Produção)
 
 O projeto inclui um serviço de backup automatizado que sincroniza o banco de dados SQLite para um bucket S3 a cada 24 horas.

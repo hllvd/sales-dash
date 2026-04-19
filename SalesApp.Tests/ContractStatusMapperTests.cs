@@ -19,11 +19,11 @@ namespace SalesApp.Tests
                 Mappings = new Dictionary<string, List<string>>
                 {
                     { "Active", new List<string> { "Normal", "Ativa", "Ativo" } },
-                    { "Late1", new List<string> { "NCONT 1 AT", "SUJ. CANC. 1ª PARC. SEM PGTO" } },
-                    { "Late2", new List<string> { "NCONT 2 AT" } },
-                    { "Late3", new List<string> { "NCONT 3 AT", "delinquent" } },
-                    { "Defaulted", new List<string> { "DESISTENTE", "paid_off" } },
-                    { "Transferred", new List<string> { "TRANSFERIDO" } }
+                    { "Late1", new List<string> { "NCONT 1 AT", "SUJ. CANC. 1ª PARC. SEM PGTO", "CONT NÃO ENTREGUE 1 ATR" } },
+                    { "Late2", new List<string> { "NCONT 2 AT", "CONT NÃO ENTREGUE 2 ATR" } },
+                    { "Late3", new List<string> { "NCONT 3 AT", "SUJ. A CANCELAMENTO", "SUJ. A  CANCELAMENTO", "delinquent" } },
+                    { "Defaulted", new List<string> { "DESISTENTE", "EXCLUIDO", "excluido", "paid_off" } },
+                    { "Transferred", new List<string> { "TRANSFERIDO", "transferred" } }
                 }
             });
 
@@ -31,10 +31,10 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Active", "active")]
-        [InlineData("Normal", "active")]
-        [InlineData("NORMAL", "active")]
-        [InlineData("active", "active")]
+        [InlineData("Active", "Active")]
+        [InlineData("Normal", "Active")]
+        [InlineData("NORMAL", "Active")]
+        [InlineData("active", "Active")]
         public void MapStatus_ActiveAliases_ShouldMapToActive(string input, string expected)
         {
             // Act
@@ -45,9 +45,11 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Late1", "late1")]
-        [InlineData("NCONT 1 AT", "late1")]
-        [InlineData("SUJ. CANC. 1ª PARC. SEM PGTO", "late1")]
+        [InlineData("Late1", "Late1")]
+        [InlineData("NCONT 1 AT", "Late1")]
+        [InlineData("ncont 1 at", "Late1")]
+        [InlineData("SUJ. CANC. 1ª PARC. SEM PGTO", "Late1")]
+        [InlineData("CONT NÃO ENTREGUE 1 ATR", "Late1")]
         public void MapStatus_Late1Aliases_ShouldMapToLate1(string input, string expected)
         {
             // Act
@@ -58,8 +60,10 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Late2", "late2")]
-        [InlineData("NCONT 2 AT", "late2")]
+        [InlineData("Late2", "Late2")]
+        [InlineData("NCONT 2 AT", "Late2")]
+        [InlineData("ncont 2 at", "Late2")]
+        [InlineData("CONT NÃO ENTREGUE 2 ATR", "Late2")]
         public void MapStatus_Late2Aliases_ShouldMapToLate2(string input, string expected)
         {
             // Act
@@ -70,9 +74,12 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Late3", "late3")]
-        [InlineData("NCONT 3 AT", "late3")]
-        [InlineData("delinquent", "late3")]
+        [InlineData("Late3", "Late3")]
+        [InlineData("NCONT 3 AT", "Late3")]
+        [InlineData("SUJ. A CANCELAMENTO", "Late3")]
+        [InlineData("SUJ. A  CANCELAMENTO", "Late3")] // Double space
+        [InlineData("suj. a cancelamento", "Late3")]
+        [InlineData("delinquent", "Late3")] // Legacy
         public void MapStatus_Late3Aliases_ShouldMapToLate3(string input, string expected)
         {
             // Act
@@ -83,10 +90,26 @@ namespace SalesApp.Tests
         }
 
         [Theory]
-        [InlineData("Defaulted", "defaulted")]
-        [InlineData("DESISTENTE", "defaulted")]
-        [InlineData("paid_off", "defaulted")]
+        [InlineData("Defaulted", "Defaulted")]
+        [InlineData("DESISTENTE", "Defaulted")]
+        [InlineData("EXCLUIDO", "Defaulted")]
+        [InlineData("desistente", "Defaulted")]
+        [InlineData("excluido", "Defaulted")]
+        [InlineData("paid_off", "Defaulted")] // Legacy
         public void MapStatus_DefaultedAliases_ShouldMapToDefaulted(string input, string expected)
+        {
+            // Act
+            var result = _mapper.MapStatus(input);
+
+            // Assert
+            result.Should().Be(expected);
+        }
+
+        [Theory]
+        [InlineData("Transferred", "Transferred")]
+        [InlineData("TRANSFERIDO", "Transferred")]
+        [InlineData("transferred", "Transferred")]
+        public void MapStatus_TransferredAliases_ShouldMapToTransferred(string input, string expected)
         {
             // Act
             var result = _mapper.MapStatus(input);
@@ -112,7 +135,13 @@ namespace SalesApp.Tests
         [Theory]
         [InlineData("Active", true)]
         [InlineData("Late1", true)]
-        [InlineData("Normal", true)] // alias IS valid
+        [InlineData("Late2", true)]
+        [InlineData("Late3", true)]
+        [InlineData("Defaulted", true)]
+        [InlineData("Transferred", true)]
+        [InlineData("active", true)]       // lowercase IS valid now
+        [InlineData("transferred", true)]
+        [InlineData("Normal", true)]       // alias IS valid
         [InlineData("Invalid", false)]
         [InlineData(null, false)]
         public void IsValidStatus_ShouldValidateCorrectly(string? input, bool expected)
@@ -132,12 +161,12 @@ namespace SalesApp.Tests
 
             // Assert
             statuses.Should().HaveCount(6);
-            statuses.Should().Contain("active");
-            statuses.Should().Contain("late1");
-            statuses.Should().Contain("late2");
-            statuses.Should().Contain("late3");
-            statuses.Should().Contain("defaulted");
-            statuses.Should().Contain("transferred");
+            statuses.Should().Contain("Active");
+            statuses.Should().Contain("Late1");
+            statuses.Should().Contain("Late2");
+            statuses.Should().Contain("Late3");
+            statuses.Should().Contain("Defaulted");
+            statuses.Should().Contain("Transferred");
         }
     }
 }

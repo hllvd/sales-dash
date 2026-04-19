@@ -1,0 +1,592 @@
+{
+  "results": [
+    {
+      "jobId": "0",
+      "fromCache": false,
+      "result": {
+        "data": {
+          "timestamp": "/Date(1776260113083)/",
+          "rootActivityId": "53865ea9-60f6-4b03-a4f0-5f44d6406136",
+          "descriptor": {
+            "Select": [
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G0",
+                "Format": "0",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "versao"
+                    },
+                    "Calc": "G0",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "Sum(tbl_cotas.versao)"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G1",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "nm_consultor"
+                    },
+                    "Calc": "G1",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.nm_consultor"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G2",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "id_matricula"
+                    },
+                    "Calc": "G2",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.id_matricula"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G3",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "nm_pv"
+                    },
+                    "Calc": "G3",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.nm_pv"
+              },
+              {
+                "Kind": 2,
+                "Value": "M0",
+                "Subtotal": [
+                  "A0"
+                ],
+                "Name": "Sum(tbl_cotas.vl_credito_venda)"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G4",
+                "Format": "yyyy\\-MM\\-dd",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "dt_producao"
+                    },
+                    "Calc": "G4",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.dt_producao"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G5",
+                "Format": "yyyy\\-MM\\-dd",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "dt_venda"
+                    },
+                    "Calc": "G5",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.dt_venda"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G6",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "categoria_consultor"
+                    },
+                    "Calc": "G6",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.categoria_consultor"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G7",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "cd_ponto_venda"
+                    },
+                    "Calc": "G7",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.cd_ponto_venda"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G8",
+                "Format": "yyyy\\-MM\\-dd",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "dt_cancelamento"
+                    },
+                    "Calc": "G8",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.dt_cancelamento"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G9",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "nm_unidade_bi_atual"
+                    },
+                    "Calc": "G9",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.nm_unidade_bi_atual"
+              },
+              {
+                "Kind": 2,
+                "Value": "M1",
+                "Subtotal": [
+                  "A1"
+                ],
+                "Name": "1_Medidas.Obs Restrições Cota"
+              },
+              {
+                "Kind": 2,
+                "Value": "M2",
+                "Subtotal": [
+                  "A2"
+                ],
+                "Name": "1_Medidas.Produção Analitica"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G10",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "rn"
+                    },
+                    "Calc": "G10",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "Sum(tbl_cotas.rn)"
+              },
+              {
+                "Kind": 2,
+                "Value": "M3",
+                "Subtotal": [
+                  "A3"
+                ],
+                "Name": "2_Medidas_Tabela.id_cota"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G11",
+                "Format": "0",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "pz_cota"
+                    },
+                    "Calc": "G11",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "Sum(tbl_cotas.pz_cota)"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G12",
+                "Format": "0",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "pz_comercializacao"
+                    },
+                    "Calc": "G12",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "Sum(tbl_cotas.pz_comercializacao)"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G13",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "tem_pagamento"
+                    },
+                    "Calc": "G13",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.tem_pagamento"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G14",
+                "Format": "yyyy\\-MM\\-dd",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "dt_contemplacao"
+                    },
+                    "Calc": "G14",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.dt_contemplacao"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G15",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "nm_unidade_bi_original"
+                    },
+                    "Calc": "G15",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.nm_unidade_bi_original"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G16",
+                "Format": "0",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "qtd_pc_atraso"
+                    },
+                    "Calc": "G16",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "Sum(tbl_cotas.qtd_pc_atraso)"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G17",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "nm_plano_venda"
+                    },
+                    "Calc": "G17",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.nm_plano_venda"
+              },
+              {
+                "Kind": 1,
+                "Depth": 0,
+                "Value": "G18",
+                "GroupKeys": [
+                  {
+                    "Source": {
+                      "Entity": "tbl_cotas",
+                      "Property": "nm_situacao_cobranca"
+                    },
+                    "Calc": "G18",
+                    "IsSameAsSelect": true
+                  }
+                ],
+                "Name": "tbl_cotas.nm_situacao_cobranca"
+              }
+            ],
+            "Expressions": {
+              "Primary": {
+                "Groupings": [
+                  {
+                    "Keys": [
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "versao"
+                        },
+                        "Select": 0
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "nm_consultor"
+                        },
+                        "Select": 1
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "id_matricula"
+                        },
+                        "Select": 2
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "nm_pv"
+                        },
+                        "Select": 3
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "dt_producao"
+                        },
+                        "Select": 5
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "dt_venda"
+                        },
+                        "Select": 6
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "categoria_consultor"
+                        },
+                        "Select": 7
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "cd_ponto_venda"
+                        },
+                        "Select": 8
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "dt_cancelamento"
+                        },
+                        "Select": 9
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "nm_unidade_bi_atual"
+                        },
+                        "Select": 10
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "rn"
+                        },
+                        "Select": 13
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "pz_cota"
+                        },
+                        "Select": 15
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "pz_comercializacao"
+                        },
+                        "Select": 16
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "tem_pagamento"
+                        },
+                        "Select": 17
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "dt_contemplacao"
+                        },
+                        "Select": 18
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "nm_unidade_bi_original"
+                        },
+                        "Select": 19
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "qtd_pc_atraso"
+                        },
+                        "Select": 20
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "nm_plano_venda"
+                        },
+                        "Select": 21
+                      },
+                      {
+                        "Source": {
+                          "Entity": "tbl_cotas",
+                          "Property": "nm_situacao_cobranca"
+                        },
+                        "Select": 22
+                      }
+                    ],
+                    "Member": "DM1",
+                    "SubtotalMember": "DM0"
+                  }
+                ]
+              }
+            },
+            "Version": 2
+          },
+          "dsr": {
+            "Version": 2,
+            "MinorVersion": 1,
+            "DS": [
+              {
+                "N": "DS0",
+                "PH": [
+                  {
+                    "DM0": [
+                      {
+                        "S": [
+                          {
+                            "N": "A0",
+                            "T": 3
+                          },
+                          {
+                            "N": "A1",
+                            "T": 1
+                          },
+                          {
+                            "N": "A2",
+                            "T": 3
+                          },
+                          {
+                            "N": "A3",
+                            "T": 1
+                          }
+                        ],
+                        "C": [],
+                        "Ø": 15
+                      }
+                    ]
+                  },
+                  {
+                    "DM1": []
+                  }
+                ],
+                "IC": true,
+                "HAD": true
+              }
+            ]
+          },
+          "metrics": {
+            "Version": "1.0.0",
+            "Events": [
+              {
+                "Id": "38c5e2b3-c5f0-4b45-aa0c-d4421bb4f271",
+                "Name": "Execute Semantic Query",
+                "Component": "DSE",
+                "Start": "2026-04-15T13:35:13.0836188Z",
+                "End": "2026-04-15T13:35:16.4154621Z"
+              },
+              {
+                "Id": "2ed113e5-d669-4080-8b79-8450d4a3c5bd",
+                "ParentId": "38c5e2b3-c5f0-4b45-aa0c-d4421bb4f271",
+                "Name": "Execute DAX Query",
+                "Component": "DSE",
+                "Start": "2026-04-15T13:35:15.1798269Z",
+                "End": "2026-04-15T13:35:16.4154621Z",
+                "Metrics": {
+                  "RowCount": 0
+                }
+              },
+              {
+                "Id": "6F679B81-3ED0-4ACE-B5F9-1F93DBB7B7D2",
+                "ParentId": "2ed113e5-d669-4080-8b79-8450d4a3c5bd",
+                "Name": "Execute Query",
+                "Component": "AS",
+                "Start": "2026-04-15T13:35:15.697Z",
+                "End": "2026-04-15T13:35:16.37Z"
+              },
+              {
+                "Id": "C8C9C073-BCFF-4125-A74D-F35E86B42CE8",
+                "ParentId": "6F679B81-3ED0-4ACE-B5F9-1F93DBB7B7D2",
+                "Name": "Serialize Rowset",
+                "Component": "AS",
+                "Start": "2026-04-15T13:35:16.37Z",
+                "End": "2026-04-15T13:35:16.37Z"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "jobIds": [
+    "0"
+  ]
+}

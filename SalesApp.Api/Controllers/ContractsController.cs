@@ -312,7 +312,7 @@ namespace SalesApp.Controllers
                 UserId = request.UserId,
                 TotalAmount = request.TotalAmount,
                 GroupId = request.GroupId,
-                Status = request.Status.ToLowerInvariant(),
+                Status = request.Status,
                 SaleStartDate = request.ContractStartDate,
                 ContractType = contractTypeInt,
                 Quota = request.Quota,
@@ -450,7 +450,7 @@ namespace SalesApp.Controllers
                         Message = $"Invalid status. Must be one of: {string.Join(", ", _statusMapper.GetValidStatuses())}"
                     });
                 }
-                contract.Status = request.Status.ToLowerInvariant();
+                contract.Status = request.Status;
             }
                 
             if (request.ContractStartDate.HasValue)

@@ -75,8 +75,9 @@ namespace SalesApp.IntegrationTests.Imports
                     { "UserEmail", user.Email },
                     { "TotalAmount", "150050" },
                     { "GroupId", group.Id.ToString() },
-                    { "Status", "active" },
-                    { "SaleStartDate", "2024-01-01" }
+                    { "Status", "Active" },
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-123" }
                 }
             };
 
@@ -87,7 +88,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "TotalAmount", "TotalAmount" },
                 { "GroupId", "GroupId" },
                 { "Status", "Status" },
-                { "SaleStartDate", "SaleStartDate" }
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act
@@ -102,7 +104,7 @@ namespace SalesApp.IntegrationTests.Imports
             contract.UserId.Should().Be(user.Id);
             contract.TotalAmount.Should().Be(150050m); // Stored as cents (no decimals)
             contract.GroupId.Should().Be(group.Id);
-            contract.Status.Should().Be("active");
+            contract.Status.Should().Be("Active");
             contract.SaleStartDate.Should().BeCloseTo(new DateTime(2024, 1, 1), TimeSpan.FromSeconds(1));
         }
 
@@ -146,7 +148,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "UserEmail", user.Email },
                     { "TotalAmount", "200000" },
                     { "GroupId", group.Id.ToString() },
-                    { "SaleStartDate", "2024-01-01" }
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-456" }
                 }
             };
 
@@ -156,7 +159,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "UserEmail", "UserEmail" },
                 { "TotalAmount", "TotalAmount" },
                 { "GroupId", "GroupId" },
-                { "SaleStartDate", "SaleStartDate" }
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act
@@ -171,7 +175,7 @@ namespace SalesApp.IntegrationTests.Imports
             contract.UserId.Should().Be(user.Id);
             contract.TotalAmount.Should().Be(200000m); // Stored as cents (no decimals)
             contract.GroupId.Should().Be(group.Id);
-            contract.Status.Should().Be("active"); // Default status
+            contract.Status.Should().Be("Active"); // Default status
         }
 
         [Fact]
@@ -192,7 +196,8 @@ namespace SalesApp.IntegrationTests.Imports
                     // Missing UserEmail
                     { "TotalAmount", "1500.50" },
                     { "GroupId", "1" },
-                    { "SaleStartDate", "2024-01-01" }
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-789" }
                 }
             };
 
@@ -201,7 +206,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "ContractNumber", "ContractNumber" },
                 { "TotalAmount", "TotalAmount" },
                 { "GroupId", "GroupId" },
-                { "SaleStartDate", "SaleStartDate" }
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act
@@ -254,7 +260,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "UserEmail", user.Email },
                     { "TotalAmount", "invalid_amount" }, // INVALID
                     { "GroupId", group.Id.ToString() },
-                    { "SaleStartDate", "2024-01-01" } // VALID
+                    { "SaleStartDate", "2024-01-01" }, // VALID
+                    { "MatriculaNumber", "MAT-INV" }
                 }
             };
 
@@ -264,7 +271,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "UserEmail", "UserEmail" },
                 { "TotalAmount", "TotalAmount" },
                 { "GroupId", "GroupId" },
-                { "SaleStartDate", "SaleStartDate" }
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act
@@ -300,7 +308,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "ContractNumber", "SKIP-1" },
                     { "UserEmail", user.Email },
                     { "TotalAmount", "1000" },
-                    { "SaleStartDate", "" } // MISSING
+                    { "SaleStartDate", "" }, // MISSING
+                    { "MatriculaNumber", "MAT-SKIP" }
                 }
             };
 
@@ -309,7 +318,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "ContractNumber", "ContractNumber" },
                 { "UserEmail", "UserEmail" },
                 { "TotalAmount", "TotalAmount" },
-                { "SaleStartDate", "SaleStartDate" }
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act
@@ -354,7 +364,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "TotalAmount", "100000" },
                     { "GroupId", groupName },
                     { "Status", "" },
-                    { "SaleStartDate", "2024-01-01" }
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-GROUP" }
                 }
             };
 
@@ -365,7 +376,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "TotalAmount", "TotalAmount" },
                 { "GroupId", "GroupId" },
                 { "Status", "Status" },
-                { "SaleStartDate", "SaleStartDate" }
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act
@@ -413,7 +425,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "UserEmail", "nonexistent@test.com" }, // NON-EXISTENT
                     { "TotalAmount", "150000" },
                     { "GroupId", group.Id.ToString() },
-                    { "SaleStartDate", "2024-01-01" }
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-NONEXIST" }
                 }
             };
 
@@ -423,7 +436,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "UserEmail", "UserEmail" },
                 { "TotalAmount", "TotalAmount" },
                 { "GroupId", "GroupId" },
-                { "SaleStartDate", "SaleStartDate" }
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act
@@ -486,7 +500,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "UserEmail", user1.Email },
                     { "TotalAmount", "1500.00" },
                     { "GroupId", group.Id.ToString() },
-                    { "SaleStartDate", "2024-01-01" }
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-MULTI-1" }
                 },
                 new()
                 {
@@ -494,7 +509,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "UserEmail", user2.Email },
                     { "TotalAmount", "2500.00" },
                     { "GroupId", group.Id.ToString() },
-                    { "SaleStartDate", "2024-01-01" }
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-MULTI-2" }
                 }
             };
 
@@ -504,7 +520,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "UserEmail", "UserEmail" },
                 { "TotalAmount", "TotalAmount" },
                 { "GroupId", "GroupId" },
-                { "SaleStartDate", "SaleStartDate" }
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act
@@ -546,7 +563,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "ContractNumber", $"CNT-{Guid.NewGuid().ToString()[..8]}" },
                     { "UserEmail", user.Email },
                     { "TotalAmount", "1000.00" },
-                    { "SaleStartDate", "2024-01-01" }
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-NULLGRP" }
                     // Missing GroupId
                 }
             };
@@ -556,7 +574,8 @@ namespace SalesApp.IntegrationTests.Imports
                 { "ContractNumber", "ContractNumber" },
                 { "UserEmail", "UserEmail" },
                 { "TotalAmount", "TotalAmount" },
-                { "SaleStartDate", "SaleStartDate" }
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" }
             };
 
             // Act

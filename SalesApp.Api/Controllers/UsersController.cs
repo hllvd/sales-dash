@@ -449,6 +449,16 @@ namespace SalesApp.Controllers
             {
                 user.IsActive = request.IsActive.Value;
             }
+
+            if (!string.IsNullOrEmpty(request.PowerBiUsername))
+            {
+                user.PowerBiUsername = request.PowerBiUsername;
+            }
+
+            if (!string.IsNullOrEmpty(request.PowerBiPassword))
+            {
+                user.PowerBiPassword = request.PowerBiPassword;
+            }
                 
             try
             {
@@ -532,7 +542,10 @@ namespace SalesApp.Controllers
                         StartDate = m.StartDate,
                         EndDate = m.EndDate
                     })
-                    .ToList() ?? new List<UserMatriculaInfo>()
+                    .ToList() ?? new List<UserMatriculaInfo>(),
+                
+                PowerBiUsername = user.PowerBiUsername,
+                HasPowerBiCredentials = !string.IsNullOrEmpty(user.PowerBiPassword)
             };
         }
         
@@ -614,6 +627,59 @@ namespace SalesApp.Controllers
                 Success = true,
                 Data = root != null ? MapToHierarchyResponse(root) : null,
                 Message = _messageService.Get(AppMessage.RootUserRetrievedSuccessfully)
+            });
+        }
+        
+        [HttpGet("me/powerbi-credentials")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserResponse>>> GetPowerBiCredentials()
+        {
+            var currentUserId = GetCurrentUserId();
+            var user = await _userRepository.GetByIdAsync(currentUserId);
+            
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<UserResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+            
+            return Ok(new ApiResponse<UserResponse>
+            {
+                Success = true,
+                Data = MapToUserResponse(user),
+                Message = "PowerBI credentials retrieved successfully"
+            });
+        }
+
+        [HttpPut("me/powerbi-credentials")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserResponse>>> UpdatePowerBiCredentials([FromBody] PowerBiCredentialsRequest request)
+        {
+            var currentUserId = GetCurrentUserId();
+            var user = await _userRepository.GetByIdAsync(currentUserId);
+            
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<UserResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+            
+            user.PowerBiUsername = request.Username;
+            user.PowerBiPassword = request.Password; // Plain text per requirement
+            
+            await _userRepository.UpdateAsync(user);
+            
+            return Ok(new ApiResponse<UserResponse>
+            {
+                Success = true,
+                Data = MapToUserResponse(user),
+                Message = "PowerBI credentials updated successfully"
             });
         }
         

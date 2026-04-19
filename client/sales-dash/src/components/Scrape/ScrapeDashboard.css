@@ -1,0 +1,21 @@
+.scrape-dashboard {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.config-card {
+    background-color: var(--mantine-color-gray-0);
+}
+
+[data-mantine-color-scheme='dark'] .config-card {
+    background-color: var(--mantine-color-dark-6);
+}
+
+.scrape-dashboard .page-title-break {
+    margin-bottom: 30px;
+}
+
+.scrape-dashboard .mantine-Table-root {
+    margin-top: 10px;
+}

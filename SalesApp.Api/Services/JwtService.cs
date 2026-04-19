@@ -30,8 +30,9 @@ namespace SalesApp.Services
             var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"]!);
             var expirationMinutes = int.Parse(_configuration["Jwt:AccessTokenExpirationMinutes"] ?? "1440");
 
-            // Load permissions from DB (expensive, done once per login)
+            // Load permissions and role from DB (expensive, done once per login)
             var permissions = new List<string>();
+            string roleName = string.Empty;
             using (var scope = _scopeFactory.CreateScope())
             {
                 var roleRepo = scope.ServiceProvider.GetRequiredService<SalesApp.Repositories.IRoleRepository>();
@@ -43,6 +44,7 @@ namespace SalesApp.Services
                         .Where(name => name != null)
                         .Cast<string>()
                         .ToList();
+                    roleName = role.Name;
                 }
             }
             
@@ -54,7 +56,12 @@ namespace SalesApp.Services
                 new Claim("role_id", user.RoleId.ToString())
             };
 
-            // Add permissions to JWT
+            // Add permissions and role name to JWT
+            if (!string.IsNullOrEmpty(roleName))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, roleName));
+            }
+            
             foreach (var perm in permissions)
             {
                 claims.Add(new Claim("perm", perm));

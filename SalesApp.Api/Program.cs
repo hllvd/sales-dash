@@ -13,6 +13,7 @@ namespace SalesApp
     {
         public static async Task Main(string[] args)
         {
+            Console.WriteLine("DEBUG: ENTERING MAIN...");
             try
             {
                 Log.Information("Starting SalesApp...");
@@ -48,6 +49,7 @@ namespace SalesApp
                     {
                         try
                         {
+                            await context.Database.MigrateAsync();
                             await DbSeeder.SeedAsync(context);
                             break;
                         }
@@ -90,6 +92,7 @@ namespace SalesApp
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"CRITICAL: SalesApp terminated unexpectedly: {ex}");
                 Log.Fatal(ex, "SalesApp terminated unexpectedly");
             }
             finally

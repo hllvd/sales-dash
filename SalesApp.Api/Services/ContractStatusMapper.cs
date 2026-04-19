@@ -28,20 +28,19 @@ namespace SalesApp.Services
                     if (!string.IsNullOrWhiteSpace(alias))
                     {
                         // Map the alias to the canonical key
-                        _statusAliases[alias.Trim()] = canonical.ToLowerInvariant();
+                        _statusAliases[alias.Trim()] = canonical;
                     }
                 }
                 
                 // Also ensure the canonical keys themselves are in the dictionary
                 if (!_statusAliases.ContainsKey(canonical))
                 {
-                    _statusAliases[canonical.Trim()] = canonical.ToLowerInvariant();
+                    _statusAliases[canonical.Trim()] = canonical;
                 }
             }
 
             // Valid statuses are the keys from the configuration
             _validStatuses = options.Value.Mappings.Keys
-                .Select(k => k.ToLowerInvariant())
                 .ToArray();
             
             // Fallback if config is empty (though it shouldn't be)

@@ -54,8 +54,8 @@ namespace SalesApp.IntegrationTests.Imports
             }
 
             // 2. Import same contract number with different status
-            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate
-{contractNumber},superadmin@test.com,5000,0,late1,2024-01-01";
+            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate,MatriculaNumber
+{contractNumber},superadmin@test.com,5000,0,Late1,2024-01-01,MAT-UPS-123";
 
             var uploadId = await UploadFile(csvContent, "upsert.csv");
 
@@ -68,7 +68,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
                     { "Status", "Status" },
-                    { "SaleStartDate", "SaleStartDate" }
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
                 }
             };
 
@@ -91,7 +92,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var contract = await context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
                 
                 contract.Should().NotBeNull();
-                contract!.Status.Should().Be("late1");
+                contract!.Status.Should().Be("Late1");
                 contract.TotalAmount.Should().Be(5000);
             }
         }
@@ -105,8 +106,8 @@ namespace SalesApp.IntegrationTests.Imports
 
             var contractNumber = $"STATUS-{Guid.NewGuid().ToString()[..8]}";
 
-            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate
-{contractNumber},superadmin@test.com,5000,0,SUJ. A CANCELAMENTO,2024-01-01";
+            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate,MatriculaNumber
+{contractNumber},superadmin@test.com,5000,0,SUJ. A CANCELAMENTO,2024-01-01,MAT-STATUS-123";
 
             var uploadId = await UploadFile(csvContent, "status-test.csv");
 
@@ -119,7 +120,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
                     { "Status", "Status" },
-                    { "SaleStartDate", "SaleStartDate" }
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
                 }
             };
 
@@ -136,7 +138,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var contract = await context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
                 
                 contract.Should().NotBeNull();
-                contract!.Status.Should().Be("late3");
+                contract!.Status.Should().Be("Late3");
             }
         }
 
@@ -149,8 +151,8 @@ namespace SalesApp.IntegrationTests.Imports
 
             var contractNumber = $"STATUS-CNE-{Guid.NewGuid().ToString()[..8]}";
 
-            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate
-{contractNumber},superadmin@test.com,5000,0,CONT NÃO ENTREGUE 2 ATR,2024-01-01";
+            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate,MatriculaNumber
+{contractNumber},superadmin@test.com,5000,0,CONT NÃO ENTREGUE 2 ATR,2024-01-01,MAT-CNE-123";
 
             var uploadId = await UploadFile(csvContent, "status-cne-test.csv");
 
@@ -163,7 +165,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
                     { "Status", "Status" },
-                    { "SaleStartDate", "SaleStartDate" }
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
                 }
             };
 
@@ -180,7 +183,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var contract = await context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
                 
                 contract.Should().NotBeNull();
-                contract!.Status.Should().Be("late2");
+                contract!.Status.Should().Be("Late2");
             }
         }
 
@@ -193,8 +196,8 @@ namespace SalesApp.IntegrationTests.Imports
 
             var contractNumber = $"STATUS-TRA-{Guid.NewGuid().ToString()[..8]}";
 
-            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate
-{contractNumber},superadmin@test.com,5000,0,TRANSFERIDO,2024-01-01";
+            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate,MatriculaNumber
+{contractNumber},superadmin@test.com,5000,0,TRANSFERIDO,2024-01-01,MAT-TRA-123";
 
             var uploadId = await UploadFile(csvContent, "status-tra-test.csv");
 
@@ -207,7 +210,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
                     { "Status", "Status" },
-                    { "SaleStartDate", "SaleStartDate" }
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
                 }
             };
 
@@ -224,7 +228,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var contract = await context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
                 
                 contract.Should().NotBeNull();
-                contract!.Status.Should().Be("transferred");
+                contract!.Status.Should().Be("Transferred");
             }
         }
 
@@ -239,9 +243,9 @@ namespace SalesApp.IntegrationTests.Imports
             var contract1 = $"VALID-{Guid.NewGuid().ToString()[..8]}";
             var contract2 = $"MISSING-DATE-{Guid.NewGuid().ToString()[..8]}";
 
-            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,Sale Start Date
-{contract1},superadmin@test.com,5000,0,Active,2024-01-01
-{contract2},superadmin@test.com,5000,0,Active,";
+            var csvContent = $@"Contract Number,User Email,Total Amount,Group,Status,Sale Start Date,MatriculaNumber
+{contract1},superadmin@test.com,5000,0,Active,2024-01-01,MAT-VALID
+{contract2},superadmin@test.com,5000,0,Active,,MAT-SKIP";
 
             var uploadId = await UploadFile(csvContent, "skip-date-test.csv");
 
@@ -254,7 +258,8 @@ namespace SalesApp.IntegrationTests.Imports
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
                     { "Status", "Status" },
-                    { "Sale Start Date", "SaleStartDate" }
+                    { "Sale Start Date", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
                 }
             };
 
@@ -297,9 +302,9 @@ namespace SalesApp.IntegrationTests.Imports
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Row 1 has contract number, Row 2 does NOT
-            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate
-C-123,superadmin@test.com,5000,0,Active,2024-01-01
-,superadmin@test.com,5000,0,Active,2024-01-01";
+            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate,MatriculaNumber
+C-123,superadmin@test.com,5000,0,Active,2024-01-01,MAT-123
+,superadmin@test.com,5000,0,Active,2024-01-01,MAT-124";
 
             var uploadId = await UploadFile(csvContent, "skip-test.csv");
 
@@ -312,7 +317,8 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
                     { "Status", "Status" },
-                    { "SaleStartDate", "SaleStartDate" }
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
                 },
                 skipMissingContractNumber = true // THE FLAG WE WANT TO TEST
             };
@@ -335,9 +341,9 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Row 1 has contract number, Row 2 does NOT
-            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate
-C-123,superadmin@test.com,5000,0,Active,2024-01-01
-,superadmin@test.com,5000,0,Active,2024-01-01";
+            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate,MatriculaNumber
+C-123,superadmin@test.com,5000,0,Active,2024-01-01,MAT-123
+,superadmin@test.com,5000,0,Active,2024-01-01,MAT-124";
 
             var uploadId = await UploadFile(csvContent, "fail-test.csv");
 
@@ -350,7 +356,8 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
                     { "Total Amount", "TotalAmount" },
                     { "Group", "GroupId" },
                     { "Status", "Status" },
-                    { "SaleStartDate", "SaleStartDate" }
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
                 },
                 skipMissingContractNumber = false // DEFAULT OR EXPLICIT FALSE
             };
@@ -368,10 +375,10 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
         public async Task ImportContractDashboard_WithInvalidCota_ShouldSkipSilently()
         {
             // Arrange
-            var csv = "Cota,Total,SaleStartDate\n" +
-                      "G1;123;C1;Cust1;CNT-VALID,1000,2024-01-01\n" + // VALID (5 parts, with numeric quota)
-                      "INVALID-COTA,1000,2024-01-01\n" +            // INVALID (no semicolons)
-                      ",1000,2024-01-01";                             // BLANK
+            var csv = "Cota,Total,SaleStartDate,Matricula\n" +
+                      "G1;123;C1;Cust1;CNT-VALID,1000,2024-01-01,MAT-DASH-1\n" + // VALID (5 parts, with numeric quota)
+                      "INVALID-COTA,1000,2024-01-01,MAT-DASH-2\n" +            // INVALID (no semicolons)
+                      ",1000,2024-01-01,MAT-DASH-3";                             // BLANK
 
             var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -385,7 +392,8 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
                     { "Cota", "Cota" },
                     { "Total", "TotalAmount" },
                     { "SaleStartDate", "SaleStartDate" },
-                    { "cota.contract", "ContractNumber" }
+                    { "cota.contract", "ContractNumber" },
+                    { "Matricula", "MatriculaNumber" }
                 }
             };
 
@@ -412,8 +420,8 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
         public async Task ImportContractDashboard_WithSujACancelamentoStatus_ShouldMapToLate3()
         {
             // Arrange
-            var csv = "Cota,Total,SaleStartDate,Status\n" +
-                      "G1;123;C1;Cust1;CNT-SUJ-CANCEL,1000,2024-01-01,SUJ. A CANCELAMENTO";
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      "G1;123;C1;Cust1;CNT-SUJ-CANCEL,1000,2024-01-01,SUJ. A CANCELAMENTO,MAT-DASH-STATUS";
 
             var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -427,7 +435,8 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
                     { "Cota", "Cota" },
                     { "Total", "TotalAmount" },
                     { "SaleStartDate", "SaleStartDate" },
-                    { "Status", "Status" }
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
                 }
             };
 
@@ -455,15 +464,15 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
             var rawSearch = await contractsResponse.Content.ReadAsStringAsync();
             var contractsResult = await contractsResponse.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
             contractsResult!.Data.Should().NotBeEmpty(because: $"Contracts for CNT-SUJ-CANCEL were not found. Raw Response: {rawSearch} | Raw Confirm: {rawConfirm}");
-            contractsResult.Data!.First().Status.Should().Be("late3");
+            contractsResult.Data!.First().Status.Should().Be("Late3");
         }
 
         [Fact]
         public async Task ImportContractDashboard_WithContNaoEntregueStatus_ShouldMapToLate2()
         {
             // Arrange
-            var csv = "Cota,Total,SaleStartDate,Status\n" +
-                      "G1;123;C1;Cust1;CNT-CONT-NAO-ENT,1000,2024-01-01,CONT NÃO ENTREGUE 2 ATR";
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      "G1;123;C1;Cust1;CNT-CONT-NAO-ENT,1000,2024-01-01,CONT NÃO ENTREGUE 2 ATR,MAT-DASH-LATE2";
 
             var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -477,7 +486,8 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
                     { "Cota", "Cota" },
                     { "Total", "TotalAmount" },
                     { "SaleStartDate", "SaleStartDate" },
-                    { "Status", "Status" }
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
                 }
             };
 
@@ -502,15 +512,15 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
             var contractsResponse = await _client.GetAsync("/api/contracts?contractNumber=CNT-CONT-NAO-ENT");
             var contractsResult = await contractsResponse.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
             contractsResult!.Data.Should().NotBeEmpty();
-            contractsResult.Data!.First().Status.Should().Be("late2");
+            contractsResult.Data!.First().Status.Should().Be("Late2");
         }
 
         [Fact]
         public async Task ImportContractDashboard_WithCont1AtrStatus_ShouldMapToLate1()
         {
             // Arrange
-            var csv = "Cota,Total,SaleStartDate,Status\n" +
-                      "G1;123;C1;Cust1;CNT-CONT-1-ATR,1000,2024-01-01,CONT 1 ATR";
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      "G1;123;C1;Cust1;CNT-CONT-1-ATR,1000,2024-01-01,CONT 1 ATR,MAT-DASH-LATE1";
 
             var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -524,7 +534,8 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
                     { "Cota", "Cota" },
                     { "Total", "TotalAmount" },
                     { "SaleStartDate", "SaleStartDate" },
-                    { "Status", "Status" }
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
                 }
             };
 
@@ -549,15 +560,15 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
             var contractsResponse = await _client.GetAsync("/api/contracts?contractNumber=CNT-CONT-1-ATR");
             var contractsResult = await contractsResponse.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
             contractsResult!.Data.Should().NotBeEmpty();
-            contractsResult.Data!.First().Status.Should().Be("late1");
+            contractsResult.Data!.First().Status.Should().Be("Late1");
         }
 
         [Fact]
         public async Task ImportContractDashboard_WithContBemPend2AtrStatus_ShouldMapToLate2()
         {
             // Arrange
-            var csv = "Cota,Total,SaleStartDate,Status\n" +
-                      "G1;123;C1;Cust1;CNT-CONT-BEM-PEND,1000,2024-01-01,CONT BEM PEND 2 ATR";
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      "G1;123;C1;Cust1;CNT-CONT-BEM-PEND,1000,2024-01-01,CONT BEM PEND 2 ATR,MAT-DASH-BEM-PEND";
 
             var token = await GetSuperAdminToken();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -571,7 +582,8 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
                     { "Cota", "Cota" },
                     { "Total", "TotalAmount" },
                     { "SaleStartDate", "SaleStartDate" },
-                    { "Status", "Status" }
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
                 }
             };
 
@@ -596,7 +608,7 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01
             var contractsResponse = await _client.GetAsync("/api/contracts?contractNumber=CNT-CONT-BEM-PEND");
             var contractsResult = await contractsResponse.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
             contractsResult!.Data.Should().NotBeEmpty();
-            contractsResult.Data!.First().Status.Should().Be("late2");
+            contractsResult.Data!.First().Status.Should().Be("Late2");
         }
 
         private async Task<string> UploadFile(string content, string fileName, int templateId = 2)

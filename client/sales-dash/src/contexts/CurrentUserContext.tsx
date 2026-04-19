@@ -24,6 +24,8 @@ export interface CurrentUser {
   matriculaNumber?: string
   isMatriculaOwner: boolean
   activeMatriculas: UserMatriculaInfo[]
+  powerBiUsername?: string
+  hasPowerBiCredentials?: boolean
 }
 
 interface CurrentUserContextType {

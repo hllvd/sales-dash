@@ -11,6 +11,7 @@ import MyProfilePage from './components/MyProfilePage';
 import ImportHistoryPage from './components/ImportHistoryPage';
 import ImportWizardPage from './components/ImportWizardPage';
 import AccessControlPage from './components/AccessControlPage';
+import ScrapeDashboard from './components/Scrape/ScrapeDashboard';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -61,6 +62,8 @@ function App() {
         return <ImportWizardPage />;
       case '#/access-control':
         return <AccessControlPage />;
+      case '#/scrapes':
+        return <ScrapeDashboard />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':
