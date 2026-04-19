@@ -277,6 +277,7 @@ namespace SalesApp.Services
 
         private async IAsyncEnumerable<Dictionary<string, string>> ParseExcelStreamedAsync(IFormFile file)
         {
+            await Task.Yield(); // Satisfy async requirement for IAsyncEnumerable
             using var stream = file.OpenReadStream();
             using var package = new ExcelPackage(stream);
             

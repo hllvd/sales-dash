@@ -45,7 +45,7 @@ namespace SalesApp.Services
             // 1. Log start in DynamoDB
             await _logService.WriteJobStatusAsync(
                 jobId: jobId,
-                userId: config.UserId.ToString(),
+                userId: config.UserId?.ToString() ?? string.Empty,
                 status: "Pending",
                 store: config.Store,
                 matricula: config.Matricula,
@@ -57,7 +57,7 @@ namespace SalesApp.Services
             {
                 await _scraperClient.EnqueueJobAsync(
                     jobId: jobId,
-                    userId: config.UserId.ToString(),
+                    userId: config.UserId?.ToString() ?? string.Empty,
                     store: config.Store,
                     matricula: config.Matricula,
                     avaproUsername: config.User?.PowerBiUsername,
@@ -67,7 +67,7 @@ namespace SalesApp.Services
                 // Update status to Running
                 await _logService.WriteJobStatusAsync(
                     jobId: jobId,
-                    userId: config.UserId.ToString(),
+                    userId: config.UserId?.ToString() ?? string.Empty,
                     status: "Running",
                     store: config.Store,
                     matricula: config.Matricula
@@ -77,7 +77,7 @@ namespace SalesApp.Services
             {
                 await _logService.WriteJobStatusAsync(
                     jobId: jobId,
-                    userId: config.UserId.ToString(),
+                    userId: config.UserId?.ToString() ?? string.Empty,
                     status: "Failed",
                     store: config.Store,
                     matricula: config.Matricula,

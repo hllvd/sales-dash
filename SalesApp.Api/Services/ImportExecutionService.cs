@@ -1152,7 +1152,7 @@ namespace SalesApp.Services
         
         private string MapSituacaoCobrancaToStatus(string? situacaoCobranca)
         {
-            return ContractStatusMapper.MapStatus(situacaoCobranca) ?? ContractStatus.Active.ToApiString();
+            return _statusMapper.MapStatus(situacaoCobranca) ?? ContractStatus.Active.ToApiString();
         }
         
         private async Task<int?> ResolveGroupIdAsync(string? groupValue, Dictionary<string, int?> cache, int importSessionId, bool allowAutoCreate = false, ImportResult? result = null)

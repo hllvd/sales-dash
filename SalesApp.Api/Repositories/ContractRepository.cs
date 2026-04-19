@@ -112,7 +112,7 @@ namespace SalesApp.Repositories
         {
             var query = _context.Contracts
                 .AsNoTracking()
-                .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
+                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.UserMatricula)
                 .Include(c => c.Group)
                 .Where(c => c.UserId == userId && c.IsActive);
@@ -161,7 +161,7 @@ namespace SalesApp.Repositories
                 var contractIds = contracts.Select(c => c.Id).ToList();
                 var reloadedContracts = await _context.Contracts
                     .AsNoTracking()
-                    .Include(c => c.User).ThenInclude(u => u.UserMatriculas)
+                    .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                     .Include(c => c.UserMatricula)
                     .Include(c => c.Group)
                     .Where(c => contractIds.Contains(c.Id))

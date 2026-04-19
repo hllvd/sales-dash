@@ -515,6 +515,8 @@ namespace SalesApp.Controllers
                 var allowAutoCreatePVs = request?.AllowAutoCreatePVs ?? false;
                 var skipMissingContractNumber = request?.SkipMissingContractNumber ?? false;
 
+                if (request == null) return BadRequest(new ApiResponse<string> { Success = false, Message = "Request body is required" });
+
                 var validationErrors = await _validation.ValidateAllRowsAsync(allRows, request.Mappings, entityType, requiredFields, allowAutoCreateGroups, allowAutoCreatePVs, skipMissingContractNumber);
 
                 session.Mappings = JsonSerializer.Serialize(request.Mappings);
