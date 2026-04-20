@@ -1,5 +1,5 @@
 ---
-description: e2e - Playwright E2E Specialist 
+description: e2e - Playwright E2E Specialist
 ---
 
 Playwright E2E Specialist Prompt
@@ -28,3 +28,6 @@ typescript
 Execution:
 Run specific tear: npx playwright test --project=tear-X
 Run all: npx playwright test
+
+## Temporary Files
+Any files generated during test execution (e.g., downloads, enriched exports) should be stored in the `./temp/` directory. 
