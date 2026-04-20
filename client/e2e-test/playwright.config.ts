@@ -42,6 +42,8 @@ export default defineConfig({
       name: 'tear-3',
       testMatch: [
         'hierarchy_contract_visibility.spec.ts',
+        'hierarchy_sibling_isolation.spec.ts',
+        'hierarchy_deep_visibility.spec.ts',
         'contracts_filtering.spec.ts',
         'contract_export.spec.ts'
       ],
