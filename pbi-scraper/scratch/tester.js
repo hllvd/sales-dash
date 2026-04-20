@@ -10,6 +10,7 @@ const MATRICULA = 'YOUR_MATRICULA' // Replace with real matricula
 const PASSWORD = 'YOUR_PASSWORD' // Replace with real password
 const STORE = 'BALNEARIO CAMBORIU - SC';     //replace with a real store name
 const DATE = process.env.SCRAPE_DATE || '2026-04'; // Use YYYY, YYYY-MM, or YYYY-MM-DD
+const SAVE_OUTPUT = process.env.SAVE_OUTPUT === 'true';
 
 async function runTest() {
   console.log('--- Starting Production Test ---');
@@ -37,6 +38,17 @@ async function runTest() {
     if (rows.length > 0) {
       console.log('First row sample:', JSON.stringify(rows[0], null, 2));
       console.log('\nCSV Header:', csv.split('\n')[0]);
+
+      if (SAVE_OUTPUT) {
+        const fs = require('fs');
+        const path = require('path');
+        const debugDir = path.join(__dirname, 'debug');
+        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+
+        const filePath = path.join(debugDir, `output-${MATRICULA}.json`);
+        fs.writeFileSync(filePath, JSON.stringify(rows, null, 2), 'utf8');
+        console.log(`\n[SAVE] Raw output saved to: ${filePath}`);
+      }
     } else {
       console.warn('Warning: No data rows returned. Check if the store/matricula combination is valid.');
     }
