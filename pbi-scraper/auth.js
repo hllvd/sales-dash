@@ -39,12 +39,23 @@ async function getTokenFromLogin(matricula, password) {
 
   page.on('request', (req) => {
     const url = req.url();
-    const authHeader = req.headers()['authorization'];
+    const headers = req.headers();
+    const authHeader = headers['authorization'];
+
+    // LOGGING: Check for any requests to the relevant hosts to debug capture
+    if (url.includes('pbidedicated') || url.includes('/query')) {
+      console.log(`[Auth] Intercepted: ${url.substring(0, 100)}${url.length > 100 ? '...' : ''}`);
+      if (authHeader) {
+        console.log(`[Auth]   - Has Authorization header: ${authHeader.substring(0, 20)}...`);
+      } else {
+        console.log(`[Auth]   - No Authorization header found in this request.`);
+      }
+    }
 
     // The token we want is from the PowerBI query endpoint, not the login
     if (url.includes(QUERY_HOST) && url.includes('/query') && authHeader) {
       if (!capturedToken) {
-        console.log(`[Auth] Captured PowerBI query token from: ${url}`);
+        console.log(`[Auth] Found matching PowerBI query token!`);
         capturedToken = authHeader;
       }
     }
@@ -88,15 +99,29 @@ async function getTokenFromLogin(matricula, password) {
     console.log('[Auth] Waiting for post-login navigation...');
     await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
 
-    // Step 5: Navigate to the dashboard to trigger the PowerBI query
-    console.log('[Auth] Navigating to dashboard to capture PowerBI token...');
-    await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+    // Step 5: Navigate to the dashboard if not already there
+    const currentUrl = page.url();
+    if (!currentUrl.includes('/dashboard')) {
+      console.log(`[Auth] Current URL is ${currentUrl}, navigating to ${DASHBOARD_URL}...`);
+      await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+    } else {
+      console.log('[Auth] Already on dashboard page.');
+    }
+
+    // Wait for the PowerBI iframe to start appearing, which usually triggers the query
+    console.log('[Auth] Waiting for potential report indicators...');
+    try {
+      await page.waitForSelector('iframe, .powerbi-container, .report-container', { timeout: 15000 });
+      console.log('[Auth] Report container detected.');
+    } catch (e) {
+      console.log('[Auth] No specific report container found, continuing to wait for network...');
+    }
 
     // Wait up to 30s for the query token to be captured
     if (!capturedToken) {
       console.log('[Auth] Waiting for PowerBI query request...');
       await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Timed out waiting for PowerBI query request')), 30000);
+        const timeout = setTimeout(() => reject(new Error('Timed out waiting for PowerBI query request')), 60000);
         const interval = setInterval(() => {
           if (capturedToken) {
             clearTimeout(timeout);
