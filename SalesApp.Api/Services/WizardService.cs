@@ -384,7 +384,7 @@ namespace SalesApp.Services
 
             // Write headers
             var filteredColumns = columns
-                .Where((c, index) => index != 16 && index != 17)
+                .Where(c => !string.IsNullOrWhiteSpace(c) && !c.StartsWith("Column_", StringComparison.OrdinalIgnoreCase))
                 .Where(c => !c.StartsWith("cota.", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 

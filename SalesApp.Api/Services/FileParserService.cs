@@ -120,13 +120,27 @@ namespace SalesApp.Services
             if (worksheet == null)
                 return rows;
 
-            var columnCount = worksheet.Dimension?.Columns ?? 0;
+            var dimensionColumnCount = worksheet.Dimension?.Columns ?? 0;
+            if (dimensionColumnCount == 0) return rows;
+
+            // Find effective column count (last header that is not empty)
+            int columnCount = 0;
+            for (int col = dimensionColumnCount; col >= 1; col--)
+            {
+                if (!string.IsNullOrWhiteSpace(worksheet.Cells[1, col].Value?.ToString()))
+                {
+                    columnCount = col;
+                    break;
+                }
+            }
+
             if (columnCount == 0) return rows;
 
             var headers = new List<string>();
             for (int col = 1; col <= columnCount; col++)
             {
-                headers.Add(worksheet.Cells[1, col].Value?.ToString()?.Trim() ?? string.Empty);
+                var headerValue = worksheet.Cells[1, col].Value?.ToString()?.Trim() ?? string.Empty;
+                headers.Add(headerValue);
             }
 
             const int maxConsecutiveEmptyRows = 5;
@@ -140,12 +154,17 @@ namespace SalesApp.Services
 
                 for (int col = 1; col <= columnCount; col++)
                 {
+                    var header = headers[col - 1];
+                    // If header is missing for an internal column, we can use a placeholder, 
+                    // but we won't read beyond the last non-empty header found in Row 1.
+                    if (string.IsNullOrEmpty(header)) header = $"Column_{col}";
+
                     var cell = worksheet.Cells[rowNum, col];
                     string val = cell.Value is DateTime dt
                         ? dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)
                         : cell.Value?.ToString()?.Trim() ?? string.Empty;
 
-                    rowData[headers[col - 1]] = val;
+                    rowData[header] = val;
                     if (!string.IsNullOrWhiteSpace(val)) isEmpty = false;
                 }
 
@@ -261,7 +280,18 @@ namespace SalesApp.Services
             }
 
             var columns = new List<string>();
-            var columnCount = worksheet.Dimension?.Columns ?? 0;
+            var dimensionColumnCount = worksheet.Dimension?.Columns ?? 0;
+
+            // Find effective column count (last header that is not empty)
+            int columnCount = 0;
+            for (int col = dimensionColumnCount; col >= 1; col--)
+            {
+                if (!string.IsNullOrWhiteSpace(worksheet.Cells[1, col].Value?.ToString()))
+                {
+                    columnCount = col;
+                    break;
+                }
+            }
             
             for (int col = 1; col <= columnCount; col++)
             {
@@ -269,6 +299,13 @@ namespace SalesApp.Services
                 if (!string.IsNullOrEmpty(headerValue))
                 {
                     columns.Add(headerValue);
+                }
+                else
+                {
+                    // For GetColumnsAsync, we usually only return named columns, 
+                    // but we should ensure we don't have gaps if we use this for mapping.
+                    // However, Step 1 uses this to show detected columns.
+                    columns.Add($"Column_{col}");
                 }
             }
 
@@ -287,7 +324,19 @@ namespace SalesApp.Services
                 throw new ArgumentException("Excel file contains no worksheets");
             }
 
-            var columnCount = worksheet.Dimension?.Columns ?? 0;
+            var dimensionColumnCount = worksheet.Dimension?.Columns ?? 0;
+            
+            // Find effective column count (last header that is not empty)
+            int columnCount = 0;
+            for (int col = dimensionColumnCount; col >= 1; col--)
+            {
+                if (!string.IsNullOrWhiteSpace(worksheet.Cells[1, col].Value?.ToString()))
+                {
+                    columnCount = col;
+                    break;
+                }
+            }
+
             const int maxConsecutiveEmptyRows = 5;
             int consecutiveEmptyRows = 0;
 

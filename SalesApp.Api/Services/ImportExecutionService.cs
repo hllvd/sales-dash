@@ -63,6 +63,7 @@ namespace SalesApp.Services
             var groupCache = new Dictionary<string, int?>();
             var pvCache = new Dictionary<string, int?>();
             var matriculaCache = new Dictionary<string, int?>();
+            var newContractsMap = new Dictionary<string, Contract>();
 
             // 1. Pre-identify potential contract numbers for bulk fetch
             var allContractNumbers = rows
@@ -93,8 +94,13 @@ namespace SalesApp.Services
                         }
                     }
 
-                    // Look for existing contract
+                    // Look for existing contract (in DB or already seen in this batch)
                     existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
+                    
+                    if (existingContract == null && !string.IsNullOrWhiteSpace(contractNumber))
+                    {
+                        newContractsMap.TryGetValue(contractNumber, out existingContract);
+                    }
 
                     // ✅ MANDATORY SILENT SKIP: mandatory for SaleStartDate IF NEW CONTRACT
                     var startDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
@@ -107,12 +113,18 @@ namespace SalesApp.Services
 
                     if (contract != null)
                     {
-                        // If it's a new contract (not tracked), we add to list
+                        // If it's a new contract (not tracked in DB), we might need to add it to the batch
                         if (existingContract == null)
                         {
+                            // Double check it wasn't added to newContractsMap by another row (should be handled by the lookup above)
                             contractsToAdd.Add(contract);
+                            if (!string.IsNullOrWhiteSpace(contractNumber))
+                            {
+                                newContractsMap[contractNumber] = contract;
+                            }
                         }
-                        // If it's existing, it's already updated and tracked by the context
+                        // If it's existing (either in DB or already in newContractsMap), 
+                        // it was updated in place by BuildContractFromRowAsync
 
                         result.ProcessedRows++;
                     }
