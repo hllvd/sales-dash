@@ -407,3 +407,6 @@ Library/
 # .dotnet directory
 .dotnet/
 .nuget/
+
+# E2E Test Temporary Downloads
+client/e2e-test/temp/

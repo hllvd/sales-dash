@@ -5,9 +5,23 @@ import fs from 'fs';
 import * as XLSX from 'xlsx';
 
 test.describe('Import Wizard Aliases Flow', () => {
+  test.afterAll(async () => {
+    // Cleanup generated files in temp
+    const tempDir = path.resolve(process.cwd(), 'client/e2e-test/temp');
+    if (fs.existsSync(tempDir)) {
+      const files = fs.readdirSync(tempDir);
+      for (const file of files) {
+        if (file.endsWith('.xlsx') || file.endsWith('.csv')) {
+          fs.unlinkSync(path.join(tempDir, file));
+        }
+      }
+    }
+  });
+
   test('should process Consultor and Nome PV aliases correctly', async ({ page }) => {
     test.setTimeout(45_000);
     const getTestDataPath = (filename: string) => path.resolve(process.cwd(), 'test-data', filename);
+    const getTempPath = (filename: string) => path.resolve(process.cwd(), 'client/e2e-test/temp', filename);
 
     // 1. Login as superadmin
     await page.goto('/');
@@ -71,7 +85,7 @@ test.describe('Import Wizard Aliases Flow', () => {
       page.click('button:has-text("Baixar contracts.xlsx Enriquecido")')
     ]);
     
-    const finalContractsPath = getTestDataPath('downloaded_contracts_aliases.xlsx');
+    const finalContractsPath = getTempPath('downloaded_contracts_aliases.xlsx');
     await downloadContracts.saveAs(finalContractsPath);
 
     // 8. Navigate to Contracts Page and perform standard import to prove mapping

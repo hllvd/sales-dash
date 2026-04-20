@@ -41,4 +41,12 @@ To handle application state and dependencies, tests are organized into sequentia
 3. **TEAR 3 (General Logic)**: Verifies functional logic like filtering, basic login, and smoke tests.
 
 Each Tier verifies if its state is already achieved (e.g., checking if data exists) and will skip redundant heavy work if possible.
+44: 
+45: ## Temporary Files
+46: 
+47: Any files generated during test execution (e.g., downloads, enriched exports) should be stored in the `./temp/` directory. 
+48: 
+49: - This directory is ignored by Git (`.gitignore`).
+50: - Tests should ideally clean up their own files in an `afterAll` hook to keep the environment clean.
+51: - Do **not** use the `test-data/` folder for generated outputs to avoid polluting the repository.
 
