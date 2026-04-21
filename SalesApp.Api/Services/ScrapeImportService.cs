@@ -3,9 +3,10 @@ using System.IO;
 using System.Linq;
 using CsvHelper;
 using CsvHelper.Configuration;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SalesApp.Data;
 using SalesApp.Models;
+using SalesApp.Models.Configuration;
 using SalesApp.Repositories;
 
 namespace SalesApp.Services
@@ -18,26 +19,23 @@ namespace SalesApp.Services
     public class ScrapeImportService : IScrapeImportService
     {
         private readonly AppDbContext _context;
-        private readonly IContractRepository _contractRepository;
         private readonly IUserRepository _userRepository;
-        private readonly IPVRepository _pvRepository;
-        private readonly IGroupRepository _groupRepository;
-        private readonly IContractMetadataRepository _metadataRepository;
+        private readonly IImportExecutionService _importService;
+        private readonly IImportSessionRepository _sessionRepository;
+        private readonly ScrapeImportOptions _options;
 
         public ScrapeImportService(
             AppDbContext context,
-            IContractRepository contractRepository,
             IUserRepository userRepository,
-            IPVRepository pvRepository,
-            IGroupRepository groupRepository,
-            IContractMetadataRepository metadataRepository)
+            IImportExecutionService importService,
+            IImportSessionRepository sessionRepository,
+            IOptions<ScrapeImportOptions> options)
         {
             _context = context;
-            _contractRepository = contractRepository;
             _userRepository = userRepository;
-            _pvRepository = pvRepository;
-            _groupRepository = groupRepository;
-            _metadataRepository = metadataRepository;
+            _importService = importService;
+            _sessionRepository = sessionRepository;
+            _options = options.Value;
         }
 
         public async Task<ImportResult> AutoImportAsync(string filePath, Guid userId)
@@ -50,19 +48,6 @@ namespace SalesApp.Services
                 return result;
             }
 
-            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
-            {
-                HasHeaderRecord = true,
-                MissingFieldFound = null,
-                HeaderValidated = null
-            };
-
-            using var reader = new StreamReader(filePath);
-            using var csv = new CsvReader(reader, config);
-            
-            var records = csv.GetRecords<dynamic>().ToList();
-            result.TotalRows = records.Count;
-
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null)
             {
@@ -70,82 +55,82 @@ namespace SalesApp.Services
                 return result;
             }
 
-            foreach (var record in records)
+            // Create an import session for tracking
+            var session = new ImportSession
             {
-                try
+                UploadId = $"scrape-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                FileName = Path.GetFileName(filePath),
+                FileType = "csv",
+                UploadedByUserId = userId,
+                Status = "Processing",
+                CreatedAt = DateTime.UtcNow
+            };
+            await _sessionRepository.CreateAsync(session);
+
+            try
+            {
+                var rows = new List<Dictionary<string, string>>();
+                
+                var config = new CsvConfiguration(CultureInfo.InvariantCulture)
                 {
-                    var dict = (IDictionary<string, object>)record;
-                    await ProcessRowAsync(dict, user, result);
-                    result.ProcessedRows++;
-                }
-                catch (Exception ex)
+                    HasHeaderRecord = true,
+                    MissingFieldFound = null,
+                    HeaderValidated = null
+                };
+
+                using (var reader = new StreamReader(filePath))
+                using (var csv = new CsvReader(reader, config))
                 {
-                    result.FailedRows++;
-                    result.Errors.Add($"Error processing row: {ex.Message}");
+                    var records = csv.GetRecords<dynamic>();
+                    foreach (var record in records)
+                    {
+                        var row = (IDictionary<string, object>)record;
+                        var rowDict = new Dictionary<string, string>();
+                        
+                        foreach (var kvp in row)
+                        {
+                            rowDict[kvp.Key] = kvp.Value?.ToString() ?? string.Empty;
+                        }
+                        
+                        // Inject UserEmail so the ImportExecutionService can attribute this row to the scraper owner
+                        rowDict["UserEmail"] = user.Email;
+                        
+                        rows.Add(rowDict);
+                    }
                 }
-            }
 
-            await _context.SaveChangesAsync();
-            return result;
-        }
-
-        private async Task ProcessRowAsync(IDictionary<string, object> row, User user, ImportResult result)
-        {
-            // Map headers to properties
-            var contractNumber = row.ContainsKey("Cota") ? row["Cota"]?.ToString() : null;
-            if (string.IsNullOrWhiteSpace(contractNumber)) return;
-
-            var existing = await _contractRepository.GetByContractNumberAsync(contractNumber);
-            var contract = existing ?? new Contract { CreatedAt = DateTime.UtcNow };
-
-            contract.ContractNumber = contractNumber;
-            contract.UserId = user.Id;
-            contract.Status = MapStatus(row.ContainsKey("Situação Cobrança") ? row["Situação Cobrança"]?.ToString() : null);
-            
-            if (row.ContainsKey("Crédito Venda") && decimal.TryParse(row["Crédito Venda"]?.ToString(), out var amount))
-            {
-                contract.TotalAmount = amount;
-            }
-
-            if (row.ContainsKey("Dt Produção") && DateTime.TryParse(row["Dt Produção"]?.ToString(), out var prodDate))
-            {
-                contract.SaleStartDate = prodDate;
-            }
-
-            contract.CustomerName = row.ContainsKey("Consultor") ? row["Consultor"]?.ToString() : null;
-            contract.UpdatedAt = DateTime.UtcNow;
-            contract.IsActive = true;
-
-            // Resolve PV
-            var pvName = row.ContainsKey("PV") ? row["PV"]?.ToString() : null;
-            if (!string.IsNullOrWhiteSpace(pvName))
-            {
-                var pv = await _context.PVs.FirstOrDefaultAsync(p => p.Name == pvName);
-                if (pv == null)
+                if (!rows.Any())
                 {
-                    pv = new PV { Id = GeneratePvId(pvName), Name = pvName, CreatedAt = DateTime.UtcNow };
-                    _context.PVs.Add(pv);
+                    session.Status = "Completed";
+                    await _sessionRepository.UpdateAsync(session);
+                    return result;
                 }
-                contract.PvId = pv.Id;
-            }
 
-            if (existing == null)
+                // Handoff to the standard ImportExecutionService
+                var importResult = await _importService.ExecuteContractImportAsync(
+                    uploadId: $"pbi-scrape-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                    importSessionId: session.Id,
+                    rows: rows,
+                    mappings: _options.Mappings,
+                    dateFormat: "dd/MM/yyyy", // Standard Brazilian format often used in PBI exports
+                    skipMissingContractNumber: true,
+                    allowAutoCreateGroups: true,
+                    allowAutoCreatePVs: true
+                );
+
+                // Finalize session status
+                session.Status = importResult.Errors.Any() ? "Failed" : "Completed";
+                await _sessionRepository.UpdateAsync(session);
+
+                return importResult;
+            }
+            catch (Exception ex)
             {
-                _context.Contracts.Add(contract);
+                session.Status = "Failed";
+                await _sessionRepository.UpdateAsync(session);
+                result.Errors.Add($"Scrape import failed: {ex.Message}");
+                return result;
             }
-        }
-
-        private string MapStatus(string? status)
-        {
-            if (string.IsNullOrWhiteSpace(status)) return "active";
-            // Simple mapping for now
-            return status.ToLower().Contains("cancel") ? "cancelled" : "active";
-        }
-
-        private int GeneratePvId(string name)
-        {
-            // Simple hash for ID if not provided by PBI
-            return Math.Abs(name.GetHashCode() % 1000000);
         }
     }
 }

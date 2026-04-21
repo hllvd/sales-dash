@@ -95,6 +95,9 @@ namespace SalesApp
             services.Configure<Models.Configuration.ContractStatusOptions>(Configuration.GetSection("ContractStatusMappings"));
             services.AddSingleton<IContractStatusMapper, ContractStatusMapper>();
 
+            // Scraper Column Mappings
+            services.Configure<Models.Configuration.ScrapeImportOptions>(Configuration.GetSection("ScrapeImportMappings"));
+
             // AWS DynamoDB
             services.AddSingleton<IAmazonDynamoDB>(sp => {
                 var config = sp.GetRequiredService<IConfiguration>();
