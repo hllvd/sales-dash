@@ -1,6 +1,7 @@
 using SalesApp.Data;
 using Microsoft.EntityFrameworkCore;
 using SalesApp.Models;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace SalesApp.Services
 {
@@ -16,6 +17,7 @@ namespace SalesApp.Services
         private readonly PbiScraperClient _scraperClient;
         private readonly IScrapeDynamoLogService _logService;
         private readonly IScrapeImportService _importService;
+        private readonly IDataProtector _protector;
         private readonly string _outputDir;
 
         public ScrapeOrchestrator(
@@ -23,12 +25,14 @@ namespace SalesApp.Services
             PbiScraperClient scraperClient,
             IScrapeDynamoLogService logService,
             IScrapeImportService importService,
+            IDataProtectionProvider dataProtectionProvider,
             IConfiguration configuration)
         {
             _context = context;
             _scraperClient = scraperClient;
             _logService = logService;
             _importService = importService;
+            _protector = dataProtectionProvider.CreateProtector("ScrapeConfig.PowerBiPassword");
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
         }
 
@@ -55,13 +59,20 @@ namespace SalesApp.Services
             // 2. Call Node.js service
             try
             {
+                string? decryptedPassword = null;
+                if (!string.IsNullOrEmpty(config.PowerBiPassword))
+                {
+                    try { decryptedPassword = _protector.Unprotect(config.PowerBiPassword); }
+                    catch { /* Fallback or log error */ }
+                }
+
                 await _scraperClient.EnqueueJobAsync(
                     jobId: jobId,
                     userId: config.UserId?.ToString() ?? string.Empty,
                     store: config.Store,
                     matricula: config.Matricula,
-                    avaproUsername: config.User?.PowerBiUsername,
-                    avaproPassword: config.User?.PowerBiPassword
+                    avaproUsername: config.Matricula, // Using Matricula as username for PBI login
+                    avaproPassword: decryptedPassword
                 );
                 
                 // Update status to Running

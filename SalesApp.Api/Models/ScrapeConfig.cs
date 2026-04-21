@@ -21,6 +21,12 @@ namespace SalesApp.Models
         [MaxLength(100)]
         public string Matricula { get; set; } = string.Empty;
 
+        [MaxLength(500)]
+        public string? PowerBiPassword { get; set; } // Stored encrypted
+
+        [MaxLength(50)]
+        public string? CredentialStatus { get; set; } // "ok", "wrong-password", or null
+
         public bool IsEnabled { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

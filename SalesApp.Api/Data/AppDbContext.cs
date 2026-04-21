@@ -324,6 +324,8 @@ namespace SalesApp.Data
                 entity.Property(e => e.UserId).IsRequired();
                 entity.Property(e => e.Store).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.Matricula).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.PowerBiPassword).HasMaxLength(500);
+                entity.Property(e => e.CredentialStatus).HasMaxLength(50);
                 
                 entity.HasOne(e => e.User)
                     .WithMany(u => u.ScrapeConfigs)

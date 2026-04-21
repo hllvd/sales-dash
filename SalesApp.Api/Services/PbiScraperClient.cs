@@ -9,6 +9,7 @@ namespace SalesApp.Services
         public string Matricula { get; set; } = string.Empty;
         public string CallbackUrl { get; set; } = string.Empty;
         public string JobId { get; set; } = string.Empty;
+        public string? UserId { get; set; }
         public string? AvaproUsername { get; set; }
         public string? AvaproPassword { get; set; }
     }
@@ -29,6 +30,7 @@ namespace SalesApp.Services
             var request = new ScrapeJobRequest
             {
                 JobId = jobId,
+                UserId = userId,
                 Store = store,
                 Matricula = matricula,
                 CallbackUrl = $"{_callbackBaseUrl}/api/scrape/callback",
@@ -44,6 +46,23 @@ namespace SalesApp.Services
             var resultJson = await response.Content.ReadAsStringAsync();
             var result = JsonConvert.DeserializeObject<dynamic>(resultJson);
             return result?.jobId?.ToString() ?? jobId;
+        }
+
+        public async Task<(bool success, string message)> TestAuthAsync(string matricula, string password)
+        {
+            var request = new
+            {
+                matricula = matricula,
+                password = password
+            };
+
+            var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync("/test-auth", content);
+
+            var resultJson = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<dynamic>(resultJson);
+
+            return (response.IsSuccessStatusCode, result?.message?.ToString() ?? (response.IsSuccessStatusCode ? "Sucesso" : "Falha na autenticação"));
         }
     }
 }

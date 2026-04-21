@@ -563,12 +563,18 @@ namespace SalesApp.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CredentialStatus")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Matricula")
                         .IsRequired()
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PowerBiPassword")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Store")
@@ -626,11 +632,6 @@ namespace SalesApp.Api.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("PowerBiPassword")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PowerBiUsername")
-                        .HasColumnType("TEXT");
 
                     b.Property<int>("RoleId")
                         .ValueGeneratedOnAdd()

@@ -5,9 +5,31 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using SalesApp.Services;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace SalesApp.Controllers
 {
+    public class ScrapeConfigDto
+    {
+        public int Id { get; set; }
+        public Guid? UserId { get; set; }
+        public string Store { get; set; } = string.Empty;
+        public string Matricula { get; set; } = string.Empty;
+        public string? CredentialStatus { get; set; }
+        public bool IsEnabled { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    public class ScrapeConfigRequest
+    {
+        public int? Id { get; set; }
+        public string Store { get; set; } = string.Empty;
+        public string Matricula { get; set; } = string.Empty;
+        public string? PowerBiPassword { get; set; }
+        public bool TestOnSave { get; set; } = true;
+    }
+
     [ApiController]
     [Route("api/[controller]")]
     public class ScrapeController : ControllerBase
@@ -16,47 +38,80 @@ namespace SalesApp.Controllers
         private readonly IScrapeDynamoLogService _logService;
         private readonly AppDbContext _context;
         private readonly IScrapeImportService _importService;
+        private readonly PbiScraperClient _scraperClient;
+        private readonly IDataProtector _protector;
         private readonly string _outputDir;
+        private readonly bool _isE2E;
 
         public ScrapeController(
             IScrapeOrchestrator orchestrator,
             IScrapeDynamoLogService logService,
             AppDbContext context,
             IScrapeImportService importService,
+            PbiScraperClient scraperClient,
+            IDataProtectionProvider dataProtectionProvider,
             IConfiguration configuration)
         {
             _orchestrator = orchestrator;
             _logService = logService;
             _context = context;
             _importService = importService;
+            _scraperClient = scraperClient;
+            _protector = dataProtectionProvider.CreateProtector("ScrapeConfig.PowerBiPassword");
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
+            _isE2E = configuration["ASPNETCORE_ENVIRONMENT"] == "E2E";
         }
 
         [Authorize(Roles = "admin,superadmin")]
         [HttpPost("configs")]
-        public async Task<IActionResult> CreateConfig([FromBody] ScrapeConfig config)
+        public async Task<IActionResult> SaveConfig([FromBody] ScrapeConfigRequest request)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             
-            // Auto-fill UserId if not provided or if the user is not a superadmin
-            if (!config.UserId.HasValue || config.UserId == Guid.Empty || !User.IsInRole("superadmin"))
+            ScrapeConfig config;
+            bool isNew = false;
+
+            if (request.Id.HasValue && request.Id > 0)
             {
-                config.UserId = userId;
+                config = await _context.ScrapeConfigs.FindAsync(request.Id.Value);
+                if (config == null) return NotFound();
+                if (!User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
+            }
+            else
+            {
+                config = new ScrapeConfig
+                {
+                    UserId = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                isNew = true;
             }
 
-            // Check if user is admin but trying to create for someone else
-            if (User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId)
-            {
-                return Forbid();
-            }
-
-            config.CreatedAt = DateTime.UtcNow;
+            config.Store = request.Store;
+            config.Matricula = request.Matricula;
             config.UpdatedAt = DateTime.UtcNow;
-            
-            _context.ScrapeConfigs.Add(config);
+
+            if (!string.IsNullOrEmpty(request.PowerBiPassword))
+            {
+                config.PowerBiPassword = _protector.Protect(request.PowerBiPassword);
+                config.CredentialStatus = null; // Reset status on password change
+
+                // Test authentication if requested and not in E2E
+                if (request.TestOnSave && !_isE2E)
+                {
+                    var (success, message) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword);
+                    config.CredentialStatus = success ? "ok" : "wrong-password";
+                    if (!success)
+                    {
+                        return BadRequest(new { message = $"Falha na autenticação: {message}" });
+                    }
+                }
+            }
+
+            if (isNew) _context.ScrapeConfigs.Add(config);
             await _context.SaveChangesAsync();
             
-            return Ok(config);
+            return Ok(MapToDto(config));
         }
 
         [Authorize(Roles = "admin,superadmin")]
@@ -66,8 +121,53 @@ namespace SalesApp.Controllers
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             var configs = await _context.ScrapeConfigs
                 .Where(c => c.UserId == userId)
+                .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
-            return Ok(configs);
+            
+            return Ok(configs.Select(MapToDto));
+        }
+
+        [Authorize(Roles = "admin,superadmin")]
+        [HttpDelete("configs/{id}")]
+        public async Task<IActionResult> DeleteConfig(int id)
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var config = await _context.ScrapeConfigs.FindAsync(id);
+
+            if (config == null) return NotFound();
+            if (!User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
+
+            _context.ScrapeConfigs.Remove(config);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [Authorize(Roles = "admin,superadmin")]
+        [HttpPost("configs/{id}/test-auth")]
+        public async Task<IActionResult> TestAuth(int id)
+        {
+            if (_isE2E) return Ok(new { success = true, message = "Autenticação ignorada em modo E2E" });
+
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var config = await _context.ScrapeConfigs.FindAsync(id);
+
+            if (config == null) return NotFound();
+            if (!User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
+
+            if (string.IsNullOrEmpty(config.PowerBiPassword))
+            {
+                return BadRequest(new { message = "Senha não configurada" });
+            }
+
+            string password = _protector.Unprotect(config.PowerBiPassword);
+            var (success, message) = await _scraperClient.TestAuthAsync(config.Matricula, password);
+
+            config.CredentialStatus = success ? "ok" : "wrong-password";
+            config.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success, message });
         }
 
         [Authorize(Roles = "admin,superadmin")]
@@ -78,7 +178,7 @@ namespace SalesApp.Controllers
             var config = await _context.ScrapeConfigs.FindAsync(configId);
 
             if (config == null) return NotFound();
-            if (User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
+            if (!User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
 
             var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true);
             return Accepted(new { jobId });
@@ -101,12 +201,26 @@ namespace SalesApp.Controllers
             return Ok(jobs);
         }
 
-        // Internal callback - No auth as per user request for simplicity
         [HttpPut("callback")]
         public async Task<IActionResult> HandleCallback([FromBody] ScrapeResult result)
         {
             await _orchestrator.HandleCallbackAsync(result);
             return Ok();
+        }
+
+        private static ScrapeConfigDto MapToDto(ScrapeConfig config)
+        {
+            return new ScrapeConfigDto
+            {
+                Id = config.Id,
+                UserId = config.UserId,
+                Store = config.Store,
+                Matricula = config.Matricula,
+                CredentialStatus = config.CredentialStatus,
+                IsEnabled = config.IsEnabled,
+                CreatedAt = config.CreatedAt,
+                UpdatedAt = config.UpdatedAt
+            };
         }
     }
 }

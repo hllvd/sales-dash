@@ -14,8 +14,26 @@ import {
   ActionIcon,
   Tooltip,
   Alert,
+  Modal,
+  Stack,
+  PasswordInput,
+  Checkbox,
+  Stack as MantineStack,
+  Tabs,
+  Divider,
 } from '@mantine/core';
-import { IconRefresh, IconSettings, IconPlayerPlay, IconAlertCircle, IconCheck } from '@tabler/icons-react';
+import { 
+  IconRefresh, 
+  IconSettings, 
+  IconPlayerPlay, 
+  IconAlertCircle, 
+  IconCheck, 
+  IconPlus, 
+  IconTrash, 
+  IconFingerprint,
+  IconHistory,
+  IconUserCheck
+} from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { scrapeService, ScrapeConfig, ScrapeJob } from '../../services/scrapeService';
 import Menu from '../Menu';
@@ -72,12 +90,17 @@ const ScrapeDashboard: React.FC = () => {
   const [configs, setConfigs] = useState<ScrapeConfig[]>([]);
   const [jobs, setJobs] = useState<ScrapeJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<Partial<ScrapeConfig> | null>(null);
+  
+  // Form state
+  const [store, setStore] = useState<string | null>(null);
+  const [matricula, setMatricula] = useState('');
+  const [password, setPassword] = useState('');
+  const [validateOnSave, setValidateOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
-
-  // Form state
-  const [selectedStore, setSelectedStore] = useState<string | null>(null);
-  const [matricula, setMatricula] = useState('');
+  const [testingAuth, setTestingAuth] = useState<number | null>(null);
 
   const fetchData = async () => {
     try {
@@ -88,11 +111,6 @@ const ScrapeDashboard: React.FC = () => {
       ]);
       setConfigs(configsRes || []);
       setJobs(jobsRes || []);
-
-      if (configsRes && configsRes.length > 0) {
-        setSelectedStore(configsRes[0].store);
-        setMatricula(configsRes[0].matricula);
-      }
     } catch (error) {
       notifications.show({
         title: 'Erro',
@@ -106,15 +124,28 @@ const ScrapeDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000); // Auto refresh every 30s
-    return () => clearInterval(interval);
   }, []);
 
+  const handleOpenModal = (config?: ScrapeConfig) => {
+    if (config) {
+      setEditingConfig(config);
+      setStore(config.store);
+      setMatricula(config.matricula);
+      setPassword(''); // Don't show existing password
+    } else {
+      setEditingConfig(null);
+      setStore(null);
+      setMatricula('');
+      setPassword('');
+    }
+    setModalOpen(true);
+  };
+
   const handleSaveConfig = async () => {
-    if (!selectedStore || !matricula) {
+    if (!store || !matricula || (!editingConfig && !password)) {
       notifications.show({
         title: 'Aviso',
-        message: 'Preencha a Unidade e a Matrícula',
+        message: 'Preencha todos os campos obrigatórios',
         color: 'orange',
       });
       return;
@@ -123,23 +154,80 @@ const ScrapeDashboard: React.FC = () => {
     try {
       setSaving(true);
       await scrapeService.saveConfig({
-        store: selectedStore,
-        matricula: matricula
+        id: editingConfig?.id,
+        store,
+        matricula,
+        powerBiPassword: password || undefined,
+        testOnSave: validateOnSave
       });
+      
       notifications.show({
         title: 'Sucesso',
         message: 'Configuração salva com sucesso',
         color: 'green',
       });
+      
+      setModalOpen(false);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
         notifications.show({
             title: 'Erro',
-            message: 'Falha ao salvar configuração',
+            message: error.response?.data?.message || 'Falha ao salvar configuração',
             color: 'red',
         });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteConfig = async (id: number) => {
+    if (!window.confirm('Tem certeza que deseja remover este vínculo de conta?')) return;
+    
+    try {
+      await scrapeService.deleteConfig(id);
+      notifications.show({
+        title: 'Removido',
+        message: 'Vínculo de conta removido',
+        color: 'blue',
+      });
+      fetchData();
+    } catch (error) {
+      notifications.show({
+        title: 'Erro',
+        message: 'Falha ao remover vínculo',
+        color: 'red',
+      });
+    }
+  };
+
+  const handleTestAuth = async (id: number) => {
+    try {
+      setTestingAuth(id);
+      const result = await scrapeService.testAuth(id);
+      if (result.success) {
+        notifications.show({
+          title: 'Autenticação OK',
+          message: 'As credenciais são válidas',
+          color: 'green',
+          icon: <IconCheck size={16} />
+        });
+      } else {
+        notifications.show({
+          title: 'Falha na Autenticação',
+          message: result.message,
+          color: 'red',
+          icon: <IconAlertCircle size={16} />
+        });
+      }
+      fetchData();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erro',
+        message: error.response?.data?.message || 'Falha ao testar autenticação',
+        color: 'red',
+      });
+    } finally {
+      setTestingAuth(null);
     }
   };
 
@@ -148,8 +236,8 @@ const ScrapeDashboard: React.FC = () => {
       setTriggering(configId);
       await scrapeService.triggerScrape(configId);
       notifications.show({
-        title: 'Sucesso',
-        message: 'Extração iniciada. Você poderá acompanhar o progresso na tabela abaixo.',
+        title: 'Extração Iniciada',
+        message: 'O robô foi notificado. Acompanhe o progresso no histórico.',
         color: 'green',
       });
       fetchData();
@@ -166,13 +254,69 @@ const ScrapeDashboard: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'Pending': return <Badge color="gray">Pendente</Badge>;
+      case 'Pending': return <Badge color="gray" variant="light">Pendente</Badge>;
       case 'Running': return <Badge color="blue" variant="filled">Executando...</Badge>;
-      case 'Succeeded': return <Badge color="green">Sucesso</Badge>;
-      case 'Failed': return <Badge color="red">Falha</Badge>;
+      case 'Succeeded': return <Badge color="green" variant="light">Sucesso</Badge>;
+      case 'Failed': return <Badge color="red" variant="light">Falha</Badge>;
       default: return <Badge color="gray">{status}</Badge>;
     }
   };
+
+  const getCredentialStatusBadge = (status: string | null | undefined) => {
+    if (status === 'ok') 
+        return <Badge color="green" leftSection={<IconCheck size={12}/>} variant="outline">Válida</Badge>;
+    if (status === 'wrong-password')
+        return <Badge color="red" leftSection={<IconAlertCircle size={12}/>} variant="outline">Senha Incorreta</Badge>;
+    return <Badge color="gray" variant="dot">Não Testada</Badge>;
+  };
+
+  const configRows = configs.map((config) => (
+    <Table.Tr key={config.id}>
+      <Table.Td>
+        <Text size="sm" fw={500}>{config.store}</Text>
+      </Table.Td>
+      <Table.Td>
+        <Text size="sm">{config.matricula}</Text>
+      </Table.Td>
+      <Table.Td>
+        {getCredentialStatusBadge(config.credentialStatus)}
+      </Table.Td>
+      <Table.Td>
+        <Group gap="xs">
+          <Tooltip label="Testar Autenticação">
+            <ActionIcon 
+                variant="light" 
+                color="blue" 
+                onClick={() => handleTestAuth(config.id)}
+                loading={testingAuth === config.id}
+            >
+              <IconUserCheck size={18} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Editar">
+            <ActionIcon variant="light" color="gray" onClick={() => handleOpenModal(config)}>
+              <IconSettings size={18} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Remover">
+            <ActionIcon variant="light" color="red" onClick={() => handleDeleteConfig(config.id)}>
+              <IconTrash size={18} />
+            </ActionIcon>
+          </Tooltip>
+          <Button 
+            size="compact-xs" 
+            variant="filled" 
+            color="indigo"
+            leftSection={<IconPlayerPlay size={12}/>}
+            onClick={() => handleTrigger(config.id)}
+            loading={triggering === config.id}
+          >
+            Extrair
+          </Button>
+        </Group>
+      </Table.Td>
+    </Table.Tr>
+  ));
 
   const jobRows = (jobs || []).map((job) => (
     <Table.Tr key={job.jobId}>
@@ -196,92 +340,141 @@ const ScrapeDashboard: React.FC = () => {
   return (
     <Menu>
       <div className="scrape-dashboard">
-        <LoadingOverlay visible={loading && (!jobs || jobs.length === 0)} />
+        <LoadingOverlay visible={loading && configs.length === 0} />
         
-        <Title order={2} mb="xl">Extração Automática PowerBI</Title>
-
-        <Card withBorder radius="md" p="xl" mb="xl" className="config-card">
-          <Group justify="space-between" mb="lg">
-            <Group>
-              <IconSettings size={24} />
-              <Text fw={700} size="lg">Configuração da Unidade</Text>
-            </Group>
+        <Group justify="space-between" mb="xl">
+            <Title order={2}>Extração PowerBI</Title>
             <Button 
-                variant="light" 
-                leftSection={<IconRefresh size={16}/>} 
+                variant="filled" 
+                leftSection={<IconRefresh size={18}/>} 
                 onClick={fetchData}
                 loading={loading}
+                color="gray"
             >
-                Atualizar Histórico
+                Sincronizar
             </Button>
-          </Group>
+        </Group>
 
-          <Group grow align="flex-end">
+        <Tabs defaultValue="links" mb="xl">
+          <Tabs.List>
+            <Tabs.Tab value="links" leftSection={<IconFingerprint size={16} />}>Vínculos de Contas</Tabs.Tab>
+            <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>Histórico de Extrações</Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value="links" pt="xl">
+            <Card withBorder radius="md" p="md">
+              <Group justify="space-between" mb="md">
+                <Text fw={600} size="lg">Contas PowerBI Configuradas</Text>
+                <Button 
+                  leftSection={<IconPlus size={18} />} 
+                  onClick={() => handleOpenModal()}
+                  variant="light"
+                >
+                  Nova Conta
+                </Button>
+              </Group>
+
+              {configs.length === 0 ? (
+                <Alert color="blue" variant="light" mt="md">
+                  <Text size="sm">
+                    Você ainda não configurou nenhuma conta para extração. 
+                    Adicione os dados de acesso das suas unidades para começar.
+                  </Text>
+                </Alert>
+              ) : (
+                <Table striped highlightOnHover verticalSpacing="sm">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Unidade</Table.Th>
+                      <Table.Th>Matrícula (Username)</Table.Th>
+                      <Table.Th>Status Credencial</Table.Th>
+                      <Table.Th>Ações</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>{configRows}</Table.Tbody>
+                </Table>
+              )}
+            </Card>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="history" pt="xl">
+            <Paper withBorder radius="md" p="md">
+              {!jobs || jobs.length === 0 ? (
+                <Text ta="center" c="dimmed" p="xl">Nenhuma extração realizada ainda.</Text>
+              ) : (
+                <Table striped highlightOnHover verticalSpacing="sm">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Data</Table.Th>
+                      <Table.Th>Unidade</Table.Th>
+                      <Table.Th>Matrícula</Table.Th>
+                      <Table.Th>Status</Table.Th>
+                      <Table.Th>Registros</Table.Th>
+                      <Table.Th>Obs</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>{jobRows}</Table.Tbody>
+                </Table>
+              )}
+            </Paper>
+          </Tabs.Panel>
+        </Tabs>
+
+        {/* Configuration Modal */}
+        <Modal 
+          opened={modalOpen} 
+          onClose={() => setModalOpen(false)} 
+          title={editingConfig ? "Editar Conta PowerBI" : "Adicionar Nova Conta PowerBI"}
+          centered
+          size="md"
+        >
+          <Stack gap="md" pt="xs">
             <Select
               label="Unidade (Store)"
               placeholder="Selecione a unidade"
               data={STORES}
-              value={selectedStore}
-              onChange={setSelectedStore}
+              value={store}
+              onChange={setStore}
               searchable
+              required
             />
             <TextInput
               label="Matrícula"
-              placeholder="Sua matrícula com acesso à unidade"
+              placeholder="Ex: 99999"
               value={matricula}
               onChange={(e) => setMatricula(e.currentTarget.value)}
+              required
             />
-            <Button 
+            <PasswordInput
+              label="Senha do Portal/Avapro"
+              placeholder="Digite sua senha"
+              value={password}
+              onChange={(e) => setPassword(e.currentTarget.value)}
+              description={editingConfig ? "Deixe em branco para manter a senha atual" : undefined}
+              required={!editingConfig}
+            />
+            
+            <Divider mt="xs" label="Segurança" labelPosition="center" />
+            
+            <Checkbox
+              label="Validar credenciais ao salvar"
+              checked={validateOnSave}
+              onChange={(e) => setValidateOnSave(e.currentTarget.checked)}
+              description="O robô tentará fazer login no PowerBI para confirmar se a senha está correta."
+            />
+
+            <Group justify="flex-end" mt="md">
+              <Button variant="subtle" onClick={() => setModalOpen(false)} color="gray">Cancelar</Button>
+              <Button 
                 onClick={handleSaveConfig} 
                 loading={saving}
                 color="blue"
-            >
-              Salvar Configuração
-            </Button>
-          </Group>
-
-          {configs && configs.length > 0 && (
-            <div style={{ marginTop: '20px' }}>
-                <Alert color="blue" icon={<IconPlayerPlay size={16}/>}>
-                    <Group justify="space-between">
-                        <Text size="sm">
-                            Sua configuração está pronta. Clique no botão ao lado para iniciar uma extração agora.
-                        </Text>
-                        <Button 
-                            color="blue" 
-                            size="xs"
-                            leftSection={<IconPlayerPlay size={14}/>}
-                            onClick={() => handleTrigger(configs[0].id)}
-                            loading={triggering === configs[0].id}
-                        >
-                            Trigger Scrape
-                        </Button>
-                    </Group>
-                </Alert>
-            </div>
-          )}
-        </Card>
-
-        <Paper withBorder radius="md" p="md">
-          <Title order={4} mb="md">Histórico de Extrações</Title>
-          {!jobs || jobs.length === 0 ? (
-            <Text ta="center" c="dimmed" p="xl">Nenhuma extração realizada ainda.</Text>
-          ) : (
-            <Table striped highlightOnHover verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Data</Table.Th>
-                  <Table.Th>Unidade</Table.Th>
-                  <Table.Th>Matrícula</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th>Registros</Table.Th>
-                  <Table.Th>Obs</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>{jobRows}</Table.Tbody>
-            </Table>
-          )}
-        </Paper>
+              >
+                Salvar Configuração
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
       </div>
     </Menu>
   );

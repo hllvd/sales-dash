@@ -17,10 +17,7 @@ namespace SalesApp.DTOs
         public string? MatriculaNumber { get; set; }
         public bool IsMatriculaOwner { get; set; }
         
-        // Active matriculas for current user
         public List<UserMatriculaInfo> ActiveMatriculas { get; set; } = new List<UserMatriculaInfo>();
-        public string? PowerBiUsername { get; set; }
-        public bool HasPowerBiCredentials { get; set; }
     }
     
     public class LoginResponse

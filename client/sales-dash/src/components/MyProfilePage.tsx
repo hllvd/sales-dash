@@ -20,28 +20,7 @@ const MyProfilePage: React.FC = () => {
   const [showAddMatriculaModal, setShowAddMatriculaModal] = useState(false);
   const [newMatriculaNumber, setNewMatriculaNumber] = useState('');
   const [submittingMatricula, setSubmittingMatricula] = useState(false);
-  const [pbiUsername, setPbiUsername] = useState(currentUser?.powerBiUsername || '');
-  const [pbiPassword, setPbiPassword] = useState('');
-  const [savingPowerBi, setSavingPowerBi] = useState(false);
 
-  const handleSavePowerBi = async () => {
-    if (!pbiUsername.trim()) {
-      toast.error('O usuário PowerBI é obrigatório');
-      return;
-    }
-    
-    setSavingPowerBi(true);
-    try {
-      await apiService.savePowerBiCredentials(pbiUsername, pbiPassword);
-      toast.success('Credenciais PowerBI salvas com sucesso');
-      setPbiPassword('');
-      await refreshCurrentUser();
-    } catch (err: any) {
-      toast.error(err.message || 'Falha ao salvar credenciais PowerBI');
-    } finally {
-      setSavingPowerBi(false);
-    }
-  };
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -151,11 +130,6 @@ const MyProfilePage: React.FC = () => {
   };
 
 
-  React.useEffect(() => {
-    if (currentUser?.powerBiUsername) {
-      setPbiUsername(currentUser.powerBiUsername);
-    }
-  }, [currentUser]);
 
   if (!currentUser) {
     return (
@@ -322,42 +296,6 @@ const MyProfilePage: React.FC = () => {
               )}
             </div>
 
-            {(currentUser.role === 'admin' || currentUser.role === 'superadmin') && (
-              <div className="form-section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3>Credenciais PowerBI</h3>
-                  {currentUser.hasPowerBiCredentials && (
-                    <span style={{ color: '#40c057', fontSize: '0.875rem', fontWeight: 500 }}>
-                      ✓ Credenciais configuradas
-                    </span>
-                  )}
-                </div>
-                
-                <TextInput
-                  label="Usuário PowerBI"
-                  value={pbiUsername}
-                  onChange={(e) => setPbiUsername(e.target.value)}
-                  placeholder="Seu usuário do PowerBI"
-                  mb="md"
-                />
-
-                <PasswordInput
-                  label="Senha PowerBI"
-                  value={pbiPassword}
-                  onChange={(e) => setPbiPassword(e.target.value)}
-                  placeholder="Sua senha do PowerBI"
-                  mb="md"
-                />
-
-                <Button 
-                  onClick={handleSavePowerBi} 
-                  loading={savingPowerBi}
-                  variant="outline"
-                >
-                  Salvar Credenciais PowerBI
-                </Button>
-              </div>
-            )}
 
             <div className="form-actions">
               <Button
