@@ -768,7 +768,12 @@ export const apiService = {
       const error = await response.json().catch(() => ({ message: `Failed to delete ${endpoint}` }));
       throw new Error(error.message || `Failed to delete ${endpoint}`);
     }
-    return response.json();
+    if (response.status === 204) {
+      return null as any;
+    }
+    
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   },
 
   // ── Contract Export ──────────────────────────────────────────────────────
