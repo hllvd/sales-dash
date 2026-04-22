@@ -18,7 +18,7 @@ namespace SalesApp.DTOs
         public string Email { get; set; } = string.Empty;
         
         [Required(ErrorMessage = "Password is required")]
-        [StringLength(150, MinimumLength = 12, ErrorMessage = "Password must be between 12 and 150 characters")]
+        [ValidPassword(MinimumLength = 6)]
         public string Password { get; set; } = string.Empty;
         
         [MaxLength(20, ErrorMessage = "Role cannot exceed 20 characters")]
