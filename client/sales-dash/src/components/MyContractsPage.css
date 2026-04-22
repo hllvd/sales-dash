@@ -434,4 +434,13 @@
   .filter-actions button {
     width: 100%;
   }
+
+  .my-contracts-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .my-contracts-table-container table {
+    min-width: 800px;
+  }
 }

@@ -322,34 +322,36 @@ const MyContractsPage: React.FC = () => {
           </div>
         ) : (
           <div className="my-contracts-table-container">
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Número do Contrato</Table.Th>
-                  <Table.Th>Cliente</Table.Th>
-                  <Table.Th>Matrícula</Table.Th>
-                  <Table.Th>Grupo</Table.Th>
-                  <Table.Th>Valor Total</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th>Data Início</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {contracts.map((contract) => (
-                  <Table.Tr key={contract.id}>
-                    <Table.Td>{contract.contractNumber}</Table.Td>
-                    <Table.Td>{contract.customerName || '-'}</Table.Td>
-                    <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
-                    <Table.Td>{contract.groupName}</Table.Td>
-                    <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
-                    <Table.Td>
-                      <ContractStatusBadge status={contract.status} />
-                    </Table.Td>
-                    <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
+            <Table.ScrollContainer minWidth={800}>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Número do Contrato</Table.Th>
+                    <Table.Th>Cliente</Table.Th>
+                    <Table.Th>Matrícula</Table.Th>
+                    <Table.Th>Grupo</Table.Th>
+                    <Table.Th>Valor Total</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th>Data Início</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {contracts.map((contract) => (
+                    <Table.Tr key={contract.id}>
+                      <Table.Td>{contract.contractNumber}</Table.Td>
+                      <Table.Td>{contract.customerName || '-'}</Table.Td>
+                      <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
+                      <Table.Td>{contract.groupName}</Table.Td>
+                      <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
+                      <Table.Td>
+                        <ContractStatusBadge status={contract.status} />
+                      </Table.Td>
+                      <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           </div>
         )}
         {/* Aggregation Summary */}
