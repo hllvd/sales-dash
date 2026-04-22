@@ -22,6 +22,7 @@ interface MenuProps {
 
 const Menu: React.FC<MenuProps> = ({ children }) => {
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string>('');
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/home');
   const [opened, { toggle, close }] = useDisclosure();
   const isMobile = useMediaQuery('(max-width: 991px)');
@@ -42,8 +43,17 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         if (decoded.perm) {
           setUserPermissions(Array.isArray(decoded.perm) ? decoded.perm : [decoded.perm]);
         }
+
+        // Get user role from localStorage
+        const userJson = localStorage.getItem('user');
+        if (userJson) {
+          const user = JSON.parse(userJson);
+          if (user.role) {
+            setUserRole(user.role);
+          }
+        }
       } catch (e) {
-        console.error('Failed to parse token permissions', e);
+        console.error('Failed to parse token or user data', e);
       }
     }
 
@@ -191,7 +201,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {hasPermission('roles:read') && (
+          {(hasPermission('roles:read') && userRole !== UserRole.ADMIN) && (
             <NavLink
               href="#/access-control"
               label="Controle de Acesso"
