@@ -112,6 +112,23 @@ app.post('/jobs', (req, res) => {
   res.status(202).json({ jobId, status: 'Accepted' });
 });
 
+app.post('/test-auth', async (req, res) => {
+  const { matricula, password } = req.body;
+
+  if (!matricula || !password) {
+    return res.status(400).json({ success: false, message: 'Missing matricula or password' });
+  }
+
+  console.log(`[Test Auth] Testing credentials for ${matricula}...`);
+  try {
+    await getTokenFromLogin(matricula, password);
+    res.json({ success: true, message: 'Autenticação bem-sucedida.' });
+  } catch (err) {
+    console.error(`[Test Auth] Failed for ${matricula}:`, err.message);
+    res.json({ success: false, message: err.message });
+  }
+});
+
 app.get('/health', (req, res) => res.send('OK'));
 
 app.listen(PORT, () => {
