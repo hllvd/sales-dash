@@ -138,7 +138,7 @@ const UsersPage: React.FC = () => {
       <div className="users-container">
           <div className="users-header">
             <div>
-              <Title order={2} size="h2" className="page-title-break">Gerenciamento de Usuários</Title>
+              <Title order={2} size="h2">Gerenciamento de Usuários</Title>
               <p className="users-subtitle">
                 {totalCount} {totalCount === 1 ? "usuário" : "usuários"}{" "}
                 cadastrado{totalCount === 1 ? "" : "s"}
@@ -192,88 +192,90 @@ const UsersPage: React.FC = () => {
           ) : (
             <>
               <div className="table-container">
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Nome</Table.Th>
-                      <Table.Th>Email</Table.Th>
-                      <Table.Th>Função</Table.Th>
-                      <Table.Th>Status</Table.Th>
-                      <Table.Th>Criado em</Table.Th>
-                      <Table.Th>Ações</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {users.map((user) => (
-                      <Table.Tr key={user.id}>
-                        <Table.Td>
-                          <div className="user-name-cell">
-                            <span className="user-name">{user.name}</span>
-                            {user.parentUserName && (
-                              <span className="user-parent">
-                                Pai: {user.parentUserName}
-                              </span>
-                            )}
-                          </div>
-                        </Table.Td>
-                        <Table.Td>{user.email}</Table.Td>
-                        <Table.Td>
-                          <Badge 
-                            color={
-                              user.role === 'superadmin' ? 'red' : 
-                              user.role === 'admin' ? 'orange' : 'green'
-                            }
-                          >
-                            {user.role === "superadmin"
-                              ? "Super Admin"
-                              : user.role === "admin"
-                              ? "Admin"
-                              : "Usuário"}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge 
-                            color={user.isActive ? 'teal' : 'gray'}
-                          >
-                            {user.isActive ? "Ativo" : "Inativo"}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>{formatDate(user.createdAt)}</Table.Td>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <ActionIcon
-                              variant="subtle"
-                              color="blue"
-                              onClick={() => openEditForm(user)}
-                              title="Editar"
-                            >
-                              <IconEdit size={16} />
-                            </ActionIcon>
-                            {user.isActive ? (
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                onClick={() => setDeleteConfirm(user.id)}
-                                title="Excluir"
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            ) : (
-                              <ActionIcon
-                                variant="subtle"
-                                color="green"
-                                onClick={() => handleReactivateUser(user.id)}
-                                title="Reativar"
-                              >
-                                <IconRefresh size={16} />
-                              </ActionIcon>
-                            )}
-                          </Group>
-                        </Table.Td>
+                <Table.ScrollContainer minWidth={800}>
+                  <Table striped highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Nome</Table.Th>
+                        <Table.Th>Email</Table.Th>
+                        <Table.Th>Função</Table.Th>
+                        <Table.Th>Status</Table.Th>
+                        <Table.Th>Criado em</Table.Th>
+                        <Table.Th>Ações</Table.Th>
                       </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {users.map((user) => (
+                        <Table.Tr key={user.id}>
+                          <Table.Td>
+                            <div className="user-name-cell">
+                              <span className="user-name">{user.name}</span>
+                              {user.parentUserName && (
+                                <span className="user-parent">
+                                  Pai: {user.parentUserName}
+                                </span>
+                              )}
+                            </div>
+                          </Table.Td>
+                          <Table.Td>{user.email}</Table.Td>
+                          <Table.Td>
+                            <Badge 
+                              color={
+                                user.role === 'superadmin' ? 'red' : 
+                                user.role === 'admin' ? 'orange' : 'green'
+                              }
+                            >
+                              {user.role === "superadmin"
+                                ? "Super Admin"
+                                : user.role === "admin"
+                                ? "Admin"
+                                : "Usuário"}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge 
+                              color={user.isActive ? 'teal' : 'gray'}
+                            >
+                              {user.isActive ? "Ativo" : "Inativo"}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>{formatDate(user.createdAt)}</Table.Td>
+                          <Table.Td>
+                            <Group gap="xs">
+                              <ActionIcon
+                                variant="subtle"
+                                color="blue"
+                                onClick={() => openEditForm(user)}
+                                title="Editar"
+                              >
+                                <IconEdit size={16} />
+                              </ActionIcon>
+                              {user.isActive ? (
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  onClick={() => setDeleteConfirm(user.id)}
+                                  title="Excluir"
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              ) : (
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="green"
+                                  onClick={() => handleReactivateUser(user.id)}
+                                  title="Reativar"
+                                >
+                                  <IconRefresh size={16} />
+                                </ActionIcon>
+                              )}
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
               </div>
 
               {totalPages > 1 && (

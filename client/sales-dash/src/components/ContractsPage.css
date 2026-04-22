@@ -350,8 +350,18 @@
 
   .contracts-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 16px;
+  }
+
+  .contracts-header > div:last-child {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .contracts-header > div:last-child button {
+    width: 100%;
   }
 
   .contracts-header h1 {

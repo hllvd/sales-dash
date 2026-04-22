@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AppShell, NavLink, Text, Group, Button, Tooltip } from '@mantine/core';
+import { AppShell, NavLink, Text, Group, Button, Tooltip, Burger } from '@mantine/core';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { useBuildInfo } from '../contexts/BuildInfoContext';
 import { UserRole } from '../types/UserRole';
 import {
@@ -21,7 +22,10 @@ interface MenuProps {
 
 const Menu: React.FC<MenuProps> = ({ children }) => {
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string>('');
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/home');
+  const [opened, { toggle, close }] = useDisclosure();
+  const isMobile = useMediaQuery('(max-width: 62em)', false);
   const { buildInfo } = useBuildInfo();
 
   useEffect(() => {
@@ -39,8 +43,17 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         if (decoded.perm) {
           setUserPermissions(Array.isArray(decoded.perm) ? decoded.perm : [decoded.perm]);
         }
+
+        // Get user role from localStorage
+        const userJson = localStorage.getItem('user');
+        if (userJson) {
+          const user = JSON.parse(userJson);
+          if (user.role) {
+            setUserRole(user.role);
+          }
+        }
       } catch (e) {
-        console.error('Failed to parse token permissions', e);
+        console.error('Failed to parse token or user data', e);
       }
     }
 
@@ -83,13 +96,46 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
 
   return (
     <AppShell
+      header={{ height: 60, collapsed: !isMobile }}
       navbar={{
         width: 280,
-        breakpoint: 'sm',
+        breakpoint: 'md',
+        collapsed: { mobile: !opened },
       }}
       padding="md"
     >
-      <AppShell.Navbar p="md" style={{ backgroundColor: '#1f2937' }}>
+      <AppShell.Header 
+        style={{ 
+          backgroundColor: '#111827', 
+          borderBottom: '1px solid #374151', 
+          display: isMobile ? 'flex' : 'none',
+          alignItems: 'center' 
+        }}
+      >
+        <Group h="100%" px="md" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Group>
+            <Burger
+              opened={opened}
+              onClick={toggle}
+              hiddenFrom="md"
+              size="sm"
+              color="#d1d5db"
+            />
+            <Text size="lg" fw={700} hiddenFrom="md" c="white">
+              Painel de Vendas
+            </Text>
+          </Group>
+          {/* Header can contain profile or other info later */}
+        </Group>
+      </AppShell.Header>
+      <AppShell.Navbar 
+        p="md" 
+        data-collapsed={!opened}
+        style={{ 
+          backgroundColor: '#1f2937',
+          display: isMobile ? (opened ? 'block' : 'none') : 'block'
+        }}
+      >
         <AppShell.Section>
           <Group mb="lg">
             <Tooltip
@@ -125,6 +171,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/users')}
+              onClick={() => { if (opened) close(); }}
             />
           )}
 
@@ -138,6 +185,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               color="red"
               styles={navLinkStyles('#/contracts')}
               data-testid="nav-contracts"
+              onClick={() => { if (opened) close(); }}
             />
           )}
 
@@ -150,6 +198,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/point-of-sale')}
+              onClick={() => { if (opened) close(); }}
             />
           )}
 
@@ -162,10 +211,11 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/matriculas')}
+              onClick={() => { if (opened) close(); }}
             />
           )}
 
-          {hasPermission('roles:read') && (
+          {(hasPermission('roles:read') && userRole !== UserRole.ADMIN) && (
             <NavLink
               href="#/access-control"
               label="Controle de Acesso"
@@ -174,6 +224,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/access-control')}
+              onClick={() => { if (opened) close(); }}
             />
           )}
 
@@ -186,6 +237,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/import-history')}
+              onClick={() => { if (opened) close(); }}
             />
           )}
 
@@ -198,6 +250,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/import-wizard')}
+              onClick={() => { if (opened) close(); }}
             />
           )}
 
@@ -210,6 +263,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             color="red"
             styles={navLinkStyles('#/my-contracts')}
             data-testid="nav-my-contracts"
+            onClick={() => { if (opened) close(); }}
           />
           
           {hasPermission('system:admin') && (
@@ -221,6 +275,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/scrapes')}
+              onClick={() => { if (opened) close(); }}
             />
           )}
 
@@ -237,6 +292,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             color="red"
             styles={navLinkStyles('#/my-profile')}
             mb="xs"
+            onClick={() => { if (opened) close(); }}
           />
           <Button
             fullWidth

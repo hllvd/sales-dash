@@ -24,7 +24,7 @@
 .table-container {
   background: white;
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -41,4 +41,41 @@
   border-radius: 4px;
   margin-bottom: 20px;
   border-left: 4px solid #c33;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .matriculas-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .matriculas-header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px !important;
+  }
+
+  .matriculas-header-actions > * {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .search-container {
+    width: 100%;
+  }
+
+  .search-container > * {
+    max-width: 100% !important;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-container table {
+    min-width: 800px;
+  }
 }

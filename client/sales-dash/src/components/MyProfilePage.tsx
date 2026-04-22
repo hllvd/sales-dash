@@ -5,6 +5,7 @@ import Menu from './Menu';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
 import { apiService } from '../services/apiService';
 import { toast } from '../utils/toast';
+import { validatePassword } from '../utils/validators';
 
 const MyProfilePage: React.FC = () => {
   const { currentUser, refreshCurrentUser } = useCurrentUser();
@@ -51,8 +52,9 @@ const MyProfilePage: React.FC = () => {
         toast.error('As senhas não coincidem');
         return;
       }
-      if (formData.newPassword.length < 12) {
-        toast.error('A nova senha deve ter pelo menos 12 caracteres. Será ncessário pelo menos um caracter especial, uma letra maiúscula, uma letra minúscula e um número.');
+      const validation = validatePassword(formData.newPassword);
+      if (!validation.isValid) {
+        toast.error(validation.message);
         return;
       }
     }

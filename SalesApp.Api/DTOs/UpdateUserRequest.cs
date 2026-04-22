@@ -15,8 +15,7 @@ namespace SalesApp.DTOs
         [RegularExpression(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", ErrorMessage = "Invalid email format")]
         public string? Email { get; set; }
         
-        [StringLength(150, MinimumLength = 12, ErrorMessage = "Password must be between 12 and 150 characters")]
-        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$", ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character")]
+        [ValidPassword(MinimumLength = 6)]
         public string? Password { get; set; }
         
         [MaxLength(20, ErrorMessage = "Role cannot exceed 20 characters")]

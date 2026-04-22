@@ -34,6 +34,42 @@
   gap: 12px;
 }
 
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .pv-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .pv-header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .pv-header-actions button {
+    width: 100%;
+  }
+
+  .pv-empty {
+    padding: 30px 15px;
+  }
+
+  .pv-empty button {
+    width: 100%;
+  }
+
+  .pv-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pv-table-container table {
+    min-width: 800px;
+  }
+}
+
 .import-pv-btn {
   background: transparent;
   color: #b2342b;

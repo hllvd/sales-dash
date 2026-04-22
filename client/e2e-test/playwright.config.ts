@@ -20,7 +20,8 @@ export default defineConfig({
       testMatch: [
         'import_wizard.spec.ts',
         'login.spec.ts',
-        'smoke.spec.ts'
+        'smoke.spec.ts',
+        'responsive_menu.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
     },
