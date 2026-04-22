@@ -170,96 +170,98 @@ const MatriculasPage: React.FC = () => {
           <div className="loading">Carregando matrículas...</div>
         ) : (
           <div className="table-container">
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Número da Matrícula</Table.Th>
-                  <Table.Th>Usuário</Table.Th>
-                  <Table.Th>Data Início</Table.Th>
-                  <Table.Th>Data Fim</Table.Th>
-                  <Table.Th>Ativo</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th>Proprietário</Table.Th>
-                  <Table.Th>Ações</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {matriculas.length === 0 ? (
+            <Table.ScrollContainer minWidth={800}>
+              <Table striped highlightOnHover>
+                <Table.Thead>
                   <Table.Tr>
-                    <Table.Td colSpan={8} style={{ textAlign: "center" }}>
-                      Nenhuma matrícula encontrada
-                    </Table.Td>
+                    <Table.Th>Número da Matrícula</Table.Th>
+                    <Table.Th>Usuário</Table.Th>
+                    <Table.Th>Data Início</Table.Th>
+                    <Table.Th>Data Fim</Table.Th>
+                    <Table.Th>Ativo</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th>Proprietário</Table.Th>
+                    <Table.Th>Ações</Table.Th>
                   </Table.Tr>
-                ) : (
-                  matriculas.map((matricula) => (
-                    <Table.Tr key={matricula.id}>
-                      <Table.Td>
-                        <strong>{matricula.matriculaNumber}</strong>
-                      </Table.Td>
-                      <Table.Td>{matricula.userName}</Table.Td>
-                      <Table.Td>{formatDate(matricula.startDate)}</Table.Td>
-                      <Table.Td>
-                        {matricula.endDate ? formatDate(matricula.endDate) : "-"}
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge color={isActive(matricula) ? "green" : "gray"}>
-                          {ActiveStateLabels[isActive(matricula) ? ActiveState.Active : ActiveState.Inactive]}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge color={matricula.status === MatriculaStatus.Active ? "blue" : "yellow"}>
-                          {MatriculaStatusLabels[matricula.status as MatriculaStatus]}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        {matricula.isOwner && (
-                          <Badge color="blue" variant="light">
-                            Proprietário
-                          </Badge>
-                        )}
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap="xs">
-                          <ActionIcon
-                            variant="light"
-                            color="blue"
-                            onClick={() => openEditForm(matricula)}
-                          >
-                            <IconEdit size={16} />
-                          </ActionIcon>
-                          {deleteConfirm === matricula.id ? (
-                            <Group gap="xs">
-                              <Button
-                                size="xs"
-                                color="red"
-                                onClick={() => handleDeleteMatricula(matricula.id)}
-                              >
-                                Confirmar
-                              </Button>
-                              <Button
-                                size="xs"
-                                variant="light"
-                                onClick={() => setDeleteConfirm(null)}
-                              >
-                                Cancelar
-                              </Button>
-                            </Group>
-                          ) : (
-                            <ActionIcon
-                              variant="light"
-                              color="red"
-                              onClick={() => setDeleteConfirm(matricula.id)}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          )}
-                        </Group>
+                </Table.Thead>
+                <Table.Tbody>
+                  {matriculas.length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={8} style={{ textAlign: "center" }}>
+                        Nenhuma matrícula encontrada
                       </Table.Td>
                     </Table.Tr>
-                  ))
-                )}
-              </Table.Tbody>
-            </Table>
+                  ) : (
+                    matriculas.map((matricula) => (
+                      <Table.Tr key={matricula.id}>
+                        <Table.Td>
+                          <strong>{matricula.matriculaNumber}</strong>
+                        </Table.Td>
+                        <Table.Td>{matricula.userName}</Table.Td>
+                        <Table.Td>{formatDate(matricula.startDate)}</Table.Td>
+                        <Table.Td>
+                          {matricula.endDate ? formatDate(matricula.endDate) : "-"}
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge color={isActive(matricula) ? "green" : "gray"}>
+                            {ActiveStateLabels[isActive(matricula) ? ActiveState.Active : ActiveState.Inactive]}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge color={matricula.status === MatriculaStatus.Active ? "blue" : "yellow"}>
+                            {MatriculaStatusLabels[matricula.status as MatriculaStatus]}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          {matricula.isOwner && (
+                            <Badge color="blue" variant="light">
+                              Proprietário
+                            </Badge>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          <Group gap="xs">
+                            <ActionIcon
+                              variant="light"
+                              color="blue"
+                              onClick={() => openEditForm(matricula)}
+                            >
+                              <IconEdit size={16} />
+                            </ActionIcon>
+                            {deleteConfirm === matricula.id ? (
+                              <Group gap="xs">
+                                <Button
+                                  size="xs"
+                                  color="red"
+                                  onClick={() => handleDeleteMatricula(matricula.id)}
+                                >
+                                  Confirmar
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  variant="light"
+                                  onClick={() => setDeleteConfirm(null)}
+                                >
+                                  Cancelar
+                                </Button>
+                              </Group>
+                            ) : (
+                              <ActionIcon
+                                variant="light"
+                                color="red"
+                                onClick={() => setDeleteConfirm(matricula.id)}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            )}
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))
+                  )}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           </div>
         )}
 

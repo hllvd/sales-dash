@@ -109,47 +109,49 @@ const PVPage: React.FC = () => {
             </div>
           ) : (
             <div className="pv-table-container">
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>ID</Table.Th>
-                    <Table.Th>Nome</Table.Th>
-                    <Table.Th>Criado em</Table.Th>
-                    <Table.Th>Atualizado em</Table.Th>
-                    <Table.Th>Ações</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {pvs.map((pv) => (
-                    <Table.Tr key={pv.id}>
-                      <Table.Td>{pv.id}</Table.Td>
-                      <Table.Td>{pv.name}</Table.Td>
-                      <Table.Td>{formatDate(pv.createdAt)}</Table.Td>
-                      <Table.Td>{formatDate(pv.updatedAt)}</Table.Td>
-                      <Table.Td>
-                        <Group gap="xs">
-                          <ActionIcon
-                            variant="subtle"
-                            color="blue"
-                            onClick={() => handleEditClick(pv)}
-                            title="Editar"
-                          >
-                            <IconEdit size={16} />
-                          </ActionIcon>
-                          <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            onClick={() => handleDeleteClick(pv.id)}
-                            title="Excluir"
-                          >
-                            <IconTrash size={16} />
-                          </ActionIcon>
-                        </Group>
-                      </Table.Td>
+              <Table.ScrollContainer minWidth={800}>
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>ID</Table.Th>
+                      <Table.Th>Nome</Table.Th>
+                      <Table.Th>Criado em</Table.Th>
+                      <Table.Th>Atualizado em</Table.Th>
+                      <Table.Th>Ações</Table.Th>
                     </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {pvs.map((pv) => (
+                      <Table.Tr key={pv.id}>
+                        <Table.Td>{pv.id}</Table.Td>
+                        <Table.Td>{pv.name}</Table.Td>
+                        <Table.Td>{formatDate(pv.createdAt)}</Table.Td>
+                        <Table.Td>{formatDate(pv.updatedAt)}</Table.Td>
+                        <Table.Td>
+                          <Group gap="xs">
+                            <ActionIcon
+                              variant="subtle"
+                              color="blue"
+                              onClick={() => handleEditClick(pv)}
+                              title="Editar"
+                            >
+                              <IconEdit size={16} />
+                            </ActionIcon>
+                            <ActionIcon
+                              variant="subtle"
+                              color="red"
+                              onClick={() => handleDeleteClick(pv.id)}
+                              title="Excluir"
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
             </div>
           )}
         
