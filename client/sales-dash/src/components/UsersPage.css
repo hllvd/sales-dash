@@ -409,9 +409,10 @@
 
   .table-container {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .users-table {
+  .table-container table {
     min-width: 800px;
   }
 

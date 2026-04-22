@@ -69,4 +69,13 @@
   .search-container > * {
     max-width: 100% !important;
   }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-container table {
+    min-width: 800px;
+  }
 }

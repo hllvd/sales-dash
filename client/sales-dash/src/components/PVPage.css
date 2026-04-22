@@ -59,6 +59,15 @@
   .pv-empty button {
     width: 100%;
   }
+
+  .pv-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pv-table-container table {
+    min-width: 800px;
+  }
 }
 
 .import-pv-btn {
