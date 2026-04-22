@@ -82,7 +82,7 @@ const PVPage: React.FC = () => {
     <Menu>
       <div className="pv-page">
           <div className="pv-header">
-            <Title order={2} size="h2" className="page-title-break">Gerenciamento de PV</Title>
+            <Title order={2} size="h2">Gerenciamento de PV</Title>
             <div className="pv-header-actions">
               <Button onClick={() => setShowImportModal(true)} leftSection={<IconUpload size={16} />}>
                 Importar

@@ -25,7 +25,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   const [userRole, setUserRole] = useState<string>('');
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/home');
   const [opened, { toggle, close }] = useDisclosure();
-  const isMobile = useMediaQuery('(max-width: 991px)');
+  const isMobile = useMediaQuery('(max-width: 62em)', false);
   const { buildInfo } = useBuildInfo();
 
   useEffect(() => {
@@ -104,7 +104,14 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
       }}
       padding="md"
     >
-      <AppShell.Header style={{ backgroundColor: '#111827', borderBottom: '1px solid #374151', display: 'flex', alignItems: 'center' }}>
+      <AppShell.Header 
+        style={{ 
+          backgroundColor: '#111827', 
+          borderBottom: '1px solid #374151', 
+          display: isMobile ? 'flex' : 'none',
+          alignItems: 'center' 
+        }}
+      >
         <Group h="100%" px="md" style={{ width: '100%', justifyContent: 'space-between' }}>
           <Group>
             <Burger
@@ -121,7 +128,14 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
           {/* Header can contain profile or other info later */}
         </Group>
       </AppShell.Header>
-      <AppShell.Navbar p="md" style={{ backgroundColor: '#1f2937' }}>
+      <AppShell.Navbar 
+        p="md" 
+        data-collapsed={!opened}
+        style={{ 
+          backgroundColor: '#1f2937',
+          display: isMobile ? (opened ? 'block' : 'none') : 'block'
+        }}
+      >
         <AppShell.Section>
           <Group mb="lg">
             <Tooltip

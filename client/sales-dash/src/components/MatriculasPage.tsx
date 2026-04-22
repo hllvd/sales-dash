@@ -125,13 +125,13 @@ const MatriculasPage: React.FC = () => {
       <div className="matriculas-container">
         <div className="matriculas-header">
           <div>
-            <Title order={2} size="h2" className="page-title-break">Gerenciamento de Matrículas</Title>
+            <Title order={2} size="h2">Gerenciamento de Matrículas</Title>
             <p className="matriculas-subtitle">
               {matriculas.length} {matriculas.length === 1 ? "matrícula" : "matrículas"}{" "}
               cadastrada{matriculas.length === 1 ? "" : "s"}
             </p>
           </div>
-          <Group>
+          <Group className="matriculas-header-actions">
             <Button
               leftSection={<IconRefresh size={16} />}
               onClick={fetchMatriculas}

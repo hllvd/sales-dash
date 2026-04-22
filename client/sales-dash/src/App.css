@@ -364,3 +364,10 @@ html {
     width: 100%;
   }
 }
+
+/* Force hide navbar on mobile when collapsed - fixes E2E visibility issues */
+@media (max-width: 991px) {
+  .mantine-AppShell-navbar[data-collapsed="true"] {
+    display: none !important;
+  }
+}

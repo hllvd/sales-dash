@@ -138,7 +138,7 @@ const UsersPage: React.FC = () => {
       <div className="users-container">
           <div className="users-header">
             <div>
-              <Title order={2} size="h2" className="page-title-break">Gerenciamento de Usuários</Title>
+              <Title order={2} size="h2">Gerenciamento de Usuários</Title>
               <p className="users-subtitle">
                 {totalCount} {totalCount === 1 ? "usuário" : "usuários"}{" "}
                 cadastrado{totalCount === 1 ? "" : "s"}
