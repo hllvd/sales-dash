@@ -228,8 +228,8 @@ const MyContractsPage: React.FC = () => {
     <Menu>
       <div className="my-contracts-page">
         <div className="my-contracts-header">
-          <Title order={2} size="h2" className="page-title-break">Meus Contratos</Title>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <Title order={2} size="h2">Meus Contratos</Title>
+          <div className="header-actions">
             <ExportButton
               onExport={async () => {
                 setIsExporting(true);
