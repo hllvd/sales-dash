@@ -78,7 +78,10 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     window.location.href = '/';
   };
 
-  const isActive = (path: string) => currentPath === path;
+  const isActive = (path: string) => {
+    if (path === '#/scrapes' && currentPath.startsWith('#/scrapes')) return true;
+    return currentPath === path;
+  };
 
   const navLinkStyles = (path: string) => ({
     root: {

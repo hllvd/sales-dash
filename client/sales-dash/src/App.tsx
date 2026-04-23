@@ -63,7 +63,8 @@ function App() {
       case '#/access-control':
         return <AccessControlPage />;
       case '#/scrapes':
-        return <ScrapeDashboard />;
+      case '#/scrapes/historial':
+        return <ScrapeDashboard initialTab={currentRoute === '#/scrapes/historial' ? 'history' : 'links'} />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':

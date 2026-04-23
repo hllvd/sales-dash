@@ -87,14 +87,16 @@ const STORES = [
     'VOLTA REDONDA - RJ', 'XAXIM - PR'
 ].sort();
 
-const ScrapeDashboard: React.FC = () => {
+const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'links' }) => {
   const [configs, setConfigs] = useState<ScrapeConfig[]>([]);
   const [jobs, setJobs] = useState<ScrapeJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<Partial<ScrapeConfig> | null>(null);
-  
+  const [activeTab, setActiveTab] = useState<string | null>(initialTab);
+
   // Form state
+  // ...
   const [store, setStore] = useState<string | null>(null);
   const [matricula, setMatricula] = useState('');
   const [password, setPassword] = useState('');
@@ -102,6 +104,11 @@ const ScrapeDashboard: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
   const [testingAuth, setTestingAuth] = useState<number | null>(null);
+
+  // Update active tab when initialTab prop changes
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const fetchData = async () => {
     try {
@@ -327,10 +334,10 @@ const ScrapeDashboard: React.FC = () => {
       <Table.Td>{getStatusBadge(job.status)}</Table.Td>
       <Table.Td>{job.rowCount || 0}</Table.Td>
       <Table.Td>
-        {job.errorMessage ? (
-          <Tooltip label={job.errorMessage}>
-            <IconAlertCircle size={18} color="red" style={{ cursor: 'help' }} />
-          </Tooltip>
+        {job.status === 'Failed' ? (
+          <Text c="red" size="xs" lineClamp={2} title={job.errorMessage || 'Erro na importação'}>
+            {job.errorMessage || 'Erro na importação'}
+          </Text>
         ) : (
           job.status === 'Succeeded' && <IconCheck size={18} color="green" />
         )}
@@ -383,7 +390,7 @@ const ScrapeDashboard: React.FC = () => {
             </Button>
         </Group>
 
-        <Tabs defaultValue="links" mb="xl">
+        <Tabs value={activeTab} onChange={setActiveTab} mb="xl">
           <Tabs.List>
             <Tabs.Tab value="links" leftSection={<IconFingerprint size={16} />}>Vínculos de Contas</Tabs.Tab>
             <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>Histórico de Extrações</Tabs.Tab>
