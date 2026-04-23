@@ -226,6 +226,20 @@ curl -X PUT http://localhost:5000/api/scrape/callback \
   -d '{"jobId":"test","userId":"d290f1ee-6c54-4b01-90e6-d701748f0851","status":"Succeeded","store":"Mock","matricula":"MOCK","fileRelativePath":"sample.csv"}'
 ```
 
+## 🚨 Global Import Error & Warning Handler
+
+O sistema possui um mecanismo robusto para detectar e registrar anomalias durante a importação de dados (tanto via Scraper PowerBI quanto uploads manuais Excel/CSV).
+
+### Avisos (Warnings)
+Problemas não-fatais são registrados na lista de `Warnings` e incluem:
+- **Novas Colunas (Unmapped Columns)**: Se a fonte externa (ex: PowerBI) alterar ou adicionar novas colunas não mapeadas no `appsettings.json`, o sistema registrará um aviso com os nomes exatos das colunas.
+- **Novos Status (Unrecognized Status)**: Se um status desconhecido for recebido (ex: o PowerBI cria uma nova variação de status), o sistema utilizará o status padrão ("Active") e registrará a anomalia.
+
+### Erros Globais do Scraper
+Se o Scraper baixar um arquivo, mas **0 linhas forem processadas**, o sistema assumirá uma falha total de mapeamento (geralmente porque a coluna chave de "ContractNumber" foi renomeada no PowerBI).
+- Este erro é capturado pelo `ScrapeOrchestrator` e gravado diretamente na tabela DynamoDB `pbi_scrape_logs` no campo `ErrorMessage`.
+- A mensagem de erro listará **todos os cabeçalhos detectados no CSV** para facilitar a atualização rápida do `appsettings.json`.
+
 ---
 
 ## ☁️ Backups S3 (Produção)

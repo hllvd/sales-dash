@@ -8,6 +8,7 @@ namespace SalesApp.Services
         public int ProcessedRows { get; set; }
         public int FailedRows { get; set; }
         public List<string> Errors { get; set; } = new();
+        public List<string> Warnings { get; set; } = new();
         public List<Contract> CreatedContracts { get; set; } = new();
         public List<User> CreatedUsers { get; set; } = new();
         public List<string> CreatedGroups { get; set; } = new();

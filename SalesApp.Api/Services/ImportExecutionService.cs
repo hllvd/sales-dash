@@ -68,7 +68,7 @@ namespace SalesApp.Services
 
             // 1. Pre-identify potential contract numbers for bulk fetch
             var allContractNumbers = rows
-                .Select(r => GetFieldValue(r, reverseMappings, "ContractNumber"))
+                .Select(r => ParseContractNumber(GetFieldValue(r, reverseMappings, "ContractNumber")))
                 .Where(n => !string.IsNullOrWhiteSpace(n))
                 .Distinct()
                 .Select(n => n!) // Cast to non-nullable as we filtered out null/whitespace
@@ -82,15 +82,23 @@ namespace SalesApp.Services
             Console.WriteLine($"[Import] Starting batch processing for {rows.Count} rows...");
             if (rows.Any())
             {
-                var keys = string.Join("|", rows.First().Keys);
-                Console.WriteLine($"[Import] Column headers detected: {keys}");
+                var keys = rows.First().Keys.ToList();
+                Console.WriteLine($"[Import] Column headers detected: {string.Join("|", keys)}");
+
+                // Detect unmapped columns and add to warnings (as requested by user)
+                var mappedColumns = reverseMappings.Values.SelectMany(v => v).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var unmappedColumns = keys.Where(k => !mappedColumns.Contains(k)).ToList();
+                if (unmappedColumns.Any())
+                {
+                    result.Warnings.Add($"Unmapped columns detected in source: {string.Join(", ", unmappedColumns)}. These columns are being ignored.");
+                }
             }
             for (int i = 0; i < rows.Count; i++)
             {
                 try
                 {
                     var row = rows[i];
-                    var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+                    var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
 
                     // Skip row if contract number is missing and skip option is enabled
                     if (skipMissingContractNumber)
@@ -200,16 +208,21 @@ namespace SalesApp.Services
             Contract? existingContract = null,
             Dictionary<string, int?>? matriculaCache = null)
         {
-            // Extract required fields
-            var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+            var rawCota = GetFieldValue(row, reverseMappings, "ContractNumber");
+            var cotaInfo = Library.CotaDecomposer.Decompose(rawCota);
+            
+            var contractNumber = cotaInfo.Contract;
             var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
             var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
-            var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
+            var groupValue = GetFieldValue(row, reverseMappings, "GroupId") ?? cotaInfo.Group;
+            var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber") ?? cotaInfo.Matricula;
 
-            // Validate required fields
-            // Validate required fields
+            // Optional fields might also be in the cota string if not mapped directly
+            var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
+            if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaInfo.Customer;
+
+            // Validate required fields (UserEmail is no longer required for scraper imports)
             if (string.IsNullOrWhiteSpace(contractNumber) ||
-                string.IsNullOrWhiteSpace(userEmail) ||
                 string.IsNullOrWhiteSpace(totalAmountStr))
             {
                 throw new ArgumentException("Missing required fields");
@@ -230,43 +243,65 @@ namespace SalesApp.Services
                 throw new ArgumentException($"Group not found: {groupValue}");
             }
 
-            // Look up user by email
-            var user = await _userRepository.GetByEmailAsync(userEmail);
-            if (user == null || !user.IsActive)
+            // Look up user by email if provided
+            User? user = null;
+            if (!string.IsNullOrWhiteSpace(userEmail))
             {
-                throw new ArgumentException($"User not found or inactive: {userEmail}");
+                user = await _userRepository.GetByEmailAsync(userEmail);
+                if (user == null || !user.IsActive)
+                {
+                    throw new ArgumentException($"User not found or inactive: {userEmail}");
+                }
             }
 
-            // Resolve the specific UserMatricula from the CSV row (e.g., column "Matricula" = "6241")
-            var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
+            // Resolve the specific UserMatricula from the CSV row (already fetched above or fallback)
             int? userMatriculaId = null;
             if (!string.IsNullOrWhiteSpace(matriculaNumber))
             {
-                var cacheKey = $"{user.Id}:{matriculaNumber}";
-                if (matriculaCache != null && matriculaCache.TryGetValue(cacheKey, out var cachedMatriculaId))
+                if (user != null)
                 {
-                    userMatriculaId = cachedMatriculaId;
+                    // Existing logic: user is explicitly known
+                    var cacheKey = $"{user.Id}:{matriculaNumber}";
+                    if (matriculaCache != null && matriculaCache.TryGetValue(cacheKey, out var cachedMatriculaId))
+                    {
+                        userMatriculaId = cachedMatriculaId;
+                    }
+                    else
+                    {
+                        var userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, user.Id);
+                        userMatriculaId = userMatricula?.Id;
+                        if (matriculaCache != null)
+                        {
+                            matriculaCache[cacheKey] = userMatriculaId;
+                        }
+                    }
                 }
                 else
                 {
-                    var userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, user.Id);
-                    userMatriculaId = userMatricula?.Id;
-                    if (matriculaCache != null)
+                    // Scraper logic: find the global owner of this matricula
+                    var ownerMatricula = await _matriculaRepository.GetOwnerByMatriculaNumberAsync(matriculaNumber);
+                    if (ownerMatricula != null)
                     {
-                        matriculaCache[cacheKey] = userMatriculaId;
+                        userMatriculaId = ownerMatricula.Id;
+                        user = ownerMatricula.User; // Automatically assign the contract to the owner
                     }
                 }
             }
-
             // Extract optional fields
             var statusInput = GetFieldValue(row, reverseMappings, "Status");
-            // ✅ Use enum for default status
-            var status = _statusMapper.MapStatus(statusInput) ?? ContractStatus.Active.ToApiString();
+            var mappedStatus = _statusMapper.MapStatus(statusInput);
+            if (mappedStatus == null && !string.IsNullOrWhiteSpace(statusInput))
+            {
+                result.Warnings.Add($"Unrecognized status value: '{statusInput}' for contract '{contractNumber}'. Defaulting to Active.");
+            }
+            var status = mappedStatus ?? ContractStatus.Active.ToApiString();
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
             var contractTypeStr = GetFieldValue(row, reverseMappings, "ContractType");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
-            var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
+            // Use the customerName extracted earlier from Cota if direct column is empty
+            var directCustomerName = GetFieldValue(row, reverseMappings, "CustomerName");
+            if (!string.IsNullOrWhiteSpace(directCustomerName)) customerName = directCustomerName;
 
             // Parse dates if provided
             DateTime? saleStartDate = null;
@@ -317,7 +352,11 @@ namespace SalesApp.Services
             var contract = existingContract ?? new Contract { CreatedAt = DateTime.UtcNow };
 
             contract.ContractNumber = contractNumber;
-            contract.UserId = user.Id;
+            contract.UserId = user?.Id; // Can be null if unassigned
+            if (user == null && !string.IsNullOrWhiteSpace(matriculaNumber) && string.IsNullOrWhiteSpace(contract.TempMatricula))
+            {
+                contract.TempMatricula = matriculaNumber;
+            }
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
             contract.Status = status;
@@ -738,6 +777,15 @@ namespace SalesApp.Services
             return row[sourceColumn]?.Trim();
         }
 
+        /// <summary>
+        /// Safely extracts the actual contract number from potentially concatenated PowerBI values 
+        /// (e.g. '012173;4103;0;MARIO;1100326334' -> '1100326334')
+        /// </summary>
+        private string? ParseContractNumber(string? rawValue)
+        {
+            return Library.CotaDecomposer.Decompose(rawValue).Contract;
+        }
+
         private bool TryParseBrazilianCurrency(string? input, out decimal result)
         {
             result = 0;
@@ -906,24 +954,30 @@ namespace SalesApp.Services
             var groupCache = new Dictionary<string, int?>();
             var pvCache = new Dictionary<string, int?>();
 
+            if (rows.Any())
+            {
+                var keys = rows.First().Keys.ToList();
+                var mappedColumns = reverseMappings.Values.SelectMany(v => v).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var unmappedColumns = keys.Where(k => !mappedColumns.Contains(k)).ToList();
+                if (unmappedColumns.Any())
+                {
+                    result.Warnings.Add($"Unmapped columns detected in source: {string.Join(", ", unmappedColumns)}. These columns are being ignored.");
+                }
+            }
+
             // 1. Pre-identify potential contract numbers for bulk fetch
             var allContractNumbers = new List<string>();
             foreach (var row in rows)
             {
-                var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+                var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
                 if (string.IsNullOrWhiteSpace(contractNumber))
                 {
-                    var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
+                    var cotaValue = ParseContractNumber(GetFieldValue(row, reverseMappings, "Cota"));
                     if (string.IsNullOrWhiteSpace(cotaValue))
                     {
                         continue; // Skip row if Cota is missing
                     }
-
-                    if (cotaValue.Contains(";"))
-                    {
-                        var cotaParts = cotaValue.Split(';');
-                        if (cotaParts.Length >= 5) contractNumber = cotaParts[^1].Trim();
-                    }
+                    contractNumber = cotaValue;
                 }
 
                 // ✅ MANDATORY SILENT SKIP if no contract number found (New user request)
@@ -1050,35 +1104,28 @@ namespace SalesApp.Services
             Contract? existingContract = null)
         {
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
-            var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+            var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
-
             var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
 
-            // Fallback to Cota split only if critical fields are missing AND it actually looks like the grouped format
+            // Fallback to Cota split only if critical fields are missing
             if (string.IsNullOrWhiteSpace(contractNumber) || string.IsNullOrWhiteSpace(customerName) || string.IsNullOrWhiteSpace(groupValue) || string.IsNullOrWhiteSpace(quotaStr))
             {
-                // Look for "Cota" column directly in row if not mapped, or from mappings
                 var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
                 if (string.IsNullOrWhiteSpace(cotaValue))
                 {
-                    // Internal check: search for any column named "Cota" regardless of mapping
                     var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
                     if (cotaKey != null) cotaValue = row[cotaKey];
                 }
 
-                if (!string.IsNullOrWhiteSpace(cotaValue) && cotaValue.Contains(";"))
+                var cotaInfo = Library.CotaDecomposer.Decompose(cotaValue);
+                if (!string.IsNullOrWhiteSpace(cotaInfo.Contract))
                 {
-                    var cotaParts = cotaValue.Split(';');
-                    if (cotaParts.Length >= 5)
-                    {
-                        // Safely fallback to values from Cota split if they weren't mapped directly
-                        if (string.IsNullOrWhiteSpace(contractNumber)) contractNumber = cotaParts[^1].Trim();
-                        if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaParts[3].Trim();
-                        if (string.IsNullOrWhiteSpace(groupValue)) groupValue = cotaParts[0].Trim();
-                        if (string.IsNullOrWhiteSpace(quotaStr)) quotaStr = cotaParts[1].Trim();
-                    }
+                    if (string.IsNullOrWhiteSpace(contractNumber)) contractNumber = cotaInfo.Contract;
+                    if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaInfo.Customer;
+                    if (string.IsNullOrWhiteSpace(groupValue)) groupValue = cotaInfo.Group;
+                    if (string.IsNullOrWhiteSpace(quotaStr)) quotaStr = cotaInfo.Matricula; // In this context Matricula is the Quota/Cota number
                 }
             }
 

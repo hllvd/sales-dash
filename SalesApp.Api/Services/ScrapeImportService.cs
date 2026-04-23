@@ -92,8 +92,7 @@ namespace SalesApp.Services
                             rowDict[kvp.Key] = kvp.Value?.ToString() ?? string.Empty;
                         }
                         
-                        // Inject UserEmail so the ImportExecutionService can attribute this row to the scraper owner
-                        rowDict["UserEmail"] = user.Email;
+                        // UserEmail is no longer injected; we will dynamically resolve ownership via Matricula
                         
                         rows.Add(rowDict);
                     }

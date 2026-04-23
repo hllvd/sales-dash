@@ -126,15 +126,23 @@ namespace SalesApp.Services
                 {
                     var importResult = await _importService.AutoImportAsync(filePath, Guid.Parse(result.UserId));
                     
-                    if (importResult.Errors.Any())
+                    if (importResult.Errors.Any() || importResult.Warnings.Any())
                     {
+                        var statusStr = importResult.Errors.Any() ? "Failed" : "Succeeded";
+                        var errorMsg = importResult.Errors.Any() ? $"Importação falhou: {string.Join(" | ", importResult.Errors)}" : null;
+                        var warningMsg = importResult.Warnings.Any() ? $"Avisos de Importação: {string.Join(" | ", importResult.Warnings)}" : null;
+
                         await _logService.WriteJobStatusAsync(
                             jobId: result.JobId,
                             userId: result.UserId,
-                            status: "Failed", // Mark as failed because import failed
+                            status: statusStr,
                             store: result.Store ?? "Unknown",
                             matricula: result.Matricula ?? "Unknown",
-                            additionalData: new { ErrorMessage = $"Importação falhou: {string.Join(" | ", importResult.Errors)}" }
+                            additionalData: new 
+                            { 
+                                ErrorMessage = errorMsg,
+                                WarningMessage = warningMsg
+                            }
                         );
                     }
                 }
