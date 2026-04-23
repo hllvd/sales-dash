@@ -55,8 +55,9 @@ namespace SalesApp.Services
             var result = new ImportResult();
             result.TotalRows = rows.Count;
 
-            // Create reverse mapping (target field -> source column)
-            var reverseMappings = mappings.GroupBy(kvp => kvp.Value).ToDictionary(g => g.Key, g => g.First().Key);
+            // Create reverse mapping (target field -> list of source columns)
+            var reverseMappings = mappings.GroupBy(kvp => kvp.Value)
+                .ToDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToList());
             var contractsToAdd = new List<Contract>();
 
             // Dictionary to cache lookups during this import session
@@ -77,7 +78,13 @@ namespace SalesApp.Services
             var existingContracts = await _contractRepository.GetByContractNumbersAsync(allContractNumbers);
             var existingMap = existingContracts.ToDictionary(c => c.ContractNumber);
 
-            // ✅ Phase 1: Build all contracts (validation only, no DB saves)
+            // Phase 1: Build all contracts (validation only, no DB saves)
+            Console.WriteLine($"[Import] Starting batch processing for {rows.Count} rows...");
+            if (rows.Any())
+            {
+                var keys = string.Join("|", rows.First().Keys);
+                Console.WriteLine($"[Import] Column headers detected: {keys}");
+            }
             for (int i = 0; i < rows.Count; i++)
             {
                 try
@@ -141,15 +148,24 @@ namespace SalesApp.Services
                 }
             }
 
+            Console.WriteLine($"[Import] Processing complete. Processed: {result.ProcessedRows}, Failed: {result.FailedRows}, ToAdd: {contractsToAdd.Count}, ToUpdate: {existingMap.Count}");
+            if (result.Errors.Any())
+            {
+                Console.WriteLine($"[Import] First 5 errors: {string.Join(" | ", result.Errors.Take(5))}");
+            }
+
             // ✅ Phase 2: Batch insert all valid contracts in single transaction
             if (contractsToAdd.Any())
             {
                 try
                 {
+                    Console.WriteLine($"[Import] Attempting batch insert of {contractsToAdd.Count} new contracts...");
                     await _contractRepository.CreateBatchAsync(contractsToAdd);
+                    Console.WriteLine("[Import] Batch insert successful.");
                 }
                 catch (Exception ex)
                 {
+                    Console.WriteLine($"[Import] Batch insert FAILED: {ex.Message}");
                     result.FailedRows += contractsToAdd.Count;
                     result.ProcessedRows -= contractsToAdd.Count;
                     result.Errors.Add($"Batch insert failed: {ex.Message}");
@@ -172,7 +188,7 @@ namespace SalesApp.Services
 
         private async Task<Contract?> BuildContractFromRowAsync(
             Dictionary<string, string> row,
-            Dictionary<string, string> reverseMappings,
+            Dictionary<string, List<string>> reverseMappings,
             string uploadId,
             int importSessionId,
             string dateFormat,
@@ -334,8 +350,9 @@ namespace SalesApp.Services
                 TotalRows = rows.Count
             };
 
-            // Create reverse mapping (target field -> source column)
-            var reverseMappings = mappings.GroupBy(kvp => kvp.Value).ToDictionary(g => g.Key, g => g.First().Key);
+            // Create reverse mapping (target field -> list of source columns)
+            var reverseMappings = mappings.GroupBy(kvp => kvp.Value)
+                .ToDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToList());
 
             // ✅ Topological sort: ensure parent users are always created before their children.
             // Without this, if Julio Mota (parentEmail=carlos) appears before Carlos in the CSV,
@@ -385,7 +402,7 @@ namespace SalesApp.Services
         /// </summary>
         private List<Dictionary<string, string>> SortRowsTopologically(
             List<Dictionary<string, string>> rows,
-            Dictionary<string, string> reverseMappings)
+            Dictionary<string, List<string>> reverseMappings)
         {
             string? GetEmail(Dictionary<string, string> row) =>
                 GetFieldValue(row, reverseMappings, "Email")?.ToLowerInvariant();
@@ -489,7 +506,7 @@ namespace SalesApp.Services
 
         private async Task<User?> CreateUserFromRowAsync(
             Dictionary<string, string> row,
-            Dictionary<string, string> reverseMappings,
+            Dictionary<string, List<string>> reverseMappings,
             int importSessionId)
         {
             // Extract required fields
@@ -679,6 +696,31 @@ namespace SalesApp.Services
 
         private string? GetFieldValue(
             Dictionary<string, string> row,
+            Dictionary<string, List<string>> reverseMappings,
+            string targetField)
+        {
+            if (!reverseMappings.ContainsKey(targetField))
+            {
+                return null;
+            }
+
+            var sourceColumns = reverseMappings[targetField];
+            foreach (var sourceColumn in sourceColumns)
+            {
+                if (row.ContainsKey(sourceColumn))
+                {
+                    return row[sourceColumn]?.Trim();
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Overload for backward compatibility with single-mapping dictionaries
+        /// </summary>
+        private string? GetFieldValue(
+            Dictionary<string, string> row,
             Dictionary<string, string> reverseMappings,
             string targetField)
         {
@@ -801,7 +843,18 @@ namespace SalesApp.Services
                 return true;
             }
 
-            // Fallback 1: Try as Excel OADate (serial number) if it's numeric
+            // Fallback 1: Try as Unix Milliseconds if it's a large long (e.g. 1774828800000)
+            if (long.TryParse(cleanedInput, out long unixMs) && unixMs > 1000000000000)
+            {
+                try
+                {
+                    result = DateTimeOffset.FromUnixTimeMilliseconds(unixMs).DateTime;
+                    return true;
+                }
+                catch { }
+            }
+
+            // Fallback 2: Try as Excel OADate (serial number) if it's numeric
             if (double.TryParse(cleanedInput, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double oaDate))
             {
                 try
@@ -846,7 +899,9 @@ namespace SalesApp.Services
             var result = new ImportResult();
             result.TotalRows = rows.Count;
 
-            var reverseMappings = mappings.GroupBy(kvp => kvp.Value).ToDictionary(g => g.Key, g => g.First().Key);
+            // Create reverse mapping (target field -> list of source columns)
+            var reverseMappings = mappings.GroupBy(kvp => kvp.Value)
+                .ToDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToList());
             var contractsToAdd = new List<Contract>();
             var groupCache = new Dictionary<string, int?>();
             var pvCache = new Dictionary<string, int?>();
@@ -984,7 +1039,7 @@ namespace SalesApp.Services
 
         private async Task<Contract?> BuildContractDashboardFromRowAsync(
             Dictionary<string, string> row,
-            Dictionary<string, string> reverseMappings,
+            Dictionary<string, List<string>> reverseMappings,
             string uploadId,
             int importSessionId,
             Dictionary<string, int?> groupCache,

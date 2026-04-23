@@ -124,7 +124,19 @@ namespace SalesApp.Services
                 var filePath = Path.Combine(_outputDir, result.FileRelativePath);
                 try
                 {
-                    await _importService.AutoImportAsync(filePath, Guid.Parse(result.UserId));
+                    var importResult = await _importService.AutoImportAsync(filePath, Guid.Parse(result.UserId));
+                    
+                    if (importResult.Errors.Any())
+                    {
+                        await _logService.WriteJobStatusAsync(
+                            jobId: result.JobId,
+                            userId: result.UserId,
+                            status: "Failed", // Mark as failed because import failed
+                            store: result.Store ?? "Unknown",
+                            matricula: result.Matricula ?? "Unknown",
+                            additionalData: new { ErrorMessage = $"Importação falhou: {string.Join(" | ", importResult.Errors)}" }
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -135,7 +147,7 @@ namespace SalesApp.Services
                         status: "Failed",
                         store: result.Store ?? "Unknown",
                         matricula: result.Matricula ?? "Unknown",
-                        additionalData: new { ImportErrorMessage = ex.Message }
+                        additionalData: new { ErrorMessage = $"Erro no sistema de importação: {ex.Message}" }
                     );
                 }
             }

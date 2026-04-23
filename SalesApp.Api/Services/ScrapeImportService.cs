@@ -118,6 +118,19 @@ namespace SalesApp.Services
                     allowAutoCreatePVs: true
                 );
 
+                // Add robust logging to catch missing mappings or silent skips
+                if (importResult.ProcessedRows == 0 && rows.Count > 0)
+                {
+                    var keys = string.Join(", ", rows.First().Keys);
+                    result.Errors.Add($"All {rows.Count} rows were skipped! Possible mapping mismatch. Available columns in CSV: {keys}");
+                }
+
+                // Append any inner errors to the main result so they get saved to DynamoDB
+                if (importResult.Errors.Any())
+                {
+                    result.Errors.AddRange(importResult.Errors);
+                }
+
                 // Finalize session status
                 session.Status = importResult.Errors.Any() ? "Failed" : "Completed";
                 await _sessionRepository.UpdateAsync(session);
