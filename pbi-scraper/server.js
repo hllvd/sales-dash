@@ -49,7 +49,17 @@ if (!fs.existsSync(OUTPUT_DIR)) {
 const queue = new PQueue({ concurrency: 3 });
 
 app.post('/jobs', (req, res) => {
-  const { store, matricula, callbackUrl, jobId: externalJobId, avaproUsername, avaproPassword } = req.body;
+  const { store, matricula, callbackUrl, jobId: externalJobId, avaproUsername, avaproPassword, scrapeDate: reqScrapeDate } = req.body;
+
+  let scrapeDate = reqScrapeDate;
+  if (!scrapeDate) {
+    // Default to the previous month's data (last one month)
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    scrapeDate = `${yyyy}-${mm}`;
+  }
 
   if (!store || !matricula || !callbackUrl) {
     return res.status(400).json({ error: 'Missing store, matricula, or callbackUrl' });

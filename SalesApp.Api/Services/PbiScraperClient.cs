@@ -5,12 +5,25 @@ namespace SalesApp.Services
 {
     public class ScrapeJobRequest
     {
+        [JsonProperty("store")]
         public string Store { get; set; } = string.Empty;
+
+        [JsonProperty("matricula")]
         public string Matricula { get; set; } = string.Empty;
+
+        [JsonProperty("callbackUrl")]
         public string CallbackUrl { get; set; } = string.Empty;
+
+        [JsonProperty("jobId")]
         public string JobId { get; set; } = string.Empty;
+
+        [JsonProperty("userId")]
         public string? UserId { get; set; }
+
+        [JsonProperty("avaproUsername")]
         public string? AvaproUsername { get; set; }
+
+        [JsonProperty("avaproPassword")]
         public string? AvaproPassword { get; set; }
     }
 

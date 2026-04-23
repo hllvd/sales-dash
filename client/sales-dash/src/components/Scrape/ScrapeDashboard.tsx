@@ -9,6 +9,7 @@ import {
   Button,
   Select,
   TextInput,
+  Loader,
   LoadingOverlay,
   Card,
   ActionIcon,
@@ -341,6 +342,33 @@ const ScrapeDashboard: React.FC = () => {
     <Menu>
       <div className="scrape-dashboard">
         <LoadingOverlay visible={loading && configs.length === 0} />
+        <LoadingOverlay 
+          visible={testingAuth !== null} 
+          zIndex={1000} 
+          overlayProps={{ radius: "sm", blur: 2 }}
+          loaderProps={{ 
+            children: (
+              <Stack align="center" gap="xs">
+                <Loader size="xl" type="bars" />
+                <Text fw={600} size="lg" ta="center">Validando acesso ao PowerBI...</Text>
+                <Text size="xs" c="dimmed" ta="center">O robô está abrindo um navegador real para testar suas credenciais. Isso pode levar alguns segundos.</Text>
+              </Stack>
+            )
+          }} 
+        />
+        <LoadingOverlay 
+          visible={triggering !== null} 
+          zIndex={1000} 
+          overlayProps={{ radius: "sm", blur: 1 }}
+          loaderProps={{ 
+            children: (
+              <Stack align="center" gap="xs">
+                <Loader size="md" type="dots" color="indigo" />
+                <Text fw={600} size="md" ta="center">Iniciando extração...</Text>
+              </Stack>
+            )
+          }} 
+        />
         
         <Group justify="space-between" mb="xl">
             <Title order={2}>Extração PowerBI</Title>
@@ -428,6 +456,19 @@ const ScrapeDashboard: React.FC = () => {
           centered
           size="md"
         >
+          <LoadingOverlay 
+            visible={saving && validateOnSave} 
+            zIndex={1000} 
+            overlayProps={{ radius: "sm", blur: 2 }}
+            loaderProps={{ 
+              children: (
+                <Stack align="center" gap="xs">
+                  <Loader size="lg" type="dots" />
+                  <Text fw={600} size="md" ta="center">Testando credenciais...</Text>
+                </Stack>
+              )
+            }} 
+          />
           <Stack gap="md" pt="xs">
             <Select
               label="Unidade (Store)"
