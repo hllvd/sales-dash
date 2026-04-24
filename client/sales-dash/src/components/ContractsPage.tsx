@@ -281,9 +281,8 @@ const ContractsPage: React.FC = () => {
             placeholder="Buscar por email..."
             value={filterUserEmail}
             onChange={(val) => setFilterUserEmail(val || '')}
-            data={users
-              .filter((u) => u.email)
-              .map((u) => ({ value: u.email, label: u.email }))}
+            data={Array.from(new Set(users.filter(u => u.email).map(u => u.email)))
+              .map(email => ({ value: email, label: email }))}
             className="searchable-dropdown"
           />
         </div>

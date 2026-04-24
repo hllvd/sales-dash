@@ -207,19 +207,29 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         <FormField label="Vendedor">
           <Select
             placeholder="Selecione o vendedor"
-            data={[
-              { value: '', label: 'Sem vendedor atribuído' },
-              ...users.flatMap((u) => {
+            data={(() => {
+              const options = [{ value: '', label: 'Sem vendedor atribuído' }];
+              const seenValues = new Set<string>(['']);
+              
+              users.forEach((u) => {
                 const matriculas = u.activeMatriculas && u.activeMatriculas.length > 0
                   ? u.activeMatriculas
                   : [{ matriculaNumber: '' }];
                 
-                return matriculas.map((m) => ({
-                  value: `${u.id}|${m.matriculaNumber}`,
-                  label: `${u.name} (${u.email})${m.matriculaNumber ? ` - ${m.matriculaNumber}` : ''}`,
-                }));
-              })
-            ]}
+                matriculas.forEach((m) => {
+                  const val = `${u.id}|${m.matriculaNumber}`;
+                  if (!seenValues.has(val)) {
+                    seenValues.add(val);
+                    options.push({
+                      value: val,
+                      label: `${u.name} (${u.email})${m.matriculaNumber ? ` - ${m.matriculaNumber}` : ''}`,
+                    });
+                  }
+                });
+              });
+              
+              return options;
+            })()}
             value={formData.userId ? `${formData.userId}|${formData.matriculaNumber}` : ''}
             onChange={(value) => handleChange('userMatriculaSelection', value)}
             searchable

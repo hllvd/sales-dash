@@ -354,14 +354,25 @@ namespace SalesApp.Controllers
             }
 
             
-            await _contractRepository.CreateAsync(contract);
-            
-            return Ok(new ApiResponse<ContractResponse>
+            try
             {
-                Success = true,
-                Data = MapToContractResponse(contract),
-                Message = _messageService.Get(AppMessage.ContractCreatedSuccessfully)
-            });
+                await _contractRepository.CreateAsync(contract);
+                
+                return Ok(new ApiResponse<ContractResponse>
+                {
+                    Success = true,
+                    Data = MapToContractResponse(contract),
+                    Message = _messageService.Get(AppMessage.ContractCreatedSuccessfully)
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<ContractResponse>
+                {
+                    Success = false,
+                    Message = $"Internal server error: {ex.Message}. Details: {ex.InnerException?.Message}"
+                });
+            }
         }
         
         [HttpPut("{id}")]
