@@ -77,7 +77,7 @@ namespace SalesApp.Tests.Services
             var jobId = _service.StartExport(filters, scope, userId);
 
             // Wait for background task to complete (or poll status)
-            ExportJobResponse status;
+            ExportJobResponse? status = null;
             int attempts = 0;
             do
             {
@@ -88,13 +88,13 @@ namespace SalesApp.Tests.Services
 
             // Assert
             status.Should().NotBeNull();
-            status.Status.Should().Be("completed");
+            status!.Status.Should().Be("completed");
             status.ProcessedRows.Should().Be(2500);
 
             var bytes = _service.GetJobBytes(jobId, userId);
             bytes.Should().NotBeNull();
 
-            using var stream = new MemoryStream(bytes);
+            using var stream = new MemoryStream(bytes!);
             using var package = new ExcelPackage(stream);
 
             // Verify multiple sheets (2000 + 500)
@@ -131,7 +131,7 @@ namespace SalesApp.Tests.Services
             var jobId = _service.StartExport(filters, scope, userId);
 
             // Wait for completion
-            ExportJobResponse status;
+            ExportJobResponse? status = null;
             int attempts = 0;
             do
             {
@@ -141,10 +141,12 @@ namespace SalesApp.Tests.Services
             } while (status != null && status.Status != "completed" && attempts < 50);
 
             // Assert
-            status.Status.Should().Be("completed");
+            status.Should().NotBeNull();
+            status!.Status.Should().Be("completed");
             var bytes = _service.GetJobBytes(jobId, userId);
+            bytes.Should().NotBeNull();
             
-            using var stream = new MemoryStream(bytes);
+            using var stream = new MemoryStream(bytes!);
             using var package = new ExcelPackage(stream);
 
             package.Workbook.Worksheets.Count.Should().Be(1);

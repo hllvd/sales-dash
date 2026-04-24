@@ -17,6 +17,7 @@ namespace SalesApp.Tests.Services
         private readonly Mock<IUserRepository> _mockUserRepository;
         private readonly Mock<IRoleRepository> _mockRoleRepository;
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
+        private readonly Mock<IMatriculaRepository> _mockBaseMatriculaRepository;
         private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<AppDbContext> _mockContext;
         private readonly Mock<IContractMetadataRepository> _mockMetadataRepository;
@@ -31,6 +32,7 @@ namespace SalesApp.Tests.Services
             _mockUserRepository = new Mock<IUserRepository>();
             _mockRoleRepository = new Mock<IRoleRepository>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
+            _mockBaseMatriculaRepository = new Mock<IMatriculaRepository>();
             _mockEmailService = new Mock<IEmailService>();
             _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>(), new Mock<IHttpContextAccessor>().Object);
             _mockMetadataRepository = new Mock<IContractMetadataRepository>();
@@ -43,6 +45,7 @@ namespace SalesApp.Tests.Services
                 _mockUserRepository.Object,
                 _mockRoleRepository.Object,
                 _mockMatriculaRepository.Object,
+                _mockBaseMatriculaRepository.Object,
                 _mockEmailService.Object,
                 _mockContext.Object,
                 _mockMetadataRepository.Object,
@@ -151,6 +154,13 @@ namespace SalesApp.Tests.Services
             _mockRoleRepository.Setup(r => r.GetByNameAsync(It.IsAny<string>()))
                 .ReturnsAsync(new Role { Id = 3, Name = "user" });
 
+            var matriculaId = 999;
+            _mockBaseMatriculaRepository.Setup(r => r.GetByMatriculaNumberAsync("MAT-777"))
+                .ReturnsAsync((Matricula?)null); // Pretend it's a new matricula
+            
+            _mockBaseMatriculaRepository.Setup(r => r.CreateAsync(It.IsAny<Matricula>()))
+                .ReturnsAsync((Matricula m) => { m.Id = matriculaId; return m; });
+
             // Act
             var result = await _service.ExecuteUserImportAsync(uploadId, 1, rows, mappings);
 
@@ -162,7 +172,7 @@ namespace SalesApp.Tests.Services
 
             _mockMatriculaRepository.Verify(r => r.CreateAsync(It.Is<UserMatricula>(m => 
                 m.UserId == userId && 
-                m.MatriculaNumber == "MAT-777" && 
+                m.MatriculaId == matriculaId && 
                 m.IsOwner == true)), Times.Once);
         }
 
@@ -189,11 +199,15 @@ namespace SalesApp.Tests.Services
             };
 
             var userId = Guid.NewGuid();
+            var matriculaId = 888;
             _mockUserRepository.Setup(r => r.GetByEmailAsync("dup@test.com"))
                 .ReturnsAsync((User?)null);
 
             _mockUserRepository.Setup(r => r.CreateAsync(It.IsAny<User>()))
                 .ReturnsAsync((User u) => { u.Id = userId; return u; });
+
+            _mockBaseMatriculaRepository.Setup(r => r.GetByMatriculaNumberAsync("DUP-123"))
+                .ReturnsAsync(new Matricula { Id = matriculaId, MatriculaNumber = "DUP-123" });
 
             _mockMatriculaRepository.Setup(r => r.CreateAsync(It.IsAny<UserMatricula>()))
                 .ThrowsAsync(new InvalidOperationException("User already has matricula DUP-123"));
@@ -208,3 +222,4 @@ namespace SalesApp.Tests.Services
         }
     }
 }
+

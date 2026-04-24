@@ -19,7 +19,7 @@ namespace SalesApp.Repositories
             // NOTE: No AsNoTracking - used after create/update, needs tracked entities
             return await _context.Contracts
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.UserMatricula)
+                .Include(c => c.Matricula)
                 .Include(c => c.Group)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
@@ -29,7 +29,7 @@ namespace SalesApp.Repositories
             return await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.UserMatricula)
+                .Include(c => c.Matricula)
                 .Include(c => c.Group)
                 .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
         }
@@ -41,7 +41,7 @@ namespace SalesApp.Repositories
 
             return await _context.Contracts
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.UserMatricula)
+                .Include(c => c.Matricula)
                 .Include(c => c.Group)
                 .Where(c => contractNumbers.Contains(c.ContractNumber))
                 .ToListAsync();
@@ -52,7 +52,7 @@ namespace SalesApp.Repositories
             var query = _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.UserMatricula)
+                .Include(c => c.Matricula)
                 .Include(c => c.Group)
                 .Where(c => c.IsActive);
 
@@ -63,7 +63,7 @@ namespace SalesApp.Repositories
                 query = query.Where(c => 
                     (c.UserId != null && scope.AllowedUserIds.Contains(c.UserId.Value)) ||
                     (!string.IsNullOrEmpty(c.TempMatricula) && scope.AllowedMatriculas.Contains(c.TempMatricula)) ||
-                    (c.UserMatricula != null && scope.AllowedMatriculas.Contains(c.UserMatricula.MatriculaNumber))
+                    (c.Matricula != null && scope.AllowedMatriculas.Contains(c.Matricula.MatriculaNumber))
                 );
             }
             
@@ -100,7 +100,7 @@ namespace SalesApp.Repositories
             {
                 var normalizedMatricula = matriculaNumber.Trim().ToLower();
                 query = query.Where(c => 
-                    (c.UserMatricula != null && c.UserMatricula.MatriculaNumber.ToLower().Contains(normalizedMatricula)) ||
+                    (c.Matricula != null && c.Matricula.MatriculaNumber.ToLower().Contains(normalizedMatricula)) ||
                     (!string.IsNullOrEmpty(c.TempMatricula) && c.TempMatricula.ToLower().Contains(normalizedMatricula))
                 );
             }
@@ -113,7 +113,7 @@ namespace SalesApp.Repositories
             var query = _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.UserMatricula)
+                .Include(c => c.Matricula)
                 .Include(c => c.Group)
                 .Where(c => c.UserId == userId && c.IsActive);
             
@@ -131,6 +131,7 @@ namespace SalesApp.Repositories
             return await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
+                .Include(c => c.Matricula)
                 .Include(c => c.Group)
                 .Where(c => c.UploadId == uploadId)
                 .OrderByDescending(c => c.CreatedAt)
@@ -162,7 +163,7 @@ namespace SalesApp.Repositories
                 var reloadedContracts = await _context.Contracts
                     .AsNoTracking()
                     .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                    .Include(c => c.UserMatricula)
+                    .Include(c => c.Matricula)
                     .Include(c => c.Group)
                     .Where(c => contractIds.Contains(c.Id))
                     .ToListAsync();

@@ -12,15 +12,18 @@ namespace SalesApp.Controllers
     [Route("api/[controller]")]
     public class UserMatriculasController : ControllerBase
     {
-        private readonly IUserMatriculaRepository _matriculaRepository;
+        private readonly IUserMatriculaRepository _userMatriculaRepository;
+        private readonly IMatriculaRepository _matriculaRepository;
         private readonly IUserRepository _userRepository;
         private readonly IMessageService _messageService;
 
         public UserMatriculasController(
-            IUserMatriculaRepository matriculaRepository,
+            IUserMatriculaRepository userMatriculaRepository,
+            IMatriculaRepository matriculaRepository,
             IUserRepository userRepository,
             IMessageService messageService)
         {
+            _userMatriculaRepository = userMatriculaRepository;
             _matriculaRepository = matriculaRepository;
             _userRepository = userRepository;
             _messageService = messageService;
@@ -31,7 +34,7 @@ namespace SalesApp.Controllers
         [HasPermission("matriculas:read")]
         public async Task<ActionResult<ApiResponse<List<UserMatriculaResponse>>>> GetAll()
         {
-            var matriculas = await _matriculaRepository.GetAllAsync();
+            var matriculas = await _userMatriculaRepository.GetAllAsync();
             var responses = matriculas.Select(MapToResponse).ToList();
 
             return Ok(new ApiResponse<List<UserMatriculaResponse>>
@@ -47,7 +50,7 @@ namespace SalesApp.Controllers
         [HasPermission("matriculas:read")]
         public async Task<ActionResult<ApiResponse<UserMatriculaResponse>>> GetById(int id)
         {
-            var matricula = await _matriculaRepository.GetByIdAsync(id);
+            var matricula = await _userMatriculaRepository.GetByIdAsync(id);
             
             if (matricula == null)
             {
@@ -71,7 +74,7 @@ namespace SalesApp.Controllers
         [HasPermission("matriculas:read")]
         public async Task<ActionResult<ApiResponse<List<UserMatriculaResponse>>>> GetByUserId(Guid userId)
         {
-            var matriculas = await _matriculaRepository.GetByUserIdAsync(userId);
+            var matriculas = await _userMatriculaRepository.GetByUserIdAsync(userId);
             var responses = matriculas.Select(MapToResponse).ToList();
 
             return Ok(new ApiResponse<List<UserMatriculaResponse>>
@@ -128,20 +131,31 @@ namespace SalesApp.Controllers
                 });
             }
 
-            var matricula = new UserMatricula
+            // 1. Ensure the Matricula exists
+            var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
+            if (matriculaEntity == null)
+            {
+                matriculaEntity = new Matricula
+                {
+                    MatriculaNumber = request.MatriculaNumber,
+                    StartDate = request.StartDate,
+                    Status = (request.Status ?? "active").ToLower()
+                };
+                await _matriculaRepository.CreateAsync(matriculaEntity);
+            }
+
+            var userMatricula = new UserMatricula
             {
                 UserId = userId,
-                MatriculaNumber = request.MatriculaNumber,
-                StartDate = request.StartDate,
+                MatriculaId = matriculaEntity.Id,
                 EndDate = request.EndDate,
                 IsOwner = request.IsOwner,
-                IsActive = request.IsActive ?? true,
-                Status = (request.Status ?? "active").ToLower()
+                IsActive = request.IsActive ?? true
             };
 
             try
             {
-                var created = await _matriculaRepository.CreateAsync(matricula);
+                var created = await _userMatriculaRepository.CreateAsync(userMatricula);
 
                 return CreatedAtAction(
                     nameof(GetById),
@@ -224,19 +238,30 @@ namespace SalesApp.Controllers
                         continue;
                     }
 
-                    // Create matricula
-                    var matricula = new UserMatricula
+                    // 1. Ensure the Matricula exists
+                    var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(item.MatriculaNumber);
+                    if (matriculaEntity == null)
+                    {
+                        matriculaEntity = new Matricula
+                        {
+                            MatriculaNumber = item.MatriculaNumber,
+                            StartDate = item.StartDate,
+                            Status = (item.Status ?? "active").ToLower()
+                        };
+                        await _matriculaRepository.CreateAsync(matriculaEntity);
+                    }
+
+                    // Create user-matricula link
+                    var userMatricula = new UserMatricula
                     {
                         UserId = userId,
-                        MatriculaNumber = item.MatriculaNumber,
-                        StartDate = item.StartDate,
+                        MatriculaId = matriculaEntity.Id,
                         EndDate = item.EndDate,
                         IsOwner = item.IsOwner,
-                        IsActive = item.IsActive ?? true,
-                        Status = (item.Status ?? "active").ToLower()
+                        IsActive = item.IsActive ?? true
                     };
 
-                    var created = await _matriculaRepository.CreateAsync(matricula);
+                    var created = await _userMatriculaRepository.CreateAsync(userMatricula);
                     response.CreatedMatriculas.Add(MapToResponse(created));
                 }
                 catch (Exception ex)
@@ -271,9 +296,9 @@ namespace SalesApp.Controllers
             int id,
             [FromBody] UpdateUserMatriculaRequest request)
         {
-            var matricula = await _matriculaRepository.GetByIdAsync(id);
+            var userMatricula = await _userMatriculaRepository.GetByIdAsync(id);
             
-            if (matricula == null)
+            if (userMatricula == null)
             {
                 return NotFound(new ApiResponse<UserMatriculaResponse>
                 {
@@ -282,27 +307,18 @@ namespace SalesApp.Controllers
                 });
             }
 
-            if (request.MatriculaNumber != null)
-                matricula.MatriculaNumber = request.MatriculaNumber;
-            
-            if (request.StartDate.HasValue)
-                matricula.StartDate = request.StartDate.Value;
-            
             if (request.EndDate.HasValue)
-                matricula.EndDate = request.EndDate;
+                userMatricula.EndDate = request.EndDate;
             
             if (request.IsActive.HasValue)
-                matricula.IsActive = request.IsActive.Value;
+                userMatricula.IsActive = request.IsActive.Value;
             
             if (request.IsOwner.HasValue)
-                matricula.IsOwner = request.IsOwner.Value;
-            
-            if (request.Status != null)
-                matricula.Status = request.Status.ToLower();
+                userMatricula.IsOwner = request.IsOwner.Value;
 
             try
             {
-                var updated = await _matriculaRepository.UpdateAsync(matricula);
+                var updated = await _userMatriculaRepository.UpdateAsync(userMatricula);
 
                 return Ok(new ApiResponse<UserMatriculaResponse>
                 {
@@ -326,7 +342,7 @@ namespace SalesApp.Controllers
         [HasPermission("matriculas:write")]
         public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         {
-            var matricula = await _matriculaRepository.GetByIdAsync(id);
+            var matricula = await _userMatriculaRepository.GetByIdAsync(id);
             
             if (matricula == null)
             {
@@ -337,7 +353,7 @@ namespace SalesApp.Controllers
                 });
             }
 
-            await _matriculaRepository.DeleteAsync(id);
+            await _userMatriculaRepository.DeleteAsync(id);
 
             return Ok(new ApiResponse<object>
             {
@@ -372,23 +388,35 @@ namespace SalesApp.Controllers
                     }
 
                     // Check if matricula already exists for this user
-                    var existing = await _matriculaRepository.GetByUserIdAsync(assignment.UserId);
-                    if (existing.Any(m => m.MatriculaNumber == assignment.MatriculaNumber))
+                    var existing = await _userMatriculaRepository.GetByUserIdAsync(assignment.UserId);
+                    if (existing.Any(m => m.Matricula != null && m.Matricula.MatriculaNumber == assignment.MatriculaNumber))
                     {
                         result.Errors.Add($"Matricula {assignment.MatriculaNumber} already exists for user {user.Name}");
                         continue;
                     }
 
-                    // Create new matricula
-                    var matricula = new UserMatricula
+                    // 1. Ensure the Matricula exists
+                    var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(assignment.MatriculaNumber);
+                    if (matriculaEntity == null)
+                    {
+                        matriculaEntity = new Matricula
+                        {
+                            MatriculaNumber = assignment.MatriculaNumber,
+                            StartDate = assignment.StartDate,
+                            Status = "active"
+                        };
+                        await _matriculaRepository.CreateAsync(matriculaEntity);
+                    }
+
+                    // Create link
+                    var userMatricula = new UserMatricula
                     {
                         UserId = assignment.UserId,
-                        MatriculaNumber = assignment.MatriculaNumber,
-                        StartDate = assignment.StartDate,
+                        MatriculaId = matriculaEntity.Id,
                         IsActive = true
                     };
 
-                    var created = await _matriculaRepository.CreateAsync(matricula);
+                    var created = await _userMatriculaRepository.CreateAsync(userMatricula);
                     result.Created.Add(MapToResponse(created));
                 }
                 catch (Exception ex)
@@ -415,12 +443,12 @@ namespace SalesApp.Controllers
                 Id = matricula.Id,
                 UserId = matricula.UserId,
                 UserName = matricula.User?.Name ?? "",
-                MatriculaNumber = matricula.MatriculaNumber,
-                StartDate = matricula.StartDate,
+                MatriculaNumber = matricula.Matricula?.MatriculaNumber ?? "",
+                StartDate = matricula.Matricula?.StartDate ?? DateTime.MinValue,
                 EndDate = matricula.EndDate,
                 IsActive = matricula.IsActive,
                 IsOwner = matricula.IsOwner,
-                Status = matricula.Status,
+                Status = matricula.Matricula?.Status ?? "",
                 CreatedAt = matricula.CreatedAt
             };
         }

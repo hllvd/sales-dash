@@ -11,7 +11,8 @@ namespace SalesApp.Services
         private readonly IGroupRepository _groupRepository;
         private readonly IUserRepository _userRepository;
         private readonly IRoleRepository _roleRepository;
-        private readonly IUserMatriculaRepository _matriculaRepository;
+        private readonly IUserMatriculaRepository _userMatriculaRepository;
+        private readonly IMatriculaRepository _matriculaRepository;
         private readonly IEmailService _emailService;
         private readonly AppDbContext _context;
         private readonly IContractMetadataRepository _metadataRepository;
@@ -23,7 +24,8 @@ namespace SalesApp.Services
             IGroupRepository groupRepository,
             IUserRepository userRepository,
             IRoleRepository roleRepository,
-            IUserMatriculaRepository matriculaRepository,
+            IUserMatriculaRepository userMatriculaRepository,
+            IMatriculaRepository matriculaRepository,
             IEmailService emailService,
             AppDbContext context,
             IContractMetadataRepository metadataRepository,
@@ -34,6 +36,7 @@ namespace SalesApp.Services
             _groupRepository = groupRepository;
             _userRepository = userRepository;
             _roleRepository = roleRepository;
+            _userMatriculaRepository = userMatriculaRepository;
             _matriculaRepository = matriculaRepository;
             _emailService = emailService;
             _context = context;
@@ -214,30 +217,46 @@ namespace SalesApp.Services
                 throw new ArgumentException($"Group not found: {groupValue}");
             }
 
-            // Look up user by email
-            var user = await _userRepository.GetByEmailAsync(userEmail);
-            if (user == null || !user.IsActive)
+            // Look up user by email (now optional)
+            User? user = null;
+            if (!string.IsNullOrWhiteSpace(userEmail))
             {
-                throw new ArgumentException($"User not found or inactive: {userEmail}");
+                user = await _userRepository.GetByEmailAsync(userEmail);
+                if (user == null || !user.IsActive)
+                {
+                    throw new ArgumentException($"User not found or inactive: {userEmail}");
+                }
             }
 
-            // Resolve the specific UserMatricula from the CSV row (e.g., column "Matricula" = "6241")
+            // Resolve the specific Matricula from the CSV row
             var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
-            int? userMatriculaId = null;
+            int? matriculaId = null;
             if (!string.IsNullOrWhiteSpace(matriculaNumber))
             {
-                var cacheKey = $"{user.Id}:{matriculaNumber}";
-                if (matriculaCache != null && matriculaCache.TryGetValue(cacheKey, out var cachedMatriculaId))
+                if (matriculaCache != null && matriculaCache.TryGetValue(matriculaNumber, out var cachedId))
                 {
-                    userMatriculaId = cachedMatriculaId;
+                    matriculaId = cachedId;
                 }
                 else
                 {
-                    var userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, user.Id);
-                    userMatriculaId = userMatricula?.Id;
+                    var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(matriculaNumber);
+                    if (matricula == null)
+                    {
+                        // Auto-create matricula if it doesn't exist? 
+                        // For now, let's create it to ensure the contract link works
+                        matricula = new Matricula
+                        {
+                            MatriculaNumber = matriculaNumber,
+                            StartDate = DateTime.UtcNow,
+                            Status = "active",
+                            ImportSessionId = importSessionId
+                        };
+                        await _matriculaRepository.CreateAsync(matricula);
+                    }
+                    matriculaId = matricula.Id;
                     if (matriculaCache != null)
                     {
-                        matriculaCache[cacheKey] = userMatriculaId;
+                        matriculaCache[matriculaNumber] = matriculaId;
                     }
                 }
             }
@@ -301,7 +320,7 @@ namespace SalesApp.Services
             var contract = existingContract ?? new Contract { CreatedAt = DateTime.UtcNow };
 
             contract.ContractNumber = contractNumber;
-            contract.UserId = user.Id;
+            contract.UserId = user?.Id;
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
             contract.Status = status;
@@ -314,10 +333,11 @@ namespace SalesApp.Services
             contract.Quota = quota;
             contract.PvId = pvId;
             contract.CustomerName = customerName;
-            // ✅ Link contract to correct UserMatricula from the CSV
-            if (userMatriculaId.HasValue)
+            
+            // ✅ Link contract directly to Matricula
+            if (matriculaId.HasValue)
             {
-                contract.UserMatriculaId = userMatriculaId;
+                contract.MatriculaId = matriculaId;
             }
 
             return contract;
@@ -619,39 +639,47 @@ namespace SalesApp.Services
             {
                 try
                 {
-                    // Use upsert logic for matricula as well
-                    var existingMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matricula, createdUser.Id);
+                    // 1. Ensure the Matricula exists
+                    var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(matricula);
+                    if (matriculaEntity == null)
+                    {
+                        matriculaEntity = new Matricula
+                        {
+                            MatriculaNumber = matricula,
+                            StartDate = DateTime.UtcNow,
+                            Status = "active",
+                            ImportSessionId = importSessionId
+                        };
+                        await _matriculaRepository.CreateAsync(matriculaEntity);
+                    }
 
-                    if (existingMatricula == null)
+                    // 2. Link User to Matricula via UserMatricula
+                    var existingLink = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(matricula, createdUser.Id);
+
+                    if (existingLink == null)
                     {
                         var userMatricula = new UserMatricula
                         {
                             UserId = createdUser.Id,
-                            MatriculaNumber = matricula,
-                            StartDate = DateTime.UtcNow,
+                            MatriculaId = matriculaEntity.Id,
                             IsOwner = isMatriculaOwner,
                             IsActive = true,
-                            Status = MatriculaStatus.Active.ToApiString(),
                             ImportSessionId = importSessionId
                         };
 
-                        await _matriculaRepository.CreateAsync(userMatricula);
+                        await _userMatriculaRepository.CreateAsync(userMatricula);
                     }
                     else
                     {
-                        // Update existing matricula properties
-                        existingMatricula.IsOwner = isMatriculaOwner;
-                        existingMatricula.UpdatedAt = DateTime.UtcNow;
-                        existingMatricula.ImportSessionId = importSessionId;
-                        await _matriculaRepository.UpdateAsync(existingMatricula);
+                        // Update existing link properties
+                        existingLink.IsOwner = isMatriculaOwner;
+                        existingLink.UpdatedAt = DateTime.UtcNow;
+                        existingLink.ImportSessionId = importSessionId;
+                        await _userMatriculaRepository.UpdateAsync(existingLink);
                     }
                 }
                 catch (InvalidOperationException ex)
                 {
-                    // Log but don't fail user creation - the user *was* created
-                    // The error will be handled by the caller of this method if we rethrow or handle it here
-                    // Given the loop in ExecuteUserImportAsync, we should probably throw a specific exception
-                    // or just let this one bubble up to be caught by the row-level try-catch.
                     throw new ArgumentException($"User created, but matricula failed: {ex.Message}");
                 }
                 catch (Exception ex)

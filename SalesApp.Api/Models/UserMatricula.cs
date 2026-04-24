@@ -10,19 +10,11 @@ namespace SalesApp.Models
         public Guid UserId { get; set; }
         
         [Required]
-        [MaxLength(50)]
-        public string MatriculaNumber { get; set; } = string.Empty;
-        
-        [Required]
-        public DateTime StartDate { get; set; }
+        public int MatriculaId { get; set; }
         
         public DateTime? EndDate { get; set; }
         
         public bool IsActive { get; set; } = true;
-        
-        [Required]
-        [MaxLength(20)]
-        public string Status { get; set; } = "active"; // See MatriculaStatus enum for valid values
         
         public bool IsOwner { get; set; } = false;
         
@@ -34,6 +26,7 @@ namespace SalesApp.Models
         
         // Navigation properties
         public virtual User User { get; set; } = null!;
+        public virtual Matricula Matricula { get; set; } = null!;
         public ImportSession? ImportSession { get; set; }
     }
 }

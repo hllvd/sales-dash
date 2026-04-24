@@ -29,11 +29,14 @@ namespace SalesApp.Tests.Repositories
         {
             // Arrange
             var userId = Guid.NewGuid();
+            var mat = new Matricula { MatriculaNumber = "MAT-001", StartDate = DateTime.UtcNow, Status = "active" };
+            _context.Matriculas.Add(mat);
+            await _context.SaveChangesAsync();
+
             var matricula = new UserMatricula
             {
                 UserId = userId,
-                MatriculaNumber = "MAT-001",
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
             };
@@ -50,11 +53,14 @@ namespace SalesApp.Tests.Repositories
         {
             // Arrange
             var userId = Guid.NewGuid();
+            var mat = new Matricula { MatriculaNumber = "MAT-002", StartDate = DateTime.UtcNow, Status = "active" };
+            _context.Matriculas.Add(mat);
+            await _context.SaveChangesAsync();
+
             var matricula = new UserMatricula
             {
                 UserId = userId,
-                MatriculaNumber = "MAT-002",
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
             };
@@ -72,14 +78,15 @@ namespace SalesApp.Tests.Repositories
             // Arrange
             var user1Id = Guid.NewGuid();
             var user2Id = Guid.NewGuid();
-            var matriculaNumber = "MAT-TRANSFER";
+            var mat = new Matricula { MatriculaNumber = "MAT-TRANSFER", StartDate = DateTime.UtcNow, Status = "active" };
+            _context.Matriculas.Add(mat);
+            await _context.SaveChangesAsync();
 
             // Create first matricula with IsOwner = true
             var matricula1 = new UserMatricula
             {
                 UserId = user1Id,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
             };
@@ -89,12 +96,12 @@ namespace SalesApp.Tests.Repositories
             var matricula2 = new UserMatricula
             {
                 UserId = user2Id,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
             };
             await _repository.CreateAsync(matricula2);
+            _context.ChangeTracker.Clear();
 
             // Assert
             var user1Matriculas = await _repository.GetByUserIdAsync(user1Id);
@@ -110,14 +117,15 @@ namespace SalesApp.Tests.Repositories
             // Arrange
             var user1Id = Guid.NewGuid();
             var user2Id = Guid.NewGuid();
-            var matriculaNumber = "MAT-UPDATE";
+            var mat = new Matricula { MatriculaNumber = "MAT-UPDATE", StartDate = DateTime.UtcNow, Status = "active" };
+            _context.Matriculas.Add(mat);
+            await _context.SaveChangesAsync();
 
             // Create two matriculas with same number, first one is owner
             var matricula1 = await _repository.CreateAsync(new UserMatricula
             {
                 UserId = user1Id,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
             });
@@ -125,8 +133,7 @@ namespace SalesApp.Tests.Repositories
             var matricula2 = await _repository.CreateAsync(new UserMatricula
             {
                 UserId = user2Id,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
             });
@@ -134,28 +141,39 @@ namespace SalesApp.Tests.Repositories
             // Act - Update second matricula to be owner
             matricula2.IsOwner = true;
             await _repository.UpdateAsync(matricula2);
+            _context.ChangeTracker.Clear();
 
-            // Assert
-            var updatedMatricula1 = await _repository.GetByIdAsync(matricula1.Id);
-            var updatedMatricula2 = await _repository.GetByIdAsync(matricula2.Id);
+            // Assert - query IsOwner directly to avoid Include navigation issues with InMemory DB
+            var isOwner1 = await _context.UserMatriculas
+                .AsNoTracking()
+                .Where(m => m.Id == matricula1.Id)
+                .Select(m => m.IsOwner)
+                .FirstOrDefaultAsync();
 
-            updatedMatricula1!.IsOwner.Should().BeFalse("User 1 should no longer be owner");
-            updatedMatricula2!.IsOwner.Should().BeTrue("User 2 should now be owner");
+            var isOwner2 = await _context.UserMatriculas
+                .AsNoTracking()
+                .Where(m => m.Id == matricula2.Id)
+                .Select(m => m.IsOwner)
+                .FirstOrDefaultAsync();
+
+            isOwner1.Should().BeFalse("User 1 should no longer be owner");
+            isOwner2.Should().BeTrue("User 2 should now be owner");
         }
 
         [Fact]
-        public async Task GetOwnerByMatriculaNumberAsync_ShouldReturnOwner()
+        public async Task GetOwnerByMatriculaIdAsync_ShouldReturnOwner()
         {
             // Arrange
             var ownerId = Guid.NewGuid();
             var nonOwnerId = Guid.NewGuid();
-            var matriculaNumber = "MAT-OWNER";
+            var mat = new Matricula { MatriculaNumber = "MAT-OWNER", StartDate = DateTime.UtcNow, Status = "active" };
+            _context.Matriculas.Add(mat);
+            await _context.SaveChangesAsync();
 
             await _repository.CreateAsync(new UserMatricula
             {
                 UserId = ownerId,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
             });
@@ -163,14 +181,13 @@ namespace SalesApp.Tests.Repositories
             await _repository.CreateAsync(new UserMatricula
             {
                 UserId = nonOwnerId,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
             });
 
             // Act
-            var owner = await _repository.GetOwnerByMatriculaNumberAsync(matriculaNumber);
+            var owner = await _repository.GetOwnerByMatriculaIdAsync(mat.Id);
 
             // Assert
             owner.Should().NotBeNull();
@@ -179,23 +196,24 @@ namespace SalesApp.Tests.Repositories
         }
 
         [Fact]
-        public async Task GetOwnerByMatriculaNumberAsync_NoOwner_ShouldReturnNull()
+        public async Task GetOwnerByMatriculaIdAsync_NoOwner_ShouldReturnNull()
         {
             // Arrange
             var userId = Guid.NewGuid();
-            var matriculaNumber = "MAT-NO-OWNER";
+            var mat = new Matricula { MatriculaNumber = "MAT-NO-OWNER", StartDate = DateTime.UtcNow, Status = "active" };
+            _context.Matriculas.Add(mat);
+            await _context.SaveChangesAsync();
 
             await _repository.CreateAsync(new UserMatricula
             {
                 UserId = userId,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
             });
 
             // Act
-            var owner = await _repository.GetOwnerByMatriculaNumberAsync(matriculaNumber);
+            var owner = await _repository.GetOwnerByMatriculaIdAsync(mat.Id);
 
             // Assert
             owner.Should().BeNull();
@@ -208,13 +226,14 @@ namespace SalesApp.Tests.Repositories
             var user1Id = Guid.NewGuid();
             var user2Id = Guid.NewGuid();
             var user3Id = Guid.NewGuid();
-            var matriculaNumber = "MAT-SET-OWNER";
+            var mat = new Matricula { MatriculaNumber = "MAT-SET-OWNER", StartDate = DateTime.UtcNow, Status = "active" };
+            _context.Matriculas.Add(mat);
+            await _context.SaveChangesAsync();
 
             await _repository.CreateAsync(new UserMatricula
             {
                 UserId = user1Id,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
             });
@@ -222,8 +241,7 @@ namespace SalesApp.Tests.Repositories
             await _repository.CreateAsync(new UserMatricula
             {
                 UserId = user2Id,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
             });
@@ -231,14 +249,14 @@ namespace SalesApp.Tests.Repositories
             await _repository.CreateAsync(new UserMatricula
             {
                 UserId = user3Id,
-                MatriculaNumber = matriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
             });
 
             // Act
-            await _repository.SetOwnerAsync(matriculaNumber, user2Id);
+            await _repository.SetOwnerAsync(mat.Id, user2Id);
+            _context.ChangeTracker.Clear();
 
             // Assert
             var user1Matriculas = await _repository.GetByUserIdAsync(user1Id);
@@ -254,7 +272,10 @@ namespace SalesApp.Tests.Repositories
         public async Task MultipleUsers_SameMatricula_OnlyOneOwner()
         {
             // Arrange
-            var matriculaNumber = "MAT-MULTI";
+            var mat = new Matricula { MatriculaNumber = "MAT-MULTI", StartDate = DateTime.UtcNow, Status = "active" };
+            _context.Matriculas.Add(mat);
+            await _context.SaveChangesAsync();
+
             var users = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
 
             // Create matriculas for all users, last one is owner
@@ -263,16 +284,16 @@ namespace SalesApp.Tests.Repositories
                 await _repository.CreateAsync(new UserMatricula
                 {
                     UserId = users[i],
-                    MatriculaNumber = matriculaNumber,
-                    StartDate = DateTime.UtcNow,
+                    MatriculaId = mat.Id,
                     IsOwner = (i == users.Length - 1), // Last user is owner
                     IsActive = true
                 });
             }
 
             // Act
+            _context.ChangeTracker.Clear();
             var allMatriculas = await _context.UserMatriculas
-                .Where(m => m.MatriculaNumber == matriculaNumber)
+                .Where(m => m.MatriculaId == mat.Id)
                 .ToListAsync();
 
             // Assert

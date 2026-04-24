@@ -350,6 +350,7 @@ namespace SalesApp.Services
             var allActiveUsers = await _context.Users
                 .AsNoTracking()
                 .Include(u => u.UserMatriculas)
+                    .ThenInclude(um => um.Matricula)
                 .Where(u => u.IsActive)
                 .ToListAsync();
 
@@ -365,7 +366,7 @@ namespace SalesApp.Services
 
                 foreach (var m in u.UserMatriculas.Where(m => m.IsActive))
                 {
-                    var normalizedMat = m.MatriculaNumber.ToLower().Trim();
+                    var normalizedMat = m.Matricula.MatriculaNumber.ToLower().Trim();
                     exactMatchLookup[(normalizedMat, normalizedName)] = u.Email;
                     
                     if (m.IsOwner) {

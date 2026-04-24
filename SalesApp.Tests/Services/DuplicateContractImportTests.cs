@@ -17,6 +17,7 @@ namespace SalesApp.Tests.Services
         private readonly Mock<IUserRepository> _mockUserRepository;
         private readonly Mock<IRoleRepository> _mockRoleRepository;
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
+        private readonly Mock<IMatriculaRepository> _mockBaseMatriculaRepository;
         private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<AppDbContext> _mockContext;
         private readonly Mock<IContractMetadataRepository> _mockMetadataRepository;
@@ -31,6 +32,7 @@ namespace SalesApp.Tests.Services
             _mockUserRepository = new Mock<IUserRepository>();
             _mockRoleRepository = new Mock<IRoleRepository>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
+            _mockBaseMatriculaRepository = new Mock<IMatriculaRepository>();
             _mockEmailService = new Mock<IEmailService>();
             _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>(), new Mock<IHttpContextAccessor>().Object);
             _mockMetadataRepository = new Mock<IContractMetadataRepository>();
@@ -43,6 +45,7 @@ namespace SalesApp.Tests.Services
                 _mockUserRepository.Object,
                 _mockRoleRepository.Object,
                 _mockMatriculaRepository.Object,
+                _mockBaseMatriculaRepository.Object,
                 _mockEmailService.Object,
                 _mockContext.Object,
                 _mockMetadataRepository.Object,

@@ -18,7 +18,8 @@ namespace SalesApp.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IGroupRepository _groupRepository;
         private readonly IContractAggregationService _aggregationService;
-        private readonly IUserMatriculaRepository _matriculaRepository;
+        private readonly IUserMatriculaRepository _userMatriculaRepository;
+        private readonly IMatriculaRepository _matriculaRepository;
         private readonly IMessageService _messageService;
         private readonly IUserScopeService _userScopeService;
         private readonly IExportService _exportService;
@@ -29,7 +30,8 @@ namespace SalesApp.Controllers
             IUserRepository userRepository, 
             IGroupRepository groupRepository,
             IContractAggregationService aggregationService,
-            IUserMatriculaRepository matriculaRepository,
+            IUserMatriculaRepository userMatriculaRepository,
+            IMatriculaRepository matriculaRepository,
             IMessageService messageService,
             IUserScopeService userScopeService,
             IExportService exportService,
@@ -39,6 +41,7 @@ namespace SalesApp.Controllers
             _userRepository = userRepository;
             _groupRepository = groupRepository;
             _aggregationService = aggregationService;
+            _userMatriculaRepository = userMatriculaRepository;
             _matriculaRepository = matriculaRepository;
             _messageService = messageService;
             _userScopeService = userScopeService;
@@ -321,52 +324,33 @@ namespace SalesApp.Controllers
             };
 
             // Matricula validation
-            if (request.UserId.HasValue && (request.UserMatriculaId.HasValue || !string.IsNullOrEmpty(request.MatriculaNumber)))
+            if (!string.IsNullOrEmpty(request.MatriculaNumber))
             {
-                UserMatricula? userMatricula = null;
-                if (request.UserMatriculaId.HasValue)
+                var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
+                if (matricula == null)
                 {
-                    userMatricula = await _matriculaRepository.GetByIdAsync(request.UserMatriculaId.Value);
-                    if (userMatricula == null || userMatricula.UserId != request.UserId.Value)
+                    // Create matricula if it doesn't exist (allowing unassigned contracts with a trace)
+                    matricula = new Matricula
                     {
-                        return BadRequest(new ApiResponse<ContractResponse>
-                        {
-                            Success = false,
-                            Message = "Matricula not found for this user"
-                        });
-                    }
+                        MatriculaNumber = request.MatriculaNumber,
+                        StartDate = DateTime.UtcNow,
+                        Status = "active"
+                    };
+                    await _matriculaRepository.CreateAsync(matricula);
                 }
-                else if (!string.IsNullOrEmpty(request.MatriculaNumber))
-                {
-                    userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, request.UserId.Value);
-                    if (userMatricula == null)
-                    {
-                        return BadRequest(new ApiResponse<ContractResponse>
-                        {
-                            Success = false,
-                            Message = "Matricula not found for this user"
-                        });
-                    }
-                }
-
-                if (userMatricula != null)
-                {
-                    if (!userMatricula.IsActive || (userMatricula.EndDate.HasValue && userMatricula.EndDate.Value < DateTime.UtcNow))
-                    {
-                        return BadRequest(new ApiResponse<ContractResponse>
-                        {
-                            Success = false,
-                            Message = "Selected matricula is not active or has expired"
-                        });
-                    }
-                    contract.UserMatriculaId = userMatricula.Id;
-                    contract.TempMatricula = userMatricula.MatriculaNumber;
-                }
+                
+                contract.MatriculaId = matricula.Id;
+                contract.TempMatricula = matricula.MatriculaNumber;
             }
-            else if (!string.IsNullOrEmpty(request.MatriculaNumber))
+            else if (request.UserMatriculaId.HasValue)
             {
-                // Fallback for when UserId is not provided but MatriculaNumber is (unassigned contract with trace)
-                contract.TempMatricula = request.MatriculaNumber;
+                // Legacy support for UserMatriculaId if needed, but we prefer MatriculaId
+                var um = await _userMatriculaRepository.GetByIdAsync(request.UserMatriculaId.Value);
+                if (um != null)
+                {
+                    contract.MatriculaId = um.MatriculaId;
+                    contract.TempMatricula = um.Matricula?.MatriculaNumber;
+                }
             }
 
             
@@ -483,52 +467,35 @@ namespace SalesApp.Controllers
             if (!string.IsNullOrEmpty(request.CustomerName)) contract.CustomerName = request.CustomerName;
 
             // Matricula validation
-            if (contract.UserId.HasValue && (request.UserMatriculaId.HasValue || !string.IsNullOrEmpty(request.MatriculaNumber)))
+            if (!string.IsNullOrEmpty(request.MatriculaNumber))
             {
-                UserMatricula? userMatricula = null;
-                if (request.UserMatriculaId.HasValue)
+                var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
+                if (matricula == null)
                 {
-                    userMatricula = await _matriculaRepository.GetByIdAsync(request.UserMatriculaId.Value);
-                    if (userMatricula == null || userMatricula.UserId != contract.UserId.Value)
+                    matricula = new Matricula
                     {
-                        return BadRequest(new ApiResponse<ContractResponse>
-                        {
-                            Success = false,
-                            Message = "Matricula not found for this user"
-                        });
-                    }
+                        MatriculaNumber = request.MatriculaNumber,
+                        StartDate = DateTime.UtcNow,
+                        Status = "active"
+                    };
+                    await _matriculaRepository.CreateAsync(matricula);
                 }
-                else if (!string.IsNullOrEmpty(request.MatriculaNumber))
+                contract.MatriculaId = matricula.Id;
+                contract.TempMatricula = matricula.MatriculaNumber;
+            }
+            else if (request.UserMatriculaId.HasValue)
+            {
+                var um = await _userMatriculaRepository.GetByIdAsync(request.UserMatriculaId.Value);
+                if (um != null)
                 {
-                    userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, contract.UserId.Value);
-                    if (userMatricula == null)
-                    {
-                        return BadRequest(new ApiResponse<ContractResponse>
-                        {
-                            Success = false,
-                            Message = "Matricula not found for this user"
-                        });
-                    }
-                }
-
-                if (userMatricula != null)
-                {
-                    if (!userMatricula.IsActive || (userMatricula.EndDate.HasValue && userMatricula.EndDate.Value < DateTime.UtcNow))
-                    {
-                        return BadRequest(new ApiResponse<ContractResponse>
-                        {
-                            Success = false,
-                            Message = "Selected matricula is not active or has expired"
-                        });
-                    }
-                    contract.UserMatriculaId = userMatricula.Id;
-                    contract.TempMatricula = userMatricula.MatriculaNumber;
+                    contract.MatriculaId = um.MatriculaId;
+                    contract.TempMatricula = um.Matricula?.MatriculaNumber;
                 }
             }
             else if (request.MatriculaNumber == string.Empty)
             {
                 // Clear matricula if explicitly set to empty
-                contract.UserMatriculaId = null;
+                contract.MatriculaId = null;
                 contract.TempMatricula = null;
             }
             
@@ -575,15 +542,8 @@ namespace SalesApp.Controllers
         
         private ContractResponse MapToContractResponse(Contract contract)
         {
-            // Prioritize the explicit link, then fallback to TempMatricula, then to owner heuristic
-            var userMatricula = contract.UserMatricula 
-                ?? contract.User?.UserMatriculas?
-                .FirstOrDefault(m => m.MatriculaNumber == contract.TempMatricula && m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
-                ?? contract.User?.UserMatriculas?
-                .Where(m => m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
-                .OrderByDescending(m => m.IsOwner)
-                .ThenByDescending(m => m.StartDate)
-                .FirstOrDefault();
+            // Resolve the most appropriate matricula number for the response
+            var matriculaNumber = contract.Matricula?.MatriculaNumber ?? contract.TempMatricula;
 
             return new ContractResponse
             {
@@ -603,8 +563,8 @@ namespace SalesApp.Controllers
                 Quota = contract.Quota,
                 PvId = contract.PvId,
                 CustomerName = contract.CustomerName,
-                MatriculaId = userMatricula?.Id,
-                MatriculaNumber = userMatricula?.MatriculaNumber
+                MatriculaId = contract.MatriculaId,
+                MatriculaNumber = matriculaNumber
             };
         }
         

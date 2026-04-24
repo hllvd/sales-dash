@@ -8,15 +8,14 @@ namespace SalesApp.Repositories
         Task<UserMatricula?> GetByIdAsync(int id);
         Task<List<UserMatricula>> GetByUserIdAsync(Guid userId);
         Task<List<UserMatricula>> GetActiveByUserIdAsync(Guid userId);
-        Task<UserMatricula?> GetByMatriculaNumberAsync(string matriculaNumber);
-        Task<List<UserMatricula>> GetAllByMatriculaNumberAsync(string matriculaNumber);
+        Task<UserMatricula?> GetByMatriculaIdAsync(int matriculaId);
+        Task<List<UserMatricula>> GetAllByMatriculaIdAsync(int matriculaId);
         Task<UserMatricula?> GetByMatriculaNumberAndUserIdAsync(string matriculaNumber, Guid userId);
         Task<UserMatricula> CreateAsync(UserMatricula matricula);
         Task<UserMatricula> UpdateAsync(UserMatricula matricula);
         Task DeleteAsync(int id);
         Task<bool> IsMatriculaValidForUser(Guid userId, int matriculaId);
-        Task<bool> MatriculaExistsAsync(string matriculaNumber);
-        Task<UserMatricula?> GetOwnerByMatriculaNumberAsync(string matriculaNumber);
-        Task SetOwnerAsync(string matriculaNumber, Guid newOwnerId);
+        Task<UserMatricula?> GetOwnerByMatriculaIdAsync(int matriculaId);
+        Task SetOwnerAsync(int matriculaId, Guid newOwnerId);
     }
 }
