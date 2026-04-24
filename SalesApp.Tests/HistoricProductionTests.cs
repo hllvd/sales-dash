@@ -19,6 +19,7 @@ namespace SalesApp.Tests
         private readonly Mock<IGroupRepository> _mockGroupRepository;
         private readonly Mock<IContractAggregationService> _mockAggregationService;
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
+        private readonly Mock<IMatriculaRepository> _mockBaseMatriculaRepository;
         private readonly Mock<IMessageService> _mockMessageService;
         private readonly Mock<IUserScopeService> _mockScopeService;
         private readonly Mock<IExportService> _mockExportService;
@@ -32,6 +33,7 @@ namespace SalesApp.Tests
             _mockGroupRepository = new Mock<IGroupRepository>();
             _mockAggregationService = new Mock<IContractAggregationService>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
+            _mockBaseMatriculaRepository = new Mock<IMatriculaRepository>();
             _mockMessageService = new Mock<IMessageService>();
             _mockScopeService = new Mock<IUserScopeService>();
             _mockExportService = new Mock<IExportService>();
@@ -42,6 +44,7 @@ namespace SalesApp.Tests
                 _mockGroupRepository.Object,
                 _mockAggregationService.Object,
                 _mockMatriculaRepository.Object,
+                _mockBaseMatriculaRepository.Object,
                 _mockMessageService.Object,
                 _mockScopeService.Object,
                 _mockExportService.Object,

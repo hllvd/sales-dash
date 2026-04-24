@@ -26,6 +26,7 @@ namespace SalesApp.Data
         public DbSet<ImportRow> ImportRows { get; set; }
         public DbSet<PV> PVs { get; set; }
         public DbSet<UserMatricula> UserMatriculas { get; set; }
+        public DbSet<Matricula> Matriculas { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<ContractMetadata> ContractMetadata { get; set; }
         public DbSet<Permission> Permissions { get; set; }
@@ -127,9 +128,9 @@ namespace SalesApp.Data
                     .HasForeignKey(e => e.CategoryMetadataId)
                     .OnDelete(DeleteBehavior.Restrict);
                     
-                entity.HasOne(e => e.UserMatricula)
-                    .WithMany()
-                    .HasForeignKey(e => e.UserMatriculaId)
+                entity.HasOne(e => e.Matricula)
+                    .WithMany(m => m.Contracts)
+                    .HasForeignKey(e => e.MatriculaId)
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(e => e.ImportSession)
@@ -226,23 +227,43 @@ namespace SalesApp.Data
             });
             
             
+            // Matricula entity configuration
+            modelBuilder.Entity<Matricula>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.MatriculaNumber).IsRequired().HasMaxLength(50);
+                entity.HasIndex(e => e.MatriculaNumber).IsUnique();
+                
+                entity.HasOne(e => e.ImportSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImportSessionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            
             // UserMatricula entity configuration
             modelBuilder.Entity<UserMatricula>(entity =>
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).ValueGeneratedOnAdd();
-                entity.Property(e => e.MatriculaNumber).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.StartDate).IsRequired();
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
-                entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("active");
                 
-                // Index for faster lookups - Unique per user
-                entity.HasIndex(e => e.MatriculaNumber);
-                entity.HasIndex(e => new { e.UserId, e.MatriculaNumber }).IsUnique();
+                // Uniqueness: A user can only be linked to the same matricula once
+                entity.HasIndex(e => new { e.UserId, e.MatriculaId }).IsUnique();
+                
+                // Ownership Constraint: A matricula can have only one owner
+                entity.HasIndex(e => e.MatriculaId)
+                    .IsUnique()
+                    .HasFilter("[IsOwner] = 1");
                 
                 entity.HasOne(e => e.User)
                     .WithMany(u => u.UserMatriculas)
                     .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Matricula)
+                    .WithMany(m => m.UserMatriculas)
+                    .HasForeignKey(e => e.MatriculaId)
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.ImportSession)
@@ -377,7 +398,7 @@ namespace SalesApp.Data
                 var entityName = entry.Entity.GetType().Name;
                 if (entityName.EndsWith("Proxy")) entityName = entry.Entity.GetType().BaseType!.Name;
 
-                var auditableEntities = new[] { "User", "Contract", "UserMatricula", "Group", "PV" };
+                var auditableEntities = new[] { "User", "Contract", "UserMatricula", "Matricula", "Group", "PV" };
                 if (!auditableEntities.Contains(entityName))
                     continue;
 

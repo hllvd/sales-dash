@@ -34,7 +34,9 @@ export default defineConfig({
         'import_wizard_email_mapping.spec.ts',
         'import_wizard_data_integrity.spec.ts',
         'import_wizard_validation.spec.ts',
-        'scrape_credentials.spec.ts'
+        'scrape_credentials.spec.ts',
+        'matricula_ownership.spec.ts',
+        'powerbi_credentials.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-1-setup-and-import']

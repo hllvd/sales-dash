@@ -136,7 +136,7 @@ namespace SalesApp.Services
                     var c = contracts[i];
 
                     // Resolve matricula
-                    var matriculaNumber = c.UserMatricula?.MatriculaNumber ?? c.TempMatricula ?? string.Empty;
+                    var matriculaNumber = c.Matricula?.MatriculaNumber ?? c.TempMatricula ?? string.Empty;
 
                     ws.Cells[row, 1].Value = c.ContractNumber;
                     ws.Cells[row, 2].Value = c.User?.Name ?? string.Empty;

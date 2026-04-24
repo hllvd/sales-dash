@@ -23,6 +23,7 @@ namespace SalesApp.Tests
         private readonly Mock<IContractRepository> _mockContractRepository;
         private readonly Mock<IRoleRepository> _mockRoleRepository;
         private readonly Mock<IUserMatriculaRepository> _mockMatriculaRepository;
+        private readonly Mock<IMatriculaRepository> _mockBaseMatriculaRepository;
         private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly Mock<IMessageService> _mockMessageService;
         private readonly Mock<IEmailService> _mockEmailService;
@@ -38,6 +39,7 @@ namespace SalesApp.Tests
             _mockContractRepository = new Mock<IContractRepository>();
             _mockRoleRepository = new Mock<IRoleRepository>();
             _mockMatriculaRepository = new Mock<IUserMatriculaRepository>();
+            _mockBaseMatriculaRepository = new Mock<IMatriculaRepository>();
             _mockConfiguration = new Mock<IConfiguration>();
             _mockMessageService = new Mock<IMessageService>();
             _mockEmailService = new Mock<IEmailService>();
@@ -56,6 +58,7 @@ namespace SalesApp.Tests
                 _mockContractRepository.Object,
                 _mockRoleRepository.Object,
                 _mockMatriculaRepository.Object,
+                _mockBaseMatriculaRepository.Object,
                 _mockConfiguration.Object,
                 _context,
                 _mockMessageService.Object,

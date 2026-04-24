@@ -18,14 +18,16 @@ namespace SalesApp.Repositories
             return await _context.UserMatriculas
                 .AsNoTracking()
                 .Include(m => m.User)
+                .Include(m => m.Matricula)
                 .OrderByDescending(m => m.CreatedAt)
                 .ToListAsync();
         }
 
         public async Task<UserMatricula?> GetByIdAsync(int id)
         {
-            // NOTE: No AsNoTracking - used after create/update
             return await _context.UserMatriculas
+                .Include(m => m.User)
+                .Include(m => m.Matricula)
                 .FirstOrDefaultAsync(m => m.Id == id);
         }
 
@@ -33,8 +35,9 @@ namespace SalesApp.Repositories
         {
             return await _context.UserMatriculas
                 .AsNoTracking()
+                .Include(m => m.Matricula)
                 .Where(m => m.UserId == userId)
-                .OrderByDescending(m => m.StartDate)
+                .OrderByDescending(m => m.CreatedAt)
                 .ToListAsync();
         }
 
@@ -43,27 +46,30 @@ namespace SalesApp.Repositories
             var now = DateTime.UtcNow;
             return await _context.UserMatriculas
                 .AsNoTracking()
+                .Include(m => m.Matricula)
                 .Where(m => m.UserId == userId && 
                            m.IsActive && 
                            (m.EndDate == null || m.EndDate > now))
-                .OrderByDescending(m => m.StartDate)
+                .OrderByDescending(m => m.CreatedAt)
                 .ToListAsync();
         }
 
-        public async Task<UserMatricula?> GetByMatriculaNumberAsync(string matriculaNumber)
+        public async Task<UserMatricula?> GetByMatriculaIdAsync(int matriculaId)
         {
             return await _context.UserMatriculas
                 .AsNoTracking()
                 .Include(m => m.User)
-                .FirstOrDefaultAsync(m => m.MatriculaNumber == matriculaNumber);
+                .Include(m => m.Matricula)
+                .FirstOrDefaultAsync(m => m.MatriculaId == matriculaId);
         }
 
-        public async Task<List<UserMatricula>> GetAllByMatriculaNumberAsync(string matriculaNumber)
+        public async Task<List<UserMatricula>> GetAllByMatriculaIdAsync(int matriculaId)
         {
             return await _context.UserMatriculas
                 .AsNoTracking()
                 .Include(m => m.User)
-                .Where(m => m.MatriculaNumber == matriculaNumber && m.IsActive)
+                .Include(m => m.Matricula)
+                .Where(m => m.MatriculaId == matriculaId && m.IsActive)
                 .OrderByDescending(m => m.IsOwner)
                 .ThenBy(m => m.User.Name)
                 .ToListAsync();
@@ -73,11 +79,11 @@ namespace SalesApp.Repositories
         {
             // Check if user already has this matricula
             var existing = await _context.UserMatriculas
-                .AnyAsync(m => m.UserId == matricula.UserId && m.MatriculaNumber == matricula.MatriculaNumber);
+                .AnyAsync(m => m.UserId == matricula.UserId && m.MatriculaId == matricula.MatriculaId);
             
             if (existing)
             {
-                throw new InvalidOperationException($"User already has matricula {matricula.MatriculaNumber}");
+                throw new InvalidOperationException($"User already has this matricula link.");
             }
 
             matricula.CreatedAt = DateTime.UtcNow;
@@ -89,7 +95,7 @@ namespace SalesApp.Repositories
             // If this matricula is being set as owner, remove owner flag from others
             if (matricula.IsOwner)
             {
-                await SetOwnerAsync(matricula.MatriculaNumber, matricula.UserId);
+                await SetOwnerAsync(matricula.MatriculaId, matricula.UserId);
             }
             
             return await GetByIdAsync(matricula.Id) ?? matricula;
@@ -99,11 +105,11 @@ namespace SalesApp.Repositories
         {
             // Check if user already has this matricula (excluding this record)
             var existing = await _context.UserMatriculas
-                .AnyAsync(m => m.UserId == matricula.UserId && m.MatriculaNumber == matricula.MatriculaNumber && m.Id != matricula.Id);
+                .AnyAsync(m => m.UserId == matricula.UserId && m.MatriculaId == matricula.MatriculaId && m.Id != matricula.Id);
             
             if (existing)
             {
-                throw new InvalidOperationException($"User already has matricula {matricula.MatriculaNumber}");
+                throw new InvalidOperationException($"User already has this matricula link.");
             }
 
             matricula.UpdatedAt = DateTime.UtcNow;
@@ -111,21 +117,18 @@ namespace SalesApp.Repositories
             // If this matricula is being set as owner, remove owner flag from others
             if (matricula.IsOwner)
             {
-                await SetOwnerAsync(matricula.MatriculaNumber, matricula.UserId);
+                await SetOwnerAsync(matricula.MatriculaId, matricula.UserId);
             }
             
-            // ✅ Ensure entity is tracked before updating
             var existingEntry = _context.ChangeTracker.Entries<UserMatricula>()
                 .FirstOrDefault(e => e.Entity.Id == matricula.Id);
             
             if (existingEntry == null)
             {
-                // Entity not tracked, attach it
                 _context.UserMatriculas.Update(matricula);
             }
             else
             {
-                // Entity already tracked, update its values
                 _context.Entry(existingEntry.Entity).CurrentValues.SetValues(matricula);
             }
             
@@ -148,46 +151,40 @@ namespace SalesApp.Repositories
         {
             var now = DateTime.UtcNow;
             return await _context.UserMatriculas
-                .AnyAsync(m => m.Id == matriculaId && 
+                .AnyAsync(m => m.MatriculaId == matriculaId && 
                               m.UserId == userId && 
                               m.IsActive &&
                               (m.EndDate == null || m.EndDate > now));
         }
 
-        public async Task<bool> MatriculaExistsAsync(string matriculaNumber)
-        {
-            return await _context.UserMatriculas
-                .AnyAsync(m => m.MatriculaNumber == matriculaNumber);
-        }
-
-        public async Task<UserMatricula?> GetOwnerByMatriculaNumberAsync(string matriculaNumber)
+        public async Task<UserMatricula?> GetOwnerByMatriculaIdAsync(int matriculaId)
         {
             return await _context.UserMatriculas
                 .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.MatriculaNumber == matriculaNumber && m.IsOwner);
+                .FirstOrDefaultAsync(m => m.MatriculaId == matriculaId && m.IsOwner);
         }
 
-        public async Task SetOwnerAsync(string matriculaNumber, Guid newOwnerId)
+        public async Task SetOwnerAsync(int matriculaId, Guid newOwnerId)
         {
-            // Get all matriculas with this number (WITH tracking - we need to update them)
-            var existingMatriculas = await _context.UserMatriculas
-                .Where(m => m.MatriculaNumber == matriculaNumber)
+            var existingLinks = await _context.UserMatriculas
+                .Where(m => m.MatriculaId == matriculaId)
                 .ToListAsync();
             
-            // Set IsOwner based on whether it belongs to the new owner
-            foreach (var matricula in existingMatriculas)
+            foreach (var link in existingLinks)
             {
-                matricula.IsOwner = (matricula.UserId == newOwnerId);
-                matricula.UpdatedAt = DateTime.UtcNow;
+                link.IsOwner = (link.UserId == newOwnerId);
+                link.UpdatedAt = DateTime.UtcNow;
             }
             
             await _context.SaveChangesAsync();
         }
+
         public async Task<UserMatricula?> GetByMatriculaNumberAndUserIdAsync(string matriculaNumber, Guid userId)
         {
             return await _context.UserMatriculas
                 .Include(m => m.User)
-                .FirstOrDefaultAsync(m => m.MatriculaNumber == matriculaNumber && m.UserId == userId);
+                .Include(m => m.Matricula)
+                .FirstOrDefaultAsync(m => m.Matricula.MatriculaNumber == matriculaNumber && m.UserId == userId);
         }
     }
 }

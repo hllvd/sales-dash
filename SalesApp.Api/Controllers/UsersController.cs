@@ -21,7 +21,8 @@ namespace SalesApp.Controllers
         private readonly IUserHierarchyService _hierarchyService;
         private readonly IContractRepository _contractRepository;
         private readonly IRoleRepository _roleRepository;
-        private readonly IUserMatriculaRepository _matriculaRepository;
+        private readonly IUserMatriculaRepository _userMatriculaRepository;
+        private readonly IMatriculaRepository _matriculaRepository;
         private readonly IConfiguration _configuration;
         private readonly AppDbContext _context;
         private readonly IMessageService _messageService;
@@ -29,12 +30,13 @@ namespace SalesApp.Controllers
         private readonly IExportService _exportService;
         
         public UsersController(
-            IUserRepository userRepository, 
-            IJwtService jwtService, 
-            IUserHierarchyService hierarchyService, 
+            IUserRepository userRepository,
+            IJwtService jwtService,
+            IUserHierarchyService hierarchyService,
             IContractRepository contractRepository,
             IRoleRepository roleRepository,
-            IUserMatriculaRepository matriculaRepository,
+            IUserMatriculaRepository userMatriculaRepository,
+            IMatriculaRepository matriculaRepository,
             IConfiguration configuration,
             AppDbContext context,
             IMessageService messageService,
@@ -46,6 +48,7 @@ namespace SalesApp.Controllers
             _hierarchyService = hierarchyService;
             _contractRepository = contractRepository;
             _roleRepository = roleRepository;
+            _userMatriculaRepository = userMatriculaRepository;
             _matriculaRepository = matriculaRepository;
             _configuration = configuration;
             _context = context;
@@ -178,27 +181,31 @@ namespace SalesApp.Controllers
             {
                 try
                 {
-                    // Check if matricula already exists
-                    var existingMatricula = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
+                    // 1. Ensure the Matricula exists
+                    var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
+                    if (matriculaEntity == null)
+                    {
+                        matriculaEntity = new Matricula
+                        {
+                            MatriculaNumber = request.MatriculaNumber,
+                            StartDate = DateTime.UtcNow,
+                            Status = "active"
+                        };
+                        await _matriculaRepository.CreateAsync(matriculaEntity);
+                    }
                     
                     bool isOwner = request.IsMatriculaOwner;
                     
-                    // If matricula doesn't exist and user wants to be owner, they become the owner
-                    if (existingMatricula == null)
-                    {
-                        isOwner = true; // First user with this matricula becomes owner
-                    }
-                    
+                    // Link user to matricula
                     var userMatricula = new UserMatricula
                     {
                         UserId = user.Id,
-                        MatriculaNumber = request.MatriculaNumber,
-                        StartDate = DateTime.UtcNow,
+                        MatriculaId = matriculaEntity.Id,
                         IsOwner = isOwner,
                         IsActive = true
                     };
                     
-                    await _matriculaRepository.CreateAsync(userMatricula);
+                    await _userMatriculaRepository.CreateAsync(userMatricula);
                 }
                 catch (Exception ex)
                 {
@@ -516,21 +523,20 @@ namespace SalesApp.Controllers
                 
                 // Matricula information
                 MatriculaId = primaryMatricula?.Id,
-                MatriculaNumber = primaryMatricula?.MatriculaNumber,
+                MatriculaNumber = primaryMatricula?.Matricula?.MatriculaNumber,
                 IsMatriculaOwner = primaryMatricula != null,
 
                 // Active matriculas for current user
                 ActiveMatriculas = user.UserMatriculas?
-                    .Where(m => m.IsActive) // Just check IsActive for now
+                    .Where(m => m.IsActive)
                     .OrderByDescending(m => m.IsOwner)
-                    .ThenByDescending(m => m.StartDate)
                     .Select(m => new UserMatriculaInfo
                     {
                         Id = m.Id,
-                        MatriculaNumber = m.MatriculaNumber,
+                        MatriculaNumber = m.Matricula?.MatriculaNumber ?? "",
                         IsOwner = m.IsOwner,
-                        Status = m.Status,
-                        StartDate = m.StartDate,
+                        Status = m.Matricula?.Status ?? "active",
+                        StartDate = m.Matricula?.StartDate ?? DateTime.MinValue,
                         EndDate = m.EndDate
                     })
                     .ToList() ?? new List<UserMatriculaInfo>(),
@@ -637,17 +643,17 @@ namespace SalesApp.Controllers
             }
             
             // Get active matriculas for current user
-            var activeMatriculas = await _matriculaRepository.GetActiveByUserIdAsync(currentUserId);
+            var activeMatriculas = await _userMatriculaRepository.GetActiveByUserIdAsync(currentUserId);
             
             var userResponse = MapToUserResponse(user);
             userResponse.ActiveMatriculas = activeMatriculas
                 .Select(m => new UserMatriculaInfo
                 {
                     Id = m.Id,
-                    MatriculaNumber = m.MatriculaNumber,
+                    MatriculaNumber = m.Matricula?.MatriculaNumber ?? "",
                     IsOwner = m.IsOwner,
-                    Status = m.Status,
-                    StartDate = m.StartDate,
+                    Status = m.Matricula?.Status ?? "active",
+                    StartDate = m.Matricula?.StartDate ?? DateTime.MinValue,
                     EndDate = m.EndDate
                 })
                 .ToList();
@@ -667,7 +673,7 @@ namespace SalesApp.Controllers
             var currentUserId = GetCurrentUserId();
             
             // Check if user already has this matricula
-            var existingMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, currentUserId);
+            var existingMatricula = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, currentUserId);
             if (existingMatricula != null)
             {
                 return BadRequest(new ApiResponse<UserMatriculaInfo>
@@ -677,14 +683,25 @@ namespace SalesApp.Controllers
                 });
             }
             
+            // 1. Ensure the Matricula exists
+            var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
+            if (matriculaEntity == null)
+            {
+                matriculaEntity = new Matricula
+                {
+                    MatriculaNumber = request.MatriculaNumber,
+                    StartDate = DateTime.UtcNow,
+                    Status = MatriculaStatus.Pending.ToApiString() // Or appropriate default
+                };
+                await _matriculaRepository.CreateAsync(matriculaEntity);
+            }
+
             // Create new matricula request with pending status
             var userMatricula = new UserMatricula
             {
                 UserId = currentUserId,
-                MatriculaNumber = request.MatriculaNumber,
-                StartDate = DateTime.UtcNow,
+                MatriculaId = matriculaEntity.Id,
                 IsActive = false, // Not active until approved
-                Status = MatriculaStatus.Pending.ToApiString(),
                 IsOwner = false,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -699,10 +716,10 @@ namespace SalesApp.Controllers
                 Data = new UserMatriculaInfo
                 {
                     Id = userMatricula.Id,
-                    MatriculaNumber = userMatricula.MatriculaNumber,
+                    MatriculaNumber = matriculaEntity.MatriculaNumber,
                     IsOwner = userMatricula.IsOwner,
-                    Status = userMatricula.Status,
-                    StartDate = userMatricula.StartDate,
+                    Status = matriculaEntity.Status,
+                    StartDate = matriculaEntity.StartDate,
                     EndDate = userMatricula.EndDate
                 },
                 Message = _messageService.Get(AppMessage.MatriculaRequestSubmitted)
@@ -784,7 +801,7 @@ namespace SalesApp.Controllers
             UserMatricula? userMatricula = null;
             if (userMatriculaId.HasValue)
             {
-                userMatricula = await _matriculaRepository.GetByIdAsync(userMatriculaId.Value);
+                userMatricula = await _userMatriculaRepository.GetByIdAsync(userMatriculaId.Value);
                 if (userMatricula == null || userMatricula.UserId != currentUserId)
                 {
                     return BadRequest(new ApiResponse<ContractResponse>
@@ -796,7 +813,7 @@ namespace SalesApp.Controllers
             }
             else if (!string.IsNullOrEmpty(matriculaNumber))
             {
-                userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, currentUserId);
+                userMatricula = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, currentUserId);
                 
                 if (userMatricula == null)
                 {
@@ -853,16 +870,15 @@ namespace SalesApp.Controllers
             contract.UserId = currentUserId;
             contract.User = user;
             contract.TempMatricula = matriculaNumber;
-            contract.UserMatriculaId = userMatricula?.Id;
+            contract.MatriculaId = userMatricula?.MatriculaId;
             await _contractRepository.UpdateAsync(contract);
             
             // Prioritize the selected matricula for the response if provided
             var resolvedMatricula = user.UserMatriculas?
-                .FirstOrDefault(m => m.MatriculaNumber == matriculaNumber && m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
+                .FirstOrDefault(m => m.Matricula?.MatriculaNumber == matriculaNumber && m.IsActive)
                 ?? user.UserMatriculas?
-                .Where(m => m.IsActive && (m.EndDate == null || m.EndDate > DateTime.UtcNow))
+                .Where(m => m.IsActive)
                 .OrderByDescending(m => m.IsOwner)
-                .ThenByDescending(m => m.StartDate)
                 .FirstOrDefault();
 
             return Ok(new ApiResponse<ContractResponse>
@@ -886,8 +902,8 @@ namespace SalesApp.Controllers
                     Quota = contract.Quota,
                     PvId = contract.PvId,
                     CustomerName = contract.CustomerName,
-                    MatriculaId = resolvedMatricula?.Id,
-                    MatriculaNumber = resolvedMatricula?.MatriculaNumber
+                    MatriculaId = resolvedMatricula?.MatriculaId,
+                    MatriculaNumber = resolvedMatricula?.Matricula?.MatriculaNumber
                 },
                 Message = _messageService.Get(AppMessage.ContractAssignedSuccessfully)
             });

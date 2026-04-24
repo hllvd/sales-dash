@@ -125,7 +125,7 @@ namespace SalesApp.Api.Migrations
                     b.Property<Guid?>("UserId")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("UserMatriculaId")
+                    b.Property<int?>("MatriculaId")
                         .HasColumnType("INTEGER");
 
                     b.Property<byte?>("Version")
@@ -142,15 +142,56 @@ namespace SalesApp.Api.Migrations
 
                     b.HasIndex("ImportSessionId");
 
+                    b.HasIndex("MatriculaId");
+
                     b.HasIndex("PlanoVendaMetadataId");
 
                     b.HasIndex("PvId");
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("UserMatriculaId");
-
                     b.ToTable("Contracts", (string)null);
+                });
+
+            modelBuilder.Entity("SalesApp.Models.Matricula", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ImportSessionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MatriculaNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportSessionId");
+
+                    b.HasIndex("MatriculaNumber")
+                        .IsUnique();
+
+                    b.ToTable("Matriculas");
                 });
 
             modelBuilder.Entity("SalesApp.Models.ContractMetadata", b =>
@@ -675,23 +716,8 @@ namespace SalesApp.Api.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(true);
 
-                    b.Property<bool>("IsOwner")
+                    b.Property<int>("MatriculaId")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("MatriculaNumber")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT")
-                        .HasDefaultValue("active");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
@@ -703,10 +729,13 @@ namespace SalesApp.Api.Migrations
 
                     b.HasIndex("ImportSessionId");
 
-                    b.HasIndex("MatriculaNumber");
+                    b.HasIndex("MatriculaId");
 
-                    b.HasIndex("UserId", "MatriculaNumber")
-                        .IsUnique();
+                    b.HasIndex("MatriculaId", "IsOwner")
+                        .IsUnique()
+                        .HasFilter("IsOwner = 1");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("UserMatriculas");
                 });
@@ -754,9 +783,9 @@ namespace SalesApp.Api.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("SalesApp.Models.UserMatricula", "UserMatricula")
+                    b.HasOne("SalesApp.Models.Matricula", "Matricula")
                         .WithMany()
-                        .HasForeignKey("UserMatriculaId")
+                        .HasForeignKey("MatriculaId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CategoryMetadata");
@@ -907,6 +936,12 @@ namespace SalesApp.Api.Migrations
                         .HasForeignKey("ImportSessionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("SalesApp.Models.Matricula", "Matricula")
+                        .WithMany()
+                        .HasForeignKey("MatriculaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SalesApp.Models.User", "User")
                         .WithMany("UserMatriculas")
                         .HasForeignKey("UserId")
@@ -914,6 +949,8 @@ namespace SalesApp.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("ImportSession");
+
+                    b.Navigation("Matricula");
 
                     b.Navigation("User");
                 });

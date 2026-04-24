@@ -92,7 +92,7 @@ namespace SalesApp.Services
                 .Where(m => m.IsActive && 
                             (m.EndDate == null || m.EndDate > now) &&
                             allowedUserIds.Contains(m.UserId))
-                .Select(m => m.MatriculaNumber)
+                .Select(m => m.Matricula.MatriculaNumber)
                 .Distinct()
                 .ToListAsync();
 
