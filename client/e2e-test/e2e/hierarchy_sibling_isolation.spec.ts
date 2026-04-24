@@ -40,7 +40,7 @@ test.describe('[TEAR 3] Sibling Isolation', () => {
       data: {
         contractNumber: SIBLING_CONTRACT,
         totalAmount: 10000,
-        status: 'active',
+        status: 'Active',
         matriculaNumber: SIBLING_MATRICULA,
       },
     });

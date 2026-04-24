@@ -21,13 +21,13 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     // Clean up any existing config for this store just in case
     // We use exact: true and .first() to prevent strict mode violations if multiple rows exist
     const accountRow = page.locator('tr').filter({ has: page.getByText(testStore, { exact: true }) }).first();
-    
+
     while (await accountRow.isVisible()) {
-        page.once('dialog', async dialog => await dialog.accept());
-        const trashButton = accountRow.locator('button', { has: page.locator('.tabler-icon-trash') });
-        await trashButton.click();
-        await expect(page.getByText('Vínculo de conta removido')).toBeVisible({ timeout: 10000 });
-        await page.waitForTimeout(500); // slight pause to allow table to update
+      page.once('dialog', async dialog => await dialog.accept());
+      const trashButton = accountRow.locator('button', { has: page.locator('.tabler-icon-trash') });
+      await trashButton.click();
+      await expect(page.getByText('Vínculo de conta removido')).toBeVisible({ timeout: 10000 });
+      await page.waitForTimeout(500); // slight pause to allow table to update
     }
 
     // Click Nova Conta
@@ -53,7 +53,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
 
     // Wait for the success notification to disappear or just reload
     await page.reload();
-    
+
     // We must wait for the dashboard to render and network to settle
     await expect(page.getByRole('heading', { name: 'Extração PowerBI' })).toBeVisible();
     await expect(accountRow).toBeVisible();
@@ -74,18 +74,18 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     const trashButton = accountRow.locator('button', { has: page.locator('.tabler-icon-trash') });
     console.log(`>>> Clicking Trash button...`);
     await trashButton.click({ force: true });
-    
+
     console.log(`>>> Waiting for result notification...`);
 
     // Wait for EITHER success or failure notification
     const successNotif = page.getByText('Vínculo de conta removido');
     const errorNotif = page.getByText('Falha ao remover');
-    
+
     await expect(successNotif.or(errorNotif)).toBeVisible({ timeout: 10000 });
-    
+
     // Check if it was an error
     if (await errorNotif.isVisible()) {
-        throw new Error('>>> API FAIL: The backend returned an error when trying to delete the config.');
+      throw new Error('>>> API FAIL: The backend returned an error when trying to delete the config.');
     }
     await expect(accountRow).not.toBeVisible();
 

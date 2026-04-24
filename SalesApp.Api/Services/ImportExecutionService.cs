@@ -246,11 +246,7 @@ namespace SalesApp.Services
                 throw new ArgumentException($"Group not found: {groupValue}");
             }
 
-<<<<<<< HEAD
             // Look up user by email if provided
-=======
-            // Look up user by email (now optional)
->>>>>>> development
             User? user = null;
             if (!string.IsNullOrWhiteSpace(userEmail))
             {
@@ -261,71 +257,19 @@ namespace SalesApp.Services
                 }
             }
 
-<<<<<<< HEAD
-            // Resolve the specific UserMatricula from the CSV row (already fetched above or fallback)
-            int? userMatriculaId = null;
-            if (!string.IsNullOrWhiteSpace(matriculaNumber))
-            {
-                if (user != null)
-                {
-                    // Existing logic: user is explicitly known
-                    var cacheKey = $"{user.Id}:{matriculaNumber}";
-                    if (matriculaCache != null && matriculaCache.TryGetValue(cacheKey, out var cachedMatriculaId))
-                    {
-                        userMatriculaId = cachedMatriculaId;
-                    }
-                    else
-                    {
-                        var userMatricula = await _matriculaRepository.GetByMatriculaNumberAndUserIdAsync(matriculaNumber, user.Id);
-                        userMatriculaId = userMatricula?.Id;
-                        if (matriculaCache != null)
-                        {
-                            matriculaCache[cacheKey] = userMatriculaId;
-                        }
-                    }
-                }
-                else
-                {
-                    // Scraper logic: find the global owner of this matricula
-                    var ownerMatricula = await _matriculaRepository.GetOwnerByMatriculaNumberAsync(matriculaNumber);
-                    if (ownerMatricula != null)
-                    {
-                        userMatriculaId = ownerMatricula.Id;
-                        user = ownerMatricula.User; // Automatically assign the contract to the owner
-=======
             // Resolve the specific Matricula from the CSV row
-            var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
-            int? matriculaId = null;
-            if (!string.IsNullOrWhiteSpace(matriculaNumber))
+            int? matriculaId = await EnsureMatriculaExistsAsync(matriculaNumber, importSessionId, matriculaCache);
+
+            // If user is not provided by email, try to find the owner of this matricula
+            if (user == null && matriculaId.HasValue)
             {
-                if (matriculaCache != null && matriculaCache.TryGetValue(matriculaNumber, out var cachedId))
+                var ownerRel = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId.Value);
+                if (ownerRel != null)
                 {
-                    matriculaId = cachedId;
-                }
-                else
-                {
-                    var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(matriculaNumber);
-                    if (matricula == null)
-                    {
-                        // Auto-create matricula if it doesn't exist? 
-                        // For now, let's create it to ensure the contract link works
-                        matricula = new Matricula
-                        {
-                            MatriculaNumber = matriculaNumber,
-                            StartDate = DateTime.UtcNow,
-                            Status = "active",
-                            ImportSessionId = importSessionId
-                        };
-                        await _matriculaRepository.CreateAsync(matricula);
-                    }
-                    matriculaId = matricula.Id;
-                    if (matriculaCache != null)
-                    {
-                        matriculaCache[matriculaNumber] = matriculaId;
->>>>>>> development
-                    }
+                    user = ownerRel.User;
                 }
             }
+
             // Extract optional fields
             var statusInput = GetFieldValue(row, reverseMappings, "Status");
             var mappedStatus = _statusMapper.MapStatus(statusInput);
@@ -391,15 +335,11 @@ namespace SalesApp.Services
             var contract = existingContract ?? new Contract { CreatedAt = DateTime.UtcNow };
 
             contract.ContractNumber = contractNumber;
-<<<<<<< HEAD
             contract.UserId = user?.Id; // Can be null if unassigned
             if (user == null && !string.IsNullOrWhiteSpace(matriculaNumber) && string.IsNullOrWhiteSpace(contract.TempMatricula))
             {
                 contract.TempMatricula = matriculaNumber;
             }
-=======
-            contract.UserId = user?.Id;
->>>>>>> development
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
             contract.Status = status;
@@ -442,12 +382,14 @@ namespace SalesApp.Services
             // the GetByEmailAsync(carlos) call returns null and parentId is silently lost.
             rows = SortRowsTopologically(rows, reverseMappings);
 
+            var matriculaCache = new Dictionary<string, int?>();
+
             for (int i = 0; i < rows.Count; i++)
             {
                 try
                 {
                     var row = rows[i];
-                    var user = await CreateUserFromRowAsync(row, reverseMappings, importSessionId);
+                    var user = await CreateUserFromRowAsync(row, reverseMappings, importSessionId, matriculaCache);
 
                     if (user != null)
                     {
@@ -590,7 +532,8 @@ namespace SalesApp.Services
         private async Task<User?> CreateUserFromRowAsync(
             Dictionary<string, string> row,
             Dictionary<string, List<string>> reverseMappings,
-            int importSessionId)
+            int importSessionId,
+            Dictionary<string, int?>? matriculaCache = null)
         {
             // Extract required fields
             var name = GetFieldValue(row, reverseMappings, "Name");
@@ -720,17 +663,11 @@ namespace SalesApp.Services
                 try
                 {
                     // 1. Ensure the Matricula exists
-                    var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(matricula);
-                    if (matriculaEntity == null)
+                    int? matriculaId = await EnsureMatriculaExistsAsync(matricula, importSessionId, matriculaCache);
+                    
+                    if (!matriculaId.HasValue)
                     {
-                        matriculaEntity = new Matricula
-                        {
-                            MatriculaNumber = matricula,
-                            StartDate = DateTime.UtcNow,
-                            Status = "active",
-                            ImportSessionId = importSessionId
-                        };
-                        await _matriculaRepository.CreateAsync(matriculaEntity);
+                        throw new ArgumentException("Failed to resolve or create matricula.");
                     }
 
                     // 2. Link User to Matricula via UserMatricula
@@ -741,7 +678,7 @@ namespace SalesApp.Services
                         var userMatricula = new UserMatricula
                         {
                             UserId = createdUser.Id,
-                            MatriculaId = matriculaEntity.Id,
+                            MatriculaId = matriculaId.Value,
                             IsOwner = isMatriculaOwner,
                             IsActive = true,
                             ImportSessionId = importSessionId
@@ -1002,9 +939,10 @@ namespace SalesApp.Services
             // Create reverse mapping (target field -> list of source columns)
             var reverseMappings = mappings.GroupBy(kvp => kvp.Value)
                 .ToDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToList());
-            var contractsToAdd = new List<Contract>();
             var groupCache = new Dictionary<string, int?>();
             var pvCache = new Dictionary<string, int?>();
+            var matriculaCache = new Dictionary<string, int?>();
+            var contractsToAdd = new List<Contract>();
 
             if (rows.Any())
             {
@@ -1088,7 +1026,7 @@ namespace SalesApp.Services
                         continue;
                     }
 
-                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, importSessionId, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract);
+                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, importSessionId, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract, matriculaCache);
 
                     if (contract != null)
                     {
@@ -1153,7 +1091,8 @@ namespace SalesApp.Services
             ImportResult result,
             bool allowAutoCreateGroups = false,
             bool allowAutoCreatePVs = false,
-            Contract? existingContract = null)
+            Contract? existingContract = null,
+            Dictionary<string, int?>? matriculaCache = null)
         {
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
             var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
@@ -1180,6 +1119,10 @@ namespace SalesApp.Services
                     if (string.IsNullOrWhiteSpace(quotaStr)) quotaStr = cotaInfo.Matricula; // In this context Matricula is the Quota/Cota number
                 }
             }
+
+            // Resolve Matricula Id
+            var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
+            int? matriculaId = await EnsureMatriculaExistsAsync(matriculaNumber, importSessionId, matriculaCache);
 
             // Resolve Group ID
             var groupId = await ResolveGroupIdAsync(groupValue, groupCache, importSessionId, allowAutoCreateGroups, result);
@@ -1282,6 +1225,16 @@ namespace SalesApp.Services
                     userId = user.Id;
                 }
             }
+
+            // If user is not provided by email, try to find the owner of this matricula
+            if (!userId.HasValue && matriculaId.HasValue)
+            {
+                var ownerRel = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId.Value);
+                if (ownerRel != null)
+                {
+                    userId = ownerRel.User.Id;
+                }
+            }
             
             // Create or Update contract
             var contract = existingContract ?? new Contract { CreatedAt = DateTime.UtcNow };
@@ -1312,6 +1265,11 @@ namespace SalesApp.Services
             contract.ImportSessionId = importSessionId;
             contract.CategoryMetadataId = categoryMetadataId;
             contract.PlanoVendaMetadataId = planoVendaMetadataId;
+            
+            if (matriculaId.HasValue)
+            {
+                contract.MatriculaId = matriculaId;
+            }
 
             return contract;
         }
@@ -1482,6 +1440,42 @@ namespace SalesApp.Services
             };
             
             return await _metadataRepository.CreateAsync(newMetadata);
+        }
+
+        private async Task<int?> EnsureMatriculaExistsAsync(
+            string? matriculaNumber, 
+            int importSessionId, 
+            Dictionary<string, int?>? cache = null)
+        {
+            if (string.IsNullOrWhiteSpace(matriculaNumber))
+            {
+                return null;
+            }
+
+            if (cache != null && cache.TryGetValue(matriculaNumber, out var cachedId))
+            {
+                return cachedId;
+            }
+
+            var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(matriculaNumber.Trim());
+            if (matricula == null)
+            {
+                matricula = new Matricula
+                {
+                    MatriculaNumber = matriculaNumber.Trim(),
+                    StartDate = DateTime.UtcNow,
+                    Status = "active",
+                    ImportSessionId = importSessionId
+                };
+                await _matriculaRepository.CreateAsync(matricula);
+            }
+
+            if (cache != null)
+            {
+                cache[matriculaNumber] = matricula.Id;
+            }
+
+            return matricula.Id;
         }
 
         public async Task<bool> UndoImportAsync(int importSessionId)
