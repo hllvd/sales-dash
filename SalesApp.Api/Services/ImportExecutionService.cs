@@ -18,6 +18,7 @@ namespace SalesApp.Services
         private readonly IContractMetadataRepository _metadataRepository;
         private readonly IPVRepository _pvRepository;
         private readonly IContractStatusMapper _statusMapper;
+        private readonly IImportErrorService _errorService;
 
         public ImportExecutionService(
             IContractRepository contractRepository,
@@ -30,7 +31,8 @@ namespace SalesApp.Services
             AppDbContext context,
             IContractMetadataRepository metadataRepository,
             IPVRepository pvRepository,
-            IContractStatusMapper statusMapper)
+            IContractStatusMapper statusMapper,
+            IImportErrorService errorService)
         {
             _contractRepository = contractRepository;
             _groupRepository = groupRepository;
@@ -43,6 +45,7 @@ namespace SalesApp.Services
             _metadataRepository = metadataRepository;
             _pvRepository = pvRepository;
             _statusMapper = statusMapper;
+            _errorService = errorService;
         }
 
         public async Task<ImportResult> ExecuteContractImportAsync(
@@ -94,6 +97,14 @@ namespace SalesApp.Services
                 if (unmappedColumns.Any())
                 {
                     result.Warnings.Add($"Unmapped columns detected in source: {string.Join(", ", unmappedColumns)}. These columns are being ignored.");
+                    
+                    // ✅ Log to DynamoDB for external monitoring
+                    await _errorService.LogErrorAsync(
+                        ImportErrorType.HeaderMismatch, 
+                        "Contract", 
+                        $"PBI Headers changed. Unmapped columns: {string.Join(", ", unmappedColumns)}",
+                        new { UploadId = uploadId, UnmappedHeaders = unmappedColumns },
+                        importSessionId);
                 }
             }
             for (int i = 0; i < rows.Count; i++)
@@ -275,7 +286,16 @@ namespace SalesApp.Services
             var mappedStatus = _statusMapper.MapStatus(statusInput);
             if (mappedStatus == null && !string.IsNullOrWhiteSpace(statusInput))
             {
-                result.Warnings.Add($"Unrecognized status value: '{statusInput}' for contract '{contractNumber}'. Defaulting to Active.");
+                var warning = $"Unrecognized status value: '{statusInput}' for contract '{contractNumber}'. Defaulting to Active.";
+                result.Warnings.Add(warning);
+                
+                // ✅ Log Status Anomaly to DynamoDB
+                await _errorService.LogErrorAsync(
+                    ImportErrorType.StatusAnomaly,
+                    "Contract",
+                    warning,
+                    new { ContractNumber = contractNumber, RawStatus = statusInput },
+                    importSessionId);
             }
             var status = mappedStatus ?? ContractStatus.Active.ToApiString();
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
@@ -383,7 +403,27 @@ namespace SalesApp.Services
             rows = SortRowsTopologically(rows, reverseMappings);
 
             var matriculaCache = new Dictionary<string, int?>();
-
+            
+            // Header Integrity Check
+            if (rows.Any())
+            {
+                var keys = rows.First().Keys.ToList();
+                var mappedColumns = reverseMappings.Values.SelectMany(v => v).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var unmappedColumns = keys.Where(k => !mappedColumns.Contains(k)).ToList();
+                if (unmappedColumns.Any())
+                {
+                    result.Warnings.Add($"Unmapped columns detected in source: {string.Join(", ", unmappedColumns)}. These columns are being ignored.");
+                    
+                    // ✅ Log to DynamoDB for external monitoring
+                    await _errorService.LogErrorAsync(
+                        ImportErrorType.HeaderMismatch, 
+                        "User", 
+                        $"User Import Headers changed. Unmapped columns: {string.Join(", ", unmappedColumns)}",
+                        new { UploadId = uploadId, UnmappedHeaders = unmappedColumns },
+                        importSessionId);
+                }
+            }
+            
             for (int i = 0; i < rows.Count; i++)
             {
                 try
@@ -672,6 +712,22 @@ namespace SalesApp.Services
 
                     // 2. Link User to Matricula via UserMatricula
                     var existingLink = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(matricula, createdUser.Id);
+
+                    if (isMatriculaOwner)
+                    {
+                        // Check if someone else is the current owner
+                        var currentOwner = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId.Value);
+                        if (currentOwner != null && currentOwner.UserId != createdUser.Id)
+                        {
+                            // ✅ Log Ownership Conflict to DynamoDB
+                            await _errorService.LogErrorAsync(
+                                ImportErrorType.OwnershipConflict,
+                                "UserMatricula",
+                                $"Ownership transfer for matricula {matricula}: from {currentOwner.UserId} to {createdUser.Id}",
+                                new { Matricula = matricula, OldOwnerId = currentOwner.UserId, NewOwnerId = createdUser.Id },
+                                importSessionId);
+                        }
+                    }
 
                     if (existingLink == null)
                     {

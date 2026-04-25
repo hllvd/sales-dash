@@ -241,14 +241,35 @@ namespace SalesApp.Controllers
         [HasPermission("contracts:create")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> CreateContract(ContractRequest request)
         {
-            // Validate contract number doesn't already exist
+            // Validate contract number doesn't already exist (active contracts only)
             var existingContract = await _contractRepository.GetByContractNumberAsync(request.ContractNumber);
             if (existingContract != null)
             {
-                return BadRequest(new ApiResponse<ContractResponse>
+                if (existingContract.IsActive)
                 {
-                    Success = false,
-                    Message = _messageService.Get(AppMessage.ContractNumberAlreadyExists)
+                    return BadRequest(new ApiResponse<ContractResponse>
+                    {
+                        Success = false,
+                        Message = _messageService.Get(AppMessage.ContractNumberAlreadyExists)
+                    });
+                }
+
+                // Restore a soft-deleted contract with the new request data
+                existingContract.IsActive = true;
+                existingContract.TotalAmount = request.TotalAmount;
+                existingContract.Status = request.Status;
+                existingContract.SaleStartDate = request.ContractStartDate;
+                existingContract.UserId = request.UserId;
+                existingContract.GroupId = request.GroupId;
+                existingContract.CustomerName = request.CustomerName;
+                existingContract.UpdatedAt = DateTime.UtcNow;
+
+                await _contractRepository.UpdateAsync(existingContract);
+                return Ok(new ApiResponse<ContractResponse>
+                {
+                    Success = true,
+                    Data = MapToContractResponse(existingContract),
+                    Message = _messageService.Get(AppMessage.ContractCreatedSuccessfully)
                 });
             }
             
@@ -354,25 +375,14 @@ namespace SalesApp.Controllers
             }
 
             
-            try
+            await _contractRepository.CreateAsync(contract);
+            
+            return Ok(new ApiResponse<ContractResponse>
             {
-                await _contractRepository.CreateAsync(contract);
-                
-                return Ok(new ApiResponse<ContractResponse>
-                {
-                    Success = true,
-                    Data = MapToContractResponse(contract),
-                    Message = _messageService.Get(AppMessage.ContractCreatedSuccessfully)
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new ApiResponse<ContractResponse>
-                {
-                    Success = false,
-                    Message = $"Internal server error: {ex.Message}. Details: {ex.InnerException?.Message}"
-                });
-            }
+                Success = true,
+                Data = MapToContractResponse(contract),
+                Message = _messageService.Get(AppMessage.ContractCreatedSuccessfully)
+            });
         }
         
         [HttpPut("{id}")]

@@ -89,14 +89,25 @@ namespace SalesApp.Repositories
             matricula.CreatedAt = DateTime.UtcNow;
             matricula.UpdatedAt = DateTime.UtcNow;
             
-            _context.UserMatriculas.Add(matricula);
-            await _context.SaveChangesAsync();
-            
-            // If this matricula is being set as owner, remove owner flag from others
+            // ✅ Fix: If this matricula is being set as owner, unset others BEFORE adding this to the context
+            // This prevents a temporary state where two owners exist (violating SQLite unique constraint)
             if (matricula.IsOwner)
             {
-                await SetOwnerAsync(matricula.MatriculaId, matricula.UserId);
+                var existingOwners = await _context.UserMatriculas
+                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.UserId != matricula.UserId)
+                    .ToListAsync();
+                
+                foreach (var owner in existingOwners)
+                {
+                    owner.IsOwner = false;
+                    owner.UpdatedAt = DateTime.UtcNow;
+                }
+                // Save the unsets first
+                await _context.SaveChangesAsync();
             }
+            
+            _context.UserMatriculas.Add(matricula);
+            await _context.SaveChangesAsync();
             
             return await GetByIdAsync(matricula.Id) ?? matricula;
         }
@@ -114,10 +125,20 @@ namespace SalesApp.Repositories
 
             matricula.UpdatedAt = DateTime.UtcNow;
             
-            // If this matricula is being set as owner, remove owner flag from others
+            // ✅ Fix: If this matricula is being set as owner, unset others BEFORE updating this record
             if (matricula.IsOwner)
             {
-                await SetOwnerAsync(matricula.MatriculaId, matricula.UserId);
+                var existingOwners = await _context.UserMatriculas
+                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.UserId != matricula.UserId)
+                    .ToListAsync();
+                
+                foreach (var owner in existingOwners)
+                {
+                    owner.IsOwner = false;
+                    owner.UpdatedAt = DateTime.UtcNow;
+                }
+                // Save the unsets first
+                await _context.SaveChangesAsync();
             }
             
             var existingEntry = _context.ChangeTracker.Entries<UserMatricula>()

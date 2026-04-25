@@ -109,8 +109,9 @@ namespace SalesApp
                 return new AmazonDynamoDBClient(dynamoDbConfig);
             });
 
-            // Scraping Services
+            // Scraping and Error Services
             services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();
+            services.AddScoped<IImportErrorService, ImportErrorService>();
             services.AddScoped<IScrapeImportService, ScrapeImportService>();
             services.AddScoped<IScrapeOrchestrator, ScrapeOrchestrator>();
 

@@ -4,7 +4,9 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
   const adminEmail = 'superadmin@salesapp.com';
   const adminPassword = 'string';
   const user1 = 'carlosmendes@example.com';
+  const user1Name = 'Carlos Mendes';
   const user2 = 'mariaeduarda@example.com';
+  const user2Name = 'Maria Eduarda';
   const testMatricula = 'OWNERSHIP-TEST-001';
 
   test.beforeEach(async ({ page }) => {
@@ -41,9 +43,10 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
     // Wait for the modal to disappear
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
 
-    // Verify it appeared in the list
-    await expect(page.locator('tr', { hasText: testMatricula })).toContainText('Proprietário');
-    console.log(`>>> Success: ${user1} is now owner of ${testMatricula}`);
+    // Verify it appeared in the list — filter by name (table shows name, not email)
+    const user1Row = page.locator('tr', { hasText: testMatricula }).filter({ hasText: user1Name });
+    await expect(user1Row).toContainText('Proprietário');
+    console.log(`>>> Success: ${user1Name} is now owner of ${testMatricula}`);
 
     console.log('>>> Step 2: Try to assign another user as owner of the SAME matricula');
 
@@ -60,23 +63,37 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
     await ownerCheckbox.check();
 
     await page.click('button:has-text("Criar Matrícula")');
+    
+    // ✅ NEW BEHAVIOR: The assignment should succeed because we now support ownership transfer!
+    // Verify the modal closes and the second user is now the owner
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    
+    // Verify User 2 is now owner — filter by name (table shows name, not email)
+    const user2Row = page.locator('tr', { hasText: testMatricula }).filter({ hasText: user2Name });
+    await expect(user2Row).toContainText('Proprietário', { timeout: 10000 });
+    
+    // Verify User 1 is no longer owner
+    const user1RowAfter = page.locator('tr', { hasText: testMatricula }).filter({ hasText: user1Name });
+    await expect(user1RowAfter).not.toContainText('Proprietário');
+    
+    console.log(`>>> Success: Ownership was successfully transferred to ${user2Name}.`);
 
-    // Expect an error message (this depends on how the backend returns errors)
-    // The AppDbContext uses a unique index, so the backend should return a 400 or 500
-    // and the frontend should display the error message.
-    const errorMessage = page.locator('.error-message, [style*="color: red"]');
-    await expect(errorMessage).toBeVisible({ timeout: 10000 });
+    // Cleanup: Delete all matricula records created for this test.
+    // We wait for the count to decrease after each deletion to handle multiple rows.
+    const testRows = page.locator('tr', { hasText: testMatricula });
+    let count = await testRows.count();
+    
+    while (count > 0) {
+      console.log(`>>> Cleaning up: ${count} rows remaining for ${testMatricula}`);
+      await testRows.first().locator('button[title="Excluir"], .tabler-icon-trash').click();
+      await page.click('button:has-text("Confirmar")');
+      
+      // Wait for the count to decrease
+      await expect(testRows).toHaveCount(count - 1, { timeout: 10000 });
+      count = await testRows.count();
+    }
 
-    console.log('>>> Success: Second owner assignment was blocked as expected.');
-
-    // Cleanup: Delete the first one so test can be re-run
-    await page.click('button:has-text("Cancelar")'); // Close modal
-
-    const userRow = page.locator('tr', { hasText: testMatricula });
-    await userRow.locator('button[title="Excluir"], .tabler-icon-trash').click();
-    await page.click('button:has-text("Confirmar")');
-
-    await expect(userRow).not.toBeVisible();
+    await expect(page.locator('tr', { hasText: testMatricula })).not.toBeVisible();
     console.log('>>> Cleanup complete.');
   });
 });

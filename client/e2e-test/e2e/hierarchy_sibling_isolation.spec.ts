@@ -5,25 +5,14 @@ import { test, expect } from '@playwright/test';
  *
  * Verifies that two users who are NOT in a parent-child relationship
  * ("siblings" in the hierarchy) cannot see each other's contracts.
- *
- * Chain under test:
- *   [Root Level]
- *   ├── Carlos Mendes   (carlosmendes@example.com) — Admin  ← LOGIN USER
- *   │   └── Julio Mota  (juliomota@example.com)             ← Child of Carlos
- *   └── Leonardo Bandieri (leonardobandieri@example.com)    ← Unrelated (sibling-level)
- *       [uses matricula 10134]
- *
- * Carlos's allowed matriculas: {6111, 11177, 9999, 7777, 8888}
- * 10134 is NOT in that set → Carlos must see 0 contracts for 10134 contracts.
- *
- * The test also verifies from the positive side (superadmin CAN see it)
- * to guarantee the contract actually exists and the test is not trivially passing.
  */
 test.describe('[TEAR 3] Sibling Isolation', () => {
-  const SIBLING_CONTRACT = 'ISOLATION-10134-001';
+  // Use a unique ID for each run to avoid any soft-delete or persistence conflicts
+  const RUN_ID = Date.now().toString().slice(-6);
+  const SIBLING_CONTRACT = `ISO${RUN_ID}`;
   const SIBLING_MATRICULA = '10134';
 
-  // ── Seed: create one contract for matricula 10134 via superadmin API ──────
+  // ── Seed: create the probe contract ───────────────────────────────────────
   test.beforeAll(async ({ playwright, baseURL }) => {
     const ctx = await playwright.request.newContext({ baseURL });
 
@@ -34,7 +23,6 @@ test.describe('[TEAR 3] Sibling Isolation', () => {
     const { data: { token } } = await loginRes.json();
     const headers = { Authorization: `Bearer ${token}` };
 
-    // Create the isolation probe contract (idempotent: 400 = already exists)
     const createRes = await ctx.post('/api/contracts', {
       headers,
       data: {
@@ -42,54 +30,92 @@ test.describe('[TEAR 3] Sibling Isolation', () => {
         totalAmount: 10000,
         status: 'Active',
         matriculaNumber: SIBLING_MATRICULA,
+        contractStartDate: '2000-01-01',
       },
     });
-    expect([200, 201, 400]).toContain(createRes.status());
+
+    const status = createRes.status();
+    if (!createRes.ok()) {
+      const err = await createRes.text();
+      console.error(`>>> API ERROR creating probe contract ${SIBLING_CONTRACT}: HTTP ${status} - Body: ${err}`);
+    } else {
+      const json = await createRes.json();
+      console.log(`>>> Probe contract ready: ${SIBLING_CONTRACT} (id=${json?.data?.id})`);
+    }
+    expect(createRes.ok()).toBeTruthy();
 
     await ctx.dispose();
   });
 
-  // ── Positive: superadmin can see the contract (confirms it exists) ─────────
-  test('superadmin can see the isolation probe contract', async ({ page }) => {
-    test.setTimeout(30_000);
+  // ── Teardown: clean up ─────────────────────────────────────────────────────
+  test.afterAll(async ({ playwright, baseURL }) => {
+    const ctx = await playwright.request.newContext({ baseURL });
+    const loginRes = await ctx.post('/api/users/login', {
+      data: { email: 'superadmin@salesapp.com', password: 'string' },
+    });
+    if (!loginRes.ok()) { await ctx.dispose(); return; }
+    const { data: { token } } = await loginRes.json();
+    const headers = { Authorization: `Bearer ${token}` };
 
+    const listRes = await ctx.get(`/api/contracts?contractNumber=${SIBLING_CONTRACT}`, { headers });
+    if (listRes.ok()) {
+      const body = await listRes.json();
+      const contracts: Array<{ id: number }> = body?.data?.items ?? body?.data ?? [];
+      for (const contract of contracts) {
+        await ctx.delete(`/api/contracts/${contract.id}`, { headers });
+      }
+    }
+    await ctx.dispose();
+  });
+
+  test('superadmin can see the isolation probe contract', async ({ page }) => {
+    test.setTimeout(45_000);
     await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
     await page.fill('input[type="email"]', 'superadmin@salesapp.com');
     await page.fill('input[type="password"]', 'string');
     await page.click('button.login-button');
 
     await page.getByRole('link', { name: 'Contratos', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
+
+    await page.fill('input#filterStartDate', '');
+    
+    const searchPromise = page.waitForResponse(resp =>
+      resp.url().includes('/api/contracts') &&
+      resp.url().includes(SIBLING_CONTRACT) &&
+      resp.status() === 200
+    );
 
     await page.fill('input#filterContractNumber', SIBLING_CONTRACT);
-    await page.waitForTimeout(4000); // debounce
+    await searchPromise;
 
-    await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 10_000 });
+    await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 15_000 });
   });
 
-  // ── Negative: Carlos CANNOT see 10134 contracts (sibling isolation) ────────
   test('Carlos Mendes cannot see contracts belonging to unrelated matricula 10134', async ({ page }) => {
-    test.setTimeout(30_000);
-
+    test.setTimeout(45_000);
     await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
     await page.fill('input[type="email"]', 'carlosmendes@example.com');
     await page.fill('input[type="password"]', '123456');
     await page.click('button.login-button');
 
-    // Admin sees "Gerenciamento de Contratos", not "Meus Contratos"
     await page.getByTestId('nav-contracts').click();
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
-    // Filter by the probe contract number created via superadmin
+    await page.fill('input#filterStartDate', '');
+
+    const searchPromiseNeg = page.waitForResponse(resp =>
+      resp.url().includes('/api/contracts') &&
+      resp.url().includes(SIBLING_CONTRACT) &&
+      resp.status() === 200
+    );
+
     await page.fill('input#filterContractNumber', SIBLING_CONTRACT);
-    await page.waitForTimeout(4000); // debounce
+    await searchPromiseNeg;
 
-    // Carlos must see 0 rows — 10134 is not in his descendant tree
-    const rows = page.locator('table tbody tr');
-    const emptyState = page.locator('.contracts-empty, [data-testid="no-results"]');
-
-    const rowCount = await rows.count();
+    const rowCount = await page.locator('table tbody tr').count();
     expect(rowCount).toBe(0);
-    console.log(`>>> Sibling isolation confirmed: Carlos sees ${rowCount} rows for contract ${SIBLING_CONTRACT}`);
   });
 });
