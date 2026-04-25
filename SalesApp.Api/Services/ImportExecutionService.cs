@@ -428,6 +428,9 @@ namespace SalesApp.Services
                 if (email == null) continue;
 
                 var parentEmail = GetParentEmail(row);
+                // Ignore self-references — a user cannot be their own parent.
+                if (string.Equals(parentEmail, email, StringComparison.OrdinalIgnoreCase))
+                    parentEmail = null;
                 bool hasInBatchParent = !string.IsNullOrWhiteSpace(parentEmail)
                     && allEmailsInBatch.Contains(parentEmail);
 
@@ -551,6 +554,12 @@ namespace SalesApp.Services
             int resolvedRoleId = newRole?.Id ?? (int)Models.RoleId.User;
 
             // Resolve Parent
+            // Guard: if parentEmail == own email, ignore it — a user cannot be their own parent.
+            // This silently corrects a common data-entry mistake before it creates a self-loop
+            // in the hierarchy tree (which would later cause infinite recursion or JSON cycle errors).
+            if (!string.IsNullOrWhiteSpace(parentEmail) && parentEmail == email)
+                parentEmail = null;
+
             Guid? parentId = null;
             if (!string.IsNullOrWhiteSpace(parentEmail))
             {
