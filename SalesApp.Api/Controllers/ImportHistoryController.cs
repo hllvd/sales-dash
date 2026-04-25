@@ -25,19 +25,39 @@ namespace SalesApp.Controllers
 
         [HttpGet("history")]
         [HasPermission("imports:history")]
-        public async Task<ActionResult<ApiResponse<List<ImportSession>>>> GetHistory()
+        public async Task<ActionResult<ApiResponse<List<ImportSessionResponse>>>> GetHistory()
         {
             var history = await _sessionRepository.GetAllAsync();
-            
-            // Only return completed or failed sessions, skip "preview" and "ready" if they are old
-            var filteredHistory = history
+
+            // Project to a flat DTO to avoid JSON circular reference errors
+            // caused by User.ChildUsers <-> User.ParentUser navigation cycles.
+            var result = history
                 .Where(s => s.Status == "completed" || s.Status == "completed_with_errors" || s.Status == "undone")
+                .Select(s => new ImportSessionResponse
+                {
+                    Id = s.Id,
+                    UploadId = s.UploadId,
+                    TemplateId = s.TemplateId,
+                    TemplateName = s.Template?.Name,
+                    TemplateEntityType = s.Template?.EntityType,
+                    FileName = s.FileName,
+                    FileType = s.FileType,
+                    Status = s.Status,
+                    TotalRows = s.TotalRows,
+                    ProcessedRows = s.ProcessedRows,
+                    FailedRows = s.FailedRows,
+                    Mappings = s.Mappings,
+                    CreatedAt = s.CreatedAt,
+                    CompletedAt = s.CompletedAt,
+                    UploadedByName = s.UploadedBy?.Name,
+                    UploadedByEmail = s.UploadedBy?.Email,
+                })
                 .ToList();
 
-            return Ok(new ApiResponse<List<ImportSession>>
+            return Ok(new ApiResponse<List<ImportSessionResponse>>
             {
                 Success = true,
-                Data = filteredHistory
+                Data = result
             });
         }
 
