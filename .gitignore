@@ -402,7 +402,6 @@ keys/
 
 # Local directories
 .local/
-Library/
 
 # .dotnet directory
 .dotnet/

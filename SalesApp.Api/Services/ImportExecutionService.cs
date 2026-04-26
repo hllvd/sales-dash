@@ -2,6 +2,7 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Data;
 using Microsoft.EntityFrameworkCore;
+using SalesApp.Libs;
 
 namespace SalesApp.Services
 {
@@ -223,7 +224,7 @@ namespace SalesApp.Services
             Dictionary<string, int?>? matriculaCache = null)
         {
             var rawCota = GetFieldValue(row, reverseMappings, "ContractNumber");
-            var cotaInfo = Library.CotaDecomposer.Decompose(rawCota);
+            var cotaInfo = CotaDecomposer.Decompose(rawCota);
             
             var contractNumber = cotaInfo.Contract;
             var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
@@ -887,7 +888,7 @@ namespace SalesApp.Services
         /// </summary>
         private string? ParseContractNumber(string? rawValue)
         {
-            return Library.CotaDecomposer.Decompose(rawValue).Contract;
+            return CotaDecomposer.Decompose(rawValue).Contract;
         }
 
         private bool TryParseBrazilianCurrency(string? input, out decimal result)
@@ -1225,7 +1226,7 @@ namespace SalesApp.Services
                     if (cotaKey != null) cotaValue = row[cotaKey];
                 }
 
-                var cotaInfo = Library.CotaDecomposer.Decompose(cotaValue);
+                var cotaInfo = CotaDecomposer.Decompose(cotaValue);
                 if (!string.IsNullOrWhiteSpace(cotaInfo.Contract))
                 {
                     if (string.IsNullOrWhiteSpace(contractNumber)) contractNumber = cotaInfo.Contract;

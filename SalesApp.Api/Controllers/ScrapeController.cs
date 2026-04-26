@@ -68,7 +68,7 @@ namespace SalesApp.Controllers
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             
-            ScrapeConfig config;
+            ScrapeConfig? config;
             bool isNew = false;
 
             if (request.Id.HasValue && request.Id > 0)
