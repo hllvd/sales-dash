@@ -63,7 +63,7 @@ namespace SalesApp.Controllers
                 EntityType = "User",
                 Description = "Template for importing users",
                 RequiredFields = JsonSerializer.Serialize(new List<string> { "Name", "Email" }),
-                OptionalFields = JsonSerializer.Serialize(new List<string> { "Surname", "Role", "ParentEmail", "SendEmail" }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { "Surname", "Role", "ParentEmail", "SendEmail", "Matricula", "IsMatriculaOwner", "Password" }),
                 DefaultMappings = "{}",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -209,6 +209,20 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<ImportPreviewResponse>>> UploadUsers(IFormFile file)
         {
             return await UploadFileInternal(file, 1);
+        }
+
+        [HttpPost("users/{uploadId}/mappings")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfigureUsersMappings(string uploadId, ColumnMappingRequest request)
+        {
+            return await ConfigureMappingsInternal(uploadId, request);
+        }
+
+        [HttpPost("users/{uploadId}/confirm")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ConfirmUsersImport(string uploadId, [FromBody] ConfirmImportRequest? request)
+        {
+            return await ConfirmImportInternal(uploadId, request);
         }
 
         #endregion
@@ -625,6 +639,7 @@ namespace SalesApp.Controllers
                     totalResult.ProcessedRows += result.ProcessedRows;
                     totalResult.FailedRows += result.FailedRows;
                     totalResult.Errors.AddRange(result.Errors);
+                    totalResult.Warnings.AddRange(result.Warnings);
                     totalResult.CreatedGroups.AddRange(result.CreatedGroups);
                     totalResult.CreatedPVs.AddRange(result.CreatedPVs);
 
@@ -654,7 +669,8 @@ namespace SalesApp.Controllers
                         UnresolvedUsers = new List<UnresolvedUserInfo>(),
                         CreatedGroups = totalResult.CreatedGroups.Distinct().ToList(),
                         CreatedPVs = totalResult.CreatedPVs.Distinct().ToList(),
-                        Errors = totalResult.Errors
+                        Errors = totalResult.Errors,
+                        Warnings = totalResult.Warnings
                     },
                     Message = successMessage
                 });

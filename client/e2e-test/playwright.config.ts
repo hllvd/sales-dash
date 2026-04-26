@@ -21,7 +21,8 @@ export default defineConfig({
         'import_wizard.spec.ts',
         'login.spec.ts',
         'smoke.spec.ts',
-        'responsive_menu.spec.ts'
+        'responsive_menu.spec.ts',
+        'circular_hierarchy_prevention.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
     },

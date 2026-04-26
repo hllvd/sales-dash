@@ -96,7 +96,7 @@ namespace SalesApp.Services
                 var unmappedColumns = keys.Where(k => !mappedColumns.Contains(k)).ToList();
                 if (unmappedColumns.Any())
                 {
-                    result.Warnings.Add($"Unmapped columns detected in source: {string.Join(", ", unmappedColumns)}. These columns are being ignored.");
+                    result.Warnings.Add($"Colunas não mapeadas detectadas na origem: {string.Join(", ", unmappedColumns)}. Estas colunas estão sendo ignoradas.");
                     
                     // ✅ Log to DynamoDB for external monitoring
                     await _errorService.LogErrorAsync(
@@ -400,7 +400,7 @@ namespace SalesApp.Services
             // ✅ Topological sort: ensure parent users are always created before their children.
             // Without this, if Julio Mota (parentEmail=carlos) appears before Carlos in the CSV,
             // the GetByEmailAsync(carlos) call returns null and parentId is silently lost.
-            rows = SortRowsTopologically(rows, reverseMappings);
+            rows = SortRowsTopologically(rows, reverseMappings, result);
 
             var matriculaCache = new Dictionary<string, int?>();
             
@@ -412,7 +412,7 @@ namespace SalesApp.Services
                 var unmappedColumns = keys.Where(k => !mappedColumns.Contains(k)).ToList();
                 if (unmappedColumns.Any())
                 {
-                    result.Warnings.Add($"Unmapped columns detected in source: {string.Join(", ", unmappedColumns)}. These columns are being ignored.");
+                    result.Warnings.Add($"Colunas não mapeadas detectadas na origem: {string.Join(", ", unmappedColumns)}. Estas colunas estão sendo ignoradas.");
                     
                     // ✅ Log to DynamoDB for external monitoring
                     await _errorService.LogErrorAsync(
@@ -429,7 +429,7 @@ namespace SalesApp.Services
                 try
                 {
                     var row = rows[i];
-                    var user = await CreateUserFromRowAsync(row, reverseMappings, importSessionId, matriculaCache);
+                    var user = await CreateUserFromRowAsync(row, reverseMappings, importSessionId, result, matriculaCache);
 
                     if (user != null)
                     {
@@ -467,7 +467,8 @@ namespace SalesApp.Services
         /// </summary>
         private List<Dictionary<string, string>> SortRowsTopologically(
             List<Dictionary<string, string>> rows,
-            Dictionary<string, List<string>> reverseMappings)
+            Dictionary<string, List<string>> reverseMappings,
+            ImportResult result)
         {
             string? GetEmail(Dictionary<string, string> row) =>
                 GetFieldValue(row, reverseMappings, "Email")?.ToLowerInvariant();
@@ -540,11 +541,45 @@ namespace SalesApp.Services
                 }
             }
 
-            // 5. Append any remaining emails (only possible if there is a cycle – safe fallback)
+            // 5. Detect and break any remaining emails (circular references)
             var sortedSet = new HashSet<string>(sortedEmails, StringComparer.OrdinalIgnoreCase);
-            foreach (var email in allEmailsInBatch)
-                if (!sortedSet.Contains(email))
+            var cyclicEmails = allEmailsInBatch.Where(e => !sortedSet.Contains(e)).ToList();
+
+            if (cyclicEmails.Any())
+            {
+                var warning = $"Encontramos referências circulares para estes usuários:\n{string.Join("\n", cyclicEmails)}\n\nDesabilitamos o campo de e-mail do superior (parentEmail) para eles.";
+                result.Warnings.Add(warning);
+                Console.WriteLine($"[Hierarchy] CIRCULAR REFERENCE DETECTED in batch import: {string.Join(", ", cyclicEmails)}");
+
+                // Group all rows by email to easily find rows belonging to cyclic emails
+                var allRowsByEmail = new Dictionary<string, List<Dictionary<string, string>>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var r in rows)
+                {
+                    var email = GetEmail(r);
+                    if (email == null) continue;
+                    if (!allRowsByEmail.ContainsKey(email)) allRowsByEmail[email] = new List<Dictionary<string, string>>();
+                    allRowsByEmail[email].Add(r);
+                }
+
+                foreach (var email in cyclicEmails)
+                {
+                    if (allRowsByEmail.TryGetValue(email, out var rowList))
+                    {
+                        foreach (var row in rowList)
+                        {
+                            // Clear the parentEmail field in the row so it doesn't try to resolve it later
+                            if (reverseMappings.TryGetValue("ParentEmail", out var cols))
+                            {
+                                foreach (var col in cols)
+                                {
+                                    if (row.ContainsKey(col)) row[col] = "";
+                                }
+                            }
+                        }
+                    }
                     sortedEmails.Add(email);
+                }
+            }
 
             // 6. Group all rows by email, preserving original relative order within each email
             var rowsByEmail = new Dictionary<string, List<Dictionary<string, string>>>(
@@ -560,22 +595,23 @@ namespace SalesApp.Services
             }
 
             // 7. Reconstruct the sorted rows list
-            var result = new List<Dictionary<string, string>>(rows.Count);
+            var sortedRows = new List<Dictionary<string, string>>(rows.Count);
             foreach (var email in sortedEmails)
                 if (rowsByEmail.TryGetValue(email, out var bucket))
-                    result.AddRange(bucket);
+                    sortedRows.AddRange(bucket);
 
             // Rows without any email come last
             if (rowsByEmail.TryGetValue(unknownKey, out var noEmailRows))
-                result.AddRange(noEmailRows);
+                sortedRows.AddRange(noEmailRows);
 
-            return result;
+            return sortedRows;
         }
 
         private async Task<User?> CreateUserFromRowAsync(
             Dictionary<string, string> row,
             Dictionary<string, List<string>> reverseMappings,
             int importSessionId,
+            ImportResult result,
             Dictionary<string, int?>? matriculaCache = null)
         {
             // Extract required fields
@@ -690,6 +726,20 @@ namespace SalesApp.Services
             // would overwrite the parentId correctly set by the first row.
             if (isNewUser || parentId.HasValue)
             {
+                if (parentId.HasValue && !isNewUser)
+                {
+                    // Check for cross-boundary circular reference
+                    if (await _userRepository.WouldCreateCycleAsync(user.Id, parentId))
+                    {
+                        var warning = $"Encontramos referências circulares para estes usuários:\n{user.Email}\n\nDesabilitamos o campo de e-mail do superior (parentEmail) para eles.";
+                        if (!result.Warnings.Contains(warning))
+                        {
+                            result.Warnings.Add(warning);
+                            Console.WriteLine($"[Hierarchy] CROSS-BOUNDARY CIRCULAR REFERENCE DETECTED for user: {user.Email} pointing to parentId: {parentId}");
+                        }
+                        parentId = null;
+                    }
+                }
                 user.ParentUserId = parentId;
             }
             user.UpdatedAt = DateTime.UtcNow;
@@ -1016,7 +1066,7 @@ namespace SalesApp.Services
                 var unmappedColumns = keys.Where(k => !mappedColumns.Contains(k)).ToList();
                 if (unmappedColumns.Any())
                 {
-                    result.Warnings.Add($"Unmapped columns detected in source: {string.Join(", ", unmappedColumns)}. These columns are being ignored.");
+                    result.Warnings.Add($"Colunas não mapeadas detectadas na origem: {string.Join(", ", unmappedColumns)}. Estas colunas estão sendo ignoradas.");
                 }
             }
 

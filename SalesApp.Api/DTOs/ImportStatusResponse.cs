@@ -18,5 +18,6 @@ namespace SalesApp.DTOs
         public List<string> CreatedGroups { get; set; } = new();
         public List<string> CreatedPVs { get; set; } = new();
         public List<string> Errors { get; set; } = new();
+        public List<string> Warnings { get; set; } = new();
     }
 }

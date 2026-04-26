@@ -41,18 +41,18 @@ namespace SalesApp.Services
         {
             // Rule 1: Cannot set self as parent
             if (newParentId == userId)
-                return "A user cannot be their own parent";
+                return "Um usuário não pode ser seu próprio superior";
             
             // Rule 2: Check for circular reference
             if (newParentId.HasValue && await _userRepository.WouldCreateCycleAsync(userId, newParentId))
-                return "This change would create a circular reference in the hierarchy";
+                return "Esta alteração criaria uma referência circular na hierarquia";
             
             // Rule 3: Only one root user allowed
             if (newParentId == null)
             {
                 var existingRoot = await _userRepository.GetRootUserAsync();
                 if (existingRoot != null && existingRoot.Id != userId)
-                    return "Only one root user is allowed in the system";
+                    return "Apenas um usuário raiz (sem superior) é permitido no sistema";
             }
             
             // Rule 4: Parent must exist and be active
@@ -60,7 +60,7 @@ namespace SalesApp.Services
             {
                 var parent = await _userRepository.GetByIdAsync(newParentId.Value);
                 if (parent == null || !parent.IsActive)
-                    return "Parent user does not exist or is inactive";
+                    return "O usuário superior não existe ou está inativo";
             }
             
             return null; // Valid

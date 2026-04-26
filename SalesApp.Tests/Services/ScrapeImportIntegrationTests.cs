@@ -144,17 +144,22 @@ namespace SalesApp.Tests.Services
                 .Setup(r => r.GetByNameAsync(It.IsAny<string>()))
                 .ReturnsAsync((PV?)null);
 
+            var mockBaseMatriculaRepo = new Mock<IMatriculaRepository>();
+            var mockErrorService = new Mock<IImportErrorService>();
+
             return new ImportExecutionService(
                 mockContractRepo.Object,
                 mockGroupRepo.Object,
                 mockUserRepo.Object,
                 mockRoleRepo.Object,
                 mockMatriculaRepo.Object,
+                mockBaseMatriculaRepo.Object,
                 mockEmailService.Object,
                 mockContext.Object,
                 mockMetadataRepo.Object,
                 mockPvRepo.Object,
-                mockStatusMapper.Object
+                mockStatusMapper.Object,
+                mockErrorService.Object
             );
         }
 
@@ -231,11 +236,14 @@ namespace SalesApp.Tests.Services
                 .Setup(r => r.GetByNameAsync(It.IsAny<string>()))
                 .ReturnsAsync((PV?)null);
 
+            var mockBaseMatriculaRepo = new Mock<IMatriculaRepository>();
+            var mockErrorService = new Mock<IImportErrorService>();
+
             var serviceWithCapture = new ImportExecutionService(
                 mockContractRepo.Object, mockGroupRepo.Object, mockUserRepo.Object,
-                mockRoleRepo.Object, mockMatriculaRepo.Object, mockEmailService.Object,
-                mockContext.Object, mockMetadataRepo.Object, mockPvRepo.Object,
-                mockStatusMapper.Object);
+                mockRoleRepo.Object, mockMatriculaRepo.Object, mockBaseMatriculaRepo.Object, 
+                mockEmailService.Object, mockContext.Object, mockMetadataRepo.Object, 
+                mockPvRepo.Object, mockStatusMapper.Object, mockErrorService.Object);
 
             // Act
             var result = await serviceWithCapture.ExecuteContractImportAsync(
@@ -326,11 +334,14 @@ namespace SalesApp.Tests.Services
                 .Setup(r => r.GetByNameAsync(It.IsAny<string>()))
                 .ReturnsAsync((PV?)null);
 
+            var mockBaseMatriculaRepo = new Mock<IMatriculaRepository>();
+            var mockErrorService = new Mock<IImportErrorService>();
+
             var service = new ImportExecutionService(
                 mockContractRepo.Object, mockGroupRepo.Object, mockUserRepo.Object,
-                mockRoleRepo.Object, mockMatriculaRepo.Object, mockEmailService.Object,
-                mockContext.Object, mockMetadataRepo.Object, mockPvRepo.Object,
-                mockStatusMapper.Object);
+                mockRoleRepo.Object, mockMatriculaRepo.Object, mockBaseMatriculaRepo.Object,
+                mockEmailService.Object, mockContext.Object, mockMetadataRepo.Object,
+                mockPvRepo.Object, mockStatusMapper.Object, mockErrorService.Object);
 
             // Act
             var result = await service.ExecuteContractImportAsync(

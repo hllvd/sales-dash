@@ -41,6 +41,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [resultMessage, setResultMessage] = useState<string>("")
   const [createdGroups, setCreatedGroups] = useState<string[]>([])
   const [createdPVs, setCreatedPVs] = useState<string[]>([])
+  const [warnings, setWarnings] = useState<string[]>([])
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role?.toLowerCase() === 'superadmin' || user.roleName?.toLowerCase() === 'superadmin';
@@ -189,6 +190,10 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         
         if (errors && errors.length > 0) {
           setError(errors.join("\n"))
+        }
+
+        if (confirmResp.data.warnings && confirmResp.data.warnings.length > 0) {
+          setWarnings(confirmResp.data.warnings)
         }
         
         setStep("result")
@@ -479,6 +484,17 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
               <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#166534' }}>
                 {createdPVs.map(pv => (
                   <li key={pv}>{pv}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {warnings.length > 0 && (
+            <div className="warnings-info" style={{ marginTop: '15px', padding: '10px', background: '#fffbeb', borderRadius: '4px', border: '1px solid #fef3c7', textAlign: 'left' }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#92400e' }}>Avisos:</h4>
+              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#92400e' }}>
+                {warnings.map((warning, idx) => (
+                  <li key={idx} style={{ whiteSpace: 'pre-wrap' }}>{warning}</li>
                 ))}
               </ul>
             </div>

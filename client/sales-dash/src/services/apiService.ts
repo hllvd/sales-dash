@@ -331,16 +331,7 @@ export const apiService = {
     allowAutoCreatePVs: boolean = false,
     skipMissingContractNumber: boolean = false,
     templateName?: string
-  ): Promise<
-    ApiResponse<{
-      uploadId: string
-      status: string
-      totalRows: number
-      processedRows: number
-      failedRows: number
-      errors: string[]
-    }>
-  > {
+  ): Promise<ApiResponse<ImportStatusResponse>> {
     let prefix = "imports"
     if (templateName === "Contracts") prefix = "imports/contracts"
     else if (templateName === "contractDashboard") prefix = "imports/dashboard"
@@ -374,18 +365,7 @@ export const apiService = {
     allowAutoCreateGroups: boolean = false,
     allowAutoCreatePVs: boolean = false,
     templateName?: string
-  ): Promise<
-    ApiResponse<{
-      uploadId: string
-      status: string
-      totalRows: number
-      processedRows: number
-      failedRows: number
-      errors: string[]
-      createdGroups: string[]
-      createdPVs: string[]
-    }>
-  > {
+  ): Promise<ApiResponse<ImportStatusResponse>> {
     let prefix = "imports"
     if (templateName === "Contracts") prefix = "imports/contracts"
     else if (templateName === "contractDashboard") prefix = "imports/dashboard"
@@ -849,6 +829,7 @@ export interface ImportStatusResponse {
   errors?: string[];
   createdGroups?: string[];
   createdPVs?: string[];
+  warnings?: string[];
 }
 
 export interface PV {
