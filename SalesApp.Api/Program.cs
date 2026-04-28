@@ -7,10 +7,11 @@ using SalesApp.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
-using AWS.Logger.SeriLog;
-using AWS.Logger;
+using Serilog.Sinks.AwsCloudWatch;
+using Serilog.Formatting.Compact;
 using Amazon;
-using Microsoft.Extensions.Configuration;
+using Amazon.Runtime;
+using Amazon.CloudWatchLogs;
 
 namespace SalesApp
 {
@@ -36,22 +37,27 @@ namespace SalesApp
                 var accessKey = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
                 var secretKey = Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
 
-                var awsConfigDict = new Dictionary<string, string?>
+                AmazonCloudWatchLogsClient client;
+                if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
                 {
-                    { "Serilog:Region", region },
-                    { "Serilog:LogGroup", group },
-                    { "Serilog:AccessKey", accessKey },
-                    { "Serilog:SecretKey", secretKey }
-                };
-                
-                var configuration = new ConfigurationBuilder()
-                    .AddInMemoryCollection(awsConfigDict)
-                    .Build();
+                    client = new AmazonCloudWatchLogsClient(accessKey, secretKey, RegionEndpoint.GetBySystemName(region));
+                }
+                else
+                {
+                    client = new AmazonCloudWatchLogsClient(RegionEndpoint.GetBySystemName(region));
+                }
 
-                loggerConfig.WriteTo.AWSSeriLog(
-                    configuration, 
-                    restrictedToMinimumLevel: LogEventLevel.Error
-                );
+                var options = new CloudWatchSinkOptions
+                {
+                    LogGroupName = group,
+                    MinimumLogEventLevel = LogEventLevel.Error,
+                    BatchSizeLimit = 50,
+                    Period = TimeSpan.FromSeconds(5),
+                    CreateLogGroup = false, // Log group is pre-created by CloudWatchRetentionInitializer
+                    TextFormatter = new CompactJsonFormatter()
+                };
+
+                loggerConfig.WriteTo.AmazonCloudWatch(options, client);
             }
 
             Log.Logger = loggerConfig.CreateLogger();
