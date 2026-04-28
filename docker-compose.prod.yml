@@ -83,14 +83,17 @@ services:
         max-file: "3"
 
   backup:
-    image: rclone/rclone:latest
+    image: alpine:3.20
     container_name: backup
     restart: always
+    environment:
+      - S3_BUCKET_NAME=${BACKUP_S3_BUCKET}
+      - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-24}
+      - MAX_BACKUPS=${BACKUP_MAX_KEEP:-7}
     volumes:
       - ./data:/app/data:ro
       - ./backup:/config
-      - ./backup/backup.sh:/backup.sh:ro
-    entrypoint: ["/bin/sh", "/backup.sh"]
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache rclone sqlite && exec /config/backup.sh"]
     logging:
       driver: "json-file"
       options:

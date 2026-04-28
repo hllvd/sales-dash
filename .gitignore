@@ -255,6 +255,7 @@ Generated_Code/
 # because we have git ;-)
 _UpgradeReport_Files/
 Backup*/
+!backup/
 UpgradeLog*.XML
 UpgradeLog*.htm
 CConversionReportFiles/
@@ -409,3 +410,6 @@ keys/
 
 # E2E Test Temporary Downloads
 client/e2e-test/temp/
+
+# Backup credentials (server-only; never commit)
+backup/rclone.conf
