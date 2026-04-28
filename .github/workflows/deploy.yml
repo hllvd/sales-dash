@@ -130,6 +130,8 @@ jobs:
             export IMAGE_TAG=${{ github.sha }}
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # Force-recreate backup so it always picks up the latest backup.sh and compose config
+            docker compose -f docker-compose.prod.yml up -d --force-recreate backup
             # Refresh Nginx to update DNS resolution for upstreams
             docker compose -f docker-compose.prod.yml restart nginx
 

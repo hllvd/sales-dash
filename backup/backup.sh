@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 # ─── Config ─────────────────────────────────────────────────────────────────
 DB_SOURCE="/app/data/SalesApp.db"
@@ -35,7 +34,10 @@ run_vacuum() {
     rm -f "$VACUUMED_DB"
 
     log "Running VACUUM INTO '$VACUUMED_DB' ..."
-    sqlite3 "$DB_SOURCE" "VACUUM INTO '$VACUUMED_DB';"
+    if ! sqlite3 "$DB_SOURCE" "VACUUM INTO '$VACUUMED_DB';"; then
+        log "ERROR: VACUUM failed. Is '$DB_SOURCE' accessible? Check volume mount and file permissions."
+        return 1
+    fi
     log "VACUUM complete. Size: $(du -sh "$VACUUMED_DB" | cut -f1)"
 }
 
