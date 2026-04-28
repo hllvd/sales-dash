@@ -91,7 +91,7 @@ services:
       - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-24}
       - MAX_BACKUPS=${BACKUP_MAX_KEEP:-7}
     volumes:
-      - ./data:/app/data:ro
+      - ./data:/app/data
       - ./backup:/config
     entrypoint: ["/bin/sh", "-c", "apk add --no-cache rclone sqlite && exec /config/backup.sh"]
     logging:

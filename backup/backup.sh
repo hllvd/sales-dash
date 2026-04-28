@@ -45,7 +45,10 @@ run_sync() {
     REMOTE_FILE="$S3_DEST/SalesApp_${TIMESTAMP}.db"
 
     log "Uploading '$VACUUMED_DB' → '$REMOTE_FILE' ..."
-    rclone --config "$RCLONE_CONFIG" copyto "$VACUUMED_DB" "$REMOTE_FILE"
+    if ! rclone --config "$RCLONE_CONFIG" copyto "$VACUUMED_DB" "$REMOTE_FILE"; then
+        log "ERROR: Upload to S3 failed. Check rclone.conf credentials and IAM policy."
+        return 1
+    fi
     log "Upload complete."
 
     # Keep only the latest N backups in S3 (default: 7)
