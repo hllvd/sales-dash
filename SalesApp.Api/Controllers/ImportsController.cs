@@ -652,6 +652,19 @@ namespace SalesApp.Controllers
                 session.FailedRows = totalResult.FailedRows;
                 await _sessionRepository.UpdateAsync(session);
 
+                // Purge staging rows — data is already committed to target tables.
+                // Best-effort: do not fail the request if cleanup errors.
+                try
+                {
+                    await _context.ImportRows
+                        .Where(r => r.ImportSessionId == session.Id)
+                        .ExecuteDeleteAsync();
+                }
+                catch (Exception cleanupEx)
+                {
+                    Console.WriteLine($"[ImportRows Cleanup] Non-fatal: failed to delete rows for session {session.Id}: {cleanupEx.Message}");
+                }
+
                 var successMessage = totalResult.FailedRows > 0 
                     ? $"Import completed with {totalResult.FailedRows} errors. {totalResult.ProcessedRows} items created."
                     : $"Import completed successfully. {totalResult.ProcessedRows} items created.";
@@ -679,6 +692,16 @@ namespace SalesApp.Controllers
             {
                 session.Status = "failed";
                 await _sessionRepository.UpdateAsync(session);
+
+                // Best-effort cleanup on failure too — rows are no longer usable.
+                try
+                {
+                    await _context.ImportRows
+                        .Where(r => r.ImportSessionId == session.Id)
+                        .ExecuteDeleteAsync();
+                }
+                catch { /* non-fatal */ }
+
                 return BadRequest(new ApiResponse<ImportStatusResponse> { Success = false, Message = $"Error executing import: {ex.Message}" });
             }
         }
