@@ -3,93 +3,59 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 
 test.describe('Import Wizard Flow', () => {
-  test('should complete the full import process and verify retention metric', async ({ page }) => {
-    // Set timeout for this specific test
-    test.setTimeout(30_000);
-    // Helper to get absolute path for test data
+  test('should complete the full import process including contract import from wizard', async ({ page }) => {
+    test.setTimeout(60_000);
+
     const getTestDataPath = (filename: string) => path.resolve(process.cwd(), 'test-data', filename);
 
-    // 1. Login as superadmin
+    // ── 1. Login as superadmin ────────────────────────────────────────────────
     await page.goto('/');
     await page.fill('input[type="email"]', 'superadmin@salesapp.com');
     await page.fill('input[type="password"]', 'string');
     await page.click('button.login-button');
 
-    // 2. Check if data is already imported (Smart Check)
-    await page.click('a[href="#/contracts"]');
-    await expect(page.getByRole('heading', { name: 'Contratos' })).toBeVisible();
-
-    // Check if there are any rows in the table
-    const rowCount = await page.locator('table tbody tr').count();
-    const aggregationVisible = await page.locator('.aggregation-summary').isVisible();
-
-    // If we have rows and the aggregation summary is visible, we can safely assume data is imported
-    // FORCED RE-IMPORT: Temporarily disabled skip logic to fix bad data mapping
-    /*
-    const isAlreadyImported = rowCount > 0 && aggregationVisible;
-
-    if (isAlreadyImported) {
-      console.log(`>>> [Tear 1] Data already imported (${rowCount} rows). Skipping import wizard steps.`);
-      return;
-    }
-    */
-
-    // 3. Verify no contracts are present initially (only if not already imported)
-    // If we reach here, we expect the table to be empty
-    // await expect(page.locator('table tbody tr')).toHaveCount(0, { timeout: 10000 });
-
-    // 3. Go to Import Wizard
+    // ── 2. Go to Import Wizard ────────────────────────────────────────────────
     await page.click('a[href="#/import-wizard"]');
     await expect(page.getByRole('heading', { name: 'Assistente de Importação Completa' })).toBeVisible();
 
-    // 4. Step 1: Upload historical contracts
+    // ── 3. Step 1: Upload historical contracts file ───────────────────────────
     const historicalFile = getTestDataPath('historical_contracts.xlsx');
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(3000);
     await page.setInputFiles('input[type="file"]', historicalFile);
     await page.click('button:has-text("Próximo Passo")');
 
-    // 5. Step 2: Upload filled users.csv
+    // ── 4. Step 2: Upload filled users file ───────────────────────────────────
     await page.waitForTimeout(5000);
     await expect(page.getByText('Preenchimento de Usuários')).toBeVisible();
     const usersFile = getTestDataPath('users-demo.csv');
     await page.setInputFiles('input[type="file"]', usersFile);
     await page.click('button:has-text("Importar Usuários e Avançar")');
 
-    // 6. Navigate to Contracts for final import
-    await expect(page.getByText('Download de Contratos')).toBeVisible({ timeout: 15000 });
-    await page.click('button:has-text("Ir para Mapeamento")');
+    // ── 5. Step 3: Import contracts directly from wizard ─────────────────────
+    // Wait for the Step 3 content to be visible (Opções de Importação)
+    await expect(page.getByText('Opções de Importação')).toBeVisible({ timeout: 20000 });
 
-    // 7. Bulk Import Modal
-    await page.waitForTimeout(5000);
+    // Verify the import options checkboxes are visible and ON by default
+    await expect(page.locator('#wiz-skip-missing')).toBeChecked();
+    await expect(page.locator('#wiz-auto-groups')).toBeChecked();
+    await expect(page.locator('#wiz-auto-pvs')).toBeChecked();
+
+    // Click "Importar Contratos" — this generates the temp file and runs the import
+    await page.click('button:has-text("Importar Contratos")');
+
+    // ── 6. Wait for inline result summary ────────────────────────────────────
+    // The result alert appears once import completes
+    await expect(
+      page.locator('.mantine-Alert-root').filter({ hasText: /Contratos importados|Importação com erros/ })
+    ).toBeVisible({ timeout: 30000 });
+
+    // Verify at least some contracts were created (processedRows > 0)
+    const resultAlert = page.locator('.mantine-Alert-root').first();
+    await expect(resultAlert).not.toContainText('0 contratos criados');
+
+    // ── 7. Navigate to Contracts page and verify ──────────────────────────────
+    await page.click('button:has-text("Ir para Lista de Contratos")');
     await expect(page.getByRole('heading', { name: 'Contratos' })).toBeVisible();
-    await page.click('button:has-text("Importar")');
-
-    const finalContractFile = getTestDataPath('contracts.xlsx');
-    await page.setInputFiles('input#file', finalContractFile);
-
-    // Select template "Dashboard" (ID 3 matches ContractDashboard)
-    //await page.selectOption('select#templateSelection', { label: 'Dashboard' }); 
-    await page.click('button:has-text("Próximo")');
-
-    // Mappings
-    await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 10000 });
-    // Aggressive wait for auto-mapping to settle
-    await page.waitForTimeout(2000);
-
-    // Explicitly map Matricula if not auto-mapped
-    // Use a strict locator for the row to avoid matching "Matrícula" text inside other selects
-    const matriculaRow = page.locator('.mapping-row').filter({ 
-      has: page.locator('strong', { hasText: /^Matrícula$/ }) 
-    });
-    const matriculaSelect = matriculaRow.locator('select');
-    await matriculaSelect.selectOption('MatriculaNumber');
-
-    // Wait for the button to be enabled (meaning all required fields are mapped)
-    await expect(page.locator('button:has-text("Confirmar e Importar")')).toBeEnabled({ timeout: 10000 });
-    await page.click('button:has-text("Confirmar e Importar")');
-    await page.click('button:has-text("Fechar")');
-
-    // Verify 95.03% on Contracts page
     await expect(page.locator('.aggregation-summary')).toBeVisible();
     await expect(page.locator('.aggregation-chart')).toContainText('95.03%', { timeout: 10000 });
   });
