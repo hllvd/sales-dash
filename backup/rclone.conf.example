@@ -18,3 +18,6 @@ access_key_id = YOUR_ACCESS_KEY_ID
 secret_access_key = YOUR_SECRET_ACCESS_KEY
 region = us-east-1
 # endpoint = s3.us-east-1.amazonaws.com   # optional; needed for non-AWS S3 providers
+# Required when using a restricted IAM policy (no s3:CreateBucket permission).
+# Tells rclone to skip the bucket-exists check and assume the bucket is already created.
+no_check_bucket = true
