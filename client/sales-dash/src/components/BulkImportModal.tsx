@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import "./BulkImportModal.css"
 import { apiService } from "../services/apiService"
 import StandardModal from "../shared/StandardModal"
+import InfoHelper from "../shared/InfoHelper"
 
 interface Props {
   onClose: () => void
@@ -280,6 +281,27 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
     )
   }
 
+  const helperContent = (
+    <div className="info-helper-card">
+      <div className="info-helper-card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </div>
+      <div className="info-helper-card-body">
+        <h4>Tutorial em vídeo disponível</h4>
+        <p>Veja o passo a passo completo de como preparar sua planilha e importar contratos com sucesso.</p>
+        <a href="#" className="info-helper-btn" onClick={(e) => e.preventDefault()}>
+          Assistir tutorial
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}>
+            <line x1="7" y1="17" x2="17" y2="7"></line>
+            <polyline points="7 7 17 7 17 17"></polyline>
+          </svg>
+        </a>
+      </div>
+    </div>
+  );
+
   return (
     <StandardModal
       isOpen={true}
@@ -287,6 +309,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
       title={title}
       size="xl"
       footer={renderFooter()}
+      headerActions={<InfoHelper label="Como Importar?">{helperContent}</InfoHelper>}
     >
       {error && <div className="error-message">{error}</div>}
       {resultMessage && <div className="success-message">{resultMessage}</div>}

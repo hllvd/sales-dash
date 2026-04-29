@@ -9,6 +9,7 @@ interface StandardModalProps {
   footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string; // Optional class for the body/form container
+  headerActions?: React.ReactNode; // Optional actions to place in the header next to close button
 }
 
 const StandardModal: React.FC<StandardModalProps> = ({
@@ -19,6 +20,7 @@ const StandardModal: React.FC<StandardModalProps> = ({
   footer,
   size = 'md',
   className = 'import-form', // Default as requested by user
+  headerActions,
 }) => {
   const handleEsc = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
@@ -47,9 +49,12 @@ const StandardModal: React.FC<StandardModalProps> = ({
       >
         <div className="modal-header">
           <h2>{title}</h2>
-          <button className="close-button" onClick={onClose} aria-label="Fechar">
-            &times;
-          </button>
+          <div className="modal-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {headerActions}
+            <button className="close-button" onClick={onClose} aria-label="Fechar">
+              &times;
+            </button>
+          </div>
         </div>
 
         <div className={className}>
