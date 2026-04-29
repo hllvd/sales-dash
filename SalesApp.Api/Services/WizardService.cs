@@ -328,7 +328,7 @@ namespace SalesApp.Services
             };
         }
 
-        public async Task<byte[]> GenerateEnrichedContractsAsync(string uploadId)
+        public async Task<byte[]> GenerateEnrichedContractsAsync(string uploadId, Guid userId)
         {
             var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
             if (session == null)
@@ -484,7 +484,155 @@ namespace SalesApp.Services
                 skip += take;
             }
 
-            return package.GetAsByteArray();
+            var xlsxBytes = package.GetAsByteArray();
+
+            // ── Persist to temp folder for audit and later direct import ─────────
+            var tempDir = Path.Combine("/app", "wizard-temp");
+            Directory.CreateDirectory(tempDir);
+            var tempFileName = $"{userId}_{uploadId}.xlsx";
+            var tempFilePath = Path.Combine(tempDir, tempFileName);
+            await File.WriteAllBytesAsync(tempFilePath, xlsxBytes);
+            Console.WriteLine($"[Wizard] Step 3: Temp file saved to {tempFilePath}");
+
+            return xlsxBytes;
+        }
+
+        public async Task<ImportStatusResponse> ImportWizardContractsAsync(string uploadId, Guid userId, WizardContractImportOptions options)
+        {
+            // ── Locate temp file ─────────────────────────────────────────────────
+            var tempDir = Path.Combine("/app", "wizard-temp");
+            var tempFileName = $"{userId}_{uploadId}.xlsx";
+            var tempFilePath = Path.Combine(tempDir, tempFileName);
+
+            if (!File.Exists(tempFilePath))
+            {
+                throw new FileNotFoundException($"Temp file not found. Please download the contracts file first: {tempFileName}");
+            }
+
+            // ── Parse the xlsx using EPPlus ──────────────────────────────────────
+            var rows = new List<Dictionary<string, string>>();
+            ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
+            using (var package = new ExcelPackage(new FileInfo(tempFilePath)))
+            {
+                var worksheet = package.Workbook.Worksheets.FirstOrDefault()
+                    ?? throw new InvalidOperationException("No worksheet found in temp file.");
+
+                int colCount = worksheet.Dimension?.Columns ?? 0;
+                int rowCount = worksheet.Dimension?.Rows ?? 0;
+                if (colCount == 0 || rowCount < 2)
+                    throw new InvalidOperationException("Temp file is empty or has no data rows.");
+
+                // Build header list from row 1
+                var headers = Enumerable.Range(1, colCount)
+                    .Select(c => worksheet.Cells[1, c].Text?.Trim() ?? string.Empty)
+                    .ToList();
+
+                // Parse data rows
+                for (int r = 2; r <= rowCount; r++)
+                {
+                    var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    for (int c = 1; c <= colCount; c++)
+                    {
+                        var header = headers[c - 1];
+                        if (!string.IsNullOrEmpty(header))
+                            row[header] = worksheet.Cells[r, c].Text?.Trim() ?? string.Empty;
+                    }
+                    rows.Add(row);
+                }
+            }
+
+            if (rows.Count == 0)
+                throw new InvalidOperationException("No data rows found in temp file.");
+
+            // ── Build Contracts template mappings (templateId=2) ─────────────────
+            // Column names come from the actual enriched xlsx headers (Portuguese).
+            var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Email"]            = "UserEmail",
+                ["Matrícula"]        = "MatriculaNumber",
+                ["Matricula"]        = "MatriculaNumber",
+                ["Contrato"]         = "ContractNumber",
+                ["Valor"]            = "TotalAmount",
+                ["Grupo"]            = "GroupId",
+                ["Cota"]             = "Quota",
+                ["Data da Venda"]    = "SaleStartDate",
+                ["Nome do Cliente"]  = "CustomerName",
+                ["Código PV"]        = "PvId",
+                ["Nome PV"]          = "PvName",
+                ["Tipo"]             = "ContractType",
+                ["Status"]           = "Status",
+                ["Versao"]           = "Version",
+                ["Versão"]           = "Version",
+            };
+
+            // Intersect with actual headers so we only pass valid mappings
+            var firstRow = rows[0];
+            var activeMappings = mappings
+                .Where(kv => firstRow.ContainsKey(kv.Key))
+                .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+            Console.WriteLine($"[Wizard] Step3 Import: {rows.Count} rows. Active mappings: {string.Join(", ", activeMappings.Select(kv => $"{kv.Key}->{kv.Value}"))}");
+
+            // ── Create a new import session for audit trail ──────────────────────
+            var contractsTemplate = await _templateRepository.GetByNameAsync("Contracts");
+            int? contractsTemplateId = contractsTemplate?.Id;
+
+            var wizardImportUploadId = $"wiz-{uploadId}-ctr-{DateTime.UtcNow:HHmmss}";
+            var importSession = new ImportSession
+            {
+                UploadId = wizardImportUploadId,
+                TemplateId = contractsTemplateId,
+                FileName = $"{userId}_{uploadId}.xlsx",
+                FileType = "xlsx",
+                UploadedByUserId = userId,
+                Status = "wizard_step3",
+                TotalRows = rows.Count
+            };
+            await _sessionRepository.CreateAsync(importSession);
+
+            // ── Execute import in batches ────────────────────────────────────────
+            var totalResult = new ImportResult();
+            int batchSize = 500;
+            for (int i = 0; i < rows.Count; i += batchSize)
+            {
+                var batch = rows.Skip(i).Take(batchSize).ToList();
+                var result = await _importExecution.ExecuteContractImportAsync(
+                    wizardImportUploadId,
+                    importSession.Id,
+                    batch,
+                    activeMappings,
+                    options.DateFormat,
+                    options.SkipMissingContractNumber,
+                    options.AllowAutoCreateGroups,
+                    options.AllowAutoCreatePVs
+                );
+                totalResult.ProcessedRows += result.ProcessedRows;
+                totalResult.FailedRows += result.FailedRows;
+                totalResult.Errors.AddRange(result.Errors);
+                totalResult.Warnings.AddRange(result.Warnings);
+                totalResult.CreatedGroups.AddRange(result.CreatedGroups);
+                totalResult.CreatedPVs.AddRange(result.CreatedPVs);
+            }
+
+            // ── Update session ───────────────────────────────────────────────────
+            importSession.Status = totalResult.FailedRows > 0 ? "completed_with_errors" : "completed";
+            importSession.CompletedAt = DateTime.UtcNow;
+            importSession.ProcessedRows = totalResult.ProcessedRows;
+            importSession.FailedRows = totalResult.FailedRows;
+            await _sessionRepository.UpdateAsync(importSession);
+
+            return new ImportStatusResponse
+            {
+                UploadId = wizardImportUploadId,
+                Status = importSession.Status,
+                TotalRows = rows.Count,
+                ProcessedRows = totalResult.ProcessedRows,
+                FailedRows = totalResult.FailedRows,
+                Errors = totalResult.Errors,
+                Warnings = totalResult.Warnings,
+                CreatedGroups = totalResult.CreatedGroups.Distinct().ToList(),
+                CreatedPVs = totalResult.CreatedPVs.Distinct().ToList(),
+            };
         }
 
         private string MapConferenciaToStatus(string conferencia)

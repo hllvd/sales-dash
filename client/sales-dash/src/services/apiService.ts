@@ -701,6 +701,34 @@ export const apiService = {
     document.body.removeChild(a);
   },
 
+  async runWizardStep3Import(
+    uploadId: string,
+    options: {
+      skipMissingContractNumber: boolean;
+      allowAutoCreateGroups: boolean;
+      allowAutoCreatePVs: boolean;
+      dateFormat: string;
+    }
+  ): Promise<ApiResponse<ImportStatusResponse>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/wizard/step3-import/${uploadId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        skipMissingContractNumber: options.skipMissingContractNumber,
+        allowAutoCreateGroups: options.allowAutoCreateGroups,
+        allowAutoCreatePVs: options.allowAutoCreatePVs,
+        dateFormat: options.dateFormat,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Falha ao importar contratos' }));
+      throw new Error(error.message || 'Falha ao importar contratos');
+    }
+
+    return response.json();
+  },
+
   // Generic methods
   async get<T = any>(endpoint: string): Promise<T> {
     const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {

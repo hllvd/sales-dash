@@ -19,6 +19,14 @@ const ImportWizardPage: React.FC = () => {
   const [usersFile, setUsersFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
 
+  // Step 3: Contract import options (defaults all ON)
+  const [skipMissingContractNumber, setSkipMissingContractNumber] = useState(true);
+  const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState(true);
+  const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState(true);
+  const [contractImportResult, setContractImportResult] = useState<any>(null);
+  const [contractImportLoading, setContractImportLoading] = useState(false);
+  const [tempFileReady, setTempFileReady] = useState(false);
+
   const handleStep1Upload = async (forceMatch: boolean = false) => {
     if (!contractFile) {
       toast.error('Por favor, selecione o arquivo de contratos');
@@ -95,11 +103,51 @@ const ImportWizardPage: React.FC = () => {
     setLoading(true);
     try {
       await apiService.downloadWizardContracts(uploadData.uploadId);
+      setTempFileReady(true);
       toast.success('Arquivo contracts.xlsx baixado com sucesso');
     } catch (err: any) {
       toast.error('Falha ao baixar contratos enriquecidos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImportContracts = async () => {
+    if (!uploadData?.uploadId) return;
+
+    // If the user hasn't downloaded yet, generate the temp file first
+    if (!tempFileReady) {
+      setLoadingMessage('Gerando arquivo temporário…');
+      setLoading(true);
+      try {
+        await apiService.downloadWizardContracts(uploadData.uploadId);
+        setTempFileReady(true);
+      } catch (err: any) {
+        toast.error('Falha ao preparar arquivo de contratos');
+        setLoading(false);
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    setLoadingMessage('Importando contratos…');
+    setContractImportLoading(true);
+    try {
+      const response = await apiService.runWizardStep3Import(uploadData.uploadId, {
+        skipMissingContractNumber,
+        allowAutoCreateGroups,
+        allowAutoCreatePVs,
+        dateFormat: 'MM/DD/YYYY',
+      });
+      if (response.success) {
+        setContractImportResult(response.data);
+        toast.success('Contratos importados com sucesso');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Falha ao importar contratos');
+    } finally {
+      setContractImportLoading(false);
     }
   };
 
@@ -248,8 +296,8 @@ const ImportWizardPage: React.FC = () => {
           </Stepper.Step>
 
           <Stepper.Step 
-            label="Download de Contratos" 
-            description="Baixar arquivo final enriquecido"
+            label="Importação de Contratos" 
+            description="Baixar, conferir e importar"
             icon={<IconDownload size={18} />}
           >
             <Paper withBorder p="md" mt="md" style={{ backgroundColor: '#f0f9ff' }}>
@@ -260,38 +308,170 @@ const ImportWizardPage: React.FC = () => {
                   color={importResult?.processedRows > 0 ? "green" : "orange"}
                 >
                   {importResult?.processedRows > 0 
-                    ? `Os ${importResult?.processedRows} vendedores e suas matrículas foram importados com sucesso. Agora você pode baixar o arquivo de contratos final.`
+                    ? `Os ${importResult?.processedRows} vendedores e suas matrículas foram importados com sucesso. Agora você pode importar os contratos abaixo.`
                     : "Não foi possível importar nenhum vendedor. Verifique se as colunas Nome, Email e Matricula estão preenchidas no arquivo users.xlsx."}
                 </Alert>
                 
                 <Text size="sm">
-                  O sistema processou os usuários e agora preparou uma versão otimizada do arquivo <strong>modelo_referencia_retencao</strong>.
-                  Este arquivo contém os e-mails resolvidos e está pronto para ser carregado na tela de Mapeamento.
+                  O sistema preparou uma versão enriquecida do arquivo <strong>modelo_referencia_retencao</strong> com
+                  os e-mails resolvidos. Você pode baixá-lo para conferência ou importar diretamente clicando em
+                  <strong> "Importar Contratos"</strong>.
                 </Text>
 
-                <Group justify="center" py="xl">
-                  <Button 
-                    size="lg"
-                    variant="filled"
-                    leftSection={<IconDownload size={20} />} 
-                    onClick={handleDownloadContracts}
-                    loading={loading}
-                  >
-                    Baixar contracts.xlsx Enriquecido
-                  </Button>
-                </Group>
+                {/* ── Import options ─────────────────────────────────────── */}
+                {!contractImportResult && (
+                  <Paper withBorder p="sm" radius="sm" style={{ background: '#f9fafb' }}>
+                    <Text size="sm" fw={600} mb="xs">Opções de Importação</Text>
+                    <Stack gap="xs">
+                      <Group gap="xs">
+                        <input
+                          type="checkbox"
+                          id="wiz-skip-missing"
+                          checked={skipMissingContractNumber}
+                          onChange={e => setSkipMissingContractNumber(e.target.checked)}
+                        />
+                        <label htmlFor="wiz-skip-missing" style={{ fontSize: 13, color: '#4b5563', cursor: 'pointer' }}>
+                          Pular linhas sem número de contrato
+                        </label>
+                      </Group>
+                      <Group gap="xs">
+                        <input
+                          type="checkbox"
+                          id="wiz-auto-groups"
+                          checked={allowAutoCreateGroups}
+                          onChange={e => setAllowAutoCreateGroups(e.target.checked)}
+                        />
+                        <label htmlFor="wiz-auto-groups" style={{ fontSize: 13, color: '#4b5563', cursor: 'pointer' }}>
+                          Permitir criação automática de grupos
+                        </label>
+                      </Group>
+                      <Group gap="xs">
+                        <input
+                          type="checkbox"
+                          id="wiz-auto-pvs"
+                          checked={allowAutoCreatePVs}
+                          onChange={e => setAllowAutoCreatePVs(e.target.checked)}
+                        />
+                        <label htmlFor="wiz-auto-pvs" style={{ fontSize: 13, color: '#4b5563', cursor: 'pointer' }}>
+                          Permitir criação automática de PV
+                        </label>
+                      </Group>
+                    </Stack>
+                  </Paper>
+                )}
+
+                {/* ── Action buttons ─────────────────────────────────────── */}
+                {!contractImportResult && (
+                  <Group justify="center" gap="md" py="md">
+                    <Button
+                      variant="outline"
+                      leftSection={<IconDownload size={18} />}
+                      onClick={handleDownloadContracts}
+                      loading={loading}
+                    >
+                      Baixar contracts.xlsx
+                    </Button>
+                    <Button
+                      size="lg"
+                      color="green"
+                      leftSection={<IconCheck size={20} />}
+                      onClick={handleImportContracts}
+                      loading={contractImportLoading}
+                    >
+                      Importar Contratos
+                    </Button>
+                  </Group>
+                )}
+
+                {/* ── Import result summary ──────────────────────────────── */}
+                {contractImportResult && (
+                  <Stack gap="sm">
+                    <Alert
+                      icon={contractImportResult.failedRows > 0 ? <IconAlertCircle size={16} /> : <IconCheck size={16} />}
+                      title={contractImportResult.failedRows > 0 ? 'Importação com erros' : 'Contratos importados!'}
+                      color={contractImportResult.failedRows > 0 ? 'orange' : 'green'}
+                    >
+                      {contractImportResult.failedRows > 0
+                        ? `${contractImportResult.processedRows} contratos criados, ${contractImportResult.failedRows} com erro.`
+                        : `${contractImportResult.processedRows} contratos criados com sucesso.`}
+                    </Alert>
+
+                    <Group grow>
+                      <Paper withBorder p="sm" style={{ textAlign: 'center' }}>
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Contratos</Text>
+                        <Text size="xl" fw={700}>{contractImportResult.processedRows ?? 0}</Text>
+                      </Paper>
+                      <Paper withBorder p="sm" style={{ textAlign: 'center' }}>
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Erros</Text>
+                        <Text size="xl" fw={700} c={contractImportResult.failedRows > 0 ? 'red' : 'gray'}>
+                          {contractImportResult.failedRows ?? 0}
+                        </Text>
+                      </Paper>
+                      {contractImportResult.createdGroups?.length > 0 && (
+                        <Paper withBorder p="sm" style={{ textAlign: 'center' }}>
+                          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Grupos Criados</Text>
+                          <Text size="xl" fw={700}>{contractImportResult.createdGroups.length}</Text>
+                        </Paper>
+                      )}
+                      {contractImportResult.createdPVs?.length > 0 && (
+                        <Paper withBorder p="sm" style={{ textAlign: 'center' }}>
+                          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>PVs Criados</Text>
+                          <Text size="xl" fw={700}>{contractImportResult.createdPVs.length}</Text>
+                        </Paper>
+                      )}
+                    </Group>
+
+                    {contractImportResult.createdGroups?.length > 0 && (
+                      <Stack gap="xs">
+                        <Text fw={600} size="sm">Grupos criados automaticamente:</Text>
+                        <Group gap="xs">
+                          {contractImportResult.createdGroups.map((g: string) => (
+                            <Badge key={g} variant="outline" color="blue">{g}</Badge>
+                          ))}
+                        </Group>
+                      </Stack>
+                    )}
+
+                    {contractImportResult.createdPVs?.length > 0 && (
+                      <Stack gap="xs">
+                        <Text fw={600} size="sm">PVs criados automaticamente:</Text>
+                        <Group gap="xs">
+                          {contractImportResult.createdPVs.map((pv: string) => (
+                            <Badge key={pv} variant="outline" color="orange">{pv}</Badge>
+                          ))}
+                        </Group>
+                      </Stack>
+                    )}
+
+                    {contractImportResult.errors?.length > 0 && (
+                      <Alert icon={<IconAlertCircle size={16} />} title="Erros encontrados" color="red">
+                        <List size="xs">
+                          {contractImportResult.errors.slice(0, 10).map((err: string, i: number) => (
+                            <List.Item key={i}>{err}</List.Item>
+                          ))}
+                          {contractImportResult.errors.length > 10 && (
+                            <List.Item>... e mais {contractImportResult.errors.length - 10} erros.</List.Item>
+                          )}
+                        </List>
+                      </Alert>
+                    )}
+
+                    <Group justify="center" mt="sm">
+                      <Button variant="filled" onClick={() => window.location.hash = '#/contracts'}>
+                        Ir para Lista de Contratos
+                      </Button>
+                    </Group>
+                  </Stack>
+                )}
 
                 <Group justify="space-between" mt="md">
-                  <Button variant="default" onClick={prevStep} leftSection={<IconChevronLeft size={16} />}>
+                  <Button variant="default" onClick={prevStep} leftSection={<IconChevronLeft size={16} />}
+                    disabled={contractImportLoading}>
                     Voltar
                   </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => window.location.hash = '#/contracts'}
-                    rightSection={<IconChevronRight size={16} />}
-                  >
-                    Ir para Mapeamento
-                  </Button>
+                  {!contractImportResult && (
+                    <Text size="xs" c="dimmed">O arquivo será salvo no servidor para auditoria.</Text>
+                  )}
                 </Group>
               </Stack>
             </Paper>

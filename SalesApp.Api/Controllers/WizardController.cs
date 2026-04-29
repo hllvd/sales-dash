@@ -118,12 +118,58 @@ namespace SalesApp.Controllers
         {
             try
             {
-                var xlsxBytes = await _wizardService.GenerateEnrichedContractsAsync(uploadId);
+                var userId = GetCurrentUserId();
+                var xlsxBytes = await _wizardService.GenerateEnrichedContractsAsync(uploadId, userId);
                 return File(xlsxBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "contracts.xlsx");
             }
             catch (Exception ex)
             {
                 return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message });
+            }
+        }
+
+        [HttpPost("step3-import/{uploadId}")]
+        public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> ImportContracts(
+            string uploadId,
+            [FromBody] WizardContractImportOptions? options)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null || !user.IsActive)
+                {
+                    return Unauthorized(new ApiResponse<ImportStatusResponse>
+                    {
+                        Success = false,
+                        Message = "Your session is invalid. Please log in again."
+                    });
+                }
+
+                var effectiveOptions = options ?? new WizardContractImportOptions();
+                var result = await _wizardService.ImportWizardContractsAsync(uploadId, userId, effectiveOptions);
+
+                return Ok(new ApiResponse<ImportStatusResponse>
+                {
+                    Success = true,
+                    Data = result,
+                    Message = result.FailedRows > 0
+                        ? $"Importação concluída com {result.FailedRows} erros. {result.ProcessedRows} contratos criados."
+                        : $"Importação concluída com sucesso. {result.ProcessedRows} contratos criados."
+                });
+            }
+            catch (FileNotFoundException fnfEx)
+            {
+                return BadRequest(new ApiResponse<ImportStatusResponse>
+                {
+                    Success = false,
+                    Message = $"Arquivo temporário não encontrado. Por favor, baixe o arquivo primeiro. ({fnfEx.Message})"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<ImportStatusResponse> { Success = false, Message = ex.Message });
             }
         }
 
