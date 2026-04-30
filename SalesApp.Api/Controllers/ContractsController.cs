@@ -348,7 +348,19 @@ namespace SalesApp.Controllers
             if (!string.IsNullOrEmpty(request.MatriculaNumber))
             {
                 var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
-                if (matricula == null)
+                if (matricula != null)
+                {
+                    // If it exists, check if it belongs to the contract's user
+                    if (request.UserId.HasValue)
+                    {
+                        var isAssignedToUser = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, request.UserId.Value);
+                        if (isAssignedToUser == null)
+                        {
+                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "Matrícula not found for this user" });
+                        }
+                    }
+                }
+                else
                 {
                     // Create matricula if it doesn't exist (allowing unassigned contracts with a trace)
                     matricula = new Matricula
@@ -491,7 +503,20 @@ namespace SalesApp.Controllers
             if (!string.IsNullOrEmpty(request.MatriculaNumber))
             {
                 var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
-                if (matricula == null)
+                if (matricula != null)
+                {
+                    // If it exists, check if it belongs to the contract's user
+                    var contractUser = contract.UserId;
+                    if (contractUser.HasValue)
+                    {
+                        var isAssignedToUser = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, contractUser.Value);
+                        if (isAssignedToUser == null)
+                        {
+                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "Matrícula not found for this user" });
+                        }
+                    }
+                }
+                else
                 {
                     matricula = new Matricula
                     {

@@ -40,7 +40,7 @@ namespace SalesApp.IntegrationTests.Users
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Act
-            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}?matriculaNumber={matricula.MatriculaNumber}", null);
+            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}?matriculaNumber={matricula.Matricula.MatriculaNumber}", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -49,7 +49,7 @@ namespace SalesApp.IntegrationTests.Users
             result!.Success.Should().BeTrue();
             result.Data.Should().NotBeNull();
             result.Data!.UserId.Should().Be(userId);
-            result.Data.MatriculaNumber.Should().Be(matricula.MatriculaNumber);
+            result.Data.MatriculaNumber.Should().Be(matricula.Matricula.MatriculaNumber);
             
             // Verify in DB
             using var scope = _factory.Services.CreateScope();
@@ -100,7 +100,7 @@ namespace SalesApp.IntegrationTests.Users
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Act
-            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}?matriculaNumber={matricula.MatriculaNumber}", null);
+            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}?matriculaNumber={matricula.Matricula.MatriculaNumber}", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -126,7 +126,7 @@ namespace SalesApp.IntegrationTests.Users
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Act
-            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}?matriculaNumber={matricula.MatriculaNumber}", null);
+            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}?matriculaNumber={matricula.Matricula.MatriculaNumber}", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -154,7 +154,7 @@ namespace SalesApp.IntegrationTests.Users
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Act
-            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}?matriculaNumber={matricula.MatriculaNumber}", null);
+            var response = await client.PostAsync($"/api/users/assign-contract/{contract.ContractNumber}?matriculaNumber={matricula.Matricula.MatriculaNumber}", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -194,20 +194,30 @@ namespace SalesApp.IntegrationTests.Users
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             
-            var matricula = new UserMatricula
+            var m = new Matricula
+            {
+                MatriculaNumber = matriculaNumber,
+                StartDate = DateTime.UtcNow.AddDays(-30),
+                Status = isActive ? "active" : "inactive"
+            };
+            context.Matriculas.Add(m);
+            await context.SaveChangesAsync();
+
+            var userMatricula = new UserMatricula
             {
                 UserId = userId,
-                MatriculaNumber = matriculaNumber,
+                MatriculaId = m.Id,
                 IsActive = isActive,
                 IsOwner = true,
-                StartDate = DateTime.UtcNow.AddDays(-30),
                 EndDate = endDate
             };
             
-            context.UserMatriculas.Add(matricula);
+            context.UserMatriculas.Add(userMatricula);
             await context.SaveChangesAsync();
             
-            return matricula;
+            return await context.UserMatriculas
+                .Include(um => um.Matricula)
+                .FirstAsync(um => um.Id == userMatricula.Id);
         }
 
         private async Task<Contract> CreateContract(Guid userId)

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SalesApp.Models
 {
@@ -25,8 +26,10 @@ namespace SalesApp.Models
         public int? ImportSessionId { get; set; } // Tracks if this matricula was created via import
         
         // Navigation properties
+        [JsonIgnore]
         public virtual User User { get; set; } = null!;
         public virtual Matricula Matricula { get; set; } = null!;
+        [JsonIgnore]
         public ImportSession? ImportSession { get; set; }
     }
 }

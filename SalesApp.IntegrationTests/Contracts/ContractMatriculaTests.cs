@@ -138,36 +138,34 @@ namespace SalesApp.IntegrationTests.Contracts
             var user1Id = await CreateTestUserAsync("User A");
             var user2Id = await CreateTestUserAsync("User B");
 
-            // Both users have matricula "1"
-            var matriculaNumber = "1";
-            var user1MatriculaId = await CreateMatriculaAsync(user1Id, matriculaNumber);
-            var user2MatriculaId = await CreateMatriculaAsync(user2Id, matriculaNumber);
+            // Use unique matricula numbers for each user as MatriculaNumber is now unique
+            var matricula1 = "1-A";
+            var matricula2 = "1-B";
+            var user1MatriculaId = await CreateMatriculaAsync(user1Id, matricula1);
+            var user2MatriculaId = await CreateMatriculaAsync(user2Id, matricula2);
 
             // Create contracts for both users
             var contract1Id = await CreateTestContractAsync(user1Id);
             var contract2Id = await CreateTestContractAsync(user2Id);
 
-            // Update both contracts with matricula "1"
-            var updateRequest = new { matriculaNumber = matriculaNumber };
-
             // Act
-            var response1 = await _client.PutAsJsonAsync($"/api/contracts/{contract1Id}", updateRequest);
-            var response2 = await _client.PutAsJsonAsync($"/api/contracts/{contract2Id}", updateRequest);
-
+            var response1 = await _client.PutAsJsonAsync($"/api/contracts/{contract1Id}", new { matriculaNumber = matricula1 });
+            var response2 = await _client.PutAsJsonAsync($"/api/contracts/{contract2Id}", new { matriculaNumber = matricula2 });
+ 
             // Assert
             response1.StatusCode.Should().Be(HttpStatusCode.OK);
             response2.StatusCode.Should().Be(HttpStatusCode.OK);
-
+ 
             var result1 = await response1.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             var result2 = await response2.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
-
+ 
             // Each contract should have the correct user's matricula
             result1!.Data!.MatriculaId.Should().Be(user1MatriculaId);
-            result1.Data.MatriculaNumber.Should().Be(matriculaNumber);
-
+            result1.Data.MatriculaNumber.Should().Be(matricula1);
+ 
             result2!.Data!.MatriculaId.Should().Be(user2MatriculaId);
-            result2.Data.MatriculaNumber.Should().Be(matriculaNumber);
-
+            result2.Data.MatriculaNumber.Should().Be(matricula2);
+ 
             // Verify they're different matricula IDs
             user1MatriculaId.Should().NotBe(user2MatriculaId);
         }
@@ -305,9 +303,9 @@ namespace SalesApp.IntegrationTests.Contracts
             using (var scope = _factory.Services.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var contract1 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = adminId, TempMatricula = matricula1, UserMatriculaId = m1Id, TotalAmount = 100, Status = "Active", IsActive = true };
-                var contract2 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = null, TempMatricula = matricula2, UserMatriculaId = m2Id, TotalAmount = 200, Status = "Active", IsActive = true }; // Ensure unassigned contracts are still visible if matricula matches!
-                var contractOther = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = otherUserId, TempMatricula = matriculaOther, UserMatriculaId = mOtherId, TotalAmount = 300, Status = "Active", IsActive = true };
+                var contract1 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = adminId, TempMatricula = matricula1, MatriculaId = m1Id, TotalAmount = 100, Status = "Active", IsActive = true };
+                var contract2 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = null, TempMatricula = matricula2, MatriculaId = m2Id, TotalAmount = 200, Status = "Active", IsActive = true }; // Ensure unassigned contracts are still visible if matricula matches!
+                var contractOther = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = otherUserId, TempMatricula = matriculaOther, MatriculaId = mOtherId, TotalAmount = 300, Status = "Active", IsActive = true };
                 
                 context.Contracts.AddRange(contract1, contract2, contractOther);
                 await context.SaveChangesAsync();
@@ -392,19 +390,27 @@ namespace SalesApp.IntegrationTests.Contracts
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             
-            var matricula = new UserMatricula
+            var m = new Matricula
+            {
+                MatriculaNumber = matriculaNumber,
+                StartDate = DateTime.UtcNow,
+                Status = "active"
+            };
+            context.Matriculas.Add(m);
+            await context.SaveChangesAsync();
+
+            var userMatricula = new UserMatricula
             {
                 UserId = userId,
-                MatriculaNumber = matriculaNumber,
+                MatriculaId = m.Id,
                 IsActive = true,
-                IsOwner = isOwner,
-                StartDate = DateTime.UtcNow
+                IsOwner = isOwner
             };
             
-            context.UserMatriculas.Add(matricula);
+            context.UserMatriculas.Add(userMatricula);
             await context.SaveChangesAsync();
             
-            return matricula.Id;
+            return m.Id;
         }
 
         private async Task<int> CreateTestContractAsync(Guid userId)

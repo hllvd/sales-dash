@@ -144,11 +144,19 @@ namespace SalesApp.IntegrationTests.UserMatriculas
                 context.Users.Add(user);
                 await context.SaveChangesAsync();
 
+                var m = new Matricula
+                {
+                    MatriculaNumber = "MAT-INT-002",
+                    StartDate = DateTime.UtcNow,
+                    Status = "active"
+                };
+                context.Matriculas.Add(m);
+                await context.SaveChangesAsync();
+
                 var matricula = new UserMatricula
                 {
                     UserId = userId,
-                    MatriculaNumber = "MAT-INT-002",
-                    StartDate = DateTime.UtcNow,
+                    MatriculaId = m.Id,
                     IsActive = true
                 };
                 context.UserMatriculas.Add(matricula);
@@ -184,8 +192,13 @@ namespace SalesApp.IntegrationTests.UserMatriculas
                 context.Users.Add(user);
                 await context.SaveChangesAsync();
 
-                var matricula1 = new UserMatricula { UserId = userId, MatriculaNumber = "MAT-INT-003", StartDate = DateTime.UtcNow, IsActive = true };
-                var matricula2 = new UserMatricula { UserId = userId, MatriculaNumber = "MAT-INT-004", StartDate = DateTime.UtcNow, IsActive = true };
+                var m1 = new Matricula { MatriculaNumber = "MAT-INT-003", StartDate = DateTime.UtcNow, Status = "active" };
+                var m2 = new Matricula { MatriculaNumber = "MAT-INT-004", StartDate = DateTime.UtcNow, Status = "active" };
+                context.Matriculas.AddRange(m1, m2);
+                await context.SaveChangesAsync();
+
+                var matricula1 = new UserMatricula { UserId = userId, MatriculaId = m1.Id, IsActive = true };
+                var matricula2 = new UserMatricula { UserId = userId, MatriculaId = m2.Id, IsActive = true };
                 context.UserMatriculas.AddRange(matricula1, matricula2);
                 await context.SaveChangesAsync();
             }
@@ -220,11 +233,14 @@ namespace SalesApp.IntegrationTests.UserMatriculas
                 context.Users.Add(user);
                 await context.SaveChangesAsync();
 
+                var m = new Matricula { MatriculaNumber = "MAT-INT-005", StartDate = DateTime.UtcNow, Status = "active" };
+                context.Matriculas.Add(m);
+                await context.SaveChangesAsync();
+
                 var matricula = new UserMatricula
                 {
                     UserId = userId,
-                    MatriculaNumber = "MAT-INT-005",
-                    StartDate = DateTime.UtcNow,
+                    MatriculaId = m.Id,
                     IsActive = true
                 };
                 context.UserMatriculas.Add(matricula);
@@ -267,11 +283,14 @@ namespace SalesApp.IntegrationTests.UserMatriculas
                 context.Users.Add(user);
                 await context.SaveChangesAsync();
 
+                var m = new Matricula { MatriculaNumber = "MAT-INT-006", StartDate = DateTime.UtcNow, Status = "active" };
+                context.Matriculas.Add(m);
+                await context.SaveChangesAsync();
+
                 var matricula = new UserMatricula
                 {
                     UserId = userId,
-                    MatriculaNumber = "MAT-INT-006",
-                    StartDate = DateTime.UtcNow,
+                    MatriculaId = m.Id,
                     IsActive = true
                 };
                 context.UserMatriculas.Add(matricula);

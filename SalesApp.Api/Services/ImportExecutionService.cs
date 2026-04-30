@@ -624,7 +624,7 @@ namespace SalesApp.Services
 
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(matricula))
             {
-                throw new ArgumentException("Nome, Email and Matricula are required fields for each row.");
+                throw new ArgumentException("Nome, Email, and Matricula are required fields for each row.");
             }
 
             // Check if email exists

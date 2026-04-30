@@ -51,6 +51,7 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IPVRepository, PVRepository>();
             services.AddScoped<IUserMatriculaRepository, UserMatriculaRepository>();
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
+            services.AddScoped<IMatriculaRepository, MatriculaRepository>();
 
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
             services.AddScoped<IUserScopeService, UserScopeService>();
@@ -62,8 +63,15 @@ namespace SalesApp.IntegrationTests
 
             // Scraping Services
             services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();
+            services.AddScoped<IImportErrorService, ImportErrorService>();
             services.AddScoped<IScrapeImportService, ScrapeImportService>();
             services.AddScoped<IScrapeOrchestrator, ScrapeOrchestrator>();
+
+            // Typed HttpClient for pbi-scraper
+            services.AddHttpClient<PbiScraperClient>(client =>
+            {
+                client.BaseAddress = new Uri(Configuration["PbiScraper:BaseUrl"] ?? "http://pbi-scraper:3001");
+            });
             
             // Production-Grade RBAC
             services.AddSingleton<IRbacCache, RbacCache>();

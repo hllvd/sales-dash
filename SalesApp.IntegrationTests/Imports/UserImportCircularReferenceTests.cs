@@ -64,7 +64,7 @@ User C,{emailC},{emailA},MAT-C";
             confirmResult!.Success.Should().BeTrue();
             
             // Should contain a warning about circular references
-            confirmResult.Data!.Warnings.Should().Contain(w => w.Contains("circular references") && w.Contains(emailA));
+            confirmResult.Data!.Warnings.Should().Contain(w => w.Contains("referências circulares") && w.Contains(emailA));
 
             // Verify users were created but cycle was broken (at least one should have null parent)
             using var scope = _factory.Services.CreateScope();
@@ -132,7 +132,7 @@ Existing A,{emailA},{emailB},MAT-A-UP";
             confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var confirmResult = await confirmResponse.Content.ReadFromJsonAsync<ApiResponse<ImportStatusResponse>>();
             
-            confirmResult!.Data!.Warnings.Should().Contain(w => w.Contains("circular references") && w.Contains(emailA));
+            confirmResult!.Data!.Warnings.Should().Contain(w => w.Contains("referências circulares") && w.Contains(emailA));
 
             // Verify User A's parent is still null (or not User B)
             using (var scope = _factory.Services.CreateScope())

@@ -193,8 +193,8 @@ namespace SalesApp.IntegrationTests.Imports
                 new()
                 {
                     { "ContractNumber", $"CNT-{Guid.NewGuid().ToString()[..8]}" },
-                    // Missing UserEmail
-                    { "TotalAmount", "1500.50" },
+                    { "UserEmail", "test@test.com" },
+                    // Missing TotalAmount
                     { "GroupId", "1" },
                     { "SaleStartDate", "2024-01-01" },
                     { "MatriculaNumber", "MAT-789" }
@@ -204,7 +204,7 @@ namespace SalesApp.IntegrationTests.Imports
             var mappings = new Dictionary<string, string>
             {
                 { "ContractNumber", "ContractNumber" },
-                { "TotalAmount", "TotalAmount" },
+                { "UserEmail", "UserEmail" },
                 { "GroupId", "GroupId" },
                 { "SaleStartDate", "SaleStartDate" },
                 { "MatriculaNumber", "MatriculaNumber" }
