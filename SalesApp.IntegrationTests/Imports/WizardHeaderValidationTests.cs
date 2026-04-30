@@ -99,13 +99,26 @@ namespace SalesApp.IntegrationTests.Imports
 
             // Act: Download Template (Step 2 Preview)
             var templateBytes = await DownloadWizardTemplate(preview.UploadId);
-            var templateContent = System.Text.Encoding.UTF8.GetString(templateBytes);
-
+            
             // Assert: Template content contains extracted data
-            templateContent.Should().Contain("John Consultant");
-            templateContent.Should().Contain("MAT-999");
-            // Template headers for users.csv are: Name,Email,ParentEmail,Matricula,Owner_Matricula,Password
-            templateContent.Should().Contain("Name,Email,ParentEmail,Matricula,Owner_Matricula,Password");
+            using var ms = new MemoryStream(templateBytes);
+            OfficeOpenXml.ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
+            using var package = new OfficeOpenXml.ExcelPackage(ms);
+            var sheet = package.Workbook.Worksheets[0];
+
+            var header1 = sheet.Cells[1, 1].Text;
+            var header2 = sheet.Cells[1, 2].Text;
+            var header4 = sheet.Cells[1, 4].Text;
+            
+            header1.Should().Be("Name");
+            header2.Should().Be("Email");
+            header4.Should().Be("Matricula");
+
+            var cellName = sheet.Cells[2, 1].Text;
+            var cellMatricula = sheet.Cells[2, 4].Text;
+
+            cellName.Should().Be("John Consultant");
+            cellMatricula.Should().Be("MAT-999");
         }
 
         [Fact]

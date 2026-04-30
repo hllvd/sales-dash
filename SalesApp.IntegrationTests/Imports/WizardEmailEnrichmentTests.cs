@@ -32,6 +32,7 @@ namespace SalesApp.IntegrationTests.Imports
             context.Groups.RemoveRange(context.Groups);
             context.PVs.RemoveRange(context.PVs);
             context.UserMatriculas.RemoveRange(context.UserMatriculas);
+            context.Matriculas.RemoveRange(context.Matriculas);
             context.RefreshTokens.RemoveRange(context.RefreshTokens);
             context.ScrapeConfigs.RemoveRange(context.ScrapeConfigs);
             
@@ -67,12 +68,17 @@ namespace SalesApp.IntegrationTests.Imports
 
             // Set up Matriculas exactly simulating the bug's environment
             // 6241 is shared. Anthony is owner. Carlos and Vini are NOT owners.
+            var m6241 = new Matricula { MatriculaNumber = "6241", StartDate = DateTime.UtcNow, Status = "active" };
+            var m10979 = new Matricula { MatriculaNumber = "10979", StartDate = DateTime.UtcNow, Status = "active" };
+            context.Matriculas.AddRange(m6241, m10979);
+            await context.SaveChangesAsync();
+
             context.UserMatriculas.AddRange(
-                new UserMatricula { UserId = anthony.Id, MatriculaNumber = "6241", IsOwner = true, IsActive = true, StartDate = DateTime.UtcNow },
-                new UserMatricula { UserId = carlos.Id, MatriculaNumber = "6241", IsOwner = false, IsActive = true, StartDate = DateTime.UtcNow },
-                new UserMatricula { UserId = vini.Id, MatriculaNumber = "6241", IsOwner = false, IsActive = true, StartDate = DateTime.UtcNow },
+                new UserMatricula { UserId = anthony.Id, MatriculaId = m6241.Id, IsOwner = true, IsActive = true },
+                new UserMatricula { UserId = carlos.Id, MatriculaId = m6241.Id, IsOwner = false, IsActive = true },
+                new UserMatricula { UserId = vini.Id, MatriculaId = m6241.Id, IsOwner = false, IsActive = true },
                 // 10979 is uniquely owned by Valeria
-                new UserMatricula { UserId = valeria.Id, MatriculaNumber = "10979", IsOwner = true, IsActive = true, StartDate = DateTime.UtcNow }
+                new UserMatricula { UserId = valeria.Id, MatriculaId = m10979.Id, IsOwner = true, IsActive = true }
             );
             
             await context.SaveChangesAsync();
@@ -126,10 +132,10 @@ namespace SalesApp.IntegrationTests.Imports
             await context.SaveChangesAsync();
 
             // 3. Execute enrichment
-            var csvBytes = await wizardService.GenerateEnrichedContractsAsync(session.UploadId);
+            var csvBytes = await wizardService.GenerateEnrichedContractsAsync(session.UploadId, adminUser.Id);
             
             // 4. Validate output
-            var parsedRows = ParseCsvBytes(csvBytes);
+            var parsedRows = ParseXlsxBytes(csvBytes);
             Assert.Equal(2, parsedRows.Count);
             
             // Before fix, Carlos would have gotten vini@test.com
@@ -170,8 +176,8 @@ namespace SalesApp.IntegrationTests.Imports
             context.ImportRows.Add(new ImportRow { ImportSessionId = session.Id, RowIndex = 0, RowData = JsonSerializer.Serialize(row1) });
             await context.SaveChangesAsync();
 
-            var csvBytes = await wizardService.GenerateEnrichedContractsAsync(session.UploadId);
-            var parsedRows = ParseCsvBytes(csvBytes);
+            var csvBytes = await wizardService.GenerateEnrichedContractsAsync(session.UploadId, adminUser.Id);
+            var parsedRows = ParseXlsxBytes(csvBytes);
             
             Assert.Single(parsedRows);
             Assert.Equal("vini@test.com", parsedRows[0]["Email"]);
@@ -210,12 +216,12 @@ namespace SalesApp.IntegrationTests.Imports
             context.ImportRows.Add(new ImportRow { ImportSessionId = session.Id, RowIndex = 0, RowData = JsonSerializer.Serialize(row1) });
             await context.SaveChangesAsync();
 
-            var csvBytes = await wizardService.GenerateEnrichedContractsAsync(session.UploadId);
-            var parsedRows = ParseCsvBytes(csvBytes);
+            var csvBytes2 = await wizardService.GenerateEnrichedContractsAsync(session.UploadId, adminUser.Id);
+            var parsedRows2 = ParseXlsxBytes(csvBytes2);
             
-            Assert.Single(parsedRows);
+            Assert.Single(parsedRows2);
             // Because name missed, it falls back to matricula. Since it's shared, it MUST pick the Owner=true (Anthony)
-            Assert.Equal("anthony@test.com", parsedRows[0]["Email"]);
+            Assert.Equal("anthony@test.com", parsedRows2[0]["Email"]);
         }
 
         [Fact]
@@ -251,33 +257,42 @@ namespace SalesApp.IntegrationTests.Imports
             context.ImportRows.Add(new ImportRow { ImportSessionId = session.Id, RowIndex = 0, RowData = JsonSerializer.Serialize(row1) });
             await context.SaveChangesAsync();
 
-            var csvBytes = await wizardService.GenerateEnrichedContractsAsync(session.UploadId);
-            var parsedRows = ParseCsvBytes(csvBytes);
+            var csvBytes3 = await wizardService.GenerateEnrichedContractsAsync(session.UploadId, adminUser.Id);
+            var parsedRows3 = ParseXlsxBytes(csvBytes3);
             
-            Assert.Single(parsedRows);
-            Assert.Equal("", parsedRows[0]["Email"]); // Must be empty, properly written to CSV
+            Assert.Single(parsedRows3);
+            Assert.Equal("", parsedRows3[0]["Email"]); // Must be empty, properly written to CSV
         }
 
-        private List<Dictionary<string, string>> ParseCsvBytes(byte[] csvBytes)
+        private List<Dictionary<string, string>> ParseXlsxBytes(byte[] xlsxBytes)
         {
-            using var memoryStream = new MemoryStream(csvBytes);
-            using var reader = new StreamReader(memoryStream);
-            using var csvReader = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture) { IgnoreBlankLines = true });
+            OfficeOpenXml.ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
+            using var memoryStream = new MemoryStream(xlsxBytes);
+            using var package = new OfficeOpenXml.ExcelPackage(memoryStream);
             
-            var records = new List<Dictionary<string, string>>();
-            csvReader.Read();
-            csvReader.ReadHeader();
-            
-            while (csvReader.Read())
+            var worksheet = package.Workbook.Worksheets.FirstOrDefault();
+            if (worksheet == null) return new List<Dictionary<string, string>>();
+
+            var rows = new List<Dictionary<string, string>>();
+            int colCount = worksheet.Dimension.Columns;
+            int rowCount = worksheet.Dimension.Rows;
+
+            var headers = new List<string>();
+            for (int col = 1; col <= colCount; col++)
             {
-                var record = new Dictionary<string, string>();
-                foreach (var header in csvReader.HeaderRecord!)
-                {
-                    record[header] = csvReader.GetField(header);
-                }
-                records.Add(record);
+                headers.Add(worksheet.Cells[1, col].Text);
             }
-            return records;
+
+            for (int r = 2; r <= rowCount; r++)
+            {
+                var row = new Dictionary<string, string>();
+                for (int col = 1; col <= colCount; col++)
+                {
+                    row[headers[col - 1]] = worksheet.Cells[r, col].Text;
+                }
+                rows.Add(row);
+            }
+            return rows;
         }
     }
 }

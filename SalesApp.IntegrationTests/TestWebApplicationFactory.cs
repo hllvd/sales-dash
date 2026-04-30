@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SalesApp.IntegrationTests
 {
-    public class TestWebApplicationFactory : IDisposable
+    public class TestWebApplicationFactory : IAsyncLifetime, IDisposable
     {
         private readonly TestServer _server;
         private readonly string _dbFileName;
@@ -33,10 +33,15 @@ namespace SalesApp.IntegrationTests
 
             _server = new TestServer(hostBuilder);
             Client = _server.CreateClient();
-            
-            // Seed test data immediately
-            SeedTestData().Wait();
         }
+
+        public async Task InitializeAsync()
+        {
+            // Seed test data
+            await SeedTestData();
+        }
+
+        public Task DisposeAsync() => Task.CompletedTask;
         
         private async Task SeedTestData()
         {

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SalesApp.Models
 {
@@ -24,8 +25,11 @@ namespace SalesApp.Models
         public int? ImportSessionId { get; set; }
         
         // Navigation properties
+        [JsonIgnore]
         public virtual ICollection<UserMatricula> UserMatriculas { get; set; } = new List<UserMatricula>();
+        [JsonIgnore]
         public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
+        [JsonIgnore]
         public ImportSession? ImportSession { get; set; }
     }
 }

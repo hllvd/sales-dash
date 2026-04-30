@@ -29,7 +29,7 @@ test.describe('Email Mapping to contracts.xlsx', () => {
     const step1Input = page.locator('#wizard-step1-input');
     await expect(step1Input).toBeAttached({ timeout: 10_000 });
     await step1Input.setInputFiles(getTestDataPath('historical_contracts.xlsx'));
-    
+
     const nextBtn = page.locator('button:has-text("Próximo Passo")');
     await expect(nextBtn).toBeEnabled({ timeout: 15_000 });
     await nextBtn.click();
@@ -40,7 +40,7 @@ test.describe('Email Mapping to contracts.xlsx', () => {
     const step2Input = page.locator('#wizard-step2-input');
     await expect(step2Input).toBeAttached({ timeout: 10_000 });
     await step2Input.setInputFiles(getTestDataPath('users-demo.csv'));
-    
+
     // Give state a moment to settle
     const importBtn = page.locator('button:has-text("Importar Usuários e Avançar")');
     await expect(importBtn).toBeEnabled({ timeout: 10000 });
@@ -48,7 +48,7 @@ test.describe('Email Mapping to contracts.xlsx', () => {
 
     // 5. Wait for Step 3: Download Contracts Enriched
     await expect(page.getByText('Usuários Importados!')).toBeVisible({ timeout: 30_000 });
-    const downloadBtn = page.getByRole('button', { name: /Baixar contracts\.xlsx Enriquecido/i });
+    const downloadBtn = page.getByRole('button', { name: /Baixar contracts\.xlsx/i });
     await expect(downloadBtn).toBeVisible({ timeout: 10_000 });
 
     // 6. Intercept download
@@ -68,13 +68,13 @@ test.describe('Email Mapping to contracts.xlsx', () => {
     // Asserts:
     // We expect the backend email resolver mapping algorithm to have parsed users-demo.csv 
     // and matched it correctly against the XLSX data. 
-    
+
     // Check if any row has the expected emails
     const emails = data.map(row => row.Email);
     expect(emails).toContain('arthurterplak@example.com');
     expect(emails).toContain('gabrielfelipe@example.com');
     expect(emails).toContain('carlosmendes@example.com');
-    
+
     // Validate Header structure (sheet_to_json maps keys from headers)
     const firstRow = data[0];
     expect(firstRow).toHaveProperty('Email');

@@ -78,11 +78,11 @@ test.describe('Import Wizard Aliases Flow', () => {
     await page.click('button:has-text("Importar Usuários e Avançar")');
 
     // 7. Verify Step 3 and Download enriched contracts.xlsx
-    await expect(page.getByText('Download de Contratos')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Opções de Importação')).toBeVisible({ timeout: 15000 });
     
     const [downloadContracts] = await Promise.all([
       page.waitForEvent('download'),
-      page.click('button:has-text("Baixar contracts.xlsx Enriquecido")')
+      page.click('button:has-text("Baixar contracts.xlsx")')
     ]);
     
     const finalContractsPath = getTempPath('downloaded_contracts_aliases.xlsx');

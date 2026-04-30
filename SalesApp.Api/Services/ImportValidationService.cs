@@ -12,7 +12,7 @@ namespace SalesApp.Services
         private readonly Dictionary<string, List<string>> _requiredFields = new()
         {
             ["Contract"] = new List<string> { "ContractNumber", "UserName", "UserSurname", "TotalAmount" },
-            ["User"] = new List<string> { "Name", "Email" }
+            ["User"] = new List<string> { "Name", "Email", "Matricula" }
         };
 
         public ImportValidationService(AppDbContext context, IContractStatusMapper statusMapper)
@@ -192,7 +192,8 @@ namespace SalesApp.Services
             {
                 if (row.TryGetValue(statusColumn, out var statusValue) && !string.IsNullOrWhiteSpace(statusValue))
                 {
-                    if (!_statusMapper.IsValidStatus(statusValue))
+                    var mappedStatus = _statusMapper.MapStatus(statusValue);
+                    if (!_statusMapper.IsValidStatus(mappedStatus))
                     {
                         var validStatuses = _statusMapper.GetValidStatuses();
                         errors.Add($"Invalid status: {statusValue}. Must be one of: {string.Join(", ", validStatuses)}");

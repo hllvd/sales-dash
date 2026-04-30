@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SalesApp.Models
 {
@@ -56,12 +57,14 @@ namespace SalesApp.Models
         public int? MatriculaId { get; set; }
         
         // Navigation properties
+        [JsonIgnore]
         public User? User { get; set; }
         public Matricula? Matricula { get; set; }
         public Group? Group { get; set; }
         public PV? PV { get; set; }
         public ContractMetadata? PlanoVendaMetadata { get; set; }
         public ContractMetadata? CategoryMetadata { get; set; }
+        [JsonIgnore]
         public ImportSession? ImportSession { get; set; }
     }
 }

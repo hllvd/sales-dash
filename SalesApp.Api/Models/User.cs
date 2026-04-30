@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SalesApp.Models
 {
@@ -37,10 +38,14 @@ namespace SalesApp.Models
         public int? ImportSessionId { get; set; } // Tracks if this user was created via import
         
         // Navigation properties
+        [JsonIgnore]
         public User? ParentUser { get; set; }
+        [JsonIgnore]
         public ICollection<User> ChildUsers { get; set; } = new List<User>();
         public virtual ICollection<UserMatricula> UserMatriculas { get; set; } = new List<UserMatricula>();
+        [JsonIgnore]
         public virtual ICollection<ScrapeConfig> ScrapeConfigs { get; set; } = new List<ScrapeConfig>();
+        [JsonIgnore]
         public ImportSession? ImportSession { get; set; }
     }
 }

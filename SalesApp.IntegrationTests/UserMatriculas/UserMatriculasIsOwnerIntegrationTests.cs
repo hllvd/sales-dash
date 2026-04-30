@@ -31,7 +31,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
 
             loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var result = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
-            return result!.Data.Token;
+            return result!.Data!.Token;
         }
 
         [Fact]

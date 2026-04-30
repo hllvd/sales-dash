@@ -522,7 +522,7 @@ namespace SalesApp.Controllers
                 UpdatedAt = user.UpdatedAt,
                 
                 // Matricula information
-                MatriculaId = primaryMatricula?.Id,
+                MatriculaId = primaryMatricula?.MatriculaId,
                 MatriculaNumber = primaryMatricula?.Matricula?.MatriculaNumber,
                 IsMatriculaOwner = primaryMatricula != null,
 
@@ -873,14 +873,6 @@ namespace SalesApp.Controllers
             contract.MatriculaId = userMatricula?.MatriculaId;
             await _contractRepository.UpdateAsync(contract);
             
-            // Prioritize the selected matricula for the response if provided
-            var resolvedMatricula = user.UserMatriculas?
-                .FirstOrDefault(m => m.Matricula?.MatriculaNumber == matriculaNumber && m.IsActive)
-                ?? user.UserMatriculas?
-                .Where(m => m.IsActive)
-                .OrderByDescending(m => m.IsOwner)
-                .FirstOrDefault();
-
             return Ok(new ApiResponse<ContractResponse>
             {
                 Success = true,
@@ -902,8 +894,8 @@ namespace SalesApp.Controllers
                     Quota = contract.Quota,
                     PvId = contract.PvId,
                     CustomerName = contract.CustomerName,
-                    MatriculaId = resolvedMatricula?.MatriculaId,
-                    MatriculaNumber = resolvedMatricula?.Matricula?.MatriculaNumber
+                    MatriculaId = userMatricula?.MatriculaId,
+                    MatriculaNumber = userMatricula?.Matricula?.MatriculaNumber
                 },
                 Message = _messageService.Get(AppMessage.ContractAssignedSuccessfully)
             });

@@ -413,3 +413,6 @@ client/e2e-test/temp/
 
 # Backup credentials (server-only; never commit)
 backup/rclone.conf
+
+# Ignore system-generated Library folder
+SalesApp.Api/Library/
