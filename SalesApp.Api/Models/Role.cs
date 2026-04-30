@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SalesApp.Models
 {
@@ -24,7 +25,9 @@ namespace SalesApp.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         
         // Navigation property
+        [JsonIgnore]
         public virtual ICollection<User> Users { get; set; } = new List<User>();
+        [JsonIgnore]
         public virtual ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
     }
 }

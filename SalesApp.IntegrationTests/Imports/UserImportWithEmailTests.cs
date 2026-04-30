@@ -71,6 +71,46 @@ John Doe,{uniqueEmail},MAT1,true";
         }
 
         [Fact]
+        public async Task UserImport_MissingMatricula_ShouldFailAndReturnErrors()
+        {
+            // Arrange
+            var token = await GetAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var uniqueEmail = $"test.nomatricula.{Guid.NewGuid().ToString()[..8]}@test.com";
+            // Explicitly omitting Matricula column to trigger the validation error
+            var csvContent = $@"Name,Email,SendEmail
+Missing Matricula User,{uniqueEmail},true";
+
+            // Act
+            var uploadId = await UploadUserFile(csvContent, "users-missing-matricula.csv");
+            
+            var mappingRequest = new
+            {
+                mappings = new Dictionary<string, string>
+                {
+                    { "Name", "Name" },
+                    { "Email", "Email" },
+                    { "SendEmail", "SendEmail" }
+                }
+            };
+
+            await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings", mappingRequest);
+            var confirmResponse = await _client.PostAsync($"/api/imports/{uploadId}/confirm", null);
+
+            // Assert
+            confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var confirmResult = await confirmResponse.Content.ReadFromJsonAsync<ApiResponse<ImportStatusResponse>>();
+            
+            // We expect the request to succeed but process 0 rows and return validation errors
+            confirmResult!.Success.Should().BeTrue();
+            confirmResult.Data!.ProcessedRows.Should().Be(0);
+            
+            // The validation error comes back in the Errors list
+            confirmResult.Data.Errors.Should().Contain(e => e.Contains("Nome, Email, and Matricula are required"));
+        }
+
+        [Fact]
         public async Task UserImport_WithSendEmailFalse_ShouldCreateUserWithoutEmail()
         {
             // Arrange
