@@ -708,6 +708,104 @@ namespace SalesApp.Controllers
 
         #endregion
 
+        #region Status Validation
+
+        [HttpPost("{uploadId}/validate-status")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<StatusValidationResponse>>> ValidateStatusColumn(
+            string uploadId, [FromBody] ValidateStatusRequest request)
+        {
+            var session = await _sessionRepository.GetByUploadIdAsync(uploadId);
+            if (session == null)
+            {
+                return NotFound(new ApiResponse<StatusValidationResponse>
+                {
+                    Success = false,
+                    Message = "Import session not found"
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ColumnName))
+            {
+                return BadRequest(new ApiResponse<StatusValidationResponse>
+                {
+                    Success = false,
+                    Message = "Column name is required"
+                });
+            }
+
+            try
+            {
+                var rows = await _context.ImportRows
+                    .Where(r => r.ImportSessionId == session.Id)
+                    .OrderBy(r => r.RowIndex)
+                    .Take(50)
+                    .ToListAsync();
+
+                var invalidValues = new List<string>();
+                var sampleValues = new List<string>();
+                int validCount = 0;
+                int nullCount = 0;
+
+                foreach (var importRow in rows)
+                {
+                    var rowData = System.Text.Json.JsonSerializer
+                        .Deserialize<Dictionary<string, string>>(importRow.RowData) ?? new();
+
+                    if (!rowData.TryGetValue(request.ColumnName, out var rawValue)
+                        || string.IsNullOrWhiteSpace(rawValue))
+                    {
+                        nullCount++;
+                        continue;
+                    }
+
+                    var trimmed = rawValue.Trim();
+                    if (sampleValues.Count < 5 && !sampleValues.Contains(trimmed))
+                        sampleValues.Add(trimmed);
+
+                    var mapped = _validation.MapStatus(trimmed);
+                    if (mapped == null)
+                    {
+                        if (!invalidValues.Contains(trimmed))
+                            invalidValues.Add(trimmed);
+                    }
+                    else
+                    {
+                        validCount++;
+                    }
+                }
+
+                // If every row has a null/empty status value the column is almost certainly wrong
+                bool allNull = validCount == 0 && invalidValues.Count == 0 && nullCount > 0;
+                if (allNull)
+                    invalidValues.Add("(vazio — coluna sem valores de status)");
+
+                return Ok(new ApiResponse<StatusValidationResponse>
+                {
+                    Success = true,
+                    Data = new StatusValidationResponse
+                    {
+                        IsValid = invalidValues.Count == 0,
+                        InvalidValues = invalidValues,
+                        SampleValues = sampleValues,
+                        ValidCount = validCount,
+                        TotalChecked = rows.Count
+                    },
+                    Message = "Status validation complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<StatusValidationResponse>
+                {
+                    Success = false,
+                    Message = $"Error validating status column: {ex.Message}"
+                });
+            }
+        }
+
+        #endregion
+
         #region Status and Management
 
         [HttpGet("{uploadId}/status")]

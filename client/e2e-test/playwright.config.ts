@@ -30,6 +30,7 @@ export default defineConfig({
       name: 'tear-2-roles-testing',
       testMatch: [
         'import_wizard_status_update.spec.ts',
+        'import_status_validation.spec.ts',
         'user_role_management.spec.ts',
         //'import_wizard_csv_delimiter.spec.ts',
         'import_wizard_email_mapping.spec.ts',

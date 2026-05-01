@@ -47,3 +47,9 @@ Create endpoints should detect inactive duplicates and restore them instead of r
 Always clear `localStorage` and reset date/text filters in `test.beforeEach` or at the start of a test. The `ContractsPage` specifically debounces and caches filters, which can cause "ghost" filtering that hides test data.
 #### 3. Unique Identifiers
 Always append a timestamp or random suffix to test-generated entities (Contracts, Users, Matriculas) to ensure parallel workers never collide on the same database keys.
+
+Field Pre-Validation Pattern (e.g., Status):
+
+Backend: New POST /validate-{field} reads 50 rows from ImportRows and applies mapping logic.
+Frontend: Call endpoint in handleMappingChange when field is mapped.
+UI: Show inline error and disabled={!isValid} on Confirm button.

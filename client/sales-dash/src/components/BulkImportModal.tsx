@@ -37,7 +37,14 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [skipMissingContractNumber, setSkipMissingContractNumber] = useState<boolean>(true)
   const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState<boolean>(true)
   const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState<boolean>(true)
-  
+
+  // Status column validation
+  const [statusValidation, setStatusValidation] = useState<{
+    isValid: boolean
+    invalidValues: string[]
+  } | null>(null)
+  const [statusValidating, setStatusValidating] = useState(false)
+
   // Step 3: Result
   const [resultMessage, setResultMessage] = useState<string>("")
   const [createdGroups, setCreatedGroups] = useState<string[]>([])
@@ -117,6 +124,13 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
           setRequiredFields(resp.data.requiredFields)
           setOptionalFields(resp.data.optionalFields)
           setStep("mapping")
+
+          // Auto-validate status if already mapped by suggestions
+          const autoStatusCol = Object.entries(resp.data.suggestedMappings as Record<string, string>)
+            .find(([, v]) => v === 'Status')?.[0]
+          if (autoStatusCol) {
+            runStatusValidation(autoStatusCol, resp.data.uploadId)
+          }
         }
       } else {
         setError(resp.message || "Falha ao fazer upload do arquivo")
@@ -128,11 +142,37 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
     }
   }
 
+  const runStatusValidation = async (columnName: string, uploadIdOverride?: string) => {
+    const id = uploadIdOverride ?? uploadId
+    if (!id) return
+    setStatusValidating(true)
+    try {
+      const resp = await apiService.validateStatusColumn(id, columnName)
+      if (resp.success && resp.data) {
+        setStatusValidation({
+          isValid: resp.data.isValid,
+          invalidValues: resp.data.invalidValues,
+        })
+      }
+    } catch {
+      setStatusValidation(null)
+    } finally {
+      setStatusValidating(false)
+    }
+  }
+
   const handleMappingChange = (column: string, targetField: string) => {
     setMappings(prev => ({
       ...prev,
       [column]: targetField
     }))
+    if (targetField === 'Status') {
+      runStatusValidation(column)
+    } else {
+      // If user remaps away from Status, clear validation
+      const prevStatusColumn = Object.entries(mappings).find(([, v]) => v === 'Status')?.[0]
+      if (prevStatusColumn === column) setStatusValidation(null)
+    }
   }
 
   const handleConfirmMapping = async () => {
@@ -265,7 +305,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
           <button type="button" className="btn-cancel" onClick={() => setStep("upload")} disabled={loading}>
             Voltar
           </button>
-          <button type="button" className="btn-submit" onClick={handleConfirmMapping} disabled={loading || !allRequiredFieldsMapped()}>
+          <button type="button" className="btn-submit" onClick={handleConfirmMapping} disabled={loading || !allRequiredFieldsMapped() || (statusValidation !== null && !statusValidation.isValid)}>
             {loading ? "Importando..." : "Confirmar e Importar"}
           </button>
         </>
@@ -483,6 +523,35 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
           {!allRequiredFieldsMapped() && (
             <div className="error-message" style={{ marginTop: '20px', background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}>
               <strong>Atenção:</strong> Faltam os seguintes campos obrigatórios: {getMissingRequiredFields().join(", ")}
+            </div>
+          )}
+
+          {statusValidating && (
+            <div style={{ marginTop: '16px', fontSize: '13px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>⏳</span> Verificando valores de status...
+            </div>
+          )}
+
+          {statusValidation !== null && !statusValidation.isValid && (
+            <div
+              id="status-validation-warning"
+              className="error-message"
+              style={{ marginTop: '16px', background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5' }}
+            >
+              <strong>⚠️ Valores de Status Inválidos</strong>
+              <p style={{ margin: '6px 0 0' }}>
+                A coluna mapeada para <strong>Status</strong> contém valores não reconhecidos:{' '}
+                <strong>{statusValidation.invalidValues.join(', ')}</strong>
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#7f1d1d' }}>
+                Verifique se a coluna correta está mapeada para "Status", ou corrija os valores no arquivo.
+              </p>
+            </div>
+          )}
+
+          {statusValidation !== null && statusValidation.isValid && (
+            <div style={{ marginTop: '16px', fontSize: '13px', color: '#15803d', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>✅</span> Todos os valores de status são válidos.
             </div>
           )}
         </div>

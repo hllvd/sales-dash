@@ -392,6 +392,31 @@ export const apiService = {
     return response.json()
   },
 
+  async validateStatusColumn(
+    uploadId: string,
+    columnName: string
+  ): Promise<ApiResponse<{
+    isValid: boolean
+    invalidValues: string[]
+    sampleValues: string[]
+    validCount: number
+    totalChecked: number
+  }>> {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/imports/${uploadId}/validate-status`,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ columnName }),
+      }
+    )
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to validate status column' }))
+      throw new Error(error.message || 'Failed to validate status column')
+    }
+    return response.json()
+  },
+
   // PV (Point of Sale) methods
   async getPVs(): Promise<ApiResponse<PV[]>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/point-of-sale`, {

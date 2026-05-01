@@ -238,5 +238,6 @@ namespace SalesApp.Services
                 return false;
             }
         }
+        public string? MapStatus(string? value) => _statusMapper.MapStatus(value);
     }
 }
