@@ -1,3 +1,3 @@
-Contrato,Email,Valor,STATUS,Matrícula
-826650,arthurterplak@example.com,300000,Normal,6111
-821590,arthurterplak@example.com,100000,Excluído,6111
+Obs Cota,Cota,Versao,Dt Venda,Dt Produção,Dt Cancelamento,Dt Contemplacao,Produção Analitica,Categoria,Consultor,Cód. PV,PV,Unidade Original,Unidade Atual,Crédito Venda,Tem Pagamento?,Situação Cobrança,Prazo Grupo,Plano Venda,id_bi,Matricula
+,6111;300;X;Arthur;826650,1,2026-04-30,,,,,AP,,,,,,300000,,NORMAL,,,,6111
+,6111;301;X;Arthur;821590,1,2026-04-30,,,,,AS,,,,,,100000,,DESISTENTE,,,,6111

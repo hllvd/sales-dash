@@ -508,7 +508,7 @@ const ContractsPage: React.FC = () => {
             setShowImportModal(false);
             loadContracts();
           }}
-          templateId={2}
+          templateId={3}
           title="Importar Contratos em Lote"
         />
       )}

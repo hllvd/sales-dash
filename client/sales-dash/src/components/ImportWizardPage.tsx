@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Title, Button, Stepper, Group, FileInput, Text, Paper, Badge, Alert, Stack, List, LoadingOverlay, Box } from '@mantine/core';
+import { Title, Button, Stepper, Group, FileInput, Text, Paper, Badge, Alert, Stack, List, LoadingOverlay, Box, Modal } from '@mantine/core';
 import { IconUpload, IconDownload, IconCheck, IconAlertCircle, IconChevronRight, IconChevronLeft } from '@tabler/icons-react';
 import Menu from './Menu';
 import { apiService } from '../services/apiService';
 import { toast } from '../utils/toast';
+import '../shared/InfoHelper.css';
 
 const ImportWizardPage: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Aguarde...');
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
   
   // Step 1: Upload Contract File
   const [contractFile, setContractFile] = useState<File | null>(null);
@@ -184,7 +186,42 @@ const ImportWizardPage: React.FC = () => {
             {loadingMessage}
           </Box>
         )}
-        <Title order={2} mb="xl" className="page-title-break">Assistente de Importação Completa</Title>
+        
+        <Group justify="space-between" align="center" mb="xl">
+          <Title order={2} className="page-title-break">Assistente de Importação Completa</Title>
+          <button 
+            type="button" 
+            className="info-helper-trigger" 
+            onClick={() => setVideoModalOpen(true)}
+          >
+            <span className="info-helper-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </span>
+            <span className="info-helper-label">Como importar o modelo de retenção</span>
+          </button>
+        </Group>
+
+        <Modal 
+          opened={videoModalOpen} 
+          onClose={() => setVideoModalOpen(false)} 
+          title={<Text fw={600} c="#4b5563">Tutorial: Como importar o modelo de retenção</Text>}
+          size="xl"
+          centered
+        >
+          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '8px' }}>
+            <iframe 
+              src="https://www.youtube.com/embed/9F7Uvd30Tuk" 
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowFullScreen 
+              title="Tutorial de Importação"
+            />
+          </div>
+        </Modal>
 
         <Stepper active={activeStep} allowNextStepsSelect={false}>
           <Stepper.Step 

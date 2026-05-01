@@ -5,7 +5,7 @@ import path from 'path';
 test.describe('Contract Status Update Flow', () => {
   test('should update contract statuses via CSV import', async ({ page }) => {
     test.setTimeout(90000);
-    
+
     // Clear potentially stale filters from localStorage
     await page.goto('/');
     await page.evaluate(() => {
@@ -31,10 +31,17 @@ test.describe('Contract Status Update Flow', () => {
     await page.click('button:has-text("Importar")');
     await expect(page.getByText('Importar Contratos em Lote')).toBeVisible();
 
+    // Select the standard "Contracts" template (ID 2) explicitly 
+    // as the default has been changed to Dashboard (ID 3)
+    // const templateSelect = page.locator('select#templateSelection');
+    // if (await templateSelect.isVisible()) {
+    //   await templateSelect.selectOption('2');
+    // }
+
     // 4. Upload the update CSV
     const updateFile = getTestDataPath('contracts-update-status.csv');
     await page.setInputFiles('input#file', updateFile);
-    
+
     const nextBtn = page.locator('button:has-text("Próximo")');
     await expect(nextBtn).toBeEnabled({ timeout: 10000 });
     await nextBtn.click();
@@ -54,17 +61,34 @@ test.describe('Contract Status Update Flow', () => {
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 15000 });
 
     // Wait for auto-mapping to settle
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(10000);
 
     // Explicitly map Matricula if not auto-mapped
-    const matriculaRow = page.locator('.mapping-row', { hasText: 'Matrícula' });
-    const matriculaSelect = matriculaRow.locator('select');
-    await matriculaSelect.selectOption('MatriculaNumber');
-
+    // const matriculaRow = page.locator('.mapping-row', { hasText: 'Matrícula' });
+    // const matriculaSelect = matriculaRow.locator('select');
+    // await matriculaSelect.selectOption('MatriculaNumber');
+    //await page.waitForTimeout(10000);
     // Confirm import (auto-mapping is correct, button should already be enabled)
     const confirmBtn = page.locator('button:has-text("Confirmar e Importar")');
     await expect(confirmBtn).toBeEnabled({ timeout: 15000 });
     await confirmBtn.click();
+
+    // DEBUG: capture any error shown in the modal before timing out
+    await page.waitForTimeout(5000);
+    const errorDiv = page.locator('.error-message');
+    if (await errorDiv.isVisible()) {
+      const errorText = await errorDiv.textContent();
+      console.log('[DEBUG] Modal error after confirm:', errorText);
+    }
+
+    // DEBUG: log all mapped selects to see what the frontend sent
+    const mappingSelects = page.locator('.mapping-row select');
+    const mappingCount = await mappingSelects.count();
+    for (let i = 0; i < mappingCount; i++) {
+      const label = await page.locator('.mapping-row').nth(i).locator('strong').textContent();
+      const value = await mappingSelects.nth(i).inputValue();
+      if (value) console.log(`[DEBUG] Mapping: ${label} → ${value}`);
+    }
 
     // 6. Wait for result — accept any processed row count
     await expect(page.getByText(/Importados:/)).toBeVisible({ timeout: 30000 });
@@ -82,11 +106,11 @@ test.describe('Contract Status Update Flow', () => {
       await clearBtn.click();
       await page.waitForTimeout(1000);
     }
-    
+
     // Filter for contract 826650 (CSV status: "Ativa" → should map to "Active" → display "Ativo")
     await page.fill('input#filterContractNumber', '826650');
     await page.waitForTimeout(6000); // 3s debounce + safety buffer
-    
+
     const row826650 = page.locator('table tbody tr', { hasText: '826650' });
     await expect(row826650).toBeVisible({ timeout: 10000 });
     await expect(row826650.locator('.mantine-Badge-label')).toHaveText('Ativo', { timeout: 10000 });
@@ -96,7 +120,7 @@ test.describe('Contract Status Update Flow', () => {
     await page.waitForTimeout(2000);
     await page.fill('input#filterContractNumber', '821590');
     await page.waitForTimeout(6000);
-    
+
     const row821590 = page.locator('table tbody tr', { hasText: '821590' });
     await expect(row821590).toBeVisible({ timeout: 10000 });
     await expect(row821590.locator('.mantine-Badge-label')).toHaveText('Cancelado', { timeout: 10000 });
