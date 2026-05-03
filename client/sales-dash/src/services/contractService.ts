@@ -357,11 +357,11 @@ export const getHistoricProduction = async (
 };
 
 // Pending Claims Operations
-export const registerPendingClaim = async (contractNumber: string, matriculaId: number): Promise<PendingClaimResponse> => {
+export const registerPendingClaim = async (contractNumber: string, userMatriculaId: number): Promise<PendingClaimResponse> => {
   const response = await authenticatedFetch(`${API_BASE_URL}/contracts/claims`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ contractNumber, matriculaId }),
+    body: JSON.stringify({ contractNumber, userMatriculaId }),
   });
 
   if (!response.ok) {

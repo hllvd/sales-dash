@@ -45,6 +45,9 @@ const StandardModal: React.FC<StandardModalProps> = ({
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div 
         className={`modal-content size-${size}`} 
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">

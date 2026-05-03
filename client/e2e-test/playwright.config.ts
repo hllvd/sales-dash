@@ -62,6 +62,12 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-3']
     },
+    {
+      name: 'tear-5-pending-claims',
+      testMatch: ['pending_contract_claims.spec.ts'],
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['tear-4-aliases-testing']
+    },
 
   ],
 });

@@ -199,13 +199,14 @@ namespace SalesApp.Services
             }
 
             // ✅ Phase 3: Auto-assign pending claims
-            if (contractsToAdd.Any())
+            var allImportedContracts = contractsToAdd.Concat(existingContracts).ToList();
+            if (allImportedContracts.Any())
             {
                 try
                 {
-                    Console.WriteLine($"[Import] Resolving pending claims for new contracts...");
-                    var newContractNumbers = contractsToAdd.Select(c => c.ContractNumber).ToList();
-                    await _pendingClaimService.ResolvePendingClaimsAsync(newContractNumbers);
+                    Console.WriteLine($"[Import] Resolving pending claims for {allImportedContracts.Count} imported contracts...");
+                    var importedContractNumbers = allImportedContracts.Select(c => c.ContractNumber).ToList();
+                    await _pendingClaimService.ResolvePendingClaimsAsync(importedContractNumbers);
                     Console.WriteLine("[Import] Pending claims resolved successfully.");
                 }
                 catch (Exception ex)
@@ -1366,7 +1367,7 @@ namespace SalesApp.Services
             if (!userId.HasValue && matriculaId.HasValue)
             {
                 var ownerRel = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId.Value);
-                if (ownerRel != null)
+                if (ownerRel?.User != null)
                 {
                     userId = ownerRel.User.Id;
                 }

@@ -533,6 +533,7 @@ namespace SalesApp.Controllers
                     .Select(m => new UserMatriculaInfo
                     {
                         Id = m.Id,
+                        MatriculaId = m.MatriculaId,
                         MatriculaNumber = m.Matricula?.MatriculaNumber ?? "",
                         IsOwner = m.IsOwner,
                         Status = m.Matricula?.Status ?? "active",
@@ -650,6 +651,7 @@ namespace SalesApp.Controllers
                 .Select(m => new UserMatriculaInfo
                 {
                     Id = m.Id,
+                    MatriculaId = m.MatriculaId,
                     MatriculaNumber = m.Matricula?.MatriculaNumber ?? "",
                     IsOwner = m.IsOwner,
                     Status = m.Matricula?.Status ?? "active",

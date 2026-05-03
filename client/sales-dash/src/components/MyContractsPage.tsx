@@ -91,7 +91,7 @@ const MyContractsPage: React.FC = () => {
     try {
       const myClaims = await getMyPendingClaims();
       setPendingClaims(myClaims);
-      
+
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const user = JSON.parse(userStr);
@@ -99,14 +99,14 @@ const MyContractsPage: React.FC = () => {
           const allMatriculaClaims = [];
           for (const m of user.activeMatriculas) {
             if (m.isOwner) {
-               const claims = await getPendingClaimsByMatricula(m.id);
-               allMatriculaClaims.push(...claims);
+              const claims = await getPendingClaimsByMatricula(m.matriculaId);
+              allMatriculaClaims.push(...claims);
             }
           }
           setMatriculaPendingClaims(allMatriculaClaims);
         }
       }
-    } catch(err) {
+    } catch (err) {
       console.error("Failed to load pending claims", err);
     }
   }, []);
@@ -122,35 +122,26 @@ const MyContractsPage: React.FC = () => {
     setAssignError('');
     setSelectedMatricula('');
 
-    // Fetch user's active matriculas
+    // Read matriculas from the login response already stored in localStorage.
+    // Using the API (getUserMatriculas) is not viable here because regular users
+    // lack the "matriculas:read" permission — it would silently return empty.
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = user.id;
-      if (userId) {
-        const response = await apiService.getUserMatriculas(userId);
-        if (response.success && response.data) {
-          // Filter active matriculas
-          const now = new Date();
-          const activeMatriculas = response.data.filter(m =>
-            m.isActive && (!m.endDate || new Date(m.endDate) > now)
-          );
-          // Sort by most recent (startDate descending)
-          activeMatriculas.sort((a, b) =>
-            new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
-          );
-          setUserMatriculas(activeMatriculas);
+      const rawMatriculas: any[] = user.activeMatriculas || [];
+      const now = new Date();
+      const activeMatriculas = rawMatriculas
+        .filter(m => m.isActive !== false && (!m.endDate || new Date(m.endDate) > now))
+        .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 
-          // Auto-select ONLY if there is exactly one
-          if (activeMatriculas.length === 1) {
-            setSelectedMatricula(activeMatriculas[0].matriculaNumber);
-          } else {
-            // Keep empty if multiple exist, forcing manual selection
-            setSelectedMatricula('');
-          }
-        }
+      setUserMatriculas(activeMatriculas as any);
+
+      if (activeMatriculas.length === 1) {
+        setSelectedMatricula(activeMatriculas[0].matriculaNumber);
+      } else {
+        setSelectedMatricula('');
       }
     } catch (err) {
-      console.error('Failed to fetch matriculas:', err);
+      console.error('Failed to read matriculas from localStorage:', err);
     }
 
     setShowAssignModal(true);
@@ -189,7 +180,7 @@ const MyContractsPage: React.FC = () => {
   const handleConfirmAssignment = async () => {
     if (!contractNumber.trim()) return;
 
-    if (userMatriculas.length > 1 && !selectedMatricula) {
+    if (contractNotYetImported && userMatriculas.length > 1 && !selectedMatricula) {
       setAssignError('Por favor, selecione uma matrícula');
       return;
     }
@@ -203,9 +194,9 @@ const MyContractsPage: React.FC = () => {
 
       if (contractNotYetImported) {
         if (!selectedMatriculaObj) {
-           setAssignError('Matrícula é obrigatória para registrar interesse.');
-           setAssignLoading(false);
-           return;
+          setAssignError('Matrícula é obrigatória para registrar interesse.');
+          setAssignLoading(false);
+          return;
         }
         await registerPendingClaim(contractNumber, selectedMatriculaObj.id);
         loadPendingClaims();
@@ -597,15 +588,14 @@ const MyContractsPage: React.FC = () => {
           </>
         )}
 
-        {(retrievedContract || contractNotYetImported) && (
           <>
-            {contractNotYetImported && (
+            {contractNotYetImported && !assignError && (
               <Alert color="blue" title="Contrato não encontrado" mb="md">
                 Este contrato ainda não foi importado para o sistema. Você pode registrar seu interesse e ele será atribuído automaticamente à sua matrícula quando for importado.
               </Alert>
             )}
             {/* Matricula Selection */}
-            {userMatriculas.length > 0 && (
+            {contractNotYetImported && !assignError && userMatriculas.length > 1 && (
               <FormField
                 label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
                 description={
@@ -635,7 +625,6 @@ const MyContractsPage: React.FC = () => {
               </FormField>
             )}
           </>
-        )}
       </StandardModal>
 
     </Menu>

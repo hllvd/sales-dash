@@ -3,7 +3,8 @@ namespace SalesApp.DTOs
     public class PendingClaimRequest
     {
         public string ContractNumber { get; set; } = string.Empty;
-        public int MatriculaId { get; set; }
+        /// <summary>The UserMatriculas join-table ID (not Matriculas.Id).</summary>
+        public int UserMatriculaId { get; set; }
     }
 
     public class PendingClaimResponse

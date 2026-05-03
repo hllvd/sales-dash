@@ -17,7 +17,8 @@ interface PagedResponse<T> {
 }
 
 export interface UserMatriculaInfo {
-  id: number
+  id: number          // UserMatriculas join-table PK
+  matriculaId: number // Matriculas table PK
   matriculaNumber: string
   isOwner: boolean
   status: string

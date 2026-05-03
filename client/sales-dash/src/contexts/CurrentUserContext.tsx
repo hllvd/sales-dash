@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { apiService } from '../services/apiService'
 
 export interface UserMatriculaInfo {
-  id: number
+  id: number          // UserMatriculas join-table PK
+  matriculaId: number // Matriculas table PK
   matriculaNumber: string
   isOwner: boolean
   status: string

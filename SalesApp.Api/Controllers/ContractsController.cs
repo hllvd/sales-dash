@@ -622,15 +622,14 @@ namespace SalesApp.Controllers
                 return BadRequest(new { success = false, message = "Contrato já existe no sistema." });
             }
 
-            // 2. Verify matricula belongs to current user
-            var userMatricula = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(
-                (await _matriculaRepository.GetByIdAsync(request.MatriculaId))?.MatriculaNumber ?? "", 
-                currentUserId);
-                
-            if (userMatricula == null || !userMatricula.IsActive)
+            // 2. Resolve the UserMatricula join record (verifies both ownership and MatriculaId in one step)
+            var userMatricula = await _userMatriculaRepository.GetByIdAsync(request.UserMatriculaId);
+            if (userMatricula == null || userMatricula.UserId != currentUserId || !userMatricula.IsActive)
             {
                 return BadRequest(new { success = false, message = "Matrícula inválida ou não pertence ao usuário." });
             }
+
+            var resolvedMatriculaId = userMatricula.MatriculaId;
 
             // 3. Check for existing claim
             var existingClaim = await _pendingClaimRepository.GetByContractNumberAsync(request.ContractNumber);
@@ -652,7 +651,7 @@ namespace SalesApp.Controllers
             {
                 ContractNumber = request.ContractNumber,
                 UserId = currentUserId,
-                MatriculaId = request.MatriculaId
+                MatriculaId = resolvedMatriculaId
             };
 
             await _pendingClaimRepository.CreateAsync(claim);

@@ -1,0 +1,4 @@
+Obs Cota,Cota,Versao,Dt Venda,Dt Produção,Dt Cancelamento,Dt Contemplacao,Produção Analitica,Categoria,Consultor,Cód. PV,PV,Unidade Original,Unidade Atual,Crédito Venda,Tem Pagamento?,Situação Cobrança,Prazo Grupo,Plano Venda,id_bi,Matricula
+,10134;901;X;TestUser;999901,1,2026-05-01,200000,,,,AP,,,,,,200000,,NORMAL,,,,10134
+,10134;902;X;TestUser;999902,1,2026-05-01,200000,,,,AP,,,,,,200000,,NORMAL,,,,10134
+,10134;903;X;TestUser;999903,1,2026-05-01,200000,,,,AP,,,,,,200000,,NORMAL,,,,10134

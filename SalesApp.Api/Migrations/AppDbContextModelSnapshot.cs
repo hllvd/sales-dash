@@ -152,6 +152,48 @@ namespace SalesApp.Api.Migrations
 
                     b.ToTable("Contracts", (string)null);
                 });
+            modelBuilder.Entity("SalesApp.Models.PendingContractClaim", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ClaimedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContractNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsResolved")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("MatriculaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractNumber")
+                        .IsUnique();
+
+                    b.HasIndex("IsResolved");
+
+                    b.HasIndex("MatriculaId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PendingContractClaims");
+                });
+
 
             modelBuilder.Entity("SalesApp.Models.Matricula", b =>
                 {
@@ -801,6 +843,25 @@ namespace SalesApp.Api.Migrations
                     b.Navigation("User");
 
                     b.Navigation("UserMatricula");
+                });
+
+            modelBuilder.Entity("SalesApp.Models.PendingContractClaim", b =>
+                {
+                    b.HasOne("SalesApp.Models.Matricula", "Matricula")
+                        .WithMany()
+                        .HasForeignKey("MatriculaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SalesApp.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Matricula");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SalesApp.Models.Group", b =>
