@@ -33,6 +33,7 @@ namespace SalesApp.Data
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<ScrapeConfig> ScrapeConfigs { get; set; }
+        public DbSet<PendingContractClaim> PendingContractClaims { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -352,6 +353,25 @@ namespace SalesApp.Data
                     .WithMany(u => u.ScrapeConfigs)
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // PendingContractClaim entity configuration
+            modelBuilder.Entity<PendingContractClaim>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.HasIndex(e => new { e.ContractNumber }).IsUnique(); // Unique by contract number so only first user gets it
+                entity.HasIndex(e => e.IsResolved);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Matricula)
+                    .WithMany()
+                    .HasForeignKey(e => e.MatriculaId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
         }
         

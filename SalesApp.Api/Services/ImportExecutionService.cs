@@ -20,6 +20,7 @@ namespace SalesApp.Services
         private readonly IPVRepository _pvRepository;
         private readonly IContractStatusMapper _statusMapper;
         private readonly IImportErrorService _errorService;
+        private readonly IPendingClaimService _pendingClaimService;
 
         public ImportExecutionService(
             IContractRepository contractRepository,
@@ -33,7 +34,8 @@ namespace SalesApp.Services
             IContractMetadataRepository metadataRepository,
             IPVRepository pvRepository,
             IContractStatusMapper statusMapper,
-            IImportErrorService errorService)
+            IImportErrorService errorService,
+            IPendingClaimService pendingClaimService)
         {
             _contractRepository = contractRepository;
             _groupRepository = groupRepository;
@@ -47,6 +49,7 @@ namespace SalesApp.Services
             _pvRepository = pvRepository;
             _statusMapper = statusMapper;
             _errorService = errorService;
+            _pendingClaimService = pendingClaimService;
         }
 
         public async Task<ImportResult> ExecuteContractImportAsync(
@@ -192,6 +195,23 @@ namespace SalesApp.Services
                     result.FailedRows += contractsToAdd.Count;
                     result.ProcessedRows -= contractsToAdd.Count;
                     result.Errors.Add($"Batch insert failed: {ex.Message}");
+                }
+            }
+
+            // ✅ Phase 3: Auto-assign pending claims
+            if (contractsToAdd.Any())
+            {
+                try
+                {
+                    Console.WriteLine($"[Import] Resolving pending claims for new contracts...");
+                    var newContractNumbers = contractsToAdd.Select(c => c.ContractNumber).ToList();
+                    await _pendingClaimService.ResolvePendingClaimsAsync(newContractNumbers);
+                    Console.WriteLine("[Import] Pending claims resolved successfully.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Import] Failed to resolve pending claims: {ex.Message}");
+                    result.Warnings.Add($"Falha ao resolver contratos solicitados: {ex.Message}");
                 }
             }
 

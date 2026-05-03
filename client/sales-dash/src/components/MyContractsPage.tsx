@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Title, Button, Table, TextInput, Select } from '@mantine/core';
+import { Title, Button, Table, TextInput, Select, Alert, Badge } from '@mantine/core';
 import './MyContractsPage.css';
 import Menu from './Menu';
 import StandardModal from '../shared/StandardModal';
@@ -15,6 +15,10 @@ import {
   getUserContracts,
   getContractByNumber,
   assignContract,
+  registerPendingClaim,
+  getMyPendingClaims,
+  getPendingClaimsByMatricula,
+  PendingClaimResponse
 } from '../services/contractService';
 import { apiService, UserMatricula } from '../services/apiService';
 
@@ -41,6 +45,10 @@ const MyContractsPage: React.FC = () => {
   const [assignError, setAssignError] = useState('');
   const [userMatriculas, setUserMatriculas] = useState<UserMatricula[]>([]);
   const [selectedMatricula, setSelectedMatricula] = useState<string>('');
+
+  const [pendingClaims, setPendingClaims] = useState<PendingClaimResponse[]>([]);
+  const [matriculaPendingClaims, setMatriculaPendingClaims] = useState<PendingClaimResponse[]>([]);
+  const [contractNotYetImported, setContractNotYetImported] = useState(false);
 
   const loadMyContracts = useCallback(async () => {
     setLoading(true);
@@ -79,9 +87,34 @@ const MyContractsPage: React.FC = () => {
     if (savedEnd) setEndDate(savedEnd);
   }, []);
 
+  const loadPendingClaims = useCallback(async () => {
+    try {
+      const myClaims = await getMyPendingClaims();
+      setPendingClaims(myClaims);
+      
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user.isMatriculaOwner && user.activeMatriculas) {
+          const allMatriculaClaims = [];
+          for (const m of user.activeMatriculas) {
+            if (m.isOwner) {
+               const claims = await getPendingClaimsByMatricula(m.id);
+               allMatriculaClaims.push(...claims);
+            }
+          }
+          setMatriculaPendingClaims(allMatriculaClaims);
+        }
+      }
+    } catch(err) {
+      console.error("Failed to load pending claims", err);
+    }
+  }, []);
+
   useEffect(() => {
     loadMyContracts();
-  }, [loadMyContracts]);
+    loadPendingClaims();
+  }, [loadMyContracts, loadPendingClaims]);
 
   const handleNewClick = async () => {
     setContractNumber('');
@@ -135,8 +168,18 @@ const MyContractsPage: React.FC = () => {
     try {
       const contract = await getContractByNumber(contractNumber);
       setRetrievedContract(contract);
+      setContractNotYetImported(false);
     } catch (err: any) {
-      setAssignError(err.message || 'Contrato não encontrado');
+      if (err.notFoundYet) {
+        setAssignError('');
+        setContractNotYetImported(true);
+        if (err.alreadyClaimed) {
+          setAssignError(err.message);
+        }
+      } else {
+        setAssignError(err.message || 'Contrato não encontrado');
+        setContractNotYetImported(false);
+      }
       setRetrievedContract(null);
     } finally {
       setAssignLoading(false);
@@ -158,16 +201,26 @@ const MyContractsPage: React.FC = () => {
       // Resolve the ID of the selected matricula
       const selectedMatriculaObj = userMatriculas.find(m => m.matriculaNumber === selectedMatricula);
 
-      // Pass selected matricula if available
-      await assignContract(
-        contractNumber,
-        selectedMatricula || undefined,
-        selectedMatriculaObj?.id
-      );
+      if (contractNotYetImported) {
+        if (!selectedMatriculaObj) {
+           setAssignError('Matrícula é obrigatória para registrar interesse.');
+           setAssignLoading(false);
+           return;
+        }
+        await registerPendingClaim(contractNumber, selectedMatriculaObj.id);
+        loadPendingClaims();
+      } else {
+        await assignContract(
+          contractNumber,
+          selectedMatricula || undefined,
+          selectedMatriculaObj?.id
+        );
+      }
 
       setShowAssignModal(false);
       setContractNumber('');
       setRetrievedContract(null);
+      setContractNotYetImported(false);
       setSelectedMatricula('');
       loadMyContracts(); // Refresh the list
     } catch (err: any) {
@@ -373,23 +426,90 @@ const MyContractsPage: React.FC = () => {
             userId={JSON.parse(localStorage.getItem('user') || '{}').id}
           />
         )}
+
+        {/* Pending Claims Section */}
+        {pendingClaims.length > 0 && (
+          <div style={{ marginTop: '2rem' }}>
+            <Title order={3} size="h3" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              📋 Contratos Solicitados <Badge color="orange" variant="light">Aguardando importação</Badge>
+            </Title>
+            <Table.ScrollContainer minWidth={800}>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Nº Contrato</Table.Th>
+                    <Table.Th>Matrícula</Table.Th>
+                    <Table.Th>Solicitado em</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {pendingClaims.map(claim => (
+                    <Table.Tr key={claim.id}>
+                      <Table.Td>{claim.contractNumber}</Table.Td>
+                      <Table.Td>{claim.matriculaNumber}</Table.Td>
+                      <Table.Td>{new Date(claim.claimedAt).toLocaleDateString('pt-BR')}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          </div>
+        )}
+
+        {/* Matricula Owner Alert Section */}
+        {matriculaPendingClaims.length > 0 && (
+          <div style={{ marginTop: '2rem' }}>
+            <Alert color="orange" title="Atenção Proprietário" mb="md">
+              Existem usuários que solicitaram a atribuição de contratos vinculados às suas matrículas, mas os contratos ainda não foram encontrados no sistema. Por favor, importe o arquivo o quanto antes para atribuí-los automaticamente.
+            </Alert>
+            <Table.ScrollContainer minWidth={800}>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Nº Contrato</Table.Th>
+                    <Table.Th>Usuário Solicitante</Table.Th>
+                    <Table.Th>Email do Usuário</Table.Th>
+                    <Table.Th>Sua Matrícula</Table.Th>
+                    <Table.Th>Solicitado em</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {matriculaPendingClaims.map(claim => (
+                    <Table.Tr key={claim.id}>
+                      <Table.Td>{claim.contractNumber}</Table.Td>
+                      <Table.Td>{claim.userName}</Table.Td>
+                      <Table.Td>{claim.userEmail}</Table.Td>
+                      <Table.Td>{claim.matriculaNumber}</Table.Td>
+                      <Table.Td>{new Date(claim.claimedAt).toLocaleDateString('pt-BR')}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          </div>
+        )}
       </div>
-
-
-
 
       {/* Assignment Modal */}
       <StandardModal
         isOpen={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
+        onClose={() => {
+          setShowAssignModal(false);
+          setContractNotYetImported(false);
+          setContractNumber('');
+        }}
         title="Atribuir Contrato"
         size="md"
         footer={
-          !retrievedContract ? (
+          !retrievedContract && !contractNotYetImported ? (
             <>
               <button
                 className="btn-cancel"
-                onClick={() => setShowAssignModal(false)}
+                onClick={() => {
+                  setShowAssignModal(false);
+                  setContractNotYetImported(false);
+                  setContractNumber('');
+                }}
                 disabled={assignLoading}
               >
                 Cancelar
@@ -406,7 +526,10 @@ const MyContractsPage: React.FC = () => {
             <>
               <button
                 className="btn-cancel"
-                onClick={() => setRetrievedContract(null)}
+                onClick={() => {
+                  setRetrievedContract(null);
+                  setContractNotYetImported(false);
+                }}
                 disabled={assignLoading}
               >
                 Voltar
@@ -414,9 +537,9 @@ const MyContractsPage: React.FC = () => {
               <button
                 className="btn-submit"
                 onClick={handleConfirmAssignment}
-                disabled={assignLoading || (userMatriculas.length > 1 && !selectedMatricula)}
+                disabled={assignLoading || (userMatriculas.length > 1 && !selectedMatricula) || (contractNotYetImported && !!assignError)}
               >
-                {assignLoading ? 'Atribuindo...' : 'Confirmar Atribuição'}
+                {assignLoading ? 'Processando...' : (contractNotYetImported ? 'Registrar Interesse' : 'Confirmar Atribuição')}
               </button>
             </>
           )
@@ -424,7 +547,7 @@ const MyContractsPage: React.FC = () => {
       >
         {assignError && <div style={{ color: '#fa5252', marginBottom: '1rem', fontSize: '14px' }}>{assignError}</div>}
 
-        {!retrievedContract ? (
+        {!retrievedContract && !contractNotYetImported ? (
           <FormField label="Número do Contrato" required labelColor="#333">
             <TextInput
               required
@@ -440,36 +563,47 @@ const MyContractsPage: React.FC = () => {
           </FormField>
         ) : (
           <>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ color: '#111827', marginBottom: '1rem', fontSize: '16px', fontWeight: 600 }}>Detalhes do Contrato</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
-                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Número:</span>
-                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.contractNumber}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
-                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Cliente:</span>
-                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.customerName || '-'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
-                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Grupo:</span>
-                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.groupName}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
-                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Valor Total:</span>
-                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{formatCurrency(retrievedContract.totalAmount)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
-                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Status:</span>
-                  <ContractStatusBadge status={retrievedContract.status} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#6b7280', fontSize: '13px' }}>Data Início:</span>
-                  <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{formatDate(retrievedContract.contractStartDate)}</span>
+            {retrievedContract && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ color: '#111827', marginBottom: '1rem', fontSize: '16px', fontWeight: 600 }}>Detalhes do Contrato</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                    <span style={{ color: '#6b7280', fontSize: '13px' }}>Número:</span>
+                    <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.contractNumber}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                    <span style={{ color: '#6b7280', fontSize: '13px' }}>Cliente:</span>
+                    <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.customerName || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                    <span style={{ color: '#6b7280', fontSize: '13px' }}>Grupo:</span>
+                    <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.groupName}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                    <span style={{ color: '#6b7280', fontSize: '13px' }}>Valor Total:</span>
+                    <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{formatCurrency(retrievedContract.totalAmount)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
+                    <span style={{ color: '#6b7280', fontSize: '13px' }}>Status:</span>
+                    <ContractStatusBadge status={retrievedContract.status} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#6b7280', fontSize: '13px' }}>Data Início:</span>
+                    <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{formatDate(retrievedContract.contractStartDate)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+          </>
+        )}
 
+        {(retrievedContract || contractNotYetImported) && (
+          <>
+            {contractNotYetImported && (
+              <Alert color="blue" title="Contrato não encontrado" mb="md">
+                Este contrato ainda não foi importado para o sistema. Você pode registrar seu interesse e ele será atribuído automaticamente à sua matrícula quando for importado.
+              </Alert>
+            )}
             {/* Matricula Selection */}
             {userMatriculas.length > 0 && (
               <FormField

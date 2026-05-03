@@ -61,6 +61,7 @@ namespace SalesApp
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
             services.AddScoped<IUserScopeService, UserScopeService>();
             services.AddScoped<IMatriculaRepository, MatriculaRepository>();
+            services.AddScoped<IPendingContractClaimRepository, PendingContractClaimRepository>();
             
             // Production-Grade RBAC
             services.AddSingleton<IRbacCache, RbacCache>();
@@ -81,6 +82,7 @@ namespace SalesApp
             services.AddScoped<IUserMatriculaRepository, UserMatriculaRepository>();
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
             services.AddScoped<IWizardService, WizardService>();
+            services.AddScoped<IPendingClaimService, PendingClaimService>();
             
             // Export service (singleton — holds in-memory export jobs)
             services.AddSingleton<IExportService, ExportService>();

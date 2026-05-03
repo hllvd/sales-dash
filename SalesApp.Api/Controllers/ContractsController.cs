@@ -24,6 +24,7 @@ namespace SalesApp.Controllers
         private readonly IUserScopeService _userScopeService;
         private readonly IExportService _exportService;
         private readonly IContractStatusMapper _statusMapper;
+        private readonly IPendingContractClaimRepository _pendingClaimRepository;
         
         public ContractsController(
             IContractRepository contractRepository, 
@@ -35,7 +36,8 @@ namespace SalesApp.Controllers
             IMessageService messageService,
             IUserScopeService userScopeService,
             IExportService exportService,
-            IContractStatusMapper statusMapper)
+            IContractStatusMapper statusMapper,
+            IPendingContractClaimRepository pendingClaimRepository)
         {
             _contractRepository = contractRepository;
             _userRepository = userRepository;
@@ -47,6 +49,7 @@ namespace SalesApp.Controllers
             _userScopeService = userScopeService;
             _exportService = exportService;
             _statusMapper = statusMapper;
+            _pendingClaimRepository = pendingClaimRepository;
         }
 
         // ── Export endpoints ─────────────────────────────────────────────────
@@ -222,10 +225,29 @@ namespace SalesApp.Controllers
             var contract = await _contractRepository.GetByContractNumberAsync(contractNumber);
             if (contract == null || !contract.IsActive)
             {
-                return NotFound(new ApiResponse<ContractResponse>
+                // Check if another user has already claimed it
+                var existingClaim = await _pendingClaimRepository.GetByContractNumberAsync(contractNumber);
+                if (existingClaim != null)
                 {
-                    Success = false,
-                    Message = _messageService.Get(AppMessage.ContractNotFound)
+                    // Find the user who claimed it
+                    var claimUser = await _userRepository.GetByIdAsync(existingClaim.UserId);
+                    if (claimUser != null)
+                    {
+                        return NotFound(new 
+                        {
+                            success = false,
+                            message = $"O contrato {contractNumber} já foi solicitado por {claimUser.Name} ({claimUser.Email}). Para assumir este contrato, o usuário atual deve cancelar a solicitação.",
+                            notFoundYet = true,
+                            alreadyClaimed = true
+                        });
+                    }
+                }
+
+                return NotFound(new 
+                {
+                    success = false,
+                    message = "ContractNotFoundYet",
+                    notFoundYet = true
                 });
             }
             
@@ -584,6 +606,121 @@ namespace SalesApp.Controllers
                 Success = true,
                 Message = _messageService.Get(AppMessage.ContractDeletedSuccessfully)
             });
+        }
+
+        // ── Pending Claims ─────────────────────────────────────────────────
+
+        [HttpPost("claims")]
+        public async Task<ActionResult<ApiResponse<PendingClaimResponse>>> CreateClaim(PendingClaimRequest request)
+        {
+            var currentUserId = GetCurrentUserId();
+
+            // 1. Verify contract isn't already active
+            var existingContract = await _contractRepository.GetByContractNumberAsync(request.ContractNumber);
+            if (existingContract != null && existingContract.IsActive)
+            {
+                return BadRequest(new { success = false, message = "Contrato já existe no sistema." });
+            }
+
+            // 2. Verify matricula belongs to current user
+            var userMatricula = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(
+                (await _matriculaRepository.GetByIdAsync(request.MatriculaId))?.MatriculaNumber ?? "", 
+                currentUserId);
+                
+            if (userMatricula == null || !userMatricula.IsActive)
+            {
+                return BadRequest(new { success = false, message = "Matrícula inválida ou não pertence ao usuário." });
+            }
+
+            // 3. Check for existing claim
+            var existingClaim = await _pendingClaimRepository.GetByContractNumberAsync(request.ContractNumber);
+            if (existingClaim != null)
+            {
+                if (existingClaim.UserId == currentUserId)
+                {
+                    return Ok(new ApiResponse<PendingClaimResponse> { Success = true, Message = "Reivindicação já registrada.", Data = MapToPendingClaimResponse(existingClaim) });
+                }
+
+                var claimUser = await _userRepository.GetByIdAsync(existingClaim.UserId);
+                return BadRequest(new { 
+                    success = false, 
+                    message = $"O contrato {request.ContractNumber} já foi solicitado por {claimUser?.Name} ({claimUser?.Email}). Para assumir este contrato, o usuário atual deve cancelar a solicitação." 
+                });
+            }
+
+            var claim = new PendingContractClaim
+            {
+                ContractNumber = request.ContractNumber,
+                UserId = currentUserId,
+                MatriculaId = request.MatriculaId
+            };
+
+            await _pendingClaimRepository.CreateAsync(claim);
+            
+            // Refetch to include relationships for the response
+            var created = await _pendingClaimRepository.GetByContractNumberAsync(request.ContractNumber);
+
+            return Created("", new ApiResponse<PendingClaimResponse>
+            {
+                Success = true,
+                Message = "Solicitação de contrato registrada com sucesso.",
+                Data = MapToPendingClaimResponse(created!)
+            });
+        }
+
+        [HttpGet("claims")]
+        public async Task<ActionResult<ApiResponse<List<PendingClaimResponse>>>> GetMyClaims()
+        {
+            var currentUserId = GetCurrentUserId();
+            var claims = await _pendingClaimRepository.GetUnresolvedByUserIdAsync(currentUserId);
+
+            return Ok(new ApiResponse<List<PendingClaimResponse>>
+            {
+                Success = true,
+                Data = claims.Select(MapToPendingClaimResponse).ToList(),
+                Message = "Solicitações recuperadas com sucesso."
+            });
+        }
+
+        [HttpGet("claims/matricula/{matriculaId}")]
+        public async Task<ActionResult<ApiResponse<List<PendingClaimResponse>>>> GetClaimsByMatricula(int matriculaId)
+        {
+            var currentUserId = GetCurrentUserId();
+            var hasReadPermission = User.HasClaim("perm", "contracts:read") || User.HasClaim("perm", "system:superadmin");
+
+            // Verify user is owner of this matricula OR has read-all permissions
+            var ownerLink = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId);
+            
+            if (!hasReadPermission && (ownerLink == null || ownerLink.UserId != currentUserId))
+            {
+                return Forbid();
+            }
+
+            var claims = await _pendingClaimRepository.GetUnresolvedByMatriculaIdAsync(matriculaId);
+
+            return Ok(new ApiResponse<List<PendingClaimResponse>>
+            {
+                Success = true,
+                Data = claims.Select(MapToPendingClaimResponse).ToList(),
+                Message = "Solicitações da matrícula recuperadas com sucesso."
+            });
+        }
+
+        private PendingClaimResponse MapToPendingClaimResponse(PendingContractClaim claim)
+        {
+            return new PendingClaimResponse
+            {
+                Id = claim.Id,
+                ContractNumber = claim.ContractNumber,
+                UserId = claim.UserId,
+                UserName = claim.User?.Name ?? "",
+                UserEmail = claim.User?.Email ?? "",
+                MatriculaId = claim.MatriculaId,
+                MatriculaNumber = claim.Matricula?.MatriculaNumber ?? "",
+                ClaimedAt = claim.ClaimedAt,
+                IsResolved = claim.IsResolved,
+                ResolvedAt = claim.ResolvedAt
+            };
         }
         
         private ContractResponse MapToContractResponse(Contract contract)

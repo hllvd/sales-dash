@@ -115,6 +115,19 @@ export interface HistoricProductionResponse {
   totalContracts: number;
 }
 
+export interface PendingClaimResponse {
+  id: number;
+  contractNumber: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  matriculaId: number;
+  matriculaNumber: string;
+  claimedAt: string;
+  isResolved: boolean;
+  resolvedAt: string | null;
+}
+
 
 interface ApiResponse<T> {
   success: boolean;
@@ -281,6 +294,9 @@ export const getContractByNumber = async (contractNumber: string): Promise<Contr
 
   if (!response.ok) {
     const error = await response.json();
+    if (error.notFoundYet) {
+      throw error; // Throw the actual error object to be caught by MyContractsPage
+    }
     throw new Error(error.message || 'Failed to fetch contract');
   }
 
@@ -337,5 +353,50 @@ export const getHistoricProduction = async (
   }
 
   const result: ApiResponse<HistoricProductionResponse> = await response.json();
+  return result.data;
+};
+
+// Pending Claims Operations
+export const registerPendingClaim = async (contractNumber: string, matriculaId: number): Promise<PendingClaimResponse> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/contracts/claims`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ contractNumber, matriculaId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to register pending claim');
+  }
+
+  const result: ApiResponse<PendingClaimResponse> = await response.json();
+  return result.data;
+};
+
+export const getMyPendingClaims = async (): Promise<PendingClaimResponse[]> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/contracts/claims`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch pending claims');
+  }
+
+  const result: ApiResponse<PendingClaimResponse[]> = await response.json();
+  return result.data;
+};
+
+export const getPendingClaimsByMatricula = async (matriculaId: number): Promise<PendingClaimResponse[]> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/contracts/claims/matricula/${matriculaId}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch pending claims for matricula');
+  }
+
+  const result: ApiResponse<PendingClaimResponse[]> = await response.json();
   return result.data;
 };
