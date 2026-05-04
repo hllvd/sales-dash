@@ -649,7 +649,7 @@ namespace SalesApp.Controllers
 
             var claim = new PendingContractClaim
             {
-                ContractNumber = request.ContractNumber,
+                ContractNumber = request.ContractNumber.Trim(),
                 UserId = currentUserId,
                 MatriculaId = resolvedMatriculaId
             };

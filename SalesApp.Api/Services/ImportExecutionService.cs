@@ -204,15 +204,68 @@ namespace SalesApp.Services
             {
                 try
                 {
-                    Console.WriteLine($"[Import] Resolving pending claims for {allImportedContracts.Count} imported contracts...");
-                    var importedContractNumbers = allImportedContracts.Select(c => c.ContractNumber).ToList();
-                    await _pendingClaimService.ResolvePendingClaimsAsync(importedContractNumbers);
-                    Console.WriteLine("[Import] Pending claims resolved successfully.");
+                    var importedNumbers = allImportedContracts.Select(c => c.ContractNumber).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+                    Console.WriteLine($"[Import Phase 3 Debug] importedNumbers count: {importedNumbers.Count}");
+                    Console.WriteLine($"[Import Phase 3 Debug] importedNumbers: {string.Join(", ", importedNumbers)}");
+                    
+                    var pendingClaims = await _context.PendingContractClaims
+                        .Where(c => !c.IsResolved)
+                        .ToListAsync(); // Fetch all and filter in memory to be 100% sure about trimming/case
+                    
+                    Console.WriteLine($"[Import Phase 3 Debug] Unresolved pending claims in DB: {pendingClaims.Count}");
+                    if (pendingClaims.Any()) {
+                        Console.WriteLine($"[Import Phase 3 Debug] Claims: {string.Join(", ", pendingClaims.Select(c => c.ContractNumber))}");
+                    }
+                    
+                    var matchedClaims = pendingClaims
+                        .Where(c => importedNumbers.Contains(c.ContractNumber.Trim(), StringComparer.OrdinalIgnoreCase))
+                        .ToList();
+
+                    if (matchedClaims.Any())
+                    {
+                        Console.WriteLine($"[Import] Found {matchedClaims.Count} pending claims to resolve.");
+                        
+                        // Use a dictionary to map contract numbers to objects, handling any theoretical duplicates gracefully
+                        var contractMap = new Dictionary<string, Contract>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var c in allImportedContracts)
+                        {
+                            if (!string.IsNullOrEmpty(c.ContractNumber))
+                            {
+                                var normalizedKey = c.ContractNumber.Trim();
+                                contractMap[normalizedKey] = c;
+                            }
+                        }
+
+                        foreach (var claim in matchedClaims)
+                        {
+                            var claimKey = claim.ContractNumber.Trim();
+                            if (contractMap.TryGetValue(claimKey, out var contract))
+                            {
+                                // Reconciliation: The pending claim MUST be resolved.
+                                // It takes priority over 'Owner fallback' (matricula owner) 
+                                // to ensure the person who actually 'worked' the contract gets it.
+                                contract.UserId = claim.UserId;
+                                contract.MatriculaId = claim.MatriculaId;
+                                
+                                claim.IsResolved = true;
+                                claim.ResolvedAt = DateTime.UtcNow;
+                                
+                                Console.WriteLine($"[Import] RECONCILED: Contract {claimKey} assigned to user {claim.UserId} (was pending claim)");
+                            }
+                        }
+                        
+                        await _context.SaveChangesAsync();
+                        Console.WriteLine("[Import] Phase 3: Pending claims resolution committed to database.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("[Import] No matching pending claims found.");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Import] Failed to resolve pending claims: {ex.Message}");
-                    result.Warnings.Add($"Falha ao resolver contratos solicitados: {ex.Message}");
+                    Console.WriteLine($"[Import] Error resolving pending claims: {ex.Message}");
+                    result.Warnings.Add($"Aviso: Não foi possível reconciliar contratos solicitados: {ex.Message}");
                 }
             }
 
@@ -1204,7 +1257,62 @@ namespace SalesApp.Services
                 }
             }
 
-            // 4. Save updates to existing contracts
+            // 4. Phase 3: Auto-assign pending claims before saving
+            var allImportedContracts = contractsToAdd.Concat(existingContracts).ToList();
+            if (allImportedContracts.Any())
+            {
+                try
+                {
+                    var importedNumbers = allImportedContracts.Select(c => c.ContractNumber).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+                    Console.WriteLine($"[Import Dashboard Phase 3 Debug] importedNumbers count: {importedNumbers.Count}");
+                    
+                    var pendingClaims = await _context.PendingContractClaims
+                        .Where(c => !c.IsResolved)
+                        .ToListAsync(); // Fetch all and filter in memory
+                    
+                    var matchedClaims = pendingClaims
+                        .Where(c => importedNumbers.Contains(c.ContractNumber.Trim(), StringComparer.OrdinalIgnoreCase))
+                        .ToList();
+
+                    if (matchedClaims.Any())
+                    {
+                        Console.WriteLine($"[Import Dashboard] Found {matchedClaims.Count} pending claims to resolve.");
+                        
+                        var contractMap = new Dictionary<string, Contract>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var c in allImportedContracts)
+                        {
+                            if (!string.IsNullOrEmpty(c.ContractNumber))
+                            {
+                                var normalizedKey = c.ContractNumber.Trim();
+                                contractMap[normalizedKey] = c;
+                            }
+                        }
+
+                        foreach (var claim in matchedClaims)
+                        {
+                            var claimKey = claim.ContractNumber.Trim();
+                            if (contractMap.TryGetValue(claimKey, out var contract))
+                            {
+                                contract.UserId = claim.UserId;
+                                contract.MatriculaId = claim.MatriculaId;
+                                
+                                claim.IsResolved = true;
+                                claim.ResolvedAt = DateTime.UtcNow;
+                                
+                                Console.WriteLine($"[Import Dashboard] RECONCILED: Contract {claimKey} assigned to user {claim.UserId} (was pending claim)");
+                            }
+                        }
+                        Console.WriteLine("[Import Dashboard] Phase 3: Pending claims modified. Will commit with next SaveChangesAsync.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Import Dashboard] Pending claims resolution error: {ex.Message}");
+                    result.Warnings.Add($"Failed to resolve some pending claims automatically: {ex.Message}");
+                }
+            }
+
+            // 5. Save updates to existing contracts and resolved claims
             try
             {
                 await _context.SaveChangesAsync();
