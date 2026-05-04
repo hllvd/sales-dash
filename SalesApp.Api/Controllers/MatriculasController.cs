@@ -5,6 +5,7 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Attributes;
+using SalesApp.Utils;
 
 namespace SalesApp.Controllers
 {
@@ -65,17 +66,35 @@ namespace SalesApp.Controllers
         // POST: api/matriculas
         [HttpPost]
         [HasPermission("matriculas:write")]
-        public async Task<ActionResult<ApiResponse<Matricula>>> Create([FromBody] Matricula matricula)
+        public async Task<ActionResult<ApiResponse<MatriculaResponse>>> Create(MatriculaRequest request)
         {
+            request.MatriculaNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
+            
+            if (await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber) != null)
+            {
+                return BadRequest(new ApiResponse<MatriculaResponse>
+                {
+                    Success = false,
+                    Message = "Matricula number already exists"
+                });
+            }
+
+            var matricula = new Matricula
+            {
+                MatriculaNumber = request.MatriculaNumber,
+                Status = request.Status ?? "active",
+                StartDate = request.StartDate ?? DateTime.UtcNow
+            };
+
             var created = await _matriculaRepository.CreateAsync(matricula);
 
             return CreatedAtAction(
                 nameof(GetById),
                 new { id = created.Id },
-                new ApiResponse<Matricula>
+                new ApiResponse<MatriculaResponse>
                 {
                     Success = true,
-                    Data = created,
+                    Data = MapToMatriculaResponse(created),
                     Message = "Matricula created successfully"
                 });
         }
@@ -83,23 +102,46 @@ namespace SalesApp.Controllers
         // PUT: api/matriculas/{id}
         [HttpPut("{id}")]
         [HasPermission("matriculas:write")]
-        public async Task<ActionResult<ApiResponse<Matricula>>> Update(int id, [FromBody] Matricula matricula)
+        public async Task<ActionResult<ApiResponse<MatriculaResponse>>> Update(int id, MatriculaRequest request)
         {
-            if (id != matricula.Id)
+            request.MatriculaNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
+            
+            var existing = await _matriculaRepository.GetByIdAsync(id);
+            if (existing == null)
             {
-                return BadRequest(new ApiResponse<Matricula>
+                return NotFound(new ApiResponse<MatriculaResponse>
                 {
                     Success = false,
-                    Message = "ID mismatch"
+                    Message = "Matricula not found"
                 });
             }
 
-            var updated = await _matriculaRepository.UpdateAsync(matricula);
+            if (!string.IsNullOrEmpty(request.MatriculaNumber))
+            {
+                var other = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
+                if (other != null && other.Id != id)
+                {
+                    return BadRequest(new ApiResponse<MatriculaResponse>
+                    {
+                        Success = false,
+                        Message = "Matricula number already exists"
+                    });
+                }
+                existing.MatriculaNumber = request.MatriculaNumber;
+            }
 
-            return Ok(new ApiResponse<Matricula>
+            if (!string.IsNullOrEmpty(request.Status))
+                existing.Status = request.Status;
+                
+            if (request.StartDate.HasValue)
+                existing.StartDate = request.StartDate.Value;
+
+            var updated = await _matriculaRepository.UpdateAsync(existing);
+
+            return Ok(new ApiResponse<MatriculaResponse>
             {
                 Success = true,
-                Data = updated,
+                Data = MapToMatriculaResponse(updated),
                 Message = "Matricula updated successfully"
             });
         }
@@ -116,6 +158,17 @@ namespace SalesApp.Controllers
                 Success = true,
                 Message = "Matricula deleted successfully"
             });
+        }
+
+        private MatriculaResponse MapToMatriculaResponse(Matricula matricula)
+        {
+            return new MatriculaResponse
+            {
+                Id = matricula.Id,
+                MatriculaNumber = matricula.MatriculaNumber,
+                Status = matricula.Status,
+                StartDate = matricula.StartDate
+            };
         }
     }
 }

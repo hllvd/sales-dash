@@ -25,5 +25,9 @@ namespace SalesApp.DTOs
         public Guid? ParentUserId { get; set; }
         
         public bool? IsActive { get; set; }
+
+        [MaxLength(50, ErrorMessage = "MatriculaNumber cannot exceed 50 characters")]
+        [RegularExpression(@"^[a-zA-Z0-9]*$", ErrorMessage = "MatriculaNumber can only contain alphanumeric characters")]
+        public string? MatriculaNumber { get; set; }
     }
 }

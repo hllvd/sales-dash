@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Title, Button, Table, TextInput, Select, Alert, Badge } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import { normalizeNumber } from '../utils/normalization';
 import './MyContractsPage.css';
 import Menu from './Menu';
 import StandardModal from '../shared/StandardModal';
@@ -170,7 +171,8 @@ const MyContractsPage: React.FC = () => {
   };
 
   const handleRetrieveContract = async () => {
-    if (!contractNumber.trim()) {
+    const normalizedContractNumber = normalizeNumber(contractNumber);
+    if (!normalizedContractNumber) {
       setAssignError('Por favor, insira um número de contrato');
       return;
     }
@@ -179,9 +181,17 @@ const MyContractsPage: React.FC = () => {
     setAssignError('');
 
     try {
-      const contract = await getContractByNumber(contractNumber);
+      const contract = await getContractByNumber(normalizedContractNumber);
       setRetrievedContract(contract);
       setContractNotYetImported(false);
+
+      // Auto-select matricula if it matches one of the user's matriculas
+      if (contract.matriculaNumber) {
+        const matchingMatricula = userMatriculas.find(m => m.matriculaNumber === contract.matriculaNumber);
+        if (matchingMatricula) {
+          setSelectedMatricula(matchingMatricula.matriculaNumber);
+        }
+      }
     } catch (err: any) {
       if (err.notFoundYet) {
         setAssignError('');
@@ -209,6 +219,7 @@ const MyContractsPage: React.FC = () => {
 
     setAssignLoading(true);
     setAssignError('');
+    const normalizedContractNumber = normalizeNumber(contractNumber);
 
     try {
       // Resolve the ID of the selected matricula
@@ -220,11 +231,11 @@ const MyContractsPage: React.FC = () => {
           setAssignLoading(false);
           return;
         }
-        await registerPendingClaim(contractNumber, selectedMatriculaObj.id);
+        await registerPendingClaim(normalizedContractNumber, selectedMatriculaObj.id);
         loadPendingClaims();
       } else {
         await assignContract(
-          contractNumber,
+          normalizedContractNumber,
           selectedMatricula || undefined,
           selectedMatriculaObj?.id
         );
@@ -628,7 +639,7 @@ const MyContractsPage: React.FC = () => {
               </Alert>
             )}
             {/* Matricula Selection */}
-            {contractNotYetImported && !assignError && userMatriculas.length > 1 && (
+            {(contractNotYetImported || retrievedContract) && !assignError && userMatriculas.length >= 1 && (
               <FormField
                 label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
                 description={

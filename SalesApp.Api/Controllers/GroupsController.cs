@@ -5,6 +5,7 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Attributes;
+using SalesApp.Utils;
 
 namespace SalesApp.Controllers
 {
@@ -61,6 +62,7 @@ namespace SalesApp.Controllers
         [HasPermission("groups:write")]
         public async Task<ActionResult<ApiResponse<GroupResponse>>> CreateGroup(GroupRequest request)
         {
+            request.Name = NormalizationUtils.NormalizeNumber(request.Name);
             if (await _groupRepository.NameExistsAsync(request.Name))
             {
                 return BadRequest(new ApiResponse<GroupResponse>
@@ -91,6 +93,7 @@ namespace SalesApp.Controllers
         [HasPermission("groups:write")]
         public async Task<ActionResult<ApiResponse<GroupResponse>>> UpdateGroup(int id, UpdateGroupRequest request)
         {
+            request.Name = NormalizationUtils.NormalizeNumber(request.Name);
             var group = await _groupRepository.GetByIdAsync(id);
             if (group == null || !group.IsActive)
             {

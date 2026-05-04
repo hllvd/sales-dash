@@ -1,4 +1,5 @@
 using System.Linq;
+using SalesApp.Utils;
 
 namespace SalesApp.Libs
 {
@@ -31,10 +32,10 @@ namespace SalesApp.Libs
                 {
                     return new CotaInfo
                     {
-                        Group = parts[0].Trim(),
-                        Matricula = parts[1].Trim(),
+                        Group = NormalizationUtils.NormalizeNumber(parts[0]),
+                        Matricula = NormalizationUtils.NormalizeNumber(parts[1]),
                         Customer = parts[3].Trim(),
-                        Contract = parts[^1].Trim(),
+                        Contract = NormalizationUtils.NormalizeNumber(parts[^1]),
                         IsFromConcatenatedString = true
                     };
                 }
@@ -42,7 +43,7 @@ namespace SalesApp.Libs
                 // Fallback for strings with semicolons but less than 5 parts
                 return new CotaInfo
                 {
-                    Contract = parts.LastOrDefault()?.Trim(),
+                    Contract = NormalizationUtils.NormalizeNumber(parts.LastOrDefault()),
                     IsFromConcatenatedString = true
                 };
             }
@@ -50,7 +51,7 @@ namespace SalesApp.Libs
             // Standard contract number
             return new CotaInfo
             {
-                Contract = rawValue.Trim(),
+                Contract = NormalizationUtils.NormalizeNumber(rawValue),
                 IsFromConcatenatedString = false
             };
         }

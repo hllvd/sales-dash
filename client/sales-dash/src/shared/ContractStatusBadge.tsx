@@ -53,14 +53,14 @@ export const getStatusColor = (status: string): string => {
 };
 
 export const CONTRACT_STATUS_OPTIONS = [
-  { value: 'active', label: 'Ativo' },
-  { value: 'late1', label: 'Atrasado 1' },
-  { value: 'late2', label: 'Atrasado 2' },
-  { value: 'late3', label: 'Atrasado 3' },
-  { value: 'delinquent', label: 'Inadimplente' },
-  { value: 'defaulted', label: 'Cancelado' },
-  { value: 'transferred', label: 'Transferido' },
-  { value: 'paid_off', label: 'Quitado' },
+  { value: 'Active', label: 'Ativo' },
+  { value: 'Late1', label: 'Atrasado 1' },
+  { value: 'Late2', label: 'Atrasado 2' },
+  { value: 'Late3', label: 'Atrasado 3' },
+  { value: 'Delinquent', label: 'Inadimplente' },
+  { value: 'Defaulted', label: 'Cancelado' },
+  { value: 'Transferred', label: 'Transferido' },
+  { value: 'PaidOff', label: 'Quitado' },
 ];
 
 const ContractStatusBadge: React.FC<ContractStatusBadgeProps> = ({ status }) => {

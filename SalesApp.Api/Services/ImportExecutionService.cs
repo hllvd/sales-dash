@@ -3,6 +3,7 @@ using SalesApp.Repositories;
 using SalesApp.Data;
 using Microsoft.EntityFrameworkCore;
 using SalesApp.Libs;
+using SalesApp.Utils;
 
 namespace SalesApp.Services
 {
@@ -1525,6 +1526,7 @@ namespace SalesApp.Services
         
         private async Task<int?> ResolveGroupIdAsync(string? groupValue, Dictionary<string, int?> cache, int importSessionId, bool allowAutoCreate = false, ImportResult? result = null)
         {
+            groupValue = NormalizationUtils.NormalizeNumber(groupValue);
             if (string.IsNullOrWhiteSpace(groupValue)) return null;
             
             if (cache.TryGetValue(groupValue, out var cachedId)) return cachedId;
@@ -1594,6 +1596,7 @@ namespace SalesApp.Services
             ImportResult? result = null,
             string? pvName = null)
         {
+            pvValue = NormalizationUtils.NormalizeNumber(pvValue);
             if (string.IsNullOrWhiteSpace(pvValue))
             {
                 return null;
@@ -1691,6 +1694,7 @@ namespace SalesApp.Services
             int importSessionId, 
             Dictionary<string, int?>? cache = null)
         {
+            matriculaNumber = NormalizationUtils.NormalizeNumber(matriculaNumber);
             if (string.IsNullOrWhiteSpace(matriculaNumber))
             {
                 return null;

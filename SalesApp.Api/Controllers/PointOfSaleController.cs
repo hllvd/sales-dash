@@ -5,6 +5,7 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Attributes;
+using SalesApp.Utils;
 
 namespace SalesApp.Controllers
 {
@@ -79,6 +80,7 @@ namespace SalesApp.Controllers
         [HasPermission("pvs:create")]
         public async Task<ActionResult<ApiResponse<PVResponse>>> Create(PVRequest request)
         {
+            request.Name = NormalizationUtils.NormalizeNumber(request.Name);
             // Check if ID already exists
             if (await _pvRepository.ExistsAsync(request.Id))
             {
@@ -122,6 +124,7 @@ namespace SalesApp.Controllers
         [HasPermission("pvs:update")]
         public async Task<ActionResult<ApiResponse<PVResponse>>> Update(int id, PVRequest request)
         {
+            request.Name = NormalizationUtils.NormalizeNumber(request.Name);
             if (id != request.Id)
             {
                 return BadRequest(new ApiResponse<PVResponse>

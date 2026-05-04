@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TextInput, NumberInput, Select, Button, Group } from '@mantine/core';
+import { normalizeNumber } from '../utils/normalization';
 import {
   CreateContractRequest,
   UpdateContractRequest,
@@ -142,7 +143,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     try {
       if (isEditMode && contract) {
         const updateData: UpdateContractRequest = {
-          contractNumber: formData.contractNumber,
+          contractNumber: normalizeNumber(formData.contractNumber),
           userId: formData.userId || null,
           groupId: formData.groupId ? parseInt(formData.groupId) : null,
           pvId: formData.pvId ? parseInt(formData.pvId) : null,
@@ -153,12 +154,12 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           contractType: formData.contractType || null,
           quota: formData.quota ? Number(formData.quota) : null,
           customerName: formData.customerName || null,
-          matriculaNumber: formData.matriculaNumber || null,
+          matriculaNumber: normalizeNumber(formData.matriculaNumber) || null,
         };
         await updateContract(contract.id, updateData);
       } else {
         const createData: CreateContractRequest = {
-          contractNumber: formData.contractNumber,
+          contractNumber: normalizeNumber(formData.contractNumber),
           userId: formData.userId || null,
           groupId: formData.groupId ? parseInt(formData.groupId) : null,
           pvId: formData.pvId ? parseInt(formData.pvId) : null,
@@ -168,7 +169,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           contractType: formData.contractType || null,
           quota: formData.quota ? Number(formData.quota) : null,
           customerName: formData.customerName || null,
-          matriculaNumber: formData.matriculaNumber || null,
+          matriculaNumber: normalizeNumber(formData.matriculaNumber) || null,
         };
         await createContract(createData);
       }

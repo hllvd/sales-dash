@@ -9,7 +9,10 @@ export enum ContractStatus {
   Late1 = 'Late1',
   Late2 = 'Late2',
   Late3 = 'Late3',
-  Defaulted = 'Defaulted'
+  Defaulted = 'Defaulted',
+  Delinquent = 'Delinquent',
+  Transferred = 'Transferred',
+  PaidOff = 'PaidOff'
 }
 
 // TypeScript Interfaces

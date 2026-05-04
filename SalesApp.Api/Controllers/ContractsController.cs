@@ -5,6 +5,7 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Attributes;
+using SalesApp.Utils;
 using System.Security.Claims;
 
 namespace SalesApp.Controllers
@@ -423,6 +424,10 @@ namespace SalesApp.Controllers
         [HasPermission("contracts:update")]
         public async Task<ActionResult<ApiResponse<ContractResponse>>> UpdateContract(int id, UpdateContractRequest request)
         {
+            // Normalize inputs
+            request.ContractNumber = NormalizationUtils.NormalizeNumber(request.ContractNumber);
+            request.MatriculaNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
+
             var contract = await _contractRepository.GetByIdAsync(id);
             if (contract == null || !contract.IsActive)
             {
@@ -642,6 +647,7 @@ namespace SalesApp.Controllers
         [HttpPost("claims")]
         public async Task<ActionResult<ApiResponse<PendingClaimResponse>>> CreateClaim(PendingClaimRequest request)
         {
+            request.ContractNumber = NormalizationUtils.NormalizeNumber(request.ContractNumber);
             var currentUserId = GetCurrentUserId();
 
             // 1. Verify contract isn't already active

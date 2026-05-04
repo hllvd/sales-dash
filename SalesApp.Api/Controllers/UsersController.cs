@@ -6,6 +6,7 @@ using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Data;
 using SalesApp.Attributes;
+using SalesApp.Utils;
 using System.Security.Claims;
 using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
@@ -110,6 +111,7 @@ namespace SalesApp.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> Register(RegisterRequest request)
         {
+            request.MatriculaNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
             // Normalize email to lowercase
             request.Email = request.Email.ToLowerInvariant().Trim();
             
@@ -378,6 +380,7 @@ namespace SalesApp.Controllers
         [HasPermission("users:profile-update")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> UpdateUser(Guid id, UpdateUserRequest request)
         {
+            request.MatriculaNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
             var currentUserId = GetCurrentUserId();
             var hasUpdatePermission = User.HasClaim("perm", "users:update") || User.HasClaim("perm", "system:superadmin");
             
@@ -672,6 +675,7 @@ namespace SalesApp.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<UserMatriculaInfo>>> RequestMatricula([FromBody] RequestMatriculaRequest request)
         {
+            request.MatriculaNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
             var currentUserId = GetCurrentUserId();
             
             // Check if user already has this matricula
@@ -797,6 +801,8 @@ namespace SalesApp.Controllers
             [FromQuery] string? matriculaNumber = null,
             [FromQuery] int? userMatriculaId = null)
         {
+            contractNumber = NormalizationUtils.NormalizeNumber(contractNumber);
+            matriculaNumber = NormalizationUtils.NormalizeNumber(matriculaNumber);
             var currentUserId = GetCurrentUserId();
             
             // Validate and get matricula if provided
