@@ -37,33 +37,33 @@ export interface Contract {
 
 export interface CreateContractRequest {
   contractNumber: string;
-  userId?: string;
+  userId?: string | null;
   totalAmount: number;
-  groupId?: number;
+  groupId?: number | null;
   status: ContractStatus;
   contractStartDate: string;
-  pvId?: number;
-  contractType?: string;
-  quota?: number;
-  customerName?: string;
-  matriculaNumber?: string;
-  userMatriculaId?: number;
+  pvId?: number | null;
+  contractType?: string | null;
+  quota?: number | null;
+  customerName?: string | null;
+  matriculaNumber?: string | null;
+  userMatriculaId?: number | null;
 }
 
 export interface UpdateContractRequest {
   contractNumber?: string;
-  userId?: string;
+  userId?: string | null;
   totalAmount?: number;
-  groupId?: number;
-  pvId?: number;
+  groupId?: number | null;
+  pvId?: number | null;
   status?: ContractStatus;
   contractStartDate?: string;
   isActive?: boolean;
-  contractType?: string;
-  quota?: number;
-  customerName?: string;
-  matriculaNumber?: string;
-  userMatriculaId?: number;
+  contractType?: string | null;
+  quota?: number | null;
+  customerName?: string | null;
+  matriculaNumber?: string | null;
+  userMatriculaId?: number | null;
 }
 
 export interface UserMatriculaInfo {

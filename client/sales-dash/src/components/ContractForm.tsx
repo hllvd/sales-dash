@@ -143,32 +143,32 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
       if (isEditMode && contract) {
         const updateData: UpdateContractRequest = {
           contractNumber: formData.contractNumber,
-          userId: formData.userId || undefined,
-          groupId: formData.groupId ? parseInt(formData.groupId) : undefined,
-          pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
+          userId: formData.userId || null,
+          groupId: formData.groupId ? parseInt(formData.groupId) : null,
+          pvId: formData.pvId ? parseInt(formData.pvId) : null,
           totalAmount: Number(formData.totalAmount),
           status: formData.status as ContractStatus,
           contractStartDate: formData.contractStartDate,
           isActive: formData.isActive,
-          contractType: formData.contractType || undefined,
-          quota: formData.quota ? Number(formData.quota) : undefined,
-          customerName: formData.customerName || undefined,
-          matriculaNumber: formData.matriculaNumber || undefined,
+          contractType: formData.contractType || null,
+          quota: formData.quota ? Number(formData.quota) : null,
+          customerName: formData.customerName || null,
+          matriculaNumber: formData.matriculaNumber || null,
         };
         await updateContract(contract.id, updateData);
       } else {
         const createData: CreateContractRequest = {
           contractNumber: formData.contractNumber,
-          userId: formData.userId || undefined,
-          groupId: formData.groupId ? parseInt(formData.groupId) : undefined,
-          pvId: formData.pvId ? parseInt(formData.pvId) : undefined,
+          userId: formData.userId || null,
+          groupId: formData.groupId ? parseInt(formData.groupId) : null,
+          pvId: formData.pvId ? parseInt(formData.pvId) : null,
           totalAmount: Number(formData.totalAmount),
           status: formData.status as ContractStatus,
           contractStartDate: formData.contractStartDate,
-          contractType: formData.contractType || undefined,
-          quota: formData.quota ? Number(formData.quota) : undefined,
-          customerName: formData.customerName || undefined,
-          matriculaNumber: formData.matriculaNumber || undefined,
+          contractType: formData.contractType || null,
+          quota: formData.quota ? Number(formData.quota) : null,
+          customerName: formData.customerName || null,
+          matriculaNumber: formData.matriculaNumber || null,
         };
         await createContract(createData);
       }

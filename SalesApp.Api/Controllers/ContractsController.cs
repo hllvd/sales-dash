@@ -447,8 +447,9 @@ namespace SalesApp.Controllers
                 }
                 contract.ContractNumber = request.ContractNumber;
             }
-                
-            if (request.UserId.HasValue)
+            
+            // Always update UserId (allows clearing)
+            if (request.UserId.HasValue && request.UserId.Value != Guid.Empty)
             {
                 var user = await _userRepository.GetByIdAsync(request.UserId.Value);
                 if (user == null || !user.IsActive)
@@ -461,8 +462,13 @@ namespace SalesApp.Controllers
                 }
                 contract.UserId = request.UserId.Value;
             }
+            else
+            {
+                contract.UserId = null;
+            }
             
-            if (request.GroupId.HasValue)
+            // Always update GroupId
+            if (request.GroupId.HasValue && request.GroupId.Value != 0)
             {
                 var group = await _groupRepository.GetByIdAsync(request.GroupId.Value);
                 if (group == null || !group.IsActive)
@@ -474,6 +480,10 @@ namespace SalesApp.Controllers
                     });
                 }
                 contract.GroupId = request.GroupId.Value;
+            }
+            else
+            {
+                contract.GroupId = null;
             }
             
             if (request.TotalAmount.HasValue)
@@ -513,13 +523,28 @@ namespace SalesApp.Controllers
                     });
                 }
             }
+            else
+            {
+                contract.ContractType = null;
+            }
                 
             
             if (request.Quota.HasValue)
                 contract.Quota = request.Quota.Value;
+            else
+                contract.Quota = null;
                 
-            if (request.PvId.HasValue) contract.PvId = request.PvId.Value;
-            if (!string.IsNullOrEmpty(request.CustomerName)) contract.CustomerName = request.CustomerName;
+            // Always update PvId
+            if (request.PvId.HasValue && request.PvId.Value != 0)
+            {
+                contract.PvId = request.PvId.Value;
+            }
+            else
+            {
+                contract.PvId = null;
+            }
+
+            contract.CustomerName = request.CustomerName;
 
             // Matricula validation
             if (!string.IsNullOrEmpty(request.MatriculaNumber))
@@ -551,20 +576,24 @@ namespace SalesApp.Controllers
                 contract.MatriculaId = matricula.Id;
                 contract.TempMatricula = matricula.MatriculaNumber;
             }
-            else if (request.UserMatriculaId.HasValue)
+            else
             {
-                var um = await _userMatriculaRepository.GetByIdAsync(request.UserMatriculaId.Value);
-                if (um != null)
+                // Handle UserMatriculaId (legacy)
+                if (request.UserMatriculaId.HasValue)
                 {
-                    contract.MatriculaId = um.MatriculaId;
-                    contract.TempMatricula = um.Matricula?.MatriculaNumber;
+                    var um = await _userMatriculaRepository.GetByIdAsync(request.UserMatriculaId.Value);
+                    if (um != null)
+                    {
+                        contract.MatriculaId = um.MatriculaId;
+                        contract.TempMatricula = um.Matricula?.MatriculaNumber;
+                    }
                 }
-            }
-            else if (request.MatriculaNumber == string.Empty)
-            {
-                // Clear matricula if explicitly set to empty
-                contract.MatriculaId = null;
-                contract.TempMatricula = null;
+                else
+                {
+                    // Clear matricula if not provided or empty
+                    contract.MatriculaId = null;
+                    contract.TempMatricula = null;
+                }
             }
             
             if (request.IsActive.HasValue)
