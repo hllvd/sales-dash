@@ -211,8 +211,30 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
     console.log('>>> Step 4 OK: owner sees all 3 pending contracts');
   });
 
-  // Step 5: Admin imports the 3 contracts via bulk import
-  test('Step 5 – Admin imports pending_claim_contracts.csv', async ({ page }) => {
+  // Step 5: User1 cancels claim for CLM2 and verifies it is gone
+  test('Step 5 – User1 cancels claim for CLM2 and verifies it is gone', async ({ page }) => {
+    await login(page, user1.email, user1.password);
+    
+    // Find the row for CLM2 in the pending table (use tr to avoid matching the whole table)
+    const clm2Row = page.locator('tr').filter({ hasText: CLM2 });
+    await expect(clm2Row).toBeVisible({ timeout: 10000 });
+    
+    // Setup dialog handler for the confirmation
+    page.once('dialog', dialog => dialog.accept());
+    
+    // Click cancel button in that row
+    await clm2Row.locator('button:has-text("Cancelar")').click();
+    
+    // Verify it disappears
+    await expect(clm2Row).toBeHidden({ timeout: 10000 });
+    
+    // Re-claim it for the rest of the test lifecycle
+    await claimContract(page, CLM2, MAT);
+    await expect(page.locator('table.mantine-Table-table').filter({ hasText: CLM2 })).toBeVisible({ timeout: 10000 });
+  });
+
+  // Step 6: Admin imports the 3 contracts via bulk import
+  test('Step 6 – Admin imports pending_claim_contracts.csv (Dashboard Template)', async ({ page }) => {
     const csvPath = path.resolve(process.cwd(), 'test-data', 'pending_claim_contracts.csv');
 
     await login(page, admin.email, admin.password);
@@ -249,8 +271,8 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
     console.log('>>> Step 5 OK: contracts imported');
   });
 
-  // Step 6: User1 sees CLM1 + CLM2 auto-assigned; pending table is gone
-  test('Step 6 – User1 sees contract1 and contract2 assigned; pending table empty', async ({ page }) => {
+  // Step 7: User1 sees CLM1 + CLM2 auto-assigned; pending table is gone
+  test('Step 7 – User1 sees contract1 and contract2 assigned; pending table empty', async ({ page }) => {
     await login(page, user1.email, user1.password);
     await page.waitForTimeout(3000);
 
@@ -263,8 +285,8 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
     console.log('>>> Step 6 OK: user1 has', CLM1, CLM2, 'assigned; no pending');
   });
 
-  // Step 7: User2 sees CLM3 assigned; pending table is gone
-  test('Step 7 – User2 sees contract3 assigned; pending table empty', async ({ page }) => {
+  // Step 8: User2 sees CLM3 assigned; pending table is gone
+  test('Step 8 – User2 sees contract3 assigned; pending table empty', async ({ page }) => {
     await login(page, user2.email, user2.password);
     await page.waitForTimeout(3000);
 
@@ -274,8 +296,8 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
     console.log('>>> Step 7 OK: user2 has', CLM3, 'assigned; no pending');
   });
 
-  // Step 8: MatriculaOwner banner is gone
-  test('Step 8 – MatriculaOwner sees no owner banner', async ({ page }) => {
+  // Step 9: MatriculaOwner banner is gone
+  test('Step 9 – MatriculaOwner sees no owner banner', async ({ page }) => {
     await login(page, owner.email, owner.password);
     await page.waitForTimeout(3000);
 

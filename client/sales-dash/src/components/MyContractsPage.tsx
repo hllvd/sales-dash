@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Title, Button, Table, TextInput, Select, Alert, Badge } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import './MyContractsPage.css';
 import Menu from './Menu';
 import StandardModal from '../shared/StandardModal';
@@ -18,6 +19,7 @@ import {
   registerPendingClaim,
   getMyPendingClaims,
   getPendingClaimsByMatricula,
+  deletePendingClaim,
   PendingClaimResponse
 } from '../services/contractService';
 import { apiService, UserMatricula } from '../services/apiService';
@@ -140,11 +142,31 @@ const MyContractsPage: React.FC = () => {
       } else {
         setSelectedMatricula('');
       }
+      setShowAssignModal(true);
     } catch (err) {
-      console.error('Failed to read matriculas from localStorage:', err);
+      console.error("Failed to load user matriculas", err);
+      setShowAssignModal(true);
     }
+  };
 
-    setShowAssignModal(true);
+  const handleCancelClaim = async (claimId: number) => {
+    if (!window.confirm('Tem certeza que deseja cancelar esta solicitação?')) return;
+
+    try {
+      await deletePendingClaim(claimId);
+      notifications.show({
+        title: 'Sucesso',
+        message: 'Solicitação cancelada com sucesso.',
+        color: 'green',
+      });
+      loadPendingClaims();
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro',
+        message: err.message || 'Falha ao cancelar solicitação.',
+        color: 'red',
+      });
+    }
   };
 
   const handleRetrieveContract = async () => {
@@ -431,6 +453,7 @@ const MyContractsPage: React.FC = () => {
                     <Table.Th>Nº Contrato</Table.Th>
                     <Table.Th>Matrícula</Table.Th>
                     <Table.Th>Solicitado em</Table.Th>
+                    <Table.Th style={{ width: '100px' }}>Ações</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -439,6 +462,16 @@ const MyContractsPage: React.FC = () => {
                       <Table.Td>{claim.contractNumber}</Table.Td>
                       <Table.Td>{claim.matriculaNumber}</Table.Td>
                       <Table.Td>{new Date(claim.claimedAt).toLocaleDateString('pt-BR')}</Table.Td>
+                      <Table.Td>
+                        <Button 
+                          variant="subtle" 
+                          color="red" 
+                          size="xs" 
+                          onClick={() => handleCancelClaim(claim.id)}
+                        >
+                          Cancelar
+                        </Button>
+                      </Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>

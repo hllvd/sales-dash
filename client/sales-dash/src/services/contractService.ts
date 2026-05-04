@@ -400,3 +400,15 @@ export const getPendingClaimsByMatricula = async (matriculaId: number): Promise<
   const result: ApiResponse<PendingClaimResponse[]> = await response.json();
   return result.data;
 };
+
+export const deletePendingClaim = async (claimId: number): Promise<void> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/contracts/claims/${claimId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to delete pending claim');
+  }
+};
