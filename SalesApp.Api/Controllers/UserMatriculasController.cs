@@ -5,6 +5,7 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Attributes;
+using SalesApp.Utils;
 
 namespace SalesApp.Controllers
 {
@@ -132,12 +133,13 @@ namespace SalesApp.Controllers
             }
 
             // 1. Ensure the Matricula exists
-            var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(request.MatriculaNumber);
+            var normalizedNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
+            var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(normalizedNumber);
             if (matriculaEntity == null)
             {
                 matriculaEntity = new Matricula
                 {
-                    MatriculaNumber = request.MatriculaNumber,
+                    MatriculaNumber = normalizedNumber,
                     StartDate = request.StartDate,
                     Status = (request.Status ?? "active").ToLower()
                 };
@@ -239,12 +241,13 @@ namespace SalesApp.Controllers
                     }
 
                     // 1. Ensure the Matricula exists
-                    var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(item.MatriculaNumber);
+                    var normalizedNumber = NormalizationUtils.NormalizeNumber(item.MatriculaNumber);
+                    var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(normalizedNumber);
                     if (matriculaEntity == null)
                     {
                         matriculaEntity = new Matricula
                         {
-                            MatriculaNumber = item.MatriculaNumber,
+                            MatriculaNumber = normalizedNumber,
                             StartDate = item.StartDate,
                             Status = (item.Status ?? "active").ToLower()
                         };
@@ -305,6 +308,51 @@ namespace SalesApp.Controllers
                     Success = false,
                     Message = _messageService.Get(AppMessage.MatriculaNotFound)
                 });
+            }
+
+            // Handle Matricula entity updates
+            if (userMatricula.Matricula != null)
+            {
+                bool matriculaChanged = false;
+
+                if (!string.IsNullOrEmpty(request.MatriculaNumber))
+                {
+                    var normalizedNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
+                    if (userMatricula.Matricula.MatriculaNumber != normalizedNumber)
+                    {
+                        // Check if another matricula with this number exists
+                        var existingMatricula = await _matriculaRepository.GetByMatriculaNumberAsync(normalizedNumber);
+                        if (existingMatricula != null)
+                        {
+                            // Link to existing one
+                            userMatricula.MatriculaId = existingMatricula.Id;
+                            userMatricula.Matricula = existingMatricula;
+                        }
+                        else
+                        {
+                            // Rename current one
+                            userMatricula.Matricula.MatriculaNumber = normalizedNumber;
+                            matriculaChanged = true;
+                        }
+                    }
+                }
+
+                if (request.StartDate.HasValue && userMatricula.Matricula.StartDate != request.StartDate.Value)
+                {
+                    userMatricula.Matricula.StartDate = request.StartDate.Value;
+                    matriculaChanged = true;
+                }
+
+                if (!string.IsNullOrEmpty(request.Status) && userMatricula.Matricula.Status != request.Status.ToLower())
+                {
+                    userMatricula.Matricula.Status = request.Status.ToLower();
+                    matriculaChanged = true;
+                }
+
+                if (matriculaChanged)
+                {
+                    await _matriculaRepository.UpdateAsync(userMatricula.Matricula);
+                }
             }
 
             if (request.EndDate.HasValue)
@@ -396,12 +444,13 @@ namespace SalesApp.Controllers
                     }
 
                     // 1. Ensure the Matricula exists
-                    var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(assignment.MatriculaNumber);
+                    var normalizedNumber = NormalizationUtils.NormalizeNumber(assignment.MatriculaNumber);
+                    var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(normalizedNumber);
                     if (matriculaEntity == null)
                     {
                         matriculaEntity = new Matricula
                         {
-                            MatriculaNumber = assignment.MatriculaNumber,
+                            MatriculaNumber = normalizedNumber,
                             StartDate = assignment.StartDate,
                             Status = "active"
                         };
