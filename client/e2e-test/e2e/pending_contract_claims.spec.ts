@@ -40,8 +40,16 @@ async function claimContract(page: Page, contractNumber: string, mat: string, al
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
 
   await page.fill('input[placeholder="Digite o número do contrato"]', contractNumber);
-  await page.click('button:has-text("Buscar Contrato")');
-  await page.waitForTimeout(3000);
+  
+  // Wait for the GET /contracts/number/{num} response
+  const [searchResponse] = await Promise.all([
+    page.waitForResponse(resp => resp.url().includes(`/contracts/number/${contractNumber}`) && resp.request().method() === 'GET', { timeout: 15000 }),
+    page.click('button:has-text("Buscar Contrato")'),
+  ]);
+
+  if (searchResponse.status() === 403) {
+    throw new Error(`Search failed with 403 Forbidden for user. Check permissions.`);
+  }
 
   if (alreadyClaimed) {
     await expect(page.getByRole('dialog').getByText(/já foi solicitado por/)).toBeVisible({ timeout: 10000 });
@@ -80,6 +88,55 @@ async function claimContract(page: Page, contractNumber: string, mat: string, al
 // ── Tests ─────────────────────────────────────────────────────────────────────
 test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () => {
   test.setTimeout(150_000);
+
+  test.beforeAll(async ({ browser }) => {
+    // Basic cleanup before starting to ensure contracts don't exist
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await login(page, admin.email, admin.password);
+    const token = await page.evaluate(() => localStorage.getItem('token'));
+    
+    const testContractNumbers = [CLM1, CLM2, CLM3];
+    for (const num of testContractNumbers) {
+      try {
+        // 1. Delete any existing contracts with these numbers
+        const contractResp = await page.request.get(`/api/contracts/number/${num}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (contractResp.ok()) {
+          const result = await contractResp.json();
+          await page.request.delete(`/api/contracts/${result.data.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          console.log(`>>> Pre-test Cleanup: Deleted contract ${num}`);
+        }
+        
+        // 2. Delete ALL claims for this number (resolved or not) using the new endpoint
+        const delClaimResp = await page.request.delete(`/api/contracts/claims/number/${num}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!delClaimResp.ok()) {
+          console.error(`>>> Pre-test Cleanup Warning: Failed to clear claims for ${num}. Status: ${delClaimResp.status()}`);
+        } else {
+          console.log(`>>> Pre-test Cleanup: Cleared all claims for ${num}`);
+        }
+      } catch (e) {
+        console.error(`>>> Pre-test Cleanup Error: Failed for ${num}`, e);
+      }
+    }
+    await context.close();
+  });
+
+  test.afterEach(async ({ page }, testInfo) => {
+    if (testInfo.status !== testInfo.expectedStatus) {
+      // Get step number from title to name the screenshot
+      const stepMatch = testInfo.title.match(/Step (\d+)/);
+      const stepName = stepMatch ? `step${stepMatch[1]}` : 'error';
+      const screenshotPath = `test-results/screenshots/failure-${stepName}.png`;
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      console.log(`>>> Test Failed at "${testInfo.title}". Screenshot saved to: ${screenshotPath}`);
+    }
+  });
 
   // Step 1: sanity-check the mat/user data seeded by tear-1
   test('Step 1 – Admin verifies user1, user2 and owner are all linked to mat 10134', async ({ page }) => {
@@ -226,4 +283,49 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
 
     console.log('>>> Step 8 OK: owner banner gone');
   });
-});
+
+  // ── Cleanup ──────────────────────────────────────────────────────────
+  test('Cleanup created contracts and claims', async ({ page }) => {
+    // Login as admin to have delete permissions
+    await login(page, admin.email, admin.password);
+
+    // Get the token for API calls
+    const token = await page.evaluate(() => localStorage.getItem('token'));
+
+    const testContractNumbers = [CLM1, CLM2, CLM3];
+
+    for (const num of testContractNumbers) {
+      console.log(`>>> Cleaning up contract/claims for: ${num}`);
+
+      // 1. Find and delete the contract
+      try {
+        const contractResp = await page.request.get(`/api/contracts/number/${num}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (contractResp.ok()) {
+          const result = await contractResp.json();
+          const contractId = result.data.id;
+          const delResp = await page.request.delete(`/api/contracts/${contractId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          console.log(`    - Contract ${num} (ID: ${contractId}) deleted: ${delResp.ok()}`);
+        } else {
+          console.log(`    - Contract ${num} not found, skipping delete.`);
+        }
+      } catch (e) {
+        console.error(`    - Error deleting contract ${num}:`, e);
+      }
+
+      // 2. Delete ALL claims for this number (resolved or not)
+      try {
+        const delClaimResp = await page.request.delete(`/api/contracts/claims/number/${num}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        console.log(`    - All claims for ${num} cleared: ${delClaimResp.ok()}`);
+      } catch (e) {
+        console.error(`    - Error cleaning up claims for ${num}:`, e);
+      }
+    }
+  });
+  });

@@ -6,9 +6,12 @@ namespace SalesApp.Repositories
     {
         Task<PendingContractClaim> CreateAsync(PendingContractClaim claim);
         Task<PendingContractClaim?> GetByContractNumberAsync(string contractNumber);
+        Task<PendingContractClaim?> GetByIdAsync(int id);
         Task<List<PendingContractClaim>> GetUnresolvedByContractNumbersAsync(List<string> contractNumbers);
         Task<List<PendingContractClaim>> GetUnresolvedByUserIdAsync(Guid userId);
         Task<List<PendingContractClaim>> GetUnresolvedByMatriculaIdAsync(int matriculaId);
         Task UpdateBatchAsync(List<PendingContractClaim> claims);
+        Task DeleteAsync(PendingContractClaim claim);
+        Task DeleteByContractNumberAsync(string contractNumber);
     }
 }

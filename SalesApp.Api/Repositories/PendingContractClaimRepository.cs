@@ -26,6 +26,11 @@ namespace SalesApp.Repositories
                 .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
         }
 
+        public async Task<PendingContractClaim?> GetByIdAsync(int id)
+        {
+            return await _context.PendingContractClaims.FindAsync(id);
+        }
+
         public async Task<List<PendingContractClaim>> GetUnresolvedByContractNumbersAsync(List<string> contractNumbers)
         {
             return await _context.PendingContractClaims
@@ -56,6 +61,26 @@ namespace SalesApp.Repositories
         {
             _context.PendingContractClaims.UpdateRange(claims);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAsync(PendingContractClaim claim)
+        {
+            _context.PendingContractClaims.Remove(claim);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteByContractNumberAsync(string contractNumber)
+        {
+            var trimmedNumber = contractNumber.Trim();
+            var claims = await _context.PendingContractClaims
+                .Where(c => c.ContractNumber == trimmedNumber)
+                .ToListAsync();
+
+            if (claims.Any())
+            {
+                _context.PendingContractClaims.RemoveRange(claims);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

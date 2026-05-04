@@ -1242,33 +1242,17 @@ namespace SalesApp.Services
                 }
             }
 
-            // 3. Batch insert new contracts
-            if (contractsToAdd.Any())
+            // 3. Phase 3: Auto-assign pending claims before any database saves
+            var allContractsForReconciliation = contractsToAdd.Concat(existingContracts).ToList();
+            if (allContractsForReconciliation.Any())
             {
                 try
                 {
-                    await _contractRepository.CreateBatchAsync(contractsToAdd);
-                }
-                catch (Exception ex)
-                {
-                    result.FailedRows += contractsToAdd.Count;
-                    result.ProcessedRows -= contractsToAdd.Count;
-                    result.Errors.Add($"Batch insert failed: {ex.Message}");
-                }
-            }
-
-            // 4. Phase 3: Auto-assign pending claims before saving
-            var allImportedContracts = contractsToAdd.Concat(existingContracts).ToList();
-            if (allImportedContracts.Any())
-            {
-                try
-                {
-                    var importedNumbers = allImportedContracts.Select(c => c.ContractNumber).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
-                    Console.WriteLine($"[Import Dashboard Phase 3 Debug] importedNumbers count: {importedNumbers.Count}");
+                    var importedNumbers = allContractsForReconciliation.Select(c => c.ContractNumber).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
                     
                     var pendingClaims = await _context.PendingContractClaims
                         .Where(c => !c.IsResolved)
-                        .ToListAsync(); // Fetch all and filter in memory
+                        .ToListAsync(); // Fetch all unresolved and filter in memory
                     
                     var matchedClaims = pendingClaims
                         .Where(c => importedNumbers.Contains(c.ContractNumber.Trim(), StringComparer.OrdinalIgnoreCase))
@@ -1276,10 +1260,10 @@ namespace SalesApp.Services
 
                     if (matchedClaims.Any())
                     {
-                        Console.WriteLine($"[Import Dashboard] Found {matchedClaims.Count} pending claims to resolve.");
+                        Console.WriteLine($"[Import Dashboard] Found {matchedClaims.Count} pending claims to reconcile BEFORE save.");
                         
                         var contractMap = new Dictionary<string, Contract>(StringComparer.OrdinalIgnoreCase);
-                        foreach (var c in allImportedContracts)
+                        foreach (var c in allContractsForReconciliation)
                         {
                             if (!string.IsNullOrEmpty(c.ContractNumber))
                             {
@@ -1299,16 +1283,30 @@ namespace SalesApp.Services
                                 claim.IsResolved = true;
                                 claim.ResolvedAt = DateTime.UtcNow;
                                 
-                                Console.WriteLine($"[Import Dashboard] RECONCILED: Contract {claimKey} assigned to user {claim.UserId} (was pending claim)");
+                                Console.WriteLine($"[Import Dashboard] PRE-RECONCILED: Contract {claimKey} will be assigned to user {claim.UserId}");
                             }
                         }
-                        Console.WriteLine("[Import Dashboard] Phase 3: Pending claims modified. Will commit with next SaveChangesAsync.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Import Dashboard] Pending claims resolution error: {ex.Message}");
-                    result.Warnings.Add($"Failed to resolve some pending claims automatically: {ex.Message}");
+                    Console.WriteLine($"[Import Dashboard] Pending claims reconciliation warning: {ex.Message}");
+                    result.Warnings.Add($"Failed to reconcile some pending claims: {ex.Message}");
+                }
+            }
+
+            // 4. Batch insert new contracts (now with reconciled UserIds)
+            if (contractsToAdd.Any())
+            {
+                try
+                {
+                    await _contractRepository.CreateBatchAsync(contractsToAdd);
+                }
+                catch (Exception ex)
+                {
+                    result.FailedRows += contractsToAdd.Count;
+                    result.ProcessedRows -= contractsToAdd.Count;
+                    result.Errors.Add($"Batch insert failed: {ex.Message}");
                 }
             }
 
@@ -1489,6 +1487,7 @@ namespace SalesApp.Services
                 // If the contract already exists, update status and potentially user
                 contract.Status = status;
                 if (userId.HasValue) contract.UserId = userId;
+                contract.IsActive = true; // ✅ Always reactivate if re-imported
                 contract.UpdatedAt = DateTime.UtcNow;
                 return contract;
             }

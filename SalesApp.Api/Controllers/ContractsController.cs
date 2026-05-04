@@ -631,8 +631,10 @@ namespace SalesApp.Controllers
 
             var resolvedMatriculaId = userMatricula.MatriculaId;
 
-            // 3. Check for existing claim
-            var existingClaim = await _pendingClaimRepository.GetByContractNumberAsync(request.ContractNumber);
+            // 3. Check for existing UNRESOLVED claim
+            var unresolvedClaims = await _pendingClaimRepository.GetUnresolvedByContractNumbersAsync(new List<string> { request.ContractNumber });
+            var existingClaim = unresolvedClaims.FirstOrDefault();
+            
             if (existingClaim != null)
             {
                 if (existingClaim.UserId == currentUserId)
@@ -703,6 +705,33 @@ namespace SalesApp.Controllers
                 Data = claims.Select(MapToPendingClaimResponse).ToList(),
                 Message = "Solicitações da matrícula recuperadas com sucesso."
             });
+        }
+
+        [HttpDelete("claims/{id}")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteClaim(int id)
+        {
+            var currentUserId = GetCurrentUserId();
+            var isSuperAdmin = User.HasClaim("perm", "system:superadmin");
+            
+            var claim = await _pendingClaimRepository.GetByIdAsync(id);
+            if (claim == null) return NotFound();
+
+            if (!isSuperAdmin && claim.UserId != currentUserId)
+            {
+                return Forbid();
+            }
+
+            await _pendingClaimRepository.DeleteAsync(claim);
+
+            return Ok(new ApiResponse<object> { Success = true, Message = "Solicitação excluída com sucesso." });
+        }
+
+        [HttpDelete("claims/number/{contractNumber}")]
+        [HasPermission("contracts:delete")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteClaimsByNumber(string contractNumber)
+        {
+            await _pendingClaimRepository.DeleteByContractNumberAsync(contractNumber);
+            return Ok(new ApiResponse<object> { Success = true, Message = "Solicitações excluídas." });
         }
 
         private PendingClaimResponse MapToPendingClaimResponse(PendingContractClaim claim)
