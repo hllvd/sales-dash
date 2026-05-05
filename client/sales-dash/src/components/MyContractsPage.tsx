@@ -5,6 +5,7 @@ import { normalizeNumber } from '../utils/normalization';
 import './MyContractsPage.css';
 import Menu from './Menu';
 import StandardModal from '../shared/StandardModal';
+import InfoHelper from '../shared/InfoHelper';
 import FormField from './FormField';
 import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
@@ -31,6 +32,7 @@ const MyContractsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [aggregation, setAggregation] = useState<ContractAggregation | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showHelperModal, setShowHelperModal] = useState(false);
 
   // Export state
   const [exportJobId, setExportJobId] = useState<string | null>(null);
@@ -301,12 +303,36 @@ const MyContractsPage: React.FC = () => {
 
 
 
+  const helperContent = (
+    <div className="info-helper-card">
+      <div className="info-helper-card-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </div>
+      <div className="info-helper-card-body">
+        <h4>Tutorial em vídeo disponível</h4>
+        <p>Aprenda como solicitar ou atribuir um contrato à sua matrícula passo a passo.</p>
+        <button className="info-helper-btn" onClick={() => setShowHelperModal(true)}>
+          Assistir tutorial
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}>
+            <line x1="7" y1="17" x2="17" y2="7"></line>
+            <polyline points="7 7 17 7 17 17"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <Menu>
       <div className="my-contracts-page">
         <div className="my-contracts-header">
           <Title order={2} size="h2">Meus Contratos</Title>
           <div className="header-actions">
+            <InfoHelper label="Como Atribuir?">
+              {helperContent}
+            </InfoHelper>
             <ExportButton
               onExport={async () => {
                 setIsExporting(true);
@@ -474,10 +500,10 @@ const MyContractsPage: React.FC = () => {
                       <Table.Td>{claim.matriculaNumber}</Table.Td>
                       <Table.Td>{new Date(claim.claimedAt).toLocaleDateString('pt-BR')}</Table.Td>
                       <Table.Td>
-                        <Button 
-                          variant="subtle" 
-                          color="red" 
-                          size="xs" 
+                        <Button
+                          variant="subtle"
+                          color="red"
+                          size="xs"
                           onClick={() => handleCancelClaim(claim.id)}
                         >
                           Cancelar
@@ -632,43 +658,62 @@ const MyContractsPage: React.FC = () => {
           </>
         )}
 
-          <>
-            {contractNotYetImported && !assignError && (
-              <Alert color="blue" title="Contrato não encontrado" mb="md">
-                Este contrato ainda não foi importado para o sistema. Você pode registrar seu interesse e ele será atribuído automaticamente à sua matrícula quando for importado.
-              </Alert>
-            )}
-            {/* Matricula Selection */}
-            {(contractNotYetImported || retrievedContract) && !assignError && userMatriculas.length >= 1 && (
-              <FormField
-                label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
-                description={
-                  userMatriculas.length === 1 ? 'Matrícula será atribuída automaticamente' :
-                    'Selecione a matrícula para este contrato'
-                }
-              >
-                {userMatriculas.length === 1 ? (
-                  <TextInput
-                    value={`${userMatriculas[0].matriculaNumber} (${new Date(userMatriculas[0].startDate).toLocaleDateString('pt-BR')})`}
-                    readOnly
-                    disabled
-                  />
-                ) : (
-                  <Select
-                    placeholder="Selecione uma matrícula..."
-                    value={selectedMatricula}
-                    onChange={(value) => setSelectedMatricula(value || '')}
-                    comboboxProps={{ zIndex: 2000 }}
-                    data={userMatriculas.map((m) => ({
-                      value: m.matriculaNumber,
-                      label: `${m.matriculaNumber} - ${new Date(m.startDate).toLocaleDateString('pt-BR')}${m.endDate ? ` até ${new Date(m.endDate).toLocaleDateString('pt-BR')}` : ''
-                        }${m.isOwner ? ' (Proprietário)' : ''}`
-                    }))}
-                  />
-                )}
-              </FormField>
-            )}
-          </>
+        <>
+          {contractNotYetImported && !assignError && (
+            <Alert color="blue" title="Contrato não encontrado" mb="md">
+              Este contrato ainda não foi importado para o sistema. Você pode registrar seu interesse e ele será atribuído automaticamente à sua matrícula quando for importado.
+            </Alert>
+          )}
+          {/* Matricula Selection */}
+          {(contractNotYetImported || retrievedContract) && !assignError && userMatriculas.length >= 1 && (
+            <FormField
+              label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
+              description={
+                userMatriculas.length === 1 ? 'Matrícula será atribuída automaticamente' :
+                  'Selecione a matrícula para este contrato'
+              }
+            >
+              {userMatriculas.length === 1 ? (
+                <TextInput
+                  value={`${userMatriculas[0].matriculaNumber} (${new Date(userMatriculas[0].startDate).toLocaleDateString('pt-BR')})`}
+                  readOnly
+                  disabled
+                />
+              ) : (
+                <Select
+                  placeholder="Selecione uma matrícula..."
+                  value={selectedMatricula}
+                  onChange={(value) => setSelectedMatricula(value || '')}
+                  comboboxProps={{ zIndex: 2000 }}
+                  data={userMatriculas.map((m) => ({
+                    value: m.matriculaNumber,
+                    label: `${m.matriculaNumber} - ${new Date(m.startDate).toLocaleDateString('pt-BR')}${m.endDate ? ` até ${new Date(m.endDate).toLocaleDateString('pt-BR')}` : ''
+                      }${m.isOwner ? ' (Proprietário)' : ''}`
+                  }))}
+                />
+              )}
+            </FormField>
+          )}
+        </>
+      </StandardModal>
+
+      {/* Helper Video Modal */}
+      <StandardModal
+        isOpen={showHelperModal}
+        onClose={() => setShowHelperModal(false)}
+        title="Como Solicitar ou Atribuir um Contrato"
+        size="lg"
+      >
+        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '8px' }}>
+          <iframe
+            src="https://www.youtube.com/embed/bKLTbMfP6Po"
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title="Tutorial de Atribuição de Contratos"
+          ></iframe>
+        </div>
       </StandardModal>
 
     </Menu>
