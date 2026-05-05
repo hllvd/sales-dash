@@ -52,6 +52,7 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IUserMatriculaRepository, UserMatriculaRepository>();
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
             services.AddScoped<IMatriculaRepository, MatriculaRepository>();
+            services.AddScoped<IPendingContractClaimRepository, PendingContractClaimRepository>();
 
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
             services.AddScoped<IUserScopeService, UserScopeService>();
@@ -97,9 +98,7 @@ namespace SalesApp.IntegrationTests
             // Email services
             services.AddScoped<IEmailSender, SesEmailSender>();
             services.AddScoped<IEmailService, EmailService>();
-            
-            services.AddScoped<IWizardService, WizardService>();
-            services.AddSingleton<IExportService, ExportService>();
+            services.AddScoped<IPendingClaimService, PendingClaimService>();
 
             // Contract Status Aliases Mapping
             services.Configure<Models.Configuration.ContractStatusOptions>(Configuration.GetSection("ContractStatusMappings"));

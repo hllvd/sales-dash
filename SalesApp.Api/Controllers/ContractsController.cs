@@ -468,7 +468,7 @@ namespace SalesApp.Controllers
                 }
                 contract.UserId = request.UserId.Value;
             }
-            else
+            else if (request.UserId.HasValue && request.UserId.Value == Guid.Empty)
             {
                 contract.UserId = null;
             }
@@ -487,7 +487,7 @@ namespace SalesApp.Controllers
                 }
                 contract.GroupId = request.GroupId.Value;
             }
-            else
+            else if (request.GroupId.HasValue && request.GroupId.Value == 0)
             {
                 contract.GroupId = null;
             }
@@ -529,23 +529,17 @@ namespace SalesApp.Controllers
                     });
                 }
             }
-            else
-            {
-                contract.ContractType = null;
-            }
                 
             
             if (request.Quota.HasValue)
                 contract.Quota = request.Quota.Value;
-            else
-                contract.Quota = null;
                 
             // Always update PvId
             if (request.PvId.HasValue && request.PvId.Value != 0)
             {
                 contract.PvId = request.PvId.Value;
             }
-            else
+            else if (request.PvId.HasValue && request.PvId.Value == 0)
             {
                 contract.PvId = null;
             }
@@ -593,12 +587,6 @@ namespace SalesApp.Controllers
                         contract.MatriculaId = um.MatriculaId;
                         contract.TempMatricula = um.Matricula?.MatriculaNumber;
                     }
-                }
-                else
-                {
-                    // Clear matricula if not provided or empty
-                    contract.MatriculaId = null;
-                    contract.TempMatricula = null;
                 }
             }
             
