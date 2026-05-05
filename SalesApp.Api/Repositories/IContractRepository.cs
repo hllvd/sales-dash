@@ -9,7 +9,7 @@ namespace SalesApp.Repositories
         Task<Contract?> GetByContractNumberAsync(string contractNumber);
         Task<List<Contract>> GetByContractNumbersAsync(List<string> contractNumbers);
         Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null, UserScopeContext? scope = null);
-        Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null);
+        Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null);
         Task<List<Contract>> GetByUploadIdAsync(string uploadId);
         Task<Contract> CreateAsync(Contract contract);
         Task<List<Contract>> CreateBatchAsync(List<Contract> contracts);

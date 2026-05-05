@@ -179,11 +179,13 @@ export const getContracts = async (
 export const getUserContracts = async (
   userId: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  matricula?: string
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
   const params = new URLSearchParams();
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
+  if (matricula) params.append('matricula', matricula);
 
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts/user/${userId}${queryString ? `?${queryString}` : ''}`;

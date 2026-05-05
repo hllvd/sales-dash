@@ -108,7 +108,7 @@ namespace SalesApp.Repositories
             return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
         }
         
-        public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null)
+        public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -122,6 +122,15 @@ namespace SalesApp.Repositories
                 
             if (endDate.HasValue)
                 query = query.Where(c => c.SaleStartDate <= endDate.Value);
+
+            if (!string.IsNullOrWhiteSpace(matriculaNumber))
+            {
+                var normalizedMatricula = matriculaNumber.Trim().ToLower();
+                query = query.Where(c => 
+                    (c.Matricula != null && c.Matricula.MatriculaNumber.ToLower().Contains(normalizedMatricula)) ||
+                    (!string.IsNullOrEmpty(c.TempMatricula) && c.TempMatricula.ToLower().Contains(normalizedMatricula))
+                );
+            }
             
             return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
         }

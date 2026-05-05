@@ -42,6 +42,8 @@ const MyContractsPage: React.FC = () => {
   // Date filter state
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [matriculaFilter, setMatriculaFilter] = useState<string>('');
+  const [debouncedMatricula, setDebouncedMatricula] = useState<string>('');
 
   // Contract assignment state
   const [contractNumber, setContractNumber] = useState('');
@@ -73,7 +75,8 @@ const MyContractsPage: React.FC = () => {
       const { contracts: data, aggregation: aggData } = await getUserContracts(
         userId,
         startDate || undefined,
-        endDate || undefined
+        endDate || undefined,
+        debouncedMatricula || undefined
       );
       setContracts(data);
       setAggregation(aggData || null);
@@ -82,15 +85,25 @@ const MyContractsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, debouncedMatricula]);
 
   // Load saved date filters from localStorage
   useEffect(() => {
     const savedStart = localStorage.getItem('myContracts_startDate');
     const savedEnd = localStorage.getItem('myContracts_endDate');
+    const savedMatricula = localStorage.getItem('myContracts_matricula');
     if (savedStart) setStartDate(savedStart);
     if (savedEnd) setEndDate(savedEnd);
+    if (savedMatricula) setMatriculaFilter(savedMatricula);
   }, []);
+
+  // Debounce effect for matricula filter
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMatricula(matriculaFilter);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [matriculaFilter]);
 
   const loadPendingClaims = useCallback(async () => {
     try {
@@ -281,8 +294,11 @@ const MyContractsPage: React.FC = () => {
   const handleClearFilters = () => {
     setStartDate('');
     setEndDate('');
+    setMatriculaFilter('');
+    setDebouncedMatricula('');
     localStorage.removeItem('myContracts_startDate');
     localStorage.removeItem('myContracts_endDate');
+    localStorage.removeItem('myContracts_matricula');
     // Reload without filters
     setTimeout(() => loadMyContracts(), 0);
   };
@@ -387,11 +403,23 @@ const MyContractsPage: React.FC = () => {
                 onChange={(e) => handleEndDateChange(e.target.value)}
               />
             </div>
+            <div className="filter-group">
+              <label htmlFor="matriculaFilter">Filtrar por matrícula:</label>
+              <input
+                id="matriculaFilter"
+                type="text"
+                placeholder="Ex: 123456"
+                value={matriculaFilter}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setMatriculaFilter(val);
+                  if (val) localStorage.setItem('myContracts_matricula', val);
+                  else localStorage.removeItem('myContracts_matricula');
+                }}
+              />
+            </div>
             <div className="filter-actions">
-              <Button onClick={handleApplyFilters} size="sm">
-                Aplicar Filtros
-              </Button>
-              {(startDate || endDate) && (
+              {(startDate || endDate || matriculaFilter) && (
                 <Button onClick={handleClearFilters} variant="subtle" size="sm">
                   Limpar Filtros
                 </Button>

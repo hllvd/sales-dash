@@ -136,7 +136,8 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetUserContracts(
             Guid userId,
             [FromQuery] DateTime? startDate = null,
-            [FromQuery] DateTime? endDate = null)
+            [FromQuery] DateTime? endDate = null,
+            [FromQuery] string? matricula = null)
         {
             var currentUserId = GetCurrentUserId();
             var hasReadPermission = User.HasClaim("perm", "contracts:read") || User.HasClaim("perm", "system:superadmin");
@@ -146,7 +147,7 @@ namespace SalesApp.Controllers
                 return Forbid();
             }
             
-            var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate);
+            var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate, matricula);
             
             var contractResponses = contracts.Select(MapToContractResponse).ToList();
             
