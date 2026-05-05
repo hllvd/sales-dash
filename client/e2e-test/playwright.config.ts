@@ -38,6 +38,7 @@ export default defineConfig({
         'import_wizard_validation.spec.ts',
         'scrape_credentials.spec.ts',
         'matricula_ownership.spec.ts',
+        'matricula_edit_normalization.spec.ts',
         'powerbi_credentials.spec.ts',
         'contract_edit_robustness.spec.ts'
       ],

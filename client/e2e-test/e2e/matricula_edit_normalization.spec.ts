@@ -1,0 +1,89 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
+  const adminEmail = 'superadmin@salesapp.com';
+  const adminPassword = 'string';
+  const targetUserEmail = 'carlosmendes@example.com';
+  const targetUserName = 'Carlos Mendes';
+  const initialMatricula = 'EDIT-TEST-' + Date.now();
+  const normalizedValue = '99999';
+  const inputWithZeros = '000' + normalizedValue;
+
+  test.beforeEach(async ({ page }) => {
+    // Login as Admin
+    await page.goto('/');
+    await page.fill('input[type="email"]', adminEmail);
+    await page.fill('input[type="password"]', adminPassword);
+    await page.click('button.login-button');
+
+    // Go to Matriculas page
+    await page.click('a[href="#/matriculas"]', { timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Gerenciamento de Matrículas' })).toBeVisible({ timeout: 15000 });
+  });
+
+  test('should normalize matricula number and persist changes when editing', async ({ page }) => {
+    console.log('>>> Step 1: Create initial matricula');
+    await page.click('button:has-text("Nova Matrícula")');
+
+    // Search and select User
+    await page.fill('input[placeholder="Digite para buscar um usuário"]', targetUserEmail);
+    // Wait for the 3s debounce + API call
+    await page.waitForTimeout(4000);
+    await page.click(`div[role="option"]:has-text("${targetUserEmail}")`);
+
+    await page.fill('input[placeholder="Ex: MAT-001"]', initialMatricula);
+    await page.click('button:has-text("Criar Matrícula")');
+
+    // Wait for modal to disappear
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+
+    console.log('>>> Step 2: Find and edit the matricula');
+    // Search to isolate the row
+    await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', initialMatricula);
+    await page.waitForTimeout(1000); // Wait for debounce
+
+    const row = page.locator('tr', { hasText: initialMatricula });
+    await expect(row).toBeVisible();
+
+    // Click Edit button (IconEdit)
+    await row.locator('.tabler-icon-edit').click();
+    await expect(page.getByRole('dialog').getByText('Editar Matrícula')).toBeVisible();
+
+    console.log('>>> Step 3: Change number to one with leading zeros and change status');
+    // Change number to '00099999'
+    const numberInput = page.locator('input[placeholder="Ex: MAT-001"]');
+    await numberInput.fill(inputWithZeros);
+
+    // Change status to Pending (or Active if it was something else)
+    const statusSelect = page.locator('label:has-text("Status")').locator('..').locator('.mantine-Select-input');
+    await statusSelect.click();
+    await page.click('div[role="option"]:has-text("Pendente")');
+
+    await page.click('button:has-text("Salvar Alterações")');
+
+    // Wait for modal to disappear
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+
+    console.log('>>> Step 4: Verify normalization and persistence');
+    // Clear search and search for the new normalized number
+    await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', '');
+    await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', normalizedValue);
+    await page.waitForTimeout(1000);
+
+    const updatedRow = page.locator('tr', { hasText: normalizedValue });
+    await expect(updatedRow).toBeVisible();
+    
+    // Check that it shows '99999' and not '00099999'
+    await expect(updatedRow.locator('strong')).toHaveText(normalizedValue);
+    
+    // Check status changed to 'Pendente'
+    await expect(updatedRow).toContainText('Pendente');
+
+    console.log('>>> Step 5: Cleanup');
+    await updatedRow.locator('.tabler-icon-trash').click();
+    await page.click('button:has-text("Confirmar")');
+    await expect(updatedRow).not.toBeVisible({ timeout: 10000 });
+    
+    console.log('>>> Success: Matricula was edited, normalized, and persisted correctly.');
+  });
+});
