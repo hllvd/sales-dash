@@ -145,7 +145,7 @@ namespace SalesApp.Data
             modelBuilder.Entity<PV>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).ValueGeneratedNever(); // NOT auto-increment
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
                 entity.Property(e => e.Name).IsRequired().HasColumnType("text");
 
                 entity.HasOne(e => e.ImportSession)

@@ -82,7 +82,7 @@ namespace SalesApp.Services
                 .Select(r => ParseContractNumber(GetFieldValue(r, reverseMappings, "ContractNumber")))
                 .Where(n => !string.IsNullOrWhiteSpace(n))
                 .Distinct()
-                .Select(n => n!) // Cast to non-nullable as we filtered out null/whitespace
+                .Select(n => n!) 
                 .ToList();
 
             // 2. Fetch existing contracts in bulk
@@ -190,12 +190,23 @@ namespace SalesApp.Services
                     await _contractRepository.CreateBatchAsync(contractsToAdd);
                     Console.WriteLine("[Import] Batch insert successful.");
                 }
-                catch (Exception ex)
+                catch (DbUpdateException ex)
                 {
-                    Console.WriteLine($"[Import] Batch insert FAILED: {ex.Message}");
+                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                    Console.WriteLine($"[Import] Batch insert FAILED: {innerMessage}");
                     result.FailedRows += contractsToAdd.Count;
                     result.ProcessedRows -= contractsToAdd.Count;
-                    result.Errors.Add($"Batch insert failed: {ex.Message}");
+                    result.Errors.Add($"Erro ao salvar novos contratos: {innerMessage}");
+                    
+                    // ✅ Log critical DB error to DynamoDB
+                    await _errorService.LogErrorAsync(ImportErrorType.SystemError, "Contract", $"Batch insert failed: {innerMessage}", new { Exception = ex.ToString() }, importSessionId);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Import] Batch insert FAILED (Generic): {ex.Message}");
+                    result.FailedRows += contractsToAdd.Count;
+                    result.ProcessedRows -= contractsToAdd.Count;
+                    result.Errors.Add($"Erro inesperado no banco de dados: {ex.Message}");
                 }
             }
 
@@ -1597,28 +1608,22 @@ namespace SalesApp.Services
             string? pvName = null)
         {
             pvValue = NormalizationUtils.NormalizeNumber(pvValue);
-            if (string.IsNullOrWhiteSpace(pvValue))
-            {
-                return null;
-            }
-
-            // check cache
-            if (cache.TryGetValue(pvValue, out var cachedId))
+            
+            // 1. Check cache by ID first
+            if (!string.IsNullOrWhiteSpace(pvValue) && cache.TryGetValue(pvValue, out var cachedId))
             {
                 return cachedId;
             }
-
-            // 1. Try lookup by Name (case-insensitive)
-            var pvByName = await _pvRepository.GetByNameAsync(pvValue.Trim());
             
-            if (pvByName != null)
+            // 2. Check cache by Name if ID is missing or fails
+            var nameToLookup = !string.IsNullOrWhiteSpace(pvName) ? pvName.Trim() : pvValue?.Trim();
+            if (!string.IsNullOrWhiteSpace(nameToLookup) && cache.TryGetValue($"NAME:{nameToLookup.ToLower()}", out var cachedNameId))
             {
-                cache[pvValue] = pvByName.Id;
-                return pvByName.Id;
+                return cachedNameId;
             }
-            
-            // 2. Try lookup by ID if numeric
-            if (int.TryParse(pvValue.Trim(), out var id))
+
+            // 3. Try lookup by ID if numeric
+            if (!string.IsNullOrWhiteSpace(pvValue) && int.TryParse(pvValue.Trim(), out var id))
             {
                 var pvById = await _pvRepository.GetByIdAsync(id);
                 if (pvById != null)
@@ -1628,7 +1633,19 @@ namespace SalesApp.Services
                 }
             }
 
-            // 3. Automatic Creation (Only if enabled)
+            // 4. Try lookup by Name (case-insensitive)
+            if (!string.IsNullOrWhiteSpace(nameToLookup))
+            {
+                var pvByName = await _pvRepository.GetByNameAsync(nameToLookup);
+                if (pvByName != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(pvValue)) cache[pvValue] = pvByName.Id;
+                    cache[$"NAME:{nameToLookup.ToLower()}"] = pvByName.Id;
+                    return pvByName.Id;
+                }
+            }
+
+            // 5. Automatic Creation (Only if enabled)
             if (!allowAutoCreate)
             {
                 return null;
@@ -1636,9 +1653,8 @@ namespace SalesApp.Services
 
             try
             {
-                // Use input PV ID as the database ID (not auto-incremented)
-                // Use input PV Name (if provided) or fallback to ID
-                if (int.TryParse(pvValue.Trim(), out var newId))
+                // Case A: We have a numeric ID provided in the CSV
+                if (!string.IsNullOrWhiteSpace(pvValue) && int.TryParse(pvValue.Trim(), out var newId))
                 {
                     var newPV = new PV
                     {
@@ -1653,6 +1669,29 @@ namespace SalesApp.Services
                     await _context.SaveChangesAsync();
                     
                     cache[pvValue] = newPV.Id;
+                    
+                    if (result != null && !result.CreatedPVs.Contains(newPV.Name))
+                    {
+                        result.CreatedPVs.Add(newPV.Name);
+                    }
+                    
+                    return newPV.Id;
+                }
+                // Case B: We only have a name (scraper import), let database handle ID auto-increment
+                else if (!string.IsNullOrWhiteSpace(pvName))
+                {
+                    var newPV = new PV
+                    {
+                        Name = pvName.Trim(),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        ImportSessionId = importSessionId
+                    };
+                    
+                    _context.PVs.Add(newPV);
+                    await _context.SaveChangesAsync();
+                    
+                    cache[$"NAME:{pvName.Trim().ToLower()}"] = newPV.Id;
                     
                     if (result != null && !result.CreatedPVs.Contains(newPV.Name))
                     {
