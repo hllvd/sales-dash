@@ -40,7 +40,8 @@ export default defineConfig({
         'matricula_ownership.spec.ts',
         'matricula_edit_normalization.spec.ts',
         'powerbi_credentials.spec.ts',
-        'contract_edit_robustness.spec.ts'
+        'contract_edit_robustness.spec.ts',
+        'import_wizard_verification.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-1-setup-and-import']
