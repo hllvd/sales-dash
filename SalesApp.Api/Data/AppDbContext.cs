@@ -34,6 +34,7 @@ namespace SalesApp.Data
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<ScrapeConfig> ScrapeConfigs { get; set; }
         public DbSet<PendingContractClaim> PendingContractClaims { get; set; }
+        public DbSet<ContractStatusEntity> ContractStatuses { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -138,6 +139,12 @@ namespace SalesApp.Data
                     .WithMany()
                     .HasForeignKey(e => e.ImportSessionId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ContractStatus)
+                    .WithMany()                         // no inverse nav needed for now
+                    .HasForeignKey(e => e.ContractStatusId)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired(false);                 // nullable
             });
 
             
@@ -372,6 +379,16 @@ namespace SalesApp.Data
                     .WithMany()
                     .HasForeignKey(e => e.MatriculaId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ContractStatusEntity (lookup table)
+            modelBuilder.Entity<ContractStatusEntity>(entity =>
+            {
+                entity.ToTable("ContractStatuses");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();   // AUTOINCREMENT
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+                entity.HasIndex(e => e.Name).IsUnique();
             });
         }
         

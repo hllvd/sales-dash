@@ -23,6 +23,13 @@ namespace SalesApp.Models
         [MaxLength(20)]
         public string Status { get; set; } = "active"; // See ContractStatus enum for valid values
         
+        // NEW — nullable FK to ContractStatuses lookup table
+        public int? ContractStatusId { get; set; }
+
+        // NEW — navigation property (nullable because FK is nullable)
+        [JsonIgnore] // prevent circular reference in serialization
+        public ContractStatusEntity? ContractStatus { get; set; }
+        
         public DateTime SaleStartDate { get; set; } = DateTime.UtcNow;
         
         public bool IsActive { get; set; } = true;

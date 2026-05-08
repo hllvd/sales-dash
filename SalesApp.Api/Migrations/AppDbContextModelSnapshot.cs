@@ -17,6 +17,25 @@ namespace SalesApp.Api.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.10");
 
+            modelBuilder.Entity("SalesApp.Models.ContractStatusEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("ContractStatuses", (string)null);
+                });
+
             modelBuilder.Entity("SalesApp.Models.AuditLog", b =>
                 {
                     b.Property<int>("Id")
@@ -67,6 +86,9 @@ namespace SalesApp.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("ContractStatusId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("ContractType")
                         .HasColumnType("INTEGER");
@@ -137,6 +159,8 @@ namespace SalesApp.Api.Migrations
 
                     b.HasIndex("ContractNumber")
                         .IsUnique();
+
+                    b.HasIndex("ContractStatusId");
 
                     b.HasIndex("GroupId");
 
@@ -825,6 +849,11 @@ namespace SalesApp.Api.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("SalesApp.Models.ContractStatusEntity", "ContractStatus")
+                        .WithMany()
+                        .HasForeignKey("ContractStatusId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SalesApp.Models.Matricula", "Matricula")
                         .WithMany()
                         .HasForeignKey("MatriculaId")
@@ -841,6 +870,8 @@ namespace SalesApp.Api.Migrations
                     b.Navigation("PlanoVendaMetadata");
 
                     b.Navigation("User");
+
+                    b.Navigation("ContractStatus");
 
                     b.Navigation("UserMatricula");
                 });
