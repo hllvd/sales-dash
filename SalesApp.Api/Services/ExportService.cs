@@ -146,7 +146,7 @@ namespace SalesApp.Services
                     ws.Cells[row, 6].Value = c.CustomerName ?? string.Empty;
                     ws.Cells[row, 7].Value = c.TotalAmount;
                     ws.Cells[row, 7].Style.Numberformat.Format = "#,##0.00";
-                    ws.Cells[row, 8].Value = c.Status;
+                    ws.Cells[row, 8].Value = c.ContractStatus?.Name ?? string.Empty;
                     ws.Cells[row, 9].Value = c.ContractType.HasValue
                         ? ContractTypeExtensions.ToApiString(c.ContractType)
                         : string.Empty;

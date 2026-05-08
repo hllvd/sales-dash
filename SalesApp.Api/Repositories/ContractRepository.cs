@@ -21,6 +21,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula)
                 .Include(c => c.Group)
+                .Include(c => c.ContractStatus)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
         
@@ -31,6 +32,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula)
                 .Include(c => c.Group)
+                .Include(c => c.ContractStatus)
                 .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
         }
 
@@ -43,6 +45,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula)
                 .Include(c => c.Group)
+                .Include(c => c.ContractStatus)
                 .Where(c => contractNumbers.Contains(c.ContractNumber))
                 .ToListAsync();
         }
@@ -54,6 +57,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula)
                 .Include(c => c.Group)
+                .Include(c => c.ContractStatus)
                 .Where(c => c.IsActive);
 
             // Apply hierarchical data scope before any other filters
@@ -115,6 +119,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula)
                 .Include(c => c.Group)
+                .Include(c => c.ContractStatus)
                 .Where(c => c.UserId == userId && c.IsActive);
             
             if (startDate.HasValue)
@@ -142,6 +147,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula)
                 .Include(c => c.Group)
+                .Include(c => c.ContractStatus)
                 .Where(c => c.UploadId == uploadId)
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
@@ -174,6 +180,7 @@ namespace SalesApp.Repositories
                     .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                     .Include(c => c.Matricula)
                     .Include(c => c.Group)
+                    .Include(c => c.ContractStatus)
                     .Where(c => contractIds.Contains(c.Id))
                     .ToListAsync();
                 

@@ -20,6 +20,7 @@ namespace SalesApp.Services
         private readonly IContractMetadataRepository _metadataRepository;
         private readonly IPVRepository _pvRepository;
         private readonly IContractStatusMapper _statusMapper;
+        private readonly IContractStatusService _statusService;
         private readonly IImportErrorService _errorService;
         private readonly IPendingClaimService _pendingClaimService;
 
@@ -35,6 +36,7 @@ namespace SalesApp.Services
             IContractMetadataRepository metadataRepository,
             IPVRepository pvRepository,
             IContractStatusMapper statusMapper,
+            IContractStatusService statusService,
             IImportErrorService errorService,
             IPendingClaimService pendingClaimService)
         {
@@ -49,6 +51,7 @@ namespace SalesApp.Services
             _metadataRepository = metadataRepository;
             _pvRepository = pvRepository;
             _statusMapper = statusMapper;
+            _statusService = statusService;
             _errorService = errorService;
             _pendingClaimService = pendingClaimService;
         }
@@ -438,7 +441,7 @@ namespace SalesApp.Services
             }
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
-            contract.Status = status;
+            contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
             if (saleStartDate.HasValue) contract.SaleStartDate = saleStartDate.Value;
             contract.UploadId = uploadId;
             contract.ImportSessionId = importSessionId;
@@ -1486,7 +1489,7 @@ namespace SalesApp.Services
             if (existingContract != null)
             {
                 // If the contract already exists, update status and potentially user
-                contract.Status = status;
+                contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
                 if (userId.HasValue) contract.UserId = userId;
                 contract.IsActive = true; // ✅ Always reactivate if re-imported
                 contract.UpdatedAt = DateTime.UtcNow;
@@ -1497,7 +1500,7 @@ namespace SalesApp.Services
             contract.UserId = userId;
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
-            contract.Status = status;
+            contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
             if (saleStartDate.HasValue) contract.SaleStartDate = saleStartDate.Value;
             contract.UploadId = uploadId;
             contract.IsActive = true;

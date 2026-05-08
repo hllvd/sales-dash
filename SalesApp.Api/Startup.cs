@@ -83,6 +83,7 @@ namespace SalesApp
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
             services.AddScoped<IWizardService, WizardService>();
             services.AddScoped<IPendingClaimService, PendingClaimService>();
+            services.AddScoped<IContractStatusService, ContractStatusService>();
             
             // Export service (singleton — holds in-memory export jobs)
             services.AddSingleton<IExportService, ExportService>();

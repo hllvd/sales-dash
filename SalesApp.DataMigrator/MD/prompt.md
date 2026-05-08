@@ -148,3 +148,19 @@ Deliverables for Part 3:
 - An example helper method (e.g. GetStatusIdByNameAsync) to resolve a status name to its Id
   when creating or updating a Contract
 - A note flagging any edge cases found (e.g. raw SQL queries, string interpolation, reports)
+
+```
+docker run --rm \
+  -v "$(pwd):/src" \
+  -w /src/SalesApp.Api \
+  mcr.microsoft.com/dotnet/sdk:9.0 \
+  sh -c "dotnet tool install --global dotnet-ef --version 9.0.0 && /root/.dotnet/tools/dotnet-ef database update"
+```
+
+```
+docker run --rm \
+  -v "$(pwd):/src" \
+  -w /src/SalesApp.Api \
+  mcr.microsoft.com/dotnet/sdk:9.0 \
+  sh -c "dotnet tool install --global dotnet-ef --version 9.0.0 && /root/.dotnet/tools/dotnet-ef migrations add FinalizeContractStatusRelational && /root/.dotnet/tools/dotnet-ef database update"
+```

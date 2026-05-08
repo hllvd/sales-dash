@@ -25,6 +25,7 @@ namespace SalesApp.Controllers
         private readonly IUserScopeService _userScopeService;
         private readonly IExportService _exportService;
         private readonly IContractStatusMapper _statusMapper;
+        private readonly IContractStatusService _statusService;
         private readonly IPendingContractClaimRepository _pendingClaimRepository;
         
         public ContractsController(
@@ -38,6 +39,7 @@ namespace SalesApp.Controllers
             IUserScopeService userScopeService,
             IExportService exportService,
             IContractStatusMapper statusMapper,
+            IContractStatusService statusService,
             IPendingContractClaimRepository pendingClaimRepository)
         {
             _contractRepository = contractRepository;
@@ -50,6 +52,7 @@ namespace SalesApp.Controllers
             _userScopeService = userScopeService;
             _exportService = exportService;
             _statusMapper = statusMapper;
+            _statusService = statusService;
             _pendingClaimRepository = pendingClaimRepository;
         }
 
@@ -281,7 +284,7 @@ namespace SalesApp.Controllers
                 // Restore a soft-deleted contract with the new request data
                 existingContract.IsActive = true;
                 existingContract.TotalAmount = request.TotalAmount;
-                existingContract.Status = request.Status;
+                existingContract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(request.Status);
                 existingContract.SaleStartDate = request.ContractStartDate;
                 existingContract.UserId = request.UserId;
                 existingContract.GroupId = request.GroupId;
@@ -360,7 +363,7 @@ namespace SalesApp.Controllers
                 UserId = request.UserId,
                 TotalAmount = request.TotalAmount,
                 GroupId = request.GroupId,
-                Status = request.Status,
+                ContractStatusId = await _statusService.GetStatusIdByNameAsync(request.Status),
                 SaleStartDate = request.ContractStartDate,
                 ContractType = contractTypeInt,
                 Quota = request.Quota,
@@ -505,7 +508,7 @@ namespace SalesApp.Controllers
                         Message = $"Invalid status. Must be one of: {string.Join(", ", _statusMapper.GetValidStatuses())}"
                     });
                 }
-                contract.Status = request.Status;
+                contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(request.Status);
             }
                 
             if (request.ContractStartDate.HasValue)
@@ -789,7 +792,7 @@ namespace SalesApp.Controllers
                 TotalAmount = contract.TotalAmount,
                 GroupId = contract.GroupId,
                 GroupName = contract.Group?.Name ?? "",
-                Status = contract.Status,
+                Status = contract.ContractStatus?.Name ?? "",
                 ContractStartDate = contract.SaleStartDate,
                 IsActive = contract.IsActive,
                 CreatedAt = contract.CreatedAt,

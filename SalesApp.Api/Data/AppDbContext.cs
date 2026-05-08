@@ -102,7 +102,6 @@ namespace SalesApp.Data
                 entity.HasIndex(e => e.ContractNumber).IsUnique();
                 entity.Property(e => e.ContractNumber).IsRequired();
                 entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Status).HasDefaultValue("active");
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
                 
                 entity.HasOne(e => e.User)
@@ -144,7 +143,7 @@ namespace SalesApp.Data
                     .WithMany()                         // no inverse nav needed for now
                     .HasForeignKey(e => e.ContractStatusId)
                     .OnDelete(DeleteBehavior.Restrict)
-                    .IsRequired(false);                 // nullable
+                    .IsRequired(true);                 // now required
             });
 
             

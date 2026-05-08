@@ -29,8 +29,8 @@ namespace SalesApp.Services
                     var active = acc.Active;
                     var late = acc.Late;
                     
-                    // ✅ Use Mapper to check status more robustly
-                    if (c.Status.Equals(ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                    // ✅ Use relational ContractStatus navigation property
+                    if (c.ContractStatus.Name.Equals(ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase))
                     {
                         cancel += c.TotalAmount;
                     }
@@ -38,9 +38,9 @@ namespace SalesApp.Services
                     {
                         active += c.TotalAmount;
                         
-                        if (c.Status.Equals(ContractStatus.Late1.ToApiString(), StringComparison.OrdinalIgnoreCase) ||
-                            c.Status.Equals(ContractStatus.Late2.ToApiString(), StringComparison.OrdinalIgnoreCase) ||
-                            c.Status.Equals(ContractStatus.Late3.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                        if (c.ContractStatus.Name.Equals(ContractStatus.Late1.ToApiString(), StringComparison.OrdinalIgnoreCase) ||
+                            c.ContractStatus.Name.Equals(ContractStatus.Late2.ToApiString(), StringComparison.OrdinalIgnoreCase) ||
+                            c.ContractStatus.Name.Equals(ContractStatus.Late3.ToApiString(), StringComparison.OrdinalIgnoreCase))
                         {
                             late += c.TotalAmount;
                         }
