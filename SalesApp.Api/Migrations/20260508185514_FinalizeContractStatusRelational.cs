@@ -11,6 +11,21 @@ namespace SalesApp.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // --- AUTOMATED DATA MIGRATION ---
+            // Populate the lookup table and update all contracts BEFORE the column is dropped
+            migrationBuilder.Sql(@"
+                INSERT INTO ContractStatuses (Name)
+                SELECT DISTINCT Status FROM Contracts
+                WHERE Status IS NOT NULL AND Status NOT IN (SELECT Name FROM ContractStatuses);
+
+                UPDATE Contracts
+                SET ContractStatusId = (
+                    SELECT Id FROM ContractStatuses WHERE Name = Contracts.Status
+                )
+                WHERE ContractStatusId IS NULL;
+            ");
+            // --------------------------------
+
             migrationBuilder.DropIndex(
                 name: "IX_UserMatriculas_MatriculaId",
                 table: "UserMatriculas");
