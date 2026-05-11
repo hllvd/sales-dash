@@ -9,7 +9,8 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Contracts
 {
-    public class ContractsControllerTests : IClassFixture<TestWebApplicationFactory>
+    [Collection("Integration Tests")]
+    public class ContractsControllerTests 
     {
         private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;
@@ -80,9 +81,9 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.ContractType.Should().Be("motores");
-            result.Data.Quota.Should().Be(10);
-            result.Data.CustomerName.Should().Be("Jane Doe");
+            result!.Data!.ContractType.Should().Be("motores");
+            result!.Data!.Quota.Should().Be(10);
+            result!.Data!.CustomerName.Should().Be("Jane Doe");
         }
 
         [Fact]
@@ -103,7 +104,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 TotalAmount = 3000,
                 ContractType = 1, // Will be updated to "motores"
                 Quota = 5,
-                Status = "Active",
+                ContractStatusId = 1,
                 SaleStartDate = DateTime.UtcNow
             };
             
@@ -147,8 +148,8 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.ContractType.Should().Be("motores");
-            result.Data.Quota.Should().Be(20);
+            result!.Data!.ContractType.Should().Be("motores");
+            result!.Data!.Quota.Should().Be(20);
         }
 
         [Fact]
@@ -192,9 +193,9 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.UserId.Should().BeNull();
-            result.Data.UserName.Should().BeNullOrEmpty();
-            result.Data.CustomerName.Should().Be("John Smith");
+            result!.Data!.UserId.Should().BeNull();
+            result!.Data!.UserName.Should().BeNullOrEmpty();
+            result!.Data!.CustomerName.Should().Be("John Smith");
         }
 
         [Fact]
@@ -227,7 +228,7 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 1000,
-                    Status = "Active",
+                    ContractStatusId = 1,
                     SaleStartDate = DateTime.UtcNow
                 };
                 var contract2 = new Contract
@@ -236,7 +237,7 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 2000,
-                    Status = "Active",
+                    ContractStatusId = 1,
                     SaleStartDate = DateTime.UtcNow
                 };
                 
@@ -292,18 +293,18 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 1000,
-                    Status = "Active",
+                    ContractStatusId = 1,
                     SaleStartDate = DateTime.UtcNow
                 };
                 
-                // Add canceled contract
+                // Add canceled contract (StatusId 5 = Defaulted in our factory seeding)
                 var canceledContract = new Contract
                 {
                     ContractNumber = $"CANCEL-CANCELED-{Guid.NewGuid().ToString()[..8]}",
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 500,
-                    Status = "Defaulted",
+                    ContractStatusId = 5,
                     SaleStartDate = DateTime.UtcNow
                 };
                 
@@ -359,7 +360,7 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 3000,
-                    Status = "Active",
+                    ContractStatusId = 1,
                     SaleStartDate = DateTime.UtcNow
                 };
                 
@@ -414,7 +415,7 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 1000,
-                    Status = "Active",
+                    ContractStatusId = 1,
                     SaleStartDate = DateTime.UtcNow
                 };
                 var activeContract2 = new Contract
@@ -423,7 +424,7 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 1000,
-                    Status = "Late1",
+                    ContractStatusId = 3,
                     SaleStartDate = DateTime.UtcNow
                 };
                 var activeContract3 = new Contract
@@ -432,7 +433,7 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 1000,
-                    Status = "Late2",
+                    ContractStatusId = 3,
                     SaleStartDate = DateTime.UtcNow
                 };
                 var defaultedContract = new Contract
@@ -441,7 +442,7 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserId = user.Id,
                     GroupId = group.Id,
                     TotalAmount = 1000,
-                    Status = "Defaulted",
+                    ContractStatusId = 2,
                     SaleStartDate = DateTime.UtcNow
                 };
                 

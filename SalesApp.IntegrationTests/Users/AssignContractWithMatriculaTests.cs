@@ -240,7 +240,7 @@ namespace SalesApp.IntegrationTests.Users
                 UserId = userId,
                 TotalAmount = 1000,
                 GroupId = group.Id,
-                Status = "active",
+                ContractStatusId = 1,
                 IsActive = true
             };
             

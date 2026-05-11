@@ -9,8 +9,8 @@ using System.Text.Json;
 
 namespace SalesApp.IntegrationTests.Imports
 {
-    [Collection("Database Collection")]
-    public class WizardExcelGenerationTests : IClassFixture<TestWebApplicationFactory>
+    [Collection("Integration Tests")]
+    public class WizardExcelGenerationTests 
     {
         private readonly TestWebApplicationFactory _factory;
 

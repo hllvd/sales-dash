@@ -10,7 +10,8 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.PointOfSale
 {
-    public class PointOfSaleControllerTests : IClassFixture<TestWebApplicationFactory>
+        [Collection("Integration Tests")]
+    public class PointOfSaleControllerTests 
     {
         private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;

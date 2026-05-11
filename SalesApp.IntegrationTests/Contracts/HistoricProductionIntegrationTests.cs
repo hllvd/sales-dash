@@ -9,7 +9,8 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Contracts
 {
-    public class HistoricProductionIntegrationTests : IClassFixture<TestWebApplicationFactory>
+    [Collection("Integration Tests")]
+    public class HistoricProductionIntegrationTests 
     {
         private readonly HttpClient _client;
         private readonly TestWebApplicationFactory _factory;
@@ -86,15 +87,15 @@ namespace SalesApp.IntegrationTests.Contracts
             
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.Should().NotBeNull();
-            result.Data.MonthlyData.Should().HaveCountGreaterOrEqualTo(2);
+            result!.Data!.Should().NotBeNull();
+            result!.Data!.MonthlyData.Should().HaveCountGreaterOrEqualTo(2);
             
-            var july = result.Data.MonthlyData.FirstOrDefault(m => m.Period == "2024-07");
+            var july = result!.Data!.MonthlyData.FirstOrDefault(m => m.Period == "2024-07");
             july.Should().NotBeNull();
             july!.TotalProduction.Should().Be(250000);
             july.ContractCount.Should().Be(2);
             
-            var august = result.Data.MonthlyData.FirstOrDefault(m => m.Period == "2024-08");
+            var august = result!.Data!.MonthlyData.FirstOrDefault(m => m.Period == "2024-08");
             august.Should().NotBeNull();
             august!.TotalProduction.Should().Be(200000);
             august.ContractCount.Should().Be(1);
@@ -116,8 +117,8 @@ namespace SalesApp.IntegrationTests.Contracts
             
             result.Should().NotBeNull();
             result!.Data.MonthlyData.Should().BeEmpty();
-            result.Data.TotalProduction.Should().Be(0);
-            result.Data.TotalContracts.Should().Be(0);
+            result!.Data!.TotalProduction.Should().Be(0);
+            result!.Data!.TotalContracts.Should().Be(0);
         }
     }
 }

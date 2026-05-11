@@ -46,7 +46,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 contractNumber = $"C-{Guid.NewGuid().ToString()[..8]}",
                 userId = userId,
                 totalAmount = 1000.00m,
-                status = "Active",
+                Status = "active",
                 contractStartDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
                 matriculaNumber = matriculaNumber
             };
@@ -240,7 +240,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 contractNumber = $"C-{Guid.NewGuid().ToString()[..8]}",
                 userId = userId,
                 totalAmount = 1000.00m,
-                status = "Active",
+                Status = "active",
                 contractStartDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
                 matriculaNumber = matriculaNumber
             };
@@ -303,9 +303,9 @@ namespace SalesApp.IntegrationTests.Contracts
             using (var scope = _factory.Services.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var contract1 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = adminId, TempMatricula = matricula1, MatriculaId = m1Id, TotalAmount = 100, Status = "Active", IsActive = true };
-                var contract2 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = null, TempMatricula = matricula2, MatriculaId = m2Id, TotalAmount = 200, Status = "Active", IsActive = true }; // Ensure unassigned contracts are still visible if matricula matches!
-                var contractOther = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = otherUserId, TempMatricula = matriculaOther, MatriculaId = mOtherId, TotalAmount = 300, Status = "Active", IsActive = true };
+                var contract1 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = adminId, TempMatricula = matricula1, MatriculaId = m1Id, TotalAmount = 100, ContractStatusId = 1, IsActive = true };
+                var contract2 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = null, TempMatricula = matricula2, MatriculaId = m2Id, TotalAmount = 200, ContractStatusId = 1, IsActive = true }; // Ensure unassigned contracts are still visible if matricula matches!
+                var contractOther = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = otherUserId, TempMatricula = matriculaOther, MatriculaId = mOtherId, TotalAmount = 300, ContractStatusId = 1, IsActive = true };
                 
                 context.Contracts.AddRange(contract1, contract2, contractOther);
                 await context.SaveChangesAsync();
@@ -423,7 +423,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}",
                 UserId = userId,
                 TotalAmount = 1000.00m,
-                Status = "Active",
+                ContractStatusId = 1,
                 SaleStartDate = DateTime.UtcNow,
                 IsActive = true
             };

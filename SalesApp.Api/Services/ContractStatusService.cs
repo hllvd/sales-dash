@@ -11,7 +11,7 @@ namespace SalesApp.Services
     public class ContractStatusService : IContractStatusService
     {
         private readonly AppDbContext _context;
-        private static readonly ConcurrentDictionary<string, int> _cache = new();
+        private readonly ConcurrentDictionary<string, int> _cache = new();
 
         public ContractStatusService(AppDbContext context)
         {

@@ -158,7 +158,10 @@ namespace SalesApp.Repositories
             _context.Contracts.Add(contract);
             await _context.SaveChangesAsync();
             
-            // Reload with navigation properties
+            // Explicitly load ContractStatus to ensure it's available for MapToContractResponse
+            await _context.Entry(contract).Reference(c => c.ContractStatus).LoadAsync();
+            
+            // Reload with other navigation properties
             return await GetByIdAsync(contract.Id) ?? contract;
         }
         
@@ -249,6 +252,9 @@ namespace SalesApp.Repositories
             
             _context.Contracts.Update(contract);
             await _context.SaveChangesAsync();
+            
+            // Explicitly load ContractStatus
+            await _context.Entry(contract).Reference(c => c.ContractStatus).LoadAsync();
             
             // Reload with navigation properties
             return await GetByIdAsync(contract.Id) ?? contract;

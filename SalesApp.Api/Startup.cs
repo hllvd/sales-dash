@@ -17,6 +17,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Amazon;
 using Amazon.DynamoDBv2;
+using SalesApp.ReportFilters.Repositories;
+using SalesApp.ReportFilters.Services;
+using SalesApp.ReportFilters.Settings;
 
 namespace SalesApp
 {
@@ -82,6 +85,7 @@ namespace SalesApp
             services.AddScoped<IUserMatriculaRepository, UserMatriculaRepository>();
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
             services.AddScoped<IWizardService, WizardService>();
+            services.AddScoped<IWizardHeaderValidator, WizardHeaderValidator>();
             services.AddScoped<IPendingClaimService, PendingClaimService>();
             services.AddScoped<IContractStatusService, ContractStatusService>();
             
@@ -111,6 +115,13 @@ namespace SalesApp
                 };
                 return new AmazonDynamoDBClient(dynamoDbConfig);
             });
+
+            // DynamoDb typed settings
+            services.Configure<DynamoDbSettings>(Configuration.GetSection("DynamoDb"));
+
+            // Report Filters feature
+            services.AddScoped<IReportFilterRepository, DynamoDbReportFilterRepository>();
+            services.AddScoped<IReportFilterService, ReportFilterService>();
 
             // Scraping and Error Services
             services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();
