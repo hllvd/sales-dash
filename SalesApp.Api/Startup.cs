@@ -117,7 +117,7 @@ namespace SalesApp
             });
 
             // DynamoDb typed settings
-            services.Configure<DynamoDbSettings>(Configuration.GetSection("DynamoDb"));
+            services.Configure<DynamoDbSettings>(Configuration.GetSection("AWS"));
 
             // Report Filters feature
             services.AddScoped<IReportFilterRepository, DynamoDbReportFilterRepository>();

@@ -18,6 +18,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using SalesApp.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using SalesApp.ReportFilters.Repositories;
+using SalesApp.ReportFilters.Services;
+using SalesApp.ReportFilters.Settings;
 
 namespace SalesApp.IntegrationTests
 {
@@ -105,6 +108,13 @@ namespace SalesApp.IntegrationTests
             // Contract Status Aliases Mapping
             services.Configure<Models.Configuration.ContractStatusOptions>(Configuration.GetSection("ContractStatusMappings"));
             services.AddSingleton<IContractStatusMapper, ContractStatusMapper>();
+            
+            // DynamoDb typed settings
+            services.Configure<DynamoDbSettings>(Configuration.GetSection("AWS"));
+
+            // Report Filters feature
+            services.AddScoped<IReportFilterRepository, DynamoDbReportFilterRepository>();
+            services.AddScoped<IReportFilterService, ReportFilterService>();
             
             // CORS
             services.AddCors(options =>
