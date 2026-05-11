@@ -187,18 +187,27 @@ namespace SalesApp.ReportFilters.Services
                 userIdFilter = currentUserId;
             }
 
+            var resolvedStartDate = ResolveDate(fc.StartDate, fc.RelativeStartDate);
+            var resolvedEndDate = ResolveDate(fc.EndDate, fc.RelativeEndDate);
+
             // Reuse existing GetAllAsync — same logic as /api/contracts, no duplication
             var contracts = await _contractRepository.GetAllAsync(
                 userId: userIdFilter,
                 groupId: groupIdFilter,
-                startDate: fc.StartDate,
-                endDate: fc.EndDate,
+                startDate: resolvedStartDate,
+                endDate: resolvedEndDate,
                 contractNumber: null,
                 showUnassigned: null,
                 matriculaNumber: matriculaFilter,
                 userEmail: emailFilter,
                 scope: null // No scope restriction for superadmin-executed reports
             );
+
+            // Filter PVs in memory since IContractRepository does not support PvId lists
+            if (fc.Pvs?.Count > 0)
+            {
+                contracts = contracts.Where(c => c.PvId.HasValue && fc.Pvs.Contains(c.PvId.Value)).ToList();
+            }
 
             // Apply pagination
             var totalCount = contracts.Count;
@@ -389,6 +398,40 @@ namespace SalesApp.ReportFilters.Services
             };
         }
 
+        private static DateTime? ResolveDate(DateTime? absoluteDate, string? relativeExpr)
+        {
+            if (absoluteDate.HasValue) return absoluteDate;
+            if (string.IsNullOrWhiteSpace(relativeExpr)) return null;
+            
+            var expr = relativeExpr.Trim();
+            if (expr.Equals("now", StringComparison.OrdinalIgnoreCase)) return DateTime.UtcNow;
+            if (expr.Equals("thisMonth", StringComparison.OrdinalIgnoreCase)) 
+            {
+                var now = DateTime.UtcNow;
+                return new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            }
+            
+            bool isNegative = expr.StartsWith("-");
+            bool isPositive = expr.StartsWith("+");
+            if (isNegative || isPositive)
+            {
+                var valueStr = expr.Substring(1, expr.Length - 2);
+                var unit = expr.Last();
+                if (int.TryParse(valueStr, out int val))
+                {
+                    int multiplier = isNegative ? -1 : 1;
+                    return unit switch
+                    {
+                        'd' => DateTime.UtcNow.AddDays(val * multiplier),
+                        'M' => DateTime.UtcNow.AddMonths(val * multiplier),
+                        'y' => DateTime.UtcNow.AddYears(val * multiplier),
+                        _ => null
+                    };
+                }
+            }
+            return null;
+        }
+
         // ── Mapping helpers ───────────────────────────────────────────────────
 
         private static ReportFilterResponse MapToResponse(ReportFilter f) =>
@@ -406,6 +449,8 @@ namespace SalesApp.ReportFilters.Services
                     Matriculas          = f.FilterConfig.Matriculas,
                     StartDate           = f.FilterConfig.StartDate,
                     EndDate             = f.FilterConfig.EndDate,
+                    RelativeStartDate   = f.FilterConfig.RelativeStartDate,
+                    RelativeEndDate     = f.FilterConfig.RelativeEndDate,
                     CurrentUserAsParent = f.FilterConfig.CurrentUserAsParent,
                     Emails              = f.FilterConfig.Emails,
                     Groups              = f.FilterConfig.Groups,
@@ -428,6 +473,8 @@ namespace SalesApp.ReportFilters.Services
                 Matriculas          = req.Matriculas,
                 StartDate           = req.StartDate,
                 EndDate             = req.EndDate,
+                RelativeStartDate   = req.RelativeStartDate,
+                RelativeEndDate     = req.RelativeEndDate,
                 CurrentUserAsParent = req.CurrentUserAsParent,
                 Emails              = req.Emails,
                 Groups              = req.Groups,

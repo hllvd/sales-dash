@@ -22,6 +22,8 @@ namespace SalesApp.ReportFilters.DTOs
         public List<string>? Matriculas { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        public string? RelativeStartDate { get; set; }
+        public string? RelativeEndDate { get; set; }
         public bool? CurrentUserAsParent { get; set; }
         public List<string>? Emails { get; set; }
         public List<int>? Groups { get; set; }

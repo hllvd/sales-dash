@@ -43,7 +43,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
       setTotalPages(resultsData.totalPages);
       setTotalCount(resultsData.totalCount);
     } catch (err: any) {
-      notifications.show({ title: 'Error', message: err.message || 'Failed to load report results', color: 'red' });
+      notifications.show({ title: 'Erro', message: err.message || 'Falha ao carregar resultados do relatório', color: 'red' });
     } finally {
       setLoading(false);
     }
@@ -65,13 +65,13 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
         <Group justify="space-between" align="center" mb="xl">
           <Group>
             <Button variant="subtle" onClick={() => window.location.hash = '#/reports'} leftSection={<IconArrowLeft size={16} />}>
-              Back to Reports
+              Voltar para Relatórios
             </Button>
             <div>
-              <Text size="sm" c="dimmed">Reports → {report?.name || 'Loading...'}</Text>
-              <Title order={2}>{report?.name || 'Report Results'}</Title>
+              <Text size="sm" c="dimmed">Relatórios → {report?.name || 'Carregando...'}</Text>
+              <Title order={2}>{report?.name || 'Resultados do Relatório'}</Title>
               <Text size="sm" c="dimmed">
-                {totalCount} {totalCount === 1 ? "record" : "records"} found
+                {totalCount} {totalCount === 1 ? "registro" : "registros"} encontrado(s)
               </Text>
             </div>
           </Group>
@@ -81,7 +81,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
               leftSection={<IconEdit size={16} />} 
               onClick={() => window.location.hash = `#/reports/${filterId}/edit`}
             >
-              Edit Report
+              Editar Relatório
             </Button>
           )}
         </Group>
@@ -92,7 +92,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
           </Center>
         ) : rows.length === 0 ? (
           <div className="empty-state" style={{ padding: '40px', textAlign: 'center' }}>
-            <Text c="dimmed">No results found for these filters.</Text>
+            <Text c="dimmed">Nenhum resultado encontrado para estes filtros.</Text>
           </div>
         ) : (
           <>
@@ -130,17 +130,17 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                   disabled={page === 1}
                   variant="default"
                 >
-                  ← Previous
+                  ← Anterior
                 </Button>
                 <Text size="sm" className="pagination-info">
-                  Page {page} of {totalPages}
+                  Página {page} de {totalPages}
                 </Text>
                 <Button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   variant="default"
                 >
-                  Next →
+                  Próxima →
                 </Button>
               </div>
             )}

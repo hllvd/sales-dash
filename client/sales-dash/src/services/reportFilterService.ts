@@ -8,6 +8,8 @@ export interface FilterConfig {
   matriculas?: string[];
   startDate?: string;
   endDate?: string;
+  relativeStartDate?: string;
+  relativeEndDate?: string;
   currentUserAsParent?: boolean;
   emails?: string[];
   groups?: number[];

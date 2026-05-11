@@ -44,8 +44,8 @@ const ReportListPage: React.FC = () => {
       setReports(data);
     } catch (err: any) {
       notifications.show({
-        title: 'Error',
-        message: err.message || 'Failed to load reports',
+        title: 'Erro',
+        message: err.message || 'Falha ao carregar relatórios',
         color: 'red'
       });
     } finally {
@@ -63,11 +63,11 @@ const ReportListPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await deleteReportFilter(id);
-      notifications.show({ title: 'Success', message: 'Report deleted', color: 'green' });
+      notifications.show({ title: 'Sucesso', message: 'Relatório excluído', color: 'green' });
       setDeleteConfirm(null);
       fetchReports();
     } catch (err: any) {
-      notifications.show({ title: 'Error', message: err.message || 'Failed to delete report', color: 'red' });
+      notifications.show({ title: 'Erro', message: err.message || 'Falha ao excluir relatório', color: 'red' });
     }
   };
 
@@ -99,24 +99,24 @@ const ReportListPage: React.FC = () => {
             {report.scope === 'shared' ? <IconUsers size={20} color="gray" /> : <IconLock size={20} color="gray" />}
             <Text fw={500} size="lg">{report.name}</Text>
             <Badge color={report.scope === 'shared' ? 'blue' : 'gray'}>
-              {report.scope === 'shared' ? 'Shared' : 'Private'}
+              {report.scope === 'shared' ? 'Compartilhado' : 'Privado'}
             </Badge>
           </Group>
           
           <Group gap="xs">
-            <Tooltip label="Run Report">
+            <Tooltip label="Executar Relatório">
               <ActionIcon variant="light" color="green" onClick={() => window.location.hash = `#/reports/${report.filterId}/results`}>
                 <IconPlayerPlay size={18} />
               </ActionIcon>
             </Tooltip>
             {canEditDelete && (
               <>
-                <Tooltip label="Edit Report">
+                <Tooltip label="Editar Relatório">
                   <ActionIcon variant="light" color="blue" onClick={() => window.location.hash = `#/reports/${report.filterId}/edit`}>
                     <IconEdit size={18} />
                   </ActionIcon>
                 </Tooltip>
-                <Tooltip label="Delete Report">
+                <Tooltip label="Excluir Relatório">
                   <ActionIcon variant="light" color="red" onClick={() => setDeleteConfirm(report.filterId)}>
                     <IconTrash size={18} />
                   </ActionIcon>
@@ -127,12 +127,12 @@ const ReportListPage: React.FC = () => {
         </Group>
 
         <Text size="sm" c="dimmed" lineClamp={1} mb="md">
-          {report.description || 'No description provided.'}
+          {report.description || 'Nenhuma descrição fornecida.'}
         </Text>
 
         <Group justify="space-between" mt="md">
           <Text size="xs" c="dimmed">
-            Created by Author · {new Date(report.createdAt).toLocaleDateString()} · {report.outputColumns.length} columns
+            Criado em {new Date(report.createdAt).toLocaleDateString()} · {report.outputColumns.length} colunas
           </Text>
         </Group>
       </Card>
@@ -144,19 +144,19 @@ const ReportListPage: React.FC = () => {
       <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
         <Group justify="space-between" align="flex-start" mb="xl">
           <div>
-            <Title order={2} size="h2">Reports</Title>
-            <Text c="dimmed">Saved filter configurations for contracts</Text>
+            <Title order={2} size="h2">Relatórios</Title>
+            <Text c="dimmed">Configurações de filtros salvos para contratos</Text>
           </div>
           {isSuperadmin && (
             <Button leftSection={<IconPlus size={16} />} onClick={() => window.location.hash = '#/reports/new'}>
-              New Report
+              Novo Relatório
             </Button>
           )}
         </Group>
 
         <Group mb="xl" style={{ display: 'flex' }}>
           <TextInput
-            placeholder="Search reports..."
+            placeholder="Buscar relatórios..."
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
@@ -166,9 +166,9 @@ const ReportListPage: React.FC = () => {
             value={scopeFilter}
             onChange={setScopeFilter}
             data={[
-              { label: 'All', value: 'all' },
-              { label: 'Shared', value: 'shared' },
-              { label: 'Mine', value: 'mine' },
+              { label: 'Todos', value: 'all' },
+              { label: 'Compartilhados', value: 'shared' },
+              { label: 'Meus', value: 'mine' },
             ]}
           />
         </Group>
@@ -179,9 +179,9 @@ const ReportListPage: React.FC = () => {
           <Stack gap="xl">
             {(scopeFilter === 'all' || scopeFilter === 'shared') && (
               <section>
-                <Title order={4} mb="md">Shared Reports</Title>
+                <Title order={4} mb="md">Relatórios Compartilhados</Title>
                 {sharedReports.length === 0 ? (
-                  <Text c="dimmed" fs="italic">No shared reports found.</Text>
+                  <Text c="dimmed" fs="italic">Nenhum relatório compartilhado encontrado.</Text>
                 ) : (
                   sharedReports.map(renderReportCard)
                 )}
@@ -190,9 +190,9 @@ const ReportListPage: React.FC = () => {
 
             {(scopeFilter === 'all' || scopeFilter === 'mine') && (
               <section>
-                <Title order={4} mb="md">My Private Reports</Title>
+                <Title order={4} mb="md">Meus Relatórios Privados</Title>
                 {myReports.length === 0 ? (
-                  <Text c="dimmed" fs="italic">No private reports found.</Text>
+                  <Text c="dimmed" fs="italic">Nenhum relatório privado encontrado.</Text>
                 ) : (
                   myReports.map(renderReportCard)
                 )}
@@ -204,16 +204,16 @@ const ReportListPage: React.FC = () => {
         <StandardModal
           isOpen={deleteConfirm !== null}
           onClose={() => setDeleteConfirm(null)}
-          title="Confirm Deletion"
+          title="Confirmar Exclusão"
           size="md"
           footer={
             <>
-              <Button variant="subtle" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-              <Button color="red" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>Delete</Button>
+              <Button variant="subtle" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
+              <Button color="red" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>Excluir</Button>
             </>
           }
         >
-          <Text>Are you sure you want to delete this report? This action cannot be undone.</Text>
+          <Text>Tem certeza que deseja excluir este relatório? Esta ação não pode ser desfeita.</Text>
         </StandardModal>
       </div>
     </Menu>

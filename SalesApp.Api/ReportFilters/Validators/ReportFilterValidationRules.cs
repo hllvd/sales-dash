@@ -65,6 +65,8 @@ namespace SalesApp.ReportFilters.Validators
                 (config.Matriculas?.Count > 0) ||
                 config.StartDate.HasValue ||
                 config.EndDate.HasValue ||
+                !string.IsNullOrWhiteSpace(config.RelativeStartDate) ||
+                !string.IsNullOrWhiteSpace(config.RelativeEndDate) ||
                 config.CurrentUserAsParent.HasValue ||
                 (config.Emails?.Count > 0) ||
                 (config.Groups?.Count > 0) ||
