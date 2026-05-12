@@ -34,6 +34,7 @@ export interface ReportFilter {
   scope: 'private' | 'shared';
   filterConfig: FilterConfig;
   outputColumns: OutputColumn[];
+  groupByEmail: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -44,6 +45,7 @@ export interface CreateReportFilterRequest {
   scope: 'private' | 'shared';
   filterConfig: FilterConfig;
   outputColumns: OutputColumn[];
+  groupByEmail: boolean;
 }
 
 export interface UpdateReportFilterRequest {
@@ -52,6 +54,7 @@ export interface UpdateReportFilterRequest {
   scope: 'private' | 'shared';
   filterConfig: FilterConfig;
   outputColumns: OutputColumn[];
+  groupByEmail: boolean;
 }
 
 export interface SourceColumns {

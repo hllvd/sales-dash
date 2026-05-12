@@ -111,8 +111,8 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                       <Table.Tr key={index}>
                         {columns.map((col) => (
                           <Table.Td key={col.field}>
-                            {row[col.field] !== null && row[col.field] !== undefined 
-                              ? String(row[col.field]) 
+                            {row[col.label] !== null && row[col.label] !== undefined 
+                              ? String(row[col.label]) 
                               : '-'}
                           </Table.Td>
                         ))}

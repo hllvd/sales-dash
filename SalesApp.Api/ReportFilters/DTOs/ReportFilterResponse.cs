@@ -13,6 +13,7 @@ namespace SalesApp.ReportFilters.DTOs
         public string Scope { get; set; } = string.Empty;
         public FilterConfigResponse FilterConfig { get; set; } = new();
         public List<OutputColumnResponse> OutputColumns { get; set; } = new();
+        public bool GroupByEmail { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

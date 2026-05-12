@@ -41,5 +41,6 @@ namespace SalesApp.ReportFilters.DTOs
         public string Scope { get; set; } = string.Empty;
         public FilterConfigRequest FilterConfig { get; set; } = new();
         public List<OutputColumnRequest> OutputColumns { get; set; } = new();
+        public bool GroupByEmail { get; set; }
     }
 }

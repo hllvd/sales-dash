@@ -64,6 +64,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
   // Columns
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>([]);
+  const [groupByEmail, setGroupByEmail] = useState(false);
   
   // Options
   const [availableColumns, setAvailableColumns] = useState<SourceColumns[]>([]);
@@ -125,6 +126,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setStatusOperator(fc.statusOperator || 'or');
         
         setOutputColumns(report.outputColumns || []);
+        setGroupByEmail(report.groupByEmail || false);
       }
     } catch (err: any) {
       notifications.show({ title: 'Erro', message: err.message || 'Falha ao carregar dados do formulário', color: 'red' });
@@ -209,7 +211,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         description,
         scope,
         filterConfig,
-        outputColumns
+        outputColumns,
+        groupByEmail
       };
 
       if (isEditMode) {
@@ -444,7 +447,14 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
           {/* Section 3: Output Columns */}
           <Paper shadow="sm" p="lg" radius="md" withBorder>
-            <Title order={4} mb="md">Colunas de Saída</Title>
+            <Group justify="space-between" mb="md">
+              <Title order={4}>Colunas de Saída</Title>
+              <Switch
+                label="Agrupar por E-mail (somar totalAmount)"
+                checked={groupByEmail}
+                onChange={(e) => setGroupByEmail(e.currentTarget.checked)}
+              />
+            </Group>
             <Group mb="md" align="flex-end">
               <Select
                 label="Adicionar Coluna"

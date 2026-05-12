@@ -91,6 +91,7 @@ namespace SalesApp.ReportFilters.Services
                 Scope       = request.Scope.ToLower(),
                 FilterConfig = MapFilterConfig(request.FilterConfig),
                 OutputColumns = MapOutputColumns(request.OutputColumns),
+                GroupByEmail = request.GroupByEmail,
                 CreatedAt   = now,
                 UpdatedAt   = now
             };
@@ -123,6 +124,7 @@ namespace SalesApp.ReportFilters.Services
             filter.Scope         = request.Scope.ToLower();
             filter.FilterConfig  = MapFilterConfig(request.FilterConfig);
             filter.OutputColumns = MapOutputColumns(request.OutputColumns);
+            filter.GroupByEmail  = request.GroupByEmail;
             filter.UpdatedAt     = DateTime.UtcNow;
 
             await _repository.UpdateAsync(filter);
@@ -223,6 +225,26 @@ namespace SalesApp.ReportFilters.Services
                     ).ToList();
             }
 
+            if (report.GroupByEmail)
+            {
+                // Group by user email; null email maps to a shared "(Sem usuário)" bucket
+                var grouped = contracts
+                    .GroupBy(c => c.User?.Email ?? "(Sem usuário)")
+                    .Select(g =>
+                    {
+                        // Aggregate: sum totalAmount, keep first contract for other fields
+                        var first = g.First();
+                        // ✅ IMPORTANT: Since we use AsNoTracking, we can safely mutate the object in memory
+                        // for projection without affecting the database.
+                        first.TotalAmount = g.Sum(c => c.TotalAmount);
+                        return first;
+                    })
+                    .OrderByDescending(c => c.TotalAmount)
+                    .ToList();
+
+                contracts = grouped;
+            }
+
             // Apply pagination
             var totalCount = contracts.Count;
             var safePage = Math.Max(1, page);
@@ -253,6 +275,17 @@ namespace SalesApp.ReportFilters.Services
                 }).ToList(),
                 Rows = rows
             };
+
+            if (report.GroupByEmail && !result.Columns.Any(c => c.Source == "Users_Contract" && c.Field == "email"))
+            {
+                result.Columns.Insert(0, new OutputColumnResponse
+                {
+                    Source = "Users_Contract",
+                    Field  = "email",
+                    Label  = "Email",
+                    Order  = 0
+                });
+            }
 
             return new ServiceResult<ReportResultsResponse>(true, result);
         }
@@ -353,6 +386,17 @@ namespace SalesApp.ReportFilters.Services
             foreach (var col in columns)
             {
                 row[col.Label] = ResolveField(contract, col.Source, col.Field, col.Format);
+            }
+
+            // Synthetic column injection for grouped reports
+            if (!row.ContainsKey("Email") && contract.User != null)
+            {
+                // We use a fixed label "Email" to match the synthetic column definition in ExecuteAsync
+                row["Email"] = contract.User.Email;
+            }
+            else if (!row.ContainsKey("Email") && contract.User == null)
+            {
+                row["Email"] = "(Sem usuário)";
             }
 
             return row;
@@ -494,6 +538,7 @@ namespace SalesApp.ReportFilters.Services
                 Name        = f.Name,
                 Description = f.Description,
                 Scope       = f.Scope,
+                GroupByEmail = f.GroupByEmail,
                 CreatedAt   = f.CreatedAt,
                 UpdatedAt   = f.UpdatedAt,
                 FilterConfig = new FilterConfigResponse

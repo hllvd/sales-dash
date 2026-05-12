@@ -238,10 +238,11 @@ namespace SalesApp.ReportFilters.Repositories
                 { "filterId",    new AttributeValue { S = f.FilterId } },
                 { "name",        new AttributeValue { S = f.Name } },
                 { "scope",       new AttributeValue { S = f.Scope } },
-                { "filterConfig",new AttributeValue { S = JsonConvert.SerializeObject(f.FilterConfig) } },
-                { "outputColumns",new AttributeValue { S = JsonConvert.SerializeObject(f.OutputColumns) } },
-                { "createdAt",   new AttributeValue { S = f.CreatedAt.ToString("O") } },
-                { "updatedAt",   new AttributeValue { S = f.UpdatedAt.ToString("O") } }
+                { "filterConfig",  new AttributeValue { S = JsonConvert.SerializeObject(f.FilterConfig) } },
+                { "outputColumns", new AttributeValue { S = JsonConvert.SerializeObject(f.OutputColumns) } },
+                { "groupByEmail",  new AttributeValue { BOOL = f.GroupByEmail } },
+                { "createdAt",     new AttributeValue { S = f.CreatedAt.ToString("O") } },
+                { "updatedAt",     new AttributeValue { S = f.UpdatedAt.ToString("O") } }
             };
 
             if (!string.IsNullOrEmpty(f.Description))
@@ -266,6 +267,7 @@ namespace SalesApp.ReportFilters.Repositories
                 Scope     = item.GetValueOrDefault("scope")?.S ?? string.Empty,
                 FilterConfig  = JsonConvert.DeserializeObject<FilterConfig>(filterConfigJson) ?? new FilterConfig(),
                 OutputColumns = JsonConvert.DeserializeObject<List<OutputColumn>>(outputColumnsJson) ?? new List<OutputColumn>(),
+                GroupByEmail  = item.GetValueOrDefault("groupByEmail")?.BOOL ?? false,
                 CreatedAt = DateTime.TryParse(item.GetValueOrDefault("createdAt")?.S, out var ca) ? ca : DateTime.UtcNow,
                 UpdatedAt = DateTime.TryParse(item.GetValueOrDefault("updatedAt")?.S, out var ua) ? ua : DateTime.UtcNow
             };
