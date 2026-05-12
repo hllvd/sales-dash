@@ -507,7 +507,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                           w={140}
                           data={[
                             { value: '', label: 'Padrão (ISO)' },
-                            { value: 'br', label: 'Brasileiro (BR)' }
+                            { value: 'br', label: 'Brasileiro (BR)' },
+                            { value: 'percentage', label: 'Porcentagem (%)' }
                           ]}
                         />
                         <ActionIcon color="red" variant="subtle" onClick={() => handleRemoveColumn(index)}>

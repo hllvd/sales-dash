@@ -20,7 +20,7 @@ namespace SalesApp.ReportFilters.Validators
 
         private static readonly HashSet<string> ValidSources = new(StringComparer.OrdinalIgnoreCase)
         {
-            "Contracts", "Users_Contract", "Users_Matricula", "Status", "PV", "Group"
+            "Contracts", "Users_Contract", "Users_Matricula", "Status", "PV", "Group", "Computed"
         };
 
         public static List<ValidationError> ValidateName(string? name)

@@ -7,7 +7,7 @@ namespace SalesApp.ReportFilters.Models
     {
         /// <summary>
         /// The source entity the field belongs to.
-        /// Valid values: "Contracts", "Users_Contract", "Users_Matricula", "Status", "PV", "Group".
+        /// Valid values: "Contracts", "Users_Contract", "Users_Matricula", "Status", "PV", "Group", "Computed".
         /// </summary>
         public string Source { get; set; } = string.Empty;
 

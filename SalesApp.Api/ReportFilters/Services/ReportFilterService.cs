@@ -23,6 +23,11 @@ namespace SalesApp.ReportFilters.Services
         private readonly IContractRepository _contractRepository;
         private readonly IUserRepository _userRepository;
 
+        // Set during ExecuteAsync when GroupByEmail is active; null otherwise.
+        // Safe as a mutable field because this service is Scoped (one instance per HTTP request).
+        private Dictionary<string, decimal>? _retentionByEmail;
+        private Dictionary<string, int>? _contractCountByEmail;
+
         public ReportFilterService(
             IReportFilterRepository repository,
             IContractRepository contractRepository,
@@ -215,6 +220,33 @@ namespace SalesApp.ReportFilters.Services
                 contracts = contracts.Where(c => c.PvId.HasValue && fc.Pvs.Contains(c.PvId.Value)).ToList();
             }
 
+            // ── Compute per-user retention BEFORE status filtering ────────────
+            // Retention must reflect a user's FULL portfolio (all statuses), not just
+            // the subset visible after a status filter is applied.
+            if (report.GroupByEmail)
+            {
+                _retentionByEmail = contracts
+                    .GroupBy(c => c.User?.Email ?? "(Sem usuário)")
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var total = g.Sum(c => c.TotalAmount);
+                            if (total <= 0) return 0m;
+                            var active = g
+                                .Where(c => !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Defaulted.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+                            return active / total;
+                        });
+            }
+            else
+            {
+                _retentionByEmail = null;
+            }
+
             // Filter by status in memory (same pattern as PV filter)
             if (fc.Statuses?.Count > 0)
             {
@@ -232,21 +264,21 @@ namespace SalesApp.ReportFilters.Services
             if (report.GroupByEmail)
             {
                 // Group by user email; null email maps to a shared "(Sem usuário)" bucket
+                // Retention is already pre-computed above in _retentionByEmail
                 var grouped = contracts
                     .GroupBy(c => c.User?.Email ?? "(Sem usuário)")
                     .Select(g =>
                     {
-                        // Aggregate: sum totalAmount, keep first contract for other fields
                         var first = g.First();
                         // ✅ IMPORTANT: Since we use AsNoTracking, we can safely mutate the object in memory
-                        // for projection without affecting the database.
                         first.TotalAmount = g.Sum(c => c.TotalAmount);
-                        return first;
+                        return (Contract: first, EmailKey: g.Key, Count: g.Count());
                     })
-                    .OrderByDescending(c => c.TotalAmount)
+                    .OrderByDescending(x => x.Contract.TotalAmount)
                     .ToList();
 
-                contracts = grouped;
+                _contractCountByEmail = grouped.ToDictionary(x => x.EmailKey, x => x.Count);
+                contracts = grouped.Select(x => x.Contract).ToList();
             }
 
             // Project each contract to only the outputColumns fields
@@ -393,6 +425,15 @@ namespace SalesApp.ReportFilters.Services
                             "description",
                             "commission"
                         }
+                    },
+                    new SourceColumns
+                    {
+                        Source = "Computed",
+                        Fields = new List<string>
+                        {
+                            "contractCount",
+                            "retention"
+                        }
                     }
                 }
             };
@@ -404,7 +445,7 @@ namespace SalesApp.ReportFilters.Services
         /// Projects a Contract entity down to only the requested columns.
         /// Returns { label → value } dictionary — null for unknown/missing fields.
         /// </summary>
-        private static Dictionary<string, object?> ProjectContract(
+        private Dictionary<string, object?> ProjectContract(
             SalesApp.Models.Contract contract,
             List<OutputColumnResponse> columns)
         {
@@ -415,7 +456,7 @@ namespace SalesApp.ReportFilters.Services
                 row[col.Label] = ResolveField(contract, col.Source, col.Field);
             }
 
-            // Synthetic column injection for grouped reports
+            // Synthetic Email column is still injected if not present, to ensure Group By works visually
             if (!row.ContainsKey("Email"))
             {
                 row["Email"] = contract.User?.Email ?? "(Sem usuário)";
@@ -424,7 +465,7 @@ namespace SalesApp.ReportFilters.Services
             return row;
         }
 
-        private static object? ResolveField(SalesApp.Models.Contract c, string source, string field)
+        private object? ResolveField(SalesApp.Models.Contract c, string source, string field)
         {
             return source switch
             {
@@ -477,6 +518,12 @@ namespace SalesApp.ReportFilters.Services
                     "commission"  => (object?)c.Group?.Commission,
                     _             => null
                 },
+                "Computed" => field switch
+                {
+                    "contractCount" => _contractCountByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0),
+                    "retention"     => _retentionByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0m),
+                    _               => null
+                },
                 _ => null
             };
         }
@@ -508,6 +555,25 @@ namespace SalesApp.ReportFilters.Services
                 if (value is float f)
                 {
                     return f.ToString("N2", ptBr);
+                }
+            }
+            else if (format.ToLower() == "percentage")
+            {
+                var ptBr = new System.Globalization.CultureInfo("pt-BR");
+                
+                if (value is decimal d)
+                {
+                    return d.ToString("P2", ptBr);
+                }
+                
+                if (value is double db)
+                {
+                    return db.ToString("P2", ptBr);
+                }
+
+                if (value is float f)
+                {
+                    return f.ToString("P2", ptBr);
                 }
             }
 

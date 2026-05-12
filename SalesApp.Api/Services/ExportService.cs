@@ -184,7 +184,7 @@ namespace SalesApp.Services
 
         private async Task ProcessExportAsync(string jobId)
         {
-            if (!_jobs.TryGetValue(jobId, out var job)) return;
+            if (!_jobs.TryGetValue(jobId, out var job) || job.Filters == null) return;
 
             job.Status = "processing";
 
