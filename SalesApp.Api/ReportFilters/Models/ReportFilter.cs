@@ -36,6 +36,12 @@ namespace SalesApp.ReportFilters.Models
         /// <summary>When true, groups results by owner email and sums totalAmount.</summary>
         public bool GroupByEmail { get; set; }
 
+        /// <summary>Column label to order by.</summary>
+        public string? OrderByField { get; set; }
+
+        /// <summary>"asc" or "desc".</summary>
+        public string? OrderByDirection { get; set; }
+
         /// <summary>UTC ISO 8601 creation timestamp.</summary>
         public DateTime CreatedAt { get; set; }
 

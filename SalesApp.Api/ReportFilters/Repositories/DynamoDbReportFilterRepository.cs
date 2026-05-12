@@ -241,6 +241,8 @@ namespace SalesApp.ReportFilters.Repositories
                 { "filterConfig",  new AttributeValue { S = JsonConvert.SerializeObject(f.FilterConfig) } },
                 { "outputColumns", new AttributeValue { S = JsonConvert.SerializeObject(f.OutputColumns) } },
                 { "groupByEmail",  new AttributeValue { BOOL = f.GroupByEmail } },
+                { "orderByField",  new AttributeValue { S = f.OrderByField ?? "" } },
+                { "orderByDirection", new AttributeValue { S = f.OrderByDirection ?? "" } },
                 { "createdAt",     new AttributeValue { S = f.CreatedAt.ToString("O") } },
                 { "updatedAt",     new AttributeValue { S = f.UpdatedAt.ToString("O") } }
             };
@@ -268,6 +270,8 @@ namespace SalesApp.ReportFilters.Repositories
                 FilterConfig  = JsonConvert.DeserializeObject<FilterConfig>(filterConfigJson) ?? new FilterConfig(),
                 OutputColumns = JsonConvert.DeserializeObject<List<OutputColumn>>(outputColumnsJson) ?? new List<OutputColumn>(),
                 GroupByEmail  = item.GetValueOrDefault("groupByEmail")?.BOOL ?? false,
+                OrderByField  = item.GetValueOrDefault("orderByField")?.S,
+                OrderByDirection = item.GetValueOrDefault("orderByDirection")?.S,
                 CreatedAt = DateTime.TryParse(item.GetValueOrDefault("createdAt")?.S, out var ca) ? ca : DateTime.UtcNow,
                 UpdatedAt = DateTime.TryParse(item.GetValueOrDefault("updatedAt")?.S, out var ua) ? ua : DateTime.UtcNow
             };

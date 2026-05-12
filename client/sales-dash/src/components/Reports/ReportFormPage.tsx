@@ -65,6 +65,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   // Columns
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>([]);
   const [groupByEmail, setGroupByEmail] = useState(false);
+  const [orderByField, setOrderByField] = useState<string | null>(null);
+  const [orderByDirection, setOrderByDirection] = useState<'asc' | 'desc'>('asc');
   
   // Options
   const [availableColumns, setAvailableColumns] = useState<SourceColumns[]>([]);
@@ -127,6 +129,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         
         setOutputColumns(report.outputColumns || []);
         setGroupByEmail(report.groupByEmail || false);
+        setOrderByField(report.orderByField || null);
+        setOrderByDirection(report.orderByDirection || 'asc');
       }
     } catch (err: any) {
       notifications.show({ title: 'Erro', message: err.message || 'Falha ao carregar dados do formulário', color: 'red' });
@@ -148,7 +152,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     const newCol: OutputColumn = {
       source,
       field,
-      label: field, // default label
+      label: `${source} - ${field}`, // more unique default label
       order: outputColumns.length + 1
     };
     setOutputColumns([...outputColumns, newCol]);
@@ -212,7 +216,9 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         scope,
         filterConfig,
         outputColumns,
-        groupByEmail
+        groupByEmail,
+        orderByField: orderByField || undefined,
+        orderByDirection: orderByField ? orderByDirection : undefined
       };
 
       if (isEditMode) {
@@ -513,6 +519,41 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                 ))
               )}
             </Stack>
+          </Paper>
+          
+          {/* Section 4: Ordering */}
+          <Paper shadow="sm" p="lg" radius="md" withBorder>
+            <Title order={4} mb="md">Ordenação</Title>
+            <Grid gutter="md">
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Select
+                  label="Ordenar por Coluna"
+                  placeholder="Selecione uma coluna para ordenar"
+                  data={[
+                    { value: '', label: 'Sem ordenação' },
+                    ...(groupByEmail ? [{ value: 'Email', label: 'Email' }] : []),
+                    ...Array.from(new Set(outputColumns.map(c => c.label))).map(label => ({ value: label, label }))
+                  ]}
+                  value={orderByField}
+                  onChange={setOrderByField}
+                  clearable
+                />
+              </Grid.Col>
+              {orderByField && (
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Text size="sm" fw={500} mb={3}>Direção</Text>
+                  <SegmentedControl
+                    fullWidth
+                    value={orderByDirection}
+                    onChange={(val: any) => setOrderByDirection(val)}
+                    data={[
+                      { label: 'Crescente (A-Z / 1-9)', value: 'asc' },
+                      { label: 'Decrescente (Z-A / 9-1)', value: 'desc' },
+                    ]}
+                  />
+                </Grid.Col>
+              )}
+            </Grid>
           </Paper>
 
           {/* Footer actions */}

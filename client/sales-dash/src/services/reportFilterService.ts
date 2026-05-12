@@ -35,6 +35,8 @@ export interface ReportFilter {
   filterConfig: FilterConfig;
   outputColumns: OutputColumn[];
   groupByEmail: boolean;
+  orderByField?: string;
+  orderByDirection?: 'asc' | 'desc';
   createdAt: string;
   updatedAt: string;
 }
@@ -46,6 +48,8 @@ export interface CreateReportFilterRequest {
   filterConfig: FilterConfig;
   outputColumns: OutputColumn[];
   groupByEmail: boolean;
+  orderByField?: string;
+  orderByDirection?: 'asc' | 'desc';
 }
 
 export interface UpdateReportFilterRequest {
@@ -55,6 +59,8 @@ export interface UpdateReportFilterRequest {
   filterConfig: FilterConfig;
   outputColumns: OutputColumn[];
   groupByEmail: boolean;
+  orderByField?: string;
+  orderByDirection?: 'asc' | 'desc';
 }
 
 export interface SourceColumns {

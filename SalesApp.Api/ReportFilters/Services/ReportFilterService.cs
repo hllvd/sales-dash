@@ -92,6 +92,8 @@ namespace SalesApp.ReportFilters.Services
                 FilterConfig = MapFilterConfig(request.FilterConfig),
                 OutputColumns = MapOutputColumns(request.OutputColumns),
                 GroupByEmail = request.GroupByEmail,
+                OrderByField = request.OrderByField,
+                OrderByDirection = request.OrderByDirection,
                 CreatedAt   = now,
                 UpdatedAt   = now
             };
@@ -125,6 +127,8 @@ namespace SalesApp.ReportFilters.Services
             filter.FilterConfig  = MapFilterConfig(request.FilterConfig);
             filter.OutputColumns = MapOutputColumns(request.OutputColumns);
             filter.GroupByEmail  = request.GroupByEmail;
+            filter.OrderByField  = request.OrderByField;
+            filter.OrderByDirection = request.OrderByDirection;
             filter.UpdatedAt     = DateTime.UtcNow;
 
             await _repository.UpdateAsync(filter);
@@ -245,19 +249,42 @@ namespace SalesApp.ReportFilters.Services
                 contracts = grouped;
             }
 
+            // Project each contract to only the outputColumns fields
+            var columns = report.OutputColumns.OrderBy(c => c.Order).ToList();
+            var allRows = contracts.Select(c => ProjectContract(c, columns)).ToList();
+
+            // Apply ordering if specified
+            if (!string.IsNullOrWhiteSpace(report.OrderByField))
+            {
+                var isDesc = string.Equals(report.OrderByDirection, "desc", StringComparison.OrdinalIgnoreCase);
+                var field = report.OrderByField;
+
+                allRows = isDesc 
+                    ? allRows.OrderByDescending(r => r.ContainsKey(field) ? r[field] : null).ToList()
+                    : allRows.OrderBy(r => r.ContainsKey(field) ? r[field] : null).ToList();
+            }
+
             // Apply pagination
-            var totalCount = contracts.Count;
+            var totalCount = allRows.Count;
             var safePage = Math.Max(1, page);
             var safePageSize = Math.Clamp(pageSize, 1, 200);
             var totalPages = (int)Math.Ceiling(totalCount / (double)safePageSize);
-            var paged = contracts
+            var pagedRows = allRows
                 .Skip((safePage - 1) * safePageSize)
                 .Take(safePageSize)
                 .ToList();
 
-            // Project each contract to only the outputColumns fields
-            var columns = report.OutputColumns.OrderBy(c => c.Order).ToList();
-            var rows = paged.Select(c => ProjectContract(c, columns)).ToList();
+            // Apply formatting only to the paged results
+            foreach (var row in pagedRows)
+            {
+                foreach (var col in columns)
+                {
+                    if (row.ContainsKey(col.Label))
+                    {
+                        row[col.Label] = ApplyFormat(row[col.Label], col.Format);
+                    }
+                }
+            }
 
             var result = new ReportResultsResponse
             {
@@ -273,7 +300,7 @@ namespace SalesApp.ReportFilters.Services
                     Order  = col.Order,
                     Format = col.Format
                 }).ToList(),
-                Rows = rows
+                Rows = pagedRows
             };
 
             if (report.GroupByEmail && !result.Columns.Any(c => c.Source == "Users_Contract" && c.Field == "email"))
@@ -385,26 +412,21 @@ namespace SalesApp.ReportFilters.Services
 
             foreach (var col in columns)
             {
-                row[col.Label] = ResolveField(contract, col.Source, col.Field, col.Format);
+                row[col.Label] = ResolveField(contract, col.Source, col.Field);
             }
 
             // Synthetic column injection for grouped reports
-            if (!row.ContainsKey("Email") && contract.User != null)
+            if (!row.ContainsKey("Email"))
             {
-                // We use a fixed label "Email" to match the synthetic column definition in ExecuteAsync
-                row["Email"] = contract.User.Email;
-            }
-            else if (!row.ContainsKey("Email") && contract.User == null)
-            {
-                row["Email"] = "(Sem usuário)";
+                row["Email"] = contract.User?.Email ?? "(Sem usuário)";
             }
 
             return row;
         }
 
-        private static object? ResolveField(SalesApp.Models.Contract c, string source, string field, string? format = null)
+        private static object? ResolveField(SalesApp.Models.Contract c, string source, string field)
         {
-            object? rawValue = source switch
+            return source switch
             {
                 "Contracts" => field switch
                 {
@@ -457,8 +479,6 @@ namespace SalesApp.ReportFilters.Services
                 },
                 _ => null
             };
-
-            return ApplyFormat(rawValue, format);
         }
 
         private static object? ApplyFormat(object? value, string? format)
@@ -539,6 +559,8 @@ namespace SalesApp.ReportFilters.Services
                 Description = f.Description,
                 Scope       = f.Scope,
                 GroupByEmail = f.GroupByEmail,
+                OrderByField = f.OrderByField,
+                OrderByDirection = f.OrderByDirection,
                 CreatedAt   = f.CreatedAt,
                 UpdatedAt   = f.UpdatedAt,
                 FilterConfig = new FilterConfigResponse
