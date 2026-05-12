@@ -36,5 +36,6 @@ namespace SalesApp.ReportFilters.DTOs
         public string Field { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
         public int Order { get; set; }
+        public string? Format { get; set; }
     }
 }

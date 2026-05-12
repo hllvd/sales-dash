@@ -234,7 +234,8 @@ namespace SalesApp.ReportFilters.Services
                     Source = col.Source,
                     Field  = col.Field,
                     Label  = col.Label,
-                    Order  = col.Order
+                    Order  = col.Order,
+                    Format = col.Format
                 }).ToList(),
                 Rows = rows
             };
@@ -269,6 +270,7 @@ namespace SalesApp.ReportFilters.Services
                             "quota",
                             "customerName",
                             "tempMatricula",
+                            "matriculaNumber",
                             "createdAt",
                             "updatedAt"
                         }
@@ -336,29 +338,30 @@ namespace SalesApp.ReportFilters.Services
 
             foreach (var col in columns)
             {
-                row[col.Label] = ResolveField(contract, col.Source, col.Field);
+                row[col.Label] = ResolveField(contract, col.Source, col.Field, col.Format);
             }
 
             return row;
         }
 
-        private static object? ResolveField(SalesApp.Models.Contract c, string source, string field)
+        private static object? ResolveField(SalesApp.Models.Contract c, string source, string field, string? format = null)
         {
-            return source switch
+            object? rawValue = source switch
             {
                 "Contracts" => field switch
                 {
-                    "contractNumber" => c.ContractNumber,
-                    "totalAmount"    => c.TotalAmount,
-                    "saleStartDate"  => c.SaleStartDate,
-                    "isActive"       => c.IsActive,
-                    "contractType"   => c.ContractType,
-                    "quota"          => c.Quota,
-                    "customerName"   => c.CustomerName,
-                    "tempMatricula"  => c.TempMatricula,
-                    "createdAt"      => c.CreatedAt,
-                    "updatedAt"      => c.UpdatedAt,
-                    _               => null
+                    "contractNumber"  => c.ContractNumber,
+                    "totalAmount"     => c.TotalAmount,
+                    "saleStartDate"   => (object?)c.SaleStartDate,
+                    "isActive"        => c.IsActive,
+                    "contractType"    => c.ContractType,
+                    "quota"           => c.Quota,
+                    "customerName"    => c.CustomerName,
+                    "tempMatricula"   => c.TempMatricula,
+                    "matriculaNumber" => c.Matricula?.MatriculaNumber,
+                    "createdAt"       => c.CreatedAt,
+                    "updatedAt"       => c.UpdatedAt,
+                    _                 => null
                 },
                 "Users_Contract" => field switch
                 {
@@ -391,11 +394,46 @@ namespace SalesApp.ReportFilters.Services
                 {
                     "name"        => c.Group?.Name,
                     "description" => c.Group?.Description,
-                    "commission"  => c.Group?.Commission,
+                    "commission"  => (object?)c.Group?.Commission,
                     _             => null
                 },
                 _ => null
             };
+
+            return ApplyFormat(rawValue, format);
+        }
+
+        private static object? ApplyFormat(object? value, string? format)
+        {
+            if (value == null) return null;
+            if (string.IsNullOrEmpty(format)) return value;
+
+            if (format.ToLower() == "br")
+            {
+                var ptBr = new System.Globalization.CultureInfo("pt-BR");
+                
+                if (value is DateTime dt)
+                {
+                    return dt.ToString("dd/MM/yyyy", ptBr);
+                }
+                
+                if (value is decimal d)
+                {
+                    return d.ToString("N2", ptBr);
+                }
+                
+                if (value is double db)
+                {
+                    return db.ToString("N2", ptBr);
+                }
+
+                if (value is float f)
+                {
+                    return f.ToString("N2", ptBr);
+                }
+            }
+
+            return value;
         }
 
         private static DateTime? ResolveDate(DateTime? absoluteDate, string? relativeExpr)
@@ -463,7 +501,8 @@ namespace SalesApp.ReportFilters.Services
                         Source = c.Source,
                         Field  = c.Field,
                         Label  = c.Label,
-                        Order  = c.Order
+                        Order  = c.Order,
+                        Format = c.Format
                     }).ToList()
             };
 
@@ -487,7 +526,8 @@ namespace SalesApp.ReportFilters.Services
                 Source = c.Source,
                 Field  = c.Field,
                 Label  = c.Label,
-                Order  = c.Order
+                Order  = c.Order,
+                Format = c.Format
             }).ToList();
 
         /// <summary>

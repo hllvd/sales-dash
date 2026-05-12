@@ -21,6 +21,7 @@ export interface OutputColumn {
   field: string;
   label: string;
   order: number;
+  format?: string;
 }
 
 export interface ReportFilter {

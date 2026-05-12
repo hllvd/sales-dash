@@ -19,5 +19,8 @@ namespace SalesApp.ReportFilters.Models
 
         /// <summary>1-based position; drives column sort order in the rendered table.</summary>
         public int Order { get; set; }
+
+        /// <summary>Optional formatting instruction (e.g. "br" for Brazilian date/currency).</summary>
+        public string? Format { get; set; }
     }
 }

@@ -177,6 +177,12 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     setOutputColumns(newCols);
   };
 
+  const handleFormatChange = (index: number, newFormat: string | null) => {
+    const newCols = [...outputColumns];
+    newCols[index].format = newFormat || undefined;
+    setOutputColumns(newCols);
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -439,6 +445,17 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                           onChange={(e) => handleLabelChange(index, e.currentTarget.value)}
                           size="sm"
                           w={200}
+                        />
+                        <Select
+                          placeholder="Formato"
+                          value={col.format || ''}
+                          onChange={(val) => handleFormatChange(index, val)}
+                          size="sm"
+                          w={140}
+                          data={[
+                            { value: '', label: 'Padrão (ISO)' },
+                            { value: 'br', label: 'Brasileiro (BR)' }
+                          ]}
                         />
                         <ActionIcon color="red" variant="subtle" onClick={() => handleRemoveColumn(index)}>
                           <IconTrash size={16} />
