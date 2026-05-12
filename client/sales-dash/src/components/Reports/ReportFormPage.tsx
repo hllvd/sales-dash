@@ -20,7 +20,7 @@ import {
   SegmentedControl
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { IconArrowUp, IconArrowDown, IconTrash, IconDeviceFloppy } from '@tabler/icons-react';
+import { IconArrowUp, IconArrowDown, IconTrash, IconDeviceFloppy, IconSearch } from '@tabler/icons-react';
 import Menu from '../Menu';
 import { notifications } from '@mantine/notifications';
 import { 
@@ -193,7 +193,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     setOutputColumns(newCols);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (isPreview: boolean = false) => {
     try {
       setSaving(true);
       const filterConfig: FilterConfig = {
@@ -221,15 +221,20 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         orderByDirection: orderByField ? orderByDirection : undefined
       };
 
+      let savedFilter: ReportFilter;
       if (isEditMode) {
-        await updateReportFilter(filterId, payload);
+        savedFilter = await updateReportFilter(filterId, payload);
         notifications.show({ title: 'Sucesso', message: 'Relatório atualizado', color: 'green' });
       } else {
-        await createReportFilter(payload);
+        savedFilter = await createReportFilter(payload);
         notifications.show({ title: 'Sucesso', message: 'Relatório criado', color: 'green' });
       }
       
-      window.location.hash = '#/reports';
+      if (isPreview) {
+        window.location.hash = `#/reports/${savedFilter.filterId}/results`;
+      } else {
+        window.location.hash = '#/reports';
+      }
     } catch (err: any) {
       notifications.show({ title: 'Erro', message: err.message || 'Falha ao salvar relatório', color: 'red' });
     } finally {
@@ -561,8 +566,18 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
           <Group justify="flex-end" mt="xl">
             <Button variant="default" onClick={() => window.location.hash = '#/reports'}>Cancelar</Button>
             <Button 
+              variant="light"
+              color="blue"
+              leftSection={<IconSearch size={16} />}
+              onClick={() => handleSave(true)}
+              loading={saving}
+              disabled={!name || outputColumns.length === 0}
+            >
+              Salvar e Visualizar
+            </Button>
+            <Button 
               leftSection={<IconDeviceFloppy size={16} />} 
-              onClick={handleSave} 
+              onClick={() => handleSave(false)} 
               loading={saving}
               disabled={!name || outputColumns.length === 0}
             >
