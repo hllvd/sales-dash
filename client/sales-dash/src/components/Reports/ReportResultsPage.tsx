@@ -7,8 +7,13 @@ import {
   getReportResults, 
   getReportFilter, 
   ReportFilter, 
-  OutputColumn 
+  OutputColumn,
+  startReportExport,
+  getReportExportStatusUrl,
+  getReportExportDownloadUrl
 } from '../../services/reportFilterService';
+import ExportButton from '../../shared/ExportButton';
+import ExportProgressIndicator from '../../shared/ExportProgressIndicator';
 import '../UsersPage.css'; // Reusing some basic table/pagination CSS
 
 interface ReportResultsPageProps {
@@ -28,6 +33,11 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
 
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+
+  // Export state
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportToken = localStorage.getItem('token') || '';
 
   const fetchResults = useCallback(async () => {
     try {
@@ -59,6 +69,17 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
   const isSuperadmin = currentUserRole === 'superadmin';
   const isOwner = report?.userId === currentUserId;
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const job = await startReportExport(filterId);
+      setExportJobId(job.jobId);
+    } catch (err: any) {
+      notifications.show({ title: 'Erro', message: err.message || 'Falha ao iniciar exportação', color: 'red' });
+      setIsExporting(false);
+    }
+  };
+
   return (
     <Menu>
       <div className="users-container" style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
@@ -76,15 +97,31 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
             </div>
           </Group>
 
-          {isSuperadmin && isOwner && (
-            <Button 
-              leftSection={<IconEdit size={16} />} 
-              onClick={() => window.location.hash = `#/reports/${filterId}/edit`}
-            >
-              Editar Relatório
-            </Button>
-          )}
+          <Group>
+            {isSuperadmin && isOwner && (
+              <Button 
+                variant="light"
+                leftSection={<IconEdit size={16} />} 
+                onClick={() => window.location.hash = `#/reports/${filterId}/edit`}
+              >
+                Editar
+              </Button>
+            )}
+            <ExportButton
+              onExport={handleExport}
+              isExporting={isExporting}
+            />
+          </Group>
         </Group>
+
+        <ExportProgressIndicator
+          jobId={exportJobId}
+          pollUrl={getReportExportStatusUrl}
+          downloadUrl={getReportExportDownloadUrl}
+          token={exportToken}
+          onComplete={() => { setIsExporting(false); setExportJobId(null); }}
+          onError={(msg) => { notifications.show({ title: 'Erro', message: msg, color: 'red' }); setIsExporting(false); setExportJobId(null); }}
+        />
 
         {loading ? (
           <Center style={{ height: '50vh' }}>

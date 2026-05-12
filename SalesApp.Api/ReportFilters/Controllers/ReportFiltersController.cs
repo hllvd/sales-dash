@@ -25,10 +25,14 @@ namespace SalesApp.ReportFilters.Controllers
     public class ReportFiltersController : ControllerBase
     {
         private readonly IReportFilterService _service;
+        private readonly SalesApp.Services.IExportService _exportService;
 
-        public ReportFiltersController(IReportFilterService service)
+        public ReportFiltersController(
+            IReportFilterService service,
+            SalesApp.Services.IExportService exportService)
         {
             _service = service;
+            _exportService = exportService;
         }
 
         // ── GET /api/report-filters ───────────────────────────────────────────
@@ -143,6 +147,47 @@ namespace SalesApp.ReportFilters.Controllers
 
             var result = await _service.ExecuteAsync(callerId, filterId, currentUserId, page, pageSize);
             return MapResult(result);
+        }
+
+        // ── Export endpoints ──────────────────────────────────────────────────
+
+        /// <summary>Starts an async export of the report results.</summary>
+        [HttpPost("{filterId}/export")]
+        public IActionResult StartExport(string filterId)
+        {
+            var callerId = GetCallerId();
+            if (callerId == null) return Unauthorized();
+
+            // Note: StartReportExport will verify filter visibility when it eventually calls ExecuteAsync
+            var jobId = _exportService.StartReportExport(filterId, callerId);
+            
+            var status = _exportService.GetJobStatus(jobId);
+            return Ok(new { success = true, data = status, message = "Export started" });
+        }
+
+        /// <summary>Returns status of a report export job.</summary>
+        [HttpGet("export/{jobId}/status")]
+        public IActionResult GetExportStatus(string jobId)
+        {
+            var status = _exportService.GetJobStatus(jobId);
+            if (status == null)
+                return NotFound(new { success = false, message = "Job not found or expired" });
+
+            return Ok(new { success = true, data = status, message = "OK" });
+        }
+
+        /// <summary>Downloads the generated XLSX file.</summary>
+        [HttpGet("export/{jobId}/download")]
+        public IActionResult DownloadExport(string jobId)
+        {
+            var callerId = GetCallerId();
+            if (callerId == null) return Unauthorized();
+
+            var bytes = _exportService.GetJobBytes(jobId, callerId);
+            if (bytes == null)
+                return NotFound(new { success = false, message = "File not found, expired, or not ready" });
+
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"relatorio-{jobId}.xlsx");
         }
 
         // ── Private helpers ───────────────────────────────────────────────────

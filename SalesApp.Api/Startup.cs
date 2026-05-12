@@ -189,7 +189,8 @@ namespace SalesApp
                         var path = context.HttpContext.Request.Path;
                         if (!string.IsNullOrEmpty(accessToken) &&
                             (path.StartsWithSegments("/api/contracts/export") ||
-                             path.StartsWithSegments("/api/users/me/contracts/export")))
+                             path.StartsWithSegments("/api/users/me/contracts/export") ||
+                             path.StartsWithSegments("/api/report-filters/export")))
                         {
                             context.Token = accessToken;
                         }

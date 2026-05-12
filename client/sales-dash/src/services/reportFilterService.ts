@@ -196,3 +196,39 @@ export const getReportResults = async (
   const result: ApiResponse<ReportResultsResponse> = await response.json();
   return result.data;
 };
+
+export const startReportExport = async (filterId: string): Promise<any> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/report-filters/${filterId}/export`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to start report export');
+  }
+
+  const result = await response.json();
+  return result.data;
+};
+
+export const getReportExportStatus = async (jobId: string): Promise<any> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/report-filters/export/${jobId}/status`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get export status');
+  }
+
+  const result = await response.json();
+  return result.data;
+};
+
+export const getReportExportStatusUrl = (jobId: string): string => {
+  return `${API_BASE_URL}/report-filters/export/${jobId}/status`;
+};
+
+export const getReportExportDownloadUrl = (jobId: string): string => {
+  return `${API_BASE_URL}/report-filters/export/${jobId}/download`;
+};
