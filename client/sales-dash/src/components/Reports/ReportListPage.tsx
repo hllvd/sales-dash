@@ -21,10 +21,11 @@ import {
   IconLock, 
   IconPlayerPlay, 
   IconEdit, 
-  IconTrash 
+  IconTrash,
+  IconCopy
 } from '@tabler/icons-react';
 import Menu from '../Menu';
-import { getReportFilters, deleteReportFilter, ReportFilter } from '../../services/reportFilterService';
+import { getReportFilters, deleteReportFilter, createReportFilter, ReportFilter } from '../../services/reportFilterService';
 import StandardModal from '../../shared/StandardModal';
 import { notifications } from '@mantine/notifications';
 
@@ -70,6 +71,29 @@ const ReportListPage: React.FC = () => {
       notifications.show({ title: 'Erro', message: err.message || 'Falha ao excluir relatório', color: 'red' });
     }
   };
+  
+  const handleClone = async (report: ReportFilter) => {
+    try {
+      setLoading(true);
+      const cloneRequest = {
+        name: `Cópia de ${report.name}`,
+        description: report.description,
+        scope: report.scope,
+        filterConfig: report.filterConfig,
+        outputColumns: report.outputColumns,
+        groupByEmail: report.groupByEmail,
+        orderByField: report.orderByField,
+        orderByDirection: report.orderByDirection
+      };
+      
+      const newReport = await createReportFilter(cloneRequest);
+      notifications.show({ title: 'Sucesso', message: 'Relatório clonado', color: 'green' });
+      window.location.hash = `#/reports/${newReport.filterId}/edit`;
+    } catch (err: any) {
+      notifications.show({ title: 'Erro', message: err.message || 'Falha ao clonar relatório', color: 'red' });
+      setLoading(false);
+    }
+  };
 
   const isSuperadmin = currentUserRole === 'superadmin';
 
@@ -107,6 +131,11 @@ const ReportListPage: React.FC = () => {
             <Tooltip label="Executar Relatório">
               <ActionIcon variant="light" color="green" onClick={() => window.location.hash = `#/reports/${report.filterId}/results`}>
                 <IconPlayerPlay size={18} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Clonar Relatório">
+              <ActionIcon variant="light" color="gray" onClick={() => handleClone(report)}>
+                <IconCopy size={18} />
               </ActionIcon>
             </Tooltip>
             {canEditDelete && (

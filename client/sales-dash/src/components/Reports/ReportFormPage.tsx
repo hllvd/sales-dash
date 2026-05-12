@@ -20,7 +20,7 @@ import {
   SegmentedControl
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { IconArrowUp, IconArrowDown, IconTrash, IconDeviceFloppy, IconSearch } from '@tabler/icons-react';
+import { IconArrowUp, IconArrowDown, IconTrash, IconDeviceFloppy, IconSearch, IconCopy } from '@tabler/icons-react';
 import Menu from '../Menu';
 import { notifications } from '@mantine/notifications';
 import { 
@@ -242,6 +242,44 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     }
   };
 
+  const handleClone = async () => {
+    try {
+      setSaving(true);
+      const filterConfig: FilterConfig = {
+        matriculas: matriculas.length > 0 ? matriculas : undefined,
+        startDate: dateMode === 'absolute' && dateRange[0] ? dateRange[0].toISOString() : undefined,
+        endDate: dateMode === 'absolute' && dateRange[1] ? dateRange[1].toISOString() : undefined,
+        relativeStartDate: dateMode === 'relative' && relativeStartDate ? relativeStartDate.trim() : undefined,
+        relativeEndDate: dateMode === 'relative' && relativeEndDate ? relativeEndDate.trim() : undefined,
+        currentUserAsParent: currentUserAsParent || undefined,
+        emails: emails.length > 0 ? emails : undefined,
+        groups: groups.length > 0 ? groups.map(Number) : undefined,
+        pvs: pvs.length > 0 ? pvs.map(Number) : undefined,
+        statuses: statuses.length > 0 ? statuses : undefined,
+        statusOperator: statuses.length > 1 ? statusOperator : undefined,
+      };
+
+      const payload = {
+        name: `Cópia de ${name}`,
+        description,
+        scope,
+        filterConfig,
+        outputColumns,
+        groupByEmail,
+        orderByField: orderByField || undefined,
+        orderByDirection: orderByField ? orderByDirection : undefined
+      };
+
+      const savedFilter = await createReportFilter(payload);
+      notifications.show({ title: 'Sucesso', message: 'Relatório clonado', color: 'green' });
+      window.location.hash = `#/reports/${savedFilter.filterId}/edit`;
+    } catch (err: any) {
+      notifications.show({ title: 'Erro', message: err.message || 'Falha ao clonar relatório', color: 'red' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Grouped options for Column Select
   const columnSelectData = availableColumns.map(source => ({
     group: source.source,
@@ -257,7 +295,20 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
         <Group justify="space-between" mb="xl">
           <Title order={2}>{isEditMode ? 'Editar Relatório' : 'Novo Relatório'}</Title>
-          <Button variant="default" onClick={() => window.location.hash = '#/reports'}>Cancelar</Button>
+          <Group>
+            {isEditMode && (
+              <Button 
+                variant="outline"
+                color="gray"
+                leftSection={<IconCopy size={16} />}
+                onClick={handleClone}
+                loading={saving}
+              >
+                Clonar este Relatório
+              </Button>
+            )}
+            <Button variant="default" onClick={() => window.location.hash = '#/reports'}>Cancelar</Button>
+          </Group>
         </Group>
 
         <Stack gap="xl">
