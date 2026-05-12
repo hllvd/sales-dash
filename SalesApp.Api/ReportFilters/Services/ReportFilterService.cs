@@ -209,6 +209,20 @@ namespace SalesApp.ReportFilters.Services
                 contracts = contracts.Where(c => c.PvId.HasValue && fc.Pvs.Contains(c.PvId.Value)).ToList();
             }
 
+            // Filter by status in memory (same pattern as PV filter)
+            if (fc.Statuses?.Count > 0)
+            {
+                var op = (fc.StatusOperator ?? "or").ToLower();
+                if (op == "and")
+                    contracts = contracts.Where(c =>
+                        fc.Statuses.All(s => string.Equals(c.ContractStatus?.Name, s, StringComparison.OrdinalIgnoreCase))
+                    ).ToList();
+                else // "or" (default)
+                    contracts = contracts.Where(c =>
+                        fc.Statuses.Any(s => string.Equals(c.ContractStatus?.Name, s, StringComparison.OrdinalIgnoreCase))
+                    ).ToList();
+            }
+
             // Apply pagination
             var totalCount = contracts.Count;
             var safePage = Math.Max(1, page);
@@ -492,7 +506,9 @@ namespace SalesApp.ReportFilters.Services
                     CurrentUserAsParent = f.FilterConfig.CurrentUserAsParent,
                     Emails              = f.FilterConfig.Emails,
                     Groups              = f.FilterConfig.Groups,
-                    Pvs                 = f.FilterConfig.Pvs
+                    Pvs                 = f.FilterConfig.Pvs,
+                    Statuses            = f.FilterConfig.Statuses,
+                    StatusOperator      = f.FilterConfig.StatusOperator
                 },
                 OutputColumns = f.OutputColumns
                     .OrderBy(c => c.Order)
@@ -517,7 +533,9 @@ namespace SalesApp.ReportFilters.Services
                 CurrentUserAsParent = req.CurrentUserAsParent,
                 Emails              = req.Emails,
                 Groups              = req.Groups,
-                Pvs                 = req.Pvs
+                Pvs                 = req.Pvs,
+                Statuses            = req.Statuses,
+                StatusOperator      = req.StatusOperator
             };
 
         private static List<OutputColumn> MapOutputColumns(List<OutputColumnRequest> columns) =>

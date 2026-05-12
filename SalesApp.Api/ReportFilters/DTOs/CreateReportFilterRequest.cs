@@ -15,6 +15,8 @@ namespace SalesApp.ReportFilters.DTOs
         public List<string>? Emails { get; set; }
         public List<int>? Groups { get; set; }
         public List<int>? Pvs { get; set; }
+        public List<string>? Statuses { get; set; }
+        public string? StatusOperator { get; set; }
     }
 
     /// <summary>

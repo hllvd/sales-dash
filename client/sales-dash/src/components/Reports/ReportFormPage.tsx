@@ -59,6 +59,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [emails, setEmails] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]); // Using string for MultiSelect
   const [pvs, setPvs] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [statusOperator, setStatusOperator] = useState<'or' | 'and'>('or');
 
   // Columns
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>([]);
@@ -119,6 +121,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setEmails(fc.emails || []);
         setGroups((fc.groups || []).map(g => g.toString()));
         setPvs((fc.pvs || []).map(p => p.toString()));
+        setStatuses(fc.statuses || []);
+        setStatusOperator(fc.statusOperator || 'or');
         
         setOutputColumns(report.outputColumns || []);
       }
@@ -196,6 +200,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         emails: emails.length > 0 ? emails : undefined,
         groups: groups.length > 0 ? groups.map(Number) : undefined,
         pvs: pvs.length > 0 ? pvs.map(Number) : undefined,
+        statuses: statuses.length > 0 ? statuses : undefined,
+        statusOperator: statuses.length > 1 ? statusOperator : undefined,
       };
 
       const payload = {
@@ -401,6 +407,37 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   onChange={setPvs}
                   searchable
                 />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <MultiSelect
+                  label="Status do Contrato"
+                  placeholder="Selecionar estados"
+                  data={[
+                    { value: 'Active', label: 'Ativo' },
+                    { value: 'Late1', label: 'Atraso 1' },
+                    { value: 'Late2', label: 'Atraso 2' },
+                    { value: 'Late3', label: 'Atraso 3' },
+                    { value: 'Defaulted', label: 'Desistente/Excluído' },
+                    { value: 'Transferred', label: 'Transferido' }
+                  ]}
+                  value={statuses}
+                  onChange={setStatuses}
+                  searchable
+                />
+                {statuses.length > 1 && (
+                  <Group gap="xs" mt="xs">
+                    <Text size="xs" c="dimmed">Operador lógico:</Text>
+                    <SegmentedControl
+                      size="xs"
+                      value={statusOperator}
+                      onChange={(val: any) => setStatusOperator(val)}
+                      data={[
+                        { label: 'OU (Qualquer um)', value: 'or' },
+                        { label: 'E (Todos)', value: 'and' },
+                      ]}
+                    />
+                  </Group>
+                )}
               </Grid.Col>
             </Grid>
           </Paper>

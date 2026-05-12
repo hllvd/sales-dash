@@ -14,6 +14,8 @@ export interface FilterConfig {
   emails?: string[];
   groups?: number[];
   pvs?: number[];
+  statuses?: string[];
+  statusOperator?: 'or' | 'and';
 }
 
 export interface OutputColumn {

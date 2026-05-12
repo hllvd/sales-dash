@@ -35,5 +35,11 @@ namespace SalesApp.ReportFilters.Models
 
         /// <summary>PV identifiers (integer IDs) to filter by.</summary>
         public List<int>? Pvs { get; set; }
+
+        /// <summary>Contract status names to filter by (e.g. "Active", "Late1").</summary>
+        public List<string>? Statuses { get; set; }
+
+        /// <summary>"or" | "and" — logical operator applied to Statuses list. Defaults to "or".</summary>
+        public string? StatusOperator { get; set; }
     }
 }
