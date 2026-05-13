@@ -2,6 +2,12 @@ using SalesApp.Models;
 
 namespace SalesApp.Services
 {
+    public record MatriculaChangeRecord(
+        string ContractNumber,
+        string OldMatricula,
+        string NewMatricula
+    );
+
     public class ImportResult
     {
         public int TotalRows { get; set; }
@@ -13,6 +19,7 @@ namespace SalesApp.Services
         public List<User> CreatedUsers { get; set; } = new();
         public List<string> CreatedGroups { get; set; } = new();
         public List<string> CreatedPVs { get; set; } = new();
+        public List<MatriculaChangeRecord> MatriculaChanges { get; set; } = new();
     }
 
     public interface IImportExecutionService

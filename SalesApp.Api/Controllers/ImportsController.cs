@@ -642,6 +642,7 @@ namespace SalesApp.Controllers
                     totalResult.Warnings.AddRange(result.Warnings);
                     totalResult.CreatedGroups.AddRange(result.CreatedGroups);
                     totalResult.CreatedPVs.AddRange(result.CreatedPVs);
+                    totalResult.MatriculaChanges.AddRange(result.MatriculaChanges);
 
                     skipRows += 500;
                 }
@@ -669,6 +670,16 @@ namespace SalesApp.Controllers
                     ? $"Import completed with {totalResult.FailedRows} errors. {totalResult.ProcessedRows} items created."
                     : $"Import completed successfully. {totalResult.ProcessedRows} items created.";
 
+                // Build structured matricula-change warning for the frontend
+                if (totalResult.MatriculaChanges.Any())
+                {
+                    var contractList  = string.Join(", ", totalResult.MatriculaChanges.Select(c => c.ContractNumber));
+                    var newMatriculas = string.Join(", ", totalResult.MatriculaChanges.Select(c => c.NewMatricula).Distinct());
+                    totalResult.Warnings.Add(
+                        $"We've detected a change of matriculas for these contracts: {contractList}. " +
+                        $"In some cases, users assigned to these contracts should be assigned to the new matricula(s): {newMatriculas}.");
+                }
+
                 return Ok(new ApiResponse<ImportStatusResponse>
                 {
                     Success = true,
@@ -683,7 +694,14 @@ namespace SalesApp.Controllers
                         CreatedGroups = totalResult.CreatedGroups.Distinct().ToList(),
                         CreatedPVs = totalResult.CreatedPVs.Distinct().ToList(),
                         Errors = totalResult.Errors,
-                        Warnings = totalResult.Warnings
+                        Warnings = totalResult.Warnings,
+                        MatriculaChanges = totalResult.MatriculaChanges
+                            .Select(c => new MatriculaChangeInfo
+                            {
+                                ContractNumber = c.ContractNumber,
+                                OldMatricula   = c.OldMatricula,
+                                NewMatricula   = c.NewMatricula
+                            }).ToList()
                     },
                     Message = successMessage
                 });
