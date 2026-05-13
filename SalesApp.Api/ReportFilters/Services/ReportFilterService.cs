@@ -201,6 +201,12 @@ namespace SalesApp.ReportFilters.Services
             var resolvedStartDate = ResolveDate(fc.StartDate, fc.RelativeStartDate);
             var resolvedEndDate = ResolveDate(fc.EndDate, fc.RelativeEndDate);
 
+            // Ensure the end date is inclusive of the entire day if it's an absolute date
+            if (fc.EndDate.HasValue && string.IsNullOrEmpty(fc.RelativeEndDate))
+            {
+                resolvedEndDate = fc.EndDate.Value.Date.AddDays(1).AddTicks(-1);
+            }
+
             // Reuse existing GetAllAsync — same logic as /api/contracts, no duplication
             var contracts = await _contractRepository.GetAllAsync(
                 userId: userIdFilter,
