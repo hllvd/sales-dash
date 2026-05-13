@@ -20,6 +20,7 @@ import { BuildInfoProvider } from './contexts/BuildInfoContext';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/charts/styles.css';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 function App() {
@@ -85,7 +86,9 @@ function App() {
           <ContractsProvider>
             <MantineProvider>
               <Notifications />
-              {renderPage()}
+              <ErrorBoundary>
+                {renderPage()}
+              </ErrorBoundary>
             </MantineProvider>
           </ContractsProvider>
         </UsersProvider>
