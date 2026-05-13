@@ -381,6 +381,9 @@ FodyWeavers.xsd
 
 # Mac OS files
 .DS_Store
+SalesApp.Api/.DS_Store
+SalesApp.DataMigrator/.DS_Store
+
 
 # JetBrains Rider
 .idea/
@@ -416,3 +419,5 @@ backup/rclone.conf
 
 # Ignore system-generated Library folder
 SalesApp.Api/Library/
+SalesApp.DataMigrator/Library/
+

@@ -22,9 +22,10 @@ namespace SalesApp.Services
         private sealed record ExportJob(
             string JobId,
             string RequestingUserId,
-            ContractExportRequest Filters,
-            UserScopeContext Scope,
-            DateTime CreatedAt
+            DateTime CreatedAt,
+            ContractExportRequest? Filters = null,
+            UserScopeContext? Scope = null,
+            string? FilterId = null
         )
         {
             public string Status { get; set; } = "pending";
@@ -47,11 +48,25 @@ namespace SalesApp.Services
             PurgeExpiredJobs();
 
             var jobId = Guid.NewGuid().ToString("N");
-            var job = new ExportJob(jobId, requestingUserId, filters, scope, DateTime.UtcNow);
+            var job = new ExportJob(jobId, requestingUserId, DateTime.UtcNow, Filters: filters, Scope: scope);
             _jobs[jobId] = job;
 
             // Fire-and-forget background task
             _ = Task.Run(() => ProcessExportAsync(jobId));
+
+            return jobId;
+        }
+
+        public string StartReportExport(string filterId, string requestingUserId)
+        {
+            PurgeExpiredJobs();
+
+            var jobId = Guid.NewGuid().ToString("N");
+            var job = new ExportJob(jobId, requestingUserId, DateTime.UtcNow, FilterId: filterId);
+            _jobs[jobId] = job;
+
+            // Fire-and-forget background task
+            _ = Task.Run(() => ProcessReportExportAsync(jobId));
 
             return jobId;
         }
@@ -84,9 +99,92 @@ namespace SalesApp.Services
 
         // ── Private helpers ──────────────────────────────────────────────────
 
-        private async Task ProcessExportAsync(string jobId)
+        private async Task ProcessReportExportAsync(string jobId)
         {
             if (!_jobs.TryGetValue(jobId, out var job)) return;
+
+            job.Status = "processing";
+
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var reportService = scope.ServiceProvider.GetRequiredService<SalesApp.ReportFilters.Services.IReportFilterService>();
+
+                // Get all results (page size 1,000,000 to get everything)
+                // callerId is the same as requestingUserId
+                var currentUserId = Guid.TryParse(job.RequestingUserId, out var guid) ? (Guid?)guid : null;
+                var result = await reportService.ExecuteAsync(job.RequestingUserId, job.FilterId!, currentUserId, 1, 1000000);
+
+                if (!result.Success)
+                    throw new Exception("Failed to execute report");
+
+                var data = result.Data!;
+                job.TotalRows = data.TotalCount;
+
+                using var package = new ExcelPackage();
+                var sheetIndex = 1;
+                var sheetRows = 0;
+                ExcelWorksheet? ws = null;
+
+                // Headers from the report projection
+                var headers = data.Columns.OrderBy(c => c.Order).Select(c => c.Label).ToArray();
+
+                for (var i = 0; i < data.Rows.Count; i++)
+                {
+                    if (ws == null || sheetRows >= RowsPerSheet)
+                    {
+                        ws = package.Workbook.Worksheets.Add($"Relatório {sheetIndex++}");
+                        AddHeaders(ws, headers);
+                        sheetRows = 0;
+                    }
+
+                    var row = sheetRows + 2;
+                    var rowData = data.Rows[i];
+
+                    for (var col = 0; col < headers.Length; col++)
+                    {
+                        var val = rowData.GetValueOrDefault(headers[col]);
+                        ws.Cells[row, col + 1].Value = val;
+                        
+                        // Numeric formatting hint
+                        if (val is decimal || val is double || val is float)
+                        {
+                            ws.Cells[row, col + 1].Style.Numberformat.Format = "#,##0.00";
+                        }
+                    }
+
+                    sheetRows++;
+                    job.ProcessedRows = i + 1;
+                }
+
+                // Empty state
+                if (data.Rows.Count == 0)
+                {
+                    ws = package.Workbook.Worksheets.Add("Relatório 1");
+                    AddHeaders(ws, headers);
+                }
+
+                foreach (var sheet in package.Workbook.Worksheets)
+                {
+                    sheet.Cells[sheet.Dimension?.Address ?? "A1"].AutoFitColumns();
+                }
+
+                job.FileBytes = package.GetAsByteArray();
+                job.Status = "completed";
+            }
+            catch (Exception ex)
+            {
+                if (_jobs.TryGetValue(jobId, out var failedJob))
+                {
+                    failedJob.Status = "failed";
+                    failedJob.ErrorMessage = ex.Message;
+                }
+            }
+        }
+
+        private async Task ProcessExportAsync(string jobId)
+        {
+            if (!_jobs.TryGetValue(jobId, out var job) || job.Filters == null) return;
 
             job.Status = "processing";
 
@@ -146,7 +244,7 @@ namespace SalesApp.Services
                     ws.Cells[row, 6].Value = c.CustomerName ?? string.Empty;
                     ws.Cells[row, 7].Value = c.TotalAmount;
                     ws.Cells[row, 7].Style.Numberformat.Format = "#,##0.00";
-                    ws.Cells[row, 8].Value = c.Status;
+                    ws.Cells[row, 8].Value = c.ContractStatus?.Name ?? string.Empty;
                     ws.Cells[row, 9].Value = c.ContractType.HasValue
                         ? ContractTypeExtensions.ToApiString(c.ContractType)
                         : string.Empty;

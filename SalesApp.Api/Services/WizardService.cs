@@ -19,6 +19,7 @@ namespace SalesApp.Services
         private readonly IAutoMappingService _autoMapping;
         private readonly IImportExecutionService _importExecution;
         private readonly IUserRepository _userRepository;
+        private readonly IWizardHeaderValidator _headerValidator;
         private readonly AppDbContext _context;
 
         public WizardService(
@@ -28,6 +29,7 @@ namespace SalesApp.Services
             IAutoMappingService autoMapping,
             IImportExecutionService importExecution,
             IUserRepository userRepository,
+            IWizardHeaderValidator headerValidator,
             AppDbContext context)
         {
             _sessionRepository = sessionRepository;
@@ -36,6 +38,7 @@ namespace SalesApp.Services
             _autoMapping = autoMapping;
             _importExecution = importExecution;
             _userRepository = userRepository;
+            _headerValidator = headerValidator;
             _context = context;
         }
 
@@ -140,7 +143,7 @@ namespace SalesApp.Services
             await _sessionRepository.UpdateAsync(session);
 
             // Strict Header Validation (User requested)
-            var validationResult = WizardHeaderValidator.Validate(columns);
+            var validationResult = _headerValidator.Validate(columns);
             var isTemplateMatch = validationResult.IsValid;
             string? matchMessage = null;
 

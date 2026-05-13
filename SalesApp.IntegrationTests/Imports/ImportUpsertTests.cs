@@ -46,7 +46,7 @@ namespace SalesApp.IntegrationTests.Imports
                     UserId = user.Id,
                     TotalAmount = 1000,
                     GroupId = group.Id,
-                    Status = "active",
+                    ContractStatusId = 1,
                     IsActive = true
                 };
                 context.Contracts.Add(contract);
@@ -92,7 +92,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var contract = await context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
                 
                 contract.Should().NotBeNull();
-                contract!.Status.Should().Be("Late1");
+                contract!.ContractStatusId.Should().Be(2);
                 contract.TotalAmount.Should().Be(5000);
             }
         }
@@ -138,7 +138,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var contract = await context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
                 
                 contract.Should().NotBeNull();
-                contract!.Status.Should().Be("Late3");
+                contract!.ContractStatusId.Should().Be(4);
             }
         }
 
@@ -183,7 +183,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var contract = await context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
                 
                 contract.Should().NotBeNull();
-                contract!.Status.Should().Be("Late2");
+                contract!.ContractStatusId.Should().Be(3);
             }
         }
 
@@ -228,7 +228,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var contract = await context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
                 
                 contract.Should().NotBeNull();
-                contract!.Status.Should().Be("Transferred");
+                contract!.ContractStatusId.Should().Be(6);
             }
         }
 

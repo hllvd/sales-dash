@@ -71,3 +71,14 @@ This project uses SQLite in WAL mode for better concurrency (`PRAGMA journal_mod
 - **Always backup** the `SalesApp.db` before applying migrations in production.
 - If a migration fails in production, the safest path is often to roll back the code, fix the migration logic to be "SQLite-safe" (Drop/Create), and try again.
 - For development, simply deleting the `.db` file is the fastest way to resolve schema inconsistencies.
+
+--- 
+
+⚠️ Adding Relationships to Existing Tables
+SQLite does not support AddForeignKey via ALTER TABLE. To add a relationship to an existing table:
+
+Remove AddForeignKey from the Up() method.
+Remove DropForeignKey from the Down() method.
+Use a Nullable Column and a Standard Index instead.
+EF Core will still handle the JOIN logic via the Model Snapshot, even without the DB-level constraint.
+

@@ -22,5 +22,10 @@ namespace SalesApp.Services
         /// Returns null if not found, expired, or not yet complete.
         /// </summary>
         byte[]? GetJobBytes(string jobId, string requestingUserId);
+
+        /// <summary>
+        /// Queues an async XLSX export job for a saved report.
+        /// </summary>
+        string StartReportExport(string filterId, string requestingUserId);
     }
 }

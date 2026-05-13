@@ -9,7 +9,8 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Contracts
 {
-    public class SearchTests : IClassFixture<TestWebApplicationFactory>
+    [Collection("Integration Tests")]
+    public class SearchTests 
     {
         private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;
@@ -49,7 +50,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 {
                     ContractNumber = contractNumber,
                     TotalAmount = 1500,
-                    Status = "Active",
+                    ContractStatusId = 1,
                     SaleStartDate = DateTime.UtcNow,
                     IsActive = true
                 };
@@ -65,8 +66,8 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.Should().HaveCount(1);
-            result.Data.First().ContractNumber.Should().Be(contractNumber);
+            result!.Data!.Should().HaveCount(1);
+            result!.Data!.First().ContractNumber.Should().Be(contractNumber);
         }
 
         [Fact]
@@ -99,7 +100,7 @@ namespace SalesApp.IntegrationTests.Contracts
                     ContractNumber = contractNumber,
                     UserId = user.Id,
                     TotalAmount = 2500,
-                    Status = "Active",
+                    ContractStatusId = 1,
                     SaleStartDate = DateTime.UtcNow,
                     IsActive = true
                 };
@@ -115,8 +116,8 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.Items.Should().HaveCount(1);
-            result.Data.Items.First().Email.Should().Be(userEmail);
+            result!.Data!.Items.Should().HaveCount(1);
+            result!.Data!.Items.First().Email.Should().Be(userEmail);
         }
     }
 }

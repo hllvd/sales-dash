@@ -228,7 +228,7 @@ TMPL-001,Test,User,5000,0,active,2024-01-01,MAT-TMPL";
                     UserId = user.Id,
                     TotalAmount = 1000,
                     GroupId = group.Id,
-                    Status = "active",
+                    ContractStatusId = 1,
                     IsActive = true,
                     UploadId = uploadId
                 };
@@ -239,7 +239,7 @@ TMPL-001,Test,User,5000,0,active,2024-01-01,MAT-TMPL";
                     UserId = user.Id,
                     TotalAmount = 2000,
                     GroupId = group.Id,
-                    Status = "active",
+                    ContractStatusId = 1,
                     IsActive = true,
                     UploadId = uploadId
                 };

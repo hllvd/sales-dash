@@ -26,7 +26,7 @@ namespace SalesApp.IntegrationTests.Imports
             {
                 UploadId = uploadId,
                 FileName = fileName,
-                Status = "processing",
+                Status = "preview",
                 UploadedByUserId = admin?.Id ?? Guid.NewGuid(),
                 CreatedAt = DateTime.UtcNow
             };
@@ -104,7 +104,7 @@ namespace SalesApp.IntegrationTests.Imports
             contract.UserId.Should().Be(user.Id);
             contract.TotalAmount.Should().Be(150050m); // Stored as cents (no decimals)
             contract.GroupId.Should().Be(group.Id);
-            contract.Status.Should().Be("Active");
+            contract.ContractStatusId.Should().Be(1);
             contract.SaleStartDate.Should().BeCloseTo(new DateTime(2024, 1, 1), TimeSpan.FromSeconds(1));
         }
 
@@ -175,7 +175,7 @@ namespace SalesApp.IntegrationTests.Imports
             contract.UserId.Should().Be(user.Id);
             contract.TotalAmount.Should().Be(200000m); // Stored as cents (no decimals)
             contract.GroupId.Should().Be(group.Id);
-            contract.Status.Should().Be("Active"); // Default status
+            contract.ContractStatusId.Should().Be(1); // Default status
         }
 
         [Fact]

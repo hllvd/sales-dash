@@ -9,7 +9,8 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.UserMatriculas
 {
-    public class RequestMatriculaIntegrationTests : IClassFixture<TestWebApplicationFactory>
+        [Collection("Integration Tests")]
+    public class RequestMatriculaIntegrationTests 
     {
         private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;

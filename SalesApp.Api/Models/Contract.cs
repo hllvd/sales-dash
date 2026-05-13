@@ -20,8 +20,10 @@ namespace SalesApp.Models
         public int? GroupId { get; set; }
         
         [Required]
-        [MaxLength(20)]
-        public string Status { get; set; } = "active"; // See ContractStatus enum for valid values
+        public int ContractStatusId { get; set; }
+
+        [JsonIgnore]
+        public ContractStatusEntity ContractStatus { get; set; } = null!;
         
         public DateTime SaleStartDate { get; set; } = DateTime.UtcNow;
         

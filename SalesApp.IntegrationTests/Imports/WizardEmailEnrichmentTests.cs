@@ -12,8 +12,8 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Imports
 {
-    [Collection("Database Collection")]
-    public class WizardEmailEnrichmentTests : IClassFixture<TestWebApplicationFactory>
+        [Collection("Integration Tests")]
+    public class WizardEmailEnrichmentTests 
     {
         private readonly TestWebApplicationFactory _factory;
 
@@ -24,50 +24,51 @@ namespace SalesApp.IntegrationTests.Imports
 
         private async Task SetupTestDataAsync(AppDbContext context)
         {
-            // Clear existing data in correct order (child to parent) to avoid FK constraint violations
-            context.AuditLogs.RemoveRange(context.AuditLogs);
-            context.Contracts.RemoveRange(context.Contracts);
-            context.ImportRows.RemoveRange(context.ImportRows);
-            context.ImportSessions.RemoveRange(context.ImportSessions);
-            context.Groups.RemoveRange(context.Groups);
-            context.PVs.RemoveRange(context.PVs);
-            context.UserMatriculas.RemoveRange(context.UserMatriculas);
-            context.Matriculas.RemoveRange(context.Matriculas);
-            context.RefreshTokens.RemoveRange(context.RefreshTokens);
-            context.ScrapeConfigs.RemoveRange(context.ScrapeConfigs);
+            // Instead of deleting users which might have foreign key references (AuditLogs, etc),
+            // we just ensure our test users exist or are updated.
             
-            var users = await context.Users
-                .Where(u => u.Email != "superadmin@test.com" && u.Email != "admin@test.com" && u.Email != "user@test.com")
-                .ToListAsync();
-            context.Users.RemoveRange(users);
-            await context.SaveChangesAsync();
-            
-            var role = await context.Roles.FirstAsync();
+            var role = await context.Roles.FirstAsync(r => r.Name == "admin" || r.Name == "superadmin");
 
-            // Ensure we have an admin user for the tests
-            if (!await context.Users.AnyAsync(u => u.Email == "admin@test.com"))
+            async Task<User> EnsureUser(string name, string email)
             {
-                context.Users.Add(new User 
-                { 
-                    Name = "Admin", 
-                    Email = "admin@test.com", 
-                    PasswordHash = "hash", 
-                    RoleId = role.Id, 
-                    IsActive = true 
-                });
-                await context.SaveChangesAsync();
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Email == email);
+                if (user == null)
+                {
+                    user = new User { Id = Guid.NewGuid(), Name = name, Email = email, PasswordHash = "hash", RoleId = role.Id, IsActive = true };
+                    context.Users.Add(user);
+                }
+                else
+                {
+                    user.Name = name;
+                    user.IsActive = true;
+                    context.Users.Update(user);
+                }
+                return user;
             }
 
-            var carlos = new User { Name = "Carlos Eduardo Pereira", Email = "carlos@test.com", PasswordHash = "hash", RoleId = role.Id, IsActive = true };
-            var anthony = new User { Name = "Anthony Francys Bryan Pereira", Email = "anthony@test.com", PasswordHash = "hash", RoleId = role.Id, IsActive = true };
-            var vini = new User { Name = "Vinicius Silva Ornelas", Email = "vini@test.com", PasswordHash = "hash", RoleId = role.Id, IsActive = true };
-            var valeria = new User { Name = "Valeria de Lima Abicalaf", Email = "valeria@test.com", PasswordHash = "hash", RoleId = role.Id, IsActive = true };
+            var admin = await EnsureUser("Admin", "admin@test.com");
+            var carlos = await EnsureUser("Carlos Eduardo Pereira", "carlos@test.com");
+            var anthony = await EnsureUser("Anthony Francys Bryan Pereira", "anthony@test.com");
+            var vini = await EnsureUser("Vinicius Silva Ornelas", "vini@test.com");
+            var valeria = await EnsureUser("Valeria de Lima Abicalaf", "valeria@test.com");
             
-            context.Users.AddRange(carlos, anthony, vini, valeria);
             await context.SaveChangesAsync();
 
-            // Set up Matriculas exactly simulating the bug's environment
-            // 6241 is shared. Anthony is owner. Carlos and Vini are NOT owners.
+            // Clear old test matriculas to avoid "already exists" errors if running multiple times
+            // but safely (using truncate or careful deletion)
+            var testMatriculaNumbers = new[] { "6241", "10979" };
+            var existingMatriculas = await context.Matriculas
+                .Include(m => m.UserMatriculas)
+                .Where(m => testMatriculaNumbers.Contains(m.MatriculaNumber))
+                .ToListAsync();
+            
+            foreach (var m in existingMatriculas)
+            {
+                context.UserMatriculas.RemoveRange(m.UserMatriculas);
+            }
+            context.Matriculas.RemoveRange(existingMatriculas);
+            await context.SaveChangesAsync();
+
             var m6241 = new Matricula { MatriculaNumber = "6241", StartDate = DateTime.UtcNow, Status = "active" };
             var m10979 = new Matricula { MatriculaNumber = "10979", StartDate = DateTime.UtcNow, Status = "active" };
             context.Matriculas.AddRange(m6241, m10979);
@@ -77,7 +78,6 @@ namespace SalesApp.IntegrationTests.Imports
                 new UserMatricula { UserId = anthony.Id, MatriculaId = m6241.Id, IsOwner = true, IsActive = true },
                 new UserMatricula { UserId = carlos.Id, MatriculaId = m6241.Id, IsOwner = false, IsActive = true },
                 new UserMatricula { UserId = vini.Id, MatriculaId = m6241.Id, IsOwner = false, IsActive = true },
-                // 10979 is uniquely owned by Valeria
                 new UserMatricula { UserId = valeria.Id, MatriculaId = m10979.Id, IsOwner = true, IsActive = true }
             );
             

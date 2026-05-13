@@ -893,7 +893,7 @@ namespace SalesApp.Controllers
                     TotalAmount = contract.TotalAmount,
                     GroupId = contract.GroupId,
                     GroupName = contract.Group?.Name ?? "",
-                    Status = contract.Status,
+                    Status = contract.ContractStatus?.Name ?? "",
                     ContractStartDate = contract.SaleStartDate,
                     IsActive = contract.IsActive,
                     CreatedAt = contract.CreatedAt,

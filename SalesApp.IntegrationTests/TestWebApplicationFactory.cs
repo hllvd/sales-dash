@@ -4,6 +4,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
+using SalesApp.Models;
+using SalesApp.Data;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace SalesApp.IntegrationTests
 {
@@ -14,9 +18,25 @@ namespace SalesApp.IntegrationTests
         public HttpClient Client { get; }
         public IServiceProvider Services => _server.Services;
 
+        private static bool _dbReset = false;
+        private static bool _dbSchemaCreated = false;
+        private static readonly object _dbLock = new object();
+        
         public TestWebApplicationFactory()
         {
-            _dbFileName = $"test_db_{Guid.NewGuid()}.db";
+            _dbFileName = "SalesApp.IntegrationTests.db";
+
+            lock (_dbLock)
+            {
+                if (!_dbReset)
+                {
+                    if (File.Exists(_dbFileName))
+                    {
+                        try { File.Delete(_dbFileName); } catch { /* Ignore */ }
+                    }
+                    _dbReset = true;
+                }
+            }
 
             var hostBuilder = new WebHostBuilder()
                 .UseTestServer()
@@ -35,20 +55,64 @@ namespace SalesApp.IntegrationTests
             Client = _server.CreateClient();
         }
 
+        public async Task<HttpClient> CreateClientWithServicesAsync(Action<IServiceCollection> configureServices)
+        {
+            var hostBuilder = new WebHostBuilder()
+                .UseTestServer()
+                .UseStartup<TestStartup>()
+                .UseEnvironment("Testing")
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    config.AddJsonFile("appsettings.json", optional: false);
+                    config.AddInMemoryCollection(new Dictionary<string, string>
+                    {
+                        { "ConnectionStrings:DefaultConnection", $"Data Source={_dbFileName}" }
+                    });
+                })
+                .ConfigureTestServices(configureServices);
+
+            var server = new TestServer(hostBuilder);
+            await SeedTestData(server.Services);
+            return server.CreateClient();
+        }
+
         public async Task InitializeAsync()
         {
             // Seed test data
-            await SeedTestData();
+            await SeedTestData(_server.Services);
         }
 
         public Task DisposeAsync() => Task.CompletedTask;
         
-        private async Task SeedTestData()
+        private async Task SeedTestData(IServiceProvider services)
         {
-            using var scope = _server.Services.CreateScope();
+            using var scope = services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<SalesApp.Data.AppDbContext>();
             
-            context.Database.EnsureCreated();
+            lock (_dbLock)
+            {
+                if (!_dbSchemaCreated)
+                {
+                    context.Database.EnsureCreated();
+                    _dbSchemaCreated = true;
+                }
+            }
+
+            // Seed ContractStatuses to satisfy FK constraints in tests
+            if (!context.ContractStatuses.Any())
+            {
+                var statuses = new[]
+                {
+                    new SalesApp.Models.ContractStatusEntity { Id = 1, Name = "Active" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 2, Name = "Late1" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 3, Name = "Late2" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 4, Name = "Late3" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 5, Name = "Defaulted" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 6, Name = "Transferred" }
+                };
+                context.ContractStatuses.AddRange(statuses);
+                await context.SaveChangesAsync();
+            }
 
             // Seed roles with explicit IDs to match the migration
             if (!context.Roles.Any())
@@ -196,6 +260,65 @@ namespace SalesApp.IntegrationTests
                 await context.SaveChangesAsync();
             }
 
+            // Seed ImportTemplates for permission tests
+            if (!context.ImportTemplates.Any())
+            {
+                var admin = context.Users.First(u => u.Email == "superadmin@test.com");
+                var templates = new SalesApp.Models.ImportTemplate[]
+                {
+                    new SalesApp.Models.ImportTemplate 
+                    { 
+                        Id = 1, 
+                        Name = "Users", 
+                        EntityType = "User", 
+                        RequiredFields = "[\"Name\",\"Email\",\"Matricula\"]", 
+                        OptionalFields = "[\"Surname\",\"Role\",\"ParentEmail\",\"SendEmail\",\"IsMatriculaOwner\",\"Password\"]", 
+                        DefaultMappings = "{}", 
+                        IsActive = true, 
+                        CreatedByUserId = admin.Id 
+                    },
+                    new SalesApp.Models.ImportTemplate 
+                    { 
+                        Id = 2, 
+                        Name = "Contracts", 
+                        EntityType = "Contract", 
+                        RequiredFields = "[\"ContractNumber\",\"UserEmail\",\"TotalAmount\",\"MatriculaNumber\"]", 
+                        OptionalFields = "[\"GroupId\",\"Status\",\"SaleStartDate\",\"SaleEndDate\",\"ContractType\",\"Quota\",\"PvId\",\"PvName\",\"CustomerName\",\"Version\"]", 
+                        DefaultMappings = "{}", 
+                        IsActive = true, 
+                        CreatedByUserId = admin.Id 
+                    },
+                    new SalesApp.Models.ImportTemplate 
+                    { 
+                        Id = 3, 
+                        Name = "contractDashboard", 
+                        EntityType = "Contract", 
+                        RequiredFields = "[\"ContractNumber\",\"TotalAmount\",\"SaleStartDate\",\"GroupId\",\"Quota\",\"CustomerName\",\"MatriculaNumber\"]", 
+                        OptionalFields = "[\"Status\",\"PvId\",\"PvName\",\"Version\",\"Category\",\"PlanoVenda\",\"UserEmail\"]", 
+                        DefaultMappings = "{}", 
+                        IsActive = true, 
+                        CreatedByUserId = admin.Id 
+                    }
+                };
+                context.ImportTemplates.AddRange(templates);
+                await context.SaveChangesAsync();
+            }
+
+            // Seed ContractStatuses
+            if (!context.ContractStatuses.Any())
+            {
+                var statuses = new[]
+                {
+                    new SalesApp.Models.ContractStatusEntity { Id = 1, Name = "Active" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 2, Name = "Late1" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 3, Name = "Late2" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 4, Name = "Late3" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 5, Name = "Defaulted" }
+                };
+                context.ContractStatuses.AddRange(statuses);
+                await context.SaveChangesAsync();
+            }
+
             // 🚀 Initialize RBAC Cache for Tests
             var rbacCache = scope.ServiceProvider.GetRequiredService<SalesApp.Services.IRbacCache>();
             var rolePerms = await context.Roles
@@ -219,19 +342,6 @@ namespace SalesApp.IntegrationTests
         {
             Client?.Dispose();
             _server?.Dispose();
-            
-            // Clean up the database file
-            if (File.Exists(_dbFileName))
-            {
-                try
-                {
-                    File.Delete(_dbFileName);
-                }
-                catch
-                {
-                    // Ignore cleanup errors
-                }
-            }
         }
     }
 }

@@ -7,7 +7,8 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Contracts
 {
-    public class ImportPermissionsTests : IClassFixture<TestWebApplicationFactory>
+        [Collection("Integration Tests")]
+    public class ImportPermissionsTests 
     {
         private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;

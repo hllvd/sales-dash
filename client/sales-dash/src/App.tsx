@@ -12,6 +12,7 @@ import ImportHistoryPage from './components/ImportHistoryPage';
 import ImportWizardPage from './components/ImportWizardPage';
 import AccessControlPage from './components/AccessControlPage';
 import ScrapeDashboard from './components/Scrape/ScrapeDashboard';
+import ReportsRouter from './components/Reports/ReportsRouter';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -43,6 +44,10 @@ function App() {
   }
 
   const renderPage = () => {
+    if (currentRoute.startsWith('#/reports')) {
+      return <ReportsRouter currentRoute={currentRoute} />;
+    }
+
     switch (currentRoute) {
       case '#/users':
         return <UsersPage />;

@@ -11,7 +11,7 @@ namespace SalesApp.Services
         // Define required fields for each entity type
         private readonly Dictionary<string, List<string>> _requiredFields = new()
         {
-            ["Contract"] = new List<string> { "ContractNumber", "UserName", "UserSurname", "TotalAmount" },
+            ["Contract"] = new List<string> { "ContractNumber", "UserEmail", "TotalAmount", "MatriculaNumber" },
             ["User"] = new List<string> { "Name", "Email", "Matricula" }
         };
 

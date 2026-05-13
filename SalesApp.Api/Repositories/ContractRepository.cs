@@ -19,8 +19,10 @@ namespace SalesApp.Repositories
             // NOTE: No AsNoTracking - used after create/update, needs tracked entities
             return await _context.Contracts
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
         
@@ -29,8 +31,10 @@ namespace SalesApp.Repositories
             return await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
                 .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
         }
 
@@ -41,8 +45,10 @@ namespace SalesApp.Repositories
 
             return await _context.Contracts
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
                 .Where(c => contractNumbers.Contains(c.ContractNumber))
                 .ToListAsync();
         }
@@ -52,8 +58,10 @@ namespace SalesApp.Repositories
             var query = _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
                 .Where(c => c.IsActive);
 
             // Apply hierarchical data scope before any other filters
@@ -113,8 +121,10 @@ namespace SalesApp.Repositories
             var query = _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
                 .Where(c => c.UserId == userId && c.IsActive);
             
             if (startDate.HasValue)
@@ -140,8 +150,10 @@ namespace SalesApp.Repositories
             return await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
                 .Where(c => c.UploadId == uploadId)
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
@@ -152,7 +164,10 @@ namespace SalesApp.Repositories
             _context.Contracts.Add(contract);
             await _context.SaveChangesAsync();
             
-            // Reload with navigation properties
+            // Explicitly load ContractStatus to ensure it's available for MapToContractResponse
+            await _context.Entry(contract).Reference(c => c.ContractStatus).LoadAsync();
+            
+            // Reload with other navigation properties
             return await GetByIdAsync(contract.Id) ?? contract;
         }
         
@@ -172,8 +187,10 @@ namespace SalesApp.Repositories
                 var reloadedContracts = await _context.Contracts
                     .AsNoTracking()
                     .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                    .Include(c => c.Matricula)
+                    .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                     .Include(c => c.Group)
+                    .Include(c => c.PV)
+                    .Include(c => c.ContractStatus)
                     .Where(c => contractIds.Contains(c.Id))
                     .ToListAsync();
                 
@@ -242,6 +259,9 @@ namespace SalesApp.Repositories
             
             _context.Contracts.Update(contract);
             await _context.SaveChangesAsync();
+            
+            // Explicitly load ContractStatus
+            await _context.Entry(contract).Reference(c => c.ContractStatus).LoadAsync();
             
             // Reload with navigation properties
             return await GetByIdAsync(contract.Id) ?? contract;

@@ -10,7 +10,8 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.UserMatriculas
 {
-    public class UserMatriculasIsOwnerIntegrationTests : IClassFixture<TestWebApplicationFactory>
+        [Collection("Integration Tests")]
+    public class UserMatriculasIsOwnerIntegrationTests 
     {
         private readonly HttpClient _client;
         private readonly TestWebApplicationFactory _factory;

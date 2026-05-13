@@ -14,6 +14,7 @@ import {
   IconWand,
   IconLock,
   IconRefresh,
+  IconChartBar,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -266,6 +267,18 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             color="red"
             styles={navLinkStyles('#/my-contracts')}
             data-testid="nav-my-contracts"
+            onClick={() => { if (opened) close(); }}
+          />
+
+          <NavLink
+            href="#/reports"
+            label="Relatórios"
+            leftSection={<IconChartBar size={20} />}
+            active={isActive('#/reports') || currentPath.startsWith('#/reports/')}
+            variant="filled"
+            color="red"
+            styles={navLinkStyles('#/reports')}
+            data-testid="nav-reports"
             onClick={() => { if (opened) close(); }}
           />
           

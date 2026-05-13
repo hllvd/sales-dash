@@ -9,7 +9,8 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.UserMatriculas
 {
-    public class UserMatriculasControllerTests : IClassFixture<TestWebApplicationFactory>
+        [Collection("Integration Tests")]
+    public class UserMatriculasControllerTests 
     {
         private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;
@@ -64,8 +65,8 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserMatriculaResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.MatriculaNumber.Should().Be("MAT-INT-001");
-            result.Data.UserId.Should().Be(userId);
+            result!.Data!.MatriculaNumber.Should().Be("MAT-INT-001");
+            result!.Data!.UserId.Should().Be(userId);
         }
 
         [Fact]
@@ -92,7 +93,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
                 matriculaNumber = "MAT-EXT-001",
                 startDate = DateTime.UtcNow.ToString("O"),
                 isActive = true,
-                status = "pending",
+                Status = "pending",
                 isOwner = true
             };
 
@@ -104,9 +105,9 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserMatriculaResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.MatriculaNumber.Should().Be("MAT-EXT-001");
-            result.Data.IsActive.Should().BeTrue();
-            result.Data.Status.Should().Be("pending");
+            result!.Data!.MatriculaNumber.Should().Be("MAT-EXT-001");
+            result!.Data!.IsActive.Should().BeTrue();
+            result!.Data!.Status.Should().Be("pending");
         }
 
         [Fact]
@@ -124,7 +125,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<UserMatriculaResponse>>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.Should().NotBeNull();
+            result!.Data!.Should().NotBeNull();
         }
 
         [Fact]
@@ -172,8 +173,8 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserMatriculaResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.Id.Should().Be(matriculaId);
-            result.Data.MatriculaNumber.Should().Be("MAT-INT-002");
+            result!.Data!.Id.Should().Be(matriculaId);
+            result!.Data!.MatriculaNumber.Should().Be("MAT-INT-002");
         }
 
         [Fact]
@@ -211,9 +212,9 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<UserMatriculaResponse>>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.Should().HaveCount(2);
-            result.Data.Should().Contain(m => m.MatriculaNumber == "MAT-INT-003");
-            result.Data.Should().Contain(m => m.MatriculaNumber == "MAT-INT-004");
+            result!.Data!.Should().HaveCount(2);
+            result!.Data!.Should().Contain(m => m.MatriculaNumber == "MAT-INT-003");
+            result!.Data!.Should().Contain(m => m.MatriculaNumber == "MAT-INT-004");
         }
 
         [Fact]
@@ -262,8 +263,8 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<UserMatriculaResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.IsActive.Should().BeFalse();
-            result.Data.EndDate.Should().NotBeNull();
+            result!.Data!.IsActive.Should().BeFalse();
+            result!.Data!.EndDate.Should().NotBeNull();
         }
 
         [Fact]
@@ -345,9 +346,9 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<BulkAssignResult>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result.Data.SuccessCount.Should().Be(2);
-            result.Data.ErrorCount.Should().Be(0);
-            result.Data.Created.Should().HaveCount(2);
+            result!.Data!.SuccessCount.Should().Be(2);
+            result!.Data!.ErrorCount.Should().Be(0);
+            result!.Data!.Created.Should().HaveCount(2);
         }
 
         [Fact]

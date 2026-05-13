@@ -26,7 +26,7 @@ namespace SalesApp.IntegrationTests.Imports
             {
                 UploadId = uploadId,
                 FileName = fileName,
-                Status = "processing",
+                Status = "preview",
                 UploadedByUserId = admin?.Id ?? Guid.NewGuid(),
                 CreatedAt = DateTime.UtcNow
             };
