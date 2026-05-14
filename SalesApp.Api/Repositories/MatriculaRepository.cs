@@ -54,11 +54,41 @@ namespace SalesApp.Repositories
 
         public async Task DeleteAsync(int id)
         {
-            var matricula = await _context.Matriculas.FindAsync(id);
-            if (matricula != null)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                _context.Matriculas.Remove(matricula);
-                await _context.SaveChangesAsync();
+                // 1. Unlink Contracts (Bulk update)
+                await _context.Contracts
+                    .Where(c => c.MatriculaId == id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(c => c.MatriculaId, (int?)null));
+
+                // 2. Remove User associations (Bulk delete)
+                await _context.UserMatriculas
+                    .Where(m => m.MatriculaId == id)
+                    .ExecuteDeleteAsync();
+
+                // 3. Remove associated PendingContractClaims (Bulk delete)
+                await _context.PendingContractClaims
+                    .Where(c => c.MatriculaId == id)
+                    .ExecuteDeleteAsync();
+
+                // 4. Unlink PVs (Bulk update)
+                await _context.PVs
+                    .Where(p => p.MatriculaId == id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.MatriculaId, (int?)null));
+
+                // 5. Delete the Matricula itself
+                await _context.Matriculas
+                    .Where(m => m.Id == id)
+                    .ExecuteDeleteAsync();
+
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"[MatriculaRepository] Error deleting matricula {id}: {ex.Message}");
+                throw;
             }
         }
 

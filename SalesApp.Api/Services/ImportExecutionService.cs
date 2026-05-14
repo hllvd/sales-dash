@@ -64,7 +64,8 @@ namespace SalesApp.Services
             string dateFormat,
             bool skipMissingContractNumber = false,
             bool allowAutoCreateGroups = false,
-            bool allowAutoCreatePVs = false)
+            bool allowAutoCreatePVs = false,
+            Action<MatriculaChangeRecord>? onMatriculaChange = null)
         {
             var result = new ImportResult();
             result.TotalRows = rows.Count;
@@ -146,7 +147,11 @@ namespace SalesApp.Services
                         continue;
                     }
 
-                    var contract = await BuildContractFromRowAsync(row, reverseMappings, uploadId, importSessionId, dateFormat, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract, matriculaCache);
+                    var contract = await BuildContractFromRowAsync(
+                        row, reverseMappings, uploadId, importSessionId, dateFormat, 
+                        groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, 
+                        existingContract, matriculaCache,
+                        onMatriculaChange: change => result.MatriculaChanges.Add(change));
 
                     if (contract != null)
                     {
@@ -310,7 +315,8 @@ namespace SalesApp.Services
             bool allowAutoCreateGroups = false,
             bool allowAutoCreatePVs = false,
             Contract? existingContract = null,
-            Dictionary<string, int?>? matriculaCache = null)
+            Dictionary<string, int?>? matriculaCache = null,
+            Action<MatriculaChangeRecord>? onMatriculaChange = null)
         {
             var rawCota = GetFieldValue(row, reverseMappings, "ContractNumber");
             var cotaInfo = CotaDecomposer.Decompose(rawCota);
@@ -444,6 +450,45 @@ namespace SalesApp.Services
             // ✅ Create or update contract object
             var contract = existingContract ?? new Contract { CreatedAt = DateTime.UtcNow };
 
+            if (existingContract != null)
+            {
+                contract.UpdatedAt = DateTime.UtcNow;
+
+                // ✅ Matricula change detection
+                if (IsMatriculaChanged(existingContract.MatriculaId, matriculaId))
+                {
+                    var oldMatriculaNumber = existingContract.Matricula?.MatriculaNumber
+                                            ?? existingContract.MatriculaId!.Value.ToString();
+
+                    // Update contract link to new matricula
+                    contract.MatriculaId = matriculaId;
+
+                    // Ensure the currently-assigned user is linked to the new matricula
+                    if (contract.UserId.HasValue)
+                    {
+                        var existingLink = await _userMatriculaRepository
+                            .GetByMatriculaNumberAndUserIdAsync(matriculaNumber!, contract.UserId.Value);
+                        if (existingLink == null)
+                        {
+                            await _userMatriculaRepository.CreateAsync(new UserMatricula
+                            {
+                                UserId = contract.UserId.Value,
+                                MatriculaId = matriculaId!.Value,
+                                IsOwner = false,
+                                IsActive = true,
+                                ImportSessionId = importSessionId
+                            });
+                        }
+                    }
+
+                    onMatriculaChange?.Invoke(new MatriculaChangeRecord(
+                        contractNumber!,
+                        oldMatriculaNumber,
+                        matriculaNumber ?? matriculaId!.Value.ToString()
+                    ));
+                }
+            }
+
             contract.ContractNumber = contractNumber;
             contract.UserId = user?.Id; // Can be null if unassigned
             if (user == null && !string.IsNullOrWhiteSpace(matriculaNumber) && string.IsNullOrWhiteSpace(contract.TempMatricula))
@@ -463,8 +508,8 @@ namespace SalesApp.Services
             contract.PvId = pvId;
             contract.CustomerName = customerName;
             
-            // ✅ Link contract directly to Matricula
-            if (matriculaId.HasValue)
+            // ✅ Link contract directly to Matricula (if not already handled by change detection)
+            if (matriculaId.HasValue && contract.MatriculaId != matriculaId)
             {
                 contract.MatriculaId = matriculaId;
             }
