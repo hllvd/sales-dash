@@ -71,7 +71,7 @@ namespace SalesApp.IntegrationTests.Imports
             // Assert: no changes
             confirmResult.Should().NotBeNull();
             confirmResult!.Data!.MatriculaChanges.Should().BeEmpty();
-            confirmResult.Data.Warnings.Should().NotContain(w => w.Contains("change of matriculas"));
+            confirmResult.Data.Warnings.Should().NotContain(w => w.Contains("alteração de matrículas"));
         }
 
         // ── Test 2: Change detected, contract MatriculaId updated ─────────────
@@ -123,7 +123,7 @@ namespace SalesApp.IntegrationTests.Imports
 
             // Assert: human-readable warning
             confirmResult.Data.Warnings.Should().Contain(w =>
-                w.Contains("change of matriculas") &&
+                w.Contains("alteração de matrículas") &&
                 w.Contains(contractNumber) &&
                 w.Contains(matriculaB));
 
@@ -225,7 +225,7 @@ namespace SalesApp.IntegrationTests.Imports
                 because: "a new contract with complete data should be inserted");
             confirmResult.Data.MatriculaChanges.Should().BeEmpty(
                 because: "change detection only applies to updates, not inserts");
-            confirmResult.Data.Warnings.Should().NotContain(w => w.Contains("change of matriculas"));
+            confirmResult.Data.Warnings.Should().NotContain(w => w.Contains("alteração de matrículas"));
         }
 
         // ── Test 5: Multiple contracts change in one import ───────────────────
