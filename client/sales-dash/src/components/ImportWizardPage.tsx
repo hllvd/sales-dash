@@ -157,7 +157,11 @@ const ImportWizardPage: React.FC = () => {
 
   return (
     <Menu>
-      <Box pos="relative" style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
+      <Box 
+        translate="no" 
+        pos="relative" 
+        style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}
+      >
         <LoadingOverlay
           visible={loading}
           overlayProps={{ radius: 'sm', blur: 3, backgroundOpacity: 0.55 }}
@@ -183,7 +187,7 @@ const ImportWizardPage: React.FC = () => {
               pointerEvents: 'none',
             }}
           >
-            <span>{loadingMessage}</span>
+            <span translate="no">{loadingMessage}</span>
           </Box>
         )}
         
