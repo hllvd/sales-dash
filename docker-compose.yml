@@ -50,6 +50,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.client
+      args:
+        - REACT_APP_AWS_RUM_APP_ID=${REACT_APP_AWS_RUM_APP_ID}
+        - REACT_APP_AWS_REGION=${REACT_APP_AWS_REGION}
+        - REACT_APP_AWS_RUM_IDENTITY_POOL_ID=${REACT_APP_AWS_RUM_IDENTITY_POOL_ID}
     container_name: salesapp-client
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost/" ]

@@ -26,6 +26,10 @@ class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
+    
+    // Send to CloudWatch RUM
+    import('../services/rumService').then(m => m.recordError(error));
+
     this.setState({
       error: error,
       errorInfo: errorInfo
