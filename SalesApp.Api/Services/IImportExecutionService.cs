@@ -32,7 +32,8 @@ namespace SalesApp.Services
             string dateFormat,
             bool skipMissingContractNumber = false,
             bool allowAutoCreateGroups = false,
-            bool allowAutoCreatePVs = false);
+            bool allowAutoCreatePVs = false,
+            Action<MatriculaChangeRecord>? onMatriculaChange = null);
 
         Task<ImportResult> ExecuteUserImportAsync(
             string uploadId,

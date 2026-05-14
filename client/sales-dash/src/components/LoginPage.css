@@ -11,6 +11,18 @@
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
+.login-logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.login-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
 .login-title {
   font-size: 28px;
   font-weight: 700;

@@ -6,7 +6,7 @@ namespace SalesApp.Models
     public class PV
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.None)] // NOT auto-increment
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         
         [Required]
