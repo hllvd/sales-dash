@@ -28,15 +28,14 @@ test.describe('[TEAR 3] Contract Export Verification', () => {
     // Increase timeout for users to load and ensure we're looking at the right element
     // await page.waitForSelector('#filterUser option:not([value=""])', { timeout: 15000 });
 
-    // Select Rodrigo Rosin by text to find his ID
-    const rodrigoOption = page.locator('#filterUser option', { hasText: 'Rodrigo Rosin' });
-    const rodrigoUserId = await rodrigoOption.getAttribute('value');
-
-    if (!rodrigoUserId) {
-      throw new Error('Rodrigo Rosin not found in user filter');
-    }
-
-    await page.selectOption('#filterUser', rodrigoUserId);
+    // Select Rodrigo Rosin using Mantine's SearchableDropdown component
+    await page.locator('#filterUser').click();
+    await page.locator('#filterUser').fill('Rodrigo Rosin');
+    
+    // Wait for the option to appear and click it
+    const rodrigoOption = page.locator('[role="option"]', { hasText: 'Rodrigo Rosin' });
+    await rodrigoOption.waitFor({ state: 'visible', timeout: 5000 });
+    await rodrigoOption.click();
 
     // IMPORTANT: Wait for the 3-second debounce in ContractsPage.tsx to fire 
     // and for the table to reload with filtered results.
