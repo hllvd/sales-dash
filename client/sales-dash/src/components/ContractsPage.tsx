@@ -260,18 +260,14 @@ const ContractsPage: React.FC = () => {
           <div className="contracts-filters">
         <div className="filter-group">
           <label htmlFor="filterUser">Usuário</label>
-          <select
+          <SearchableDropdown
             id="filterUser"
+            placeholder="Buscar por usuário..."
             value={filterUserId}
-            onChange={(e) => setFilterUserId(e.target.value)}
-          >
-            <option value="">Todos</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setFilterUserId(val || '')}
+            data={users.map((user) => ({ value: user.id, label: user.name }))}
+            className="searchable-dropdown"
+          />
         </div>
 
         <div className="filter-group">

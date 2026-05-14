@@ -1276,7 +1276,12 @@ namespace SalesApp.Services
                         continue;
                     }
 
-                    var contract = await BuildContractDashboardFromRowAsync(row, reverseMappings, uploadId, importSessionId, groupCache, pvCache, result, allowAutoCreateGroups, allowAutoCreatePVs, existingContract, matriculaCache);
+                    var contract = await BuildContractDashboardFromRowAsync(
+                        row, reverseMappings, uploadId, importSessionId,
+                        groupCache, pvCache, result,
+                        allowAutoCreateGroups, allowAutoCreatePVs,
+                        existingContract, matriculaCache,
+                        onMatriculaChange: change => result.MatriculaChanges.Add(change));
 
                     if (contract != null)
                     {
@@ -1286,7 +1291,7 @@ namespace SalesApp.Services
                             contractsToAdd.Add(contract);
                         }
                         // If it's existing, it's already updated and tracked by the context
-                        
+
                         result.ProcessedRows++;
                     }
                     else
@@ -1395,7 +1400,8 @@ namespace SalesApp.Services
             bool allowAutoCreateGroups = false,
             bool allowAutoCreatePVs = false,
             Contract? existingContract = null,
-            Dictionary<string, int?>? matriculaCache = null)
+            Dictionary<string, int?>? matriculaCache = null,
+            Action<MatriculaChangeRecord>? onMatriculaChange = null)
         {
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
             var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
@@ -1544,11 +1550,46 @@ namespace SalesApp.Services
 
             if (existingContract != null)
             {
-                // If the contract already exists, update status and potentially user
+                // Update status and reactivate
                 contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
                 if (userId.HasValue) contract.UserId = userId;
-                contract.IsActive = true; // ✅ Always reactivate if re-imported
+                contract.IsActive = true;
                 contract.UpdatedAt = DateTime.UtcNow;
+
+                // ✅ Matricula change detection
+                if (IsMatriculaChanged(existingContract.MatriculaId, matriculaId))
+                {
+                    var oldMatriculaNumber = existingContract.Matricula?.MatriculaNumber
+                                            ?? existingContract.MatriculaId!.Value.ToString();
+
+                    // Update contract link to new matricula
+                    contract.MatriculaId = matriculaId;
+
+                    // Ensure the currently-assigned user is linked to the new matricula
+                    if (contract.UserId.HasValue)
+                    {
+                        var existingLink = await _userMatriculaRepository
+                            .GetByMatriculaNumberAndUserIdAsync(matriculaNumber!, contract.UserId.Value);
+                        if (existingLink == null)
+                        {
+                            await _userMatriculaRepository.CreateAsync(new UserMatricula
+                            {
+                                UserId = contract.UserId.Value,
+                                MatriculaId = matriculaId!.Value,
+                                IsOwner = false,
+                                IsActive = true,
+                                ImportSessionId = importSessionId
+                            });
+                        }
+                    }
+
+                    onMatriculaChange?.Invoke(new MatriculaChangeRecord(
+                        contractNumber!,
+                        oldMatriculaNumber,
+                        matriculaNumber ?? matriculaId!.Value.ToString()
+                    ));
+                }
+
                 return contract;
             }
 
@@ -1578,6 +1619,15 @@ namespace SalesApp.Services
             return contract;
         }
         
+        /// <summary>
+        /// Pure function: determines whether a contract's matricula has changed.
+        /// Returns true only when both IDs are known (non-null) and differ.
+        /// </summary>
+        internal static bool IsMatriculaChanged(int? existingMatriculaId, int? incomingMatriculaId)
+            => incomingMatriculaId.HasValue
+               && existingMatriculaId.HasValue
+               && existingMatriculaId.Value != incomingMatriculaId.Value;
+
         private string MapSituacaoCobrancaToStatus(string? situacaoCobranca)
         {
             return _statusMapper.MapStatus(situacaoCobranca) ?? ContractStatus.Active.ToApiString();

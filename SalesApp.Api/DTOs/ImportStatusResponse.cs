@@ -6,7 +6,14 @@ namespace SalesApp.DTOs
         public string Surname { get; set; } = string.Empty;
         public List<UserResponse> SuggestedMatches { get; set; } = new();
     }
-    
+
+    public class MatriculaChangeInfo
+    {
+        public string ContractNumber { get; set; } = string.Empty;
+        public string OldMatricula   { get; set; } = string.Empty;
+        public string NewMatricula   { get; set; } = string.Empty;
+    }
+
     public class ImportStatusResponse
     {
         public string UploadId { get; set; } = string.Empty;
@@ -19,5 +26,6 @@ namespace SalesApp.DTOs
         public List<string> CreatedPVs { get; set; } = new();
         public List<string> Errors { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
+        public List<MatriculaChangeInfo> MatriculaChanges { get; set; } = new();
     }
 }

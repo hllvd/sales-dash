@@ -642,6 +642,7 @@ namespace SalesApp.Controllers
                     totalResult.Warnings.AddRange(result.Warnings);
                     totalResult.CreatedGroups.AddRange(result.CreatedGroups);
                     totalResult.CreatedPVs.AddRange(result.CreatedPVs);
+                    totalResult.MatriculaChanges.AddRange(result.MatriculaChanges);
 
                     skipRows += 500;
                 }
@@ -666,8 +667,18 @@ namespace SalesApp.Controllers
                 }
 
                 var successMessage = totalResult.FailedRows > 0 
-                    ? $"Import completed with {totalResult.FailedRows} errors. {totalResult.ProcessedRows} items created."
-                    : $"Import completed successfully. {totalResult.ProcessedRows} items created.";
+                    ? $"Importação concluída com {totalResult.FailedRows} erros. {totalResult.ProcessedRows} itens criados."
+                    : $"Importação concluída com sucesso. {totalResult.ProcessedRows} itens criados.";
+
+                // Build structured matricula-change warning for the frontend
+                if (totalResult.MatriculaChanges.Any())
+                {
+                    var contractList  = string.Join(", ", totalResult.MatriculaChanges.Select(c => c.ContractNumber));
+                    var newMatriculas = string.Join(", ", totalResult.MatriculaChanges.Select(c => c.NewMatricula).Distinct());
+                    totalResult.Warnings.Add(
+                        $"Detectamos uma alteração de matrículas para estes contratos: {contractList}. " +
+                        $"Em alguns casos, os usuários atribuídos a estes contratos devem ser vinculados à(s) nova(s) matrícula(s): {newMatriculas}.");
+                }
 
                 return Ok(new ApiResponse<ImportStatusResponse>
                 {
@@ -683,7 +694,14 @@ namespace SalesApp.Controllers
                         CreatedGroups = totalResult.CreatedGroups.Distinct().ToList(),
                         CreatedPVs = totalResult.CreatedPVs.Distinct().ToList(),
                         Errors = totalResult.Errors,
-                        Warnings = totalResult.Warnings
+                        Warnings = totalResult.Warnings,
+                        MatriculaChanges = totalResult.MatriculaChanges
+                            .Select(c => new MatriculaChangeInfo
+                            {
+                                ContractNumber = c.ContractNumber,
+                                OldMatricula   = c.OldMatricula,
+                                NewMatricula   = c.NewMatricula
+                            }).ToList()
                     },
                     Message = successMessage
                 });

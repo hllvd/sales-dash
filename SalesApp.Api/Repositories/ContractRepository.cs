@@ -256,6 +256,9 @@ namespace SalesApp.Repositories
             // ✅ Null out navigation properties to prevent EF Core from tracking them
             contract.User = null;
             contract.Group = null;
+            contract.Matricula = null;
+            contract.PV = null;
+            contract.ContractStatus = null;
             
             _context.Contracts.Update(contract);
             await _context.SaveChangesAsync();

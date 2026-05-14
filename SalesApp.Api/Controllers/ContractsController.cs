@@ -291,6 +291,19 @@ namespace SalesApp.Controllers
                 existingContract.CustomerName = request.CustomerName;
                 existingContract.UpdatedAt = DateTime.UtcNow;
 
+                if (!string.IsNullOrEmpty(request.MatriculaNumber))
+                {
+                    var normalizedMatricula = Utils.NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
+                    var matricula = await _matriculaRepository.GetByMatriculaNumberAsync(normalizedMatricula);
+                    if (matricula == null)
+                    {
+                        matricula = new Matricula { MatriculaNumber = normalizedMatricula, StartDate = DateTime.UtcNow, Status = "active" };
+                        await _matriculaRepository.CreateAsync(matricula);
+                    }
+                    existingContract.MatriculaId = matricula.Id;
+                    existingContract.TempMatricula = matricula.MatriculaNumber;
+                }
+
                 await _contractRepository.UpdateAsync(existingContract);
                 return Ok(new ApiResponse<ContractResponse>
                 {
