@@ -667,8 +667,8 @@ namespace SalesApp.Controllers
                 }
 
                 var successMessage = totalResult.FailedRows > 0 
-                    ? $"Import completed with {totalResult.FailedRows} errors. {totalResult.ProcessedRows} items created."
-                    : $"Import completed successfully. {totalResult.ProcessedRows} items created.";
+                    ? $"Importação concluída com {totalResult.FailedRows} erros. {totalResult.ProcessedRows} itens criados."
+                    : $"Importação concluída com sucesso. {totalResult.ProcessedRows} itens criados.";
 
                 // Build structured matricula-change warning for the frontend
                 if (totalResult.MatriculaChanges.Any())
@@ -676,8 +676,8 @@ namespace SalesApp.Controllers
                     var contractList  = string.Join(", ", totalResult.MatriculaChanges.Select(c => c.ContractNumber));
                     var newMatriculas = string.Join(", ", totalResult.MatriculaChanges.Select(c => c.NewMatricula).Distinct());
                     totalResult.Warnings.Add(
-                        $"We've detected a change of matriculas for these contracts: {contractList}. " +
-                        $"In some cases, users assigned to these contracts should be assigned to the new matricula(s): {newMatriculas}.");
+                        $"Detectamos uma alteração de matrículas para estes contratos: {contractList}. " +
+                        $"Em alguns casos, os usuários atribuídos a estes contratos devem ser vinculados à(s) nova(s) matrícula(s): {newMatriculas}.");
                 }
 
                 return Ok(new ApiResponse<ImportStatusResponse>

@@ -197,7 +197,7 @@ test.describe.serial('[TEAR-1] Dashboard Import — Matricula Change Detection',
     await expect(warningsSection).toBeVisible({ timeout: 10000 });
 
     // Assert: warning text contains the key phrase and both contract numbers
-    await expect(warningsSection).toContainText('change of matriculas');
+    await expect(warningsSection).toContainText('alteração de matrículas');
     await expect(warningsSection).toContainText(CONTRACT_1);
     await expect(warningsSection).toContainText(CONTRACT_2);
 
