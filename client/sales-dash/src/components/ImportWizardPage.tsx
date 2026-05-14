@@ -183,7 +183,7 @@ const ImportWizardPage: React.FC = () => {
               pointerEvents: 'none',
             }}
           >
-            {loadingMessage}
+            <span>{loadingMessage}</span>
           </Box>
         )}
         
@@ -344,9 +344,11 @@ const ImportWizardPage: React.FC = () => {
                   title={importResult?.processedRows > 0 ? "Usuários Importados!" : "Nenhum usuário importado"} 
                   color={importResult?.processedRows > 0 ? "green" : "orange"}
                 >
-                  {importResult?.processedRows > 0 
-                    ? `Os ${importResult?.processedRows} vendedores e suas matrículas foram importados com sucesso. Agora você pode importar os contratos abaixo.`
-                    : "Não foi possível importar nenhum vendedor. Verifique se as colunas Nome, Email e Matricula estão preenchidas no arquivo users.xlsx."}
+                  <span>
+                    {importResult?.processedRows > 0 
+                      ? `Os ${importResult?.processedRows} vendedores e suas matrículas foram importados com sucesso. Agora você pode importar os contratos abaixo.`
+                      : "Não foi possível importar nenhum vendedor. Verifique se as colunas Nome, Email e Matricula estão preenchidas no arquivo users.xlsx."}
+                  </span>
                 </Alert>
                 
                 <Text size="sm">
@@ -428,9 +430,11 @@ const ImportWizardPage: React.FC = () => {
                       title={contractImportResult.failedRows > 0 ? 'Importação com erros' : 'Contratos importados!'}
                       color={contractImportResult.failedRows > 0 ? 'orange' : 'green'}
                     >
-                      {contractImportResult.failedRows > 0
-                        ? `${contractImportResult.processedRows} contratos criados, ${contractImportResult.failedRows} com erro.`
-                        : `${contractImportResult.processedRows} contratos criados com sucesso.`}
+                      <span>
+                        {contractImportResult.failedRows > 0
+                          ? `${contractImportResult.processedRows} contratos criados, ${contractImportResult.failedRows} com erro.`
+                          : `${contractImportResult.processedRows} contratos criados com sucesso.`}
+                      </span>
                     </Alert>
 
                     <Group grow>
