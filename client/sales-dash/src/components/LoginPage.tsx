@@ -42,6 +42,9 @@ const LoginPage: React.FC = () => {
   return (
     <div className="login-container">
       <div className="login-card">
+        <div className="login-logo-container">
+          <img src="/salesapp.logo.png" alt="SalesApp Logo" className="login-logo" />
+        </div>
         <h1 className="login-title">Bem-vindo de Volta</h1>
         <p className="login-subtitle">Entre na sua conta</p>
         

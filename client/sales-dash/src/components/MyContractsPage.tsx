@@ -346,7 +346,7 @@ const MyContractsPage: React.FC = () => {
         <div className="my-contracts-header">
           <Title order={2} size="h2">Meus Contratos</Title>
           <div className="header-actions">
-            <InfoHelper label="Como Atribuir?">
+            <InfoHelper label="Como Atribuir um contrato?">
               {helperContent}
             </InfoHelper>
             <ExportButton
