@@ -15,7 +15,7 @@ export const initRUM = () => {
     };
 
     const APPLICATION_ID = process.env.REACT_APP_AWS_RUM_APP_ID || '';
-    const APPLICATION_VERSION = '1.0.0';
+    const APPLICATION_VERSION = process.env.REACT_APP_BUILD_ID || '1.0.0';
     const APPLICATION_REGION = process.env.REACT_APP_AWS_REGION || 'us-east-1';
 
     if (APPLICATION_ID) {
@@ -25,7 +25,7 @@ export const initRUM = () => {
         APPLICATION_REGION,
         config
       );
-      console.log('AWS RUM initialized successfully');
+      console.log(`AWS RUM initialized successfully (Version: ${APPLICATION_VERSION})`);
     }
   } catch (error) {
     console.error('Failed to initialize AWS RUM', error);

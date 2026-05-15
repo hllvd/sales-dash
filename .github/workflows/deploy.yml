@@ -79,8 +79,31 @@ jobs:
       - name: Generate Build ID
         id: build_id
         run: |
-          BUILD_ID="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
+          BUILD_ID="$(date -u +%Y%m%d%H%M%S)"
           echo "value=$BUILD_ID" >> $GITHUB_OUTPUT
+
+      - name: Build Frontend and Upload Source Maps (Frontend only)
+        if: matrix.service == 'frontend'
+        run: |
+          cd client/sales-dash
+          npm ci
+          # Build with the Build ID so RUM knows which version it is
+          export REACT_APP_BUILD_ID=${{ steps.build_id.outputs.value }}
+          export REACT_APP_AWS_RUM_APP_ID=${{ secrets.REACT_APP_AWS_RUM_APP_ID }}
+          export REACT_APP_AWS_REGION=${{ secrets.AWS_REGION }}
+          export REACT_APP_AWS_RUM_IDENTITY_POOL_ID=${{ secrets.REACT_APP_AWS_RUM_IDENTITY_POOL_ID }}
+          npm run build
+          
+          # Upload .map files to S3
+          # Format: s3://bucket/applicationId/version/
+          aws s3 cp build/static/js/ "${{ secrets.AWS_S3_CWR_MAPS }}/${{ secrets.REACT_APP_AWS_RUM_APP_ID }}/${{ steps.build_id.outputs.value }}/" \
+            --recursive --exclude "*" --include "*.js.map" --region ${{ secrets.AWS_REGION }}
+          
+          # Clean up maps so they don't get included in the Docker image if built from this context
+          rm -f build/static/js/*.map
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -92,7 +115,12 @@ jobs:
             ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || 'salesapp-client' }}:latest
             ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || 'salesapp-client' }}:${{ github.sha }}
           build-args: |
-            ${{ matrix.service == 'backend' && format('BUILD_ID={0}', steps.build_id.outputs.value) || '' }}
+            BUILD_ID=${{ steps.build_id.outputs.value }}
+            REACT_APP_BUILD_ID=${{ steps.build_id.outputs.value }}
+            REACT_APP_AWS_RUM_APP_ID=${{ secrets.REACT_APP_AWS_RUM_APP_ID }}
+            REACT_APP_AWS_REGION=${{ secrets.AWS_REGION }}
+            REACT_APP_AWS_RUM_IDENTITY_POOL_ID=${{ secrets.REACT_APP_AWS_RUM_IDENTITY_POOL_ID }}
+            GENERATE_SOURCEMAP=false
           cache-from: type=registry,ref=ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || 'salesapp-client' }}:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || 'salesapp-client' }}:buildcache,mode=max
 
