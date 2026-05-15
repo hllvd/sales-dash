@@ -97,16 +97,24 @@ jobs:
           CI=false npm run build
           
           # Upload .map files to S3
-          # We clean the bucket name to ensure it starts with s3:// and has the correct path
-          CLEAN_BUCKET=$(echo "${{ secrets.AWS_S3_CWR_MAPS }}" | sed 's/s3:\/\///g' | sed 's/\/$//g')
-          aws s3 cp build/static/js/ "s3://${CLEAN_BUCKET}/${{ secrets.REACT_APP_AWS_RUM_APP_ID }}/${{ steps.build_id.outputs.value }}/" \
-            --recursive --exclude "*" --include "*.js.map" --region ${{ secrets.AWS_REGION }}
+          # We check both secrets and vars, and clean the bucket name
+          RAW_BUCKET="${{ secrets.AWS_S3_CWR_MAPS || vars.AWS_S3_CWR_MAPS }}"
+          CLEAN_BUCKET=$(echo "$RAW_BUCKET" | sed 's/s3:\/\///g' | sed 's/\/$//g')
+          
+          # Handle Region with fallback
+          REGION="${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-1' }}"
+          
+          # Handle App ID
+          APP_ID="${{ secrets.REACT_APP_AWS_RUM_APP_ID || vars.REACT_APP_AWS_RUM_APP_ID }}"
+          
+          aws s3 cp build/static/js/ "s3://${CLEAN_BUCKET}/${APP_ID}/${{ steps.build_id.outputs.value }}/" \
+            --recursive --exclude "*" --include "*.js.map" --region "$REGION"
           
           # Clean up maps so they don't get included in the Docker image
           rm -f build/static/js/*.map
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || vars.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || vars.AWS_SECRET_ACCESS_KEY }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
