@@ -105,10 +105,10 @@ jobs:
           # Handle Region with fallback
           REGION="${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-1' }}"
           
-          # Handle App ID
+          # Handle App ID (kept here for environment variable use if needed, but removed from S3 path)
           APP_ID="${{ secrets.REACT_APP_AWS_RUM_APP_ID || vars.REACT_APP_AWS_RUM_APP_ID }}"
           
-          aws s3 cp build/static/js/ "s3://${CLEAN_BUCKET}/${APP_ID}/${{ steps.build_id.outputs.value }}/" \
+          aws s3 cp build/static/js/ "s3://${CLEAN_BUCKET}/${{ steps.build_id.outputs.value }}/" \
             --recursive --exclude "*" --include "*.js.map" --region "$REGION"
           
           # Clean up maps so they don't get included in the Docker image
