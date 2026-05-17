@@ -45,28 +45,41 @@ async function uploadAndAdvanceToMapping(page: any, csvContent: string) {
   await expect(nextBtn).toBeEnabled({ timeout: 10000 });
   await nextBtn.click();
 
-  // Handle mismatch if appears
-  try {
-    const proceedBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
-    if (await proceedBtn.isVisible({ timeout: 3000 })) await proceedBtn.click();
-  } catch { /* not present */ }
+  // Wait for either the mapping screen or the mismatch screen to appear deterministically
+  await Promise.race([
+    page.waitForSelector('.mapping-section', { state: 'visible', timeout: 5000 }).catch(() => {}),
+    page.waitForSelector('.verification-warning-section', { state: 'visible', timeout: 5000 }).catch(() => {})
+  ]);
 
-  await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 15000 });
+  // Handle mismatch if it appears
+  const proceedBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
+  if (await proceedBtn.isVisible()) {
+    await proceedBtn.click();
+  }
+
+  await expect(page.locator('.mapping-section')).toBeVisible({ timeout: 15000 });
 
   // Clean up temp file
   try { fs.unlinkSync(tempPath); } catch { /* ignore */ }
 }
 
 test.describe('Status Column Validation on Mapping Step', () => {
+  // Configure tests in this file to run serially to prevent database lock contention in SQLite
+  test.describe.configure({ mode: 'serial' });
 
   test('should block confirm when Status column contains invalid values', async ({ page }) => {
     test.setTimeout(60000);
     await login(page);
     await openImportModal(page);
-    await uploadAndAdvanceToMapping(page, INVALID_STATUS_CSV);
 
-    // Wait for auto-status-validation to run (triggered automatically on upload)
-    await page.waitForTimeout(4000);
+    // Setup network listener for status validation request
+    const validationPromise = page.waitForResponse(response => 
+      response.url().includes('/validate-status') && response.status() === 200,
+      { timeout: 15000 }
+    );
+
+    await uploadAndAdvanceToMapping(page, INVALID_STATUS_CSV);
+    await validationPromise;
 
     // The warning should appear automatically since "Situação Cobrança" is auto-mapped to Status
     await expect(page.locator('#status-validation-warning')).toBeVisible({ timeout: 10000 });
@@ -83,10 +96,15 @@ test.describe('Status Column Validation on Mapping Step', () => {
     test.setTimeout(60000);
     await login(page);
     await openImportModal(page);
-    await uploadAndAdvanceToMapping(page, VALID_STATUS_CSV);
 
-    // Wait for auto-status-validation to run
-    await page.waitForTimeout(4000);
+    // Setup network listener for status validation request
+    const validationPromise = page.waitForResponse(response => 
+      response.url().includes('/validate-status') && response.status() === 200,
+      { timeout: 15000 }
+    );
+
+    await uploadAndAdvanceToMapping(page, VALID_STATUS_CSV);
+    await validationPromise;
 
     // No warning should appear
     await expect(page.locator('#status-validation-warning')).not.toBeVisible();
@@ -103,10 +121,15 @@ test.describe('Status Column Validation on Mapping Step', () => {
     test.setTimeout(60000);
     await login(page);
     await openImportModal(page);
-    await uploadAndAdvanceToMapping(page, INVALID_STATUS_CSV);
 
-    // Wait for auto-validation
-    await page.waitForTimeout(4000);
+    // Setup network listener for status validation request
+    const validationPromise = page.waitForResponse(response => 
+      response.url().includes('/validate-status') && response.status() === 200,
+      { timeout: 15000 }
+    );
+
+    await uploadAndAdvanceToMapping(page, INVALID_STATUS_CSV);
+    await validationPromise;
 
     // Warning should be visible
     await expect(page.locator('#status-validation-warning')).toBeVisible({ timeout: 10000 });

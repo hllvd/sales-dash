@@ -27,6 +27,19 @@ namespace SalesApp.Controllers
         private readonly IContractStatusMapper _statusMapper;
         private readonly IContractStatusService _statusService;
         private readonly IPendingContractClaimRepository _pendingClaimRepository;
+
+        [HttpGet("/api/monitoring/contracts")]
+        [HasPermission("system:superadmin")]
+        public async Task<ActionResult<ApiResponse<List<MatriculaHealthResponse>>>> GetMatriculaHealth()
+        {
+            var healthData = await _contractRepository.GetMatriculaHealthAsync();
+            return Ok(new ApiResponse<List<MatriculaHealthResponse>>
+            {
+                Success = true,
+                Data = healthData,
+                Message = "Matricula health data retrieved successfully"
+            });
+        }
         
         public ContractsController(
             IContractRepository contractRepository, 

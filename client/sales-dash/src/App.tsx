@@ -13,6 +13,7 @@ import ImportWizardPage from './components/ImportWizardPage';
 import AccessControlPage from './components/AccessControlPage';
 import ScrapeDashboard from './components/Scrape/ScrapeDashboard';
 import ReportsRouter from './components/Reports/ReportsRouter';
+import MatriculaHealthPage from './components/Monitoring/MatriculaHealthPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -71,6 +72,8 @@ function App() {
       case '#/scrapes':
       case '#/scrapes/historial':
         return <ScrapeDashboard initialTab={currentRoute === '#/scrapes/historial' ? 'history' : 'links'} />;
+      case '#/monitoring/matricula-health':
+        return <MatriculaHealthPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':

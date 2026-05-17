@@ -132,12 +132,34 @@ export interface PendingClaimResponse {
 }
 
 
+export interface MatriculaHealth {
+  matricula: string;
+  lastUpdate: string;
+  contractCount: number;
+  status: 'Healthy' | 'Warning' | 'OutOfDate' | 'Danger';
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
   message: string;
   aggregation?: ContractAggregation;
 }
+
+// Monitoring Operations
+export const getMatriculaHealth = async (): Promise<MatriculaHealth[]> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/monitoring/contracts`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch matricula health data');
+  }
+
+  const result: ApiResponse<MatriculaHealth[]> = await response.json();
+  return result.data;
+};
 
 // Contract CRUD Operations
 export const getContracts = async (

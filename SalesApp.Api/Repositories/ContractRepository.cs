@@ -269,5 +269,45 @@ namespace SalesApp.Repositories
             // Reload with navigation properties
             return await GetByIdAsync(contract.Id) ?? contract;
         }
+
+        public async Task<List<MatriculaHealthResponse>> GetMatriculaHealthAsync()
+        {
+            var now = DateTime.UtcNow;
+            
+            // ✅ Optimized query: group by matricula and find the latest update
+            // We project to an anonymous type first to ensure EF Core translates the null coalescing correctly
+            var healthData = await _context.Contracts
+                .AsNoTracking()
+                .Where(c => c.IsActive)
+                .Select(c => new 
+                { 
+                    Matricula = c.Matricula != null ? c.Matricula.MatriculaNumber : c.TempMatricula,
+                    c.UpdatedAt 
+                })
+                .Where(x => !string.IsNullOrEmpty(x.Matricula))
+                .GroupBy(x => x.Matricula)
+                .Select(g => new
+                {
+                    Matricula = g.Key!,
+                    LastUpdate = g.Max(x => x.UpdatedAt),
+                    Count = g.Count()
+                })
+                .OrderBy(h => h.LastUpdate)
+                .ToListAsync();
+
+            return healthData.Select(h => new MatriculaHealthResponse
+            {
+                Matricula = h.Matricula,
+                LastUpdate = DateTime.SpecifyKind(h.LastUpdate, DateTimeKind.Utc),
+                ContractCount = h.Count,
+                Status = (now - h.LastUpdate).TotalHours switch
+                {
+                    > 168 => "Danger",
+                    > 72 => "OutOfDate",
+                    > 24 => "Warning",
+                    _ => "Healthy"
+                }
+            }).ToList();
+        }
     }
 }

@@ -15,6 +15,7 @@ import {
   IconLock,
   IconRefresh,
   IconChartBar,
+  IconActivity,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -293,6 +294,24 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               styles={navLinkStyles('#/scrapes')}
               onClick={() => { if (opened) close(); }}
             />
+          )}
+
+          {hasPermission('system:superadmin') && (
+            <NavLink
+              label="Monitoramento"
+              leftSection={<IconActivity size={20} />}
+              childrenOffset={28}
+              styles={navLinkStyles('')}
+              defaultOpened={currentPath.startsWith('#/monitoring')}
+            >
+              <NavLink
+                href="#/monitoring/matricula-health"
+                label="Saúde das Matrículas"
+                active={isActive('#/monitoring/matricula-health')}
+                styles={navLinkStyles('#/monitoring/matricula-health')}
+                onClick={() => { if (opened) close(); }}
+              />
+            </NavLink>
           )}
 
 
