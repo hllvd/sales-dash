@@ -2,132 +2,108 @@
 description: Autonomous test-fix loop using test.sh. Run tests, read summaries, fix, repeat until green. TTL 5.
 ---
 
-# Autonomous Test & Fix Workflow
+// turbo-all
 
-## Context
+# Test & Fix Workflow
 
-- **Test runner:** `./test.sh` (symlink to `scripts/test.sh`) — always run from project root.
-- **Artifacts:** `artifacts/` — generated automatically, gitignored.
-- **Memory:** `scripts/memory.md` — append a concise entry after every fix attempt.
-- **Exclusions:** `scripts/exclude.txt` — add patterns for known false-positive log lines.
+## Step 1 — Run the full suite
 
----
+```bash
+./test.sh all
+```
 
-## Commands
+Read `artifacts/build-errors.log`, `artifacts/integration-errors.log`, `artifacts/e2e-errors.log`.
 
-| Command | When to use |
-|---|---|
-| `./test.sh build` | Docker compose build only |
-| `./test.sh integration` | .NET integration tests only |
-| `./test.sh e2e` | Playwright E2E only |
-| `./test.sh all` | Full suite |
-| `./test.sh logs` | Dump all raw logs |
-| `./test.sh clean` | Delete artifacts |
+If all three show `Error lines found: 0` → ✅ done. Output the end-of-run summary.
 
 ---
 
-## Retry Loop
+## Step 2 — Triage each failure
 
-TTL: **5 attempts**. Reset TTL per command (build / integration / e2e).
+For each error log that has failures, classify before doing anything:
+
+**Infrastructure failure → STOP. Do not retry. Do not consume TTL.**
+Examples: Docker daemon not running, socket permission denied, Compose not installed, port in use, missing `.env`.
+Action: write blocker entry to `scripts/memory.md`, request human intervention.
+
+**Test/code failure → proceed to Step 3.**
+Examples: failing assertions, wrong selectors, bad test data, API mismatch in tests.
+
+---
+
+## Step 3 — Retry loop (TTL = 5 per target)
 
 ```
 ATTEMPT = 1
 
 while ATTEMPT <= 5:
-  1. Run ./test.sh <target>
-  2. Read artifacts/<target>-errors.log  ← primary signal
-  3. If 0 errors → ✅ STOP. Write success summary to memory.md.
-  4. Analyze failures.
-  5. Apply minimal fix.
-  6. Append fix entry to scripts/memory.md.
+  1. Check scripts/memory.md — if this exact failure was already tried, skip that fix.
+  2. Apply minimal fix (see Fix Scope below).
+  3. Run ./test.sh <failing-target>   ← only re-run the failing target, not all
+  4. Read artifacts/<target>-errors.log
+  5. Write entry to scripts/memory.md (see format below).
+  6. If 0 errors → ✅ target is green. Move to next failing target.
   7. ATTEMPT++
 
-If ATTEMPT > 5 → STOP. Do not continue.
-  Write blocker summary to memory.md.
-  Request human intervention.
+If ATTEMPT > 5 → STOP. Write blocker entry. Request human intervention.
 ```
 
 ---
 
-## Reading Errors — Priority Order
+## Reading logs — priority order
 
-1. **`artifacts/<target>-errors.log`** — always read first. Filtered, concise.
-2. **`artifacts/full-<target>.log`** — inspect only when:
-   - error log is empty but tests failed (exit code non-zero), OR
-   - all items in `memory.md` have already been tried and failed.
-3. **Never** read the full log as the default first step — it defeats the token strategy.
+1. `artifacts/<target>-errors.log` — always first. Concise filtered signal.
+2. `artifacts/full-<target>.log` — only if: error log is empty but exit code was non-zero, OR every fix in `memory.md` has already been tried and failed.
 
 ---
 
-## memory.md Format
+## Fix scope
 
-File: `scripts/memory.md`
-Append only. Never delete past entries. Keep each entry concise.
+**The agent may ONLY edit these files without approval:**
+- `client/e2e-test/e2e/*.spec.ts` — Playwright test specs
+- `SalesApp.IntegrationTests/**/*.cs` — integration test files
+- `scripts/exclude.txt` — false-positive exclusions
+- `scripts/memory.md` — session log (append only)
 
-```markdown
-## [YYYY-MM-DD] <target> — Attempt <N>
+**Everything else requires explicit human approval before any edit.** This includes — but is not limited to:
+- `scripts/test.sh` / `test.sh`
+- Any production source code
+- Database schema / migrations
+- API contracts, DTOs, endpoints
+- Docker or environment config
+- `playwright.config.ts`
 
-**Failure:** <one-line summary of the error>
-**Root cause:** <what caused it>
-**Fix applied:** <what was changed>
-**Result:** ✅ Green / ❌ Still failing
-```
-
-Before applying any fix, scan `memory.md` for the same failure.
-If a fix was already tried and failed, skip it — do not repeat failed strategies.
-
----
-
-## Fix Rules
-
-**Allowed without approval:**
-- Fix failing assertions
-- Fix test data / selectors / timing
-- Fix API response handling in tests
-- Fix test setup/teardown
-- Add entries to `scripts/exclude.txt` for confirmed false positives
-
-**Requires human approval before touching:**
-- Database schema changes
-- API contract changes (new endpoints, changed DTOs)
-- Authentication / authorization logic
-- Business logic in production code
-- Architectural changes
-
-If a required fix falls into the approval category:
-1. Stop the loop.
-2. Explain exactly what change is needed and why.
+If the fix requires touching any file outside the whitelist:
+1. Stop immediately.
+2. State exactly what file needs to change, what the change is, and why.
 3. Wait for approval.
 
 ---
 
-## False Positives
+## memory.md entry format
 
-If a log line is confirmed noise (not a real error):
-- Add its pattern to `scripts/exclude.txt`
-- Add a comment explaining why it is safe to suppress
-- Do **not** widen existing patterns — be specific
+File: `scripts/memory.md` — append only.
+
+```
+## [YYYY-MM-DD] <target> — Attempt <N>
+**Failure:** <one line>
+**Root cause:** <one line>
+**Fix applied:** <what changed, or "None — blocker">
+**Result:** ✅ Green | ❌ Still failing | 🚫 Blocked
+```
 
 ---
 
-## End of Run — Required Summary
-
-After the loop ends (green or TTL exceeded), output:
+## End-of-run summary (always required)
 
 ```
-## Test Run Summary
-
-Target: <build | integration | e2e | all>
+Target: all
 Attempts: <N> / 5
 Result: ✅ Green | ❌ Blocked
 
-### Fixes Applied
+Fixes applied:
 - <fix 1>
-- <fix 2>
 
-### Remaining Failures (if blocked)
-- <description>
-
-### Recommended Next Step (if blocked)
-- <what the human needs to decide or change>
+Remaining failures / next step:
+- <description or "None">
 ```
