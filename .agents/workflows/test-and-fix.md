@@ -14,7 +14,18 @@ description: Autonomous test-fix loop using test.sh. Run tests, read summaries, 
 
 Read `artifacts/build-errors.log`, `artifacts/integration-errors.log`, `artifacts/e2e-errors.log`.
 
-If all three show `Error lines found: 0` → ✅ done. Output the end-of-run summary.
+**If all three show `Error lines found: 0`:**
+```
+✅ ALL TESTS PASSED
+
+Target: all
+Attempts: 0 / 5
+Result: ✅ Green — no fixes needed
+
+Fixes applied: None
+Remaining failures: None
+```
+Stop here. Do not continue.
 
 ---
 
@@ -22,11 +33,20 @@ If all three show `Error lines found: 0` → ✅ done. Output the end-of-run sum
 
 For each error log that has failures, classify before doing anything:
 
-**Infrastructure failure → STOP. Do not retry. Do not consume TTL.**
+**Infrastructure failure → STOP IMMEDIATELY. Do not retry. Do not consume TTL.**
+
 Examples: Docker daemon not running, socket permission denied, Compose not installed, port in use, missing `.env`.
-Action: write blocker entry to `scripts/memory.md`, request human intervention.
+
+Write blocker entry to `scripts/memory.md` and output:
+```
+🚫 BLOCKED — infrastructure issue, cannot proceed
+
+Failure: <exact error>
+Required action: <what the human must do>
+```
 
 **Test/code failure → proceed to Step 3.**
+
 Examples: failing assertions, wrong selectors, bad test data, API mismatch in tests.
 
 ---
@@ -39,10 +59,10 @@ ATTEMPT = 1
 while ATTEMPT <= 5:
   1. Check scripts/memory.md — if this exact failure was already tried, skip that fix.
   2. Apply minimal fix (see Fix Scope below).
-  3. Run ./test.sh <failing-target>   ← only re-run the failing target, not all
+  3. Run ./test.sh <failing-target>   ← only the failing target, not all
   4. Read artifacts/<target>-errors.log
   5. Write entry to scripts/memory.md (see format below).
-  6. If 0 errors → ✅ target is green. Move to next failing target.
+  6. If 0 errors → ✅ target green. Move to next failing target.
   7. ATTEMPT++
 
 If ATTEMPT > 5 → STOP. Write blocker entry. Request human intervention.
@@ -53,7 +73,7 @@ If ATTEMPT > 5 → STOP. Write blocker entry. Request human intervention.
 ## Reading logs — priority order
 
 1. `artifacts/<target>-errors.log` — always first. Concise filtered signal.
-2. `artifacts/full-<target>.log` — only if: error log is empty but exit code was non-zero, OR every fix in `memory.md` has already been tried and failed.
+2. `artifacts/full-<target>.log` — only if error log is empty but exit code was non-zero, OR every fix in `memory.md` has already been tried and failed.
 
 ---
 
@@ -65,7 +85,7 @@ If ATTEMPT > 5 → STOP. Write blocker entry. Request human intervention.
 - `scripts/exclude.txt` — false-positive exclusions
 - `scripts/memory.md` — session log (append only)
 
-**Everything else requires explicit human approval before any edit.** This includes — but is not limited to:
+**Everything else requires explicit human approval before any edit.** This includes:
 - `scripts/test.sh` / `test.sh`
 - Any production source code
 - Database schema / migrations
@@ -73,9 +93,9 @@ If ATTEMPT > 5 → STOP. Write blocker entry. Request human intervention.
 - Docker or environment config
 - `playwright.config.ts`
 
-If the fix requires touching any file outside the whitelist:
+If a fix requires a file outside the whitelist:
 1. Stop immediately.
-2. State exactly what file needs to change, what the change is, and why.
+2. State: file, line, exact change, reason.
 3. Wait for approval.
 
 ---
