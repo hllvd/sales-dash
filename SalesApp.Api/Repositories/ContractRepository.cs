@@ -304,7 +304,7 @@ namespace SalesApp.Repositories
                 {
                     > 168 => "Danger",
                     > 72 => "OutOfDate",
-                    > 24 => "Warning",
+                    > 36 => "Warning",
                     _ => "Healthy"
                 }
             }).ToList();

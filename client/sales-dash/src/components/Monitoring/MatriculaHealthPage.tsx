@@ -57,13 +57,13 @@ const MatriculaHealthPage: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Healthy':
-        return <Badge color="green" leftSection={<IconCheck size={12} />}>Atualizado</Badge>;
+        return <Badge color="green" leftSection={<IconCheck size={12} />}>Normal</Badge>;
       case 'Warning':
-        return <Badge color="yellow" leftSection={<IconAlertCircle size={12} />}>Atenção</Badge>;
+        return <Badge color="yellow" leftSection={<IconAlertCircle size={12} />}>Requer Atenção</Badge>;
       case 'OutOfDate':
-        return <Badge color="orange" leftSection={<IconAlertCircle size={12} />}>Atrasado</Badge>;
+        return <Badge color="orange" leftSection={<IconAlertCircle size={12} />}>Atenção</Badge>;
       case 'Danger':
-        return <Badge color="red" leftSection={<IconAlertCircle size={12} />}>Perigo</Badge>;
+        return <Badge color="red" leftSection={<IconAlertCircle size={12} />}>Muito Importante</Badge>;
       default:
         return <Badge color="gray">{status}</Badge>;
     }
@@ -141,7 +141,7 @@ const MatriculaHealthPage: React.FC = () => {
 
           <Paper p="md" className="stat-card">
             <Group justify="space-between" mb="xs">
-              <Text size="xs" c="dimmed" fw={700} tt="uppercase">Atenção (&gt;24h)</Text>
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">Requer Atenção (&gt;36h)</Text>
               <IconAlertTriangle size={20} color="#fab005" />
             </Group>
             <Text size="xl" fw={700} c="yellow.8">{stats.warning}</Text>
@@ -150,7 +150,7 @@ const MatriculaHealthPage: React.FC = () => {
 
           <Paper p="md" className="stat-card">
             <Group justify="space-between" mb="xs">
-              <Text size="xs" c="dimmed" fw={700} tt="uppercase">Perigo (&gt;72h)</Text>
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">Muito Importante (&gt;72h)</Text>
               <IconCircleX size={20} color="#fa5252" />
             </Group>
             <Text size="xl" fw={700} c="red.8">{stats.outOfDate + stats.danger}</Text>

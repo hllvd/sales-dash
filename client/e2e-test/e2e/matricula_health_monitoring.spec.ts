@@ -59,9 +59,9 @@ test.describe('Matricula Health Monitoring', () => {
         throw new Error(`Could not parse update date from cell text: "${cellText}"`);
       }
 
-      // Verify status badge is "Healthy" (Atualizado)
+      // Verify status badge is "Healthy" (Normal)
       const statusCell = row.locator('td').nth(3);
-      await expect(statusCell).toContainText('Atualizado');
+      await expect(statusCell).toContainText('Normal');
     }
 
     // 4. Verify Matricula 9999 has 19 contracts and is healthy
