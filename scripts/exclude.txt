@@ -1,0 +1,25 @@
+# scripts/exclude.txt
+# =============================================================================
+# User-maintained exclusions for test.sh log summarization.
+#
+# Each non-empty, non-comment line is treated as an extended regex (ERE)
+# and piped through `grep -Ev` AFTER the main FILTER pass.
+#
+# Use this file to suppress known false-positive lines that match the FILTER
+# but are not real errors (e.g. test descriptions, informational output).
+#
+# Format:
+#   - Lines starting with # are comments and are ignored.
+#   - Empty lines are ignored.
+#   - Each pattern is an ERE matched case-sensitively against the full line.
+#
+# Examples:
+#   >>> Step.*OK          # suppress test step OK lines containing "error" words
+#   Error: test expectation  # suppress a specific known benign message
+# =============================================================================
+
+# Add your patterns below:
+
+# dotnet test success summary: "Passed!  - Failed:     0, Passed: ..."
+# The word "Failed:" triggers FILTER but this line only appears when all tests pass.
+^Passed!

@@ -1,6 +1,0 @@
-node_modules/
-*.csv
-!example-input.csv
-.DS_Store
-npm-debug.log
-.env
