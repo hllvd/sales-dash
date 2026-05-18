@@ -84,7 +84,7 @@ build() {
   print_header "BUILD"
 
   local EXIT_CODE=0
-  docker compose up --build -d \
+  docker-compose up --build -d \
     > artifacts/full-build.log 2>&1 || EXIT_CODE=$?
 
   summarize_log \
