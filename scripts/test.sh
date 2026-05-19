@@ -14,6 +14,24 @@ SCRIPT_DIR="$( cd -P "$( dirname "$TARGET" )" && pwd )"
 # Ensure the script is run from the project root directory
 cd "$SCRIPT_DIR/.."
 
+# Check if macOS is sandboxing this execution context (Operation not permitted)
+if ls /var/run/docker.sock 2>&1 | grep -q "Operation not permitted" || \
+   ls ~/.docker/config.json 2>&1 | grep -q "Operation not permitted"; then
+  echo ""
+  echo "⚠️  SANDBOX LIMITATION DETECTED ⚠️"
+  echo "========================================================================="
+  echo "macOS is blocking this agent/IDE from accessing your Docker socket."
+  echo "This is because the app running Antigravity is sandboxed by macOS."
+  echo ""
+  echo "To run these tests, please run this command directly in your macOS"
+  echo "Terminal or iTerm app (where Docker has permission):"
+  echo ""
+  echo "  cd $(pwd) && ./test.sh $1"
+  echo "========================================================================="
+  echo ""
+  exit 1
+fi
+
 mkdir -p artifacts
 
 FILTER='[Ff]ail(ed)?|[Ee]xception|[Pp]anic|[Ff]atal|[Ee]rror:?|Assert\.|FAILED|✗'
