@@ -44,6 +44,8 @@ namespace SalesApp.Data
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.InternalId).ValueGeneratedNever();
+                entity.HasAlternateKey(e => e.InternalId);
                 entity.HasIndex(e => e.Email).IsUnique();
                 entity.Property(e => e.Email).IsRequired();
                 entity.Property(e => e.Name).IsRequired();
@@ -106,7 +108,8 @@ namespace SalesApp.Data
                 
                 entity.HasOne(e => e.User)
                     .WithMany()
-                    .HasForeignKey(e => e.UserId)
+                    .HasForeignKey(e => e.UserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Restrict);
                     
                 entity.HasOne(e => e.Group)
@@ -401,10 +404,93 @@ namespace SalesApp.Data
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            await SyncUserInternalIdsAsync(cancellationToken);
+            await SyncContractUserIdsAsync(cancellationToken);
             var auditEntries = OnBeforeSaveChanges();
             var result = await base.SaveChangesAsync(cancellationToken);
             await OnAfterSaveChanges(auditEntries);
             return result;
+        }
+
+        private async Task SyncUserInternalIdsAsync(CancellationToken cancellationToken)
+        {
+            var newUserEntries = ChangeTracker.Entries<User>()
+                .Where(e => e.State == EntityState.Added || e.Entity.InternalId <= 0)
+                .ToList();
+
+            if (!newUserEntries.Any())
+                return;
+
+            var currentMax = await Users.AnyAsync(cancellationToken)
+                ? await Users.MaxAsync(u => u.InternalId, cancellationToken)
+                : 0;
+
+            if (currentMax < 0)
+            {
+                currentMax = 0;
+            }
+
+            var trackedUsers = ChangeTracker.Entries<User>()
+                .Where(e => e.State == EntityState.Added && e.Entity.InternalId > 0)
+                .Select(e => e.Entity.InternalId)
+                .ToList();
+
+            if (trackedUsers.Any())
+            {
+                currentMax = Math.Max(currentMax, trackedUsers.Max());
+            }
+
+            foreach (var entry in newUserEntries)
+            {
+                var user = entry.Entity;
+                if (user.InternalId <= 0)
+                {
+                    currentMax++;
+                    user.InternalId = currentMax;
+                }
+            }
+        }
+
+        private async Task SyncContractUserIdsAsync(CancellationToken cancellationToken)
+        {
+            var contractEntries = ChangeTracker.Entries<Contract>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+
+            if (!contractEntries.Any())
+                return;
+
+            foreach (var entry in contractEntries)
+            {
+                var contract = entry.Entity;
+
+                if (!contract.UserId.HasValue)
+                {
+                    contract.UserInternalId = null;
+                }
+                else if (contract.UserId.HasValue && (contract.UserInternalId == null || contract.UserInternalId <= 0))
+                {
+                    var trackedUser = ChangeTracker.Entries<User>()
+                        .FirstOrDefault(u => u.Entity.Id == contract.UserId.Value)?.Entity;
+
+                    if (trackedUser != null)
+                    {
+                        contract.UserInternalId = trackedUser.InternalId;
+                    }
+                    else
+                    {
+                        var internalId = await Users
+                            .Where(u => u.Id == contract.UserId.Value)
+                            .Select(u => u.InternalId)
+                            .FirstOrDefaultAsync(cancellationToken);
+
+                        if (internalId > 0)
+                        {
+                            contract.UserInternalId = internalId;
+                        }
+                    }
+                }
+            }
         }
 
         private List<AuditEntry> OnBeforeSaveChanges()

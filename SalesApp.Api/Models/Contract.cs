@@ -13,6 +13,8 @@ namespace SalesApp.Models
         
         public Guid? UserId { get; set; }
         
+        public int? UserInternalId { get; set; }
+        
         [Required]
         public decimal TotalAmount { get; set; }
         

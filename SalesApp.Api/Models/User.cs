@@ -7,6 +7,9 @@ namespace SalesApp.Models
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         
+        private static int _tempIdCounter = 0;
+        public int InternalId { get; set; } = System.Threading.Interlocked.Decrement(ref _tempIdCounter);
+        
         [Required]
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
