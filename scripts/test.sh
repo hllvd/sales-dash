@@ -14,34 +14,22 @@ SCRIPT_DIR="$( cd -P "$( dirname "$TARGET" )" && pwd )"
 # Ensure the script is run from the project root directory
 cd "$SCRIPT_DIR/.."
 
-# Check if macOS is sandboxing the unix docker socket (Operation not permitted).
-# If so, automatically fall back to the TCP socket (localhost:2375).
-# To enable TCP: Docker Desktop → Settings → General →
-#   ☑ "Expose daemon on tcp://localhost:2375 without TLS"
+# Check if macOS is sandboxing this execution context (Operation not permitted)
 if ls /var/run/docker.sock 2>&1 | grep -q "Operation not permitted" || \
    ls ~/.docker/config.json 2>&1 | grep -q "Operation not permitted"; then
-
-  # Try TCP fallback first — no TCC restriction applies to localhost TCP
-  if curl -s --max-time 2 http://localhost:2375/info > /dev/null 2>&1; then
-    export DOCKER_HOST="tcp://localhost:2375"
-    echo "ℹ️  Sandbox detected — using Docker TCP socket (localhost:2375)"
-  else
-    echo ""
-    echo "⚠️  SANDBOX LIMITATION DETECTED ⚠️"
-    echo "========================================================================="
-    echo "macOS is blocking access to the Docker socket and no TCP fallback found."
-    echo ""
-    echo "Option A (permanent fix, one checkbox):"
-    echo "  Docker Desktop → Settings → General →"
-    echo "  ☑ Expose daemon on tcp://localhost:2375 without TLS"
-    echo "  Then re-run: ./test.sh $1"
-    echo ""
-    echo "Option B (run directly in your host terminal):"
-    echo "  cd $(pwd) && ./test.sh $1"
-    echo "========================================================================="
-    echo ""
-    exit 1
-  fi
+  echo ""
+  echo "⚠️  SANDBOX LIMITATION DETECTED ⚠️"
+  echo "========================================================================="
+  echo "macOS is blocking this agent/IDE from accessing your Docker socket."
+  echo "This is because the app running Antigravity is sandboxed by macOS."
+  echo ""
+  echo "To run these tests, please run this command directly in your macOS"
+  echo "Terminal or iTerm app (where Docker has permission):"
+  echo ""
+  echo "  cd $(pwd) && ./test.sh $1"
+  echo "========================================================================="
+  echo ""
+  exit 1
 fi
 
 mkdir -p artifacts
