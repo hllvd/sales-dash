@@ -193,6 +193,7 @@ namespace SalesApp.Data
                 entity.Property(e => e.FileName).IsRequired();
                 entity.Property(e => e.FileType).IsRequired();
                 entity.Property(e => e.Status).HasDefaultValue("preview");
+                entity.Ignore(e => e.UploadedByUserId);
                 
                 entity.HasOne(e => e.Template)
                     .WithMany()
@@ -201,7 +202,8 @@ namespace SalesApp.Data
                     
                 entity.HasOne(e => e.UploadedBy)
                     .WithMany()
-                    .HasForeignKey(e => e.UploadedByUserId)
+                    .HasForeignKey(e => e.UploadedByUserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -258,9 +260,10 @@ namespace SalesApp.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).ValueGeneratedOnAdd();
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
+                entity.Ignore(e => e.UserId);
                 
                 // Uniqueness: A user can only be linked to the same matricula once
-                entity.HasIndex(e => new { e.UserId, e.MatriculaId }).IsUnique();
+                entity.HasIndex(e => new { e.UserInternalId, e.MatriculaId }).IsUnique();
                 
                 // Ownership Constraint: A matricula can have only one owner
                 entity.HasIndex(e => e.MatriculaId)
@@ -269,7 +272,8 @@ namespace SalesApp.Data
                 
                 entity.HasOne(e => e.User)
                     .WithMany(u => u.UserMatriculas)
-                    .HasForeignKey(e => e.UserId)
+                    .HasForeignKey(e => e.UserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.Matricula)
@@ -341,11 +345,12 @@ namespace SalesApp.Data
                 entity.Property(e => e.Action).IsRequired().HasMaxLength(20);
                 entity.Property(e => e.EntityName).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.EntityId).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.UserId).IsRequired();
+                entity.Ignore(e => e.UserId);
                 
                 entity.HasOne(e => e.User)
                     .WithMany()
-                    .HasForeignKey(e => e.UserId)
+                    .HasForeignKey(e => e.UserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -407,6 +412,7 @@ namespace SalesApp.Data
         {
             await SyncUserInternalIdsAsync(cancellationToken);
             await SyncContractUserIdsAsync(cancellationToken);
+            await SyncEntityUserInternalIdsAsync(cancellationToken);
             var auditEntries = OnBeforeSaveChanges();
             var result = await base.SaveChangesAsync(cancellationToken);
             await OnAfterSaveChanges(auditEntries);
@@ -505,6 +511,96 @@ namespace SalesApp.Data
             }
         }
 
+        private async Task SyncEntityUserInternalIdsAsync(CancellationToken cancellationToken)
+        {
+            // 1. Sync UserMatricula
+            var matriculaEntries = ChangeTracker.Entries<UserMatricula>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+            if (matriculaEntries.Any())
+            {
+                foreach (var entry in matriculaEntries)
+                {
+                    var entity = entry.Entity;
+                    var trackedUser = ChangeTracker.Entries<User>()
+                        .FirstOrDefault(u => u.Entity.Id == entity.UserId)?.Entity;
+                    if (trackedUser != null)
+                    {
+                        entity.UserInternalId = trackedUser.InternalId;
+                    }
+                    else
+                    {
+                        var internalId = await Users
+                            .Where(u => u.Id == entity.UserId)
+                            .Select(u => u.InternalId)
+                            .FirstOrDefaultAsync(cancellationToken);
+                        if (internalId > 0)
+                        {
+                            entity.UserInternalId = internalId;
+                        }
+                    }
+                }
+            }
+
+            // 2. Sync ImportSession
+            var sessionEntries = ChangeTracker.Entries<ImportSession>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+            if (sessionEntries.Any())
+            {
+                foreach (var entry in sessionEntries)
+                {
+                    var entity = entry.Entity;
+                    var trackedUser = ChangeTracker.Entries<User>()
+                        .FirstOrDefault(u => u.Entity.Id == entity.UploadedByUserId)?.Entity;
+                    if (trackedUser != null)
+                    {
+                        entity.UploadedByUserInternalId = trackedUser.InternalId;
+                    }
+                    else
+                    {
+                        var internalId = await Users
+                            .Where(u => u.Id == entity.UploadedByUserId)
+                            .Select(u => u.InternalId)
+                            .FirstOrDefaultAsync(cancellationToken);
+                        if (internalId > 0)
+                        {
+                            entity.UploadedByUserInternalId = internalId;
+                        }
+                    }
+                }
+            }
+
+            // 3. Sync AuditLog
+            var auditEntries = ChangeTracker.Entries<AuditLog>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+            if (auditEntries.Any())
+            {
+                foreach (var entry in auditEntries)
+                {
+                    var entity = entry.Entity;
+                    var trackedUser = ChangeTracker.Entries<User>()
+                        .FirstOrDefault(u => u.Entity.Id == entity.UserId)?.Entity;
+                    if (trackedUser != null)
+                    {
+                        entity.UserInternalId = trackedUser.InternalId;
+                    }
+                    else
+                    {
+                        var internalId = await Users
+                            .Where(u => u.Id == entity.UserId)
+                            .Select(u => u.InternalId)
+                            .FirstOrDefaultAsync(cancellationToken);
+                        if (internalId > 0)
+                        {
+                            entity.UserInternalId = internalId;
+                        }
+                    }
+                }
+            }
+        }
+
         private List<AuditEntry> OnBeforeSaveChanges()
         {
             ChangeTracker.DetectChanges();
@@ -524,6 +620,10 @@ namespace SalesApp.Data
                 return auditEntries;
             }
 
+            // Resolve the current user's internal ID synchronously
+            var userInternalId = Users.Local.FirstOrDefault(u => u.Id == userId)?.InternalId 
+                ?? Users.Where(u => u.Id == userId).Select(u => u.InternalId).FirstOrDefault();
+
             foreach (var entry in ChangeTracker.Entries())
             {
                 if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
@@ -540,6 +640,7 @@ namespace SalesApp.Data
                 {
                     EntityName = entityName,
                     UserId = userId,
+                    UserInternalId = userInternalId,
                 };
                 auditEntries.Add(auditEntry);
 
@@ -620,6 +721,7 @@ namespace SalesApp.Data
             public AuditEntry(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry) { Entry = entry; }
             public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry Entry { get; }
             public Guid UserId { get; set; }
+            public int UserInternalId { get; set; }
             public string EntityName { get; set; } = string.Empty;
             public string AuditType { get; set; } = string.Empty;
             public Dictionary<string, object> KeyValues { get; } = new();
@@ -633,6 +735,7 @@ namespace SalesApp.Data
                 var audit = new AuditLog
                 {
                     UserId = UserId,
+                    UserInternalId = UserInternalId,
                     Action = AuditType,
                     EntityName = EntityName,
                     Timestamp = DateTime.UtcNow,

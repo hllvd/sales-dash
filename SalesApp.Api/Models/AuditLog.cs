@@ -6,8 +6,16 @@ namespace SalesApp.Models
     {
         public int Id { get; set; }
 
+        private Guid _userId;
         [Required]
-        public Guid UserId { get; set; } // Who made the change
+        public Guid UserId
+        {
+            get => User?.Id ?? _userId;
+            set => _userId = value;
+        }
+
+        [Required]
+        public int UserInternalId { get; set; } // Who made the change (internal surrogate key)
 
         [Required]
         [MaxLength(20)]

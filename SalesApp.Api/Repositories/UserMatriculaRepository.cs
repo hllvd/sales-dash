@@ -36,7 +36,7 @@ namespace SalesApp.Repositories
             return await _context.UserMatriculas
                 .AsNoTracking()
                 .Include(m => m.Matricula)
-                .Where(m => m.UserId == userId)
+                .Where(m => m.User.Id == userId)
                 .OrderByDescending(m => m.CreatedAt)
                 .ToListAsync();
         }
@@ -47,7 +47,7 @@ namespace SalesApp.Repositories
             return await _context.UserMatriculas
                 .AsNoTracking()
                 .Include(m => m.Matricula)
-                .Where(m => m.UserId == userId && 
+                .Where(m => m.User.Id == userId && 
                            m.IsActive && 
                            (m.EndDate == null || m.EndDate > now))
                 .OrderByDescending(m => m.CreatedAt)
@@ -79,7 +79,7 @@ namespace SalesApp.Repositories
         {
             // Check if user already has this matricula
             var existing = await _context.UserMatriculas
-                .AnyAsync(m => m.UserId == matricula.UserId && m.MatriculaId == matricula.MatriculaId);
+                .AnyAsync(m => m.User.Id == matricula.UserId && m.MatriculaId == matricula.MatriculaId);
             
             if (existing)
             {
@@ -94,7 +94,7 @@ namespace SalesApp.Repositories
             if (matricula.IsOwner)
             {
                 var existingOwners = await _context.UserMatriculas
-                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.UserId != matricula.UserId)
+                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.User.Id != matricula.UserId)
                     .ToListAsync();
                 
                 foreach (var owner in existingOwners)
@@ -116,7 +116,7 @@ namespace SalesApp.Repositories
         {
             // Check if user already has this matricula (excluding this record)
             var existing = await _context.UserMatriculas
-                .AnyAsync(m => m.UserId == matricula.UserId && m.MatriculaId == matricula.MatriculaId && m.Id != matricula.Id);
+                .AnyAsync(m => m.User.Id == matricula.UserId && m.MatriculaId == matricula.MatriculaId && m.Id != matricula.Id);
             
             if (existing)
             {
@@ -129,7 +129,7 @@ namespace SalesApp.Repositories
             if (matricula.IsOwner)
             {
                 var existingOwners = await _context.UserMatriculas
-                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.UserId != matricula.UserId)
+                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.User.Id != matricula.UserId)
                     .ToListAsync();
                 
                 foreach (var owner in existingOwners)
@@ -173,7 +173,7 @@ namespace SalesApp.Repositories
             var now = DateTime.UtcNow;
             return await _context.UserMatriculas
                 .AnyAsync(m => m.MatriculaId == matriculaId && 
-                              m.UserId == userId && 
+                              m.User.Id == userId && 
                               m.IsActive &&
                               (m.EndDate == null || m.EndDate > now));
         }
@@ -205,7 +205,7 @@ namespace SalesApp.Repositories
             return await _context.UserMatriculas
                 .Include(m => m.User)
                 .Include(m => m.Matricula)
-                .FirstOrDefaultAsync(m => m.Matricula.MatriculaNumber == matriculaNumber && m.UserId == userId);
+                .FirstOrDefaultAsync(m => m.Matricula.MatriculaNumber == matriculaNumber && m.User.Id == userId);
         }
     }
 }

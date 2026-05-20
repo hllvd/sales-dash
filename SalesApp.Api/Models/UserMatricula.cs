@@ -7,8 +7,16 @@ namespace SalesApp.Models
     {
         public int Id { get; set; }
         
+        private Guid _userId;
         [Required]
-        public Guid UserId { get; set; }
+        public Guid UserId
+        {
+            get => User?.Id ?? _userId;
+            set => _userId = value;
+        }
+        
+        [Required]
+        public int UserInternalId { get; set; }
         
         [Required]
         public int MatriculaId { get; set; }

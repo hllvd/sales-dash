@@ -20,8 +20,16 @@ namespace SalesApp.Models
         [MaxLength(10)]
         public string FileType { get; set; } = string.Empty; // "csv" or "xlsx"
         
+        private Guid _uploadedByUserId;
         [Required]
-        public Guid UploadedByUserId { get; set; }
+        public Guid UploadedByUserId
+        {
+            get => UploadedBy?.Id ?? _uploadedByUserId;
+            set => _uploadedByUserId = value;
+        }
+        
+        [Required]
+        public int UploadedByUserInternalId { get; set; }
         
         [Required]
         [MaxLength(20)]

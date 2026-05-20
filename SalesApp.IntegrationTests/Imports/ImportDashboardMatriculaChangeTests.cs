@@ -199,7 +199,7 @@ namespace SalesApp.IntegrationTests.Imports
 
                 // UserMatricula link to MatriculaB must now exist for the assigned user
                 var link = await ctx.UserMatriculas.FirstOrDefaultAsync(
-                    um => um.UserId == assignedUserId && um.MatriculaId == matBId);
+                    um => um.User.Id == assignedUserId && um.MatriculaId == matBId);
                 link.Should().NotBeNull(
                     because: "the existing user should be linked to the new matricula");
             }

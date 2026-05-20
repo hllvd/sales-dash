@@ -91,7 +91,7 @@ namespace SalesApp.Services
                 .AsNoTracking()
                 .Where(m => m.IsActive && 
                             (m.EndDate == null || m.EndDate > now) &&
-                            allowedUserIds.Contains(m.UserId))
+                            allowedUserIds.Contains(m.User.Id))
                 .Select(m => m.Matricula.MatriculaNumber)
                 .Distinct()
                 .ToListAsync();

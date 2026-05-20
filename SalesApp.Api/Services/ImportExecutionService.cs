@@ -1893,7 +1893,7 @@ namespace SalesApp.Services
 
                     // Check if user has any matriculas NOT from this session
                     var hasExternalMatriculas = await _context.UserMatriculas
-                        .AnyAsync(m => m.UserId == user.Id && m.ImportSessionId != importSessionId);
+                        .AnyAsync(m => m.User.Id == user.Id && m.ImportSessionId != importSessionId);
 
                     // Check if user has any child users (is a parent)
                     var hasChildUsers = await _context.Users

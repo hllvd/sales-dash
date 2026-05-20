@@ -41,7 +41,7 @@ namespace SalesApp.Repositories
             return await _context.ImportSessions
                 .Include(s => s.Template)
                 .Include(s => s.UploadedBy)
-                .Where(s => s.UploadedByUserId == userId)
+                .Where(s => s.UploadedBy.Id == userId)
                 .OrderByDescending(s => s.CreatedAt)
                 .ToListAsync();
         }

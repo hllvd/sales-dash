@@ -44,12 +44,12 @@ namespace SalesApp.Api.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("UserInternalId")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserInternalId");
 
                     b.ToTable("AuditLogs");
                 });
@@ -351,8 +351,8 @@ namespace SalesApp.Api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("UploadedByUserId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("UploadedByUserInternalId")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -361,7 +361,7 @@ namespace SalesApp.Api.Migrations
                     b.HasIndex("UploadId")
                         .IsUnique();
 
-                    b.HasIndex("UploadedByUserId");
+                    b.HasIndex("UploadedByUserInternalId");
 
                     b.ToTable("ImportSessions");
                 });
@@ -786,8 +786,8 @@ namespace SalesApp.Api.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("UserInternalId")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -797,7 +797,9 @@ namespace SalesApp.Api.Migrations
                         .IsUnique()
                         .HasFilter("[IsOwner] = 1");
 
-                    b.HasIndex("UserId", "MatriculaId")
+                    b.HasIndex("UserInternalId");
+
+                    b.HasIndex("UserInternalId", "MatriculaId")
                         .IsUnique();
 
                     b.ToTable("UserMatriculas");
@@ -807,7 +809,8 @@ namespace SalesApp.Api.Migrations
                 {
                     b.HasOne("SalesApp.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("UserInternalId")
+                        .HasPrincipalKey("InternalId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -916,7 +919,8 @@ namespace SalesApp.Api.Migrations
 
                     b.HasOne("SalesApp.Models.User", "UploadedBy")
                         .WithMany()
-                        .HasForeignKey("UploadedByUserId")
+                        .HasForeignKey("UploadedByUserInternalId")
+                        .HasPrincipalKey("InternalId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1056,7 +1060,8 @@ namespace SalesApp.Api.Migrations
 
                     b.HasOne("SalesApp.Models.User", "User")
                         .WithMany("UserMatriculas")
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("UserInternalId")
+                        .HasPrincipalKey("InternalId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
