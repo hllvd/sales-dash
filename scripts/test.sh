@@ -34,7 +34,7 @@ fi
 
 mkdir -p artifacts
 
-FILTER='[Ff]ail(ed)?|[Ee]xception|[Pp]anic|[Ff]atal|[Ee]rror:?|Assert\.|FAILED|✗'
+FILTER='[Ff]ail(ed)?|[Ee]xception|[Pp]anic|[Ff]atal|[Ee]rror:?|Assert\.|FAILED|✗|\[ERR\]|\[WRN\]|\[CRIT\]|Connection refused|\b50[023]\b'
 # Lines to always exclude even if they match FILTER (e.g. Playwright progress lines like [N/M] test name)
 # Both alternatives are anchored to ^ so real errors containing these strings mid-line are NOT suppressed.
 EXCLUDE='^\[[0-9]+/[0-9]+\]|^\[tear-'
@@ -108,8 +108,8 @@ build() {
   if [ "$EXIT_CODE" -eq 0 ]; then
     # Start a background process to stream and filter logs for errors/warnings during startup
     echo "Streaming logs for errors/warnings during startup..."
-    docker-compose logs -f \
-      | grep -Ei --line-buffered "error|fail|fatal|panic|exception|critical|warn|502|503" &
+    docker-compose logs --tail=0 -f \
+      | grep -Ei --line-buffered "error|fail|fatal|panic|exception|critical|502|503|connection refused|\[ERR\]|\[CRIT\]|DbCommand" &
     local LOG_PID=$!
 
     # Wait for a brief start period (15 seconds) to catch early crashes, warnings, or database migration logs
@@ -121,7 +121,7 @@ build() {
     # Scan the full container logs for critical errors
     docker-compose logs > artifacts/startup-docker.log 2>&1
     local CRITICAL_ERRORS
-    CRITICAL_ERRORS=$(grep -Ei "\[error\]|\[ERR\]|Exception|Failed executing DbCommand|502|500|Connection refused" artifacts/startup-docker.log || true)
+    CRITICAL_ERRORS=$(grep -Ei "\[error\]|\[ERR\]|\[CRIT\]|Exception|Failed executing DbCommand|502 Bad Gateway|503 Service Unavailable|Connection refused|panic|fatal" artifacts/startup-docker.log || true)
 
     if [ -n "$CRITICAL_ERRORS" ]; then
       echo ""
