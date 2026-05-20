@@ -393,6 +393,11 @@ SalesApp.DataMigrator/.DS_Store
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+
 
 # Data Protection keys
 keys/

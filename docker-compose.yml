@@ -26,6 +26,7 @@ services:
         max-file: "3"
     volumes:
       - scrape-data:/app/outputs
+      - ./data:/app/data
 
   pbi-scraper:
     build:
