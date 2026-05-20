@@ -105,6 +105,20 @@ build() {
   docker-compose up --build -d \
     > artifacts/full-build.log 2>&1 || EXIT_CODE=$?
 
+  if [ "$EXIT_CODE" -eq 0 ]; then
+    # Start a background process to stream and filter logs for errors/warnings during startup
+    echo "Streaming logs for errors/warnings during startup..."
+    docker-compose logs -f \
+      | grep -Ei --line-buffered "error|fail|fatal|panic|exception|critical|warn|502|503" &
+    local LOG_PID=$!
+
+    # Wait for a brief start period (15 seconds) to catch early crashes, warnings, or database migration logs
+    sleep 15
+
+    # Terminate the background log follower
+    kill $LOG_PID >/dev/null 2>&1 || true
+  fi
+
   summarize_log \
     artifacts/full-build.log \
     artifacts/build-errors.log
