@@ -117,11 +117,31 @@ build() {
 
     # Terminate the background log follower
     kill $LOG_PID >/dev/null 2>&1 || true
+
+    # Scan the full container logs for critical errors
+    docker-compose logs > artifacts/startup-docker.log 2>&1
+    local CRITICAL_ERRORS
+    CRITICAL_ERRORS=$(grep -Ei "\[error\]|\[ERR\]|Exception|Failed executing DbCommand|502|500|Connection refused" artifacts/startup-docker.log || true)
+
+    if [ -n "$CRITICAL_ERRORS" ]; then
+      echo ""
+      echo "❌ CRITICAL CONTAINER ERROR DETECTED DURING STARTUP!"
+      echo "========================================================================="
+      printf "%s\n" "$CRITICAL_ERRORS" | head -n 30
+      echo "========================================================================="
+      echo ""
+      EXIT_CODE=1
+    fi
   fi
 
   summarize_log \
     artifacts/full-build.log \
     artifacts/build-errors.log
+
+  if [ "$EXIT_CODE" -ne 0 ] && [ -n "$CRITICAL_ERRORS" ]; then
+    # Append the critical errors to build-errors.log to ensure the runner reports it
+    printf "%s\n" "$CRITICAL_ERRORS" >> artifacts/build-errors.log
+  fi
 
   return $EXIT_CODE
 }
