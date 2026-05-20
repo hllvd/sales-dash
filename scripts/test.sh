@@ -102,7 +102,7 @@ build() {
   print_header "BUILD"
 
   local EXIT_CODE=0
-  docker-compose up --build -d \
+  ASPNETCORE_ENVIRONMENT=E2E docker-compose up --build -d \
     > artifacts/full-build.log 2>&1 || EXIT_CODE=$?
 
   if [ "$EXIT_CODE" -eq 0 ]; then
@@ -169,12 +169,29 @@ e2e() {
   print_header "PLAYWRIGHT E2E"
 
   local EXIT_CODE=0
-  (cd client/e2e-test && npx playwright test) \
+  (cd client/e2e-test && environment=e2e npx playwright test) \
     > artifacts/full-e2e.log 2>&1 || EXIT_CODE=$?
 
   summarize_log \
     artifacts/full-e2e.log \
     artifacts/e2e-errors.log
+
+  if [ "$EXIT_CODE" -ne 0 ]; then
+    echo ""
+    echo "❌ E2E FAILURES — printing error summary:"
+    echo "========================================================================="
+    cat artifacts/e2e-errors.log
+    echo "========================================================================="
+
+    echo ""
+    echo "🐳 CONTAINER LOGS (last 100 lines, filtered for errors):"
+    echo "========================================================================="
+    docker-compose logs --tail=100 \
+      | grep -Ei "error|fail|fatal|panic|exception|\[ERR\]|\[CRIT\]|DbCommand|Connection refused|\b50[023]\b" \
+      | grep -Eiv "npm [wW]arn|domexception" \
+      || echo "(no matching container log lines)"
+    echo "========================================================================="
+  fi
 
   return $EXIT_CODE
 }
