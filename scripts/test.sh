@@ -117,6 +117,7 @@ build() {
 
     # Terminate the background log follower
     kill $LOG_PID >/dev/null 2>&1 || true
+    wait $LOG_PID >/dev/null 2>&1 || true
 
     # Scan the full container logs for critical errors
     docker-compose logs > artifacts/startup-docker.log 2>&1
