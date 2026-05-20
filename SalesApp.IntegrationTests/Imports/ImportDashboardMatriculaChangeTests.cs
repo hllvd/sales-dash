@@ -193,7 +193,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
                 // UserId must NOT change
-                var contract = await ctx.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
+                var contract = await ctx.Contracts.Include(c => c.User).FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
                 contract!.UserId.Should().Be(assignedUserId,
                     because: "UserId is never updated on matricula change");
 

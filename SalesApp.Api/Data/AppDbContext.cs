@@ -105,6 +105,7 @@ namespace SalesApp.Data
                 entity.Property(e => e.ContractNumber).IsRequired();
                 entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
+                entity.Ignore(e => e.UserId);
                 
                 entity.HasOne(e => e.User)
                     .WithMany()
@@ -468,7 +469,7 @@ namespace SalesApp.Data
                 {
                     contract.UserInternalId = null;
                 }
-                else if (contract.UserId.HasValue && (contract.UserInternalId == null || contract.UserInternalId <= 0))
+                else
                 {
                     var trackedUser = ChangeTracker.Entries<User>()
                         .FirstOrDefault(u => u.Entity.Id == contract.UserId.Value)?.Entity;
@@ -479,6 +480,17 @@ namespace SalesApp.Data
                     }
                     else
                     {
+                        var currentInternalId = contract.UserInternalId;
+                        if (currentInternalId.HasValue && currentInternalId.Value > 0)
+                        {
+                            var matches = await Users
+                                .AnyAsync(u => u.Id == contract.UserId.Value && u.InternalId == currentInternalId.Value, cancellationToken);
+                            if (matches)
+                            {
+                                continue;
+                            }
+                        }
+
                         var internalId = await Users
                             .Where(u => u.Id == contract.UserId.Value)
                             .Select(u => u.InternalId)

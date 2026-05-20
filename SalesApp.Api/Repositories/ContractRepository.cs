@@ -69,14 +69,14 @@ namespace SalesApp.Repositories
             {
                 // Sargable IN clauses for efficient filtering
                 query = query.Where(c => 
-                    (c.UserId != null && scope.AllowedUserIds.Contains(c.UserId.Value)) ||
+                    (c.User != null && scope.AllowedUserIds.Contains(c.User.Id)) ||
                     (!string.IsNullOrEmpty(c.TempMatricula) && scope.AllowedMatriculas.Contains(c.TempMatricula)) ||
                     (c.Matricula != null && scope.AllowedMatriculas.Contains(c.Matricula.MatriculaNumber))
                 );
             }
             
             if (userId.HasValue)
-                query = query.Where(c => c.UserId == userId.Value);
+                query = query.Where(c => c.User.Id == userId.Value);
                 
             if (!string.IsNullOrEmpty(userEmail))
             {
@@ -87,9 +87,9 @@ namespace SalesApp.Repositories
             if (showUnassigned.HasValue)
             {
                 if (showUnassigned.Value)
-                    query = query.Where(c => c.UserId == null);
+                    query = query.Where(c => c.UserInternalId == null);
                 else
-                    query = query.Where(c => c.UserId != null);
+                    query = query.Where(c => c.UserInternalId != null);
             }
                 
             if (groupId.HasValue)
@@ -125,7 +125,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .Where(c => c.UserId == userId && c.IsActive);
+                .Where(c => c.User.Id == userId && c.IsActive);
             
             if (startDate.HasValue)
                 query = query.Where(c => c.SaleStartDate >= startDate.Value);
@@ -217,14 +217,14 @@ namespace SalesApp.Repositories
                 .Where(c => c.IsActive);
             
             if (userId.HasValue)
-                query = query.Where(c => c.UserId == userId.Value);
+                query = query.Where(c => c.User.Id == userId.Value);
                 
             if (showUnassigned.HasValue)
             {
                 if (showUnassigned.Value)
-                    query = query.Where(c => c.UserId == null);
+                    query = query.Where(c => c.UserInternalId == null);
                 else
-                    query = query.Where(c => c.UserId != null);
+                    query = query.Where(c => c.UserInternalId != null);
             }
             
             if (startDate.HasValue)

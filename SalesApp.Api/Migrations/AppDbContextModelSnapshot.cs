@@ -121,9 +121,6 @@ namespace SalesApp.Api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("TEXT");
-
                     b.Property<int?>("UserInternalId")
                         .HasColumnType("INTEGER");
 
@@ -148,8 +145,6 @@ namespace SalesApp.Api.Migrations
                     b.HasIndex("PlanoVendaMetadataId");
 
                     b.HasIndex("PvId");
-
-                    b.HasIndex("UserId");
 
                     b.HasIndex("UserInternalId");
 
@@ -971,9 +966,9 @@ namespace SalesApp.Api.Migrations
 
                     b.HasOne("SalesApp.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("UserInternalId")
+                        .HasPrincipalKey("InternalId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Matricula");
 

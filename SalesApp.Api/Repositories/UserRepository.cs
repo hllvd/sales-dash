@@ -48,7 +48,7 @@ namespace SalesApp.Repositories
 
             if (!string.IsNullOrEmpty(contractNumber))
             {
-                query = query.Where(u => _context.Contracts.Any(c => c.UserId == u.Id && c.ContractNumber == contractNumber));
+                query = query.Where(u => _context.Contracts.Any(c => c.UserInternalId == u.InternalId && c.ContractNumber == contractNumber));
             }
             
             var totalCount = await query.CountAsync();

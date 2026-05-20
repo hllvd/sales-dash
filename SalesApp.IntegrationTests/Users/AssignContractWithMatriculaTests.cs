@@ -54,7 +54,7 @@ namespace SalesApp.IntegrationTests.Users
             // Verify in DB
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var dbContract = await context.Contracts.FindAsync(contract.Id);
+            var dbContract = await context.Contracts.Include(c => c.User).FirstOrDefaultAsync(c => c.Id == contract.Id);
             dbContract.Should().NotBeNull();
             dbContract!.UserId.Should().Be(userId);
         }

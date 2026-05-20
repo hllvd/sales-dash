@@ -1889,7 +1889,7 @@ namespace SalesApp.Services
                 {
                     // Check if user has any contracts NOT from this session
                     var hasExternalContracts = await _context.Contracts
-                        .AnyAsync(c => c.UserId == user.Id && c.ImportSessionId != importSessionId);
+                        .AnyAsync(c => c.User.Id == user.Id && c.ImportSessionId != importSessionId);
 
                     // Check if user has any matriculas NOT from this session
                     var hasExternalMatriculas = await _context.UserMatriculas
