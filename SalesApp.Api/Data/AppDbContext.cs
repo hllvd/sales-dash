@@ -169,6 +169,7 @@ namespace SalesApp.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Ignore(e => e.CreatedByUserId);
                 entity.HasIndex(e => e.Name).IsUnique();
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.EntityType).IsRequired();
@@ -179,7 +180,8 @@ namespace SalesApp.Data
                 
                 entity.HasOne(e => e.CreatedBy)
                     .WithMany()
-                    .HasForeignKey(e => e.CreatedByUserId)
+                    .HasForeignKey(e => e.CreatedByUserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
             
@@ -228,6 +230,7 @@ namespace SalesApp.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Ignore(e => e.CreatedByUserId);
                 entity.Property(e => e.MappingName).IsRequired();
                 entity.Property(e => e.FileType).IsRequired();
                 entity.Property(e => e.SourceColumn).IsRequired();
@@ -235,7 +238,8 @@ namespace SalesApp.Data
                 
                 entity.HasOne(e => e.CreatedBy)
                     .WithMany()
-                    .HasForeignKey(e => e.CreatedByUserId)
+                    .HasForeignKey(e => e.CreatedByUserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
             
@@ -692,6 +696,64 @@ namespace SalesApp.Data
                         if (internalId > 0)
                         {
                             entity.UserInternalId = internalId;
+                        }
+                    }
+                }
+            }
+
+            // 7. Sync ImportTemplate
+            var templateEntries = ChangeTracker.Entries<ImportTemplate>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+            if (templateEntries.Any())
+            {
+                foreach (var entry in templateEntries)
+                {
+                    var entity = entry.Entity;
+                    var trackedUser = ChangeTracker.Entries<User>()
+                        .FirstOrDefault(u => u.Entity.Id == entity.CreatedByUserId)?.Entity;
+                    if (trackedUser != null)
+                    {
+                        entity.CreatedByUserInternalId = trackedUser.InternalId;
+                    }
+                    else
+                    {
+                        var internalId = await Users
+                            .Where(u => u.Id == entity.CreatedByUserId)
+                            .Select(u => u.InternalId)
+                            .FirstOrDefaultAsync(cancellationToken);
+                        if (internalId > 0)
+                        {
+                            entity.CreatedByUserInternalId = internalId;
+                        }
+                    }
+                }
+            }
+
+            // 8. Sync ImportColumnMapping
+            var mappingEntries = ChangeTracker.Entries<ImportColumnMapping>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+            if (mappingEntries.Any())
+            {
+                foreach (var entry in mappingEntries)
+                {
+                    var entity = entry.Entity;
+                    var trackedUser = ChangeTracker.Entries<User>()
+                        .FirstOrDefault(u => u.Entity.Id == entity.CreatedByUserId)?.Entity;
+                    if (trackedUser != null)
+                    {
+                        entity.CreatedByUserInternalId = trackedUser.InternalId;
+                    }
+                    else
+                    {
+                        var internalId = await Users
+                            .Where(u => u.Id == entity.CreatedByUserId)
+                            .Select(u => u.InternalId)
+                            .FirstOrDefaultAsync(cancellationToken);
+                        if (internalId > 0)
+                        {
+                            entity.CreatedByUserInternalId = internalId;
                         }
                     }
                 }

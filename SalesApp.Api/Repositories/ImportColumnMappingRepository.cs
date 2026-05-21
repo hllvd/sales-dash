@@ -31,7 +31,7 @@ namespace SalesApp.Repositories
         {
             return await _context.ImportColumnMappings
                 .Include(m => m.CreatedBy)
-                .Where(m => m.CreatedByUserId == userId)
+                .Where(m => m.CreatedBy.Id == userId)
                 .OrderBy(m => m.MappingName)
                 .ToListAsync();
         }
