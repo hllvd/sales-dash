@@ -154,13 +154,32 @@ integration() {
   docker run --rm \
     -v "$(pwd):/src" \
     -w /src \
+    -e NUGET_PACKAGES=/src/.nuget/packages \
     mcr.microsoft.com/dotnet/sdk:9.0 \
     dotnet test SalesApp.IntegrationTests/SalesApp.IntegrationTests.csproj \
     > artifacts/full-integration.log 2>&1 || EXIT_CODE=$?
 
+  # Strip ANSI escape codes to get a clean text log for processing
+  local CLEAN_INTEGRATION="artifacts/clean-integration.log"
+  sed 's/\x1b\[[0-9;]*[A-Za-z]//g' artifacts/full-integration.log > "$CLEAN_INTEGRATION"
+
   summarize_log \
     artifacts/full-integration.log \
     artifacts/integration-errors.log
+
+  if [ "$EXIT_CODE" -ne 0 ]; then
+    echo ""
+    echo "❌ INTEGRATION TEST FAILURES — printing details:"
+    echo "========================================================================="
+    if grep -qi "Failed " "$CLEAN_INTEGRATION"; then
+      # Print from the first "Failed" line (case-insensitive) to the end of the file
+      sed -n '/[Ff]ailed /,$p' "$CLEAN_INTEGRATION"
+    else
+      # Otherwise print the whole log so the full build/restore/docker error is visible
+      cat "$CLEAN_INTEGRATION"
+    fi
+    echo "========================================================================="
+  fi
 
   return $EXIT_CODE
 }
@@ -169,8 +188,16 @@ e2e() {
   print_header "PLAYWRIGHT E2E"
 
   local EXIT_CODE=0
-  (cd client/e2e-test && environment=e2e npx playwright test) \
-    > artifacts/full-e2e.log 2>&1 || EXIT_CODE=$?
+  pushd client/e2e-test >/dev/null
+  set +e
+  environment=e2e PLAYWRIGHT_HTML_OPEN=never npx playwright test > ../../artifacts/full-e2e.log 2>&1
+  EXIT_CODE=$?
+  set -e
+  popd >/dev/null
+
+  # Strip ANSI escape codes to get a clean text log for processing
+  local CLEAN_E2E="artifacts/clean-e2e.log"
+  sed 's/\x1b\[[0-9;]*[A-Za-z]//g' artifacts/full-e2e.log > "$CLEAN_E2E"
 
   summarize_log \
     artifacts/full-e2e.log \
@@ -178,19 +205,20 @@ e2e() {
 
   if [ "$EXIT_CODE" -ne 0 ]; then
     echo ""
-    echo "❌ E2E FAILURES — printing error summary:"
+    echo "❌ E2E FAILURES DETECTED — printing full-e2e.log:"
     echo "========================================================================="
-    cat artifacts/e2e-errors.log
+    cat "$CLEAN_E2E"
     echo "========================================================================="
 
     echo ""
-    echo "🐳 CONTAINER LOGS (last 100 lines, filtered for errors):"
+    echo "🐳 CONTAINER LOGS (last 100 lines, filtered for errors/warnings/403s):"
     echo "========================================================================="
     docker-compose logs --tail=100 \
-      | grep -Ei "error|fail|fatal|panic|exception|\[ERR\]|\[CRIT\]|DbCommand|Connection refused|\b50[023]\b" \
+      | grep -Ei "error|fail|fatal|panic|exception|\[ERR\]|\[CRIT\]|DbCommand|Connection refused|\b(50[023]|40[13])\b" \
       | grep -Eiv "npm [wW]arn|domexception" \
       || echo "(no matching container log lines)"
     echo "========================================================================="
+    exit $EXIT_CODE
   fi
 
   return $EXIT_CODE

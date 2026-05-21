@@ -12,7 +12,6 @@ run_step() {
 }
 
 run_step "dotnet test"
-run_step "docker run --rm -v $(pwd):/app -w /app mcr.microsoft.com/dotnet/sdk:9.0 dotnet test
-"
+run_step "docker run --rm -v \$(pwd):/app -w /app -e NUGET_PACKAGES=/app/.nuget/packages mcr.microsoft.com/dotnet/sdk:9.0 dotnet test"
 run_step "docker-compose up --build -d"
 run_step "cd client/e2e && npx playwright test"

@@ -20,5 +20,6 @@ docker run --rm $DOCKER_NETWORK_FLAG $DOCKER_HOST_FLAG \
     -v "$(pwd)":/app \
     -w /app \
     -e DYNAMODB_URL=http://host.docker.internal:8000 \
+    -e NUGET_PACKAGES=/app/.nuget/packages \
     mcr.microsoft.com/dotnet/sdk:9.0 \
     dotnet test SalesApp.IntegrationTests/SalesApp.IntegrationTests.csproj --filter "ScrapeDynamoDbIntegrationTests"
