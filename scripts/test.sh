@@ -205,9 +205,9 @@ e2e() {
 
   if [ "$EXIT_CODE" -ne 0 ]; then
     echo ""
-    echo "❌ E2E FAILURES DETECTED — printing full-e2e.log:"
+    echo "❌ E2E FAILURES DETECTED — printing e2e-errors.log:"
     echo "========================================================================="
-    cat "$CLEAN_E2E"
+    cat artifacts/e2e-errors.log
     echo "========================================================================="
 
     echo ""
