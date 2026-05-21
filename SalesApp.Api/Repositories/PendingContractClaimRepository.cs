@@ -23,12 +23,15 @@ namespace SalesApp.Repositories
         public async Task<PendingContractClaim?> GetByContractNumberAsync(string contractNumber)
         {
             return await _context.PendingContractClaims
+                .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
         }
 
         public async Task<PendingContractClaim?> GetByIdAsync(int id)
         {
-            return await _context.PendingContractClaims.FindAsync(id);
+            return await _context.PendingContractClaims
+                .Include(c => c.User)
+                .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<List<PendingContractClaim>> GetUnresolvedByContractNumbersAsync(List<string> contractNumbers)
@@ -42,7 +45,7 @@ namespace SalesApp.Repositories
         {
             return await _context.PendingContractClaims
                 .Include(c => c.Matricula)
-                .Where(c => !c.IsResolved && c.UserId == userId)
+                .Where(c => !c.IsResolved && c.User.Id == userId)
                 .OrderByDescending(c => c.ClaimedAt)
                 .ToListAsync();
         }

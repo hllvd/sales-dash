@@ -8,9 +8,15 @@ namespace SalesApp.Models
         [Key]
         public int Id { get; set; }
 
-        public Guid? UserId { get; set; }
+        private Guid? _userId;
+        public Guid? UserId
+        {
+            get => User?.Id ?? _userId;
+            set => _userId = value;
+        }
 
-        [ForeignKey("UserId")]
+        public int? UserInternalId { get; set; }
+
         public virtual User? User { get; set; }
 
         [Required]

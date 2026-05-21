@@ -295,14 +295,16 @@ namespace SalesApp.Data
                 entity.Property(e => e.Token).IsRequired().HasMaxLength(500);
                 entity.Property(e => e.ExpiresAt).IsRequired();
                 entity.Property(e => e.IsRevoked).HasDefaultValue(false);
+                entity.Ignore(e => e.UserId);
                 
                 // Index for faster token lookups
                 entity.HasIndex(e => e.Token);
-                entity.HasIndex(e => new { e.UserId, e.IsRevoked });
+                entity.HasIndex(e => new { e.UserInternalId, e.IsRevoked });
                 
                 entity.HasOne(e => e.User)
                     .WithMany()
-                    .HasForeignKey(e => e.UserId)
+                    .HasForeignKey(e => e.UserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
             
@@ -358,7 +360,7 @@ namespace SalesApp.Data
             modelBuilder.Entity<ScrapeConfig>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.UserId).IsRequired();
+                entity.Ignore(e => e.UserId);
                 entity.Property(e => e.Store).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.Matricula).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.PowerBiPassword).HasMaxLength(500);
@@ -366,7 +368,8 @@ namespace SalesApp.Data
                 
                 entity.HasOne(e => e.User)
                     .WithMany(u => u.ScrapeConfigs)
-                    .HasForeignKey(e => e.UserId)
+                    .HasForeignKey(e => e.UserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
@@ -375,12 +378,14 @@ namespace SalesApp.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Ignore(e => e.UserId);
                 entity.HasIndex(e => new { e.ContractNumber }).IsUnique(); // Unique by contract number so only first user gets it
                 entity.HasIndex(e => e.IsResolved);
 
                 entity.HasOne(e => e.User)
                     .WithMany()
-                    .HasForeignKey(e => e.UserId)
+                    .HasForeignKey(e => e.UserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.Matricula)
@@ -578,6 +583,98 @@ namespace SalesApp.Data
             if (auditEntries.Any())
             {
                 foreach (var entry in auditEntries)
+                {
+                    var entity = entry.Entity;
+                    var trackedUser = ChangeTracker.Entries<User>()
+                        .FirstOrDefault(u => u.Entity.Id == entity.UserId)?.Entity;
+                    if (trackedUser != null)
+                    {
+                        entity.UserInternalId = trackedUser.InternalId;
+                    }
+                    else
+                    {
+                        var internalId = await Users
+                            .Where(u => u.Id == entity.UserId)
+                            .Select(u => u.InternalId)
+                            .FirstOrDefaultAsync(cancellationToken);
+                        if (internalId > 0)
+                        {
+                            entity.UserInternalId = internalId;
+                        }
+                    }
+                }
+            }
+
+            // 4. Sync PendingContractClaim
+            var claimEntries = ChangeTracker.Entries<PendingContractClaim>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+            if (claimEntries.Any())
+            {
+                foreach (var entry in claimEntries)
+                {
+                    var entity = entry.Entity;
+                    var trackedUser = ChangeTracker.Entries<User>()
+                        .FirstOrDefault(u => u.Entity.Id == entity.UserId)?.Entity;
+                    if (trackedUser != null)
+                    {
+                        entity.UserInternalId = trackedUser.InternalId;
+                    }
+                    else
+                    {
+                        var internalId = await Users
+                            .Where(u => u.Id == entity.UserId)
+                            .Select(u => u.InternalId)
+                            .FirstOrDefaultAsync(cancellationToken);
+                        if (internalId > 0)
+                        {
+                            entity.UserInternalId = internalId;
+                        }
+                    }
+                }
+            }
+
+            // 5. Sync ScrapeConfig
+            var scrapeEntries = ChangeTracker.Entries<ScrapeConfig>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+            if (scrapeEntries.Any())
+            {
+                foreach (var entry in scrapeEntries)
+                {
+                    var entity = entry.Entity;
+                    if (entity.UserId == null)
+                    {
+                        entity.UserInternalId = null;
+                        continue;
+                    }
+                    var trackedUser = ChangeTracker.Entries<User>()
+                        .FirstOrDefault(u => u.Entity.Id == entity.UserId)?.Entity;
+                    if (trackedUser != null)
+                    {
+                        entity.UserInternalId = trackedUser.InternalId;
+                    }
+                    else
+                    {
+                        var internalId = await Users
+                            .Where(u => u.Id == entity.UserId)
+                            .Select(u => u.InternalId)
+                            .FirstOrDefaultAsync(cancellationToken);
+                        if (internalId > 0)
+                        {
+                            entity.UserInternalId = internalId;
+                        }
+                    }
+                }
+            }
+
+            // 6. Sync RefreshToken
+            var tokenEntries = ChangeTracker.Entries<RefreshToken>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+            if (tokenEntries.Any())
+            {
+                foreach (var entry in tokenEntries)
                 {
                     var entity = entry.Entity;
                     var trackedUser = ChangeTracker.Entries<User>()

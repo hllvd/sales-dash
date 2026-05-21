@@ -229,6 +229,7 @@ namespace SalesApp.Services
                     Console.WriteLine($"[Import Phase 3 Debug] importedNumbers: {string.Join(", ", importedNumbers)}");
                     
                     var pendingClaims = await _context.PendingContractClaims
+                        .Include(c => c.User)
                         .Where(c => !c.IsResolved)
                         .ToListAsync(); // Fetch all and filter in memory to be 100% sure about trimming/case
                     
@@ -1316,6 +1317,7 @@ namespace SalesApp.Services
                     var importedNumbers = allContractsForReconciliation.Select(c => c.ContractNumber).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
                     
                     var pendingClaims = await _context.PendingContractClaims
+                        .Include(c => c.User)
                         .Where(c => !c.IsResolved)
                         .ToListAsync(); // Fetch all unresolved and filter in memory
                     

@@ -188,6 +188,7 @@ namespace SalesApp.Repositories
         public async Task SetOwnerAsync(int matriculaId, Guid newOwnerId)
         {
             var existingLinks = await _context.UserMatriculas
+                .Include(m => m.User)
                 .Where(m => m.MatriculaId == matriculaId)
                 .ToListAsync();
             

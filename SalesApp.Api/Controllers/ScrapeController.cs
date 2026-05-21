@@ -73,7 +73,9 @@ namespace SalesApp.Controllers
 
             if (request.Id.HasValue && request.Id > 0)
             {
-                config = await _context.ScrapeConfigs.FindAsync(request.Id.Value);
+                config = await _context.ScrapeConfigs
+                    .Include(c => c.User)
+                    .FirstOrDefaultAsync(c => c.Id == request.Id.Value);
                 if (config == null) return NotFound();
                 if (!User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
             }
@@ -120,7 +122,7 @@ namespace SalesApp.Controllers
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             var configs = await _context.ScrapeConfigs
-                .Where(c => c.UserId == userId)
+                .Where(c => c.User.Id == userId)
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
             
@@ -132,7 +134,9 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> DeleteConfig(int id)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-            var config = await _context.ScrapeConfigs.FindAsync(id);
+            var config = await _context.ScrapeConfigs
+                .Include(c => c.User)
+                .FirstOrDefaultAsync(c => c.Id == id);
 
             if (config == null) return NotFound();
             if (!User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
@@ -150,7 +154,9 @@ namespace SalesApp.Controllers
             if (_isE2E) return Ok(new { success = true, message = "Autenticação ignorada em modo E2E" });
 
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-            var config = await _context.ScrapeConfigs.FindAsync(id);
+            var config = await _context.ScrapeConfigs
+                .Include(c => c.User)
+                .FirstOrDefaultAsync(c => c.Id == id);
 
             if (config == null) return NotFound();
             if (!User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
@@ -175,7 +181,9 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> TriggerScrape(int configId)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-            var config = await _context.ScrapeConfigs.FindAsync(configId);
+            var config = await _context.ScrapeConfigs
+                .Include(c => c.User)
+                .FirstOrDefaultAsync(c => c.Id == configId);
 
             if (config == null) return NotFound();
             if (!User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
