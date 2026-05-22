@@ -241,6 +241,25 @@ logs() {
   cat artifacts/*.log
 }
 
+docker_errors() {
+  local TAIL=${2:-200}
+  echo ""
+  echo "🐳 DOCKER ERRORS (last $TAIL lines, filtered):"
+  echo "========================================================================="
+  local CONTAINER_ERRORS
+  CONTAINER_ERRORS=$(docker-compose logs --tail="$TAIL" \
+    | grep -Ei "error|fail|fatal|panic|exception|\[ERR\]|\[CRIT\]|DbCommand|Connection refused|\b(50[023]|40[13])\b" \
+    | grep -Eiv "npm [wW]arn|domexception" || true)
+  if [ -n "$CONTAINER_ERRORS" ]; then
+    printf "%s\n" "$CONTAINER_ERRORS"
+  else
+    echo "(no matching error lines — showing last 50 unfiltered lines for context:)"
+    echo ""
+    docker-compose logs --tail=50
+  fi
+  echo "========================================================================="
+}
+
 clean() {
   rm -rf artifacts
   echo "✅ Artifacts cleaned"
@@ -265,6 +284,9 @@ case "$1" in
   clean)
     clean
     ;;
+  docker-errors)
+    docker_errors "$@"
+    ;;
   *)
     echo "Usage:"
     echo "./test.sh build"
@@ -273,6 +295,7 @@ case "$1" in
     echo "./test.sh all"
     echo "./test.sh logs"
     echo "./test.sh clean"
+    echo "./test.sh docker-errors [tail=200]"
     exit 1
     ;;
 esac
