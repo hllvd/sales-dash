@@ -129,3 +129,21 @@ CREATE INDEX "IX_MyTable_MySurrogateKeyId" ON "MyTable" ("MySurrogateKeyId");
 PRAGMA foreign_keys = ON;
 ```
 
+> [!IMPORTANT]
+> **SQLite Transaction Suppression Gotcha:**
+> By default, EF Core wraps every migration's commands in a single global transaction. 
+> In SQLite, **`PRAGMA foreign_keys` cannot be modified while a transaction is active** (it is silently treated as a NO-OP). 
+> 
+> If your database has existing data, trying to `DROP TABLE` will fail with a `FOREIGN KEY constraint failed` exception because foreign keys remain active under the hood!
+> 
+> **The Solution:**
+> You must pass `suppressTransaction: true` as the second argument to **every single** `migrationBuilder.Sql` call inside the table-rebuild migration:
+> ```csharp
+> migrationBuilder.Sql("PRAGMA foreign_keys = OFF;", suppressTransaction: true);
+> migrationBuilder.Sql("CREATE TABLE ...", suppressTransaction: true);
+> migrationBuilder.Sql("INSERT INTO ...", suppressTransaction: true);
+> migrationBuilder.Sql("DROP TABLE ...", suppressTransaction: true);
+> migrationBuilder.Sql("ALTER TABLE ... RENAME TO ...", suppressTransaction: true);
+> migrationBuilder.Sql("PRAGMA foreign_keys = ON;", suppressTransaction: true);
+> ```
+

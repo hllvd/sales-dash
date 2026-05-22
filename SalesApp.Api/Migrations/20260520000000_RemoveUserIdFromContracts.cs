@@ -12,7 +12,7 @@ namespace SalesApp.Api.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             // We use PRAGMA foreign_keys = OFF to allow rebuilding the table
-            migrationBuilder.Sql("PRAGMA foreign_keys = OFF;");
+            migrationBuilder.Sql("PRAGMA foreign_keys = OFF;", suppressTransaction: true);
 
             // 1. Create a temporary table with the new schema (without the UserId column and its foreign key)
             migrationBuilder.Sql(@"
@@ -45,7 +45,7 @@ CREATE TABLE ""Contracts_dg_tmp"" (
     CONSTRAINT ""FK_Contracts_ImportSessions_ImportSessionId"" FOREIGN KEY (""ImportSessionId"") REFERENCES ""ImportSessions"" (""Id"") ON DELETE RESTRICT,
     CONSTRAINT ""FK_Contracts_Matriculas_MatriculaId"" FOREIGN KEY (""MatriculaId"") REFERENCES ""Matriculas"" (""Id"") ON DELETE RESTRICT,
     CONSTRAINT ""FK_Contracts_PVs_PvId"" FOREIGN KEY (""PvId"") REFERENCES ""PVs"" (""Id"") ON DELETE RESTRICT
-);");
+);", suppressTransaction: true);
 
             // 2. Copy the existing data to the temporary table (UserId is dropped here)
             migrationBuilder.Sql(@"
@@ -60,33 +60,33 @@ SELECT
     ""CreatedAt"", ""CustomerName"", ""GroupId"", ""ImportSessionId"", ""IsActive"", 
     ""MatriculaId"", ""PlanoVendaMetadataId"", ""PvId"", ""Quota"", ""SaleStartDate"", 
     ""TempMatricula"", ""TotalAmount"", ""UpdatedAt"", ""UploadId"", ""Version"", ""UserInternalId""
-FROM ""Contracts"";");
+FROM ""Contracts"";", suppressTransaction: true);
 
             // 3. Drop the old table
-            migrationBuilder.Sql("DROP TABLE \"Contracts\";");
+            migrationBuilder.Sql("DROP TABLE \"Contracts\";", suppressTransaction: true);
 
             // 4. Rename the temporary table to the original table name
-            migrationBuilder.Sql("ALTER TABLE \"Contracts_dg_tmp\" RENAME TO \"Contracts\";");
+            migrationBuilder.Sql("ALTER TABLE \"Contracts_dg_tmp\" RENAME TO \"Contracts\";", suppressTransaction: true);
 
             // 5. Recreate the standard indexes on the new table
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_CategoryMetadataId\" ON \"Contracts\" (\"CategoryMetadataId\");");
-            migrationBuilder.Sql("CREATE UNIQUE INDEX \"IX_Contracts_ContractNumber\" ON \"Contracts\" (\"ContractNumber\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_ContractStatusId\" ON \"Contracts\" (\"ContractStatusId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_GroupId\" ON \"Contracts\" (\"GroupId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_ImportSessionId\" ON \"Contracts\" (\"ImportSessionId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_MatriculaId\" ON \"Contracts\" (\"MatriculaId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_PlanoVendaMetadataId\" ON \"Contracts\" (\"PlanoVendaMetadataId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_PvId\" ON \"Contracts\" (\"PvId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_UserInternalId\" ON \"Contracts\" (\"UserInternalId\");");
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_CategoryMetadataId\" ON \"Contracts\" (\"CategoryMetadataId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE UNIQUE INDEX \"IX_Contracts_ContractNumber\" ON \"Contracts\" (\"ContractNumber\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_ContractStatusId\" ON \"Contracts\" (\"ContractStatusId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_GroupId\" ON \"Contracts\" (\"GroupId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_ImportSessionId\" ON \"Contracts\" (\"ImportSessionId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_MatriculaId\" ON \"Contracts\" (\"MatriculaId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_PlanoVendaMetadataId\" ON \"Contracts\" (\"PlanoVendaMetadataId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_PvId\" ON \"Contracts\" (\"PvId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_UserInternalId\" ON \"Contracts\" (\"UserInternalId\");", suppressTransaction: true);
 
             // Turn foreign key constraints back ON
-            migrationBuilder.Sql("PRAGMA foreign_keys = ON;");
+            migrationBuilder.Sql("PRAGMA foreign_keys = ON;", suppressTransaction: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("PRAGMA foreign_keys = OFF;");
+            migrationBuilder.Sql("PRAGMA foreign_keys = OFF;", suppressTransaction: true);
 
             // 1. Create a temporary table with the old schema (re-adding the UserId column and its foreign key)
             migrationBuilder.Sql(@"
@@ -121,7 +121,7 @@ CREATE TABLE ""Contracts_dg_tmp"" (
     CONSTRAINT ""FK_Contracts_Matriculas_MatriculaId"" FOREIGN KEY (""MatriculaId"") REFERENCES ""Matriculas"" (""Id"") ON DELETE RESTRICT,
     CONSTRAINT ""FK_Contracts_PVs_PvId"" FOREIGN KEY (""PvId"") REFERENCES ""PVs"" (""Id"") ON DELETE RESTRICT,
     CONSTRAINT ""FK_Contracts_Users_UserId"" FOREIGN KEY (""UserId"") REFERENCES ""Users"" (""Id"") ON DELETE RESTRICT
-);");
+);", suppressTransaction: true);
 
             // 2. Copy the existing data to the temporary table (UserId is set to NULL because we don't have it anymore)
             migrationBuilder.Sql(@"
@@ -136,27 +136,27 @@ SELECT
     ""CreatedAt"", ""CustomerName"", ""GroupId"", ""ImportSessionId"", ""IsActive"", 
     ""MatriculaId"", ""PlanoVendaMetadataId"", ""PvId"", ""Quota"", ""SaleStartDate"", 
     ""TempMatricula"", ""TotalAmount"", ""UpdatedAt"", ""UploadId"", NULL, ""Version"", ""UserInternalId""
-FROM ""Contracts"";");
+FROM ""Contracts"";", suppressTransaction: true);
 
             // 3. Drop the new table
-            migrationBuilder.Sql("DROP TABLE \"Contracts\";");
+            migrationBuilder.Sql("DROP TABLE \"Contracts\";", suppressTransaction: true);
 
             // 4. Rename the temporary table to the original table name
-            migrationBuilder.Sql("ALTER TABLE \"Contracts_dg_tmp\" RENAME TO \"Contracts\";");
+            migrationBuilder.Sql("ALTER TABLE \"Contracts_dg_tmp\" RENAME TO \"Contracts\";", suppressTransaction: true);
 
             // 5. Recreate all indexes including the UserId index
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_CategoryMetadataId\" ON \"Contracts\" (\"CategoryMetadataId\");");
-            migrationBuilder.Sql("CREATE UNIQUE INDEX \"IX_Contracts_ContractNumber\" ON \"Contracts\" (\"ContractNumber\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_ContractStatusId\" ON \"Contracts\" (\"ContractStatusId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_GroupId\" ON \"Contracts\" (\"GroupId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_ImportSessionId\" ON \"Contracts\" (\"ImportSessionId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_MatriculaId\" ON \"Contracts\" (\"MatriculaId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_PlanoVendaMetadataId\" ON \"Contracts\" (\"PlanoVendaMetadataId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_PvId\" ON \"Contracts\" (\"PvId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_UserId\" ON \"Contracts\" (\"UserId\");");
-            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_UserInternalId\" ON \"Contracts\" (\"UserInternalId\");");
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_CategoryMetadataId\" ON \"Contracts\" (\"CategoryMetadataId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE UNIQUE INDEX \"IX_Contracts_ContractNumber\" ON \"Contracts\" (\"ContractNumber\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_ContractStatusId\" ON \"Contracts\" (\"ContractStatusId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_GroupId\" ON \"Contracts\" (\"GroupId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_ImportSessionId\" ON \"Contracts\" (\"ImportSessionId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_MatriculaId\" ON \"Contracts\" (\"MatriculaId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_PlanoVendaMetadataId\" ON \"Contracts\" (\"PlanoVendaMetadataId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_PvId\" ON \"Contracts\" (\"PvId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_UserId\" ON \"Contracts\" (\"UserId\");", suppressTransaction: true);
+            migrationBuilder.Sql("CREATE INDEX \"IX_Contracts_UserInternalId\" ON \"Contracts\" (\"UserInternalId\");", suppressTransaction: true);
 
-            migrationBuilder.Sql("PRAGMA foreign_keys = ON;");
+            migrationBuilder.Sql("PRAGMA foreign_keys = ON;", suppressTransaction: true);
         }
     }
 }
