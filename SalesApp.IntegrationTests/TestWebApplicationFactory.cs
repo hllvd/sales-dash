@@ -275,7 +275,7 @@ namespace SalesApp.IntegrationTests
                         OptionalFields = "[\"Surname\",\"Role\",\"ParentEmail\",\"SendEmail\",\"IsMatriculaOwner\",\"Password\"]", 
                         DefaultMappings = "{}", 
                         IsActive = true, 
-                        CreatedByUserId = admin.Id 
+                        CreatedByUserInternalId = admin.InternalId 
                     },
                     new SalesApp.Models.ImportTemplate 
                     { 
@@ -286,7 +286,7 @@ namespace SalesApp.IntegrationTests
                         OptionalFields = "[\"GroupId\",\"Status\",\"SaleStartDate\",\"SaleEndDate\",\"ContractType\",\"Quota\",\"PvId\",\"PvName\",\"CustomerName\",\"Version\"]", 
                         DefaultMappings = "{}", 
                         IsActive = true, 
-                        CreatedByUserId = admin.Id 
+                        CreatedByUserInternalId = admin.InternalId 
                     },
                     new SalesApp.Models.ImportTemplate 
                     { 
@@ -297,7 +297,7 @@ namespace SalesApp.IntegrationTests
                         OptionalFields = "[\"Status\",\"PvId\",\"PvName\",\"Version\",\"Category\",\"PlanoVenda\",\"UserEmail\"]", 
                         DefaultMappings = "{}", 
                         IsActive = true, 
-                        CreatedByUserId = admin.Id 
+                        CreatedByUserInternalId = admin.InternalId 
                     }
                 };
                 context.ImportTemplates.AddRange(templates);

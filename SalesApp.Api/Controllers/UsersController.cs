@@ -201,7 +201,7 @@ namespace SalesApp.Controllers
                     // Link user to matricula
                     var userMatricula = new UserMatricula
                     {
-                        UserId = user.Id,
+                        UserInternalId = user.InternalId,
                         MatriculaId = matriculaEntity.Id,
                         IsOwner = isOwner,
                         IsActive = true
@@ -271,7 +271,7 @@ namespace SalesApp.Controllers
             // Store refresh token in database
             var refreshTokenEntity = new RefreshToken
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 Token = refreshToken,
                 ExpiresAt = expiresAt,
                 CreatedAt = DateTime.UtcNow
@@ -677,6 +677,15 @@ namespace SalesApp.Controllers
         {
             request.MatriculaNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
             var currentUserId = GetCurrentUserId();
+            var currentUser = await _userRepository.GetByIdAsync(currentUserId);
+            if (currentUser == null)
+            {
+                return NotFound(new ApiResponse<UserMatriculaInfo>
+                {
+                    Success = false,
+                    Message = "User not found"
+                });
+            }
             
             // Check if user already has this matricula
             var existingMatricula = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, currentUserId);
@@ -705,7 +714,7 @@ namespace SalesApp.Controllers
             // Create new matricula request with pending status
             var userMatricula = new UserMatricula
             {
-                UserId = currentUserId,
+                UserInternalId = currentUser.InternalId,
                 MatriculaId = matriculaEntity.Id,
                 IsActive = false, // Not active until approved
                 IsOwner = false,
@@ -810,7 +819,7 @@ namespace SalesApp.Controllers
             if (userMatriculaId.HasValue)
             {
                 userMatricula = await _userMatriculaRepository.GetByIdAsync(userMatriculaId.Value);
-                if (userMatricula == null || userMatricula.UserId != currentUserId)
+                if (userMatricula == null || userMatricula.User?.Id != currentUserId)
                 {
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
@@ -875,7 +884,7 @@ namespace SalesApp.Controllers
                 });
             }
 
-            contract.UserId = currentUserId;
+            contract.UserInternalId = user.InternalId;
             contract.User = user;
             contract.TempMatricula = matriculaNumber;
             contract.MatriculaId = userMatricula?.MatriculaId;
@@ -888,7 +897,7 @@ namespace SalesApp.Controllers
                 {
                     Id = contract.Id,
                     ContractNumber = contract.ContractNumber,
-                    UserId = currentUserId,
+                    UserId = user.Id,
                     UserName = user.Name,
                     TotalAmount = contract.TotalAmount,
                     GroupId = contract.GroupId,

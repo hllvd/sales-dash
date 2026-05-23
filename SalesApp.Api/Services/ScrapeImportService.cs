@@ -61,7 +61,7 @@ namespace SalesApp.Services
                 UploadId = $"scrape-{DateTime.UtcNow:yyyyMMddHHmmss}",
                 FileName = Path.GetFileName(filePath),
                 FileType = "csv",
-                UploadedByUserId = userId,
+                UploadedByUserInternalId = user.InternalId,
                 Status = "Processing",
                 CreatedAt = DateTime.UtcNow
             };

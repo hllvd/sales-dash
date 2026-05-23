@@ -11,14 +11,6 @@ namespace SalesApp.Models
         [MaxLength(50)]
         public string ContractNumber { get; set; } = string.Empty;
 
-        private Guid _userId;
-        [Required]
-        public Guid UserId
-        {
-            get => User?.Id ?? _userId;
-            set => _userId = value;
-        }
-
         [Required]
         public int UserInternalId { get; set; }
 

@@ -96,17 +96,7 @@ namespace SalesApp.IntegrationTests.Contracts
             // Create a user, group and contract
             var user = new User { Id = Guid.NewGuid(), Name = "Contract Test User 2", Email = "contracttest2@test.com", RoleId = 1 };
             var group = new Group { Id = 102, Name = "Contract Test Group 2" };
-            var contract = new Contract
-            {
-                ContractNumber = "CTR-TEST-002",
-                UserId = user.Id,
-                GroupId = group.Id,
-                TotalAmount = 3000,
-                ContractType = 1, // Will be updated to "motores"
-                Quota = 5,
-                ContractStatusId = 1,
-                SaleStartDate = DateTime.UtcNow
-            };
+            Contract contract;
             
             using (var scope = _factory.Services.CreateScope())
             {
@@ -120,6 +110,20 @@ namespace SalesApp.IntegrationTests.Contracts
                 {
                     context.Groups.Add(group);
                 }
+                await context.SaveChangesAsync();
+
+                contract = new Contract
+                {
+                    ContractNumber = "CTR-TEST-002",
+                    UserInternalId = user.InternalId,
+                    GroupId = group.Id,
+                    TotalAmount = 3000,
+                    ContractType = 1, // Will be updated to "motores"
+                    Quota = 5,
+                    ContractStatusId = 1,
+                    SaleStartDate = DateTime.UtcNow
+                };
+
                 // Check if contract exists
                 if (!context.Contracts.Any(c => c.ContractNumber == contract.ContractNumber))
                 {
@@ -225,7 +229,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 var contract1 = new Contract
                 {
                     ContractNumber = $"AGG-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 1000,
                     ContractStatusId = 1,
@@ -234,7 +238,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 var contract2 = new Contract
                 {
                     ContractNumber = $"AGG-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 2000,
                     ContractStatusId = 1,
@@ -290,7 +294,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 var activeContract = new Contract
                 {
                     ContractNumber = $"CANCEL-ACTIVE-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 1000,
                     ContractStatusId = 1,
@@ -301,7 +305,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 var canceledContract = new Contract
                 {
                     ContractNumber = $"CANCEL-CANCELED-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 500,
                     ContractStatusId = 5,
@@ -357,7 +361,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 var contract = new Contract
                 {
                     ContractNumber = $"USER-AGG-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 3000,
                     ContractStatusId = 1,
@@ -412,7 +416,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 var activeContract1 = new Contract
                 {
                     ContractNumber = $"RET-ACTIVE1-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 1000,
                     ContractStatusId = 1,
@@ -421,7 +425,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 var activeContract2 = new Contract
                 {
                     ContractNumber = $"RET-ACTIVE2-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 1000,
                     ContractStatusId = 3,
@@ -430,7 +434,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 var activeContract3 = new Contract
                 {
                     ContractNumber = $"RET-ACTIVE3-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 1000,
                     ContractStatusId = 3,
@@ -439,7 +443,7 @@ namespace SalesApp.IntegrationTests.Contracts
                 var defaultedContract = new Contract
                 {
                     ContractNumber = $"RET-DEFAULTED-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 1000,
                     ContractStatusId = 2,

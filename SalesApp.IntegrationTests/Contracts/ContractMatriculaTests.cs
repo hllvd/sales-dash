@@ -303,9 +303,12 @@ namespace SalesApp.IntegrationTests.Contracts
             using (var scope = _factory.Services.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var contract1 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = adminId, TempMatricula = matricula1, MatriculaId = m1Id, TotalAmount = 100, ContractStatusId = 1, IsActive = true };
-                var contract2 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = null, TempMatricula = matricula2, MatriculaId = m2Id, TotalAmount = 200, ContractStatusId = 1, IsActive = true }; // Ensure unassigned contracts are still visible if matricula matches!
-                var contractOther = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserId = otherUserId, TempMatricula = matriculaOther, MatriculaId = mOtherId, TotalAmount = 300, ContractStatusId = 1, IsActive = true };
+                var admin = await context.Users.FirstAsync(u => u.Id == adminId);
+                var otherUser = await context.Users.FirstAsync(u => u.Id == otherUserId);
+                
+                var contract1 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserInternalId = admin.InternalId, TempMatricula = matricula1, MatriculaId = m1Id, TotalAmount = 100, ContractStatusId = 1, IsActive = true };
+                var contract2 = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserInternalId = null, TempMatricula = matricula2, MatriculaId = m2Id, TotalAmount = 200, ContractStatusId = 1, IsActive = true }; // Ensure unassigned contracts are still visible if matricula matches!
+                var contractOther = new Contract { ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}", UserInternalId = otherUser.InternalId, TempMatricula = matriculaOther, MatriculaId = mOtherId, TotalAmount = 300, ContractStatusId = 1, IsActive = true };
                 
                 context.Contracts.AddRange(contract1, contract2, contractOther);
                 await context.SaveChangesAsync();
@@ -399,9 +402,10 @@ namespace SalesApp.IntegrationTests.Contracts
             context.Matriculas.Add(m);
             await context.SaveChangesAsync();
 
+            var user = await context.Users.FirstAsync(u => u.Id == userId);
             var userMatricula = new UserMatricula
             {
-                UserId = userId,
+                UserInternalId = user.InternalId,
                 MatriculaId = m.Id,
                 IsActive = true,
                 IsOwner = isOwner
@@ -418,10 +422,11 @@ namespace SalesApp.IntegrationTests.Contracts
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             
+            var user = await context.Users.FirstAsync(u => u.Id == userId);
             var contract = new Contract
             {
                 ContractNumber = $"C-{Guid.NewGuid().ToString()[..8]}",
-                UserId = userId,
+                UserInternalId = user.InternalId,
                 TotalAmount = 1000.00m,
                 ContractStatusId = 1,
                 SaleStartDate = DateTime.UtcNow,

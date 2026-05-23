@@ -43,7 +43,7 @@ namespace SalesApp.IntegrationTests.Imports
                 var contract = new Contract
                 {
                     ContractNumber = contractNumber,
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     TotalAmount = 1000,
                     GroupId = group.Id,
                     ContractStatusId = 1,

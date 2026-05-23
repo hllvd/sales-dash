@@ -94,11 +94,12 @@ namespace SalesApp.IntegrationTests.Contracts
                     PasswordHash = "fake-hash"
                 };
                 context.Users.Add(user);
+                await context.SaveChangesAsync();
 
                 var contract = new Contract
                 {
                     ContractNumber = contractNumber,
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     TotalAmount = 2500,
                     ContractStatusId = 1,
                     SaleStartDate = DateTime.UtcNow,

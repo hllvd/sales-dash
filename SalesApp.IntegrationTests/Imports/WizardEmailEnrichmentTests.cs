@@ -75,10 +75,10 @@ namespace SalesApp.IntegrationTests.Imports
             await context.SaveChangesAsync();
 
             context.UserMatriculas.AddRange(
-                new UserMatricula { UserId = anthony.Id, MatriculaId = m6241.Id, IsOwner = true, IsActive = true },
-                new UserMatricula { UserId = carlos.Id, MatriculaId = m6241.Id, IsOwner = false, IsActive = true },
-                new UserMatricula { UserId = vini.Id, MatriculaId = m6241.Id, IsOwner = false, IsActive = true },
-                new UserMatricula { UserId = valeria.Id, MatriculaId = m10979.Id, IsOwner = true, IsActive = true }
+                new UserMatricula { UserInternalId = anthony.InternalId, MatriculaId = m6241.Id, IsOwner = true, IsActive = true },
+                new UserMatricula { UserInternalId = carlos.InternalId, MatriculaId = m6241.Id, IsOwner = false, IsActive = true },
+                new UserMatricula { UserInternalId = vini.InternalId, MatriculaId = m6241.Id, IsOwner = false, IsActive = true },
+                new UserMatricula { UserInternalId = valeria.InternalId, MatriculaId = m10979.Id, IsOwner = true, IsActive = true }
             );
             
             await context.SaveChangesAsync();
@@ -99,7 +99,7 @@ namespace SalesApp.IntegrationTests.Imports
                 UploadId = Guid.NewGuid().ToString(), 
                 FileName = "test.csv", 
                 FileType = "csv",
-                UploadedByUserId = adminUser.Id,
+                UploadedByUserInternalId = adminUser.InternalId,
                 Status = "ready", 
                 TotalRows = 2 
             };
@@ -158,7 +158,7 @@ namespace SalesApp.IntegrationTests.Imports
                 UploadId = Guid.NewGuid().ToString(), 
                 FileName = "test.csv", 
                 FileType = "csv",
-                UploadedByUserId = adminUser.Id,
+                UploadedByUserInternalId = adminUser.InternalId,
                 Status = "ready", 
                 TotalRows = 1 
             };
@@ -198,7 +198,7 @@ namespace SalesApp.IntegrationTests.Imports
                 UploadId = Guid.NewGuid().ToString(), 
                 FileName = "test.csv", 
                 FileType = "csv",
-                UploadedByUserId = adminUser.Id,
+                UploadedByUserInternalId = adminUser.InternalId,
                 Status = "ready", 
                 TotalRows = 1 
             };
@@ -239,7 +239,7 @@ namespace SalesApp.IntegrationTests.Imports
                 UploadId = Guid.NewGuid().ToString(), 
                 FileName = "test.csv", 
                 FileType = "csv",
-                UploadedByUserId = adminUser.Id,
+                UploadedByUserInternalId = adminUser.InternalId,
                 Status = "ready", 
                 TotalRows = 1 
             };

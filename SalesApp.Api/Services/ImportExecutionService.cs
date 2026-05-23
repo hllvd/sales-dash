@@ -265,13 +265,13 @@ namespace SalesApp.Services
                                 // Reconciliation: The pending claim MUST be resolved.
                                 // It takes priority over 'Owner fallback' (matricula owner) 
                                 // to ensure the person who actually 'worked' the contract gets it.
-                                contract.UserId = claim.UserId;
+                                contract.UserInternalId = claim.UserInternalId;
                                 contract.MatriculaId = claim.MatriculaId;
                                 
                                 claim.IsResolved = true;
                                 claim.ResolvedAt = DateTime.UtcNow;
                                 
-                                Console.WriteLine($"[Import] RECONCILED: Contract {claimKey} assigned to user {claim.UserId} (was pending claim)");
+                                Console.WriteLine($"[Import] RECONCILED: Contract {claimKey} assigned to user (internalId={claim.UserInternalId}) (was pending claim)");
                             }
                         }
                         
@@ -465,20 +465,24 @@ namespace SalesApp.Services
                     contract.MatriculaId = matriculaId;
 
                     // Ensure the currently-assigned user is linked to the new matricula
-                    if (contract.UserId.HasValue)
+                    if (contract.UserInternalId.HasValue)
                     {
-                        var existingLink = await _userMatriculaRepository
-                            .GetByMatriculaNumberAndUserIdAsync(matriculaNumber!, contract.UserId.Value);
-                        if (existingLink == null)
+                        var userGuid = contract.User?.Id;
+                        if (userGuid.HasValue)
                         {
-                            await _userMatriculaRepository.CreateAsync(new UserMatricula
+                            var existingLink = await _userMatriculaRepository
+                                .GetByMatriculaNumberAndUserIdAsync(matriculaNumber!, userGuid.Value);
+                            if (existingLink == null)
                             {
-                                UserId = contract.UserId.Value,
-                                MatriculaId = matriculaId!.Value,
-                                IsOwner = false,
-                                IsActive = true,
-                                ImportSessionId = importSessionId
-                            });
+                                await _userMatriculaRepository.CreateAsync(new UserMatricula
+                                {
+                                    UserInternalId = contract.UserInternalId.Value,
+                                    MatriculaId = matriculaId!.Value,
+                                    IsOwner = false,
+                                    IsActive = true,
+                                    ImportSessionId = importSessionId
+                                });
+                            }
                         }
                     }
 
@@ -491,7 +495,7 @@ namespace SalesApp.Services
             }
 
             contract.ContractNumber = contractNumber;
-            contract.UserId = user?.Id; // Can be null if unassigned
+            contract.UserInternalId = user?.InternalId; // Can be null if unassigned
             if (user == null && !string.IsNullOrWhiteSpace(matriculaNumber) && string.IsNullOrWhiteSpace(contract.TempMatricula))
             {
                 contract.TempMatricula = matriculaNumber;
@@ -912,14 +916,14 @@ namespace SalesApp.Services
                     {
                         // Check if someone else is the current owner
                         var currentOwner = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId.Value);
-                        if (currentOwner != null && currentOwner.UserId != createdUser.Id)
+                        if (currentOwner != null && currentOwner.User?.Id != createdUser.Id)
                         {
                             // ✅ Log Ownership Conflict to DynamoDB
                             await _errorService.LogErrorAsync(
                                 ImportErrorType.OwnershipConflict,
                                 "UserMatricula",
-                                $"Ownership transfer for matricula {matricula}: from {currentOwner.UserId} to {createdUser.Id}",
-                                new { Matricula = matricula, OldOwnerId = currentOwner.UserId, NewOwnerId = createdUser.Id },
+                                $"Ownership transfer for matricula {matricula}: from {currentOwner.User?.Id} to {createdUser.Id}",
+                                new { Matricula = matricula, OldOwnerId = currentOwner.User?.Id, NewOwnerId = createdUser.Id },
                                 importSessionId);
                         }
                     }
@@ -928,7 +932,7 @@ namespace SalesApp.Services
                     {
                         var userMatricula = new UserMatricula
                         {
-                            UserId = createdUser.Id,
+                            UserInternalId = createdUser.InternalId,
                             MatriculaId = matriculaId.Value,
                             IsOwner = isMatriculaOwner,
                             IsActive = true,
@@ -1344,13 +1348,13 @@ namespace SalesApp.Services
                             var claimKey = claim.ContractNumber.Trim();
                             if (contractMap.TryGetValue(claimKey, out var contract))
                             {
-                                contract.UserId = claim.UserId;
+                                contract.UserInternalId = claim.UserInternalId;
                                 contract.MatriculaId = claim.MatriculaId;
                                 
                                 claim.IsResolved = true;
                                 claim.ResolvedAt = DateTime.UtcNow;
                                 
-                                Console.WriteLine($"[Import Dashboard] PRE-RECONCILED: Contract {claimKey} will be assigned to user {claim.UserId}");
+                                Console.WriteLine($"[Import Dashboard] PRE-RECONCILED: Contract {claimKey} will be assigned to user (internalId={claim.UserInternalId})");
                             }
                         }
                     }
@@ -1526,24 +1530,27 @@ namespace SalesApp.Services
             }
             
             // Resolve User if email is provided (Wizard support)
-            Guid? userId = null;
+            int? userInternalId = null;
+            Guid? resolvedUserGuid = null;
             var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
             if (!string.IsNullOrWhiteSpace(userEmail))
             {
                 var user = await _userRepository.GetByEmailAsync(userEmail);
                 if (user != null && user.IsActive)
                 {
-                    userId = user.Id;
+                    userInternalId = user.InternalId;
+                    resolvedUserGuid = user.Id;
                 }
             }
 
             // If user is not provided by email, try to find the owner of this matricula
-            if (!userId.HasValue && matriculaId.HasValue)
+            if (!userInternalId.HasValue && matriculaId.HasValue)
             {
                 var ownerRel = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId.Value);
                 if (ownerRel?.User != null)
                 {
-                    userId = ownerRel.User.Id;
+                    userInternalId = ownerRel.User.InternalId;
+                    resolvedUserGuid = ownerRel.User.Id;
                 }
             }
             
@@ -1554,7 +1561,7 @@ namespace SalesApp.Services
             {
                 // Update status and reactivate
                 contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
-                if (userId.HasValue) contract.UserId = userId;
+                if (userInternalId.HasValue) contract.UserInternalId = userInternalId;
                 contract.IsActive = true;
                 contract.UpdatedAt = DateTime.UtcNow;
 
@@ -1568,20 +1575,24 @@ namespace SalesApp.Services
                     contract.MatriculaId = matriculaId;
 
                     // Ensure the currently-assigned user is linked to the new matricula
-                    if (contract.UserId.HasValue)
+                    if (contract.UserInternalId.HasValue)
                     {
-                        var existingLink = await _userMatriculaRepository
-                            .GetByMatriculaNumberAndUserIdAsync(matriculaNumber!, contract.UserId.Value);
-                        if (existingLink == null)
+                        var userGuid = resolvedUserGuid ?? contract.User?.Id;
+                        if (userGuid.HasValue)
                         {
-                            await _userMatriculaRepository.CreateAsync(new UserMatricula
+                            var existingLink = await _userMatriculaRepository
+                                .GetByMatriculaNumberAndUserIdAsync(matriculaNumber!, userGuid.Value);
+                            if (existingLink == null)
                             {
-                                UserId = contract.UserId.Value,
-                                MatriculaId = matriculaId!.Value,
-                                IsOwner = false,
-                                IsActive = true,
-                                ImportSessionId = importSessionId
-                            });
+                                await _userMatriculaRepository.CreateAsync(new UserMatricula
+                                {
+                                    UserInternalId = contract.UserInternalId.Value,
+                                    MatriculaId = matriculaId!.Value,
+                                    IsOwner = false,
+                                    IsActive = true,
+                                    ImportSessionId = importSessionId
+                                });
+                            }
                         }
                     }
 
@@ -1596,7 +1607,7 @@ namespace SalesApp.Services
             }
 
             contract.ContractNumber = contractNumber;
-            contract.UserId = userId;
+            contract.UserInternalId = userInternalId;
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
             contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);

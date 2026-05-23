@@ -66,6 +66,14 @@ namespace SalesApp.Data
                 context.Users.Add(superAdminUser);
             }
             
+            // Flush users to DB so InternalId gets assigned before templates reference it
+            await context.SaveChangesAsync();
+
+            // Resolve the seeder InternalId to use for templates
+            var seederInternalId = superAdminUser?.InternalId > 0 ? superAdminUser.InternalId
+                : adminUser?.InternalId > 0 ? adminUser.InternalId
+                : 1; // fallback: first user
+
             // Seed ImportTemplates
             var usersTemplate = await context.ImportTemplates.FirstOrDefaultAsync(t => t.Name == "Users");
             if (usersTemplate == null)
@@ -81,8 +89,8 @@ namespace SalesApp.Data
                     DefaultMappings = "{}",
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    CreatedByUserId = superAdminUser?.Id ?? adminUser?.Id ?? Guid.Parse("080a0aea-4cbd-490f-9d6c-bc001391b005")
-                });
+                    CreatedByUserInternalId = seederInternalId
+                 });
             }
             
             var contractsTemplate = await context.ImportTemplates.FirstOrDefaultAsync(t => t.Name == "Contracts");
@@ -99,7 +107,7 @@ namespace SalesApp.Data
                     DefaultMappings = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { { "Matrícula", "MatriculaNumber" } }),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    CreatedByUserId = superAdminUser?.Id ?? adminUser?.Id ?? Guid.Parse("080a0aea-4cbd-490f-9d6c-bc001391b005")
+                    CreatedByUserInternalId = seederInternalId
                 });
             }
             else
@@ -142,7 +150,7 @@ namespace SalesApp.Data
                     }),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    CreatedByUserId = superAdminUser?.Id ?? adminUser?.Id ?? Guid.Parse("080a0aea-4cbd-490f-9d6c-bc001391b005")
+                    CreatedByUserInternalId = seederInternalId
                 });
             }
             else

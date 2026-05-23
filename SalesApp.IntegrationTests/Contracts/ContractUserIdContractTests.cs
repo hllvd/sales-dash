@@ -125,10 +125,11 @@ namespace SalesApp.IntegrationTests.Contracts
                 await context.SaveChangesAsync();
             }
             
+            var user = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstAsync(context.Users, u => u.Id == userId);
             var contract = new SalesApp.Models.Contract
             {
                 ContractNumber = $"CN-{Guid.NewGuid().ToString()[..8]}",
-                UserId = userId,
+                UserInternalId = user.InternalId,
                 TotalAmount = 1000,
                 GroupId = group.Id,
                 ContractStatusId = 1,

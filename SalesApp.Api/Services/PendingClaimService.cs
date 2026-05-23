@@ -41,8 +41,8 @@ namespace SalesApp.Services
             {
                 if (contractDict.TryGetValue(claim.ContractNumber, out var contract))
                 {
-                    // Assign to the contract
-                    contract.UserId = claim.UserId;
+                    // Assign to the contract (using surrogate key; GUID available via claim.User.Id externally)
+                    contract.UserInternalId = claim.UserInternalId;
                     contract.MatriculaId = claim.MatriculaId;
                     
                     // Mark claim as resolved

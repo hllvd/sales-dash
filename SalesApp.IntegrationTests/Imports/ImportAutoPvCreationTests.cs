@@ -27,7 +27,7 @@ namespace SalesApp.IntegrationTests.Imports
                 UploadId = uploadId,
                 FileName = fileName,
                 Status = "preview",
-                UploadedByUserId = admin?.Id ?? Guid.NewGuid(),
+                UploadedByUserInternalId = admin?.InternalId ?? 1,
                 CreatedAt = DateTime.UtcNow
             };
             context.ImportSessions.Add(session);

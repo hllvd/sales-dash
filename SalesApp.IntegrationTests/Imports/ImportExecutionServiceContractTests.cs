@@ -27,7 +27,7 @@ namespace SalesApp.IntegrationTests.Imports
                 UploadId = uploadId,
                 FileName = fileName,
                 Status = "preview",
-                UploadedByUserId = admin?.Id ?? Guid.NewGuid(),
+                UploadedByUserInternalId = admin?.InternalId ?? 1,
                 CreatedAt = DateTime.UtcNow
             };
             context.ImportSessions.Add(session);
@@ -101,7 +101,7 @@ namespace SalesApp.IntegrationTests.Imports
             result.CreatedContracts.Should().HaveCount(1);
 
             var contract = result.CreatedContracts[0];
-            contract.UserId.Should().Be(user.Id);
+            contract.UserInternalId.Should().Be(user.InternalId);
             contract.TotalAmount.Should().Be(150050m); // Stored as cents (no decimals)
             contract.GroupId.Should().Be(group.Id);
             contract.ContractStatusId.Should().Be(1);
@@ -172,7 +172,7 @@ namespace SalesApp.IntegrationTests.Imports
             result.CreatedContracts.Should().HaveCount(1);
 
             var contract = result.CreatedContracts[0];
-            contract.UserId.Should().Be(user.Id);
+            contract.UserInternalId.Should().Be(user.InternalId);
             contract.TotalAmount.Should().Be(200000m); // Stored as cents (no decimals)
             contract.GroupId.Should().Be(group.Id);
             contract.ContractStatusId.Should().Be(1); // Default status

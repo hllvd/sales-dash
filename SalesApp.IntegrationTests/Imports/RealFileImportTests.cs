@@ -163,7 +163,7 @@ namespace SalesApp.IntegrationTests.Imports
                 });
 
                 // Count how many new users were created
-                var importedUserIds = importedContracts.Select(c => c.UserId).Distinct().ToList();
+                var importedUserIds = importedContracts.Select(c => c.User?.Id).Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
                 var newUsers = await context.Users
                     .Where(u => importedUserIds.Contains(u.Id))
                     .ToListAsync();

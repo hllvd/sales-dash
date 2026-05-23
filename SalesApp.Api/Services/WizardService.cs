@@ -47,6 +47,10 @@ namespace SalesApp.Services
             var fileType = _fileParser.GetFileType(file);
             var uploadId = $"{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8]}";
 
+            // Look up user to get InternalId for FK assignment
+            var uploadUser = await _userRepository.GetByIdAsync(userId);
+            var uploadUserInternalId = uploadUser?.InternalId ?? 0;
+
             // Try to find the contractDashboard template to link the session
             var template = await _templateRepository.GetByNameAsync("contractDashboard");
             int? templateId = template?.Id;
@@ -58,7 +62,7 @@ namespace SalesApp.Services
                 TemplateId = templateId,
                 FileName = file.FileName,
                 FileType = fileType,
-                UploadedByUserId = userId,
+                UploadedByUserInternalId = uploadUserInternalId,
                 Status = "wizard_step1",
                 TotalRows = 0
             };
@@ -589,13 +593,14 @@ namespace SalesApp.Services
             int? contractsTemplateId = contractsTemplate?.Id;
 
             var wizardImportUploadId = $"wiz-{uploadId}-ctr-{DateTime.UtcNow:HHmmss}";
+            var wizardUser = await _userRepository.GetByIdAsync(userId);
             var importSession = new ImportSession
             {
                 UploadId = wizardImportUploadId,
                 TemplateId = contractsTemplateId,
                 FileName = $"{userId}_{uploadId}.xlsx",
                 FileType = "xlsx",
-                UploadedByUserId = userId,
+                UploadedByUserInternalId = wizardUser?.InternalId ?? 0,
                 Status = "wizard_step3",
                 TotalRows = rows.Count
             };

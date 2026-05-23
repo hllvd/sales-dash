@@ -175,7 +175,7 @@ namespace SalesApp.IntegrationTests.Imports
                     ContractStatusId = 1,
                     IsActive = true,
                     MatriculaId = matA.Id,
-                    UserId = assignedUserId,
+                    UserInternalId = user.InternalId,
                     SaleStartDate = DateTime.UtcNow
                 });
                 await ctx.SaveChangesAsync();
@@ -194,7 +194,7 @@ namespace SalesApp.IntegrationTests.Imports
 
                 // UserId must NOT change
                 var contract = await ctx.Contracts.Include(c => c.User).FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
-                contract!.UserId.Should().Be(assignedUserId,
+                contract!.User?.Id.Should().Be(assignedUserId,
                     because: "UserId is never updated on matricula change");
 
                 // UserMatricula link to MatriculaB must now exist for the assigned user

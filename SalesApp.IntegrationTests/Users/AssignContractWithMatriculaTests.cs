@@ -56,7 +56,7 @@ namespace SalesApp.IntegrationTests.Users
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var dbContract = await context.Contracts.Include(c => c.User).FirstOrDefaultAsync(c => c.Id == contract.Id);
             dbContract.Should().NotBeNull();
-            dbContract!.UserId.Should().Be(userId);
+            dbContract!.User?.Id.Should().Be(userId);
         }
 
         [Fact]
@@ -203,9 +203,10 @@ namespace SalesApp.IntegrationTests.Users
             context.Matriculas.Add(m);
             await context.SaveChangesAsync();
 
+            var user = await context.Users.FirstAsync(u => u.Id == userId);
             var userMatricula = new UserMatricula
             {
-                UserId = userId,
+                UserInternalId = user.InternalId,
                 MatriculaId = m.Id,
                 IsActive = isActive,
                 IsOwner = true,
@@ -234,10 +235,11 @@ namespace SalesApp.IntegrationTests.Users
                 await context.SaveChangesAsync();
             }
             
+            var user = await context.Users.FirstAsync(u => u.Id == userId);
             var contract = new Contract
             {
                 ContractNumber = $"CN-{Guid.NewGuid().ToString()[..8]}",
-                UserId = userId,
+                UserInternalId = user.InternalId,
                 TotalAmount = 1000,
                 GroupId = group.Id,
                 ContractStatusId = 1,

@@ -156,7 +156,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
 
                 var matricula = new UserMatricula
                 {
-                    UserId = userId,
+                    UserInternalId = user.InternalId,
                     MatriculaId = m.Id,
                     IsActive = true
                 };
@@ -198,8 +198,8 @@ namespace SalesApp.IntegrationTests.UserMatriculas
                 context.Matriculas.AddRange(m1, m2);
                 await context.SaveChangesAsync();
 
-                var matricula1 = new UserMatricula { UserId = userId, MatriculaId = m1.Id, IsActive = true };
-                var matricula2 = new UserMatricula { UserId = userId, MatriculaId = m2.Id, IsActive = true };
+                var matricula1 = new UserMatricula { UserInternalId = user.InternalId, MatriculaId = m1.Id, IsActive = true };
+                var matricula2 = new UserMatricula { UserInternalId = user.InternalId, MatriculaId = m2.Id, IsActive = true };
                 context.UserMatriculas.AddRange(matricula1, matricula2);
                 await context.SaveChangesAsync();
             }
@@ -240,7 +240,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
 
                 var matricula = new UserMatricula
                 {
-                    UserId = userId,
+                    UserInternalId = user.InternalId,
                     MatriculaId = m.Id,
                     IsActive = true
                 };
@@ -290,7 +290,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
 
                 var matricula = new UserMatricula
                 {
-                    UserId = userId,
+                    UserInternalId = user.InternalId,
                     MatriculaId = m.Id,
                     IsActive = true
                 };

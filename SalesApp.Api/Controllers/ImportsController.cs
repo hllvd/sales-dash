@@ -306,13 +306,6 @@ namespace SalesApp.Controllers
                 var dbTemplate = await _templateRepository.GetByNameAsync(hardcodedTemplate.Name);
                 if (dbTemplate == null)
                 {
-                    var templateUserId = currentUserId;
-                    if (currentUser == null) // This shouldn't happen now due to the check above, but keeping logic safe
-                    {
-                        var anyAdmin = await _userRepository.GetRootUserAsync();
-                        templateUserId = anyAdmin?.Id ?? currentUserId;
-                    }
-
                     dbTemplate = new ImportTemplate
                     {
                         Name = hardcodedTemplate.Name,
@@ -321,7 +314,7 @@ namespace SalesApp.Controllers
                         RequiredFields = hardcodedTemplate.RequiredFields,
                         OptionalFields = hardcodedTemplate.OptionalFields,
                         DefaultMappings = hardcodedTemplate.DefaultMappings,
-                        CreatedByUserId = templateUserId,
+                        CreatedByUserInternalId = currentUser.InternalId,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
                     };
@@ -342,7 +335,7 @@ namespace SalesApp.Controllers
                     TemplateId = dbTemplate.Id,
                     FileName = file.FileName,
                     FileType = fileType,
-                    UploadedByUserId = currentUserId,
+                    UploadedByUserInternalId = currentUser.InternalId,
                     Status = "preview",
                     TotalRows = 0
                 };

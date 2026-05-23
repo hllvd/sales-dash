@@ -77,9 +77,8 @@ namespace SalesApp.Repositories
 
         public async Task<UserMatricula> CreateAsync(UserMatricula matricula)
         {
-            // Check if user already has this matricula
             var existing = await _context.UserMatriculas
-                .AnyAsync(m => m.User.Id == matricula.UserId && m.MatriculaId == matricula.MatriculaId);
+                .AnyAsync(m => m.UserInternalId == matricula.UserInternalId && m.MatriculaId == matricula.MatriculaId);
             
             if (existing)
             {
@@ -94,7 +93,7 @@ namespace SalesApp.Repositories
             if (matricula.IsOwner)
             {
                 var existingOwners = await _context.UserMatriculas
-                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.User.Id != matricula.UserId)
+                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.UserInternalId != matricula.UserInternalId)
                     .ToListAsync();
                 
                 foreach (var owner in existingOwners)
@@ -114,9 +113,8 @@ namespace SalesApp.Repositories
 
         public async Task<UserMatricula> UpdateAsync(UserMatricula matricula)
         {
-            // Check if user already has this matricula (excluding this record)
             var existing = await _context.UserMatriculas
-                .AnyAsync(m => m.User.Id == matricula.UserId && m.MatriculaId == matricula.MatriculaId && m.Id != matricula.Id);
+                .AnyAsync(m => m.UserInternalId == matricula.UserInternalId && m.MatriculaId == matricula.MatriculaId && m.Id != matricula.Id);
             
             if (existing)
             {
@@ -129,7 +127,7 @@ namespace SalesApp.Repositories
             if (matricula.IsOwner)
             {
                 var existingOwners = await _context.UserMatriculas
-                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.User.Id != matricula.UserId)
+                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.UserInternalId != matricula.UserInternalId)
                     .ToListAsync();
                 
                 foreach (var owner in existingOwners)
@@ -194,7 +192,7 @@ namespace SalesApp.Repositories
             
             foreach (var link in existingLinks)
             {
-                link.IsOwner = (link.UserId == newOwnerId);
+                link.IsOwner = (link.User?.Id == newOwnerId);
                 link.UpdatedAt = DateTime.UtcNow;
             }
             

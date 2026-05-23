@@ -148,11 +148,12 @@ namespace SalesApp.Tests.Services
             };
 
             var userId = Guid.NewGuid();
+            var userInternalId = 42;
             _mockUserRepository.Setup(r => r.GetByEmailAsync("jane@test.com"))
                 .ReturnsAsync((User?)null);
 
             _mockUserRepository.Setup(r => r.CreateAsync(It.IsAny<User>()))
-                .ReturnsAsync((User u) => { u.Id = userId; return u; });
+                .ReturnsAsync((User u) => { u.Id = userId; u.InternalId = userInternalId; return u; });
 
             _mockRoleRepository.Setup(r => r.GetByNameAsync(It.IsAny<string>()))
                 .ReturnsAsync(new Role { Id = 3, Name = "user" });
@@ -174,7 +175,7 @@ namespace SalesApp.Tests.Services
             result.CreatedUsers[0].Email.Should().Be("jane@test.com");
 
             _mockMatriculaRepository.Verify(r => r.CreateAsync(It.Is<UserMatricula>(m => 
-                m.UserId == userId && 
+                m.UserInternalId == userInternalId && 
                 m.MatriculaId == matriculaId && 
                 m.IsOwner == true)), Times.Once);
         }

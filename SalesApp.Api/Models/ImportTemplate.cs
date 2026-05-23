@@ -28,14 +28,6 @@ namespace SalesApp.Models
         
         public bool IsActive { get; set; } = true;
         
-        private Guid _createdByUserId;
-        [Required]
-        public Guid CreatedByUserId
-        {
-            get => CreatedBy?.Id ?? _createdByUserId;
-            set => _createdByUserId = value;
-        }
-
         [Required]
         public int CreatedByUserInternalId { get; set; }
         

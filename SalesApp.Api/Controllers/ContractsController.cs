@@ -248,7 +248,7 @@ namespace SalesApp.Controllers
                 if (existingClaim != null)
                 {
                     // Find the user who claimed it
-                    var claimUser = await _userRepository.GetByIdAsync(existingClaim.UserId);
+                    var claimUser = existingClaim.User ?? await _userRepository.GetByIdAsync(existingClaim.User?.Id ?? Guid.Empty);
                     if (claimUser != null)
                     {
                         return NotFound(new 
@@ -299,7 +299,11 @@ namespace SalesApp.Controllers
                 existingContract.TotalAmount = request.TotalAmount;
                 existingContract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(request.Status);
                 existingContract.SaleStartDate = request.ContractStartDate;
-                existingContract.UserId = request.UserId;
+                if (request.UserId.HasValue)
+                {
+                    var assignUser = await _userRepository.GetByIdAsync(request.UserId.Value);
+                    existingContract.UserInternalId = assignUser?.InternalId;
+                }
                 existingContract.GroupId = request.GroupId;
                 existingContract.CustomerName = request.CustomerName;
                 existingContract.UpdatedAt = DateTime.UtcNow;
@@ -386,7 +390,6 @@ namespace SalesApp.Controllers
             var contract = new Contract
             {
                 ContractNumber = request.ContractNumber,
-                UserId = request.UserId,
                 TotalAmount = request.TotalAmount,
                 GroupId = request.GroupId,
                 ContractStatusId = await _statusService.GetStatusIdByNameAsync(request.Status),
@@ -396,6 +399,13 @@ namespace SalesApp.Controllers
                 PvId = request.PvId,
                 CustomerName = request.CustomerName
             };
+
+            // Set user by InternalId if provided
+            if (request.UserId.HasValue)
+            {
+                var assignUser = await _userRepository.GetByIdAsync(request.UserId.Value);
+                if (assignUser != null) contract.UserInternalId = assignUser.InternalId;
+            }
 
             // Matricula validation
             if (!string.IsNullOrEmpty(request.MatriculaNumber))
@@ -495,11 +505,11 @@ namespace SalesApp.Controllers
                         Message = _messageService.Get(AppMessage.UserNotFound)
                     });
                 }
-                contract.UserId = request.UserId.Value;
+                contract.UserInternalId = user.InternalId;
             }
             else if (request.UserId.HasValue && request.UserId.Value == Guid.Empty)
             {
-                contract.UserId = null;
+                contract.UserInternalId = null;
             }
             
             // Always update GroupId
@@ -582,10 +592,10 @@ namespace SalesApp.Controllers
                 if (matricula != null)
                 {
                     // If it exists, check if it belongs to the contract's user
-                    var contractUser = contract.UserId;
-                    if (contractUser.HasValue)
+                    var contractUserGuid = contract.User?.Id;
+                    if (contractUserGuid.HasValue)
                     {
-                        var isAssignedToUser = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, contractUser.Value);
+                        var isAssignedToUser = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, contractUserGuid.Value);
                         if (isAssignedToUser == null)
                         {
                             return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "Matrícula not found for this user" });
@@ -677,7 +687,7 @@ namespace SalesApp.Controllers
 
             // 2. Resolve the UserMatricula join record (verifies both ownership and MatriculaId in one step)
             var userMatricula = await _userMatriculaRepository.GetByIdAsync(request.UserMatriculaId);
-            if (userMatricula == null || userMatricula.UserId != currentUserId || !userMatricula.IsActive)
+            if (userMatricula == null || userMatricula.User?.Id != currentUserId || !userMatricula.IsActive)
             {
                 return BadRequest(new { success = false, message = "Matrícula inválida ou não pertence ao usuário." });
             }
@@ -690,22 +700,26 @@ namespace SalesApp.Controllers
             
             if (existingClaim != null)
             {
-                if (existingClaim.UserId == currentUserId)
+                if (existingClaim.User?.Id == currentUserId)
                 {
                     return Ok(new ApiResponse<PendingClaimResponse> { Success = true, Message = "Reivindicação já registrada.", Data = MapToPendingClaimResponse(existingClaim) });
                 }
 
-                var claimUser = await _userRepository.GetByIdAsync(existingClaim.UserId);
+                var claimUser = existingClaim.User ?? await _userRepository.GetByIdAsync(existingClaim.User?.Id ?? Guid.Empty);
                 return BadRequest(new { 
                     success = false, 
                     message = $"O contrato {request.ContractNumber} já foi solicitado por {claimUser?.Name} ({claimUser?.Email}). Para assumir este contrato, o usuário atual deve cancelar a solicitação." 
                 });
             }
 
+            var currentUser = await _userRepository.GetByIdAsync(currentUserId);
+            if (currentUser == null)
+                return BadRequest(new { success = false, message = "Usuário não encontrado." });
+
             var claim = new PendingContractClaim
             {
                 ContractNumber = request.ContractNumber.Trim(),
-                UserId = currentUserId,
+                UserInternalId = currentUser.InternalId,
                 MatriculaId = resolvedMatriculaId
             };
 
@@ -745,7 +759,7 @@ namespace SalesApp.Controllers
             // Verify user is owner of this matricula OR has read-all permissions
             var ownerLink = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId);
             
-            if (!hasReadPermission && (ownerLink == null || ownerLink.UserId != currentUserId))
+            if (!hasReadPermission && (ownerLink == null || ownerLink.User?.Id != currentUserId))
             {
                 return Forbid();
             }
@@ -769,7 +783,7 @@ namespace SalesApp.Controllers
             var claim = await _pendingClaimRepository.GetByIdAsync(id);
             if (claim == null) return NotFound();
 
-            if (!isSuperAdmin && claim.UserId != currentUserId)
+            if (!isSuperAdmin && claim.User?.Id != currentUserId)
             {
                 return Forbid();
             }
@@ -793,7 +807,7 @@ namespace SalesApp.Controllers
             {
                 Id = claim.Id,
                 ContractNumber = claim.ContractNumber,
-                UserId = claim.UserId,
+                UserId = claim.User?.Id ?? Guid.Empty,
                 UserName = claim.User?.Name ?? "",
                 UserEmail = claim.User?.Email ?? "",
                 MatriculaId = claim.MatriculaId,
@@ -813,7 +827,7 @@ namespace SalesApp.Controllers
             {
                 Id = contract.Id,
                 ContractNumber = contract.ContractNumber,
-                UserId = contract.UserId,
+                UserId = contract.User?.Id,
                 UserName = contract.User?.Name ?? "",
                 TotalAmount = contract.TotalAmount,
                 GroupId = contract.GroupId,

@@ -35,7 +35,7 @@ namespace SalesApp.IntegrationTests.Imports
                 FileType = "csv",
                 Status = "ready", 
                 TotalRows = 2,
-                UploadedByUserId = adminUser.Id
+                UploadedByUserInternalId = adminUser.InternalId
             };
             context.ImportSessions.Add(session);
             await context.SaveChangesAsync();

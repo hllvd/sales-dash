@@ -225,7 +225,7 @@ TMPL-001,Test,User,5000,0,active,2024-01-01,MAT-TMPL";
                 var contract1 = new Contract
                 {
                     ContractNumber = $"DEL-TEST-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     TotalAmount = 1000,
                     GroupId = group.Id,
                     ContractStatusId = 1,
@@ -236,7 +236,7 @@ TMPL-001,Test,User,5000,0,active,2024-01-01,MAT-TMPL";
                 var contract2 = new Contract
                 {
                     ContractNumber = $"DEL-TEST-{Guid.NewGuid().ToString()[..8]}",
-                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
                     TotalAmount = 2000,
                     GroupId = group.Id,
                     ContractStatusId = 1,

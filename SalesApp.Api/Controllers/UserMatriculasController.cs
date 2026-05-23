@@ -148,7 +148,7 @@ namespace SalesApp.Controllers
 
             var userMatricula = new UserMatricula
             {
-                UserId = userId,
+                UserInternalId = existingUser.InternalId,
                 MatriculaId = matriculaEntity.Id,
                 EndDate = request.EndDate,
                 IsOwner = request.IsOwner,
@@ -257,7 +257,7 @@ namespace SalesApp.Controllers
                     // Create user-matricula link
                     var userMatricula = new UserMatricula
                     {
-                        UserId = userId,
+                        UserInternalId = (await _userRepository.GetByIdAsync(userId))!.InternalId,
                         MatriculaId = matriculaEntity.Id,
                         EndDate = item.EndDate,
                         IsOwner = item.IsOwner,
@@ -460,7 +460,7 @@ namespace SalesApp.Controllers
                     // Create link
                     var userMatricula = new UserMatricula
                     {
-                        UserId = assignment.UserId,
+                        UserInternalId = user.InternalId,
                         MatriculaId = matriculaEntity.Id,
                         IsActive = true
                     };
@@ -490,7 +490,7 @@ namespace SalesApp.Controllers
             return new UserMatriculaResponse
             {
                 Id = matricula.Id,
-                UserId = matricula.UserId,
+                UserId = matricula.User?.Id ?? Guid.Empty,
                 UserName = matricula.User?.Name ?? "",
                 MatriculaNumber = matricula.Matricula?.MatriculaNumber ?? "",
                 StartDate = matricula.Matricula?.StartDate ?? DateTime.MinValue,

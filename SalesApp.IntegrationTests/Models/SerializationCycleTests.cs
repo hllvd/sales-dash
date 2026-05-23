@@ -47,7 +47,7 @@ namespace SalesApp.IntegrationTests
 
             var userMatricula = new UserMatricula
             {
-                UserId = testUser.Id,
+                UserInternalId = testUser.InternalId,
                 MatriculaId = testMatricula.Id,
                 IsOwner = true
             };
