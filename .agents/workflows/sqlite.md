@@ -147,3 +147,73 @@ PRAGMA foreign_keys = ON;
 > migrationBuilder.Sql("PRAGMA foreign_keys = ON;", suppressTransaction: true);
 > ```
 
+---
+
+## 8. Identity Boundary Rule & Surrogate Key Mapping Reference
+
+### 🔑 Identity Boundary Rule (Golden Rule)
+> `UserInternalId` is **internal only** — it exists solely to create efficient integer-based foreign key relationships between SQLite database tables.
+>
+> Whenever a **user is referenced externally** — in API responses, request bodies, JWT tokens, authorization checks, or any other client-facing surface — the reference **must always be the GUID (`User.Id`)**.
+
+| Context | Field to Use |
+| :--- | :--- |
+| DB foreign key between tables | `UserInternalId` (int) |
+| API request/response body (DTOs) | `UserId` (Guid) |
+| JWT token claims | `User.Id` (Guid) |
+| Authorization checks (`config.UserId != userId`) | `UserId` (Guid) |
+| Logging / audit trail | `UserId` (Guid) |
+
+### 🗺️ Database-to-Model Identity Mapping Reference
+Below is the master mapping table for all 9 tables migrated from legacy GUID-based user identifiers (`UserId`, `UploadedByUserId`, `CreatedByUserId`) to integer-based surrogate keys (`UserInternalId`, `UploadedByUserInternalId`, `CreatedByUserInternalId`):
+
+| SQLite Table Name | Legacy GUID Property | Ignored in EF Core? | Mapped Database Column | Foreign Key Reference Table | Primary Target Principal Key | Sync Hook Active? |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **`Contracts`** | `UserId` (Guid?) | **Yes** (`entity.Ignore`) | `UserInternalId` (int?) | `Users` | `Users.InternalId` | Yes |
+| **`UserMatriculas`** | `UserId` (Guid) | **Yes** (`entity.Ignore`) | `UserInternalId` (int) | `Users` | `Users.InternalId` | Yes |
+| **`ImportSessions`** | `UploadedByUserId` (Guid) | **Yes** (`entity.Ignore`) | `UploadedByUserInternalId` (int) | `Users` | `Users.InternalId` | Yes |
+| **`AuditLogs`** | `UserId` (Guid) | **Yes** (`entity.Ignore`) | `UserInternalId` (int) | `Users` | `Users.InternalId` | Yes |
+| **`PendingContractClaims`** | `UserId` (Guid) | **Yes** (`entity.Ignore`) | `UserInternalId` (int) | `Users` | `Users.InternalId` | Yes |
+| **`ScrapeConfigs`** | `UserId` (Guid?) | **Yes** (`entity.Ignore`) | `UserInternalId` (int?) | `Users` | `Users.InternalId` | Yes |
+| **`RefreshTokens`** | `UserId` (Guid) | **Yes** (`entity.Ignore`) | `UserInternalId` (int) | `Users` | `Users.InternalId` | Yes |
+| **`ImportTemplates`** | `CreatedByUserId` (Guid) | **Yes** (`entity.Ignore`) | `CreatedByUserInternalId` (int) | `Users` | `Users.InternalId` | Yes |
+| **`ImportColumnMappings`** | `CreatedByUserId` (Guid) | **Yes** (`entity.Ignore`) | `CreatedByUserInternalId` (int) | `Users` | `Users.InternalId` | Yes |
+
+---
+
+## 9. Hybrid Identity Layer & DbContext Sync Hooks
+
+To avoid breaking public API contracts (which expose GUIDs to clients) and prevent massive refactoring across extensive testing and frontend suites, the hybrid layer facilitates seamless translation between the two identity systems:
+
+### 1. The C# Model Layer (Computed Property fallback)
+The models maintain the public GUID property as a **computed getter/setter** that dynamically falls back to the navigation property:
+```csharp
+private Guid _userId;
+public Guid UserId
+{
+    get => User?.Id ?? _userId;
+    set => _userId = value;
+}
+```
+
+### 2. EF Core Model Configuration
+Explicitly ignore the legacy GUID backing property so it is never mapped to a column, while establishing the surrogate key index-backed foreign key relationship:
+```csharp
+entity.Ignore(e => e.UserId);
+
+entity.HasOne(e => e.User)
+    .WithMany()
+    .HasForeignKey(e => e.UserInternalId)
+    .HasPrincipalKey(u => u.InternalId)
+    .OnDelete(DeleteBehavior.Cascade);
+```
+
+### 3. Save & Synchronization Hooks
+To guarantee absolute integrity without manual backfilling in services, `AppDbContext.cs` intercepts tracked entities during `SaveChangesAsync` and synchronizes their surrogate keys using the `SyncEntityUserInternalIdsAsync` hook:
+```csharp
+private async Task SyncEntityUserInternalIdsAsync()
+{
+    // Automatically queries and updates the corresponding UserInternalId for any tracked entity
+    // before committing the transaction to the database.
+}
+```
