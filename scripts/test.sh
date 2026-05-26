@@ -143,11 +143,22 @@ build() {
     echo ""
     echo "❌ BUILD FAILED — compiler/lint errors:"
     echo "========================================================================="
-    # Extract lines from the first "Failed to compile" (or first "ERROR:") onward,
-    # strip the docker build step prefix (#N N.NNs ), and print up to 60 lines.
-    sed -n '/Failed to compile\.\|^\(.*\) ERROR:/,$p' artifacts/full-build.log \
-      | sed 's/^#[0-9]* [0-9]*\.[0-9]* //' \
-      | head -n 60
+    local LINE_NUM
+    LINE_NUM=$(grep -n -i "Failed to compile\." artifacts/full-build.log | head -n 1 | cut -d: -f1)
+    if [ -z "$LINE_NUM" ]; then
+      LINE_NUM=$(grep -n -i "error:" artifacts/full-build.log | head -n 1 | cut -d: -f1)
+    fi
+
+    if [ -n "$LINE_NUM" ]; then
+      tail -n +"$LINE_NUM" artifacts/full-build.log \
+        | sed -E 's/^#[0-9]*[[:space:]]*[0-9]*\.[0-9]*[[:space:]]*//' \
+        | sed -E 's/^[0-9]*\.[0-9]*[[:space:]]*//' \
+        | head -n 60
+    else
+      tail -n 60 artifacts/full-build.log \
+        | sed -E 's/^#[0-9]*[[:space:]]*[0-9]*\.[0-9]*[[:space:]]*//' \
+        | sed -E 's/^[0-9]*\.[0-9]*[[:space:]]*//'
+    fi
     echo "========================================================================="
   fi
 
