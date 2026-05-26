@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, Table, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Select, Alert, Stack } from '@mantine/core';
-import { IconEdit, IconTrash, IconPlus, IconAlertTriangle, IconUser, IconCrown, IconTrashX } from '@tabler/icons-react';
+import { Title, Button, Card, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Select, Alert, Stack } from '@mantine/core';
+import { IconEdit, IconTrash, IconPlus, IconAlertTriangle, IconUser, IconCrown, IconTrashX, IconUsers } from '@tabler/icons-react';
 import Menu from "./Menu"
 import StyledModal from './StyledModal';
 import FormField from './FormField';
@@ -288,76 +288,79 @@ const TeamsPage: React.FC = () => {
             <p>Nenhuma equipe cadastrada ainda. Comece criando uma nova equipe!</p>
           </div>
         ) : (
-          <div className="table-container">
-            <Table.ScrollContainer minWidth={800}>
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Nome da Equipe</Table.Th>
-                    <Table.Th>Proprietário (Owner)</Table.Th>
-                    <Table.Th>Membros Ativos</Table.Th>
-                    <Table.Th>Criado em</Table.Th>
-                    <Table.Th>Ações</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {teams.map((team) => {
-                    const activeMembers = team.members.filter(m => m.isActive)
-                    return (
-                      <Table.Tr key={team.id}>
-                        <Table.Td style={{ fontWeight: 600, fontSize: '15px' }}>{team.name}</Table.Td>
-                        <Table.Td>
-                          {team.owner ? (
-                            <Group gap="xs">
-                              <Badge color="yellow" variant="light" leftSection={<IconCrown size={12} />}>
-                                {team.owner.userName}
-                              </Badge>
-                              <Text size="xs" c="dimmed">({team.owner.userEmail})</Text>
-                            </Group>
-                          ) : (
-                            <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>Sem Proprietário</Text>
-                          )}
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <Badge color="blue" size="md">
-                              {activeMembers.length} membros
-                            </Badge>
-                            {activeMembers.length > 0 && (
-                              <Text size="xs" c="dimmed" truncate style={{ maxWidth: '300px' }}>
-                                {activeMembers.map(m => m.userName).join(', ')}
-                              </Text>
-                            )}
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>{formatDate(team.createdAt)}</Table.Td>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <ActionIcon
-                              variant="subtle"
-                              color="blue"
-                              onClick={() => openEditForm(team)}
-                              title="Editar"
-                            >
-                              <IconEdit size={16} />
-                            </ActionIcon>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              onClick={() => setDeleteConfirm(team.id)}
-                              title="Excluir"
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    )
-                  })}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          </div>
+          <Stack gap="md">
+            {teams.map((team) => {
+              const activeMembers = team.members.filter(m => m.isActive)
+              return (
+                <Card 
+                  key={team.id} 
+                  shadow="sm" 
+                  padding="lg" 
+                  radius="md" 
+                  withBorder 
+                  style={{
+                    backgroundColor: '#1f2937',
+                    borderColor: '#374151',
+                    color: '#fff'
+                  }}
+                >
+                  <Group justify="space-between" align="center" mb="xs">
+                    <Group gap="md">
+                      <IconUsers size={20} color="#9ca3af" />
+                      <Text fw={600} size="lg" style={{ color: 'white' }}>{team.name}</Text>
+                      {team.owner ? (
+                        <Badge color="yellow" variant="light" leftSection={<IconCrown size={12} />}>
+                          Proprietário: {team.owner.userName}
+                        </Badge>
+                      ) : (
+                        <Badge color="gray" variant="light" style={{ fontStyle: 'italic' }}>
+                          Sem Proprietário
+                        </Badge>
+                      )}
+                      <Badge color="blue" size="md">
+                        {activeMembers.length} membros
+                      </Badge>
+                    </Group>
+                    
+                    <Group gap="xs">
+                      <ActionIcon
+                        variant="subtle"
+                        color="blue"
+                        onClick={() => openEditForm(team)}
+                        title="Editar"
+                      >
+                        <IconEdit size={16} />
+                      </ActionIcon>
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        onClick={() => setDeleteConfirm(team.id)}
+                        title="Excluir"
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Group>
+                  </Group>
+
+                  {activeMembers.length > 0 ? (
+                    <Text size="sm" c="dimmed" mt="xs">
+                      <strong>Membros:</strong> {activeMembers.map(m => m.userName).join(', ')}
+                    </Text>
+                  ) : (
+                    <Text size="sm" c="dimmed" mt="xs" style={{ fontStyle: 'italic' }}>
+                      Nenhum membro ativo
+                    </Text>
+                  )}
+
+                  <Group justify="space-between" mt="md" style={{ borderTop: '1px solid #374151', paddingTop: '12px' }}>
+                    <Text size="xs" c="dimmed">
+                      Criado em {formatDate(team.createdAt)}
+                    </Text>
+                  </Group>
+                </Card>
+              )
+            })}
+          </Stack>
         )}
 
         {/* Create/Edit Team Modal */}

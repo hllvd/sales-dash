@@ -55,7 +55,8 @@ export default defineConfig({
         'hierarchy_deep_visibility.spec.ts',
         'contracts_filtering.spec.ts',
         'contract_export.spec.ts',
-        'matricula_health_monitoring.spec.ts'
+        'matricula_health_monitoring.spec.ts',
+        'teams_hierarchy_visibility.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']
