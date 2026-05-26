@@ -401,8 +401,8 @@ const TeamsPage: React.FC = () => {
               </FormField>
 
               {selectedMemberIds.length > 0 && (
-                <div style={{ marginTop: '20px', borderTop: '1px solid #373A40', paddingTop: '20px' }}>
-                  <Text size="sm" fw={600} mb="sm" c="#e9ecef">
+                <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                  <Text size="sm" fw={600} mb="sm">
                     Configuração de Membros e Datas de Início
                   </Text>
                   
@@ -419,7 +419,7 @@ const TeamsPage: React.FC = () => {
                             <div style={{ flex: 1, minWidth: '200px' }}>
                               <Group gap="xs">
                                 <IconUser size={16} color="#9ca3af" />
-                                <Text size="sm" fw={600} c="white">{user.name}</Text>
+                                <Text size="sm" fw={600}>{user.name}</Text>
                                 {isSelectedOwner && (
                                   <Badge color="yellow" size="sm" leftSection={<IconCrown size={10} />}>
                                     Proprietário
