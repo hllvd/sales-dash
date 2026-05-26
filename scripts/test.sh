@@ -139,6 +139,18 @@ build() {
     artifacts/full-build.log \
     artifacts/build-errors.log
 
+  if [ "$EXIT_CODE" -ne 0 ]; then
+    echo ""
+    echo "❌ BUILD FAILED — compiler/lint errors:"
+    echo "========================================================================="
+    # Extract lines from the first "Failed to compile" (or first "ERROR:") onward,
+    # strip the docker build step prefix (#N N.NNs ), and print up to 60 lines.
+    sed -n '/Failed to compile\.\|^\(.*\) ERROR:/,$p' artifacts/full-build.log \
+      | sed 's/^#[0-9]* [0-9]*\.[0-9]* //' \
+      | head -n 60
+    echo "========================================================================="
+  fi
+
   if [ "$EXIT_CODE" -ne 0 ] && [ -n "$CRITICAL_ERRORS" ]; then
     # Append the critical errors to build-errors.log to ensure the runner reports it
     printf "%s\n" "$CRITICAL_ERRORS" >> artifacts/build-errors.log
