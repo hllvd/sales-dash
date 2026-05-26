@@ -380,9 +380,8 @@ FodyWeavers.xsd
 *.msp
 
 # Mac OS files
+**/.DS_Store
 .DS_Store
-SalesApp.Api/.DS_Store
-SalesApp.DataMigrator/.DS_Store
 
 
 # JetBrains Rider
