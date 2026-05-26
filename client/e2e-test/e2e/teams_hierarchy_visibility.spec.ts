@@ -76,7 +76,7 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
           return body.data.id as string;
         }
         lastErr = `Status=${res.status()} Body=${await res.text()}`;
-        console.warn(`[Attempt ${attempt}/3] Registration failed for ${name} (${email}): ${lastErr}. Retrying in 500ms...`);
+        console.warn(`[Attempt ${attempt}/3] Registration unsuccessful for ${name} (${email}): ${lastErr}. Retrying in 500ms...`);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       console.error(`All registration attempts failed for ${name} (${email}): ${lastErr}`);
@@ -98,8 +98,8 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
           }
         });
         if (!res.ok()) {
-          lastErr = `Team creation failed: Status=${res.status()} Body=${await res.text()}`;
-          console.warn(`[Attempt ${attempt}/3] Team creation failed for ${teamName}: ${lastErr}. Retrying in 500ms...`);
+          lastErr = `Team creation unsuccessful: Status=${res.status()} Body=${await res.text()}`;
+          console.warn(`[Attempt ${attempt}/3] Team creation unsuccessful for ${teamName}: ${lastErr}. Retrying in 500ms...`);
           await new Promise(resolve => setTimeout(resolve, 500));
           continue;
         }
@@ -119,8 +119,8 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
           return; // Success
         }
 
-        lastErr = `Setting owner failed: Status=${ownerRes.status()} Body=${await ownerRes.text()}`;
-        console.warn(`[Attempt ${attempt}/3] Setting owner failed for team ${teamName}: ${lastErr}. Retrying in 500ms...`);
+        lastErr = `Setting owner unsuccessful: Status=${ownerRes.status()} Body=${await ownerRes.text()}`;
+        console.warn(`[Attempt ${attempt}/3] Setting owner unsuccessful for team ${teamName}: ${lastErr}. Retrying in 500ms...`);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
