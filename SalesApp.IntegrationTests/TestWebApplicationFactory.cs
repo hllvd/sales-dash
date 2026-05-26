@@ -206,6 +206,7 @@ namespace SalesApp.IntegrationTests
                     new SalesApp.Models.Permission { Name = "imports:execute", Description = "Execute imports" },
                     new SalesApp.Models.Permission { Name = "imports:history", Description = "View import history" },
                     new SalesApp.Models.Permission { Name = "imports:rollback", Description = "Rollback imports" },
+                    new SalesApp.Models.Permission { Name = "teams:manage", Description = "Manage teams" },
                     new SalesApp.Models.Permission { Name = "system:admin", Description = "Admin access" },
                     new SalesApp.Models.Permission { Name = "system:superadmin", Description = "Super admin access" }
                 };

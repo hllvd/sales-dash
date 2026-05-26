@@ -9,7 +9,7 @@ namespace SalesApp.Repositories
     {
         Task<Team?> GetByIdAsync(int id);
         Task<Team?> GetByNameAsync(string name);
-        Task<List<Team>> GetAllAsync();
+        Task<List<Team>> GetAllAsync(HashSet<int>? allowedOwnerInternalIds = null);
         Task<Team> CreateAsync(Team team);
         Task<Team> UpdateAsync(Team team);
         Task DeleteAsync(int id);

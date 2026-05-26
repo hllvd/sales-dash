@@ -279,6 +279,167 @@ namespace SalesApp.IntegrationTests.Users
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         }
 
+        [Fact]
+        public async Task GetTeams_AsSuperadmin_ShouldSeeAllTeams()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var teamName = $"Superadmin View Team {Guid.NewGuid()}";
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                context.Teams.Add(new Team { Name = teamName });
+                await context.SaveChangesAsync();
+            }
+
+            // Act
+            var response = await client.GetAsync("/api/teams");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<TeamResponse>>>();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().Contain(t => t.Name == teamName);
+        }
+
+        [Fact]
+        public async Task GetTeams_AsAdmin_ShouldOnlySeeOwnAndDescendantTeams()
+        {
+            // Arrange
+            var superadminToken = await GetSuperAdminToken();
+            var superadminClient = _factory.Client;
+            superadminClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", superadminToken);
+
+            var adminEmail = $"admin_hier_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var childEmail = $"child_hier_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var unrelatedEmail = $"unrelated_hier_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var password = "Password123!";
+
+            User adminUser;
+            User childUser;
+            User unrelatedUser;
+
+            Team teamAdmin;
+            Team teamChild;
+            Team teamUnrelated;
+            Team teamNoOwner;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superadmin = await context.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+
+                // Create Admin User
+                adminUser = new User
+                {
+                    Name = "Hierarchical Admin",
+                    Email = adminEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    RoleId = 2, // Admin
+                    ParentUserId = superadmin.Id
+                };
+                context.Users.Add(adminUser);
+                await context.SaveChangesAsync();
+
+                // Create Child User under Admin
+                childUser = new User
+                {
+                    Name = "Hierarchical Child",
+                    Email = childEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    RoleId = 3, // User
+                    ParentUserId = adminUser.Id
+                };
+                context.Users.Add(childUser);
+
+                // Create Unrelated User under Superadmin
+                unrelatedUser = new User
+                {
+                    Name = "Unrelated User",
+                    Email = unrelatedEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    RoleId = 3, // User
+                    ParentUserId = superadmin.Id
+                };
+                context.Users.Add(unrelatedUser);
+                await context.SaveChangesAsync();
+
+                // Create teams with correct membership + ownership
+                teamAdmin = await CreateTeamWithOwner(context, $"Team Owned by Admin {Guid.NewGuid()}", adminUser);
+                teamChild = await CreateTeamWithOwner(context, $"Team Owned by Child {Guid.NewGuid()}", childUser);
+                teamUnrelated = await CreateTeamWithOwner(context, $"Team Owned by Unrelated {Guid.NewGuid()}", unrelatedUser);
+
+                // Create a team with no owner
+                teamNoOwner = new Team { Name = $"Team with No Owner {Guid.NewGuid()}" };
+                context.Teams.Add(teamNoOwner);
+                await context.SaveChangesAsync();
+            }
+
+            // Act - Log in as the new Hierarchical Admin and request teams
+            var adminToken = await GetTokenForUser(adminEmail, password);
+            var adminClient = _factory.Client;
+            adminClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", adminToken);
+
+            var response = await adminClient.GetAsync("/api/teams");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<TeamResponse>>>();
+            result!.Success.Should().BeTrue();
+
+            var visibleTeamIds = result.Data!.Select(t => t.Id).ToList();
+
+            // 1. Should see team owned by themselves
+            visibleTeamIds.Should().Contain(teamAdmin.Id);
+
+            // 2. Should see team owned by their child
+            visibleTeamIds.Should().Contain(teamChild.Id);
+
+            // 3. Should NOT see team owned by unrelated user
+            visibleTeamIds.Should().NotContain(teamUnrelated.Id);
+
+            // 4. Should NOT see team without an owner
+            visibleTeamIds.Should().NotContain(teamNoOwner.Id);
+        }
+
+        private async Task<Team> CreateTeamWithOwner(AppDbContext context, string teamName, User owner)
+        {
+            var team = new Team { Name = teamName };
+            context.Teams.Add(team);
+            await context.SaveChangesAsync();
+
+            // Owners must be members to satisfy API constraints
+            context.UserTeams.Add(new UserTeam
+            {
+                TeamId = team.Id,
+                UserInternalId = owner.InternalId,
+                StartDate = DateTime.UtcNow.AddYears(-8)
+            });
+            await context.SaveChangesAsync();
+
+            team.OwnerUserInternalId = owner.InternalId;
+            context.Teams.Update(team);
+            await context.SaveChangesAsync();
+
+            return team;
+        }
+
+        private async Task<string> GetTokenForUser(string email, string password)
+        {
+            var loginRequest = new LoginRequest
+            {
+                Email = email,
+                Password = password
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+            return result?.Data?.Token ?? throw new Exception($"Login failed for {email}");
+        }
+
         private async Task<string> GetSuperAdminToken()
         {
             var loginRequest = new LoginRequest

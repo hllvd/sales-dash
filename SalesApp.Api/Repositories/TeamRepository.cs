@@ -36,14 +36,20 @@ namespace SalesApp.Repositories
                 .FirstOrDefaultAsync(t => t.Name.ToLower() == name.Trim().ToLower());
         }
 
-        public async Task<List<Team>> GetAllAsync()
+        public async Task<List<Team>> GetAllAsync(HashSet<int>? allowedOwnerInternalIds = null)
         {
-            return await _context.Teams
+            var query = _context.Teams
                 .Include(t => t.Owner)
                 .Include(t => t.UserTeams)
                     .ThenInclude(ut => ut.User)
-                .OrderBy(t => t.Name)
-                .ToListAsync();
+                .AsQueryable();
+
+            if (allowedOwnerInternalIds != null)
+            {
+                query = query.Where(t => t.OwnerUserInternalId != null && allowedOwnerInternalIds.Contains(t.OwnerUserInternalId.Value));
+            }
+
+            return await query.OrderBy(t => t.Name).ToListAsync();
         }
 
         public async Task<Team> CreateAsync(Team team)
