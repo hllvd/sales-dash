@@ -7,6 +7,7 @@ import ContractsPage from './components/ContractsPage';
 import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
 import MatriculasPage from './components/MatriculasPage';
+import TeamsPage from './components/TeamsPage';
 import MyProfilePage from './components/MyProfilePage';
 import ImportHistoryPage from './components/ImportHistoryPage';
 import ImportWizardPage from './components/ImportWizardPage';
@@ -61,6 +62,8 @@ function App() {
         return <MyContractsPage />;
       case '#/matriculas':
         return <MatriculasPage />;
+      case '#/teams':
+        return <TeamsPage />;
       case '#/my-profile':
         return <MyProfilePage />;
       case '#/import-history':

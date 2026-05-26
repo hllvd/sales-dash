@@ -871,6 +871,92 @@ export const apiService = {
   myContractExportPollUrl(jobId: string): string {
     return `${API_BASE_URL}/users/me/contracts/export/${jobId}`;
   },
+
+  // Teams Management methods
+  async getTeams(): Promise<ApiResponse<Team[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error("Failed to fetch teams")
+    return response.json()
+  },
+
+  async getTeam(id: number): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error("Failed to fetch team")
+    return response.json()
+  },
+
+  async createTeam(name: string, members: Array<{ userId: string; startDate?: string }>): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name, members }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to create team"))
+    }
+    return response.json()
+  },
+
+  async updateTeam(id: number, name?: string, ownerUserId?: string): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name, ownerUserId }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to update team"))
+    }
+    return response.json()
+  },
+
+  async deleteTeam(id: number): Promise<ApiResponse<any>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error("Failed to delete team")
+    return response.json()
+  },
+
+  async addTeamMembers(id: number, members: Array<{ userId: string; startDate?: string }>): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/members`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ members }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to add team members"))
+    }
+    return response.json()
+  },
+
+  async removeTeamMember(id: number, userId: string): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/members/${userId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error("Failed to remove team member")
+    return response.json()
+  },
+
+  async setTeamOwner(id: number, ownerUserId: string): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/owner`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(ownerUserId),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to set team owner"))
+    }
+    return response.json()
+  },
 }
 
 
@@ -957,4 +1043,25 @@ export interface ImportSession {
   uploadedBy?: { name: string };
   createdAt: string;
   completedAt?: string;
+}
+
+export interface TeamMember {
+  userId: string
+  userInternalId: number
+  userName: string
+  userEmail: string
+  startDate: string
+  endDate: string | null
+  isActive: boolean
+  isOwner: boolean
+}
+
+export interface Team {
+  id: number
+  name: string
+  owner: TeamMember | null
+  members: TeamMember[]
+  warnings?: string[]
+  createdAt: string
+  updatedAt: string
 }

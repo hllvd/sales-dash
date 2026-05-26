@@ -57,6 +57,7 @@ namespace SalesApp
             // Services
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<ITeamRepository, TeamRepository>();
             services.AddScoped<IGroupRepository, GroupRepository>();
             services.AddScoped<IContractRepository, ContractRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();

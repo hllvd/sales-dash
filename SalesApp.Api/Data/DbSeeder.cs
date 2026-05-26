@@ -195,6 +195,7 @@ namespace SalesApp.Data
                 "groups:read", "groups:write",
                 "matriculas:read", "matriculas:write",
                 "roles:read", "roles:create", "roles:update", "roles:delete",
+                "teams:manage",
                 "system:admin", "system:superadmin"
             };
 

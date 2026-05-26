@@ -220,6 +220,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
+          {userRole === 'superadmin' && (
+            <NavLink
+              href="#/teams"
+              label="Equipes"
+              leftSection={<IconUsers size={20} />}
+              active={isActive('#/teams')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/teams')}
+              onClick={() => { if (opened) close(); }}
+            />
+          )}
+
           {(hasPermission('roles:read') && userRole !== UserRole.ADMIN) && (
             <NavLink
               href="#/access-control"

@@ -138,7 +138,17 @@ namespace SalesApp.Services
             [AppMessage.InvalidContractStatus] = "Status de contrato inválido: {0}. Valores válidos são: Active, Late1, Late2, Late3, Defaulted",
             [AppMessage.InvalidMatriculaStatus] = "Status de matrícula inválido: {0}. Valores válidos são: active, pending, inactive, approved, rejected",
             [AppMessage.InvalidContractType] = "Tipo de contrato inválido: {0}. Deve ser 'lar' ou 'motores'",
-            [AppMessage.InvalidRoleId] = "ID de função inválido: {0}"
+            [AppMessage.InvalidRoleId] = "ID de função inválido: {0}",
+            
+            // Team Messages
+            [AppMessage.TeamCreatedSuccessfully] = "Equipe criada com sucesso",
+            [AppMessage.TeamUpdatedSuccessfully] = "Equipe atualizada com sucesso",
+            [AppMessage.TeamDeletedSuccessfully] = "Equipe excluída com sucesso",
+            [AppMessage.TeamNotFound] = "Equipe não encontrada",
+            [AppMessage.TeamRetrievedSuccessfully] = "Equipe recuperada com sucesso",
+            [AppMessage.TeamsRetrievedSuccessfully] = "Equipes recuperadas com sucesso",
+            [AppMessage.TeamNameAlreadyExists] = "Nome da equipe já existe",
+            [AppMessage.UserRemovedFromTeamConflict] = "O usuário '{0}' foi removido da equipe '{1}' por conflito de data."
         };
         
         /// <summary>

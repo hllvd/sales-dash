@@ -35,6 +35,8 @@ namespace SalesApp.Data
         public DbSet<ScrapeConfig> ScrapeConfigs { get; set; }
         public DbSet<PendingContractClaim> PendingContractClaims { get; set; }
         public DbSet<ContractStatusEntity> ContractStatuses { get; set; }
+        public DbSet<Team> Teams { get; set; }
+        public DbSet<UserTeam> UserTeams { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -398,6 +400,42 @@ namespace SalesApp.Data
                 entity.Property(e => e.Id).ValueGeneratedOnAdd();   // AUTOINCREMENT
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(50).HasColumnType("TEXT");
                 entity.HasIndex(e => e.Name).IsUnique();
+            });
+
+            // Team entity configuration
+            modelBuilder.Entity<Team>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.HasIndex(e => e.Name).IsUnique();
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+
+                entity.HasOne(e => e.Owner)
+                    .WithMany()
+                    .HasForeignKey(e => e.OwnerUserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // UserTeam entity configuration
+            modelBuilder.Entity<UserTeam>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.StartDate).IsRequired();
+
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.UserTeams)
+                    .HasForeignKey(e => e.UserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Team)
+                    .WithMany(t => t.UserTeams)
+                    .HasForeignKey(e => e.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.UserInternalId, e.EndDate });
             });
         }
         

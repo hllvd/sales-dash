@@ -134,6 +134,16 @@ namespace SalesApp.Models
         InvalidContractStatus,
         InvalidMatriculaStatus,
         InvalidContractType,
-        InvalidRoleId
+        InvalidRoleId,
+        
+        // Team Messages
+        TeamCreatedSuccessfully,
+        TeamUpdatedSuccessfully,
+        TeamDeletedSuccessfully,
+        TeamNotFound,
+        TeamRetrievedSuccessfully,
+        TeamsRetrievedSuccessfully,
+        TeamNameAlreadyExists,
+        UserRemovedFromTeamConflict
     }
 }

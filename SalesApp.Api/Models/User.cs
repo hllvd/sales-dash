@@ -47,6 +47,8 @@ namespace SalesApp.Models
         public ICollection<User> ChildUsers { get; set; } = new List<User>();
         public virtual ICollection<UserMatricula> UserMatriculas { get; set; } = new List<UserMatricula>();
         [JsonIgnore]
+        public virtual ICollection<UserTeam> UserTeams { get; set; } = new List<UserTeam>();
+        [JsonIgnore]
         public virtual ICollection<ScrapeConfig> ScrapeConfigs { get; set; } = new List<ScrapeConfig>();
         [JsonIgnore]
         public ImportSession? ImportSession { get; set; }
