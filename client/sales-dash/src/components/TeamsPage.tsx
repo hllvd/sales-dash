@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, Card, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Select, Alert, Stack, Table, List } from '@mantine/core';
-import { IconEdit, IconTrash, IconPlus, IconAlertTriangle, IconUser, IconCrown, IconTrashX, IconUsers } from '@tabler/icons-react';
+import { Title, Button, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Alert, Stack, Table, List } from '@mantine/core';
+import { IconEdit, IconTrash, IconPlus, IconAlertTriangle, IconUser, IconCrown, IconTrashX, IconUsers, IconUsersGroup } from '@tabler/icons-react';
 import Menu from "./Menu"
 import StyledModal from './StyledModal';
 import FormField from './FormField';
+import TeamMembersModal from './TeamMembersModal';
 import { apiService, Team, User } from "../services/apiService"
 import "./TeamsPage.css"
 
@@ -15,6 +16,12 @@ const TeamsPage: React.FC = () => {
   const [warnings, setWarnings] = useState<string[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
+  const [managingTeam, setManagingTeam] = useState<Team | null>(null)
+
+  // Current user info for TeamMembersModal
+  const currentUserRaw = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })()
+  const currentUserRole: string = currentUserRaw.role || ''
+  const currentUserId: string = currentUserRaw.id || ''
   
   // Form states
   const [teamName, setTeamName] = useState("")
@@ -351,6 +358,14 @@ const TeamsPage: React.FC = () => {
                           <Group gap="xs">
                             <ActionIcon
                               variant="subtle"
+                              color="teal"
+                              onClick={() => setManagingTeam(team)}
+                              title="Gerenciar Membros"
+                            >
+                              <IconUsersGroup size={16} />
+                            </ActionIcon>
+                            <ActionIcon
+                              variant="subtle"
                               color="blue"
                               onClick={() => openEditForm(team)}
                               title="Editar"
@@ -534,6 +549,21 @@ const TeamsPage: React.FC = () => {
               </Group>
             </form>
           </StyledModal>
+        )}
+
+        {/* Manage Members Modal */}
+        {managingTeam && (
+          <TeamMembersModal
+            team={managingTeam}
+            allUsers={allUsers}
+            currentUserRole={currentUserRole}
+            currentUserId={currentUserId}
+            onClose={() => setManagingTeam(null)}
+            onTeamChanged={(updated) => {
+              setManagingTeam(updated)
+              setTeams(prev => prev.map(t => t.id === updated.id ? updated : t))
+            }}
+          />
         )}
 
         {/* Delete Confirmation Modal */}
