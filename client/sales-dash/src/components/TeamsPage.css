@@ -85,38 +85,38 @@
 }
 
 .members-dates-list::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #1a1b1e;
   border-radius: 4px;
 }
 
 .members-dates-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #373a40;
   border-radius: 4px;
 }
 
 .members-dates-list::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #4a505a;
 }
 
 .member-date-item {
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background-color: #25262b;
+  border: 1px solid #373a40;
   border-radius: 8px;
   padding: 12px 16px;
   transition: all 0.2s ease;
 }
 
 .member-date-item:hover {
-  background-color: #f1f5f9;
-  border-color: #cbd5e1;
+  background-color: #2c2e33;
+  border-color: #4c4f56;
   transform: translateY(-1px);
 }
 
 .member-date-picker-input {
-  background-color: #fff;
-  border: 1px solid #cbd5e1;
+  background-color: #1a1b1e;
+  border: 1px solid #373a40;
   border-radius: 6px;
-  color: #334155;
+  color: #fff;
   padding: 6px 10px;
   font-size: 13px;
   outline: none;

@@ -76,7 +76,7 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
           return body.data.id as string;
         }
         lastErr = `Status=${res.status()} Body=${await res.text()}`;
-        console.warn(`[Attempt ${attempt}/3] Registration unsuccessful for ${name} (${email}): ${lastErr}. Retrying in 500ms...`);
+        console.warn(`[Attempt ${attempt}/3] Retrying registration for ${name} (${email}): ${lastErr}. Wait 500ms...`);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       console.error(`All registration attempts failed for ${name} (${email}): ${lastErr}`);
@@ -98,8 +98,8 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
           }
         });
         if (!res.ok()) {
-          lastErr = `Team creation unsuccessful: Status=${res.status()} Body=${await res.text()}`;
-          console.warn(`[Attempt ${attempt}/3] Team creation unsuccessful for ${teamName}: ${lastErr}. Retrying in 500ms...`);
+          lastErr = `Team creation status: Status=${res.status()} Body=${await res.text()}`;
+          console.warn(`[Attempt ${attempt}/3] Retrying team creation for ${teamName}: ${lastErr}. Wait 500ms...`);
           await new Promise(resolve => setTimeout(resolve, 500));
           continue;
         }
@@ -119,8 +119,8 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
           return; // Success
         }
 
-        lastErr = `Setting owner unsuccessful: Status=${ownerRes.status()} Body=${await ownerRes.text()}`;
-        console.warn(`[Attempt ${attempt}/3] Setting owner unsuccessful for team ${teamName}: ${lastErr}. Retrying in 500ms...`);
+        lastErr = `Setting owner status: Status=${ownerRes.status()} Body=${await ownerRes.text()}`;
+        console.warn(`[Attempt ${attempt}/3] Retrying setting owner for team ${teamName}: ${lastErr}. Wait 500ms...`);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
@@ -204,5 +204,21 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
     const containerText = await container.innerText();
     expect(containerText).not.toContain(teams.D);
     expect(containerText).not.toContain(teams.E);
+  });
+
+  test('Search field should filter teams in the table', async ({ page }) => {
+    test.setTimeout(45_000);
+    await loginAndGoToTeams(page, users.superadmin.email, users.superadmin.password);
+
+    // Search for Team D specifically
+    await page.fill('input[placeholder="Buscar por equipe, proprietário ou membro..."]', teams.D);
+    await page.waitForTimeout(500); // Wait for input/render
+
+    const container = page.locator('.teams-container');
+    await expect(container).toContainText(teams.D);
+    
+    // Team A should NOT be visible under the filtered results
+    const containerText = await container.innerText();
+    expect(containerText).not.toContain(teams.A);
   });
 });
