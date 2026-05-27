@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, Card, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Select, Alert, Stack, Table } from '@mantine/core';
+import { Title, Button, Card, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Select, Alert, Stack, Table, List } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconAlertTriangle, IconUser, IconCrown, IconTrashX, IconUsers } from '@tabler/icons-react';
 import Menu from "./Menu"
 import StyledModal from './StyledModal';
@@ -265,25 +265,22 @@ const TeamsPage: React.FC = () => {
           <Alert 
             icon={<IconAlertTriangle size={16} />} 
             title="Conflitos de Associação Resolvidos!" 
-            color="yellow" 
-            variant="filled"
+            color="orange" 
             withCloseButton 
             onClose={() => setWarnings([])}
             mb="lg"
-            styles={{
-              root: { border: '1px solid rgba(253, 224, 71, 0.4)' },
-              title: { fontWeight: 700 }
-            }}
           >
             <Stack gap="xs">
-              <Text size="sm">
+              <Text size="sm" style={{ color: '#4b5563' }}>
                 Os seguintes usuários foram removidos de suas equipes anteriores porque foram associados a um novo período sobreposto:
               </Text>
-              {warnings.map((warn, i) => (
-                <Badge key={i} color="dark" size="md" radius="sm" style={{ alignSelf: 'flex-start', color: '#fef08a' }}>
-                  • {warn}
-                </Badge>
-              ))}
+              <List size="sm" withPadding spacing="xs" style={{ color: '#4b5563' }}>
+                {warnings.map((warn, i) => (
+                  <List.Item key={i}>
+                    {warn}
+                  </List.Item>
+                ))}
+              </List>
             </Stack>
           </Alert>
         )}
