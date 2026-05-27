@@ -417,37 +417,52 @@ const TeamsPage: React.FC = () => {
               </FormField>
 
               {selectedMemberIds.length > 0 && (
-                <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-                  <Text size="sm" fw={600} mb="sm">
+                <div style={{ marginTop: '20px', borderTop: '1px solid #373a40', paddingTop: '20px' }}>
+                  <Text size="sm" fw={600} mb="sm" style={{ color: '#fff' }}>
                     Configuração de Membros e Datas de Início
                   </Text>
                   
-                  <div className="members-dates-list">
-                    {selectedMemberIds.map(userId => {
-                      const user = allUsers.find(u => u.id === userId)
-                      if (!user) return null
+                  <div style={{ maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }} className="modal-table-scroll-container">
+                    <table className="modal-members-table">
+                      <thead>
+                        <tr>
+                          <th>Nome</th>
+                          <th>Data de Início</th>
+                          <th>Data de Fim</th>
+                          <th style={{ textAlign: 'right' }}>Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedMemberIds.map(userId => {
+                          const user = allUsers.find(u => u.id === userId)
+                          if (!user) return null
 
-                      const isSelectedOwner = ownerUserId === userId
+                          const isSelectedOwner = ownerUserId === userId
+                          const existingMember = editingTeam?.members.find(m => m.userId === userId)
+                          const endDateString = existingMember?.endDate ? formatDate(existingMember.endDate) : "-"
 
-                      return (
-                        <div key={userId} className="member-date-item">
-                          <Group justify="space-between" align="center" style={{ width: '100%' }}>
-                            <div style={{ flex: 1, minWidth: '200px' }}>
-                              <Group gap="xs">
-                                <IconUser size={16} color="#9ca3af" />
-                                <Text size="sm" fw={600}>{user.name}</Text>
-                                {isSelectedOwner && (
-                                  <Badge color="yellow" size="sm" leftSection={<IconCrown size={10} />}>
-                                    Proprietário
-                                  </Badge>
-                                )}
-                              </Group>
-                              <Text size="xs" c="dimmed" ml="md">{user.email}</Text>
-                            </div>
-
-                            <Group gap="md">
-                              <div>
-                                <Text size="xs" fw={500} c="dimmed" mb={4}>Data de Início</Text>
+                          return (
+                            <tr key={userId} className={isSelectedOwner ? "is-owner-row" : ""}>
+                              <td>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <IconUser size={14} color={isSelectedOwner ? "#eab308" : "#9ca3af"} />
+                                    <span style={{ fontWeight: 600, color: isSelectedOwner ? "#fef08a" : "#fff" }}>
+                                      {user.name}
+                                    </span>
+                                    {isSelectedOwner && (
+                                      <Badge color="yellow" size="xs" variant="filled" leftSection={<IconCrown size={8} />}>
+                                        Dono
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '22px' }}>
+                                    {user.email}
+                                  </span>
+                                </div>
+                              </td>
+                              
+                              <td>
                                 <input
                                   type="date"
                                   required
@@ -455,33 +470,40 @@ const TeamsPage: React.FC = () => {
                                   onChange={(e) => handleMemberDateChange(userId, e.target.value)}
                                   className="member-date-picker-input"
                                 />
-                              </div>
+                              </td>
 
-                              <Button
-                                size="xs"
-                                variant={isSelectedOwner ? "filled" : "light"}
-                                color="yellow"
-                                leftSection={<IconCrown size={12} />}
-                                onClick={() => setOwnerUserId(isSelectedOwner ? "" : userId)}
-                                style={{ marginTop: '16px' }}
-                              >
-                                {isSelectedOwner ? "Dono" : "Tornar Dono"}
-                              </Button>
+                              <td style={{ color: isSelectedOwner ? "#fef08a" : "#9ca3af", fontWeight: 500 }}>
+                                {endDateString}
+                              </td>
 
-                              <ActionIcon
-                                color="red"
-                                variant="subtle"
-                                onClick={() => removeLocalMember(userId)}
-                                style={{ marginTop: '16px' }}
-                                title="Remover membro"
-                              >
-                                <IconTrashX size={18} />
-                              </ActionIcon>
-                            </Group>
-                          </Group>
-                        </div>
-                      )
-                    })}
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                  <Button
+                                    size="xs"
+                                    variant={isSelectedOwner ? "filled" : "light"}
+                                    color="yellow"
+                                    leftSection={<IconCrown size={12} />}
+                                    onClick={() => setOwnerUserId(isSelectedOwner ? "" : userId)}
+                                    title={isSelectedOwner ? "Remover cargo de proprietário" : "Tornar proprietário"}
+                                  >
+                                    {isSelectedOwner ? "Dono" : "Tornar Dono"}
+                                  </Button>
+
+                                  <ActionIcon
+                                    color="red"
+                                    variant="subtle"
+                                    onClick={() => removeLocalMember(userId)}
+                                    title="Remover membro da equipe"
+                                  >
+                                    <IconTrashX size={18} />
+                                  </ActionIcon>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}

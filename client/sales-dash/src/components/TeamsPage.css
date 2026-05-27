@@ -136,3 +136,72 @@
     gap: 16px;
   }
 }
+
+/* Premium modal members table styling */
+.modal-table-scroll-container {
+  border: 1px solid #373a40;
+  border-radius: 8px;
+  background-color: #1a1b1e;
+}
+
+.modal-table-scroll-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.modal-table-scroll-container::-webkit-scrollbar-track {
+  background: #1a1b1e;
+  border-radius: 4px;
+}
+
+.modal-table-scroll-container::-webkit-scrollbar-thumb {
+  background: #373a40;
+  border-radius: 4px;
+}
+
+.modal-table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #4a505a;
+}
+
+.modal-members-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background-color: #1a1b1e;
+  color: #fff;
+}
+
+.modal-members-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  border-bottom: 1px solid #373a40;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: #1f2023;
+}
+
+.modal-members-table td {
+  padding: 10px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid #25262b;
+}
+
+.modal-members-table tr {
+  transition: background-color 0.15s ease;
+}
+
+.modal-members-table tr:hover {
+  background-color: #25262b;
+}
+
+.modal-members-table tr.is-owner-row {
+  background-color: #2a2311 !important; /* Premium gold tint */
+  border-left: 3px solid #eab308;
+}
+
+.modal-members-table tr.is-owner-row:hover {
+  background-color: #362c14 !important;
+}
