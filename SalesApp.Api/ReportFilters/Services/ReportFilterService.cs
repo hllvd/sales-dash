@@ -103,6 +103,7 @@ namespace SalesApp.ReportFilters.Services
                 OutputColumns = MapOutputColumns(request.OutputColumns),
                 GroupByEmail = request.GroupByEmail,
                 GroupByTeam = request.GroupByTeam,
+                HideUnassignedTeams = request.HideUnassignedTeams,
                 OrderByField = request.OrderByField,
                 OrderByDirection = request.OrderByDirection,
                 CreatedAt   = now,
@@ -139,6 +140,7 @@ namespace SalesApp.ReportFilters.Services
             filter.OutputColumns = MapOutputColumns(request.OutputColumns);
             filter.GroupByEmail  = request.GroupByEmail;
             filter.GroupByTeam   = request.GroupByTeam;
+            filter.HideUnassignedTeams = request.HideUnassignedTeams;
             filter.OrderByField  = request.OrderByField;
             filter.OrderByDirection = request.OrderByDirection;
             filter.UpdatedAt     = DateTime.UtcNow;
@@ -257,6 +259,12 @@ namespace SalesApp.ReportFilters.Services
             if (fc.Pvs?.Count > 0)
             {
                 contracts = contracts.Where(c => c.PvId.HasValue && fc.Pvs.Contains(c.PvId.Value)).ToList();
+            }
+
+            // Exclude contracts from unassigned teams if HideUnassignedTeams is active
+            if (report.HideUnassignedTeams)
+            {
+                contracts = contracts.Where(c => getTeamName(c) != "(Sem equipe)").ToList();
             }
 
             // ── Compute per-user/team retention BEFORE status filtering ───────
@@ -741,6 +749,7 @@ namespace SalesApp.ReportFilters.Services
                 Scope       = f.Scope,
                 GroupByEmail = f.GroupByEmail,
                 GroupByTeam = f.GroupByTeam,
+                HideUnassignedTeams = f.HideUnassignedTeams,
                 OrderByField = f.OrderByField,
                 OrderByDirection = f.OrderByDirection,
                 CreatedAt   = f.CreatedAt,

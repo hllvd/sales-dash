@@ -66,6 +66,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>([]);
   const [groupByEmail, setGroupByEmail] = useState(false);
   const [groupByTeam, setGroupByTeam] = useState(false);
+  const [hideUnassignedTeams, setHideUnassignedTeams] = useState(false);
   const [orderByField, setOrderByField] = useState<string | null>(null);
   const [orderByDirection, setOrderByDirection] = useState<'asc' | 'desc'>('asc');
   
@@ -131,6 +132,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setOutputColumns(report.outputColumns || []);
         setGroupByEmail(report.groupByEmail || false);
         setGroupByTeam(report.groupByTeam || false);
+        setHideUnassignedTeams(report.hideUnassignedTeams || false);
         setOrderByField(report.orderByField || null);
         setOrderByDirection(report.orderByDirection || 'asc');
       }
@@ -234,6 +236,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         outputColumns,
         groupByEmail,
         groupByTeam,
+        hideUnassignedTeams,
         orderByField: orderByField || undefined,
         orderByDirection: orderByField ? orderByDirection : undefined
       };
@@ -284,6 +287,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         outputColumns,
         groupByEmail,
         groupByTeam,
+        hideUnassignedTeams,
         orderByField: orderByField || undefined,
         orderByDirection: orderByField ? orderByDirection : undefined
       };
@@ -535,7 +539,10 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   checked={groupByEmail}
                   onChange={(e) => {
                     setGroupByEmail(e.currentTarget.checked);
-                    if (e.currentTarget.checked) setGroupByTeam(false);
+                    if (e.currentTarget.checked) {
+                      setGroupByTeam(false);
+                      setHideUnassignedTeams(false);
+                    }
                   }}
                 />
                 <Switch
@@ -543,9 +550,20 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   checked={groupByTeam}
                   onChange={(e) => {
                     setGroupByTeam(e.currentTarget.checked);
-                    if (e.currentTarget.checked) setGroupByEmail(false);
+                    if (e.currentTarget.checked) {
+                      setGroupByEmail(false);
+                    } else {
+                      setHideUnassignedTeams(false);
+                    }
                   }}
                 />
+                {groupByTeam && (
+                  <Switch
+                    label="Ocultar contratos sem equipe (Sem equipe)"
+                    checked={hideUnassignedTeams}
+                    onChange={(e) => setHideUnassignedTeams(e.currentTarget.checked)}
+                  />
+                )}
               </Group>
             </Group>
             <Group mb="md" align="flex-end">

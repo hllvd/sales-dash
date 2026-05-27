@@ -39,6 +39,9 @@ namespace SalesApp.ReportFilters.Models
         /// <summary>When true, groups results by team and sums totalAmount.</summary>
         public bool GroupByTeam { get; set; }
 
+        /// <summary>When true, excludes contracts from sellers not assigned to any team.</summary>
+        public bool HideUnassignedTeams { get; set; }
+
         /// <summary>Column label to order by.</summary>
         public string? OrderByField { get; set; }
 
