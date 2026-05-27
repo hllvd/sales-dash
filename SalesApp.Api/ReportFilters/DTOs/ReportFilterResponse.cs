@@ -14,6 +14,7 @@ namespace SalesApp.ReportFilters.DTOs
         public FilterConfigResponse FilterConfig { get; set; } = new();
         public List<OutputColumnResponse> OutputColumns { get; set; } = new();
         public bool GroupByEmail { get; set; }
+        public bool GroupByTeam { get; set; }
         public string? OrderByField { get; set; }
         public string? OrderByDirection { get; set; }
         public DateTime CreatedAt { get; set; }

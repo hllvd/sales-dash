@@ -65,6 +65,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   // Columns
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>([]);
   const [groupByEmail, setGroupByEmail] = useState(false);
+  const [groupByTeam, setGroupByTeam] = useState(false);
   const [orderByField, setOrderByField] = useState<string | null>(null);
   const [orderByDirection, setOrderByDirection] = useState<'asc' | 'desc'>('asc');
   
@@ -129,6 +130,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         
         setOutputColumns(report.outputColumns || []);
         setGroupByEmail(report.groupByEmail || false);
+        setGroupByTeam(report.groupByTeam || false);
         setOrderByField(report.orderByField || null);
         setOrderByDirection(report.orderByDirection || 'asc');
       }
@@ -217,6 +219,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         filterConfig,
         outputColumns,
         groupByEmail,
+        groupByTeam,
         orderByField: orderByField || undefined,
         orderByDirection: orderByField ? orderByDirection : undefined
       };
@@ -266,6 +269,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         filterConfig,
         outputColumns,
         groupByEmail,
+        groupByTeam,
         orderByField: orderByField || undefined,
         orderByDirection: orderByField ? orderByDirection : undefined
       };
@@ -511,11 +515,24 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
           <Paper shadow="sm" p="lg" radius="md" withBorder>
             <Group justify="space-between" mb="md">
               <Title order={4}>Colunas de Saída</Title>
-              <Switch
-                label="Agrupar por E-mail e somar total de produção por usuário"
-                checked={groupByEmail}
-                onChange={(e) => setGroupByEmail(e.currentTarget.checked)}
-              />
+              <Group gap="md">
+                <Switch
+                  label="Agrupar por E-mail e somar total de produção por usuário"
+                  checked={groupByEmail}
+                  onChange={(e) => {
+                    setGroupByEmail(e.currentTarget.checked);
+                    if (e.currentTarget.checked) setGroupByTeam(false);
+                  }}
+                />
+                <Switch
+                  label="Agrupar por Equipe"
+                  checked={groupByTeam}
+                  onChange={(e) => {
+                    setGroupByTeam(e.currentTarget.checked);
+                    if (e.currentTarget.checked) setGroupByEmail(false);
+                  }}
+                />
+              </Group>
             </Group>
             <Group mb="md" align="flex-end">
               <Select
@@ -589,6 +606,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   data={[
                     { value: '', label: 'Sem ordenação' },
                     ...(groupByEmail ? [{ value: 'Email', label: 'Email' }] : []),
+                    ...(groupByTeam ? [{ value: 'Equipe', label: 'Equipe' }] : []),
                     ...Array.from(new Set(outputColumns.map(c => c.label).filter(l => l && l.trim() !== ""))).map(label => ({ value: label, label }))
                   ]}
                   value={orderByField}

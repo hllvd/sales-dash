@@ -22,20 +22,25 @@ namespace SalesApp.ReportFilters.Services
         private readonly IReportFilterRepository _repository;
         private readonly IContractRepository _contractRepository;
         private readonly IUserRepository _userRepository;
+        private readonly ITeamRepository _teamRepository;
 
-        // Set during ExecuteAsync when GroupByEmail is active; null otherwise.
+        // Set during ExecuteAsync when GroupByEmail/GroupByTeam is active; null otherwise.
         // Safe as a mutable field because this service is Scoped (one instance per HTTP request).
         private Dictionary<string, decimal>? _retentionByEmail;
         private Dictionary<string, int>? _contractCountByEmail;
+        private Dictionary<string, decimal>? _retentionByTeam;
+        private Dictionary<string, int>? _contractCountByTeam;
 
         public ReportFilterService(
             IReportFilterRepository repository,
             IContractRepository contractRepository,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            ITeamRepository teamRepository)
         {
             _repository = repository;
             _contractRepository = contractRepository;
             _userRepository = userRepository;
+            _teamRepository = teamRepository;
         }
 
         // ── List ──────────────────────────────────────────────────────────────
@@ -97,6 +102,7 @@ namespace SalesApp.ReportFilters.Services
                 FilterConfig = MapFilterConfig(request.FilterConfig),
                 OutputColumns = MapOutputColumns(request.OutputColumns),
                 GroupByEmail = request.GroupByEmail,
+                GroupByTeam = request.GroupByTeam,
                 OrderByField = request.OrderByField,
                 OrderByDirection = request.OrderByDirection,
                 CreatedAt   = now,
@@ -132,6 +138,7 @@ namespace SalesApp.ReportFilters.Services
             filter.FilterConfig  = MapFilterConfig(request.FilterConfig);
             filter.OutputColumns = MapOutputColumns(request.OutputColumns);
             filter.GroupByEmail  = request.GroupByEmail;
+            filter.GroupByTeam   = request.GroupByTeam;
             filter.OrderByField  = request.OrderByField;
             filter.OrderByDirection = request.OrderByDirection;
             filter.UpdatedAt     = DateTime.UtcNow;
@@ -171,6 +178,22 @@ namespace SalesApp.ReportFilters.Services
 
             var report = getResult.Data!;
             var fc = report.FilterConfig;
+
+            // Load all teams and memberships in memory once for fast lookup
+            var teamsList = await _teamRepository.GetAllAsync();
+            var memberTeamMapping = teamsList
+                .SelectMany(t => t.UserTeams.Select(ut => new { ut.UserInternalId, ut.StartDate, ut.EndDate, TeamName = t.Name }))
+                .ToList();
+
+            Func<SalesApp.Models.Contract, string> getTeamName = c =>
+            {
+                if (c.UserInternalId == null) return "(Sem equipe)";
+                var match = memberTeamMapping.FirstOrDefault(x => 
+                    x.UserInternalId == c.UserInternalId.Value &&
+                    x.StartDate <= c.SaleStartDate &&
+                    (x.EndDate == null || x.EndDate > c.SaleStartDate));
+                return match?.TeamName ?? "(Sem equipe)";
+            };
 
             // Build filter arguments to pass to existing IContractRepository.GetAllAsync
             Guid? userIdFilter = null;
@@ -226,8 +249,8 @@ namespace SalesApp.ReportFilters.Services
                 contracts = contracts.Where(c => c.PvId.HasValue && fc.Pvs.Contains(c.PvId.Value)).ToList();
             }
 
-            // ── Compute per-user retention BEFORE status filtering ────────────
-            // Retention must reflect a user's FULL portfolio (all statuses), not just
+            // ── Compute per-user/team retention BEFORE status filtering ───────
+            // Retention must reflect a user's/team's FULL portfolio (all statuses), not just
             // the subset visible after a status filter is applied.
             if (report.GroupByEmail)
             {
@@ -251,6 +274,30 @@ namespace SalesApp.ReportFilters.Services
             else
             {
                 _retentionByEmail = null;
+            }
+
+            if (report.GroupByTeam)
+            {
+                _retentionByTeam = contracts
+                    .GroupBy(getTeamName)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var total = g.Sum(c => c.TotalAmount);
+                            if (total <= 0) return 0m;
+                            var active = g
+                                .Where(c => !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Defaulted.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+                            return active / total;
+                        });
+            }
+            else
+            {
+                _retentionByTeam = null;
             }
 
             // Filter by status in memory (same pattern as PV filter)
@@ -287,9 +334,29 @@ namespace SalesApp.ReportFilters.Services
                 contracts = grouped.Select(x => x.Contract).ToList();
             }
 
+            if (report.GroupByTeam)
+            {
+                // Group by team; null/no team maps to a shared "(Sem equipe)" bucket
+                // Retention is already pre-computed above in _retentionByTeam
+                var grouped = contracts
+                    .GroupBy(getTeamName)
+                    .Select(g =>
+                    {
+                        var first = g.First();
+                        // ✅ IMPORTANT: Since we use AsNoTracking, we can safely mutate the object in memory
+                        first.TotalAmount = g.Sum(c => c.TotalAmount);
+                        return (Contract: first, TeamKey: g.Key, Count: g.Count());
+                    })
+                    .OrderByDescending(x => x.Contract.TotalAmount)
+                    .ToList();
+
+                _contractCountByTeam = grouped.ToDictionary(x => x.TeamKey, x => x.Count);
+                contracts = grouped.Select(x => x.Contract).ToList();
+            }
+
             // Project each contract to only the outputColumns fields
             var columns = report.OutputColumns.OrderBy(c => c.Order).ToList();
-            var allRows = contracts.Select(c => ProjectContract(c, columns)).ToList();
+            var allRows = contracts.Select(c => ProjectContract(c, columns, getTeamName)).ToList();
 
             // Apply ordering if specified
             if (!string.IsNullOrWhiteSpace(report.OrderByField))
@@ -352,6 +419,17 @@ namespace SalesApp.ReportFilters.Services
                 });
             }
 
+            if (report.GroupByTeam && !result.Columns.Any(c => c.Source == "Users_Contract" && c.Field == "team"))
+            {
+                result.Columns.Insert(0, new OutputColumnResponse
+                {
+                    Source = "Users_Contract",
+                    Field  = "team",
+                    Label  = "Equipe",
+                    Order  = 0
+                });
+            }
+
             return new ServiceResult<ReportResultsResponse>(true, result);
         }
 
@@ -393,7 +471,8 @@ namespace SalesApp.ReportFilters.Services
                         Fields = new List<string>
                         {
                             "name",
-                            "email"
+                            "email",
+                            "team"
                         }
                     },
                     new SourceColumns
@@ -453,13 +532,14 @@ namespace SalesApp.ReportFilters.Services
         /// </summary>
         private Dictionary<string, object?> ProjectContract(
             SalesApp.Models.Contract contract,
-            List<OutputColumnResponse> columns)
+            List<OutputColumnResponse> columns,
+            Func<SalesApp.Models.Contract, string> getTeamName)
         {
             var row = new Dictionary<string, object?>();
 
             foreach (var col in columns)
             {
-                row[col.Label] = ResolveField(contract, col.Source, col.Field);
+                row[col.Label] = ResolveField(contract, col.Source, col.Field, getTeamName);
             }
 
             // Synthetic Email column is still injected if not present, to ensure Group By works visually
@@ -468,10 +548,16 @@ namespace SalesApp.ReportFilters.Services
                 row["Email"] = contract.User?.Email ?? "(Sem usuário)";
             }
 
+            // Synthetic Team column is still injected if not present to ensure team displays nicely
+            if (!row.ContainsKey("Equipe"))
+            {
+                row["Equipe"] = getTeamName(contract);
+            }
+
             return row;
         }
 
-        private object? ResolveField(SalesApp.Models.Contract c, string source, string field)
+        private object? ResolveField(SalesApp.Models.Contract c, string source, string field, Func<SalesApp.Models.Contract, string> getTeamName)
         {
             return source switch
             {
@@ -494,6 +580,7 @@ namespace SalesApp.ReportFilters.Services
                 {
                     "name"  => c.User?.Name,
                     "email" => c.User?.Email,
+                    "team"  => getTeamName(c),
                     _       => null
                 },
                 "Users_Matricula" => c.Matricula?.UserMatriculas
@@ -526,8 +613,12 @@ namespace SalesApp.ReportFilters.Services
                 },
                 "Computed" => field switch
                 {
-                    "contractCount" => _contractCountByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0),
-                    "retention"     => _retentionByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0m),
+                    "contractCount" => _contractCountByTeam != null
+                        ? _contractCountByTeam.GetValueOrDefault(getTeamName(c), 0)
+                        : _contractCountByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0) ?? 0,
+                    "retention"     => _retentionByTeam != null
+                        ? _retentionByTeam.GetValueOrDefault(getTeamName(c), 0m)
+                        : _retentionByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0m) ?? 0m,
                     _               => null
                 },
                 _ => null
@@ -631,6 +722,7 @@ namespace SalesApp.ReportFilters.Services
                 Description = f.Description,
                 Scope       = f.Scope,
                 GroupByEmail = f.GroupByEmail,
+                GroupByTeam = f.GroupByTeam,
                 OrderByField = f.OrderByField,
                 OrderByDirection = f.OrderByDirection,
                 CreatedAt   = f.CreatedAt,

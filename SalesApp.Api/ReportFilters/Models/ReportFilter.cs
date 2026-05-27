@@ -36,6 +36,9 @@ namespace SalesApp.ReportFilters.Models
         /// <summary>When true, groups results by owner email and sums totalAmount.</summary>
         public bool GroupByEmail { get; set; }
 
+        /// <summary>When true, groups results by team and sums totalAmount.</summary>
+        public bool GroupByTeam { get; set; }
+
         /// <summary>Column label to order by.</summary>
         public string? OrderByField { get; set; }
 

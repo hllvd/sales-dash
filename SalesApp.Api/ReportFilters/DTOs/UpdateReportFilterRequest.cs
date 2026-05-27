@@ -12,6 +12,7 @@ namespace SalesApp.ReportFilters.DTOs
         public FilterConfigRequest FilterConfig { get; set; } = new();
         public List<OutputColumnRequest> OutputColumns { get; set; } = new();
         public bool GroupByEmail { get; set; }
+        public bool GroupByTeam { get; set; }
         public string? OrderByField { get; set; }
         public string? OrderByDirection { get; set; }
     }
