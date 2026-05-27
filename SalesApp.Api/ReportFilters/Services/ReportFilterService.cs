@@ -182,7 +182,7 @@ namespace SalesApp.ReportFilters.Services
             // Load all teams and memberships in memory once for fast lookup
             var teamsList = await _teamRepository.GetAllAsync();
             var memberTeamMapping = teamsList
-                .SelectMany(t => t.UserTeams.Select(ut => new { ut.UserInternalId, ut.StartDate, ut.EndDate, TeamName = t.Name }))
+                .SelectMany(t => t.UserTeams.Select(ut => new { ut.UserInternalId, ut.StartDate, ut.EndDate, TeamName = t.Name, TeamOwnerName = t.Owner?.Name ?? "(Sem chefe)" }))
                 .ToList();
 
             Func<SalesApp.Models.Contract, string> getTeamName = c =>
@@ -193,6 +193,16 @@ namespace SalesApp.ReportFilters.Services
                     x.StartDate <= c.SaleStartDate &&
                     (x.EndDate == null || x.EndDate > c.SaleStartDate));
                 return match?.TeamName ?? "(Sem equipe)";
+            };
+
+            Func<SalesApp.Models.Contract, string> getTeamOwnerName = c =>
+            {
+                if (c.UserInternalId == null) return "(Sem chefe)";
+                var match = memberTeamMapping.FirstOrDefault(x => 
+                    x.UserInternalId == c.UserInternalId.Value &&
+                    x.StartDate <= c.SaleStartDate &&
+                    (x.EndDate == null || x.EndDate > c.SaleStartDate));
+                return match?.TeamOwnerName ?? "(Sem chefe)";
             };
 
             // Build filter arguments to pass to existing IContractRepository.GetAllAsync
@@ -356,7 +366,7 @@ namespace SalesApp.ReportFilters.Services
 
             // Project each contract to only the outputColumns fields
             var columns = report.OutputColumns.OrderBy(c => c.Order).ToList();
-            var allRows = contracts.Select(c => ProjectContract(c, columns, getTeamName)).ToList();
+            var allRows = contracts.Select(c => ProjectContract(c, columns, getTeamName, getTeamOwnerName)).ToList();
 
             // Apply ordering if specified
             if (!string.IsNullOrWhiteSpace(report.OrderByField))
@@ -472,7 +482,8 @@ namespace SalesApp.ReportFilters.Services
                         {
                             "name",
                             "email",
-                            "team"
+                            "team",
+                            "teamOwner"
                         }
                     },
                     new SourceColumns
@@ -533,13 +544,14 @@ namespace SalesApp.ReportFilters.Services
         private Dictionary<string, object?> ProjectContract(
             SalesApp.Models.Contract contract,
             List<OutputColumnResponse> columns,
-            Func<SalesApp.Models.Contract, string> getTeamName)
+            Func<SalesApp.Models.Contract, string> getTeamName,
+            Func<SalesApp.Models.Contract, string> getTeamOwnerName)
         {
             var row = new Dictionary<string, object?>();
 
             foreach (var col in columns)
             {
-                row[col.Label] = ResolveField(contract, col.Source, col.Field, getTeamName);
+                row[col.Label] = ResolveField(contract, col.Source, col.Field, getTeamName, getTeamOwnerName);
             }
 
             // Synthetic Email column is still injected if not present, to ensure Group By works visually
@@ -557,7 +569,12 @@ namespace SalesApp.ReportFilters.Services
             return row;
         }
 
-        private object? ResolveField(SalesApp.Models.Contract c, string source, string field, Func<SalesApp.Models.Contract, string> getTeamName)
+        private object? ResolveField(
+            SalesApp.Models.Contract c,
+            string source,
+            string field,
+            Func<SalesApp.Models.Contract, string> getTeamName,
+            Func<SalesApp.Models.Contract, string> getTeamOwnerName)
         {
             return source switch
             {
@@ -578,10 +595,11 @@ namespace SalesApp.ReportFilters.Services
                 },
                 "Users_Contract" => field switch
                 {
-                    "name"  => c.User?.Name,
-                    "email" => c.User?.Email,
-                    "team"  => getTeamName(c),
-                    _       => null
+                    "name"      => c.User?.Name,
+                    "email"     => c.User?.Email,
+                    "team"      => getTeamName(c),
+                    "teamOwner" => getTeamOwnerName(c),
+                    _           => null
                 },
                 "Users_Matricula" => c.Matricula?.UserMatriculas
                     .Select(um => um.User)

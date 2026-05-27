@@ -145,6 +145,20 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     loadData();
   }, [loadData]);
 
+  const getFieldLabel = (source: string, field: string) => {
+    if (source === 'Users_Contract') {
+      if (field === 'team') return 'Equipe';
+      if (field === 'teamOwner') return 'Chefe da equipe';
+      if (field === 'name') return 'Nome (Vendedor)';
+      if (field === 'email') return 'E-mail (Vendedor)';
+    }
+    if (source === 'Users_Matricula') {
+      if (field === 'name') return 'Nome (Matrícula)';
+      if (field === 'email') return 'E-mail (Matrícula)';
+    }
+    return field;
+  };
+
   // Handle adding a column
   const handleAddColumn = (sourceField: string | null) => {
     if (!sourceField) return;
@@ -154,7 +168,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     const newCol: OutputColumn = {
       source,
       field,
-      label: `${source} - ${field}`, // more unique default label
+      label: getFieldLabel(source, field),
       order: outputColumns.length + 1
     };
     setOutputColumns([...outputColumns, newCol]);
@@ -286,8 +300,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
   // Grouped options for Column Select
   const columnSelectData = availableColumns.map(source => ({
-    group: source.source,
-    items: source.fields.map(f => ({ value: `${source.source}|${f}`, label: f }))
+    group: source.source === 'Users_Contract' ? 'Vendedor (Contrato)' : (source.source === 'Users_Matricula' ? 'Titular da Matrícula' : source.source),
+    items: source.fields.map(f => ({ value: `${source.source}|${f}`, label: getFieldLabel(source.source, f) }))
   }));
 
   if (loading) {
