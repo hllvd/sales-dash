@@ -111,6 +111,27 @@ Never use default native browser select boxes for lists with more than 5 options
 
 ---
 
+## 👥 Dual-Column Member Management Modal (`TeamMembersModal`)
+
+For rich, highly interactive member assignment, use a **Dual-Column Light Modal layout**. This provides a massive, high-efficiency drag-and-drop-style assignment feel instead of standard checklists.
+
+### 🎨 Visual & Styling Guidelines
+* **Light Contrast**: Always use a clean **light-themed modal background** (`#f8f9fa`) with **pure white card components** (`#ffffff`). Never use black or very dark backgrounds here.
+* **Dimensions**: Enforce a large modal viewport (`size="75%"` or `size="xl"`).
+* **Dynamic Header Bar**: Place a white card at the top with inline team name modification and dynamic validation status.
+
+### 🌳 BFS Hierarchical Sorting Order (Left Column)
+The available members column must follow a Level-Order Tree Traversal (BFS) based on the Team Owner:
+1. **Direct Supervisor Link**: Active users whose direct supervisor (`parentUserId`) is the current Team Owner.
+2. **Subsequent Levels**: Subordinate levels sorted by creation date (`createdAt`).
+3. **BFS Re-activity**: Clicking the crown icon next to any member in the right column sets them as Owner, instantly re-indexing the left column's BFS ordering.
+
+### ⚡ One-Click Event Handling
+* Move actions must trigger immediately upon clicking any region of the available user card.
+* Instantly commit the changes to the API rather than buffering state with a final form button.
+
+---
+
 ## 🛡️ Anti-Patterns (Forbid These)
 
 1. **❌ Raw CSS Styling Override Banners**: Avoid styling alerts with absolute black/dark badge blocks or hard borders (`border: '1px solid rgba(253, 224, 71, 0.4)'`). Rely on Mantine's native theme engine.

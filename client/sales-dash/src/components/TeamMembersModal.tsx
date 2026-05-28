@@ -6,7 +6,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconSearch, IconCrown, IconUserPlus, IconUserMinus,
-  IconUsers, IconUser
+  IconUsers, IconUser, IconCheck
 } from '@tabler/icons-react';
 import { apiService, Team, TeamMember, User } from '../services/apiService';
 import './TeamMembersModal.css';
@@ -126,6 +126,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, onRemove, onSetOwner, r
           size="sm"
           loading={settingOwner}
           onClick={() => onSetOwner(member)}
+          title={member.isOwner ? 'Remover como Chefe' : 'Tornar Chefe'}
         >
           <IconCrown size={13} />
         </ActionIcon>
@@ -137,6 +138,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, onRemove, onSetOwner, r
           size="sm"
           loading={removing}
           onClick={() => onRemove(member)}
+          title="Remover da equipe"
         >
           <IconUserMinus size={14} />
         </ActionIcon>
@@ -170,6 +172,33 @@ const TeamMembersModal: React.FC<Props> = ({
   const [addingId, setAddingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [settingOwnerId, setSettingOwnerId] = useState<string | null>(null);
+
+  const [tempName, setTempName] = useState(initialTeam.name);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState('');
+
+  useEffect(() => {
+    setTempName(team.name);
+  }, [team.name]);
+
+  const handleSaveName = async () => {
+    if (!tempName.trim()) {
+      setNameError('O nome da equipe é obrigatório');
+      return;
+    }
+    setSavingName(true);
+    setNameError('');
+    try {
+      const res = await apiService.updateTeam(team.id, tempName.trim());
+      applyTeamUpdate(res);
+      notifications.show({ message: 'Nome da equipe atualizado com sucesso', color: 'green', autoClose: 2000 });
+    } catch (e: any) {
+      setNameError(e.message || 'Falha ao atualizar nome');
+      notifications.show({ title: 'Erro', message: e.message || 'Falha ao atualizar nome', color: 'red' });
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   // ids of current active members
   const activeMembers = useMemo(() => team.members.filter(m => m.isActive), [team.members]);
@@ -225,7 +254,18 @@ const TeamMembersModal: React.FC<Props> = ({
     try {
       const res = await apiService.addTeamMembers(team.id, [{ userId: user.id, startDate: getEightYearsAgo() }]);
       applyTeamUpdate(res);
-      notifications.show({ message: `${user.name} adicionado à equipe`, color: 'green', autoClose: 2000 });
+      if (res.data?.warnings && res.data.warnings.length > 0) {
+        res.data.warnings.forEach((warn: string) => {
+          notifications.show({
+            title: 'Aviso de Conflito',
+            message: warn,
+            color: 'yellow',
+            autoClose: 8000
+          });
+        });
+      } else {
+        notifications.show({ message: `${user.name} adicionado à equipe`, color: 'green', autoClose: 2000 });
+      }
     } catch (e: any) {
       notifications.show({ title: 'Erro', message: e.message || 'Falha ao adicionar membro', color: 'red' });
     } finally {
@@ -299,6 +339,52 @@ const TeamMembersModal: React.FC<Props> = ({
         },
       }}
     >
+      <div style={{
+        marginBottom: '20px',
+        backgroundColor: '#ffffff',
+        padding: '16px 20px',
+        borderRadius: '8px',
+        border: '1px solid #e9ecef',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+      }}>
+        <TextInput
+          label="Nome da Equipe"
+          placeholder="Digite o nome da equipe..."
+          value={tempName}
+          onChange={(e) => setTempName(e.target.value)}
+          size="sm"
+          error={nameError}
+          rightSection={
+            tempName.trim() !== team.name && tempName.trim() !== "" ? (
+              <Tooltip label="Salvar novo nome" withArrow>
+                <ActionIcon
+                  variant="filled"
+                  color="blue"
+                  size="sm"
+                  onClick={handleSaveName}
+                  loading={savingName}
+                  title="Salvar novo nome"
+                >
+                  <IconCheck size={14} />
+                </ActionIcon>
+              </Tooltip>
+            ) : null
+          }
+          styles={{
+            input: {
+              fontWeight: 600,
+              color: '#212529',
+              fontSize: '14px',
+            },
+            label: {
+              fontWeight: 700,
+              color: '#495057',
+              marginBottom: '6px',
+            }
+          }}
+        />
+      </div>
+
       <div className="tmc-layout">
         {/* ── Left: Available Users ── */}
         <div className="tmc-column tmc-column--left">

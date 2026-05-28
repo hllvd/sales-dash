@@ -34,9 +34,10 @@ Before creating a new UI view, modal, warning banner, table, or form field, you 
 * Highlight special roles (e.g., team owners) using a sophisticated **light amber background tint (`rgba(254, 243, 199, 0.5)`)** and gold-accent borders rather than stark colors.
 * Wrap action buttons cleanly within headers or aligned column headers.
 
-#### 🔍 Interactive Selects & Inputs
-* Use Mantine's search-enabled selectors: `<Select searchable>` or `<MultiSelect searchable>`.
-* Never render raw browser-default HTML inputs or un-styled drop-down selects.
+#### 👥 Dual-Column Member Management Modal (`TeamMembersModal`)
+* **Light Palette**: Always style assignment modals with a **light theme background (`#f8f9fa`)** and white cards (`#ffffff`).
+* **Breadth-First Sorting**: Implement Level-Order (BFS) hierarchical user lists starting from the Team Owner.
+* **One-Click Realtime Actions**: Ensure clicking available user cards triggers an immediate API request rather than local buffering.
 
 ---
 

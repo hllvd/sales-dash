@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Alert, Stack, Table, List } from '@mantine/core';
+import { Title, Button, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Alert, Stack, Table, List, Modal } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconAlertTriangle, IconUser, IconCrown, IconTrashX, IconUsers, IconUsersGroup } from '@tabler/icons-react';
 import Menu from "./Menu"
 import StyledModal from './StyledModal';
@@ -17,6 +17,9 @@ const TeamsPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [managingTeam, setManagingTeam] = useState<Team | null>(null)
+  const [showCreatePrompt, setShowCreatePrompt] = useState(false)
+  const [newTeamName, setNewTeamName] = useState("")
+  const [creatingTeam, setCreatingTeam] = useState(false)
 
   // Current user info for TeamMembersModal
   const currentUserRaw = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })()
@@ -73,15 +76,34 @@ const TeamsPage: React.FC = () => {
     return d.toISOString().split('T')[0]
   }
 
-  // Open Form for Create
+  // Open Form for Create (Prompt Modal)
   const openCreateForm = () => {
-    setEditingTeam(null)
-    setTeamName("")
-    setSelectedMemberIds([])
-    setMemberStartDates({})
-    setOwnerUserId("")
+    setNewTeamName("")
     setError("")
-    setShowForm(true)
+    setShowCreatePrompt(true)
+  }
+
+  const handleQuickCreate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTeamName.trim()) {
+      setError("O nome da equipe é obrigatório")
+      return
+    }
+    setCreatingTeam(true)
+    setError("")
+    try {
+      const response = await apiService.createTeam(newTeamName.trim(), [])
+      if (response.success && response.data) {
+        setShowCreatePrompt(false)
+        setNewTeamName("")
+        setTeams(prev => [response.data!, ...prev])
+        setManagingTeam(response.data) // Instantly launch managing modal!
+      }
+    } catch (err: any) {
+      setError(err.message || "Erro ao criar equipe")
+    } finally {
+      setCreatingTeam(false)
+    }
   }
 
   // Open Form for Edit
@@ -358,16 +380,8 @@ const TeamsPage: React.FC = () => {
                           <Group gap="xs">
                             <ActionIcon
                               variant="subtle"
-                              color="teal"
-                              onClick={() => setManagingTeam(team)}
-                              title="Gerenciar Membros"
-                            >
-                              <IconUsersGroup size={16} />
-                            </ActionIcon>
-                            <ActionIcon
-                              variant="subtle"
                               color="blue"
-                              onClick={() => openEditForm(team)}
+                              onClick={() => setManagingTeam(team)}
                               title="Editar"
                             >
                               <IconEdit size={16} />
@@ -389,6 +403,78 @@ const TeamsPage: React.FC = () => {
               </Table>
             </Table.ScrollContainer>
           </div>
+        )}
+
+        {/* Nova Equipe Prompt Modal */}
+        {showCreatePrompt && (
+          <Modal
+            opened={showCreatePrompt}
+            onClose={() => setShowCreatePrompt(false)}
+            title={
+              <Group gap="xs">
+                <IconPlus size={20} color="#228be6" />
+                <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>
+                  Nova Equipe
+                </Title>
+              </Group>
+            }
+            size="md"
+            styles={{
+              header: {
+                backgroundColor: '#ffffff',
+                borderBottom: '1px solid #e9ecef',
+                padding: '20px 28px',
+              },
+              body: {
+                backgroundColor: '#ffffff',
+                padding: '24px 28px',
+              },
+              content: {
+                borderRadius: '12px',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+              },
+              close: {
+                color: '#495057',
+                '&:hover': { backgroundColor: '#f1f3f5', color: '#212529' },
+              },
+            }}
+          >
+            <form onSubmit={handleQuickCreate}>
+              {error && <div style={{ color: '#ef4444', marginBottom: '1.25rem', fontWeight: 500 }}>{error}</div>}
+              
+              <Stack gap="md">
+                <TextInput
+                  label="Nome da Equipe"
+                  required
+                  placeholder="Ex: Equipe Fênix"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  size="sm"
+                  styles={{
+                    input: {
+                      fontWeight: 600,
+                      color: '#212529',
+                      fontSize: '14px',
+                    },
+                    label: {
+                      fontWeight: 700,
+                      color: '#495057',
+                      marginBottom: '6px',
+                    }
+                  }}
+                />
+
+                <Group justify="flex-end" mt="lg">
+                  <Button variant="subtle" color="gray" onClick={() => setShowCreatePrompt(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" color="blue" loading={creatingTeam}>
+                    Criar e Gerenciar
+                  </Button>
+                </Group>
+              </Stack>
+            </form>
+          </Modal>
         )}
 
         {/* Create/Edit Team Modal */}
