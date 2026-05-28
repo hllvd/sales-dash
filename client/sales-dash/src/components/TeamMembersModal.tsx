@@ -1,17 +1,27 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Modal, Title, Text, Group, Badge, ActionIcon, TextInput,
-  Loader, Stack, Divider, Tooltip, ScrollArea
+  Loader, Stack, Divider, Tooltip, ScrollArea, Popover
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconSearch, IconCrown, IconUserPlus, IconUserMinus,
-  IconUsers, IconUser, IconCheck
+  IconUsers, IconUser, IconCheck, IconCalendar, IconX
 } from '@tabler/icons-react';
 import { apiService, Team, TeamMember, User } from '../services/apiService';
 import './TeamMembersModal.css';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
+
+function formatDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  } catch {
+    return dateStr;
+  }
+}
 
 function getEightYearsAgo(): string {
   const d = new Date();
@@ -95,57 +105,182 @@ interface MemberCardProps {
   member: TeamMember;
   onRemove: (member: TeamMember) => void;
   onSetOwner: (member: TeamMember) => void;
+  onUpdateDates: (member: TeamMember, startDate: string, endDate: string | null) => Promise<void>;
   removing: boolean;
   settingOwner: boolean;
 }
 
-const MemberCard: React.FC<MemberCardProps> = ({ member, onRemove, onSetOwner, removing, settingOwner }) => (
-  <div className={`tmc-user-card tmc-user-card--member${member.isOwner ? ' tmc-user-card--owner' : ''}`}>
-    <div className="tmc-user-card__avatar">
-      {member.isOwner
-        ? <IconCrown size={16} color="#f59f00" />
-        : <IconUser size={16} color="#495057" />
-      }
+const MemberCard: React.FC<MemberCardProps> = ({ member, onRemove, onSetOwner, onUpdateDates, removing, settingOwner }) => {
+  const [popoverOpened, setPopoverOpened] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [noEndDate, setNoEndDate] = useState(true);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleOpen = () => {
+    setStartDate(member.startDate ? member.startDate.split('T')[0] : '');
+    setEndDate(member.endDate ? member.endDate.split('T')[0] : '');
+    setNoEndDate(!member.endDate);
+    setErrorMsg('');
+    setPopoverOpened(true);
+  };
+
+  const handleSaveDates = async () => {
+    if (!noEndDate && endDate && startDate > endDate) {
+      setErrorMsg('Início deve ser anterior ao Fim');
+      return;
+    }
+    setErrorMsg('');
+    setSaveLoading(true);
+    try {
+      await onUpdateDates(member, new Date(startDate).toISOString(), noEndDate ? null : new Date(endDate).toISOString());
+      setPopoverOpened(false);
+    } catch (e: any) {
+      setErrorMsg(e.message || 'Falha ao salvar datas');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  return (
+    <div className={`tmc-user-card tmc-user-card--member${member.isOwner ? ' tmc-user-card--owner' : ''}`}>
+      <div className="tmc-user-card__avatar">
+        {member.isOwner
+          ? <IconCrown size={16} color="#f59f00" />
+          : <IconUser size={16} color="#495057" />
+        }
+      </div>
+      <div className="tmc-user-card__info">
+        <Group gap={6} align="center">
+          <span className="tmc-user-card__name">{member.userName}</span>
+          {member.isOwner && (
+            <Badge size="xs" color="yellow" variant="filled" leftSection={<IconCrown size={8} />}>
+              Chefe
+            </Badge>
+          )}
+        </Group>
+        <span className="tmc-user-card__email">{member.userEmail}</span>
+        
+        <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', color: '#868e96' }}>
+          <IconCalendar size={12} color="#adb5bd" />
+          <span>
+            {formatDate(member.startDate)} - {member.endDate ? formatDate(member.endDate) : 'Presente'}
+          </span>
+
+          <Popover width={280} position="bottom" withArrow shadow="md" opened={popoverOpened} onChange={setPopoverOpened}>
+            <Popover.Target>
+              <Tooltip label="Editar datas de vigência" withArrow position="top">
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="xs"
+                  onClick={handleOpen}
+                  title="Editar datas de vigência"
+                >
+                  <IconCalendar size={12} />
+                </ActionIcon>
+              </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown style={{ padding: 12 }}>
+              <Text size="xs" fw={700} mb={8} style={{ color: '#1c1c1e' }}>
+                Editar Período na Equipe
+              </Text>
+              <Stack gap={8}>
+                <div>
+                  <Text size="xs" mb={4} style={{ color: '#495057' }}>Data de Início:</Text>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    style={{ width: '100%', padding: '6px', fontSize: '12px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                  />
+                </div>
+                <div>
+                  <Group justify="space-between" mb={4}>
+                    <Text size="xs" style={{ color: '#495057' }}>Data de Fim:</Text>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: '11px', color: '#495057' }}>
+                      <input
+                        type="checkbox"
+                        checked={noEndDate}
+                        onChange={(e) => {
+                          setNoEndDate(e.target.checked);
+                          if (e.target.checked) setEndDate('');
+                        }}
+                      />
+                      Sem data de fim
+                    </label>
+                  </Group>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    disabled={noEndDate}
+                    style={{ width: '100%', padding: '6px', fontSize: '12px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: noEndDate ? '#f8f9fa' : 'white' }}
+                  />
+                </div>
+                
+                {errorMsg && (
+                  <Text size="xs" color="red" fw={500}>{errorMsg}</Text>
+                )}
+
+                <Group gap={6} justify="flex-end" mt={4}>
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    size="sm"
+                    onClick={() => setPopoverOpened(false)}
+                    disabled={saveLoading}
+                    title="Cancelar"
+                  >
+                    <IconX size={14} />
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="filled"
+                    color="blue"
+                    size="sm"
+                    onClick={handleSaveDates}
+                    loading={saveLoading}
+                    disabled={!startDate || (!noEndDate && !endDate)}
+                    title="Salvar datas"
+                  >
+                    <IconCheck size={14} />
+                  </ActionIcon>
+                </Group>
+              </Stack>
+            </Popover.Dropdown>
+          </Popover>
+        </div>
+      </div>
+      <div className="tmc-user-card__action" style={{ gap: 4 }}>
+        <Tooltip label={member.isOwner ? 'Remover como Chefe' : 'Tornar Chefe'} withArrow position="left">
+          <ActionIcon
+            variant={member.isOwner ? 'filled' : 'light'}
+            color="yellow"
+            size="sm"
+            loading={settingOwner}
+            onClick={() => onSetOwner(member)}
+            title={member.isOwner ? 'Remover como Chefe' : 'Tornar Chefe'}
+          >
+            <IconCrown size={13} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="Remover da equipe" withArrow position="left">
+          <ActionIcon
+            variant="light"
+            color="red"
+            size="sm"
+            loading={removing}
+            onClick={() => onRemove(member)}
+            title="Remover da equipe"
+          >
+            <IconUserMinus size={14} />
+          </ActionIcon>
+        </Tooltip>
+      </div>
     </div>
-    <div className="tmc-user-card__info">
-      <Group gap={6} align="center">
-        <span className="tmc-user-card__name">{member.userName}</span>
-        {member.isOwner && (
-          <Badge size="xs" color="yellow" variant="filled" leftSection={<IconCrown size={8} />}>
-            Chefe
-          </Badge>
-        )}
-      </Group>
-      <span className="tmc-user-card__email">{member.userEmail}</span>
-    </div>
-    <div className="tmc-user-card__action" style={{ gap: 4 }}>
-      <Tooltip label={member.isOwner ? 'Remover como Chefe' : 'Tornar Chefe'} withArrow position="left">
-        <ActionIcon
-          variant={member.isOwner ? 'filled' : 'light'}
-          color="yellow"
-          size="sm"
-          loading={settingOwner}
-          onClick={() => onSetOwner(member)}
-          title={member.isOwner ? 'Remover como Chefe' : 'Tornar Chefe'}
-        >
-          <IconCrown size={13} />
-        </ActionIcon>
-      </Tooltip>
-      <Tooltip label="Remover da equipe" withArrow position="left">
-        <ActionIcon
-          variant="light"
-          color="red"
-          size="sm"
-          loading={removing}
-          onClick={() => onRemove(member)}
-          title="Remover da equipe"
-        >
-          <IconUserMinus size={14} />
-        </ActionIcon>
-      </Tooltip>
-    </div>
-  </div>
-);
+  );
+};
 
 // ─── main modal ────────────────────────────────────────────────────────────
 
@@ -300,6 +435,17 @@ const TeamMembersModal: React.FC<Props> = ({
     }
   }, [team.id, applyTeamUpdate]);
 
+  const handleUpdateDates = useCallback(async (member: TeamMember, startDate: string, endDate: string | null) => {
+    try {
+      const res = await apiService.updateTeamMemberDates(team.id, member.userId, startDate, endDate);
+      applyTeamUpdate(res);
+      notifications.show({ message: `Datas de vigência de ${member.userName} atualizadas`, color: 'green', autoClose: 2000 });
+    } catch (e: any) {
+      notifications.show({ title: 'Erro', message: e.message || 'Falha ao atualizar datas', color: 'red' });
+      throw e;
+    }
+  }, [team.id, applyTeamUpdate]);
+
   return (
     <Modal
       opened
@@ -451,6 +597,7 @@ const TeamMembersModal: React.FC<Props> = ({
                     member={member}
                     onRemove={handleRemove}
                     onSetOwner={handleSetOwner}
+                    onUpdateDates={handleUpdateDates}
                     removing={removingId === member.userId}
                     settingOwner={settingOwnerId === member.userId}
                   />

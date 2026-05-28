@@ -297,7 +297,7 @@ test.describe('Team Members Management E2E', () => {
     const addRes = await request.post(`/api/teams/${teamId}/members`, {
       headers: { Authorization: `Bearer ${superadminToken}` },
       data: {
-        members: [{ userId: childAId, startDate: new Date(Date.now() - 8 * 365 * 24 * 60 * 60 * 1000).toISOString() }]
+        members: [{ userId: childAId, startDate: '2018-01-01T00:00:00.000Z' }]
       }
     });
     expect(addRes.ok()).toBeTruthy();
@@ -318,10 +318,11 @@ test.describe('Team Members Management E2E', () => {
     // Add Child A to the second team (should trigger warning due to active membership in first team)
     await leftCol.locator('.tmc-user-card__name', { hasText: users.childA.name }).click();
 
-    // Assert Warning Toast is displayed
-    const toast = page.locator('.mantine-Notification-root', { hasText: 'Aviso de Conflito' });
-    await expect(toast).toBeVisible({ timeout: 10000 });
-    await expect(toast).toContainText(`O usuário '${users.childA.name}' foi removido da equipe '${teamName}' por conflito de data.`);
+    // Assert Warning Toast is displayed using highly robust text-based selection
+    const toastTitle = page.getByText('Aviso de Conflito').first();
+    await expect(toastTitle).toBeVisible({ timeout: 10000 });
+    const toastMsg = page.getByText(`O usuário '${users.childA.name}' foi removido da equipe '${teamName}' por conflito de data.`).first();
+    await expect(toastMsg).toBeVisible({ timeout: 10000 });
 
     // Close the modal
     await page.keyboard.press('Escape');
@@ -347,5 +348,113 @@ test.describe('Team Members Management E2E', () => {
     expect(childAInSecond).toBeDefined();
     expect(childAInSecond.endDate).toBeNull();
     expect(childAInSecond.startDate).not.toBeNull();
+  });
+
+  test('Test manual modification of team membership dates via Floating Popover', async ({ page, request }) => {
+    const teamName = `Team DateEdit ${RUN_ID}`;
+
+    // 1. Create a Team
+    const createRes = await request.post('/api/teams', {
+      headers: { Authorization: `Bearer ${superadminToken}` },
+      data: { name: teamName }
+    });
+    expect(createRes.ok()).toBeTruthy();
+    const createBody = await createRes.json();
+    const teamId = createBody.data.id;
+
+    // 2. Add Child A to the team
+    const addRes = await request.post(`/api/teams/${teamId}/members`, {
+      headers: { Authorization: `Bearer ${superadminToken}` },
+      data: {
+        members: [{ userId: childAId, startDate: '2018-01-01T00:00:00.000Z' }]
+      }
+    });
+    expect(addRes.ok()).toBeTruthy();
+
+    // Log in and go to teams page
+    await loginAndGoToTeams(page);
+
+    // Search and open team's management modal
+    const searchInput = page.locator('input[placeholder="Buscar por equipe, proprietário ou membro..."]');
+    await searchInput.fill(teamName);
+    await page.waitForTimeout(800);
+    await page.locator('button[title="Editar"]').first().click();
+
+    // Verify Child A is in Members (right column)
+    const rightCol = page.locator('.tmc-column--right');
+    await expect(rightCol).toContainText(users.childA.name);
+
+    // Click the "Editar datas de vigência" button in Child A's card
+    const memberCard = rightCol.locator('.tmc-user-card--member', { hasText: users.childA.name });
+    const editDatesBtn = memberCard.locator('button[title="Editar datas de vigência"]');
+    
+    // --- 1. Test Validation: Start Date > End Date ---
+    await editDatesBtn.click();
+    const popover = page.locator('.mantine-Popover-dropdown');
+    await expect(popover).toBeVisible();
+
+    // Fill Start Date to 2022-01-01
+    const startDateInput = popover.locator('input[type="date"]').first();
+    await startDateInput.fill('2022-01-01');
+
+    // Toggle "Sem data de fim" off to enable End Date input
+    const noEndDateCheckbox = popover.locator('input[type="checkbox"]');
+    await noEndDateCheckbox.uncheck();
+
+    // Fill End Date to 2020-01-01 (Invalid because Start > End)
+    const endDateInput = popover.locator('input[type="date"]').nth(1);
+    await endDateInput.fill('2020-01-01');
+
+    // Click Save
+    const saveBtn = popover.locator('button[title="Salvar datas"]');
+    await saveBtn.click();
+
+    // Assert that the local validation error is shown in the Popover
+    await expect(popover.locator('text=Início deve ser anterior ao Fim')).toBeVisible();
+
+    // Click Cancel to dismiss
+    const cancelBtn = popover.locator('button[title="Cancelar"]');
+    await cancelBtn.click();
+    await expect(popover).not.toBeVisible();
+
+    // --- 2. Test Success: Valid Date Range ---
+    await editDatesBtn.click();
+    await expect(popover).toBeVisible();
+
+    // Set Start Date to 2020-05-15
+    await startDateInput.fill('2020-05-15');
+
+    // Toggle "Sem data de fim" off to enable End Date input
+    await noEndDateCheckbox.uncheck();
+
+    // Set End Date to 2021-08-20
+    await endDateInput.fill('2021-08-20');
+
+    // Click Save
+    await saveBtn.click();
+
+    // Assert Toast notification of success
+    await expect(page.getByText('Datas de vigência de').first()).toBeVisible({ timeout: 5000 });
+
+    // Close the modal
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(800);
+
+    // 3. Verify backend dates via API
+    const listRes = await request.get('/api/teams', {
+      headers: { Authorization: `Bearer ${superadminToken}` }
+    });
+    expect(listRes.ok()).toBeTruthy();
+    const listBody = await listRes.json();
+    const teams = listBody.data;
+
+    const team = teams.find((t: any) => t.id === teamId);
+    const childAMember = team.members.find((m: any) => m.userId === childAId);
+    expect(childAMember).toBeDefined();
+
+    // Start date must match 2020-05-15
+    expect(childAMember.startDate).toContain('2020-05-15');
+    // End date must match 2021-08-20
+    expect(childAMember.endDate).toContain('2021-08-20');
   });
 });

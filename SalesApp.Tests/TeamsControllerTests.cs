@@ -259,5 +259,115 @@ namespace SalesApp.Tests
             _mockTeamRepository.Verify(x => x.UpdateAsync(otherTeam), Times.Once);
             _mockTeamRepository.Verify(x => x.AddMemberAsync(It.Is<UserTeam>(ut => ut.TeamId == teamId && ut.UserInternalId == 456)), Times.Once);
         }
+
+        [Fact]
+        public async Task UpdateMemberDates_ValidInterval_UpdatesDatesAndReturnsOk()
+        {
+            // Arrange
+            var teamId = 1;
+            var userGuid = Guid.NewGuid();
+            var user = new User
+            {
+                Id = userGuid,
+                Name = "Jane Doe",
+                InternalId = 456
+            };
+
+            var membership = new UserTeam
+            {
+                Id = 10,
+                TeamId = teamId,
+                UserInternalId = 456,
+                User = user,
+                StartDate = DateTime.UtcNow.AddYears(-2),
+                EndDate = null
+            };
+
+            var team = new Team
+            {
+                Id = teamId,
+                Name = "Alpha Team",
+                UserTeams = new List<UserTeam> { membership }
+            };
+
+            var request = new UpdateMemberDatesRequest
+            {
+                StartDate = DateTime.UtcNow.AddYears(-1),
+                EndDate = DateTime.UtcNow.AddMonths(6)
+            };
+
+            _mockTeamRepository.Setup(x => x.GetByIdAsync(teamId)).ReturnsAsync(team);
+            _mockUserRepository.Setup(x => x.GetByIdAsync(userGuid)).ReturnsAsync(user);
+
+            // Act
+            var result = await _controller.UpdateMemberDates(teamId, userGuid, request);
+
+            // Assert
+            result.Result.Should().BeOfType<OkObjectResult>();
+            var okResult = result.Result as OkObjectResult;
+            var response = okResult!.Value as ApiResponse<TeamResponse>;
+
+            response!.Success.Should().BeTrue();
+            response.Message.Should().Contain("Datas atualizadas com sucesso");
+
+            membership.StartDate.Should().Be(request.StartDate);
+            membership.EndDate.Should().Be(request.EndDate);
+
+            _mockTeamRepository.Verify(x => x.UpdateAsync(team), Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateMemberDates_InvalidInterval_ReturnsBadRequest()
+        {
+            // Arrange
+            var teamId = 1;
+            var userGuid = Guid.NewGuid();
+            var user = new User
+            {
+                Id = userGuid,
+                Name = "Jane Doe",
+                InternalId = 456
+            };
+
+            var membership = new UserTeam
+            {
+                Id = 10,
+                TeamId = teamId,
+                UserInternalId = 456,
+                User = user,
+                StartDate = DateTime.UtcNow.AddYears(-2),
+                EndDate = null
+            };
+
+            var team = new Team
+            {
+                Id = teamId,
+                Name = "Alpha Team",
+                UserTeams = new List<UserTeam> { membership }
+            };
+
+            // StartDate > EndDate
+            var request = new UpdateMemberDatesRequest
+            {
+                StartDate = DateTime.UtcNow,
+                EndDate = DateTime.UtcNow.AddDays(-5)
+            };
+
+            _mockTeamRepository.Setup(x => x.GetByIdAsync(teamId)).ReturnsAsync(team);
+            _mockUserRepository.Setup(x => x.GetByIdAsync(userGuid)).ReturnsAsync(user);
+
+            // Act
+            var result = await _controller.UpdateMemberDates(teamId, userGuid, request);
+
+            // Assert
+            result.Result.Should().BeOfType<BadRequestObjectResult>();
+            var badRequest = result.Result as BadRequestObjectResult;
+            var response = badRequest!.Value as ApiResponse<TeamResponse>;
+
+            response!.Success.Should().BeFalse();
+            response.Message.Should().Contain("A data de início deve ser anterior à data de fim.");
+
+            _mockTeamRepository.Verify(x => x.UpdateAsync(It.IsAny<Team>()), Times.Never);
+        }
     }
 }

@@ -943,6 +943,18 @@ export const apiService = {
     return response.json()
   },
 
+  async updateTeamMemberDates(id: number, userId: string, startDate: string, endDate: string | null): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/members/${userId}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ startDate, endDate }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to update team member dates"))
+    }
+    return response.json()
+  },
+
   async setTeamOwner(id: number, ownerUserId: string): Promise<ApiResponse<Team>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/owner`, {
       method: "POST",

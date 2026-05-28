@@ -57,4 +57,12 @@ namespace SalesApp.DTOs
         [Required]
         public List<TeamMemberRequest> Members { get; set; } = new List<TeamMemberRequest>();
     }
+
+    public class UpdateMemberDatesRequest
+    {
+        [Required]
+        public DateTime StartDate { get; set; }
+
+        public DateTime? EndDate { get; set; }
+    }
 }

@@ -439,6 +439,69 @@ namespace SalesApp.Controllers
             });
         }
 
+        [HttpPut("{id}/members/{userId}")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<TeamResponse>>> UpdateMemberDates(int id, Guid userId, [FromBody] UpdateMemberDatesRequest request)
+        {
+            var team = await _teamRepository.GetByIdAsync(id);
+            if (team == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.TeamNotFound)
+                });
+            }
+
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+
+            var membership = team.UserTeams.FirstOrDefault(ut => ut.UserInternalId == user.InternalId && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow));
+            if (membership == null)
+            {
+                membership = team.UserTeams.FirstOrDefault(ut => ut.UserInternalId == user.InternalId);
+            }
+
+            if (membership == null)
+            {
+                return BadRequest(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = "Usuário não pertence a esta equipe."
+                });
+            }
+
+            if (request.EndDate.HasValue && request.StartDate > request.EndDate.Value)
+            {
+                return BadRequest(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = "A data de início deve ser anterior à data de fim."
+                });
+            }
+
+            membership.StartDate = request.StartDate;
+            membership.EndDate = request.EndDate;
+            membership.UpdatedAt = DateTime.UtcNow;
+
+            await _teamRepository.UpdateAsync(team);
+
+            var reloadedTeam = await _teamRepository.GetByIdAsync(id);
+            return Ok(new ApiResponse<TeamResponse>
+            {
+                Success = true,
+                Data = MapToTeamResponse(reloadedTeam ?? team),
+                Message = "Datas atualizadas com sucesso"
+            });
+        }
+
         private TeamMemberResponse MapToMemberResponse(UserTeam ut, int? ownerId)
         {
             return new TeamMemberResponse
