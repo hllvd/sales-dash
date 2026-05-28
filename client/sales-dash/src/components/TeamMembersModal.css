@@ -164,6 +164,39 @@
   flex-shrink: 0;
 }
 
+/* Metadata badges under email */
+.tmc-user-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.tmc-user-card__meta-item {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tmc-user-card__meta-item--team {
+  background-color: #f1f3f5;
+  color: #495057;
+  border: 1px solid #dee2e6;
+}
+
+.tmc-user-card__meta-item--parent {
+  background-color: #e8f4fd;
+  color: #1971c2;
+  border: 1px solid #d0ebff;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
 
 @media (max-width: 700px) {

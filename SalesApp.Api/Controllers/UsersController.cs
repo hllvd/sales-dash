@@ -511,6 +511,9 @@ namespace SalesApp.Controllers
             // Get the primary/owner matricula if it exists
             var primaryMatricula = user.UserMatriculas?.FirstOrDefault(m => m.IsOwner && m.IsActive);
             
+            // Get current active team
+            var activeUserTeam = user.UserTeams?.FirstOrDefault(ut => ut.EndDate == null || ut.EndDate > DateTime.UtcNow);
+
             return new UserResponse
             {
                 Id = user.Id,
@@ -519,6 +522,8 @@ namespace SalesApp.Controllers
                 Role = user.Role?.Name ?? "",
                 ParentUserId = user.ParentUserId,
                 ParentUserName = user.ParentUser?.Name,
+                ParentEmail = user.ParentUser?.Email,
+                CurrentTeamName = activeUserTeam?.Team?.Name,
                 IsActive = user.IsActive,
 
                 CreatedAt = user.CreatedAt,

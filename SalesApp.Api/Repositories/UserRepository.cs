@@ -20,6 +20,7 @@ namespace SalesApp.Repositories
                 .Include(u => u.ParentUser)
                 .Include(u => u.Role)
                 .Include(u => u.UserMatriculas).ThenInclude(um => um.Matricula)
+                .Include(u => u.UserTeams).ThenInclude(ut => ut.Team)
                 .FirstOrDefaultAsync(u => u.Id == id);
         }
         
@@ -56,6 +57,7 @@ namespace SalesApp.Repositories
                 .Include(u => u.ParentUser)
                 .Include(u => u.Role)
                 .Include(u => u.UserMatriculas).ThenInclude(um => um.Matricula)
+                .Include(u => u.UserTeams).ThenInclude(ut => ut.Team)
                 .OrderByDescending(u => u.IsActive)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -110,6 +112,7 @@ namespace SalesApp.Repositories
                 .Include(u => u.ParentUser)
                 .Include(u => u.Role)
                 .Include(u => u.UserMatriculas).ThenInclude(um => um.Matricula)
+                .Include(u => u.UserTeams).ThenInclude(ut => ut.Team)
                 .ToListAsync();
         }
         

@@ -33,6 +33,8 @@ export interface User {
   role: string
   parentUserId?: string
   parentUserName?: string
+  parentEmail?: string
+  currentTeamName?: string
   isActive: boolean
   matricula?: string
   isMatriculaOwner: boolean

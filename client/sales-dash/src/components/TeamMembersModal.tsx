@@ -6,7 +6,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconSearch, IconCrown, IconUserPlus, IconUserMinus,
-  IconUsers, IconUser, IconCheck, IconCalendar, IconX
+  IconUsers, IconUser, IconCheck, IconCalendar, IconX, IconSitemap
 } from '@tabler/icons-react';
 import { apiService, Team, TeamMember, User } from '../services/apiService';
 import './TeamMembersModal.css';
@@ -86,6 +86,22 @@ const AvailableUserCard: React.FC<AvailableUserCardProps> = ({ user, onAdd, addi
     <div className="tmc-user-card__info">
       <span className="tmc-user-card__name">{user.name}</span>
       <span className="tmc-user-card__email">{user.email}</span>
+      {(user.currentTeamName || user.parentEmail) && (
+        <div className="tmc-user-card__meta">
+          {user.currentTeamName && (
+            <span className="tmc-user-card__meta-item tmc-user-card__meta-item--team" title={`Equipe atual: ${user.currentTeamName}`}>
+              <IconUsers size={10} style={{ marginRight: 3 }} />
+              {user.currentTeamName}
+            </span>
+          )}
+          {user.parentEmail && (
+            <span className="tmc-user-card__meta-item tmc-user-card__meta-item--parent" title={`Superior: ${user.parentUserName || ''} (${user.parentEmail})`}>
+              <IconSitemap size={10} style={{ marginRight: 3 }} />
+              {user.parentEmail}
+            </span>
+          )}
+        </div>
+      )}
     </div>
     <div className="tmc-user-card__action">
       {adding ? (
@@ -103,6 +119,7 @@ const AvailableUserCard: React.FC<AvailableUserCardProps> = ({ user, onAdd, addi
 
 interface MemberCardProps {
   member: TeamMember;
+  allUsers: User[];
   onRemove: (member: TeamMember) => void;
   onSetOwner: (member: TeamMember) => void;
   onUpdateDates: (member: TeamMember, startDate: string, endDate: string | null) => Promise<void>;
@@ -110,7 +127,7 @@ interface MemberCardProps {
   settingOwner: boolean;
 }
 
-const MemberCard: React.FC<MemberCardProps> = ({ member, onRemove, onSetOwner, onUpdateDates, removing, settingOwner }) => {
+const MemberCard: React.FC<MemberCardProps> = ({ member, allUsers, onRemove, onSetOwner, onUpdateDates, removing, settingOwner }) => {
   const [popoverOpened, setPopoverOpened] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -143,6 +160,8 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, onRemove, onSetOwner, o
     }
   };
 
+  const userDetail = allUsers.find(u => u.id === member.userId);
+
   return (
     <div className={`tmc-user-card tmc-user-card--member${member.isOwner ? ' tmc-user-card--owner' : ''}`}>
       <div className="tmc-user-card__avatar">
@@ -161,6 +180,14 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, onRemove, onSetOwner, o
           )}
         </Group>
         <span className="tmc-user-card__email">{member.userEmail}</span>
+        {userDetail?.parentEmail && (
+          <div className="tmc-user-card__meta">
+            <span className="tmc-user-card__meta-item tmc-user-card__meta-item--parent" title={`Superior: ${userDetail.parentUserName || ''} (${userDetail.parentEmail})`}>
+              <IconSitemap size={10} style={{ marginRight: 3 }} />
+              {userDetail.parentEmail}
+            </span>
+          </div>
+        )}
         
         <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', color: '#868e96' }}>
           <IconCalendar size={12} color="#adb5bd" />
@@ -595,6 +622,7 @@ const TeamMembersModal: React.FC<Props> = ({
                   <MemberCard
                     key={member.userId}
                     member={member}
+                    allUsers={allUsers}
                     onRemove={handleRemove}
                     onSetOwner={handleSetOwner}
                     onUpdateDates={handleUpdateDates}
