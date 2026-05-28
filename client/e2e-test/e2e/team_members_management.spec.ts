@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Team Members Management E2E', () => {
+  // Serial mode: forces all tests in this describe to run in ONE worker.
+  // This is required because tests share state via beforeAll (ownerId, childAId, etc.)
+  // and the hierarchy user registrations have parent-child dependencies that break
+  // under parallel execution (SQLite write may not be visible before child registration).
+  test.describe.configure({ mode: 'serial' });
+
   // Unique RUN_ID to avoid user/team name collisions
   const RUN_ID = Array.from({ length: 8 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
 
@@ -22,6 +28,9 @@ test.describe('Team Members Management E2E', () => {
   let unrelatedDId: string;
   let superadminToken: string;
   let teamId: number;
+  // Tracks the live team name — the rename test mutates it in the DB,
+  // subsequent tests must assert against the current name, not the original const.
+  let effectiveTeamName: string;
 
   test.beforeAll(async ({ request }) => {
     // 1. Log in superadmin
@@ -39,6 +48,49 @@ test.describe('Team Members Management E2E', () => {
     expect(meRes.ok()).toBeTruthy();
     const meData = await meRes.json();
     const superadminId = meData.data.id;
+
+    // --- START CLEANUP OLD TEST DATA ---
+    console.log("[Setup] Starting cleanup of old test users and teams...");
+
+    // 1. Delete teams whose names look like they belong to our E2E runs
+    const getTeamsRes = await request.get('/api/teams', {
+      headers: { Authorization: `Bearer ${superadminToken}` }
+    });
+    if (getTeamsRes.ok()) {
+      const body = await getTeamsRes.json();
+      const teamsList = body.data || [];
+      for (const t of teamsList) {
+        if (t.name.startsWith("Team Mgmt ") || t.name.startsWith("Second Team ") || t.name.startsWith("Team DateEdit ")) {
+          console.log(`[Cleanup] Deleting E2E Team: ${t.name} (ID: ${t.id})`);
+          await request.delete(`/api/teams/${t.id}`, {
+            headers: { Authorization: `Bearer ${superadminToken}` }
+          });
+        }
+      }
+    }
+
+    // 2. Delete users whose emails contain E2E domain patterns
+    const getUsersRes = await request.get('/api/users?pageSize=1000', {
+      headers: { Authorization: `Bearer ${superadminToken}` }
+    });
+    if (getUsersRes.ok()) {
+      const body = await getUsersRes.json();
+      const usersList = body.data?.items || [];
+      for (const u of usersList) {
+        if (u.email.toLowerCase().includes("team.owner.") || 
+            u.email.toLowerCase().includes("team.childa.") || 
+            u.email.toLowerCase().includes("team.childb.") || 
+            u.email.toLowerCase().includes("team.grandc.") || 
+            u.email.toLowerCase().includes("team.unrelatedd.")) {
+          console.log(`[Cleanup] Deleting E2E User: ${u.email} (ID: ${u.id})`);
+          await request.delete(`/api/users/${u.id}`, {
+            headers: { Authorization: `Bearer ${superadminToken}` }
+          });
+        }
+      }
+    }
+    console.log("[Setup] Cleanup of old test data completed successfully.");
+    // --- END CLEANUP OLD TEST DATA ---
 
     // Robust, retrying, and self-healing registerUser helper to completely bypass SQLite lock/concurrency issues
     const registerUser = async (name: string, email: string, role: string, parentUserId?: string) => {
@@ -87,16 +139,18 @@ test.describe('Team Members Management E2E', () => {
       throw new Error(`Registration failed for ${name}: ${lastErr}`);
     };
 
-    // 2. Register Users in hierarchy
-    // owner under superadmin
+    // 2. Register Users in hierarchy — sequential with delays so SQLite commits
+    // are visible before a child is created with the parent as a FK dependency.
+    const settle = (ms = 300) => new Promise(r => setTimeout(r, ms));
+
     ownerId = await registerUser(users.owner.name, users.owner.email, users.owner.role, superadminId);
-    // childA under owner
+    await settle(); // let owner write commit before creating children
+
     childAId = await registerUser(users.childA.name, users.childA.email, users.childA.role, ownerId);
-    // childB under owner (created after childA)
     childBId = await registerUser(users.childB.name, users.childB.email, users.childB.role, ownerId);
-    // grandchildC under childA
+    await settle(); // let childA commit before creating grandchild
+
     grandchildCId = await registerUser(users.grandchildC.name, users.grandchildC.email, users.grandchildC.role, childAId);
-    // unrelatedD under superadmin
     unrelatedDId = await registerUser(users.unrelatedD.name, users.unrelatedD.email, users.unrelatedD.role, superadminId);
 
     // 3. Create Team with Owner X and assign owner (with retries and self-healing)
@@ -262,6 +316,9 @@ test.describe('Team Members Management E2E', () => {
     // Verify modal title updates reactively
     await expect(page.locator('.mantine-Modal-title')).toContainText(`Gerenciar Membros — ${newName}`);
 
+    // Track the updated name for subsequent tests
+    effectiveTeamName = newName;
+
     // Close modal and verify the team name updated in the table
     await page.keyboard.press('Escape');
     await page.waitForTimeout(800);
@@ -293,7 +350,15 @@ test.describe('Team Members Management E2E', () => {
     });
     expect(secondOwnerRes.ok()).toBeTruthy();
 
-    // 2. Ensure Child A is in the first team (Team Mgmt) first
+    // 2. Ensure clean state: remove Child A from both teams first (ignore errors, they may not be members)
+    await request.delete(`/api/teams/${teamId}/members/${childAId}`, {
+      headers: { Authorization: `Bearer ${superadminToken}` }
+    });
+    await request.delete(`/api/teams/${secondTeamId}/members/${childAId}`, {
+      headers: { Authorization: `Bearer ${superadminToken}` }
+    });
+
+    // Now add Child A to the FIRST team with a known active (open-ended) membership
     const addRes = await request.post(`/api/teams/${teamId}/members`, {
       headers: { Authorization: `Bearer ${superadminToken}` },
       data: {
@@ -321,7 +386,9 @@ test.describe('Team Members Management E2E', () => {
     // Assert Warning Toast is displayed using highly robust text-based selection
     const toastTitle = page.getByText('Aviso de Conflito').first();
     await expect(toastTitle).toBeVisible({ timeout: 10000 });
-    const toastMsg = page.getByText(`O usuário '${users.childA.name}' foi removido da equipe '${teamName}' por conflito de data.`).first();
+    // Use effectiveTeamName because the rename test may have updated the DB name
+    const currentTeamName = effectiveTeamName ?? teamName;
+    const toastMsg = page.getByText(`O usuário '${users.childA.name}' foi removido da equipe '${currentTeamName}' por conflito de data.`).first();
     await expect(toastMsg).toBeVisible({ timeout: 10000 });
 
     // Close the modal

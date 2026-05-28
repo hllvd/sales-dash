@@ -62,3 +62,26 @@ When designing tests that seed persistent entities (like Users or Teams), do not
 *   **Proactive Cleanup**: Always perform an explicit **Cleanup Routine** at the *beginning* of the `beforeAll` hook.
 *   **Targeted Deletion**: Query existing APIs (e.g. `GET /api/teams`, `GET /api/users?pageSize=1000`) and delete any lingering E2E test data generated in prior runs.
 *   **Visual Debugging Best Practice**: **ALWAYS run cleanup tasks at the START of the tests** rather than during the teardown block. This ensures the database is left fully populated with the latest test run's data, allowing developer visual inspection and verification of the resulting UI records after the run is finished.
+
+### 5. Serial Mode for Stateful describe Blocks
+When a `test.describe` block shares mutable state across tests via `beforeAll` (e.g. `ownerId`, `teamId`, auth tokens), you **MUST** add this at the top of the describe body:
+
+```typescript
+test.describe.configure({ mode: 'serial' });
+```
+
+**Why**: Playwright's `fullyParallel: true` (the project default) spawns multiple workers. Each worker independently runs `beforeAll` — so a 4-test file can trigger 4 parallel `beforeAll` calls, all racing to create the same hierarchy. Without serial mode:
+- Multiple workers each create their own `ownerId` then simultaneously try to create children, causing FK violations (`O usuário superior não existe ou está inativo`) because another worker may have already deleted or not-yet-committed the parent.
+- Shared `let` variables (`ownerId`, `childAId`, etc.) get overwritten across workers.
+
+### 6. SQLite Commit Settle Delays
+After registering a user that will be used as a parent for other users, add a small delay before registering the children. SQLite writes are not always immediately visible to the next request in the same transaction boundary:
+
+```typescript
+const settle = (ms = 300) => new Promise(r => setTimeout(r, ms));
+ownerId = await registerUser(...);
+await settle(); // let the write commit before children reference it as FK
+childAId = await registerUser(..., ownerId);
+```
+
+This is especially important for hierarchical entities (User → parent, Team → owner).
