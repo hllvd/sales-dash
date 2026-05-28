@@ -53,3 +53,12 @@ Field Pre-Validation Pattern (e.g., Status):
 Backend: New POST /validate-{field} reads 50 rows from ImportRows and applies mapping logic.
 Frontend: Call endpoint in handleMappingChange when field is mapped.
 UI: Show inline error and disabled={!isValid} on Confirm button.
+
+## E2E Test Independence and Modularity
+
+### 4. Proactive Cleanup in beforeAll
+When designing tests that seed persistent entities (like Users or Teams), do not rely purely on unique suffixes to guarantee independence over infinite test iterations. Node worker caching or persistent databases can result in collision conflicts across test retries.
+
+*   **Proactive Cleanup**: Always perform an explicit **Cleanup Routine** at the *beginning* of the `beforeAll` hook.
+*   **Targeted Deletion**: Query existing APIs (e.g. `GET /api/teams`, `GET /api/users?pageSize=1000`) and delete any lingering E2E test data generated in prior runs.
+*   **Visual Debugging Best Practice**: **ALWAYS run cleanup tasks at the START of the tests** rather than during the teardown block. This ensures the database is left fully populated with the latest test run's data, allowing developer visual inspection and verification of the resulting UI records after the run is finished.
