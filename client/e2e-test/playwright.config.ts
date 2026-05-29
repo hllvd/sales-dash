@@ -58,7 +58,8 @@ export default defineConfig({
         'matricula_health_monitoring.spec.ts',
         'teams_hierarchy_visibility.spec.ts',
         'team_report_setup.spec.ts',
-        'team_members_management.spec.ts'
+        'team_members_management.spec.ts',
+        'classification_management.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']

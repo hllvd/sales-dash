@@ -1046,6 +1046,14 @@ export const apiService = {
     if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to remove classification"))
     return response.json()
   },
+
+  async getLevelMembers(levelId: number): Promise<ApiResponse<UserClassification[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/classifications/levels/${levelId}/members`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch level members"))
+    return response.json()
+  },
 }
 
 

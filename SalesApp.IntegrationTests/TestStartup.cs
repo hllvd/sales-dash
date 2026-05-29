@@ -65,6 +65,10 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IWizardHeaderValidator, WizardHeaderValidator>();
             services.AddScoped<IContractStatusService, ContractStatusService>();
             
+            // Classification feature repositories
+            services.AddScoped<IClassificationLevelRepository, ClassificationLevelRepository>();
+            services.AddScoped<IUserClassificationRepository, UserClassificationRepository>();
+            
             // AWS DynamoDB Mock/Placeholder for activation
             services.AddSingleton<IAmazonDynamoDB>(new Mock<IAmazonDynamoDB>().Object);
 

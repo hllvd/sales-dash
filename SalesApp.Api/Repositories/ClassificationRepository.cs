@@ -52,6 +52,11 @@ namespace SalesApp.Repositories
             var level = await _context.ClassificationLevels.FindAsync(id);
             if (level != null)
             {
+                var relatedClassifications = await _context.UserClassifications
+                    .Where(uc => uc.LevelId == id)
+                    .ToListAsync();
+                _context.UserClassifications.RemoveRange(relatedClassifications);
+
                 _context.ClassificationLevels.Remove(level);
                 await _context.SaveChangesAsync();
             }

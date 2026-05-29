@@ -163,6 +163,35 @@ namespace SalesApp.Controllers
             });
         }
 
+        [HttpGet("levels/{levelId}/members")]
+        public async Task<ActionResult<ApiResponse<List<UserClassificationResponse>>>> GetLevelMembers(int levelId)
+        {
+            var level = await _levelRepo.GetByIdAsync(levelId);
+            if (level == null)
+                return NotFound(new ApiResponse<List<UserClassificationResponse>>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.ClassificationLevelNotFound)
+                });
+
+            var assignments = await _userClassRepo.GetForLevelAsync(levelId);
+            var responses = new List<UserClassificationResponse>();
+            foreach (var uc in assignments)
+            {
+                if (uc.User != null)
+                {
+                    responses.Add(MapToUserClassResponse(uc, uc.User));
+                }
+            }
+
+            return Ok(new ApiResponse<List<UserClassificationResponse>>
+            {
+                Success = true,
+                Data = responses,
+                Message = "Membros do nível de classificação recuperados com sucesso."
+            });
+        }
+
         // ── User–Level Assignments ───────────────────────────────────────────────
 
         [HttpPost("assign")]

@@ -157,24 +157,10 @@ const ClassificationsPage: React.FC = () => {
       const res = await apiService.getClassificationLevels() // reload for count
       if (res.success && res.data) setLevels(res.data)
       
-      const usersRes = await apiService.getUsers(1, 1000)
-      if (usersRes.success && usersRes.data) {
-        const activeMembers: UserClassification[] = []
-        const inactiveMembers: UserClassification[] = []
-        for (const u of usersRes.data.items) {
-          const historyRes = await apiService.getUserClassificationHistory(u.id)
-          if (historyRes.success && historyRes.data) {
-            for (const h of historyRes.data) {
-              if (h.levelId === level.id) {
-                if (h.isActive) {
-                  activeMembers.push(h)
-                } else {
-                  inactiveMembers.push(h)
-                }
-              }
-            }
-          }
-        }
+      const membersRes = await apiService.getLevelMembers(level.id)
+      if (membersRes.success && membersRes.data) {
+        const activeMembers = membersRes.data.filter(m => m.isActive)
+        const inactiveMembers = membersRes.data.filter(m => !m.isActive)
         setLevelMembers(activeMembers)
         setInactiveLevelMembers(inactiveMembers)
       }
