@@ -254,6 +254,44 @@ e2e() {
   return $EXIT_CODE
 }
 
+build_client() {
+  print_header "BUILD CLIENT (FRONTEND ONLY)"
+
+  local EXIT_CODE=0
+  docker-compose build client > artifacts/full-build.log 2>&1 || EXIT_CODE=$?
+
+  summarize_log \
+    artifacts/full-build.log \
+    artifacts/build-errors.log
+
+  if [ "$EXIT_CODE" -ne 0 ]; then
+    echo ""
+    echo "❌ CLIENT BUILD FAILED — compiler/lint errors:"
+    echo "========================================================================="
+    local LINE_NUM
+    LINE_NUM=$(grep -n -i "Failed to compile\." artifacts/full-build.log | head -n 1 | cut -d: -f1)
+    if [ -z "$LINE_NUM" ]; then
+      LINE_NUM=$(grep -n -i "error:" artifacts/full-build.log | head -n 1 | cut -d: -f1)
+    fi
+
+    if [ -n "$LINE_NUM" ]; then
+      tail -n +"$LINE_NUM" artifacts/full-build.log \
+        | sed -E 's/^#[0-9]*[[:space:]]*[0-9]*\.[0-9]*[[:space:]]*//' \
+        | sed -E 's/^[0-9]*\.[0-9]*[[:space:]]*//' \
+        | head -n 60
+    else
+      tail -n 60 artifacts/full-build.log \
+        | sed -E 's/^#[0-9]*[[:space:]]*[0-9]*\.[0-9]*[[:space:]]*//' \
+        | sed -E 's/^[0-9]*\.[0-9]*[[:space:]]*//'
+    fi
+    echo "========================================================================="
+  else
+    echo "✅ Frontend client built successfully!"
+  fi
+
+  return $EXIT_CODE
+}
+
 all() {
   build
   integration
@@ -292,6 +330,9 @@ case "$1" in
   build)
     build
     ;;
+  build-client)
+    build_client
+    ;;
   integration)
     integration
     ;;
@@ -313,6 +354,7 @@ case "$1" in
   *)
     echo "Usage:"
     echo "./test.sh build"
+    echo "./test.sh build-client"
     echo "./test.sh integration"
     echo "./test.sh e2e"
     echo "./test.sh all"
