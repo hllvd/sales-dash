@@ -144,6 +144,21 @@ namespace SalesApp.Models
         TeamRetrievedSuccessfully,
         TeamsRetrievedSuccessfully,
         TeamNameAlreadyExists,
-        UserRemovedFromTeamConflict
+        UserRemovedFromTeamConflict,
+
+        // Classification Level Messages
+        ClassificationLevelCreatedSuccessfully,
+        ClassificationLevelUpdatedSuccessfully,
+        ClassificationLevelDeletedSuccessfully,
+        ClassificationLevelNotFound,
+        ClassificationLevelRetrievedSuccessfully,
+        ClassificationLevelsRetrievedSuccessfully,
+        ClassificationLevelNameAlreadyExists,
+        ClassificationLevelHasActiveUsers,
+        UserClassificationAssignedSuccessfully,
+        UserClassificationUpdatedSuccessfully,
+        UserClassificationNotFound,
+        UserClassificationHistoryRetrievedSuccessfully,
+        UserClassificationOverlapConflict
     }
 }

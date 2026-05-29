@@ -148,7 +148,22 @@ namespace SalesApp.Services
             [AppMessage.TeamRetrievedSuccessfully] = "Equipe recuperada com sucesso",
             [AppMessage.TeamsRetrievedSuccessfully] = "Equipes recuperadas com sucesso",
             [AppMessage.TeamNameAlreadyExists] = "Nome da equipe já existe",
-            [AppMessage.UserRemovedFromTeamConflict] = "O usuário '{0}' foi removido da equipe '{1}' por conflito de data."
+            [AppMessage.UserRemovedFromTeamConflict] = "O usuário '{0}' foi removido da equipe '{1}' por conflito de data.",
+
+            // Classification Level Messages
+            [AppMessage.ClassificationLevelCreatedSuccessfully] = "Nível de classificação criado com sucesso",
+            [AppMessage.ClassificationLevelUpdatedSuccessfully] = "Nível de classificação atualizado com sucesso",
+            [AppMessage.ClassificationLevelDeletedSuccessfully] = "Nível de classificação excluído com sucesso",
+            [AppMessage.ClassificationLevelNotFound] = "Nível de classificação não encontrado",
+            [AppMessage.ClassificationLevelRetrievedSuccessfully] = "Nível de classificação recuperado com sucesso",
+            [AppMessage.ClassificationLevelsRetrievedSuccessfully] = "Níveis de classificação recuperados com sucesso",
+            [AppMessage.ClassificationLevelNameAlreadyExists] = "Nome de nível de classificação já existe",
+            [AppMessage.ClassificationLevelHasActiveUsers] = "Não é possível excluir este nível pois há usuários ativos nele",
+            [AppMessage.UserClassificationAssignedSuccessfully] = "Nível do usuário atribuído com sucesso",
+            [AppMessage.UserClassificationUpdatedSuccessfully] = "Classificação do usuário atualizada com sucesso",
+            [AppMessage.UserClassificationNotFound] = "Classificação do usuário não encontrada",
+            [AppMessage.UserClassificationHistoryRetrievedSuccessfully] = "Histórico de classificações recuperado com sucesso",
+            [AppMessage.UserClassificationOverlapConflict] = "Conflito detectado: a atribuição anterior do usuário foi encerrada automaticamente na data de início da nova"
         };
         
         /// <summary>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { Title, Button, Table, ActionIcon, Group, Badge, Text } from '@mantine/core';
-import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload, IconMedal } from '@tabler/icons-react';
 import "./UsersPage.css"
 import Menu from "./Menu"
 import UserForm from "./UserForm"
@@ -199,6 +199,7 @@ const UsersPage: React.FC = () => {
                         <Table.Th>Nome</Table.Th>
                         <Table.Th>Email</Table.Th>
                         <Table.Th>Função</Table.Th>
+                        <Table.Th>Nível</Table.Th>
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Criado em</Table.Th>
                         <Table.Th>Ações</Table.Th>
@@ -231,6 +232,15 @@ const UsersPage: React.FC = () => {
                                 ? "Admin"
                                 : "Usuário"}
                             </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            {user.currentLevelName ? (
+                              <Badge color="indigo" variant="light" leftSection={<IconMedal size={12} />}>
+                                {user.currentLevelName}
+                              </Badge>
+                            ) : (
+                              <span style={{ color: '#9ca3af', fontSize: 12, fontStyle: 'italic' }}>—</span>
+                            )}
                           </Table.Td>
                           <Table.Td>
                             <Badge 

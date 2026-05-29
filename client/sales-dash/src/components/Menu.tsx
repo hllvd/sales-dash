@@ -16,6 +16,7 @@ import {
   IconRefresh,
   IconChartBar,
   IconActivity,
+  IconMedal,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -229,6 +230,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/teams')}
+              onClick={() => { if (opened) close(); }}
+            />
+          )}
+
+          {userRole === 'superadmin' && (
+            <NavLink
+              href="#/classifications"
+              label="Níveis de Classificação"
+              leftSection={<IconMedal size={20} />}
+              active={isActive('#/classifications')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/classifications')}
               onClick={() => { if (opened) close(); }}
             />
           )}

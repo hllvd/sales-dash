@@ -35,6 +35,7 @@ export interface User {
   parentUserName?: string
   parentEmail?: string
   currentTeamName?: string
+  currentLevelName?: string
   isActive: boolean
   matricula?: string
   isMatriculaOwner: boolean
@@ -971,6 +972,80 @@ export const apiService = {
     }
     return response.json()
   },
+
+  // ── Classification Levels ────────────────────────────────────────────────────
+
+  async getClassificationLevels(): Promise<ApiResponse<ClassificationLevel[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/classifications/levels`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch levels"))
+    return response.json()
+  },
+
+  async createClassificationLevel(data: CreateClassificationLevelRequest): Promise<ApiResponse<ClassificationLevel>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/classifications/levels`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to create level"))
+    return response.json()
+  },
+
+  async updateClassificationLevel(id: number, data: Partial<CreateClassificationLevelRequest>): Promise<ApiResponse<ClassificationLevel>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/classifications/levels/${id}`, {
+      method: "PUT",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to update level"))
+    return response.json()
+  },
+
+  async deleteClassificationLevel(id: number): Promise<ApiResponse<object>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/classifications/levels/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to delete level"))
+    return response.json()
+  },
+
+  async assignUserLevel(data: AssignUserLevelRequest): Promise<ApiResponse<UserClassification>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/classifications/assign`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to assign level"))
+    return response.json()
+  },
+
+  async getUserClassificationHistory(userId: string): Promise<ApiResponse<UserClassification[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/classifications/users/${userId}/history`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch classification history"))
+    return response.json()
+  },
+
+  async getUserActiveClassification(userId: string): Promise<ApiResponse<UserClassification | null>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/classifications/users/${userId}/active`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch active classification"))
+    return response.json()
+  },
+
+  async removeUserClassification(assignmentId: number): Promise<ApiResponse<object>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/classifications/assignments/${assignmentId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to remove classification"))
+    return response.json()
+  },
 }
 
 
@@ -1078,4 +1153,48 @@ export interface Team {
   warnings?: string[]
   createdAt: string
   updatedAt: string
+}
+
+// ── Classification Levels ──────────────────────────────────────────────────────
+
+export interface ClassificationLevel {
+  id: number
+  name: string
+  description?: string
+  prize?: string
+  salesGoal?: number
+  activeUsersCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserClassification {
+  id: number
+  userId: string
+  userInternalId: number
+  userName: string
+  userEmail: string
+  levelId: number
+  levelName: string
+  levelDescription?: string
+  levelPrize?: string
+  levelSalesGoal?: number
+  startDate: string
+  endDate: string | null
+  isActive: boolean
+  createdAt: string
+}
+
+export interface CreateClassificationLevelRequest {
+  name: string
+  description?: string
+  prize?: string
+  salesGoal?: number
+}
+
+export interface AssignUserLevelRequest {
+  userId: string
+  levelId: number
+  startDate: string
+  endDate?: string | null
 }

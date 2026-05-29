@@ -514,6 +514,13 @@ namespace SalesApp.Controllers
             // Get current active team
             var activeUserTeam = user.UserTeams?.FirstOrDefault(ut => ut.EndDate == null || ut.EndDate > DateTime.UtcNow);
 
+            // Get current active classification level (without lazy loading – query inline)
+            var activeLevelName = _context.UserClassifications
+                .Where(uc => uc.UserInternalId == user.InternalId && (uc.EndDate == null || uc.EndDate > DateTime.UtcNow))
+                .OrderByDescending(uc => uc.StartDate)
+                .Select(uc => uc.Level.Name)
+                .FirstOrDefault();
+
             return new UserResponse
             {
                 Id = user.Id,
@@ -524,6 +531,7 @@ namespace SalesApp.Controllers
                 ParentUserName = user.ParentUser?.Name,
                 ParentEmail = user.ParentUser?.Email,
                 CurrentTeamName = activeUserTeam?.Team?.Name,
+                CurrentLevelName = activeLevelName,
                 IsActive = user.IsActive,
 
                 CreatedAt = user.CreatedAt,

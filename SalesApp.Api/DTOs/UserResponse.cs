@@ -10,6 +10,7 @@ namespace SalesApp.DTOs
         public string? ParentUserName { get; set; }
         public string? ParentEmail { get; set; }
         public string? CurrentTeamName { get; set; }
+        public string? CurrentLevelName { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

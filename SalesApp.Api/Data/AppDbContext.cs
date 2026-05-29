@@ -37,6 +37,8 @@ namespace SalesApp.Data
         public DbSet<ContractStatusEntity> ContractStatuses { get; set; }
         public DbSet<Team> Teams { get; set; }
         public DbSet<UserTeam> UserTeams { get; set; }
+        public DbSet<ClassificationLevel> ClassificationLevels { get; set; }
+        public DbSet<UserClassification> UserClassifications { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -434,6 +436,39 @@ namespace SalesApp.Data
                     .WithMany(t => t.UserTeams)
                     .HasForeignKey(e => e.TeamId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.UserInternalId, e.EndDate });
+            });
+
+            // ClassificationLevel entity configuration
+            modelBuilder.Entity<ClassificationLevel>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.HasIndex(e => e.Name).IsUnique();
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Description).HasMaxLength(500);
+                entity.Property(e => e.Prize).HasMaxLength(200);
+                entity.Property(e => e.SalesGoal).HasColumnType("decimal(18,2)");
+            });
+
+            // UserClassification entity configuration
+            modelBuilder.Entity<UserClassification>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.StartDate).IsRequired();
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Level)
+                    .WithMany(l => l.UserClassifications)
+                    .HasForeignKey(e => e.LevelId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasIndex(e => new { e.UserInternalId, e.EndDate });
             });
