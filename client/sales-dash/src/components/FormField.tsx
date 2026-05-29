@@ -17,7 +17,7 @@ const FormField: React.FC<FormFieldProps> = ({
   required = false, 
   children,
   description,
-  labelColor = '#e9ecef'
+  labelColor = '#374151'
 }) => {
   // Check if children is a checkbox by checking if it's a React element with type.displayName or type.name containing 'Checkbox'
   const isCheckbox = React.isValidElement(children) && 
@@ -58,7 +58,7 @@ const FormField: React.FC<FormFieldProps> = ({
       {description && (
         <div style={{ 
           fontSize: '12px', 
-          color: '#adb5bd', 
+          color: '#6b7280', 
           marginTop: '0.375rem',
           lineHeight: '1.4'
         }}>

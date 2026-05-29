@@ -183,6 +183,18 @@ const UsersPage = () => {
 
 ---
 
+## 📝 Reusable Form Inputs & Modal Fields (`FormField`)
+
+To ensure flawless readability on both light and dark backgrounds, form fields and modals must use high-contrast text configurations.
+
+### 🎨 Color & Label Contrast Rules
+* **Modals & Light Backgrounds**: 
+  - Default input labels must utilize `#374151` (Dark Charcoal) to guarantee accessibility compliance against white (`#ffffff`) background layers.
+  - Subtexts or input descriptions must use `#6b7280` (Secondary Text).
+* **High Contrast Checks**: When designing custom layout shells, verify that no hard-coded light colors (like `#e9ecef`) are applied to labels inside white modals.
+
+---
+
 ## 🛡️ Anti-Patterns (Forbid These)
 
 1. **❌ Raw CSS Styling Override Banners**: Avoid styling alerts with absolute black/dark badge blocks or hard borders (`border: '1px solid rgba(253, 224, 71, 0.4)'`). Rely on Mantine's native theme engine.
