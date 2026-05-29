@@ -46,6 +46,12 @@ export interface User {
   hasPowerBiCredentials?: boolean
 }
 
+export interface UserStats {
+  pendingContractsCount: number
+  totalProduction: number
+  totalRetention: number
+}
+
 export interface UserLookupByMatricula {
   id: string
   name: string
@@ -147,6 +153,18 @@ export const apiService = {
 
     if (!response.ok) {
       throw new Error("Failed to fetch user")
+    }
+
+    return response.json()
+  },
+
+  async getUserStats(id: string): Promise<ApiResponse<UserStats>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/${id}/stats`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch user stats")
     }
 
     return response.json()

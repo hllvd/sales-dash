@@ -506,6 +506,60 @@ namespace SalesApp.Controllers
             });
         }
         
+        [HttpGet("{id}/stats")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserStatsResponse>>> GetUserStats(Guid id)
+        {
+            var currentUserId = GetCurrentUserId();
+            var hasReadPermission = User.HasClaim("perm", "contracts:read") || User.HasClaim("perm", "users:read") || User.HasClaim("perm", "system:superadmin");
+            
+            if (!hasReadPermission && currentUserId != id)
+            {
+                return Forbid();
+            }
+            
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<UserStatsResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+            
+            // 1. Pending claims count (IsResolved = false)
+            var pendingContractsCount = await _context.PendingContractClaims
+                .CountAsync(c => c.UserInternalId == user.InternalId && !c.IsResolved);
+            
+            // 2. Total active user contracts
+            var userContracts = await _context.Contracts
+                .Include(c => c.ContractStatus)
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive)
+                .ToListAsync();
+            
+            decimal totalProduction = userContracts.Sum(c => c.TotalAmount);
+            
+            // Calculate active vs total for retention
+            decimal activeAmount = userContracts
+                .Where(c => !c.ContractStatus.Name.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
+                .Sum(c => c.TotalAmount);
+                
+            decimal totalRetention = totalProduction > 0 ? (activeAmount / totalProduction) * 100 : 0m;
+            
+            return Ok(new ApiResponse<UserStatsResponse>
+            {
+                Success = true,
+                Data = new UserStatsResponse
+                {
+                    PendingContractsCount = pendingContractsCount,
+                    TotalProduction = totalProduction,
+                    TotalRetention = totalRetention
+                },
+                Message = "User stats retrieved successfully"
+            });
+        }
+        
         private UserResponse MapToUserResponse(User user)
         {
             // Get the primary/owner matricula if it exists

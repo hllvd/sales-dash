@@ -13,6 +13,7 @@ import {
   UpdateUserRequest,
 } from "../services/apiService"
 import { useUsers } from "../contexts/UsersContext"
+import { UserProfileModal } from "./UserProfile"
 
 const UsersPage: React.FC = () => {
   const { setUsers: setCachedUsers, getUserById } = useUsers()
@@ -29,6 +30,7 @@ const UsersPage: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState(false)
   const [currentUserRole, setCurrentUserRole] = useState<string>("")
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null)
   const pageSize = 10
 
   // Fetch users
@@ -210,7 +212,13 @@ const UsersPage: React.FC = () => {
                         <Table.Tr key={user.id}>
                           <Table.Td>
                             <div className="user-name-cell">
-                              <span className="user-name">{user.name}</span>
+                              <span 
+                                className="user-name" 
+                                style={{ cursor: 'pointer', color: '#6366f1', fontWeight: 600 }}
+                                onClick={() => setSelectedProfileUserId(user.id)}
+                              >
+                                {user.name}
+                              </span>
                               {user.parentUserName && (
                                 <span className="user-parent">
                                   Pai: {user.parentUserName}
@@ -362,6 +370,12 @@ const UsersPage: React.FC = () => {
           </Text>
         </div>
       </StandardModal>
+
+      <UserProfileModal
+        userId={selectedProfileUserId}
+        opened={selectedProfileUserId !== null}
+        onClose={() => setSelectedProfileUserId(null)}
+      />
     </div>
     </Menu>
   )

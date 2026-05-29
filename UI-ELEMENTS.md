@@ -132,6 +132,57 @@ The available members column must follow a Level-Order Tree Traversal (BFS) base
 
 ---
 
+## 👤 Reusable User Profile & Performance Metrics Component (`UserProfile`)
+
+The `UserProfile` component provides a unified, highly aesthetic view for displaying and managing a user's details, classification levels, matriculas, and lazy-loaded performance metrics.
+
+### 🎨 Visual & Styling Guidelines
+* **Dual Contexts**: Functions seamlessly as a full-page view (`mode="page"`) or a wide modal overlay (`mode="modal"`).
+* **Initials Avatar**: A circular avatar displaying the user's initials using a premium gradient (`linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)`).
+* **Interactive Accents**: Actionable fields feature subtle highlight animations, smooth transitions, and distinct HSL theme border highlights for individual statistics cards.
+* **Lazy Stats Section**: Employs an `IntersectionObserver` to defer fetching performance metrics (`GET /api/users/{id}/stats`) until the stats container scrolls into viewport, rendering animated skeleton pulse cards while loading.
+
+### 🔌 Code Integration Examples
+
+#### Full Page Shell View:
+```tsx
+import { UserProfile } from './components/UserProfile';
+
+const MyProfilePage = () => {
+  return (
+    <Menu>
+      <div className="my-profile-page" style={{ padding: '24px', maxWidth: '1200px' }}>
+        <UserProfile userId={currentUser.id} mode="page" />
+      </div>
+    </Menu>
+  );
+};
+```
+
+#### Wide Sheet Modal View:
+```tsx
+import { UserProfileModal } from './components/UserProfile';
+
+const UsersPage = () => {
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  
+  return (
+    <>
+      {/* Name click triggers profile view */}
+      <span onClick={() => setProfileUserId(user.id)}>{user.name}</span>
+
+      <UserProfileModal
+        userId={profileUserId}
+        opened={profileUserId !== null}
+        onClose={() => setProfileUserId(null)}
+      />
+    </>
+  );
+};
+```
+
+---
+
 ## 🛡️ Anti-Patterns (Forbid These)
 
 1. **❌ Raw CSS Styling Override Banners**: Avoid styling alerts with absolute black/dark badge blocks or hard borders (`border: '1px solid rgba(253, 224, 71, 0.4)'`). Rely on Mantine's native theme engine.
