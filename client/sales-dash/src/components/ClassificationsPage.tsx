@@ -457,7 +457,7 @@ const ClassificationsPage: React.FC = () => {
                 ) : levelMembers.length === 0 ? (
                   <Text size="sm" c="dimmed" ta="center" py="xl">Nenhum membro ativo neste nível</Text>
                 ) : (
-                  <ScrollArea h={200}>
+                  <ScrollArea h={inactiveCollapsed ? 340 : 200}>
                     <Stack gap={8}>
                       {levelMembers.map(m => (
                         <div key={m.id} className="cls-member-card">
