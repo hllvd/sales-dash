@@ -34,10 +34,34 @@ Before creating a new UI view, modal, warning banner, table, or form field, you 
 * Highlight special roles (e.g., team owners) using a sophisticated **light amber background tint (`rgba(254, 243, 199, 0.5)`)** and gold-accent borders rather than stark colors.
 * Wrap action buttons cleanly within headers or aligned column headers.
 
-#### 👥 Dual-Column Member Management Modal (`TeamMembersModal`)
-* **Light Palette**: Always style assignment modals with a **light theme background (`#f8f9fa`)** and white cards (`#ffffff`).
+#### 👥 Dual-Column Member Management Modal (`TeamMembersModal` & `ClassificationsPage`)
+* **Light Palette**: Always style assignment modals with a **light theme background (`#ffffff` / `#f8f9fa`)** and white cards (`#ffffff`).
 * **Breadth-First Sorting**: Implement Level-Order (BFS) hierarchical user lists starting from the Team Owner.
-* **One-Click Realtime Actions**: Ensure clicking available user cards triggers an immediate API request rather than local buffering.
+* **One-Click Realtime Actions / Instant Multi-Select**: Either trigger immediate single-member API additions, or provide a spacious split grid (like `cls-modal-grid`) where users can search, check multiple user cards (`ScrollArea` height `320px` for optimal viewing), and assign in bulk.
+
+---
+
+## 🎨 Central UI Design Color Palette
+To maintain high contrast and unified styling across all pages, refer to these approved color variables:
+
+| Intent | Code / Hex | Background Tint | Use Case |
+|---|---|---|---|
+| **Primary Text / Headings** | `#1c1c1e` | — | Explicit Modal titles, main labels, high contrast readability. |
+| **Secondary Text** | `#6b7280` | — | Descriptions, secondary meta-information. |
+| **Brand Primary** | `#6366f1` | `#ede9fe` / `#f5f3ff` | Indigo accents, active selections, primary indicators. |
+| **Action / Info** | `#228be6` | `#e7f5ff` | Blue accents, default prompts, navigation. |
+| **Success** | `#10b981` | `#e6fffa` | Active states, successful validations, active level markers. |
+| **Warning / Conflict** | `#f59e0b` | `#fffbeb` | Warning banners, resolved association alerts, temporary status. |
+| **Error / Deletion** | `#ef4444` | `#fef2f2` | High-importance delete confirmations, validation errors. |
+| **Subtle Borders** | `#e9ecef` | — | Divider lines, card outlines, table row separations. |
+
+> [!IMPORTANT]
+> **Modal Header Title Visibility Rule**:
+> When using standard light-themed modals, **never** pass raw strings to the `title` attribute of the `<Modal>`. The global CSS theme overrides default title elements to white, rendering them invisible.
+> **Always** wrap the title content in an explicit element with our premium dark color token:
+> ```tsx
+> title={<Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>Title Text</Title>}
+> ```
 
 ---
 
@@ -46,3 +70,5 @@ Before creating a new UI view, modal, warning banner, table, or form field, you 
 2. **Raw HTML Inputs**: Do not introduce native `<select>` or `<input>` fields that clash with Mantine's focus borders and rounding.
 3. **Disjointed Modals**: Never stack vertical, loose cards inside standard modal popups where a structured `<table>` provides a clean grid.
 4. **Duplicate UI Code**: Do not write ad-hoc utility styling if an element can be governed by a shared CSS class in `index.css` or component-specific CSS (like `TeamsPage.css`).
+5. **Invisible Modal Headers**: Do not omit `style={{ color: '#1c1c1e' }}` on custom `<Modal>` header titles.
+

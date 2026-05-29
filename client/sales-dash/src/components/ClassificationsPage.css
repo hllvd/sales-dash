@@ -176,3 +176,52 @@
   border-color: #6366f1;
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
 }
+
+/* ── Two-Column Modal Grid ──────────────────────────────────────────────────── */
+.cls-modal-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+}
+
+.cls-modal-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cls-select-user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.cls-select-user-card:hover {
+  background: #f1f5ff;
+}
+
+.cls-select-user-card.selected {
+  border: 2px solid #6366f1;
+  background: #ede9fe;
+}
+
+@media (max-width: 800px) {
+  .cls-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cls-member-card.inactive {
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+}
+
+.cls-member-card.inactive:hover {
+  background: #f3f4f6;
+}

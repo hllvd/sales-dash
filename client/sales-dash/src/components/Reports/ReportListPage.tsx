@@ -83,6 +83,7 @@ const ReportListPage: React.FC = () => {
         outputColumns: report.outputColumns,
         groupByEmail: report.groupByEmail,
         groupByTeam: report.groupByTeam || false,
+        groupByClassification: report.groupByClassification || false,
         hideUnassignedTeams: report.hideUnassignedTeams || false,
         orderByField: report.orderByField,
         orderByDirection: report.orderByDirection

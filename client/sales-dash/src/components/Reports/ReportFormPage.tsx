@@ -66,6 +66,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>([]);
   const [groupByEmail, setGroupByEmail] = useState(false);
   const [groupByTeam, setGroupByTeam] = useState(false);
+  const [groupByClassification, setGroupByClassification] = useState(false);
   const [hideUnassignedTeams, setHideUnassignedTeams] = useState(false);
   const [orderByField, setOrderByField] = useState<string | null>(null);
   const [orderByDirection, setOrderByDirection] = useState<'asc' | 'desc'>('asc');
@@ -132,6 +133,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setOutputColumns(report.outputColumns || []);
         setGroupByEmail(report.groupByEmail || false);
         setGroupByTeam(report.groupByTeam || false);
+        setGroupByClassification(report.groupByClassification || false);
         setHideUnassignedTeams(report.hideUnassignedTeams || false);
         setOrderByField(report.orderByField || null);
         setOrderByDirection(report.orderByDirection || 'asc');
@@ -153,6 +155,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       if (field === 'teamOwner') return 'Chefe da equipe';
       if (field === 'name') return 'Nome (Vendedor)';
       if (field === 'email') return 'E-mail (Vendedor)';
+      if (field === 'classification') return 'Nível de Classificação';
     }
     if (source === 'Users_Matricula') {
       if (field === 'name') return 'Nome (Matrícula)';
@@ -236,6 +239,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         outputColumns,
         groupByEmail,
         groupByTeam,
+        groupByClassification,
         hideUnassignedTeams,
         orderByField: orderByField || undefined,
         orderByDirection: orderByField ? orderByDirection : undefined
@@ -287,6 +291,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         outputColumns,
         groupByEmail,
         groupByTeam,
+        groupByClassification,
         hideUnassignedTeams,
         orderByField: orderByField || undefined,
         orderByDirection: orderByField ? orderByDirection : undefined
@@ -541,6 +546,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                     setGroupByEmail(e.currentTarget.checked);
                     if (e.currentTarget.checked) {
                       setGroupByTeam(false);
+                      setGroupByClassification(false);
                       setHideUnassignedTeams(false);
                     }
                   }}
@@ -552,7 +558,20 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                     setGroupByTeam(e.currentTarget.checked);
                     if (e.currentTarget.checked) {
                       setGroupByEmail(false);
+                      setGroupByClassification(false);
                     } else {
+                      setHideUnassignedTeams(false);
+                    }
+                  }}
+                />
+                <Switch
+                  label="Agrupar por Nível de Classificação"
+                  checked={groupByClassification}
+                  onChange={(e) => {
+                    setGroupByClassification(e.currentTarget.checked);
+                    if (e.currentTarget.checked) {
+                      setGroupByEmail(false);
+                      setGroupByTeam(false);
                       setHideUnassignedTeams(false);
                     }
                   }}
@@ -639,6 +658,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                     { value: '', label: 'Sem ordenação' },
                     ...(groupByEmail ? [{ value: 'Email', label: 'Email' }] : []),
                     ...(groupByTeam ? [{ value: 'Equipe', label: 'Equipe' }] : []),
+                    ...(groupByClassification ? [{ value: 'Classificação', label: 'Classificação' }] : []),
                     ...Array.from(new Set(outputColumns.map(c => c.label).filter(l => l && l.trim() !== ""))).map(label => ({ value: label, label }))
                   ]}
                   value={orderByField}

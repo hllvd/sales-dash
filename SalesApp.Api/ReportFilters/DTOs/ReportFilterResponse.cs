@@ -15,6 +15,7 @@ namespace SalesApp.ReportFilters.DTOs
         public List<OutputColumnResponse> OutputColumns { get; set; } = new();
         public bool GroupByEmail { get; set; }
         public bool GroupByTeam { get; set; }
+        public bool GroupByClassification { get; set; }
         public bool HideUnassignedTeams { get; set; }
         public string? OrderByField { get; set; }
         public string? OrderByDirection { get; set; }

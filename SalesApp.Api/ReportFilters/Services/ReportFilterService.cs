@@ -23,24 +23,32 @@ namespace SalesApp.ReportFilters.Services
         private readonly IContractRepository _contractRepository;
         private readonly IUserRepository _userRepository;
         private readonly ITeamRepository _teamRepository;
+        private readonly IClassificationLevelRepository _classificationLevelRepository;
+        private readonly IUserClassificationRepository _userClassificationRepository;
 
-        // Set during ExecuteAsync when GroupByEmail/GroupByTeam is active; null otherwise.
+        // Set during ExecuteAsync when GroupByEmail/GroupByTeam/GroupByClassification is active; null otherwise.
         // Safe as a mutable field because this service is Scoped (one instance per HTTP request).
         private Dictionary<string, decimal>? _retentionByEmail;
         private Dictionary<string, int>? _contractCountByEmail;
         private Dictionary<string, decimal>? _retentionByTeam;
         private Dictionary<string, int>? _contractCountByTeam;
+        private Dictionary<string, decimal>? _retentionByClassification;
+        private Dictionary<string, int>? _contractCountByClassification;
 
         public ReportFilterService(
             IReportFilterRepository repository,
             IContractRepository contractRepository,
             IUserRepository userRepository,
-            ITeamRepository teamRepository)
+            ITeamRepository teamRepository,
+            IClassificationLevelRepository classificationLevelRepository,
+            IUserClassificationRepository userClassificationRepository)
         {
             _repository = repository;
             _contractRepository = contractRepository;
             _userRepository = userRepository;
             _teamRepository = teamRepository;
+            _classificationLevelRepository = classificationLevelRepository;
+            _userClassificationRepository = userClassificationRepository;
         }
 
         // ── List ──────────────────────────────────────────────────────────────
@@ -103,6 +111,7 @@ namespace SalesApp.ReportFilters.Services
                 OutputColumns = MapOutputColumns(request.OutputColumns),
                 GroupByEmail = request.GroupByEmail,
                 GroupByTeam = request.GroupByTeam,
+                GroupByClassification = request.GroupByClassification,
                 HideUnassignedTeams = request.HideUnassignedTeams,
                 OrderByField = request.OrderByField,
                 OrderByDirection = request.OrderByDirection,
@@ -140,6 +149,7 @@ namespace SalesApp.ReportFilters.Services
             filter.OutputColumns = MapOutputColumns(request.OutputColumns);
             filter.GroupByEmail  = request.GroupByEmail;
             filter.GroupByTeam   = request.GroupByTeam;
+            filter.GroupByClassification = request.GroupByClassification;
             filter.HideUnassignedTeams = request.HideUnassignedTeams;
             filter.OrderByField  = request.OrderByField;
             filter.OrderByDirection = request.OrderByDirection;
@@ -205,6 +215,33 @@ namespace SalesApp.ReportFilters.Services
                     x.StartDate <= c.SaleStartDate &&
                     (x.EndDate == null || x.EndDate > c.SaleStartDate));
                 return match?.TeamOwnerName ?? "(Sem chefe)";
+            };
+
+            // Load classifications once in memory for fast lookup
+            var levelsList = await _classificationLevelRepository.GetAllAsync();
+            var levelsMap = levelsList.ToDictionary(l => l.Id, l => l.Name);
+            var allClassifications = new List<UserClassification>();
+            foreach (var level in levelsList)
+            {
+                var cls = await _userClassificationRepository.GetForLevelAsync(level.Id);
+                allClassifications.AddRange(cls);
+            }
+
+            Func<SalesApp.Models.Contract, string> getClassification = c =>
+            {
+                if (c.UserInternalId == null) return "—";
+                var match = allClassifications.FirstOrDefault(x => 
+                    x.UserInternalId == c.UserInternalId.Value &&
+                    x.StartDate <= c.SaleStartDate &&
+                    (x.EndDate == null || x.EndDate > c.SaleStartDate));
+                if (match != null)
+                {
+                    return levelsMap.GetValueOrDefault(match.LevelId, "—");
+                }
+                var currentMatch = allClassifications.FirstOrDefault(x =>
+                    x.UserInternalId == c.UserInternalId.Value &&
+                    x.EndDate == null);
+                return currentMatch != null ? levelsMap.GetValueOrDefault(currentMatch.LevelId, "—") : "—";
             };
 
             // Build filter arguments to pass to existing IContractRepository.GetAllAsync
@@ -318,6 +355,30 @@ namespace SalesApp.ReportFilters.Services
                 _retentionByTeam = null;
             }
 
+            if (report.GroupByClassification)
+            {
+                _retentionByClassification = contracts
+                    .GroupBy(getClassification)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var total = g.Sum(c => c.TotalAmount);
+                            if (total <= 0) return 0m;
+                            var active = g
+                                .Where(c => !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Defaulted.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+                            return active / total;
+                        });
+            }
+            else
+            {
+                _retentionByClassification = null;
+            }
+
             // Filter by status in memory (same pattern as PV filter)
             if (fc.Statuses?.Count > 0)
             {
@@ -372,9 +433,26 @@ namespace SalesApp.ReportFilters.Services
                 contracts = grouped.Select(x => x.Contract).ToList();
             }
 
+            if (report.GroupByClassification)
+            {
+                var grouped = contracts
+                    .GroupBy(getClassification)
+                    .Select(g =>
+                    {
+                        var first = g.First();
+                        first.TotalAmount = g.Sum(c => c.TotalAmount);
+                        return (Contract: first, ClassKey: g.Key, Count: g.Count());
+                    })
+                    .OrderByDescending(x => x.Contract.TotalAmount)
+                    .ToList();
+
+                _contractCountByClassification = grouped.ToDictionary(x => x.ClassKey, x => x.Count);
+                contracts = grouped.Select(x => x.Contract).ToList();
+            }
+
             // Project each contract to only the outputColumns fields
             var columns = report.OutputColumns.OrderBy(c => c.Order).ToList();
-            var allRows = contracts.Select(c => ProjectContract(c, columns, getTeamName, getTeamOwnerName)).ToList();
+            var allRows = contracts.Select(c => ProjectContract(c, columns, getTeamName, getTeamOwnerName, getClassification)).ToList();
 
             // Apply ordering if specified
             if (!string.IsNullOrWhiteSpace(report.OrderByField))
@@ -448,6 +526,17 @@ namespace SalesApp.ReportFilters.Services
                 });
             }
 
+            if (report.GroupByClassification && !result.Columns.Any(c => c.Source == "Users_Contract" && c.Field == "classification"))
+            {
+                result.Columns.Insert(0, new OutputColumnResponse
+                {
+                    Source = "Users_Contract",
+                    Field  = "classification",
+                    Label  = "Classificação",
+                    Order  = 0
+                });
+            }
+
             return new ServiceResult<ReportResultsResponse>(true, result);
         }
 
@@ -491,7 +580,8 @@ namespace SalesApp.ReportFilters.Services
                             "name",
                             "email",
                             "team",
-                            "teamOwner"
+                            "teamOwner",
+                            "classification"
                         }
                     },
                     new SourceColumns
@@ -553,13 +643,14 @@ namespace SalesApp.ReportFilters.Services
             SalesApp.Models.Contract contract,
             List<OutputColumnResponse> columns,
             Func<SalesApp.Models.Contract, string> getTeamName,
-            Func<SalesApp.Models.Contract, string> getTeamOwnerName)
+            Func<SalesApp.Models.Contract, string> getTeamOwnerName,
+            Func<SalesApp.Models.Contract, string> getClassification)
         {
             var row = new Dictionary<string, object?>();
 
             foreach (var col in columns)
             {
-                row[col.Label] = ResolveField(contract, col.Source, col.Field, getTeamName, getTeamOwnerName);
+                row[col.Label] = ResolveField(contract, col.Source, col.Field, getTeamName, getTeamOwnerName, getClassification);
             }
 
             // Synthetic Email column is still injected if not present, to ensure Group By works visually
@@ -574,6 +665,11 @@ namespace SalesApp.ReportFilters.Services
                 row["Equipe"] = getTeamName(contract);
             }
 
+            if (!row.ContainsKey("Classificação"))
+            {
+                row["Classificação"] = getClassification(contract);
+            }
+
             return row;
         }
 
@@ -582,7 +678,8 @@ namespace SalesApp.ReportFilters.Services
             string source,
             string field,
             Func<SalesApp.Models.Contract, string> getTeamName,
-            Func<SalesApp.Models.Contract, string> getTeamOwnerName)
+            Func<SalesApp.Models.Contract, string> getTeamOwnerName,
+            Func<SalesApp.Models.Contract, string> getClassification)
         {
             return source switch
             {
@@ -607,6 +704,7 @@ namespace SalesApp.ReportFilters.Services
                     "email"     => c.User?.Email,
                     "team"      => getTeamName(c),
                     "teamOwner" => getTeamOwnerName(c),
+                    "classification" => getClassification(c),
                     _           => null
                 },
                 "Users_Matricula" => c.Matricula?.UserMatriculas
@@ -641,9 +739,13 @@ namespace SalesApp.ReportFilters.Services
                 {
                     "contractCount" => _contractCountByTeam != null
                         ? _contractCountByTeam.GetValueOrDefault(getTeamName(c), 0)
+                        : _contractCountByClassification != null
+                        ? _contractCountByClassification.GetValueOrDefault(getClassification(c), 0)
                         : _contractCountByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0) ?? 0,
                     "retention"     => _retentionByTeam != null
                         ? _retentionByTeam.GetValueOrDefault(getTeamName(c), 0m)
+                        : _retentionByClassification != null
+                        ? _retentionByClassification.GetValueOrDefault(getClassification(c), 0m)
                         : _retentionByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0m) ?? 0m,
                     _               => null
                 },
@@ -749,6 +851,7 @@ namespace SalesApp.ReportFilters.Services
                 Scope       = f.Scope,
                 GroupByEmail = f.GroupByEmail,
                 GroupByTeam = f.GroupByTeam,
+                GroupByClassification = f.GroupByClassification,
                 HideUnassignedTeams = f.HideUnassignedTeams,
                 OrderByField = f.OrderByField,
                 OrderByDirection = f.OrderByDirection,

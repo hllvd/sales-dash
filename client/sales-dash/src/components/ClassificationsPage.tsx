@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   Title, Button, ActionIcon, Group, Badge, Text, TextInput, Textarea,
-  NumberInput, Modal, Stack, ScrollArea, Tooltip, Loader, Divider, Table
+  NumberInput, Modal, Stack, ScrollArea, Tooltip, Loader, Divider, Checkbox
 } from '@mantine/core'
 import {
   IconPlus, IconEdit, IconTrash, IconStar, IconUsers, IconTrophy,
-  IconHistory, IconUserPlus, IconCheck, IconX, IconMedal
+  IconHistory, IconUserPlus, IconCheck, IconX, IconMedal,
+  IconChevronDown, IconChevronUp
 } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import Menu from './Menu'
-import StyledModal from './StyledModal'
 import {
   apiService, ClassificationLevel, UserClassification, User,
   CreateClassificationLevelRequest
@@ -49,11 +49,12 @@ const ClassificationsPage: React.FC = () => {
   // Members / assign modal
   const [membersLevel, setMembersLevel] = useState<ClassificationLevel | null>(null)
   const [levelMembers, setLevelMembers] = useState<UserClassification[]>([])
+  const [inactiveLevelMembers, setInactiveLevelMembers] = useState<UserClassification[]>([])
+  const [inactiveCollapsed, setInactiveCollapsed] = useState(true)
   const [membersLoading, setMembersLoading] = useState(false)
 
-  // Assign user panel inside members modal
-  const [showAssign, setShowAssign] = useState(false)
-  const [assignUserId, setAssignUserId] = useState('')
+  // Assign multiple users states inside members modal
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
   const [assignStart, setAssignStart] = useState(todayISO())
   const [assignEnd, setAssignEnd] = useState('')
   const [assigning, setAssigning] = useState(false)
@@ -148,25 +149,34 @@ const ClassificationsPage: React.FC = () => {
   // ── Members modal ────────────────────────────────────────────────────────
   const openMembers = async (level: ClassificationLevel) => {
     setMembersLevel(level)
-    setShowAssign(false)
+    setSelectedUserIds([])
     setUserSearch('')
+    setInactiveCollapsed(true)
     setMembersLoading(true)
     try {
       const res = await apiService.getClassificationLevels() // reload for count
       if (res.success && res.data) setLevels(res.data)
-      // Fetch members of this level via /users to find who has this levelId
-      // We do it by fetching history for the level via a custom approach:
-      // Since backend exposes assign, history per user, we'll collect from users' active level
+      
       const usersRes = await apiService.getUsers(1, 1000)
       if (usersRes.success && usersRes.data) {
-        const members: UserClassification[] = []
-        for (const u of usersRes.data.items.filter(u => u.isActive)) {
-          const activeRes = await apiService.getUserActiveClassification(u.id)
-          if (activeRes.success && activeRes.data && activeRes.data.levelId === level.id) {
-            members.push(activeRes.data)
+        const activeMembers: UserClassification[] = []
+        const inactiveMembers: UserClassification[] = []
+        for (const u of usersRes.data.items) {
+          const historyRes = await apiService.getUserClassificationHistory(u.id)
+          if (historyRes.success && historyRes.data) {
+            for (const h of historyRes.data) {
+              if (h.levelId === level.id) {
+                if (h.isActive) {
+                  activeMembers.push(h)
+                } else {
+                  inactiveMembers.push(h)
+                }
+              }
+            }
           }
         }
-        setLevelMembers(members)
+        setLevelMembers(activeMembers)
+        setInactiveLevelMembers(inactiveMembers)
       }
     } catch { /* silent */ } finally {
       setMembersLoading(false)
@@ -183,27 +193,41 @@ const ClassificationsPage: React.FC = () => {
     }
   }
 
-  const handleAssign = async (e: React.FormEvent) => {
+  const handleAssignBulk = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!assignUserId) return
+    if (selectedUserIds.length === 0) return
     setAssigning(true)
     try {
-      const res = await apiService.assignUserLevel({
-        userId: assignUserId,
-        levelId: membersLevel!.id,
-        startDate: new Date(assignStart).toISOString(),
-        endDate: assignEnd ? new Date(assignEnd).toISOString() : null
+      await Promise.all(
+        selectedUserIds.map(userId =>
+          apiService.assignUserLevel({
+            userId,
+            levelId: membersLevel!.id,
+            startDate: new Date(assignStart).toISOString(),
+            endDate: assignEnd ? new Date(assignEnd).toISOString() : null
+          })
+        )
+      )
+      notifications.show({
+        title: 'Níveis atribuídos!',
+        message: `${selectedUserIds.length} usuários foram classificados com sucesso.`,
+        color: 'green',
+        icon: <IconCheck size={16} />
       })
-      notifications.show({ title: 'Nível atribuído!', message: res.message, color: 'green', icon: <IconCheck size={16} /> })
-      setShowAssign(false)
-      setAssignUserId(''); setAssignStart(todayISO()); setAssignEnd('')
+      setSelectedUserIds([])
       openMembers(membersLevel!)
       fetchLevels()
     } catch (e: any) {
-      notifications.show({ title: 'Erro', message: e.message, color: 'red', icon: <IconX size={16} /> })
+      notifications.show({ title: 'Erro na atribuição', message: e.message, color: 'red', icon: <IconX size={16} /> })
     } finally {
       setAssigning(false)
     }
+  }
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    )
   }
 
   // ── History modal ────────────────────────────────────────────────────────
@@ -229,6 +253,13 @@ const ClassificationsPage: React.FC = () => {
       u.email.toLowerCase().includes(userSearch.toLowerCase())
     )
 
+  // ── Order levels by salesGoal ASCENDING ──────────────────────────────
+  const sortedLevels = [...levels].sort((a, b) => {
+    const goalA = a.salesGoal ?? 0
+    const goalB = b.salesGoal ?? 0
+    return goalA - goalB
+  })
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <Menu>
@@ -249,14 +280,14 @@ const ClassificationsPage: React.FC = () => {
         {/* Level Cards */}
         {loading ? (
           <div className="loading-container"><div className="spinner" /><p>Carregando níveis...</p></div>
-        ) : levels.length === 0 ? (
+        ) : sortedLevels.length === 0 ? (
           <div className="empty-state">
             <IconMedal size={40} color="#d1d5db" />
             <p>Nenhum nível cadastrado. Crie o primeiro!</p>
           </div>
         ) : (
           <div className="cls-levels-grid">
-            {levels.map(level => (
+            {sortedLevels.map(level => (
               <div key={level.id} className="cls-level-card">
                 <div className="cls-level-card__accent" style={{ background: `linear-gradient(90deg, ${levelColor(level.id)}, ${levelColor(level.id + 2)})` }} />
                 <div className="cls-level-card__header">
@@ -303,54 +334,22 @@ const ClassificationsPage: React.FC = () => {
           </div>
         )}
 
-        {/* ── Users Table with Level Column ─────────────────────────────────── */}
-        <Title order={4} mt="xl" mb="md" style={{ color: '#374151' }}>Usuários e seus Níveis Atuais</Title>
-        <div className="table-container">
-          <Table.ScrollContainer minWidth={700}>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Nome</Table.Th>
-                  <Table.Th>Email</Table.Th>
-                  <Table.Th>Nível Atual</Table.Th>
-                  <Table.Th>Ações</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {allUsers.map(user => (
-                  <Table.Tr key={user.id}>
-                    <Table.Td style={{ fontWeight: 600 }}>{user.name}</Table.Td>
-                    <Table.Td style={{ color: '#6b7280', fontSize: 13 }}>{user.email}</Table.Td>
-                    <Table.Td>
-                      {user.currentLevelName ? (
-                        <Badge color="indigo" variant="light" leftSection={<IconTrophy size={12} />}>
-                          {user.currentLevelName}
-                        </Badge>
-                      ) : (
-                        <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>Sem nível</Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Tooltip label="Ver histórico de níveis" withArrow>
-                        <ActionIcon variant="subtle" color="indigo" onClick={() => openHistory(user)}>
-                          <IconHistory size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
-        </div>
-
-        {/* ── Level Create/Edit Modal ─────────────────────────────────────────── */}
+        {/* ── Level Create/Edit Modal (Standard Light) ───────────────────────── */}
         {showLevelForm && (
-          <StyledModal
+          <Modal
             opened={showLevelForm}
             onClose={() => setShowLevelForm(false)}
-            title={editingLevel ? `Editar: ${editingLevel.name}` : 'Novo Nível de Classificação'}
+            title={
+              <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>
+                {editingLevel ? `Editar: ${editingLevel.name}` : 'Novo Nível de Classificação'}
+              </Title>
+            }
             size="md"
+            styles={{
+              header: { backgroundColor: '#ffffff', borderBottom: '1px solid #e9ecef', padding: '20px 24px' },
+              body: { backgroundColor: '#ffffff', padding: '24px' },
+              content: { borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' },
+            }}
           >
             <form onSubmit={handleSaveLevel}>
               {formError && <div style={{ color: '#ef4444', marginBottom: 14, fontWeight: 500 }}>{formError}</div>}
@@ -397,141 +396,233 @@ const ClassificationsPage: React.FC = () => {
                 </Group>
               </Stack>
             </form>
-          </StyledModal>
+          </Modal>
         )}
 
-        {/* ── Delete Confirmation ─────────────────────────────────────────────── */}
+        {/* ── Delete Confirmation (Standard Light) ───────────────────────────── */}
         {deleteConfirm !== null && (
-          <StyledModal
+          <Modal
             opened={deleteConfirm !== null}
             onClose={() => setDeleteConfirm(null)}
-            title="Confirmar Exclusão"
+            title={
+              <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>
+                Confirmar Exclusão
+              </Title>
+            }
             size="sm"
+            styles={{
+              header: { backgroundColor: '#ffffff', borderBottom: '1px solid #e9ecef', padding: '20px 24px' },
+              body: { backgroundColor: '#ffffff', padding: '24px' },
+              content: { borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' },
+            }}
           >
-            <Text size="sm">Tem certeza que deseja excluir este nível? Usuários com este nível ativo não podem ser excluídos.</Text>
-            <Group justify="flex-end" mt="xl" style={{ borderTop: '1px solid #373a40', paddingTop: 16 }}>
+            <Text size="sm">Tem certeza que deseja excluir este nível? Níveis associados a usuários não podem ser excluídos.</Text>
+            <Group justify="flex-end" mt="xl" style={{ borderTop: '1px solid #e9ecef', paddingTop: 16 }}>
               <Button variant="subtle" color="gray" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
               <Button color="red" onClick={() => handleDelete(deleteConfirm)}>Excluir</Button>
             </Group>
-          </StyledModal>
+          </Modal>
         )}
 
-        {/* ── Members Modal ───────────────────────────────────────────────────── */}
+        {/* ── Members Modal (Two-Column Split, Always Shows User List, Multi-Select) ── */}
         {membersLevel && (
           <Modal
             opened={!!membersLevel}
-            onClose={() => { setMembersLevel(null); setLevelMembers([]); setShowAssign(false) }}
+            onClose={() => { setMembersLevel(null); setLevelMembers([]); setSelectedUserIds([]) }}
             title={
               <Group gap="xs">
                 <IconTrophy size={20} color={levelColor(membersLevel.id)} />
-                <Text fw={700} size="lg">{membersLevel.name}</Text>
+                <Text fw={700} size="lg" style={{ color: '#1c1c1e' }}>{membersLevel.name}</Text>
                 <Badge color="indigo" size="sm">{levelMembers.length} membros</Badge>
               </Group>
             }
-            size="lg"
+            size="xl"
             styles={{
               header: { backgroundColor: '#ffffff', borderBottom: '1px solid #e9ecef', padding: '20px 28px' },
               body: { backgroundColor: '#ffffff', padding: '24px 28px' },
               content: { borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' },
             }}
           >
-            <Stack gap="md">
-              {/* Assign Panel Toggle */}
-              {!showAssign ? (
-                <Button
-                  leftSection={<IconUserPlus size={16} />}
-                  variant="light"
-                  color="indigo"
-                  onClick={() => setShowAssign(true)}
-                  fullWidth
-                >
-                  Atribuir Usuário a este Nível
-                </Button>
-              ) : (
-                <form onSubmit={handleAssign}>
-                  <Stack gap="sm" p="md" style={{ background: '#f5f3ff', borderRadius: 10, border: '1px solid #e0e7ff' }}>
-                    <Text fw={700} size="sm" c="indigo">Atribuir Novo Usuário</Text>
+            <div className="cls-modal-grid">
+              
+              {/* Left Column: Active Members */}
+              <div className="cls-modal-col">
+                <Title order={5} style={{ color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconUsers size={18} color="#6366f1" /> Membros Ativos
+                </Title>
+                <Divider />
+                
+                {membersLoading ? (
+                  <Group justify="center" p="md"><Loader size="sm" /></Group>
+                ) : levelMembers.length === 0 ? (
+                  <Text size="sm" c="dimmed" ta="center" py="xl">Nenhum membro ativo neste nível</Text>
+                ) : (
+                  <ScrollArea h={200}>
+                    <Stack gap={8}>
+                      {levelMembers.map(m => (
+                        <div key={m.id} className="cls-member-card">
+                          <div className="cls-member-card__info">
+                            <div className="cls-member-card__name">{m.userName}</div>
+                            <div className="cls-member-card__email">{m.userEmail}</div>
+                            <div className="cls-member-card__dates">
+                              Desde {fmtDate(m.startDate)} {m.endDate ? `até ${fmtDate(m.endDate)}` : '(sem data de fim)'}
+                            </div>
+                          </div>
+                          <Tooltip label="Ver histórico" withArrow>
+                            <ActionIcon variant="subtle" color="indigo" size="sm"
+                              onClick={() => { const user = allUsers.find(u => u.id === m.userId); if (user) openHistory(user) }}>
+                              <IconHistory size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Remover do nível" withArrow>
+                            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleRemoveMember(m.id)}>
+                              <IconX size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </div>
+                      ))}
+                    </Stack>
+                  </ScrollArea>
+                )}
+
+                {/* Collapsible Membros Inativos Section */}
+                <Stack gap="xs" mt="md">
+                  <Group
+                    justify="space-between"
+                    style={{ cursor: 'pointer', padding: '4px 0' }}
+                    onClick={() => setInactiveCollapsed(!inactiveCollapsed)}
+                  >
+                    <Title order={5} style={{ color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <IconUsers size={18} color="#9ca3af" /> Membros Inativos ({inactiveLevelMembers.length})
+                    </Title>
+                    {inactiveCollapsed ? <IconChevronDown size={16} color="#9ca3af" /> : <IconChevronUp size={16} color="#9ca3af" />}
+                  </Group>
+                  <Divider />
+                  
+                  {!inactiveCollapsed && (
+                    membersLoading ? (
+                      <Group justify="center" p="md"><Loader size="sm" /></Group>
+                    ) : inactiveLevelMembers.length === 0 ? (
+                      <Text size="sm" c="dimmed" ta="center" py="xl">Nenhum membro inativo neste nível</Text>
+                    ) : (
+                      <ScrollArea h={180}>
+                        <Stack gap={8}>
+                          {inactiveLevelMembers.map(m => (
+                            <div key={m.id} className="cls-member-card inactive">
+                              <div className="cls-member-card__info" style={{ opacity: 0.7 }}>
+                                <div className="cls-member-card__name">{m.userName}</div>
+                                <div className="cls-member-card__email">{m.userEmail}</div>
+                                <div className="cls-member-card__dates">
+                                  Período: {fmtDate(m.startDate)} até {fmtDate(m.endDate)}
+                                </div>
+                              </div>
+                              <Tooltip label="Ver histórico" withArrow>
+                                <ActionIcon variant="subtle" color="gray" size="sm"
+                                  onClick={() => { const user = allUsers.find(u => u.id === m.userId); if (user) openHistory(user) }}>
+                                  <IconHistory size={14} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </div>
+                          ))}
+                        </Stack>
+                      </ScrollArea>
+                    )
+                  )}
+                </Stack>
+              </div>
+
+              {/* Right Column: Multi-Select Assignment */}
+              <div className="cls-modal-col">
+                <Title order={5} style={{ color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconUserPlus size={18} color="#10b981" /> Atribuir Novos Membros
+                </Title>
+                <Divider />
+                
+                <form onSubmit={handleAssignBulk}>
+                  <Stack gap="sm">
                     <TextInput
-                      placeholder="Buscar usuário por nome ou email..."
+                      placeholder="Buscar usuário..."
                       value={userSearch}
                       onChange={e => setUserSearch(e.target.value)}
                       size="sm"
                     />
-                    <ScrollArea h={180}>
+                    
+                    <ScrollArea h={320} offsetScrollbars>
                       <Stack gap={6}>
-                        {filteredUsers.map(u => (
-                          <div
-                            key={u.id}
-                            className="cls-member-card"
-                            style={{ cursor: 'pointer', border: assignUserId === u.id ? '2px solid #6366f1' : undefined, background: assignUserId === u.id ? '#ede9fe' : undefined }}
-                            onClick={() => setAssignUserId(u.id)}
-                          >
-                            <div className="cls-member-card__info">
-                              <div className="cls-member-card__name">{u.name}</div>
-                              <div className="cls-member-card__email">{u.email}</div>
-                              {u.currentLevelName && <Badge size="xs" color="indigo" variant="light">{u.currentLevelName}</Badge>}
+                        {filteredUsers.map(u => {
+                          const isSelected = selectedUserIds.includes(u.id)
+                          return (
+                            <div
+                              key={u.id}
+                              className={`cls-select-user-card ${isSelected ? 'selected' : ''}`}
+                              onClick={() => toggleUserSelection(u.id)}
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                onChange={() => {}} // toggled by outer click
+                                tabIndex={-1}
+                                color="indigo"
+                              />
+                              <div className="cls-member-card__info">
+                                <div className="cls-member-card__name">{u.name}</div>
+                                <div className="cls-member-card__email">{u.email}</div>
+                                {u.currentLevelName && (
+                                  <Badge size="xs" color="indigo" variant="light" mt={2}>
+                                    Nível atual: {u.currentLevelName}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
-                            {assignUserId === u.id && <IconCheck size={16} color="#6366f1" />}
-                          </div>
-                        ))}
-                        {filteredUsers.length === 0 && <Text size="sm" c="dimmed" ta="center">Nenhum usuário disponível</Text>}
+                          )
+                        })}
+                        {filteredUsers.length === 0 && (
+                          <Text size="sm" c="dimmed" ta="center" py="md">Nenhum usuário disponível</Text>
+                        )}
                       </Stack>
                     </ScrollArea>
+
+                    <Divider />
+
                     <Group grow>
                       <div>
                         <Text size="xs" fw={600} mb={4} c="dimmed">Data de Início *</Text>
-                        <input type="date" required value={assignStart} onChange={e => setAssignStart(e.target.value)}
-                          className="member-date-picker-input" style={{ width: '100%' }} />
+                        <input
+                          type="date"
+                          required
+                          value={assignStart}
+                          onChange={e => setAssignStart(e.target.value)}
+                          className="member-date-picker-input"
+                          style={{ width: '100%' }}
+                        />
                       </div>
                       <div>
                         <Text size="xs" fw={600} mb={4} c="dimmed">Data de Fim (opcional)</Text>
-                        <input type="date" value={assignEnd} onChange={e => setAssignEnd(e.target.value)}
-                          className="member-date-picker-input" style={{ width: '100%' }} />
+                        <input
+                          type="date"
+                          value={assignEnd}
+                          onChange={e => setAssignEnd(e.target.value)}
+                          className="member-date-picker-input"
+                          style={{ width: '100%' }}
+                        />
                       </div>
                     </Group>
-                    <Group justify="flex-end">
-                      <Button variant="subtle" color="gray" size="xs" onClick={() => setShowAssign(false)}>Cancelar</Button>
-                      <Button type="submit" size="xs" color="indigo" loading={assigning} disabled={!assignUserId}>Atribuir</Button>
-                    </Group>
+
+                    <Button
+                      type="submit"
+                      color="indigo"
+                      loading={assigning}
+                      disabled={selectedUserIds.length === 0}
+                      fullWidth
+                    >
+                      {selectedUserIds.length === 0
+                        ? 'Selecione Usuários para Atribuir'
+                        : `Atribuir Nível a ${selectedUserIds.length} usuário(s)`}
+                    </Button>
                   </Stack>
                 </form>
-              )}
-
-              <Divider label="Membros Ativos" labelPosition="center" />
-
-              {membersLoading ? (
-                <Group justify="center" p="md"><Loader size="sm" /></Group>
-              ) : levelMembers.length === 0 ? (
-                <Text size="sm" c="dimmed" ta="center" py="xl">Nenhum membro ativo neste nível</Text>
-              ) : (
-                <ScrollArea h={280}>
-                  <Stack gap={8}>
-                    {levelMembers.map(m => (
-                      <div key={m.id} className="cls-member-card">
-                        <div className="cls-member-card__info">
-                          <div className="cls-member-card__name">{m.userName}</div>
-                          <div className="cls-member-card__email">{m.userEmail}</div>
-                          <div className="cls-member-card__dates">
-                            Desde {fmtDate(m.startDate)} {m.endDate ? `até ${fmtDate(m.endDate)}` : '(sem data de fim)'}
-                          </div>
-                        </div>
-                        <Tooltip label="Ver histórico" withArrow>
-                          <ActionIcon variant="subtle" color="indigo" size="sm"
-                            onClick={() => { const user = allUsers.find(u => u.id === m.userId); if (user) openHistory(user) }}>
-                            <IconHistory size={14} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Remover do nível" withArrow>
-                          <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleRemoveMember(m.id)}>
-                            <IconX size={14} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </div>
-                    ))}
-                  </Stack>
-                </ScrollArea>
-              )}
-            </Stack>
+              </div>
+              
+            </div>
           </Modal>
         )}
 
@@ -543,7 +634,7 @@ const ClassificationsPage: React.FC = () => {
             title={
               <Group gap="xs">
                 <IconHistory size={20} color="#6366f1" />
-                <Text fw={700}>Histórico de Níveis — {historyUser.name}</Text>
+                <Text fw={700} style={{ color: '#1c1c1e' }}>Histórico de Níveis — {historyUser.name}</Text>
               </Group>
             }
             size="lg"
