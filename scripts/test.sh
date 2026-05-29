@@ -236,15 +236,9 @@ e2e() {
     echo ""
     echo "🐳 CONTAINER LOGS — filtered errors (last 100 lines):"
     echo "========================================================================="
-    docker-compose logs --tail=100 \
-      | grep -Ei "error|fail|fatal|panic|exception|\[ERR\]|\[CRIT\]|DbCommand|Connection refused|\b(50[023]|40[13])\b" \
+    docker-compose logs --tail=100 2>/dev/null \
+      | grep -Ei "error|fail|fatal|panic|exception|\[ERR\]|\[CRIT\]|Connection refused|\b(50[023]|40[13])\b" \
       | grep -Eiv "npm [wW]arn|domexception" || echo "(no matching filtered errors)"
-    echo "========================================================================="
-
-    echo ""
-    echo "🐳 CONTAINER LOGS — raw latest logs (last 100 lines):"
-    echo "========================================================================="
-    docker-compose logs --tail=100
     echo "========================================================================="
     exit $EXIT_CODE
   fi
