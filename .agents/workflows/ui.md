@@ -55,13 +55,13 @@ To maintain high contrast and unified styling across all pages, refer to these a
 | **Error / Deletion** | `#ef4444` | `#fef2f2` | High-importance delete confirmations, validation errors. |
 | **Subtle Borders** | `#e9ecef` | — | Divider lines, card outlines, table row separations. |
 
-> [!IMPORTANT]
-> **Modal Header Title Visibility Rule**:
-> When using standard light-themed modals, **never** pass raw strings to the `title` attribute of the `<Modal>`. The global CSS theme overrides default title elements to white, rendering them invisible.
+> **Modal Header Title & Dialogue Visibility Rule**:
+> When using standard light-themed modals (`StyledModal` or `StandardModal`), **never** pass raw strings to the `title` attribute of the `<Modal>`. The global CSS theme overrides default title elements to white, rendering them invisible.
 > **Always** wrap the title content in an explicit element with our premium dark color token:
 > ```tsx
 > title={<Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>Title Text</Title>}
 > ```
+> Keep confirmation dialogue elements fully light-themed, using standard `StandardModal` and Mantine `<Button>` components for cancels (`variant="default"`) and destructive actions (`color="red"`).
 
 ---
 

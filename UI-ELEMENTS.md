@@ -94,10 +94,12 @@ Tabular data must look premium, modern, and have high visual accessibility. When
 
 ---
 
-## 🔲 Modals & Dialogs (`StyledModal`)
+## 🔲 Modals & Dialogs (`StyledModal` & `StandardModal`)
 
-Modals overlay existing UI to edit records, configure options, or show details. Always use `<StyledModal>` to enforce a uniform layout:
-* Centered headers.
+Modals overlay existing UI to edit records, configure options, delete entities, or show details. Always use `<StyledModal>` (for forms) or `<StandardModal>` (for confirmations and custom layouts) to enforce a uniform layout:
+* **Light Theme**: Always use a clean white background (`#ffffff`) for content and headers to prevent low-contrast or invisible text.
+* **Centered headers & Premium Titles**: Modal titles must use the `<Title>` component with color `#1c1c1e` and weight 700.
+* **Mantine Buttons**: Always use Mantine `<Button>` components in footers and actions instead of raw HTML buttons.
 * Rounded corners and sleek scrollable dynamic bounds.
 * Subtle grey/dark backdrop overlays.
 
@@ -189,7 +191,7 @@ To ensure flawless readability on both light and dark backgrounds, form fields a
 
 ### 🎨 Color & Label Contrast Rules
 * **Modals & Light Backgrounds**: 
-  - Default input labels must utilize `#374151` (Dark Charcoal) to guarantee accessibility compliance against white (`#ffffff`) background layers.
+  - Default input labels must utilize `#1c1c1e` (Primary Charcoal Text) to guarantee accessibility compliance against white (`#ffffff`) background layers.
   - Subtexts or input descriptions must use `#6b7280` (Secondary Text).
 * **High Contrast Checks**: When designing custom layout shells, verify that no hard-coded light colors (like `#e9ecef`) are applied to labels inside white modals.
 
