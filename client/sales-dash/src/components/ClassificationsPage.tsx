@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   Title, Button, ActionIcon, Group, Badge, Text, TextInput, Textarea,
-  NumberInput, Modal, Stack, ScrollArea, Tooltip, Loader, Divider, Checkbox
+  Modal, Stack, ScrollArea, Tooltip, Loader, Divider, Checkbox
 } from '@mantine/core'
 import {
   IconPlus, IconEdit, IconTrash, IconStar, IconUsers, IconTrophy,
@@ -43,7 +43,7 @@ const ClassificationsPage: React.FC = () => {
   const [fName, setFName] = useState('')
   const [fDesc, setFDesc] = useState('')
   const [fPrize, setFPrize] = useState('')
-  const [fGoal, setFGoal] = useState<number | string>('')
+  const [fGoal, setFGoal] = useState('')
   const [formError, setFormError] = useState('')
 
   // Members / assign modal
@@ -103,7 +103,7 @@ const ClassificationsPage: React.FC = () => {
     setFName(level.name)
     setFDesc(level.description ?? '')
     setFPrize(level.prize ?? '')
-    setFGoal(level.salesGoal ?? '')
+    setFGoal(level.salesGoal != null ? String(level.salesGoal) : '')
     setFormError('')
     setShowLevelForm(true)
   }
@@ -361,16 +361,13 @@ const ClassificationsPage: React.FC = () => {
                   onChange={e => setFPrize(e.target.value)}
                   leftSection={<IconStar size={14} />}
                 />
-                <NumberInput
+                <TextInput
                   label="Meta de Vendas (R$)"
                   placeholder="Ex: 50000"
+                  type="number"
                   value={fGoal}
-                  onChange={setFGoal}
+                  onChange={e => setFGoal(e.target.value)}
                   min={0}
-                  decimalScale={2}
-                  prefix="R$ "
-                  thousandSeparator="."
-                  decimalSeparator=","
                 />
                 <Group justify="flex-end" pt="md" style={{ borderTop: '1px solid #e5e7eb' }}>
                   <Button variant="subtle" color="gray" onClick={() => setShowLevelForm(false)} disabled={saving}>
@@ -402,7 +399,7 @@ const ClassificationsPage: React.FC = () => {
               content: { borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' },
             }}
           >
-            <Text size="sm">Tem certeza que deseja excluir este nível? Níveis associados a usuários não podem ser excluídos.</Text>
+            <Text size="sm">Tem certeza que deseja excluir este nível? Todos os membros atribuídos serão removidos do nível automaticamente.</Text>
             <Group justify="flex-end" mt="xl" style={{ borderTop: '1px solid #e9ecef', paddingTop: 16 }}>
               <Button variant="subtle" color="gray" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
               <Button color="red" onClick={() => handleDelete(deleteConfirm)}>Excluir</Button>

@@ -1,5 +1,5 @@
-import React, { useEffect, useCallback } from 'react';
-import './StandardModal.css';
+import React from 'react';
+import { Modal, Title, Group } from '@mantine/core';
 
 interface StandardModalProps {
   isOpen: boolean;
@@ -19,58 +19,56 @@ const StandardModal: React.FC<StandardModalProps> = ({
   children,
   footer,
   size = 'md',
-  className = 'import-form', // Default as requested by user
+  className = 'premium-light-form',
   headerActions,
 }) => {
-  const handleEsc = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      onClose();
-    }
-  }, [onClose]);
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, handleEsc]);
-
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div 
-        className={`modal-content size-${size}`} 
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h2>{title}</h2>
-          <div className="modal-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {headerActions}
-            <button className="close-button" onClick={onClose} aria-label="Fechar">
-              &times;
-            </button>
-          </div>
-        </div>
-
-        <div className={className}>
-          {children}
-        </div>
-
+    <Modal
+      opened={isOpen}
+      onClose={onClose}
+      title={
+        <Group justify="space-between" style={{ width: '100%' }}>
+          <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>
+            {title}
+          </Title>
+          {headerActions && <div style={{ marginRight: '16px' }}>{headerActions}</div>}
+        </Group>
+      }
+      size={size}
+      styles={{
+        content: {
+          border: '1px solid #e9ecef',
+          borderRadius: '12px',
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.08)',
+          backgroundColor: '#ffffff',
+        },
+        header: {
+          borderBottom: '1px solid #f3f4f6',
+          paddingBottom: '12px',
+          marginBottom: '16px',
+          backgroundColor: '#ffffff',
+        },
+        body: {
+          backgroundColor: '#ffffff',
+          color: '#1c1c1e',
+          padding: '24px',
+        }
+      }}
+    >
+      <div className={className}>
+        {children}
+        
         {footer && (
-          <div className="form-actions">
+          <Group justify="flex-end" mt="xl" style={{ 
+            paddingTop: '16px', 
+            borderTop: '1px solid #f3f4f6',
+            marginTop: '24px'
+          }}>
             {footer}
-          </div>
+          </Group>
         )}
       </div>
-    </div>
+    </Modal>
   );
 };
 

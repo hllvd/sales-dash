@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Title, Button, Table, ActionIcon, Group } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Text } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
 import './PVPage.css';
 import Menu from './Menu';
 import PVForm from './PVForm';
 import PVImportModal from './PVImportModal';
+import StandardModal from '../shared/StandardModal';
 import { apiService, PV } from '../services/apiService';
 
 const PVPage: React.FC = () => {
@@ -175,20 +176,29 @@ const PVPage: React.FC = () => {
         />
       )}
 
-      {deleteConfirm !== null && (
-        <div className="delete-confirm-overlay" onClick={() => setDeleteConfirm(null)}>
-          <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Confirmar Exclusão</h3>
-            <p>Tem certeza que deseja excluir este ponto de venda?</p>
-            <div className="delete-confirm-actions">
-              <button onClick={() => setDeleteConfirm(null)}>Cancelar</button>
-              <button onClick={handleDeleteConfirm} className="delete-confirm-btn">
-                Excluir
-              </button>
-            </div>
-          </div>
+      <StandardModal
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        title="Confirmar Exclusão"
+        size="md"
+        footer={
+          <>
+            <Button variant="default" onClick={() => setDeleteConfirm(null)}>
+              Cancelar
+            </Button>
+            <Button
+              color="red"
+              onClick={handleDeleteConfirm}
+            >
+              Excluir
+            </Button>
+          </>
+        }
+      >
+        <div style={{ padding: '10px 0' }}>
+          <Text size="sm">Tem certeza que deseja excluir este ponto de venda?</Text>
         </div>
-      )}
+      </StandardModal>
       </div>
     </Menu>
   );

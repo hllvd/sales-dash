@@ -516,16 +516,15 @@ const ContractsPage: React.FC = () => {
         size="md"
         footer={
           <>
-            <button className="btn-cancel" onClick={() => setDeleteConfirm(null)}>
+            <Button variant="default" onClick={() => setDeleteConfirm(null)}>
               Cancelar
-            </button>
-            <button
-              className="btn-submit"
+            </Button>
+            <Button
+              color="red"
               onClick={handleDeleteConfirm}
-              style={{ backgroundColor: "#dc2626" }}
             >
               Excluir
-            </button>
+            </Button>
           </>
         }
       >

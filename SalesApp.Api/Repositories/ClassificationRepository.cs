@@ -25,9 +25,11 @@ namespace SalesApp.Repositories
 
         public async Task<List<ClassificationLevel>> GetAllAsync()
         {
-            return await _context.ClassificationLevels
-                .OrderBy(l => l.Name)
-                .ToListAsync();
+            var levels = await _context.ClassificationLevels.ToListAsync();
+            return levels
+                .OrderBy(l => l.SalesGoal)
+                .ThenBy(l => l.Name)
+                .ToList();
         }
 
         public async Task<ClassificationLevel> CreateAsync(ClassificationLevel level)

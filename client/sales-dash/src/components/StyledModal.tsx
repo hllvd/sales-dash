@@ -7,47 +7,39 @@ interface StyledModalProps extends Omit<ModalProps, 'title'> {
 }
 
 /**
- * Reusable styled modal component with light form area for better readability
- * Dark header + light form content + light footer for maximum contrast
+ * Reusable styled modal component with a premium light theme
+ * Clean header + white content area + subtle shadows for maximum contrast and readability
  */
 const StyledModal: React.FC<StyledModalProps> = ({ title, children, ...props }) => {
   return (
     <Modal
       {...props}
       title={
-        <Title order={2} c="rgb(245, 245, 245)">
+        <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>
           {title}
         </Title>
       }
       styles={{
+        content: {
+          border: '1px solid #e9ecef',
+          borderRadius: '12px',
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.08)',
+          backgroundColor: '#ffffff',
+        },
         header: {
-          backgroundColor: '#1a1b1e',
-          borderBottom: '1px solid #373A40',
-          padding: '20px 24px',
+          borderBottom: '1px solid #f3f4f6',
+          paddingBottom: '12px',
+          marginBottom: '16px',
+          backgroundColor: '#ffffff',
         },
         body: {
-          backgroundColor: '#1a1b1e',
+          backgroundColor: '#ffffff',
+          color: '#1c1c1e',
           padding: '24px',
-          color: '#fff',
-        },
-        content: {
-          backgroundColor: '#1a1b1e',
-        },
-        close: {
-          color: '#fff',
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '6px',
-          width: '36px',
-          height: '36px',
-          '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            transform: 'scale(1.05)',
-          },
-          transition: 'all 0.2s ease',
-        },
+        }
       }}
     >
-      <div className="styled-form">
+      <div className="premium-light-form">
         {children}
       </div>
     </Modal>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, Table, ActionIcon, Group, Badge, TextInput } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Badge, TextInput, Text } from '@mantine/core';
 import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload } from '@tabler/icons-react';
 import "./MatriculasPage.css"
 import Menu from "./Menu"
 import MatriculaForm from "./MatriculaForm"
 import MatriculaImportModal from "./MatriculaImportModal"
+import StandardModal from '../shared/StandardModal';
 import { MatriculaStatus, MatriculaStatusLabels, ActiveState, ActiveStateLabels } from '../types/MatriculaStatus';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
 import {
@@ -228,32 +229,13 @@ const MatriculasPage: React.FC = () => {
                             >
                               <IconEdit size={16} />
                             </ActionIcon>
-                            {deleteConfirm === matricula.id ? (
-                              <Group gap="xs">
-                                <Button
-                                  size="xs"
-                                  color="red"
-                                  onClick={() => handleDeleteMatricula(matricula.id)}
-                                >
-                                  Confirmar
-                                </Button>
-                                <Button
-                                  size="xs"
-                                  variant="light"
-                                  onClick={() => setDeleteConfirm(null)}
-                                >
-                                  Cancelar
-                                </Button>
-                              </Group>
-                            ) : (
-                              <ActionIcon
-                                variant="light"
-                                color="red"
-                                onClick={() => setDeleteConfirm(matricula.id)}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            )}
+                            <ActionIcon
+                              variant="light"
+                              color="red"
+                              onClick={() => setDeleteConfirm(matricula.id)}
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
                           </Group>
                         </Table.Td>
                       </Table.Tr>
@@ -283,6 +265,30 @@ const MatriculasPage: React.FC = () => {
             }}
           />
         )}
+
+        <StandardModal
+          isOpen={deleteConfirm !== null}
+          onClose={() => setDeleteConfirm(null)}
+          title="Confirmar Exclusão"
+          size="md"
+          footer={
+            <>
+              <Button variant="default" onClick={() => setDeleteConfirm(null)}>
+                Cancelar
+              </Button>
+              <Button
+                color="red"
+                onClick={() => handleDeleteMatricula(deleteConfirm!)}
+              >
+                Excluir
+              </Button>
+            </>
+          }
+        >
+          <div style={{ padding: '10px 0' }}>
+            <Text size="sm">Tem certeza que deseja excluir esta matrícula?</Text>
+          </div>
+        </StandardModal>
       </div>
     </Menu>
   )

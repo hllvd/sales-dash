@@ -347,19 +347,18 @@ const UsersPage: React.FC = () => {
         size="md"
         footer={
           <>
-            <button
-              className="btn-cancel"
+            <Button
+              variant="default"
               onClick={() => setDeleteConfirm(null)}
             >
               Cancelar
-            </button>
-            <button
-              className="btn-submit"
+            </Button>
+            <Button
+              color="red"
               onClick={() => handleDeleteUser(deleteConfirm!)}
-              style={{ backgroundColor: "#dc2626" }}
             >
               Excluir
-            </button>
+            </Button>
           </>
         }
       >

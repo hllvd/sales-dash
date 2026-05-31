@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
-import { Modal, Title, TextInput, PasswordInput, Select, Checkbox, Button, Group, Autocomplete } from '@mantine/core';
+import { TextInput, PasswordInput, Select, Checkbox, Button, Group, Autocomplete } from '@mantine/core';
 import { User, apiService } from "../services/apiService"
+import StyledModal from './StyledModal';
 import { toast } from '../utils/toast';
 import FormField from './FormField';
 
@@ -132,30 +133,11 @@ const UserForm: React.FC<UserFormProps> = ({
   }
 
   return (
-    <Modal 
+    <StyledModal 
       opened={true} 
       onClose={onCancel} 
-      title={<Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>{isEdit ? "Editar Usuário" : "Criar Novo Usuário"}</Title>}
+      title={isEdit ? "Editar Usuário" : "Criar Novo Usuário"}
       size="md"
-      centered
-      styles={{
-        content: {
-          border: '1px solid #e9ecef',
-          borderRadius: '12px',
-          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.08)',
-          backgroundColor: '#ffffff',
-        },
-        header: {
-          borderBottom: '1px solid #f3f4f6',
-          paddingBottom: '12px',
-          marginBottom: '16px',
-          backgroundColor: '#ffffff',
-        },
-        body: {
-          backgroundColor: '#ffffff',
-          color: '#1c1c1e',
-        }
-      }}
     >
       <form onSubmit={handleSubmit}>
         {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
@@ -275,7 +257,7 @@ const UserForm: React.FC<UserFormProps> = ({
           </Button>
         </Group>
       </form>
-    </Modal>
+    </StyledModal>
   )
 }
 
