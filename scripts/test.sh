@@ -234,10 +234,10 @@ e2e() {
     echo "========================================================================="
 
     echo ""
-    echo "🐳 CONTAINER LOGS — filtered errors (last 100 lines):"
+    echo "🐳 CONTAINER LOGS — filtered errors (last 1000 lines):"
     echo "========================================================================="
-    docker-compose logs --tail=100 2>/dev/null \
-      | grep -Ei "error|fail|fatal|panic|exception|\[ERR\]|\[CRIT\]|Connection refused|\b(50[023]|40[13])\b" \
+    docker-compose logs --tail=1000 2>/dev/null \
+      | grep -Ei -A 15 "error|fail|fatal|panic|exception|\bERR\b|\bCRIT\b|Connection refused|\b(50[023]|40[13])\b" \
       | grep -Eiv "npm [wW]arn|domexception" || echo "(no matching filtered errors)"
     echo "========================================================================="
     exit $EXIT_CODE
@@ -295,20 +295,20 @@ logs() {
 }
 
 docker_errors() {
-  local TAIL=${2:-200}
+  local TAIL=${2:-1000}
   echo ""
   echo "🐳 DOCKER ERRORS (last $TAIL lines, filtered):"
   echo "========================================================================="
   local CONTAINER_ERRORS
-  CONTAINER_ERRORS=$(docker-compose logs --tail="$TAIL" \
-    | grep -Ei "error|fail|fatal|panic|exception|\[ERR\]|\[CRIT\]|DbCommand|Connection refused|\b(50[023]|40[13])\b" \
+  CONTAINER_ERRORS=$(docker-compose logs --tail="$TAIL" 2>/dev/null \
+    | grep -Ei -A 15 "error|fail|fatal|panic|exception|\bERR\b|\bCRIT\b|Connection refused|\b(50[023]|40[13])\b" \
     | grep -Eiv "npm [wW]arn|domexception" || true)
   if [ -n "$CONTAINER_ERRORS" ]; then
     printf "%s\n" "$CONTAINER_ERRORS"
   else
     echo "(no matching error lines — showing last 50 unfiltered lines for context:)"
     echo ""
-    docker-compose logs --tail=50
+    docker-compose logs --tail=50 2>/dev/null
   fi
   echo "========================================================================="
 }
