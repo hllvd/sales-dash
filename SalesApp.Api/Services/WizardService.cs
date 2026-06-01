@@ -84,6 +84,9 @@ namespace SalesApp.Services
             int rowIndex = 0;
             bool foundAtLeastOneValidRow = false;
 
+            // Duplicate contract number detection
+            var contractNumberSeen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
             await foreach (var row in _fileParser.ParseFileStreamedAsync(file))
             {
                 // Inject virtual columns logic
@@ -114,6 +117,14 @@ namespace SalesApp.Services
                     {
                         foundAtLeastOneValidRow = true;
                     }
+                }
+
+                // Track contract numbers for duplicate detection
+                var contractNumberVal = GetColumnValue(row, "Contrato", "Cota", "cota.contract", "ContractNumber");
+                if (!string.IsNullOrWhiteSpace(contractNumberVal))
+                {
+                    contractNumberSeen.TryGetValue(contractNumberVal, out var count);
+                    contractNumberSeen[contractNumberVal] = count + 1;
                 }
 
                 // Keep first 10 rows for preview response
@@ -201,6 +212,12 @@ namespace SalesApp.Services
                 }
             }
 
+            var duplicateContractNumbers = contractNumberSeen
+                .Where(kv => kv.Value > 1)
+                .Select(kv => kv.Key)
+                .OrderBy(n => n)
+                .ToList();
+
             return new ImportPreviewResponse
             {
                 UploadId = uploadId,
@@ -216,7 +233,8 @@ namespace SalesApp.Services
                 MatchMessage = matchMessage,
                 SuggestedMappings = suggestedMappings,
                 RequiredFields = requiredFields,
-                OptionalFields = optionalFields
+                OptionalFields = optionalFields,
+                DuplicateContractNumbers = duplicateContractNumbers
             };
         }
 

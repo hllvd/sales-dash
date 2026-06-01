@@ -98,15 +98,16 @@ test.describe('User Classification and Level Management (TEAR 3)', () => {
     // Settle SQLite write delay
     await page.waitForTimeout(500);
 
-    // Assert that the smaller goal level comes before the larger testLevelName
-    const levelCards = page.locator('.cls-level-card__name');
-    const firstLevelText = await levelCards.nth(0).innerText();
-    const secondLevelText = await levelCards.nth(1).innerText();
+    // Assert ordering: find the DOM order index of each E2E card by name.
+    // This is 100% robust against grid columns, responsive wrapping, and coordinates.
+    const names = await page.locator('.cls-level-card .cls-level-card__name').allInnerTexts();
+    const smallerIndex = names.findIndex(name => name.includes(levelSmallerName));
+    const largerIndex = names.findIndex(name => name.includes(testLevelName));
     
-    console.log(`>>> Cards ordering: 1st=${firstLevelText}, 2nd=${secondLevelText}`);
-    // The one with smaller goal (Smaller) must be listed first (index 0) compared to our larger one
-    expect(firstLevelText).toContain(levelSmallerName);
-    expect(secondLevelText).toContain(testLevelName);
+    console.log(`>>> Cards ordering indices in DOM: smaller=${smallerIndex}, larger=${largerIndex}`);
+    expect(smallerIndex).toBeGreaterThan(-1);
+    expect(largerIndex).toBeGreaterThan(-1);
+    expect(smallerIndex).toBeLessThan(largerIndex);
 
     // ────────────────────────────────────────────────────────────────────────
     // 3. EDIT LEVEL

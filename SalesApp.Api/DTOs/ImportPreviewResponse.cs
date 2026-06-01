@@ -16,5 +16,6 @@ namespace SalesApp.DTOs
         public List<string> OptionalFields { get; set; } = new();
         public bool IsTemplateMatch { get; set; } = true;
         public string? MatchMessage { get; set; }
+        public List<string> DuplicateContractNumbers { get; set; } = new();
     }
 }

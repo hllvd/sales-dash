@@ -16,6 +16,8 @@ const ImportWizardPage: React.FC = () => {
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [uploadData, setUploadData] = useState<any>(null);
   const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
+  const [duplicateContracts, setDuplicateContracts] = useState<string[]>([]);
+  const [allowDuplicates, setAllowDuplicates] = useState(false);
 
   // Step 2: Users File
   const [usersFile, setUsersFile] = useState<File | null>(null);
@@ -38,6 +40,8 @@ const ImportWizardPage: React.FC = () => {
     setLoadingMessage('Processando arquivo de contratos…');
     setLoading(true);
     setMismatchWarning(null);
+    setDuplicateContracts([]);
+    setAllowDuplicates(false);
     try {
       const response = await apiService.uploadWizardStep1(contractFile);
       if (response.success) {
@@ -47,8 +51,14 @@ const ImportWizardPage: React.FC = () => {
           toast.warning('Aviso: Modelo de arquivo divergente');
         } else {
           setUploadData(response.data);
-          setActiveStep(1);
-          toast.success('Arquivo processado com sucesso');
+          const dupes: string[] = response.data.duplicateContractNumbers ?? [];
+          if (dupes.length > 0) {
+            setDuplicateContracts(dupes);
+            toast.warning(`${dupes.length} número(s) de contrato duplicado(s) encontrado(s)`);
+          } else {
+            setActiveStep(1);
+            toast.success('Arquivo processado com sucesso');
+          }
         }
       }
     } catch (err: any) {
@@ -248,6 +258,8 @@ const ImportWizardPage: React.FC = () => {
                   onChange={(f) => {
                     setContractFile(f);
                     setMismatchWarning(null);
+                    setDuplicateContracts([]);
+                    setAllowDuplicates(false);
                   }}
                   accept=".csv,.xlsx"
                   fileInputProps={{ id: 'wizard-step1-input' }}
@@ -268,7 +280,46 @@ const ImportWizardPage: React.FC = () => {
                   </Alert>
                 )}
 
-                {!mismatchWarning && (
+                {duplicateContracts.length > 0 && (
+                  <Alert icon={<IconAlertCircle size={16} />} title="Contratos Duplicados Encontrados" color="orange" mt="md">
+                    <Text size="sm" mb="sm">
+                      Os seguintes números de contrato aparecem mais de uma vez no arquivo:
+                    </Text>
+                    <List size="xs" mb="sm">
+                      {duplicateContracts.slice(0, 20).map((c) => (
+                        <List.Item key={c}><strong>{c}</strong></List.Item>
+                      ))}
+                      {duplicateContracts.length > 20 && (
+                        <List.Item>... e mais {duplicateContracts.length - 20} contrato(s) duplicado(s).</List.Item>
+                      )}
+                    </List>
+                    <Group gap="xs" align="center" mt="xs">
+                      <input
+                        type="checkbox"
+                        id="wiz-allow-duplicates"
+                        checked={allowDuplicates}
+                        onChange={(e) => setAllowDuplicates(e.target.checked)}
+                      />
+                      <label htmlFor="wiz-allow-duplicates" style={{ fontSize: 13, color: '#92400e', cursor: 'pointer', fontWeight: 500 }}>
+                        Permitir duplicatas e prosseguir para o próximo passo
+                      </label>
+                    </Group>
+                    {allowDuplicates && (
+                      <Group justify="flex-end" mt="md">
+                        <Button
+                          color="orange"
+                          size="xs"
+                          rightSection={<IconChevronRight size={16} />}
+                          onClick={() => { setActiveStep(1); toast.success('Prosseguindo com duplicatas'); }}
+                        >
+                          Avançar para Passo 2
+                        </Button>
+                      </Group>
+                    )}
+                  </Alert>
+                )}
+
+                {!mismatchWarning && duplicateContracts.length === 0 && (
                   <Group justify="flex-end" mt="md">
                     <Button 
                       onClick={() => handleStep1Upload()} 

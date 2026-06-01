@@ -116,7 +116,7 @@ test.describe('Team Members Management E2E', () => {
           const bodyText = await res.text();
           if (bodyText.includes("Email já existe")) {
             console.log(`[Self-Healing] User ${name} (${email}) was already registered by a previous try. Retrieving User ID...`);
-            const listRes = await request.get('/api/users?pageSize=100', {
+            const listRes = await request.get('/api/users?pageSize=1000', {
               headers: { Authorization: `Bearer ${superadminToken}` }
             });
             if (listRes.ok()) {
