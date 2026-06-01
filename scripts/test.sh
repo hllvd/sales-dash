@@ -322,6 +322,13 @@ clean() {
   echo "✅ Artifacts cleaned"
 }
 
+prune() {
+  echo "🧹 Starting Docker system and builder prune to free up disk space..."
+  docker builder prune -f
+  docker system prune -a --volumes -f
+  echo "✅ Docker pruning completed successfully!"
+}
+
 case "$1" in
   build)
     build
@@ -344,6 +351,9 @@ case "$1" in
   clean)
     clean
     ;;
+  prune)
+    prune
+    ;;
   docker-errors)
     docker_errors "$@"
     ;;
@@ -356,6 +366,7 @@ case "$1" in
     echo "./test.sh all"
     echo "./test.sh logs"
     echo "./test.sh clean"
+    echo "./test.sh prune"
     echo "./test.sh docker-errors [tail=200]"
     exit 1
     ;;

@@ -23,3 +23,6 @@ client/sales-dash/node_modules
 .env
 .agents
 *.md
+client/e2e-test/test-results
+test-results
+artifacts
