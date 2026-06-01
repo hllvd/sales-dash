@@ -50,6 +50,7 @@ export interface UserStats {
   pendingContractsCount: number
   totalProduction: number
   totalRetention: number
+  strictRetention: number
 }
 
 export interface UserLookupByMatricula {

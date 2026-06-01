@@ -493,6 +493,7 @@ const MyContractsPage: React.FC = () => {
             totalActive={aggregation?.totalActive || 0}
             totalLate={aggregation?.totalLate || 0}
             retention={aggregation?.retention || 0}
+            strictRetention={aggregation?.strictRetention || 0}
           />
         )}
 

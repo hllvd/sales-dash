@@ -29,10 +29,13 @@ namespace SalesApp.ReportFilters.Services
         // Set during ExecuteAsync when GroupByEmail/GroupByTeam/GroupByClassification is active; null otherwise.
         // Safe as a mutable field because this service is Scoped (one instance per HTTP request).
         private Dictionary<string, decimal>? _retentionByEmail;
+        private Dictionary<string, decimal>? _strictRetentionByEmail;
         private Dictionary<string, int>? _contractCountByEmail;
         private Dictionary<string, decimal>? _retentionByTeam;
+        private Dictionary<string, decimal>? _strictRetentionByTeam;
         private Dictionary<string, int>? _contractCountByTeam;
         private Dictionary<string, decimal>? _retentionByClassification;
+        private Dictionary<string, decimal>? _strictRetentionByClassification;
         private Dictionary<string, int>? _contractCountByClassification;
 
         public ReportFilterService(
@@ -325,10 +328,40 @@ namespace SalesApp.ReportFilters.Services
                                 .Sum(c => c.TotalAmount);
                             return active / total;
                         });
+
+                _strictRetentionByEmail = contracts
+                    .GroupBy(c => c.User?.Email ?? "(Sem usuário)")
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var total = g.Sum(c => c.TotalAmount);
+                            if (total <= 0) return 0m;
+                            var strictActive = g
+                                .Where(c => !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Defaulted.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Late1.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Late2.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Late3.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+                            return strictActive / total;
+                        });
             }
             else
             {
                 _retentionByEmail = null;
+                _strictRetentionByEmail = null;
             }
 
             if (report.GroupByTeam)
@@ -349,10 +382,40 @@ namespace SalesApp.ReportFilters.Services
                                 .Sum(c => c.TotalAmount);
                             return active / total;
                         });
+
+                _strictRetentionByTeam = contracts
+                    .GroupBy(getTeamName)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var total = g.Sum(c => c.TotalAmount);
+                            if (total <= 0) return 0m;
+                            var strictActive = g
+                                .Where(c => !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Defaulted.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Late1.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Late2.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Late3.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+                            return strictActive / total;
+                        });
             }
             else
             {
                 _retentionByTeam = null;
+                _strictRetentionByTeam = null;
             }
 
             if (report.GroupByClassification)
@@ -373,10 +436,40 @@ namespace SalesApp.ReportFilters.Services
                                 .Sum(c => c.TotalAmount);
                             return active / total;
                         });
+
+                _strictRetentionByClassification = contracts
+                    .GroupBy(getClassification)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var total = g.Sum(c => c.TotalAmount);
+                            if (total <= 0) return 0m;
+                            var strictActive = g
+                                .Where(c => !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Defaulted.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Late1.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Late2.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.Late3.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+                            return strictActive / total;
+                        });
             }
             else
             {
                 _retentionByClassification = null;
+                _strictRetentionByClassification = null;
             }
 
             // Filter by status in memory (same pattern as PV filter)
@@ -626,7 +719,8 @@ namespace SalesApp.ReportFilters.Services
                         Fields = new List<string>
                         {
                             "contractCount",
-                            "retention"
+                            "retention",
+                            "strictRetention"
                         }
                     }
                 }
@@ -747,6 +841,11 @@ namespace SalesApp.ReportFilters.Services
                         : _retentionByClassification != null
                         ? _retentionByClassification.GetValueOrDefault(getClassification(c), 0m)
                         : _retentionByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0m) ?? 0m,
+                    "strictRetention" => _strictRetentionByTeam != null
+                        ? _strictRetentionByTeam.GetValueOrDefault(getTeamName(c), 0m)
+                        : _strictRetentionByClassification != null
+                        ? _strictRetentionByClassification.GetValueOrDefault(getClassification(c), 0m)
+                        : _strictRetentionByEmail?.GetValueOrDefault(c.User?.Email ?? "(Sem usuário)", 0m) ?? 0m,
                     _               => null
                 },
                 _ => null

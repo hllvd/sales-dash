@@ -557,8 +557,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
         
         {statsLoading && (
           <Grid>
-            {[1, 2, 3].map((i) => (
-              <Grid.Col span={{ base: 12, md: 4 }} key={i}>
+            {[1, 2, 3, 4].map((i) => (
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }} key={i}>
                 <Paper p="xl" radius="md" withBorder className="stat-card skeleton-pulse">
                   <div className="skeleton-line title"></div>
                   <div className="skeleton-line value"></div>
@@ -579,7 +579,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
 
         {stats && !statsLoading && (
           <Grid>
-            <Grid.Col span={{ base: 12, md: 4 }}>
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <Paper p="xl" radius="md" withBorder className="stat-card">
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">
                   Contratos Pendentes
@@ -593,7 +593,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
               </Paper>
             </Grid.Col>
 
-            <Grid.Col span={{ base: 12, md: 4 }}>
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <Paper p="xl" radius="md" withBorder className="stat-card">
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">
                   Produção Acumulada
@@ -607,16 +607,30 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
               </Paper>
             </Grid.Col>
 
-            <Grid.Col span={{ base: 12, md: 4 }}>
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <Paper p="xl" radius="md" withBorder className="stat-card">
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">
-                  Retenção Total
+                  Retenção (Cancelamentos)
                 </Text>
                 <Title order={1} className="stat-value total-retention">
                   {formatPercent(stats.totalRetention)}
                 </Title>
                 <Text size="xs" c="dimmed" mt="xs">
-                  Percentual de contratos ativos vs. inadimplentes.
+                  Percentual excluindo apenas contratos cancelados.
+                </Text>
+              </Paper>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <Paper p="xl" radius="md" withBorder className="stat-card">
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700} mb="xs">
+                  Retenção Estrita (Atrasos + Cancelamentos)
+                </Text>
+                <Title order={1} className="stat-value total-retention" style={{ color: '#ef4444' }}>
+                  {formatPercent(stats.strictRetention || 0)}
+                </Title>
+                <Text size="xs" c="dimmed" mt="xs">
+                  Sem atrasos nem cancelamentos.
                 </Text>
               </Paper>
             </Grid.Col>
@@ -625,8 +639,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
 
         {!statsVisible && !stats && !statsLoading && (
           <Grid>
-            {[1, 2, 3].map((i) => (
-              <Grid.Col span={{ base: 12, md: 4 }} key={i}>
+            {[1, 2, 3, 4].map((i) => (
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }} key={i}>
                 <Paper p="xl" radius="md" withBorder className="stat-card skeleton-pulse">
                   <div className="skeleton-line title"></div>
                   <div className="skeleton-line value"></div>

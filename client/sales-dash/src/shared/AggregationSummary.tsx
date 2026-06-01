@@ -8,6 +8,7 @@ interface AggregationSummaryProps {
   totalActive: number;
   totalLate: number;
   retention: number;
+  strictRetention?: number;
 }
 
 const AggregationSummary: React.FC<AggregationSummaryProps> = ({ 
@@ -15,7 +16,8 @@ const AggregationSummary: React.FC<AggregationSummaryProps> = ({
   totalCancel, 
   totalActive, 
   totalLate, 
-  retention 
+  retention,
+  strictRetention = 0
 }) => {
   const formatCurrency = (value: number): string => {
     if (isNaN(value) || value === null || value === undefined) {
@@ -41,7 +43,16 @@ const AggregationSummary: React.FC<AggregationSummaryProps> = ({
 
   const donutData = [
     { name: 'Retidos', value: retentionPercent, color: '#22c55e' },
-    { name: 'Inadimplentes', value: defaultedPercent, color: '#ef4444' }
+    { name: 'Cancelados', value: defaultedPercent, color: '#ef4444' }
+  ];
+
+  const isValidStrictRetention = !isNaN(strictRetention) && strictRetention !== null && strictRetention !== undefined;
+  const strictRetentionPercent = isValidStrictRetention ? strictRetention * 100 : 0;
+  const strictLossPercent = isValidStrictRetention ? (1 - strictRetention) * 100 : 0;
+
+  const strictDonutData = [
+    { name: 'Adimplentes', value: strictRetentionPercent, color: '#22c55e' },
+    { name: 'Atrasados + Cancelados', value: strictLossPercent, color: '#ef4444' }
   ];
 
 
@@ -77,15 +88,29 @@ const AggregationSummary: React.FC<AggregationSummaryProps> = ({
         </div>
         
         {isValidRetention && (
-          <div className="aggregation-chart">
-            <h4 className="chart-title">Retenção</h4>
-            <DonutChart
-              data={donutData}
-              thickness={30}
-              size={180}
-              chartLabel={formatPercentage(retention)}
-              tooltipDataSource="segment"
-            />
+          <div className="aggregation-charts-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', alignItems: 'stretch' }}>
+            <div className="aggregation-chart" style={{ width: '100%', boxSizing: 'border-box' }}>
+              <h4 className="chart-title">Retenção (Cancelamentos)</h4>
+              <DonutChart
+                data={donutData}
+                thickness={20}
+                size={140}
+                chartLabel={formatPercentage(retention)}
+                tooltipDataSource="segment"
+              />
+            </div>
+            {isValidStrictRetention && (
+              <div className="aggregation-chart" style={{ width: '100%', boxSizing: 'border-box' }}>
+                <h4 className="chart-title">Retenção (Atrasos + Cancelamentos)</h4>
+                <DonutChart
+                  data={strictDonutData}
+                  thickness={20}
+                  size={140}
+                  chartLabel={formatPercentage(strictRetention)}
+                  tooltipDataSource="segment"
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -83,6 +83,7 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid #f0f0f0;
   min-width: 220px;
+  box-sizing: border-box;
   transition: all 0.2s ease;
 }
 

@@ -104,6 +104,7 @@ export interface ContractAggregation {
   totalActive: number;
   totalLate: number;
   retention: number;
+  strictRetention: number;
 }
 
 export interface MonthlyProduction {

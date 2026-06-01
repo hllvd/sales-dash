@@ -7,5 +7,6 @@ namespace SalesApp.DTOs
         public decimal TotalActive { get; set; }
         public decimal TotalLate { get; set; }
         public decimal Retention { get; set; }
+        public decimal StrictRetention { get; set; }
     }
 }

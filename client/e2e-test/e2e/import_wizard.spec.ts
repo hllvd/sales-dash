@@ -54,6 +54,6 @@ test.describe('Import Wizard Flow', () => {
     
     // Verify aggregation chart (Smoke Check)
     await expect(page.locator('.aggregation-summary')).toBeVisible();
-    await expect(page.locator('.aggregation-chart')).toContainText('95.03%', { timeout: 10000 });
+    await expect(page.locator('.aggregation-chart').first()).toContainText('95.03%', { timeout: 10000 });
   });
 });

@@ -50,6 +50,7 @@ namespace SalesApp.Services
                 });
             
             var retention = aggregation.Total > 0 ? aggregation.Active / aggregation.Total : 0m;
+            var strictRetention = aggregation.Total > 0 ? (aggregation.Active - aggregation.Late) / aggregation.Total : 0m;
 
             return new ContractAggregation
             {
@@ -57,7 +58,8 @@ namespace SalesApp.Services
                 TotalCancel = aggregation.Cancel,
                 TotalActive = aggregation.Active,
                 TotalLate = aggregation.Late,
-                Retention = retention
+                Retention = retention,
+                StrictRetention = strictRetention
             };
         }
     }

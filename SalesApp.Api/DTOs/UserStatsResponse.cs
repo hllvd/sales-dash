@@ -5,5 +5,6 @@ namespace SalesApp.DTOs
         public int PendingContractsCount { get; set; }
         public decimal TotalProduction { get; set; }
         public decimal TotalRetention { get; set; }
+        public decimal StrictRetention { get; set; }
     }
 }

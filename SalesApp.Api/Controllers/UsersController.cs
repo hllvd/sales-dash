@@ -544,8 +544,16 @@ namespace SalesApp.Controllers
             decimal activeAmount = userContracts
                 .Where(c => !c.ContractStatus.Name.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
                 .Sum(c => c.TotalAmount);
+
+            decimal strictActiveAmount = userContracts
+                .Where(c => !c.ContractStatus.Name.Equals("Defaulted", StringComparison.OrdinalIgnoreCase) &&
+                            !c.ContractStatus.Name.Equals("Late1", StringComparison.OrdinalIgnoreCase) &&
+                            !c.ContractStatus.Name.Equals("Late2", StringComparison.OrdinalIgnoreCase) &&
+                            !c.ContractStatus.Name.Equals("Late3", StringComparison.OrdinalIgnoreCase))
+                .Sum(c => c.TotalAmount);
                 
             decimal totalRetention = totalProduction > 0 ? (activeAmount / totalProduction) * 100 : 0m;
+            decimal strictRetention = totalProduction > 0 ? (strictActiveAmount / totalProduction) * 100 : 0m;
             
             return Ok(new ApiResponse<UserStatsResponse>
             {
@@ -554,7 +562,8 @@ namespace SalesApp.Controllers
                 {
                     PendingContractsCount = pendingContractsCount,
                     TotalProduction = totalProduction,
-                    TotalRetention = totalRetention
+                    TotalRetention = totalRetention,
+                    StrictRetention = strictRetention
                 },
                 Message = "User stats retrieved successfully"
             });
