@@ -55,7 +55,7 @@ async function claimContract(page: Page, contractNumber: string, mat: string, al
     await expect(page.getByRole('dialog').getByText(/já foi solicitado por/)).toBeVisible({ timeout: 10000 });
     await expect(page.getByRole('dialog').locator('button:has-text("Registrar Interesse")')).toBeDisabled();
     // Click the X button to actually close the modal instead of "Voltar" which just goes back to the search screen
-    await page.getByRole('button', { name: 'Fechar' }).click();
+    await page.locator('.mantine-Modal-close').click();
     await page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 10000 });
     return;
   }

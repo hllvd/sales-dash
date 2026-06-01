@@ -48,7 +48,7 @@ test.describe('User Classification and Level Management (TEAR 3)', () => {
           console.log(`>>> Cleaning up stale E2E level: ${name}`);
           const staleCard = page.locator('.cls-level-card', { hasText: name }).first();
           await staleCard.locator('button').nth(2).click();
-          await page.getByRole('button', { name: 'Excluir' }).click();
+          await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
           await page.waitForTimeout(800);
           keepCleaning = true; // re-scan after DOM update
           break;

@@ -96,7 +96,7 @@ test.describe('Circular Hierarchy Prevention', () => {
       await userRow.locator('button[title="Excluir"]').click();
       
       // Confirm deletion
-      await page.locator('button.btn-submit:has-text("Excluir")').click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
       
       // Verify it's now inactive
       await expect(userRow.getByText('Inativo')).toBeVisible();

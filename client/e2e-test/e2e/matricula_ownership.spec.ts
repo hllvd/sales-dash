@@ -86,7 +86,7 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
     while (count > 0) {
       console.log(`>>> Cleaning up: ${count} rows remaining for ${testMatricula}`);
       await testRows.first().locator('button[title="Excluir"], .tabler-icon-trash').click();
-      await page.click('button:has-text("Confirmar")');
+      await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
       
       // Wait for the count to decrease
       await expect(testRows).toHaveCount(count - 1, { timeout: 10000 });

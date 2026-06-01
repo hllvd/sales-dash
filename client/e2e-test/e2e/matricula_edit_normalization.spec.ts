@@ -81,7 +81,7 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
 
     console.log('>>> Step 5: Cleanup');
     await updatedRow.locator('.tabler-icon-trash').click();
-    await page.click('button:has-text("Confirmar")');
+    await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
     await expect(updatedRow).not.toBeVisible({ timeout: 10000 });
     
     console.log('>>> Success: Matricula was edited, normalized, and persisted correctly.');
