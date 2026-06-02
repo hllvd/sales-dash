@@ -60,7 +60,8 @@ export default defineConfig({
         'teams_hierarchy_visibility.spec.ts',
         'team_report_setup.spec.ts',
         'team_members_management.spec.ts',
-        'classification_management.spec.ts'
+        'classification_management.spec.ts',
+        'user_classification_and_views.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']

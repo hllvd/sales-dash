@@ -37,7 +37,7 @@ mkdir -p artifacts
 FILTER='[Ff]ail(ed)?|[Ee]xception|[Pp]anic|[Ff]atal|[Ee]rror:?|Assert\.|FAILED|✗|\[ERR\]|\[WRN\]|\[CRIT\]|Connection refused|\b50[023]\b'
 # Lines to always exclude even if they match FILTER (e.g. Playwright progress lines like [N/M] test name)
 # Both alternatives are anchored to ^ so real errors containing these strings mid-line are NOT suppressed.
-EXCLUDE='^\[[0-9]+/[0-9]+\]|^\[tear-|npm [wW]arn|domexception|\[Attempt'
+EXCLUDE='^\[[0-9]+/[0-9]+\]|^\[tear-|npm [wW]arn|domexception|\[Attempt|^>>>|without errors'
 
 # Optional user-maintained exclude file: scripts/exclude.txt
 # Each non-empty, non-comment line is treated as an ERE pattern to suppress.

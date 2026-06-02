@@ -257,7 +257,9 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                     </Title>
                   </Stack>
                   <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff' }}>
-                    <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>Total Geral de Contratos</Text>
+                    <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
+                      {report?.groupByEmail ? "Total Geral de Usuários" : report?.groupByTeam ? "Total Geral de Equipes" : report?.groupByClassification ? "Total Geral de Níveis" : "Total Geral de Contratos"}
+                    </Text>
                     <Text size="md" fw={700} style={{ textAlign: 'center', color: '#1f2937' }}>
                       {totalCount}
                     </Text>
