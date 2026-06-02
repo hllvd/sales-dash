@@ -145,7 +145,8 @@ namespace SalesApp.IntegrationTests.ReportFilters
                 {
                     Matriculas = new List<string> { "99999" },
                     StartDate = DateTime.UtcNow.AddDays(-7),
-                    EndDate = DateTime.UtcNow
+                    EndDate = DateTime.UtcNow,
+                    Teams = new List<int> { 1, 2 }
                 },
                 OutputColumns = new List<OutputColumnRequest>
                 {
@@ -164,6 +165,7 @@ namespace SalesApp.IntegrationTests.ReportFilters
             filterId.Should().NotBeNullOrEmpty();
             createResult.Data.Name.Should().Be("Integration Test Report");
             createResult.Data.Scope.Should().Be("private");
+            createResult.Data.FilterConfig.Teams.Should().ContainInOrder(1, 2);
 
             // 3. GET SINGLE
             var getResponse = await _client.GetAsync($"/api/report-filters/{filterId}");
@@ -173,6 +175,7 @@ namespace SalesApp.IntegrationTests.ReportFilters
             getResult!.Success.Should().BeTrue();
             getResult.Data!.FilterId.Should().Be(filterId);
             getResult.Data.OutputColumns.Should().HaveCount(2);
+            getResult.Data.FilterConfig.Teams.Should().ContainInOrder(1, 2);
 
             // 4. LIST (Should contain at least our newly created report)
             var listResponse = await _client.GetAsync("/api/report-filters");

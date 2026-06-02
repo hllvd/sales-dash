@@ -33,6 +33,9 @@ namespace SalesApp.ReportFilters.Models
         /// <summary>Group identifiers to filter by.</summary>
         public List<int>? Groups { get; set; }
 
+        /// <summary>Team identifiers to filter by.</summary>
+        public List<int>? Teams { get; set; }
+
         /// <summary>PV identifiers (integer IDs) to filter by.</summary>
         public List<int>? Pvs { get; set; }
 

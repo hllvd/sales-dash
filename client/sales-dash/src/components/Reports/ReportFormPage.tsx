@@ -18,9 +18,13 @@ import {
   Center,
   Loader,
   SegmentedControl,
-  Collapse
+  Collapse,
+  Modal,
+  ScrollArea,
+  Checkbox
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
+import { BarChart, PieChart, DonutChart, LineChart, AreaChart } from '@mantine/charts';
 import { 
   IconArrowUp, 
   IconArrowDown, 
@@ -31,7 +35,9 @@ import {
   IconGripVertical,
   IconChevronDown,
   IconChevronUp,
-  IconRefresh
+  IconRefresh,
+  IconPlus,
+  IconFilter
 } from '@tabler/icons-react';
 import Menu from '../Menu';
 import { notifications } from '@mantine/notifications';
@@ -54,6 +60,122 @@ interface ReportFormPageProps {
   filterId?: string; // If provided, we are in edit mode
 }
 
+interface ColumnMetadata {
+  title: string;
+  description: string;
+}
+
+const COLUMN_METADATA_DICT: Record<string, ColumnMetadata> = {
+  'Contracts|contractNumber': {
+    title: 'Número do Contrato',
+    description: 'Código identificador único gerado no momento da venda do contrato.'
+  },
+  'Contracts|totalAmount': {
+    title: 'Valor Total',
+    description: 'O montante financeiro total negociado e assinado no contrato comercial.'
+  },
+  'Contracts|saleStartDate': {
+    title: 'Data de Venda',
+    description: 'Data oficial em que a venda foi sacramentada e o período de vigência se iniciou.'
+  },
+  'Contracts|isActive': {
+    title: 'Contrato Ativo',
+    description: 'Status binário que indica se o contrato está vigente ou se foi cancelado/defaultado.'
+  },
+  'Contracts|contractType': {
+    title: 'Tipo de Contrato',
+    description: 'O modelo de contrato comercial ou categoria operacional atribuída.'
+  },
+  'Contracts|quota': {
+    title: 'Parcelas / Quotas',
+    description: 'A quantidade de parcelas periódicas acordadas para o pagamento da venda.'
+  },
+  'Contracts|customerName': {
+    title: 'Nome do Cliente',
+    description: 'Nome completo ou razão social do comprador do contrato comercial.'
+  },
+  'Contracts|tempMatricula': {
+    title: 'Matrícula Temporária',
+    description: 'Código de matrícula temporário utilizado durante a importação antes da normalização.'
+  },
+  'Contracts|matriculaNumber': {
+    title: 'Número de Matrícula',
+    description: 'Número consolidado e normalizado da matrícula no banco de dados.'
+  },
+  'Contracts|createdAt': {
+    title: 'Criado Em',
+    description: 'Data e hora da inserção original deste registro de contrato no sistema.'
+  },
+  'Contracts|updatedAt': {
+    title: 'Atualizado Em',
+    description: 'Data e hora do último salvamento ou modificação dos campos deste contrato.'
+  },
+  'Users_Contract|name': {
+    title: 'Nome do Vendedor',
+    description: 'Nome completo do vendedor titular da venda no momento da assinatura.'
+  },
+  'Users_Contract|email': {
+    title: 'E-mail do Vendedor',
+    description: 'Endereço de e-mail institucional de cadastro do vendedor do contrato.'
+  },
+  'Users_Contract|team': {
+    title: 'Equipe do Vendedor',
+    description: 'Nome da equipe ativa do vendedor associada à venda na linha temporal.'
+  },
+  'Users_Contract|teamOwner': {
+    title: 'Chefe da Equipe',
+    description: 'Nome do líder, gerente ou supervisor imediato responsável pela equipe.'
+  },
+  'Users_Contract|classification': {
+    title: 'Nível de Classificação',
+    description: 'Nível de classificação ativo (ex: Nível I, Nível II) do vendedor.'
+  },
+  'Users_Matricula|name': {
+    title: 'Nome do Titular da Matrícula',
+    description: 'Nome do usuário que possui a titularidade oficial da matrícula vinculada.'
+  },
+  'Users_Matricula|email': {
+    title: 'E-mail do Titular da Matrícula',
+    description: 'E-mail cadastrado para o titular oficial da matrícula do contrato.'
+  },
+  'Status|name': {
+    title: 'Status do Contrato',
+    description: 'Nome descritivo da situação atual do contrato (ex: Ativo, Atraso 1, Transferido).'
+  },
+  'PV|id': {
+    title: 'ID do Ponto de Venda',
+    description: 'Código de identificação física do ponto de venda no sistema.'
+  },
+  'PV|name': {
+    title: 'Nome do Ponto de Venda',
+    description: 'Nome fantasia ou designação comercial do ponto de venda.'
+  },
+  'Group|name': {
+    title: 'Nome do Grupo',
+    description: 'Nome identificador do grupo ou agrupamento organizacional.'
+  },
+  'Group|description': {
+    title: 'Descrição do Grupo',
+    description: 'Breve texto descritivo sobre o propósito ou setor do grupo comercial.'
+  },
+  'Group|commission': {
+    title: 'Comissão do Grupo',
+    description: 'Taxa ou fator percentual de comissão definido para o grupo.'
+  },
+  'Computed|contractCount': {
+    title: 'Quantidade de Contratos',
+    description: 'Contagem total de contratos agregados computada para o período configurado.'
+  },
+  'Computed|retention': {
+    title: 'Taxa de Retenção',
+    description: 'Fração percentual computada de contratos ativos em relação ao portfolio total.'
+  },
+  'Computed|strictRetention': {
+    title: 'Taxa de Retenção Estrita',
+    description: 'Taxa de retenção considerando contratos adimplentes (excluindo qualquer atraso).'
+  }
+};
+
 const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [localFilterId, setLocalFilterId] = useState<string | undefined>(filterId);
   const isEditMode = !!localFilterId;
@@ -62,6 +184,10 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [scope, setScope] = useState<'private' | 'shared'>('private');
+  
+  // Visibility Restrictions (Allowed Teams and Roles)
+  const [allowedTeamIds, setAllowedTeamIds] = useState<string[]>([]);
+  const [allowedRoles, setAllowedRoles] = useState<string[]>([]);
 
   // Date Range Configuration
   const [dateRangePreset, setDateRangePreset] = useState<'30d' | '90d' | '12m' | 'custom'>('12m');
@@ -79,6 +205,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   // Standard Filters
   const [emails, setEmails] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]); 
+  const [teams, setTeams] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
 
@@ -89,6 +216,16 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [groupByClassification, setGroupByClassification] = useState(false);
   const [hideUnassignedTeams, setHideUnassignedTeams] = useState(false);
 
+  // Column Summing & Output Type
+  const [sumTotal, setSumTotal] = useState(false);
+  const [outputType, setOutputType] = useState<string>('table');
+  const [chartType, setChartType] = useState<string>('bar');
+
+  // Column Selection Modal
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
+  const [columnSearch, setColumnSearch] = useState('');
+  const [tempSelectedColumns, setTempSelectedColumns] = useState<string[]>([]);
+
   // Columns & Sorting
   const [outputColumns, setOutputColumns] = useState<OutputColumn[]>([]);
   const [orderByField, setOrderByField] = useState<string | null>(null);
@@ -98,6 +235,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [availableColumns, setAvailableColumns] = useState<SourceColumns[]>([]);
   const [userOptions, setUserOptions] = useState<{value: string, label: string}[]>([]);
   const [groupOptions, setGroupOptions] = useState<{value: string, label: string}[]>([]);
+  const [teamOptions, setTeamOptions] = useState<{value: string, label: string}[]>([]);
   const [pvOptions, setPvOptions] = useState<{value: string, label: string}[]>([]);
   
   // Preview
@@ -116,15 +254,17 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       const colsRes = await getAvailableColumns();
       setAvailableColumns(colsRes.sources);
 
-      // Fetch users, groups, PVs for multiselects
-      const [usersRes, groupsData, pvsRes] = await Promise.all([
+      // Fetch users, groups, PVs, teams for multiselects
+      const [usersRes, groupsData, pvsRes, teamsRes] = await Promise.all([
         apiService.getUsers(1, 1000),
         getGroups(),
-        apiService.getPVs()
+        apiService.getPVs(),
+        apiService.getTeams()
       ]);
       
       setUserOptions((usersRes.data?.items || []).map((u: User) => ({ value: u.email, label: u.name })));
       setGroupOptions((groupsData || []).map((g: any) => ({ value: g.id.toString(), label: g.name })));
+      setTeamOptions((teamsRes.data || []).map((t: any) => ({ value: t.id.toString(), label: t.name })));
       setPvOptions((pvsRes.data || []).map((p: any) => ({ value: p.id.toString(), label: p.name })));
 
       // If edit mode, fetch the report filter
@@ -133,6 +273,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setName(report.name);
         setDescription(report.description || '');
         setScope(report.scope);
+        setAllowedTeamIds((report.allowedTeamIds || []).map(String));
+        setAllowedRoles(report.allowedRoles || []);
         
         const fc = report.filterConfig;
         setMatriculas(fc.matriculas || []);
@@ -164,6 +306,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setCurrentUserAsParent(fc.currentUserAsParent || false);
         setEmails(fc.emails || []);
         setGroups((fc.groups || []).map(g => g.toString()));
+        setTeams((fc.teams || []).map(t => t.toString()));
         setPvs((fc.pvs || []).map(p => p.toString()));
         setStatuses(fc.statuses || []);
         setStatusOperator(fc.statusOperator || 'or');
@@ -175,6 +318,11 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setHideUnassignedTeams(report.hideUnassignedTeams || false);
         setOrderByField(report.orderByField || null);
         setOrderByDirection(report.orderByDirection || 'asc');
+
+        // Restore Sum and Chart types
+        setSumTotal(report.sumTotal || false);
+        setOutputType(report.outputType || 'table');
+        setChartType(report.chartType || 'bar');
 
         // Parse Grouping type
         if (report.groupByEmail) {
@@ -269,19 +417,43 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     return field;
   };
 
-  // Handle adding a column
-  const handleAddColumn = (sourceField: string | null) => {
-    if (!sourceField) return;
-    const [source, field] = sourceField.split('|');
-    if (outputColumns.find(c => c.source === source && c.field === field)) return; // prevent duplicates
+  // Open Column selection modal in multi-selection mode
+  const handleOpenColumnModal = () => {
+    // pre-populate temp selection with currently active columns
+    const activeKeys = outputColumns.map(c => `${c.source}|${c.field}`);
+    setTempSelectedColumns(activeKeys);
+    setColumnSearch('');
+    setColumnModalOpen(true);
+  };
+
+  // Handle saving columns chosen inside modal
+  const handleSaveModalColumns = () => {
+    const newColumns: OutputColumn[] = [];
     
-    const newCol: OutputColumn = {
-      source,
-      field,
-      label: getFieldLabel(source, field),
-      order: outputColumns.length + 1
-    };
-    setOutputColumns([...outputColumns, newCol]);
+    // We map over temp selection and preserve orders or recreate orders logically
+    tempSelectedColumns.forEach((key, idx) => {
+      const [source, field] = key.split('|');
+      const existing = outputColumns.find(c => c.source === source && c.field === field);
+      newColumns.push({
+        source,
+        field,
+        label: existing ? existing.label : getFieldLabel(source, field),
+        order: idx + 1,
+        format: existing ? existing.format : undefined
+      });
+    });
+
+    setOutputColumns(newColumns);
+    setColumnModalOpen(false);
+    notifications.show({ title: 'Colunas Atualizadas', message: `${newColumns.length} colunas configuradas no relatório.`, color: 'green' });
+  };
+
+  const handleToggleColumnTemp = (key: string) => {
+    if (tempSelectedColumns.includes(key)) {
+      setTempSelectedColumns(tempSelectedColumns.filter(k => k !== key));
+    } else {
+      setTempSelectedColumns([...tempSelectedColumns, key]);
+    }
   };
 
   const handleRemoveColumn = (index: number) => {
@@ -330,6 +502,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       currentUserAsParent: currentUserAsParent || undefined,
       emails: emails.length > 0 ? emails : undefined,
       groups: groups.length > 0 ? groups.map(Number) : undefined,
+      teams: teams.length > 0 ? teams.map(Number) : undefined,
       pvs: pvs.length > 0 ? pvs.map(Number) : undefined,
       statuses: statuses.length > 0 ? statuses : undefined,
       statusOperator: statuses.length > 1 ? statusOperator : undefined,
@@ -339,6 +512,11 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       name,
       description,
       scope,
+      allowedTeamIds: scope === 'shared' ? allowedTeamIds.map(Number) : [],
+      allowedRoles: scope === 'shared' ? allowedRoles : [],
+      sumTotal,
+      outputType,
+      chartType,
       filterConfig,
       outputColumns,
       groupByEmail,
@@ -433,11 +611,84 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     }
   };
 
-  // Grouped options for Column Select
-  const columnSelectData = availableColumns.map(source => ({
-    group: source.source === 'Users_Contract' ? 'Vendedor (Contrato)' : (source.source === 'Users_Matricula' ? 'Titular da Matrícula' : source.source),
-    items: source.fields.map(f => ({ value: `${source.source}|${f}`, label: getFieldLabel(source.source, f) }))
-  }));
+  // Prepare Dynamic Aggregated Chart Data
+  const prepareChartData = () => {
+    if (!previewData || previewData.rows.length === 0) return [];
+    
+    const columns = previewData.columns;
+    
+    // 1. Identify category/label key (Team, Email, Classification or first string col)
+    const groupCol = columns.find(c => c.field === 'team' || c.field === 'email' || c.field === 'classification') 
+      || columns.find(c => c.source === 'Users_Contract' || c.source === 'Users_Matricula')
+      || columns[0];
+      
+    const labelKey = groupCol ? groupCol.label : columns[0]?.label;
+
+    // 2. Identify metric/value key (totalAmount or first numeric col)
+    const numericCol = columns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
+      || columns.find(c => {
+           const val = previewData.rows[0][c.label];
+           return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^0-9.-]+/g, ''))));
+         })
+      || columns[1]
+      || columns[0];
+
+    const valueKey = numericCol ? numericCol.label : null;
+
+    if (!labelKey || !valueKey) return [];
+
+    const colors = [
+      '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#228be6',
+      '#845ef7', '#be4bdb', '#f06595', '#ff922b', '#51cf66'
+    ];
+
+    return previewData.rows.map((row, idx) => {
+      const rawVal = row[valueKey];
+      let valNum = 0;
+      if (typeof rawVal === 'number') {
+        valNum = rawVal;
+      } else if (typeof rawVal === 'string') {
+        const clean = rawVal.replace(/[R$\s.%]/g, '').replace(',', '.');
+        valNum = parseFloat(clean) || 0;
+      }
+
+      return {
+        name: String(row[labelKey] || `Item ${idx + 1}`),
+        value: valNum,
+        color: colors[idx % colors.length]
+      };
+    });
+  };
+
+  // Compile list of all fields to display inside the searchable modal
+  const getModalFields = () => {
+    const list: { key: string; source: string; field: string; title: string; description: string }[] = [];
+    availableColumns.forEach(src => {
+      src.fields.forEach(f => {
+        const key = `${src.source}|${f}`;
+        const meta = COLUMN_METADATA_DICT[key] || { title: f, description: `Coluna técnica vinda da tabela de ${src.source}.` };
+        list.push({
+          key,
+          source: src.source,
+          field: f,
+          title: meta.title,
+          description: meta.description
+        });
+      });
+    });
+
+    if (!columnSearch) return list;
+    const cleanSearch = columnSearch.toLowerCase();
+    return list.filter(item => 
+      item.title.toLowerCase().includes(cleanSearch) || 
+      item.description.toLowerCase().includes(cleanSearch) || 
+      item.field.toLowerCase().includes(cleanSearch) ||
+      item.source.toLowerCase().includes(cleanSearch)
+    );
+  };
+
+  const modalFieldsList = getModalFields();
+  const chartData = prepareChartData();
 
   if (loading) {
     return <Menu><Center style={{ height: '80vh' }}><Loader /></Center></Menu>;
@@ -451,7 +702,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
             <Title order={2} style={{ color: '#1c1c1e', fontWeight: 700 }}>
               {isEditMode ? 'Editar Relatório' : 'Novo Relatório'}
             </Title>
-            <Text size="xs" c="dimmed">Configure filtros, agrupamentos e colunas abaixo para gerar seu relatório gerencial.</Text>
+            <Text size="xs" c="dimmed">Configure filtros, acessos restritos, agregados e gráficos para gerar seu relatório gerencial.</Text>
           </Stack>
           <Group>
             {isEditMode && (
@@ -492,11 +743,49 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                 rows={2}
               />
               <Switch
-                label="Relatório Compartilhado (Visível para todos)"
+                label="Relatório Compartilhado (Visível para outros usuários)"
                 checked={scope === 'shared'}
                 onChange={(event) => setScope(event.currentTarget.checked ? 'shared' : 'private')}
                 mt="xs"
               />
+
+              {scope === 'shared' && (
+                <Paper withBorder p="sm" mt="xs" style={{ backgroundColor: '#f8f9fa' }}>
+                  <Stack gap="xs">
+                    <Text size="xs" fw={700} c="indigo">Restrições de Visibilidade (Quem pode ver)</Text>
+                    <Text size="xxs" c="dimmed">Se nenhum grupo ou perfil for selecionado, todos os usuários autenticados poderão ver este relatório.</Text>
+                    
+                    <Grid gutter="xs">
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <MultiSelect
+                          label="Equipes Permitidas"
+                          placeholder="Escolha as equipes autorizadas"
+                          data={groupOptions}
+                          value={allowedTeamIds}
+                          onChange={setAllowedTeamIds}
+                          searchable
+                          size="xs"
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <MultiSelect
+                          label="Perfis (Roles) Permitidos"
+                          placeholder="Escolha os cargos autorizados"
+                          data={[
+                            { value: 'superadmin', label: 'Superadmin' },
+                            { value: 'admin', label: 'Admin' },
+                            { value: 'user', label: 'Vendedor (User)' }
+                          ]}
+                          value={allowedRoles}
+                          onChange={setAllowedRoles}
+                          searchable
+                          size="xs"
+                        />
+                      </Grid.Col>
+                    </Grid>
+                  </Stack>
+                </Paper>
+              )}
             </Stack>
           </Paper>
 
@@ -617,11 +906,22 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 6 }}>
                   <MultiSelect
-                    label="Equipes (Grupos)"
-                    placeholder="Filtrar por equipes"
+                    label="Grupos"
+                    placeholder="Filtrar por grupos"
                     data={groupOptions}
                     value={groups}
                     onChange={setGroups}
+                    searchable
+                    size="sm"
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <MultiSelect
+                    label="Equipes"
+                    placeholder="Filtrar por equipes"
+                    data={teamOptions}
+                    value={teams}
+                    onChange={setTeams}
                     searchable
                     size="sm"
                   />
@@ -665,7 +965,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   onClick={() => setAdvancedOpen(!advancedOpen)}
                   rightSection={advancedOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
                   size="xs"
-                  px="md"
+                  p={0}
                 >
                   Configurações Avançadas de Filtro
                 </Button>
@@ -744,20 +1044,105 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
             <Text size="xs" c="dimmed" mb="md">Escolha, renomeie e ordene as colunas visíveis no relatório.</Text>
             
             <Stack gap="md">
-              <Select
-                label="Adicionar Campo"
-                placeholder="Selecione um campo para adicionar..."
-                data={columnSelectData}
-                searchable
-                onChange={handleAddColumn}
-                value={null}
-                size="sm"
-                leftSection={<IconSearch size={16} />}
-              />
+              <Group justify="space-between">
+                <Button
+                  color="indigo"
+                  variant="light"
+                  onClick={handleOpenColumnModal}
+                  leftSection={<IconPlus size={16} />}
+                  size="sm"
+                >
+                  Adicionar Colunas de Saída
+                </Button>
+
+                <Switch
+                  label="Somar total produzido dos contratos (Gerar Sumário)"
+                  checked={sumTotal}
+                  onChange={(e) => setSumTotal(e.currentTarget.checked)}
+                  size="sm"
+                />
+              </Group>
+
+              {/* Column Selection Modal */}
+              <Modal
+                opened={columnModalOpen}
+                onClose={() => setColumnModalOpen(false)}
+                title={<Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>Selecione as Colunas do Relatório</Title>}
+                size="lg"
+                centered
+              >
+                <Stack gap="md">
+                  <TextInput
+                    placeholder="Pesquise por nome, descrição ou fonte do campo..."
+                    value={columnSearch}
+                    onChange={(e) => setColumnSearch(e.currentTarget.value)}
+                    leftSection={<IconFilter size={16} />}
+                    size="sm"
+                  />
+
+                  <ScrollArea h={340} offsetScrollbars>
+                    <Stack gap="xs" pr="sm">
+                      {modalFieldsList.length === 0 ? (
+                        <Text c="dimmed" fs="italic" size="xs" style={{ textAlign: 'center', padding: '16px 0' }}>
+                          Nenhum campo encontrado correspondente à pesquisa.
+                        </Text>
+                      ) : (
+                        modalFieldsList.map(item => {
+                          const isSelected = tempSelectedColumns.includes(item.key);
+                          return (
+                            <Card 
+                              key={item.key} 
+                              withBorder 
+                              p="sm" 
+                              radius="xs" 
+                              onClick={() => handleToggleColumnTemp(item.key)}
+                              style={{ 
+                                cursor: 'pointer', 
+                                borderLeft: isSelected ? '4px solid #6366f1' : '1px solid #e9ecef',
+                                backgroundColor: isSelected ? '#f5f3ff' : '#ffffff',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <Group justify="space-between" wrap="nowrap">
+                                <Stack gap={2} style={{ flex: 1 }}>
+                                  <Group gap="xs" wrap="nowrap">
+                                    <Text fw={600} size="sm" style={{ color: isSelected ? '#4f46e5' : '#1c1c1e' }}>
+                                      {item.title}
+                                    </Text>
+                                    <Badge size="xxs" color="indigo" variant="light">{item.source}</Badge>
+                                  </Group>
+                                  <Text size="xxs" c="dimmed" style={{ lineHeight: 1.4 }}>
+                                    {item.description}
+                                  </Text>
+                                </Stack>
+                                <Checkbox 
+                                  checked={isSelected} 
+                                  readOnly 
+                                  tabIndex={-1} 
+                                  styles={{ input: { cursor: 'pointer' } }}
+                                />
+                              </Group>
+                            </Card>
+                          );
+                        })
+                      )}
+                    </Stack>
+                  </ScrollArea>
+
+                  <Group justify="flex-end" gap="xs" mt="md" style={{ borderTop: '1px solid #e9ecef', paddingTop: '12px' }}>
+                    <Button variant="default" onClick={() => setColumnModalOpen(false)} size="sm">
+                      Cancelar
+                    </Button>
+                    <Button color="indigo" onClick={handleSaveModalColumns} size="sm">
+                      Confirmar Seleção ({tempSelectedColumns.length})
+                    </Button>
+                  </Group>
+                </Stack>
+              </Modal>
 
               {outputColumns.length === 0 ? (
                 <Text c="dimmed" fs="italic" size="xs" style={{ textAlign: 'center', padding: '16px 0' }}>
-                  Nenhuma coluna de saída adicionada. Adicione colunas acima.
+                  Nenhuma coluna de saída configurada. Clique em "Adicionar Colunas de Saída" para selecionar os campos.
                 </Text>
               ) : (
                 <Stack gap="xs">
@@ -783,7 +1168,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                         <Grid.Col span={{ base: 5, sm: 4 }}>
                           <Stack gap={2}>
                             <Text fw={600} size="xs" style={{ color: '#1c1c1e' }} truncate="end">
-                              {col.label || col.field}
+                              {(COLUMN_METADATA_DICT[`${col.source}|${col.field}`]?.title) || col.label || col.field}
                             </Text>
                             <Group gap={4}>
                               <Badge size="xxs" color="indigo" variant="light">{col.source}</Badge>
@@ -866,12 +1251,54 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
             </Grid>
           </Paper>
 
-          {/* Section 6: Results Preview */}
+          {/* Section 6: Output / Display Type */}
+          <Paper shadow="sm" p="lg" radius="md" withBorder style={{ backgroundColor: '#ffffff' }}>
+            <Title order={4} mb="xs" style={{ color: '#1c1c1e' }}>Formato de Exibição dos Resultados</Title>
+            <Text size="xs" c="dimmed" mb="md">Configure o formato visual de saída do seu relatório (Tabela, Gráfico ou Ambos).</Text>
+            
+            <Grid gutter="md" align="flex-end">
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <Text size="sm" fw={500} mb="xs">Tipo de Exibição</Text>
+                <SegmentedControl
+                  value={outputType}
+                  onChange={setOutputType}
+                  data={[
+                    { label: 'Tabela Apenas', value: 'table' },
+                    { label: 'Gráfico Apenas', value: 'chart' },
+                    { label: 'Tabela e Gráfico', value: 'both' }
+                  ]}
+                  fullWidth
+                  size="sm"
+                />
+              </Grid.Col>
+
+              {outputType !== 'table' && (
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <Select
+                    label="Tipo de Gráfico"
+                    placeholder="Selecione o formato do gráfico"
+                    value={chartType}
+                    onChange={(val) => setChartType(val || 'bar')}
+                    data={[
+                      { value: 'bar', label: 'Gráfico de Barras' },
+                      { value: 'pie', label: 'Gráfico de Pizza' },
+                      { value: 'donut', label: 'Gráfico de Rosca' },
+                      { value: 'line', label: 'Gráfico de Linhas' },
+                      { value: 'area', label: 'Gráfico de Área' }
+                    ]}
+                    size="sm"
+                  />
+                </Grid.Col>
+              )}
+            </Grid>
+          </Paper>
+
+          {/* Section 7: Results Preview */}
           <Paper shadow="sm" p="lg" radius="md" withBorder style={{ backgroundColor: '#ffffff' }}>
             <Group justify="space-between" mb="md" wrap="nowrap">
               <Stack gap={2}>
                 <Title order={4} style={{ color: '#1c1c1e', fontWeight: 600 }}>Prévia do Relatório</Title>
-                <Text size="xs" c="dimmed">Visualização em tempo real das 10 primeiras linhas de acordo com as regras ativas.</Text>
+                <Text size="xs" c="dimmed">Visualização dos dados de prévia carregados dinamicamente.</Text>
               </Stack>
               <Button 
                 variant="light" 
@@ -886,34 +1313,23 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
               </Button>
             </Group>
 
-            {/* Table Wrapper with horizontal scrolling */}
-            <div 
-              style={{ 
-                overflowY: 'auto', 
-                overflowX: 'auto', 
-                minHeight: '260px', 
-                border: '1px solid #e9ecef', 
-                borderRadius: '6px', 
-                backgroundColor: '#f8f9fa', 
-                padding: '12px' 
-              }}
-            >
+            <Stack gap="md">
               {previewLoading ? (
-                <Center style={{ height: '200px' }}>
+                <Center style={{ height: '260px' }}>
                   <Stack align="center" gap="xs">
                     <Loader size="md" color="indigo" />
                     <Text size="sm" c="dimmed" fw={500}>Buscando dados no servidor...</Text>
                   </Stack>
                 </Center>
               ) : previewError ? (
-                <Center style={{ height: '200px', padding: '24px' }}>
+                <Center style={{ height: '260px', padding: '24px' }}>
                   <Text size="sm" color="red" style={{ textAlign: 'center', fontWeight: 500 }}>{previewError}</Text>
                 </Center>
               ) : !previewData ? (
-                <Center style={{ height: '200px', padding: '24px' }}>
+                <Center style={{ height: '260px', padding: '24px' }}>
                   <Stack align="center" gap="md" style={{ textAlign: 'center', maxWidth: '400px' }}>
                     <Text size="sm" c="dimmed" style={{ lineHeight: 1.5 }}>
-                      Defina o nome do relatório, adicione colunas e clique no botão acima para rodar a prévia em tempo real com dados reais.
+                      Defina o nome do relatório, selecione colunas e clique no botão acima para rodar a prévia em tempo real com dados reais.
                     </Text>
                     <Button 
                       variant="outline" 
@@ -926,64 +1342,178 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                     </Button>
                   </Stack>
                 </Center>
-              ) : previewData.rows.length === 0 ? (
-                <Center style={{ height: '200px' }}>
-                  <Text size="sm" c="dimmed" fw={500}>Nenhum registro encontrado correspondente aos filtros de dados ativos.</Text>
-                </Center>
               ) : (
-                <div style={{ display: 'inline-block', minWidth: '100%' }}>
-                  <table className="preview-results-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid #e5e7eb', backgroundColor: '#f1f3f5' }}>
-                        {previewData.columns.map((col) => (
-                          <th 
-                            key={`${col.source}-${col.field}`} 
-                            style={{ 
-                              padding: '10px 12px', 
-                              textAlign: 'left', 
-                              fontWeight: 600, 
-                              color: '#374151',
-                              fontSize: '0.75rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.05em',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {col.label || col.field}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewData.rows.map((row, idx) => (
-                        <tr 
-                          key={idx} 
-                          style={{ 
-                            borderBottom: '1px solid #f3f4f6', 
-                            backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f9fafb',
-                            transition: 'background-color 0.15s ease' 
-                          }}
-                        >
-                          {previewData.columns.map((col) => (
-                            <td 
-                              key={`${col.source}-${col.field}`} 
-                              style={{ 
-                                padding: '10px 12px', 
-                                color: '#4b5563', 
-                                fontSize: '0.85rem',
-                                whiteSpace: 'nowrap' 
-                              }}
-                            >
-                              {String(row[col.label] ?? '—')}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {/* Part 1: Table (if outputType is table or both) */}
+                  {(outputType === 'table' || outputType === 'both') && (
+                    <div>
+                      <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="xs">Tabela de Resultados (Amostra de 10 linhas)</Text>
+                      <div 
+                        style={{ 
+                          overflowY: 'auto', 
+                          overflowX: 'auto', 
+                          border: '1px solid #e9ecef', 
+                          borderRadius: '6px', 
+                          backgroundColor: '#f8f9fa', 
+                          padding: '8px' 
+                        }}
+                      >
+                        {previewData.rows.length === 0 ? (
+                          <Text size="sm" c="dimmed" style={{ textAlign: 'center', padding: '16px' }}>
+                            Nenhum registro encontrado correspondente aos filtros de dados ativos.
+                          </Text>
+                        ) : (
+                          <div style={{ display: 'inline-block', minWidth: '100%' }}>
+                            <table className="preview-results-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '2px solid #e5e7eb', backgroundColor: '#f1f3f5' }}>
+                                  {previewData.columns.map((col) => (
+                                    <th 
+                                      key={`${col.source}-${col.field}`} 
+                                      style={{ 
+                                        padding: '10px 12px', 
+                                        textAlign: 'left', 
+                                        fontWeight: 600, 
+                                        color: '#374151',
+                                        fontSize: '0.75rem',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      {col.label || col.field}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {previewData.rows.map((row, idx) => (
+                                  <tr 
+                                    key={idx} 
+                                    style={{ 
+                                      borderBottom: '1px solid #f3f4f6', 
+                                      backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f9fafb',
+                                      transition: 'background-color 0.15s ease' 
+                                    }}
+                                  >
+                                    {previewData.columns.map((col) => (
+                                      <td 
+                                        key={`${col.source}-${col.field}`} 
+                                        style={{ 
+                                          padding: '10px 12px', 
+                                          color: '#4b5563', 
+                                          fontSize: '0.85rem',
+                                          whiteSpace: 'nowrap' 
+                                        }}
+                                      >
+                                        {String(row[col.label] ?? '—')}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Part 2: Summary Sum Card (if sumTotal is true) */}
+                  {sumTotal && previewData.totalSum !== undefined && previewData.totalSum !== null && (
+                    <Paper withBorder p="md" radius="md" style={{ backgroundColor: '#f5fdf8', borderLeft: '4px solid #10b981' }}>
+                      <Group justify="space-between" align="center">
+                        <Stack gap={2}>
+                          <Text size="xs" c="dimmed" tt="uppercase" fw={700} style={{ letterSpacing: '0.05em' }}>
+                            Resumo do Relatório (Summary)
+                          </Text>
+                          <Title order={3} style={{ color: '#0f766e', fontWeight: 700 }}>
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(previewData.totalSum)}
+                          </Title>
+                        </Stack>
+                        <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff' }}>
+                          <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>Total Geral de Contratos</Text>
+                          <Text size="md" fw={700} style={{ textAlign: 'center', color: '#1f2937' }}>
+                            {previewData.totalCount}
+                          </Text>
+                        </Paper>
+                      </Group>
+                    </Paper>
+                  )}
+
+                  {/* Part 3: Chart (if outputType is chart or both) */}
+                  {(outputType === 'chart' || outputType === 'both') && (
+                    <div>
+                      <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="sm">
+                        Gráfico Analítico ({chartType === 'bar' ? 'Barras' : chartType === 'pie' ? 'Pizza' : chartType === 'donut' ? 'Rosca' : chartType === 'line' ? 'Linhas' : 'Área'})
+                      </Text>
+                      
+                      <Paper withBorder p="md" radius="md" style={{ backgroundColor: '#ffffff', minHeight: '340px' }}>
+                        {chartData.length === 0 ? (
+                          <Center style={{ height: '300px' }}>
+                            <Text size="xs" c="dimmed" fs="italic">Não há dados suficientes ou colunas numéricas no relatório para projetar o gráfico.</Text>
+                          </Center>
+                        ) : (
+                          <Center style={{ height: '100%', minHeight: '300px', width: '100%' }}>
+                            <div style={{ width: '100%', maxWidth: '640px', display: 'flex', justifyContent: 'center' }}>
+                              {chartType === 'bar' && (
+                                <BarChart
+                                  h={300}
+                                  data={chartData}
+                                  dataKey="name"
+                                  series={[{ name: 'value', color: 'indigo.6' }]}
+                                  valueFormatter={(value) => new Intl.NumberFormat('pt-BR').format(value)}
+                                  style={{ width: '100%' }}
+                                />
+                              )}
+                              {chartType === 'line' && (
+                                <LineChart
+                                  h={300}
+                                  data={chartData}
+                                  dataKey="name"
+                                  series={[{ name: 'value', color: 'indigo.6' }]}
+                                  curveType="monotone"
+                                  valueFormatter={(value) => new Intl.NumberFormat('pt-BR').format(value)}
+                                  style={{ width: '100%' }}
+                                />
+                              )}
+                              {chartType === 'area' && (
+                                <AreaChart
+                                  h={300}
+                                  data={chartData}
+                                  dataKey="name"
+                                  series={[{ name: 'value', color: 'indigo.6' }]}
+                                  curveType="monotone"
+                                  valueFormatter={(value) => new Intl.NumberFormat('pt-BR').format(value)}
+                                  style={{ width: '100%' }}
+                                />
+                              )}
+                              {chartType === 'pie' && (
+                                <PieChart
+                                  data={chartData}
+                                  withTooltip
+                                  tooltipDataSource="segment"
+                                  size={220}
+                                />
+                              )}
+                              {chartType === 'donut' && (
+                                <DonutChart
+                                  data={chartData}
+                                  withTooltip
+                                  tooltipDataSource="segment"
+                                  size={220}
+                                  thickness={25}
+                                />
+                              )}
+                            </div>
+                          </Center>
+                        )}
+                      </Paper>
+                    </div>
+                  )}
+                </>
               )}
-            </div>
+            </Stack>
           </Paper>
 
           {/* Action Buttons Footer */}

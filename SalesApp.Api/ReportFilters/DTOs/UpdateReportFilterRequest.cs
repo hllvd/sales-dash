@@ -17,5 +17,10 @@ namespace SalesApp.ReportFilters.DTOs
         public bool HideUnassignedTeams { get; set; }
         public string? OrderByField { get; set; }
         public string? OrderByDirection { get; set; }
+        public List<int>? AllowedTeamIds { get; set; }
+        public List<string>? AllowedRoles { get; set; }
+        public bool SumTotal { get; set; }
+        public string OutputType { get; set; } = "table";
+        public string ChartType { get; set; } = "bar";
     }
 }

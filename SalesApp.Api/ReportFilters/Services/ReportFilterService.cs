@@ -59,7 +59,59 @@ namespace SalesApp.ReportFilters.Services
         public async Task<ServiceResult<List<ReportFilterResponse>>> ListAsync(string callerId)
         {
             var filters = await _repository.ListForUserAsync(callerId);
-            var response = filters.Select(MapToResponse).ToList();
+            
+            // Load caller details to check visibility restrictions
+            var user = await _userRepository.GetByIdAsync(new Guid(callerId));
+            if (user == null)
+                return new ServiceResult<List<ReportFilterResponse>>(true, new List<ReportFilterResponse>());
+
+            bool isSuperAdmin = user.Role?.Name == "superadmin";
+            
+            var allowedFilters = new List<ReportFilter>();
+            foreach (var f in filters)
+            {
+                // Owner and Superadmin are always allowed
+                if (f.UserId == callerId || isSuperAdmin)
+                {
+                    allowedFilters.Add(f);
+                    continue;
+                }
+
+                // Private reports not owned -> skip
+                if (f.Scope == "private")
+                    continue;
+
+                // Shared report restrictions
+                if (f.AllowedRoles?.Count > 0 || f.AllowedTeamIds?.Count > 0)
+                {
+                    bool roleMatch = f.AllowedRoles?.Count > 0 && 
+                                     user.Role?.Name != null && 
+                                     f.AllowedRoles.Contains(user.Role.Name);
+
+                    bool teamMatch = false;
+                    if (f.AllowedTeamIds?.Count > 0)
+                    {
+                        var activeTeamIds = user.UserTeams
+                            .Where(ut => ut.StartDate <= DateTime.UtcNow && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow))
+                            .Select(ut => ut.TeamId)
+                            .ToList();
+
+                        teamMatch = activeTeamIds.Any(tid => f.AllowedTeamIds.Contains(tid));
+                    }
+
+                    if (roleMatch || teamMatch)
+                    {
+                        allowedFilters.Add(f);
+                    }
+                }
+                else
+                {
+                    // No restrictions -> allowed
+                    allowedFilters.Add(f);
+                }
+            }
+
+            var response = allowedFilters.Select(MapToResponse).ToList();
             return new ServiceResult<List<ReportFilterResponse>>(true, response);
         }
 
@@ -81,9 +133,47 @@ namespace SalesApp.ReportFilters.Services
             if (filter == null)
                 return new ServiceResult<ReportFilterResponse>(false, null, null, 404);
 
-            // Private reports not owned by the caller → 404 (do not reveal existence)
-            if (filter.Scope == "private" && filter.UserId != callerId)
+            // Owner is always allowed
+            if (filter.UserId == callerId)
+                return new ServiceResult<ReportFilterResponse>(true, MapToResponse(filter));
+
+            // Load caller details
+            var user = await _userRepository.GetByIdAsync(new Guid(callerId));
+            if (user == null)
                 return new ServiceResult<ReportFilterResponse>(false, null, null, 404);
+
+            // Superadmin is always allowed
+            bool isSuperAdmin = user.Role?.Name == "superadmin";
+            if (isSuperAdmin)
+                return new ServiceResult<ReportFilterResponse>(true, MapToResponse(filter));
+
+            // If private and not owned by caller -> 404
+            if (filter.Scope == "private")
+                return new ServiceResult<ReportFilterResponse>(false, null, null, 404);
+
+            // Check shared report restrictions
+            if (filter.AllowedRoles?.Count > 0 || filter.AllowedTeamIds?.Count > 0)
+            {
+                bool roleMatch = filter.AllowedRoles?.Count > 0 && 
+                                 user.Role?.Name != null && 
+                                 filter.AllowedRoles.Contains(user.Role.Name);
+
+                bool teamMatch = false;
+                if (filter.AllowedTeamIds?.Count > 0)
+                {
+                    var activeTeamIds = user.UserTeams
+                        .Where(ut => ut.StartDate <= DateTime.UtcNow && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow))
+                        .Select(ut => ut.TeamId)
+                        .ToList();
+
+                    teamMatch = activeTeamIds.Any(tid => filter.AllowedTeamIds.Contains(tid));
+                }
+
+                if (!roleMatch && !teamMatch)
+                {
+                    return new ServiceResult<ReportFilterResponse>(false, null, null, 404);
+                }
+            }
 
             return new ServiceResult<ReportFilterResponse>(true, MapToResponse(filter));
         }
@@ -118,6 +208,11 @@ namespace SalesApp.ReportFilters.Services
                 HideUnassignedTeams = request.HideUnassignedTeams,
                 OrderByField = request.OrderByField,
                 OrderByDirection = request.OrderByDirection,
+                AllowedTeamIds = request.AllowedTeamIds,
+                AllowedRoles = request.AllowedRoles,
+                SumTotal = request.SumTotal,
+                OutputType = request.OutputType ?? "table",
+                ChartType = request.ChartType ?? "bar",
                 CreatedAt   = now,
                 UpdatedAt   = now
             };
@@ -156,6 +251,11 @@ namespace SalesApp.ReportFilters.Services
             filter.HideUnassignedTeams = request.HideUnassignedTeams;
             filter.OrderByField  = request.OrderByField;
             filter.OrderByDirection = request.OrderByDirection;
+            filter.AllowedTeamIds = request.AllowedTeamIds;
+            filter.AllowedRoles = request.AllowedRoles;
+            filter.SumTotal = request.SumTotal;
+            filter.OutputType = request.OutputType ?? "table";
+            filter.ChartType = request.ChartType ?? "bar";
             filter.UpdatedAt     = DateTime.UtcNow;
 
             await _repository.UpdateAsync(filter);
@@ -197,7 +297,7 @@ namespace SalesApp.ReportFilters.Services
             // Load all teams and memberships in memory once for fast lookup
             var teamsList = await _teamRepository.GetAllAsync();
             var memberTeamMapping = teamsList
-                .SelectMany(t => t.UserTeams.Select(ut => new { ut.UserInternalId, ut.StartDate, ut.EndDate, TeamName = t.Name, TeamOwnerName = t.Owner?.Name ?? "(Sem chefe)" }))
+                .SelectMany(t => t.UserTeams.Select(ut => new { ut.UserInternalId, ut.StartDate, ut.EndDate, TeamId = t.Id, TeamName = t.Name, TeamOwnerName = t.Owner?.Name ?? "(Sem chefe)" }))
                 .ToList();
 
             Func<SalesApp.Models.Contract, string> getTeamName = c =>
@@ -299,6 +399,19 @@ namespace SalesApp.ReportFilters.Services
             if (fc.Pvs?.Count > 0)
             {
                 contracts = contracts.Where(c => c.PvId.HasValue && fc.Pvs.Contains(c.PvId.Value)).ToList();
+            }
+
+            // Filter by selected Team IDs
+            if (fc.Teams?.Count > 0)
+            {
+                contracts = contracts.Where(c => {
+                    if (c.UserInternalId == null) return false;
+                    var match = memberTeamMapping.FirstOrDefault(x => 
+                        x.UserInternalId == c.UserInternalId.Value &&
+                        x.StartDate <= c.SaleStartDate &&
+                        (x.EndDate == null || x.EndDate > c.SaleStartDate));
+                    return match != null && fc.Teams.Contains(match.TeamId);
+                }).ToList();
             }
 
             // Exclude contracts from unassigned teams if HideUnassignedTeams is active
@@ -580,12 +693,19 @@ namespace SalesApp.ReportFilters.Services
                 }
             }
 
+            decimal? totalSum = null;
+            if (report.SumTotal)
+            {
+                totalSum = contracts.Sum(c => c.TotalAmount);
+            }
+
             var result = new ReportResultsResponse
             {
                 Page       = safePage,
                 PageSize   = safePageSize,
                 TotalCount = totalCount,
                 TotalPages = totalPages,
+                TotalSum   = totalSum,
                 Columns    = columns.Select(col => new OutputColumnResponse
                 {
                     Source = col.Source,
@@ -956,6 +1076,11 @@ namespace SalesApp.ReportFilters.Services
                 OrderByDirection = f.OrderByDirection,
                 CreatedAt   = f.CreatedAt,
                 UpdatedAt   = f.UpdatedAt,
+                AllowedTeamIds = f.AllowedTeamIds,
+                AllowedRoles = f.AllowedRoles,
+                SumTotal = f.SumTotal,
+                OutputType = f.OutputType ?? "table",
+                ChartType = f.ChartType ?? "bar",
                 FilterConfig = new FilterConfigResponse
                 {
                     Matriculas          = f.FilterConfig.Matriculas,
@@ -966,6 +1091,7 @@ namespace SalesApp.ReportFilters.Services
                     CurrentUserAsParent = f.FilterConfig.CurrentUserAsParent,
                     Emails              = f.FilterConfig.Emails,
                     Groups              = f.FilterConfig.Groups,
+                    Teams               = f.FilterConfig.Teams,
                     Pvs                 = f.FilterConfig.Pvs,
                     Statuses            = f.FilterConfig.Statuses,
                     StatusOperator      = f.FilterConfig.StatusOperator
@@ -993,6 +1119,7 @@ namespace SalesApp.ReportFilters.Services
                 CurrentUserAsParent = req.CurrentUserAsParent,
                 Emails              = req.Emails,
                 Groups              = req.Groups,
+                Teams               = req.Teams,
                 Pvs                 = req.Pvs,
                 Statuses            = req.Statuses,
                 StatusOperator      = req.StatusOperator

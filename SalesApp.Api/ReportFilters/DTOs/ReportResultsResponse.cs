@@ -28,5 +28,7 @@ namespace SalesApp.ReportFilters.DTOs
 
         /// <summary>Ordered column definitions used for this result set.</summary>
         public List<OutputColumnResponse> Columns { get; set; } = new();
+
+        public decimal? TotalSum { get; set; }
     }
 }

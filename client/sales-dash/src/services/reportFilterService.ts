@@ -13,6 +13,7 @@ export interface FilterConfig {
   currentUserAsParent?: boolean;
   emails?: string[];
   groups?: number[];
+  teams?: number[];
   pvs?: number[];
   statuses?: string[];
   statusOperator?: 'or' | 'and';
@@ -42,6 +43,11 @@ export interface ReportFilter {
   orderByDirection?: 'asc' | 'desc';
   createdAt: string;
   updatedAt: string;
+  allowedTeamIds?: number[];
+  allowedRoles?: string[];
+  sumTotal?: boolean;
+  outputType?: string;
+  chartType?: string;
 }
 
 export interface CreateReportFilterRequest {
@@ -56,6 +62,11 @@ export interface CreateReportFilterRequest {
   hideUnassignedTeams: boolean;
   orderByField?: string;
   orderByDirection?: 'asc' | 'desc';
+  allowedTeamIds?: number[];
+  allowedRoles?: string[];
+  sumTotal?: boolean;
+  outputType?: string;
+  chartType?: string;
 }
 
 export interface UpdateReportFilterRequest {
@@ -70,6 +81,11 @@ export interface UpdateReportFilterRequest {
   hideUnassignedTeams: boolean;
   orderByField?: string;
   orderByDirection?: 'asc' | 'desc';
+  allowedTeamIds?: number[];
+  allowedRoles?: string[];
+  sumTotal?: boolean;
+  outputType?: string;
+  chartType?: string;
 }
 
 export interface SourceColumns {
@@ -88,7 +104,9 @@ export interface ReportResultsResponse {
   totalPages: number;
   columns: OutputColumn[];
   rows: Record<string, any>[];
+  totalSum?: number;
 }
+
 
 interface ApiResponse<T> {
   success: boolean;

@@ -247,8 +247,16 @@ namespace SalesApp.ReportFilters.Repositories
                 { "orderByField",  new AttributeValue { S = f.OrderByField ?? "" } },
                 { "orderByDirection", new AttributeValue { S = f.OrderByDirection ?? "" } },
                 { "createdAt",     new AttributeValue { S = f.CreatedAt.ToString("O") } },
-                { "updatedAt",     new AttributeValue { S = f.UpdatedAt.ToString("O") } }
+                { "updatedAt",     new AttributeValue { S = f.UpdatedAt.ToString("O") } },
+                { "sumTotal",      new AttributeValue { BOOL = f.SumTotal } },
+                { "outputType",    new AttributeValue { S = f.OutputType ?? "table" } },
+                { "chartType",     new AttributeValue { S = f.ChartType ?? "bar" } }
             };
+
+            if (f.AllowedTeamIds != null)
+                item["allowedTeamIds"] = new AttributeValue { S = JsonConvert.SerializeObject(f.AllowedTeamIds) };
+            if (f.AllowedRoles != null)
+                item["allowedRoles"] = new AttributeValue { S = JsonConvert.SerializeObject(f.AllowedRoles) };
 
             if (!string.IsNullOrEmpty(f.Description))
                 item["description"] = new AttributeValue { S = f.Description };
@@ -279,7 +287,16 @@ namespace SalesApp.ReportFilters.Repositories
                 OrderByField  = item.GetValueOrDefault("orderByField")?.S,
                 OrderByDirection = item.GetValueOrDefault("orderByDirection")?.S,
                 CreatedAt = DateTime.TryParse(item.GetValueOrDefault("createdAt")?.S, out var ca) ? ca : DateTime.UtcNow,
-                UpdatedAt = DateTime.TryParse(item.GetValueOrDefault("updatedAt")?.S, out var ua) ? ua : DateTime.UtcNow
+                UpdatedAt = DateTime.TryParse(item.GetValueOrDefault("updatedAt")?.S, out var ua) ? ua : DateTime.UtcNow,
+                SumTotal  = item.GetValueOrDefault("sumTotal")?.BOOL ?? false,
+                OutputType = item.GetValueOrDefault("outputType")?.S ?? "table",
+                ChartType = item.GetValueOrDefault("chartType")?.S ?? "bar",
+                AllowedTeamIds = item.ContainsKey("allowedTeamIds") 
+                    ? JsonConvert.DeserializeObject<List<int>>(item["allowedTeamIds"].S) 
+                    : new List<int>(),
+                AllowedRoles = item.ContainsKey("allowedRoles") 
+                    ? JsonConvert.DeserializeObject<List<string>>(item["allowedRoles"].S) 
+                    : new List<string>()
             };
         }
     }

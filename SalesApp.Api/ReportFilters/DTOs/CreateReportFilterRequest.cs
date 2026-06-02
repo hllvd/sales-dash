@@ -14,6 +14,7 @@ namespace SalesApp.ReportFilters.DTOs
         public bool? CurrentUserAsParent { get; set; }
         public List<string>? Emails { get; set; }
         public List<int>? Groups { get; set; }
+        public List<int>? Teams { get; set; }
         public List<int>? Pvs { get; set; }
         public List<string>? Statuses { get; set; }
         public string? StatusOperator { get; set; }
@@ -47,5 +48,10 @@ namespace SalesApp.ReportFilters.DTOs
         public bool HideUnassignedTeams { get; set; }
         public string? OrderByField { get; set; }
         public string? OrderByDirection { get; set; }
+        public List<int>? AllowedTeamIds { get; set; }
+        public List<string>? AllowedRoles { get; set; }
+        public bool SumTotal { get; set; }
+        public string OutputType { get; set; } = "table";
+        public string ChartType { get; set; } = "bar";
     }
 }

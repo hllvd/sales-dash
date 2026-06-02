@@ -56,5 +56,11 @@ namespace SalesApp.ReportFilters.Models
 
         /// <summary>UTC ISO 8601 last-update timestamp.</summary>
         public DateTime UpdatedAt { get; set; }
+
+        public List<int>? AllowedTeamIds { get; set; }
+        public List<string>? AllowedRoles { get; set; }
+        public bool SumTotal { get; set; }
+        public string OutputType { get; set; } = "table";
+        public string ChartType { get; set; } = "bar";
     }
 }

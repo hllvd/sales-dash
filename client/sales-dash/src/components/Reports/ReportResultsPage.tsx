@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Title, Button, Table, Group, Text, Center, Loader } from '@mantine/core';
+import { Title, Button, Table, Group, Text, Center, Loader, Paper, Card, Stack } from '@mantine/core';
+import { BarChart, PieChart, DonutChart, LineChart, AreaChart } from '@mantine/charts';
 import { IconEdit, IconArrowLeft } from '@tabler/icons-react';
 import Menu from '../Menu';
 import { notifications } from '@mantine/notifications';
@@ -29,6 +30,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [totalSum, setTotalSum] = useState<number | undefined>(undefined);
   const pageSize = 25; // Replicating pagination size
 
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
@@ -52,6 +54,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
       setRows(resultsData.rows);
       setTotalPages(resultsData.totalPages);
       setTotalCount(resultsData.totalCount);
+      setTotalSum(resultsData.totalSum);
     } catch (err: any) {
       notifications.show({ title: 'Erro', message: err.message || 'Falha ao carregar resultados do relatório', color: 'red' });
     } finally {
@@ -79,6 +82,57 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
       setIsExporting(false);
     }
   };
+
+  // Prepare Dynamic Aggregated Chart Data
+  const prepareChartData = () => {
+    if (!rows || rows.length === 0) return [];
+    
+    // 1. Identify category/label key (Team, Email, Classification or first string col)
+    const groupCol = columns.find(c => c.field === 'team' || c.field === 'email' || c.field === 'classification') 
+      || columns.find(c => c.source === 'Users_Contract' || c.source === 'Users_Matricula')
+      || columns[0];
+      
+    const labelKey = groupCol ? groupCol.label : columns[0]?.label;
+
+    // 2. Identify metric/value key (totalAmount or first numeric col)
+    const numericCol = columns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
+      || columns.find(c => {
+           const val = rows[0][c.label];
+           return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^0-9.-]+/g, ''))));
+         })
+      || columns[1]
+      || columns[0];
+
+    const valueKey = numericCol ? numericCol.label : null;
+
+    if (!labelKey || !valueKey) return [];
+
+    const colors = [
+      '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#228be6',
+      '#845ef7', '#be4bdb', '#f06595', '#ff922b', '#51cf66'
+    ];
+
+    return rows.map((row, idx) => {
+      const rawVal = row[valueKey];
+      let valNum = 0;
+      if (typeof rawVal === 'number') {
+        valNum = rawVal;
+      } else if (typeof rawVal === 'string') {
+        const clean = rawVal.replace(/[R$\s.%]/g, '').replace(',', '.');
+        valNum = parseFloat(clean) || 0;
+      }
+
+      return {
+        name: String(row[labelKey] || `Item ${idx + 1}`),
+        value: valNum,
+        color: colors[idx % colors.length]
+      };
+    });
+  };
+
+  const chartData = prepareChartData();
+  const outputType = report?.outputType || 'table';
+  const chartType = report?.chartType || 'bar';
 
   return (
     <Menu>
@@ -132,56 +186,158 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
             <Text c="dimmed">Nenhum resultado encontrado para estes filtros.</Text>
           </div>
         ) : (
-          <>
-            <div className="table-container" style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-              <Table.ScrollContainer minWidth={800}>
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      {columns.map((col) => (
-                        <Table.Th key={col.field}>{col.label}</Table.Th>
-                      ))}
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {rows.map((row, index) => (
-                      <Table.Tr key={index}>
-                        {columns.map((col) => (
-                          <Table.Td key={col.field}>
-                            {row[col.label] !== null && row[col.label] !== undefined 
-                              ? String(row[col.label]) 
-                              : '-'}
-                          </Table.Td>
+          <Stack gap="lg">
+            
+            {/* Part 1: Table (rendered if outputType is table or both) */}
+            {(outputType === 'table' || outputType === 'both') && (
+              <>
+                <div className="table-container" style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+                  <Table.ScrollContainer minWidth={800}>
+                    <Table striped highlightOnHover>
+                      <Table.Thead>
+                        <Table.Tr>
+                          {columns.map((col) => (
+                            <Table.Th key={col.field}>{col.label}</Table.Th>
+                          ))}
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {rows.map((row, index) => (
+                          <Table.Tr key={index}>
+                            {columns.map((col) => (
+                              <Table.Td key={col.field}>
+                                {row[col.label] !== null && row[col.label] !== undefined 
+                                  ? String(row[col.label]) 
+                                  : '-'}
+                              </Table.Td>
+                            ))}
+                          </Table.Tr>
                         ))}
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </Table.ScrollContainer>
-            </div>
+                      </Table.Tbody>
+                    </Table>
+                  </Table.ScrollContainer>
+                </div>
 
-            {totalPages > 1 && (
-              <div className="pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '20px' }}>
-                <Button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  variant="default"
-                >
-                  ← Anterior
-                </Button>
-                <Text size="sm" className="pagination-info">
-                  Página {page} de {totalPages}
-                </Text>
-                <Button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  variant="default"
-                >
-                  Próxima →
-                </Button>
+                {totalPages > 1 && (
+                  <div className="pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '10px' }}>
+                    <Button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      variant="default"
+                      size="sm"
+                    >
+                      ← Anterior
+                    </Button>
+                    <Text size="sm" className="pagination-info">
+                      Página {page} de {totalPages}
+                    </Text>
+                    <Button
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      variant="default"
+                      size="sm"
+                    >
+                      Próxima →
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Part 2: Summary Sum Card (if sumTotal is true) */}
+            {report?.sumTotal && totalSum !== undefined && totalSum !== null && (
+              <Paper withBorder p="md" radius="md" style={{ backgroundColor: '#f5fdf8', borderLeft: '4px solid #10b981' }}>
+                <Group justify="space-between" align="center">
+                  <Stack gap={2}>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700} style={{ letterSpacing: '0.05em' }}>
+                      Resumo Financeiro (Summary)
+                    </Text>
+                    <Title order={3} style={{ color: '#0f766e', fontWeight: 700 }}>
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSum)}
+                    </Title>
+                  </Stack>
+                  <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff' }}>
+                    <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>Total Geral de Contratos</Text>
+                    <Text size="md" fw={700} style={{ textAlign: 'center', color: '#1f2937' }}>
+                      {totalCount}
+                    </Text>
+                  </Paper>
+                </Group>
+              </Paper>
+            )}
+
+            {/* Part 3: Chart (rendered if outputType is chart or both) */}
+            {(outputType === 'chart' || outputType === 'both') && (
+              <div>
+                <Paper withBorder p="lg" radius="md" style={{ backgroundColor: '#ffffff', minHeight: '380px' }}>
+                  <Text size="sm" fw={700} c="dimmed" tt="uppercase" mb="lg" style={{ letterSpacing: '0.05em' }}>
+                    Visualização Analítica do Relatório
+                  </Text>
+                  
+                  {chartData.length === 0 ? (
+                    <Center style={{ height: '300px' }}>
+                      <Text size="xs" c="dimmed" fs="italic">Não há dados suficientes ou colunas numéricas disponíveis para renderizar o gráfico.</Text>
+                    </Center>
+                  ) : (
+                    <Center style={{ width: '100%', minHeight: '320px' }}>
+                      <div style={{ width: '100%', maxWidth: '720px', display: 'flex', justifyContent: 'center' }}>
+                        {chartType === 'bar' && (
+                          <BarChart
+                            h={320}
+                            data={chartData}
+                            dataKey="name"
+                            series={[{ name: 'value', color: 'indigo.6' }]}
+                            valueFormatter={(value) => new Intl.NumberFormat('pt-BR').format(value)}
+                            style={{ width: '100%' }}
+                          />
+                        )}
+                        {chartType === 'line' && (
+                          <LineChart
+                            h={320}
+                            data={chartData}
+                            dataKey="name"
+                            series={[{ name: 'value', color: 'indigo.6' }]}
+                            curveType="monotone"
+                            valueFormatter={(value) => new Intl.NumberFormat('pt-BR').format(value)}
+                            style={{ width: '100%' }}
+                          />
+                        )}
+                        {chartType === 'area' && (
+                          <AreaChart
+                            h={320}
+                            data={chartData}
+                            dataKey="name"
+                            series={[{ name: 'value', color: 'indigo.6' }]}
+                            curveType="monotone"
+                            valueFormatter={(value) => new Intl.NumberFormat('pt-BR').format(value)}
+                            style={{ width: '100%' }}
+                          />
+                        )}
+                        {chartType === 'pie' && (
+                          <PieChart
+                            data={chartData}
+                            withTooltip
+                            tooltipDataSource="segment"
+                            size={240}
+                          />
+                        )}
+                        {chartType === 'donut' && (
+                          <DonutChart
+                            data={chartData}
+                            withTooltip
+                            tooltipDataSource="segment"
+                            size={240}
+                            thickness={25}
+                          />
+                        )}
+                      </div>
+                    </Center>
+                  )}
+                </Paper>
               </div>
             )}
-          </>
+            
+          </Stack>
         )}
       </div>
     </Menu>

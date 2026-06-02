@@ -70,6 +70,7 @@ namespace SalesApp.ReportFilters.Validators
                 config.CurrentUserAsParent.HasValue ||
                 (config.Emails?.Count > 0) ||
                 (config.Groups?.Count > 0) ||
+                (config.Teams?.Count > 0) ||
                 (config.Pvs?.Count > 0) ||
                 (config.Statuses?.Count > 0);
 
@@ -88,6 +89,9 @@ namespace SalesApp.ReportFilters.Validators
 
             if (config.Groups != null && config.Groups.Count == 0)
                 errors.Add(new("filterConfig.groups", "groups must be a non-empty array if provided."));
+
+            if (config.Teams != null && config.Teams.Count == 0)
+                errors.Add(new("filterConfig.teams", "teams must be a non-empty array if provided."));
 
             if (config.Pvs != null && config.Pvs.Count == 0)
                 errors.Add(new("filterConfig.pvs", "pvs must be a non-empty array if provided."));
