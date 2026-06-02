@@ -15,6 +15,7 @@ import ImportWizardPage from './components/ImportWizardPage';
 import AccessControlPage from './components/AccessControlPage';
 import ScrapeDashboard from './components/Scrape/ScrapeDashboard';
 import ReportsRouter from './components/Reports/ReportsRouter';
+import ViewsRouter from './components/Reports/ViewsRouter';
 import MatriculaHealthPage from './components/Monitoring/MatriculaHealthPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
@@ -50,6 +51,10 @@ function App() {
   const renderPage = () => {
     if (currentRoute.startsWith('#/reports')) {
       return <ReportsRouter currentRoute={currentRoute} />;
+    }
+
+    if (currentRoute.startsWith('#/views')) {
+      return <ViewsRouter currentRoute={currentRoute} />;
     }
 
     switch (currentRoute) {

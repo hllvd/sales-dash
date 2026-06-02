@@ -20,6 +20,8 @@ using Amazon.DynamoDBv2;
 using SalesApp.ReportFilters.Repositories;
 using SalesApp.ReportFilters.Services;
 using SalesApp.ReportFilters.Settings;
+using SalesApp.ReportViews.Repositories;
+using SalesApp.ReportViews.Services;
 
 namespace SalesApp
 {
@@ -125,6 +127,10 @@ namespace SalesApp
             // Report Filters feature
             services.AddScoped<IReportFilterRepository, DynamoDbReportFilterRepository>();
             services.AddScoped<IReportFilterService, ReportFilterService>();
+
+            // Report Views feature
+            services.AddScoped<IReportViewRepository, DynamoDbReportViewRepository>();
+            services.AddScoped<IReportViewService, ReportViewService>();
 
             // Scraping and Error Services
             services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();

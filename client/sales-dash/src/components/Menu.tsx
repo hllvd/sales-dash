@@ -17,6 +17,7 @@ import {
   IconChartBar,
   IconActivity,
   IconMedal,
+  IconLayoutDashboard,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -307,6 +308,17 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             color="red"
             styles={navLinkStyles('#/reports')}
             data-testid="nav-reports"
+            onClick={() => { if (opened) close(); }}
+          />
+          
+          <NavLink
+            href="#/views"
+            label="Dashboards"
+            leftSection={<IconLayoutDashboard size={20} />}
+            active={isActive('#/views') || currentPath.startsWith('#/views/')}
+            variant="filled"
+            color="red"
+            styles={navLinkStyles('#/views')}
             onClick={() => { if (opened) close(); }}
           />
           
