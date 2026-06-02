@@ -665,7 +665,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   onClick={() => setAdvancedOpen(!advancedOpen)}
                   rightSection={advancedOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
                   size="xs"
-                  p={0}
+                  px="md"
                 >
                   Configurações Avançadas de Filtro
                 </Button>
