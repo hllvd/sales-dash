@@ -190,7 +190,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [allowedRoles, setAllowedRoles] = useState<string[]>([]);
 
   // Date Range Configuration
-  const [dateRangePreset, setDateRangePreset] = useState<'30d' | '90d' | '12m' | 'custom'>('12m');
+  const [dateRangePreset, setDateRangePreset] = useState<'30d' | '12m' | '15m' | 'custom'>('12m');
   const [dateMode, setDateMode] = useState<'absolute' | 'relative'>('relative');
   const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
   const [relativeStartDate, setRelativeStartDate] = useState('-12M');
@@ -293,13 +293,13 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         }
 
         // Determine Preset Date Range
-        let preset: '30d' | '90d' | '12m' | 'custom' = 'custom';
+        let preset: '30d' | '12m' | '15m' | 'custom' = 'custom';
         if (fc.relativeStartDate === '-30d' && fc.relativeEndDate === 'now') {
           preset = '30d';
-        } else if (fc.relativeStartDate === '-90d' && fc.relativeEndDate === 'now') {
-          preset = '90d';
         } else if ((fc.relativeStartDate === '-12M' || fc.relativeStartDate === '-1y') && fc.relativeEndDate === 'now') {
           preset = '12m';
+        } else if (fc.relativeStartDate === '-15M' && fc.relativeEndDate === 'now') {
+          preset = '15m';
         } else if (!fc.startDate && !fc.endDate && !fc.relativeStartDate && !fc.relativeEndDate) {
           preset = 'custom';
         }
@@ -362,19 +362,19 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   }, [loadData]);
 
   // Date range preset handler
-  const handleDatePresetChange = (value: '30d' | '90d' | '12m' | 'custom') => {
+  const handleDatePresetChange = (value: '30d' | '12m' | '15m' | 'custom') => {
     setDateRangePreset(value);
     if (value === '30d') {
       setDateMode('relative');
       setRelativeStartDate('-30d');
       setRelativeEndDate('now');
-    } else if (value === '90d') {
-      setDateMode('relative');
-      setRelativeStartDate('-90d');
-      setRelativeEndDate('now');
     } else if (value === '12m') {
       setDateMode('relative');
       setRelativeStartDate('-12M');
+      setRelativeEndDate('now');
+    } else if (value === '15m') {
+      setDateMode('relative');
+      setRelativeStartDate('-15M');
       setRelativeEndDate('now');
     } else if (value === 'custom') {
       // Retain previous relative options or absolute date range defaults
@@ -822,8 +822,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   onChange={(val: any) => handleDatePresetChange(val)}
                   data={[
                     { label: 'Últimos 30 dias', value: '30d' },
-                    { label: 'Últimos 90 dias', value: '90d' },
                     { label: 'Últimos 12 meses', value: '12m' },
+                    { label: 'Últimos 15 meses', value: '15m' },
                     { label: 'Personalizado', value: 'custom' },
                   ]}
                   fullWidth
@@ -873,6 +873,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                                 { value: '-6M', label: '6 meses atrás' },
                                 { value: '-7M', label: '7 meses atrás' },
                                 { value: '-1y', label: '1 ano atrás' },
+                                { value: '-15M', label: '15 meses atrás' },
                               ]}
                               clearable
                               searchable
