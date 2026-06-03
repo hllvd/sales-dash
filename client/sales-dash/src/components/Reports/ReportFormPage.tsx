@@ -760,7 +760,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                         <MultiSelect
                           label="Equipes Permitidas"
                           placeholder="Escolha as equipes autorizadas"
-                          data={groupOptions}
+                          data={teamOptions}
                           value={allowedTeamIds}
                           onChange={setAllowedTeamIds}
                           searchable

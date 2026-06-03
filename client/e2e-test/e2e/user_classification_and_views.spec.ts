@@ -21,7 +21,7 @@ test.describe('User Classification and Views Engine E2E Tests', () => {
   });
 
   test('should manage user classification assignments and verify views execution', async ({ page }) => {
-    test.setTimeout(80000);
+    test.setTimeout(100000);
 
     // 1. Log in as superadmin
     await page.goto('/');
@@ -46,8 +46,11 @@ test.describe('User Classification and Views Engine E2E Tests', () => {
       if (await staleCard.isVisible()) {
         console.log('>>> Cleaning up stale E2E user level card');
         await staleCard.locator('button').nth(2).click();
-        await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
-        await page.waitForTimeout(800);
+        const dialog = page.getByRole('dialog');
+        await dialog.getByRole('button', { name: 'Excluir' }).click();
+        // Wait for the modal/dialog to completely disappear to prevent click interception in next loops
+        await expect(dialog).not.toBeVisible({ timeout: 8000 });
+        await page.waitForTimeout(500);
       } else {
         keepCleaningLevels = false;
       }
@@ -124,8 +127,11 @@ test.describe('User Classification and Views Engine E2E Tests', () => {
       if (await staleCard.isVisible()) {
         console.log('>>> Cleaning up stale dashboard card');
         await staleCard.locator('button').nth(2).click();
-        await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
-        await page.waitForTimeout(800);
+        const dialog = page.getByRole('dialog');
+        await dialog.getByRole('button', { name: 'Excluir' }).click();
+        // Wait for the modal/dialog to completely disappear
+        await expect(dialog).not.toBeVisible({ timeout: 8000 });
+        await page.waitForTimeout(500);
       } else {
         keepCleaningDashboards = false;
       }
