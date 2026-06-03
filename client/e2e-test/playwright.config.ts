@@ -61,23 +61,27 @@ export default defineConfig({
         'team_report_setup.spec.ts',
         'team_members_management.spec.ts',
         'classification_management.spec.ts',
-        'user_classification_and_views.spec.ts'
+        'user_classification_and_views.spec.ts',
+        'import_wizard_aliases.spec.ts',
+        'pending_contract_claims.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']
     },
-    {
-      name: 'tear-4-aliases-testing',
-      testMatch: ['import_wizard_aliases.spec.ts'],
-      use: { ...devices['Desktop Chrome'] },
-      dependencies: ['tear-3']
-    },
-    {
-      name: 'tear-5-pending-claims',
-      testMatch: ['pending_contract_claims.spec.ts'],
-      use: { ...devices['Desktop Chrome'] },
-      dependencies: ['tear-4-aliases-testing']
-    },
+    // {
+    //   name: 'tear-4-aliases-testing',
+    //   testMatch: [
+    //     'import_wizard_aliases.spec.ts',
+    //     'pending_contract_claims.spec.ts'],
+    //   use: { ...devices['Desktop Chrome'] },
+    //   dependencies: ['tear-3']
+    // },
+    // {
+    //   name: 'tear-5-pending-claims',
+    //   testMatch: ['pending_contract_claims.spec.ts'],
+    //   use: { ...devices['Desktop Chrome'] },
+    //   dependencies: ['tear-4-aliases-testing']
+    // },
 
   ],
 });
