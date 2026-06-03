@@ -62,5 +62,7 @@ namespace SalesApp.ReportFilters.Models
         public bool SumTotal { get; set; }
         public string OutputType { get; set; } = "table";
         public string ChartType { get; set; } = "bar";
+        public string? SummaryRetentionType { get; set; } = "standard";
+        public string? ChartMetric { get; set; }
     }
 }

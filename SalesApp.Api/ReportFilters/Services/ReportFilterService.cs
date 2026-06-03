@@ -213,6 +213,8 @@ namespace SalesApp.ReportFilters.Services
                 SumTotal = request.SumTotal,
                 OutputType = request.OutputType ?? "table",
                 ChartType = request.ChartType ?? "bar",
+                SummaryRetentionType = request.SummaryRetentionType ?? "standard",
+                ChartMetric = request.ChartMetric,
                 CreatedAt   = now,
                 UpdatedAt   = now
             };
@@ -256,6 +258,8 @@ namespace SalesApp.ReportFilters.Services
             filter.SumTotal = request.SumTotal;
             filter.OutputType = request.OutputType ?? "table";
             filter.ChartType = request.ChartType ?? "bar";
+            filter.SummaryRetentionType = request.SummaryRetentionType ?? "standard";
+            filter.ChartMetric = request.ChartMetric;
             filter.UpdatedAt     = DateTime.UtcNow;
 
             await _repository.UpdateAsync(filter);
@@ -294,6 +298,15 @@ namespace SalesApp.ReportFilters.Services
             var report = getResult.Data!;
             var fc = report.FilterConfig;
 
+            var resolvedStartDate = ResolveDate(fc.StartDate, fc.RelativeStartDate);
+            var resolvedEndDate = ResolveDate(fc.EndDate, fc.RelativeEndDate);
+
+            // Ensure the end date is inclusive of the entire day if it's an absolute date
+            if (fc.EndDate.HasValue && string.IsNullOrEmpty(fc.RelativeEndDate))
+            {
+                resolvedEndDate = fc.EndDate.Value.Date.AddDays(1).AddTicks(-1);
+            }
+
             // Load all teams and memberships in memory once for fast lookup
             var teamsList = await _teamRepository.GetAllAsync();
             var memberTeamMapping = teamsList
@@ -305,8 +318,7 @@ namespace SalesApp.ReportFilters.Services
                 if (c.UserInternalId == null) return "(Sem equipe)";
                 var match = memberTeamMapping.FirstOrDefault(x => 
                     x.UserInternalId == c.UserInternalId.Value &&
-                    x.StartDate <= c.SaleStartDate &&
-                    (x.EndDate == null || x.EndDate > c.SaleStartDate));
+                    TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
                 return match?.TeamName ?? "(Sem equipe)";
             };
 
@@ -315,8 +327,7 @@ namespace SalesApp.ReportFilters.Services
                 if (c.UserInternalId == null) return "(Sem chefe)";
                 var match = memberTeamMapping.FirstOrDefault(x => 
                     x.UserInternalId == c.UserInternalId.Value &&
-                    x.StartDate <= c.SaleStartDate &&
-                    (x.EndDate == null || x.EndDate > c.SaleStartDate));
+                    TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
                 return match?.TeamOwnerName ?? "(Sem chefe)";
             };
 
@@ -335,8 +346,7 @@ namespace SalesApp.ReportFilters.Services
                 if (c.UserInternalId == null) return "—";
                 var match = allClassifications.FirstOrDefault(x => 
                     x.UserInternalId == c.UserInternalId.Value &&
-                    x.StartDate <= c.SaleStartDate &&
-                    (x.EndDate == null || x.EndDate > c.SaleStartDate));
+                    TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
                 if (match != null)
                 {
                     return levelsMap.GetValueOrDefault(match.LevelId, "—");
@@ -373,14 +383,7 @@ namespace SalesApp.ReportFilters.Services
                 userIdFilter = currentUserId;
             }
 
-            var resolvedStartDate = ResolveDate(fc.StartDate, fc.RelativeStartDate);
-            var resolvedEndDate = ResolveDate(fc.EndDate, fc.RelativeEndDate);
 
-            // Ensure the end date is inclusive of the entire day if it's an absolute date
-            if (fc.EndDate.HasValue && string.IsNullOrEmpty(fc.RelativeEndDate))
-            {
-                resolvedEndDate = fc.EndDate.Value.Date.AddDays(1).AddTicks(-1);
-            }
 
             // Reuse existing GetAllAsync — same logic as /api/contracts, no duplication
             var contracts = await _contractRepository.GetAllAsync(
@@ -408,8 +411,7 @@ namespace SalesApp.ReportFilters.Services
                     if (c.UserInternalId == null) return false;
                     var match = memberTeamMapping.FirstOrDefault(x => 
                         x.UserInternalId == c.UserInternalId.Value &&
-                        x.StartDate <= c.SaleStartDate &&
-                        (x.EndDate == null || x.EndDate > c.SaleStartDate));
+                        TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
                     return match != null && fc.Teams.Contains(match.TeamId);
                 }).ToList();
             }
@@ -599,6 +601,15 @@ namespace SalesApp.ReportFilters.Services
                     ).ToList();
             }
 
+            decimal? totalSum = null;
+            decimal? overallRetention = null;
+
+            if (report.SumTotal)
+            {
+                totalSum = contracts.Sum(c => c.TotalAmount);
+                overallRetention = ReportRetentionCalculator.CalculateOverallRetention(contracts, report.SummaryRetentionType);
+            }
+
             if (report.GroupByEmail)
             {
                 // Group by user email; null email maps to a shared "(Sem usuário)" bucket
@@ -693,12 +704,6 @@ namespace SalesApp.ReportFilters.Services
                 }
             }
 
-            decimal? totalSum = null;
-            if (report.SumTotal)
-            {
-                totalSum = contracts.Sum(c => c.TotalAmount);
-            }
-
             var result = new ReportResultsResponse
             {
                 Page       = safePage,
@@ -706,6 +711,7 @@ namespace SalesApp.ReportFilters.Services
                 TotalCount = totalCount,
                 TotalPages = totalPages,
                 TotalSum   = totalSum,
+                OverallRetention = overallRetention,
                 Columns    = columns.Select(col => new OutputColumnResponse
                 {
                     Source = col.Source,
@@ -1081,6 +1087,8 @@ namespace SalesApp.ReportFilters.Services
                 SumTotal = f.SumTotal,
                 OutputType = f.OutputType ?? "table",
                 ChartType = f.ChartType ?? "bar",
+                SummaryRetentionType = f.SummaryRetentionType ?? "standard",
+                ChartMetric = f.ChartMetric,
                 FilterConfig = new FilterConfigResponse
                 {
                     Matriculas          = f.FilterConfig.Matriculas,

@@ -218,6 +218,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
   // Column Summing & Output Type
   const [sumTotal, setSumTotal] = useState(false);
+  const [summaryRetentionType, setSummaryRetentionType] = useState<'standard' | 'strict'>('standard');
+  const [chartMetric, setChartMetric] = useState<string>('');
   const [outputType, setOutputType] = useState<string>('table');
   const [chartType, setChartType] = useState<string>('bar');
 
@@ -321,6 +323,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
         // Restore Sum and Chart types
         setSumTotal(report.sumTotal || false);
+        setSummaryRetentionType(report.summaryRetentionType || 'standard');
+        setChartMetric(report.chartMetric || '');
         setOutputType(report.outputType || 'table');
         setChartType(report.chartType || 'bar');
 
@@ -515,6 +519,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       allowedTeamIds: scope === 'shared' ? allowedTeamIds.map(Number) : [],
       allowedRoles: scope === 'shared' ? allowedRoles : [],
       sumTotal,
+      summaryRetentionType: sumTotal ? summaryRetentionType : undefined,
+      chartMetric: chartMetric || undefined,
       outputType,
       chartType,
       filterConfig,
@@ -624,18 +630,31 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       
     const labelKey = groupCol ? groupCol.label : columns[0]?.label;
 
-    // 2. Identify metric/value key (totalAmount or first numeric col)
-    const numericCol = columns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
-      || columns.find(c => {
-           const val = previewData.rows[0][c.label];
-           return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^0-9.-]+/g, ''))));
-         })
-      || columns[1]
-      || columns[0];
+    // 2. Identify metric/value key (chartMetric if matched, otherwise totalAmount or first numeric col)
+    let valueKey: string | null = null;
+    if (chartMetric) {
+      const found = columns.find(c => c.label === chartMetric || c.field === chartMetric);
+      if (found) {
+        valueKey = found.label;
+      }
+    }
+    
+    if (!valueKey) {
+      const numericCol = columns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
+        || columns.find(c => {
+             const val = previewData.rows[0][c.label];
+             return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^0-9.-]+/g, ''))));
+           })
+        || columns[1]
+        || columns[0];
 
-    const valueKey = numericCol ? numericCol.label : null;
+      valueKey = numericCol ? numericCol.label : null;
+    }
 
-    if (!labelKey || !valueKey) return [];
+    const activeLabelKey = labelKey;
+    const activeValueKey = valueKey;
+
+    if (!activeLabelKey || !activeValueKey) return [];
 
     const colors = [
       '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#228be6',
@@ -643,7 +662,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     ];
 
     return previewData.rows.map((row, idx) => {
-      const rawVal = row[valueKey];
+      const rawVal = row[activeValueKey];
       let valNum = 0;
       if (typeof rawVal === 'number') {
         valNum = rawVal;
@@ -653,7 +672,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       }
 
       return {
-        name: String(row[labelKey] || `Item ${idx + 1}`),
+        name: String(row[activeLabelKey] || `Item ${idx + 1}`),
         value: valNum,
         color: colors[idx % colors.length]
       };
@@ -1055,12 +1074,27 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   Adicionar Colunas de Saída
                 </Button>
 
-                <Switch
-                  label="Somar total produzido dos contratos (Gerar Sumário)"
-                  checked={sumTotal}
-                  onChange={(e) => setSumTotal(e.currentTarget.checked)}
-                  size="sm"
-                />
+                <Stack gap="xs">
+                  <Switch
+                    label="Somar total produzido dos contratos e retenção"
+                    checked={sumTotal}
+                    onChange={(e) => setSumTotal(e.currentTarget.checked)}
+                    size="sm"
+                  />
+                  {sumTotal && (
+                    <Select
+                      label="Tipo de Retenção do Sumário"
+                      size="xs"
+                      w={300}
+                      value={summaryRetentionType}
+                      onChange={(val) => setSummaryRetentionType((val as 'standard' | 'strict') || 'standard')}
+                      data={[
+                        { value: 'standard', label: 'Retenção Padrão (Sem Inadimplência)' },
+                        { value: 'strict', label: 'Retenção Estrita (Sem Inadimplência ou Atrasos)' }
+                      ]}
+                    />
+                  )}
+                </Stack>
               </Group>
 
               {/* Column Selection Modal */}
@@ -1257,7 +1291,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
             <Text size="xs" c="dimmed" mb="md">Configure o formato visual de saída do seu relatório (Tabela, Gráfico ou Ambos).</Text>
             
             <Grid gutter="md" align="flex-end">
-              <Grid.Col span={{ base: 12, sm: 6 }}>
+              <Grid.Col span={{ base: 12, sm: 4 }}>
                 <Text size="sm" fw={500} mb="xs">Tipo de Exibição</Text>
                 <SegmentedControl
                   value={outputType}
@@ -1273,22 +1307,41 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
               </Grid.Col>
 
               {outputType !== 'table' && (
-                <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <Select
-                    label="Tipo de Gráfico"
-                    placeholder="Selecione o formato do gráfico"
-                    value={chartType}
-                    onChange={(val) => setChartType(val || 'bar')}
-                    data={[
-                      { value: 'bar', label: 'Gráfico de Barras' },
-                      { value: 'pie', label: 'Gráfico de Pizza' },
-                      { value: 'donut', label: 'Gráfico de Rosca' },
-                      { value: 'line', label: 'Gráfico de Linhas' },
-                      { value: 'area', label: 'Gráfico de Área' }
-                    ]}
-                    size="sm"
-                  />
-                </Grid.Col>
+                <>
+                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                    <Select
+                      label="Tipo de Gráfico"
+                      placeholder="Selecione o formato do gráfico"
+                      value={chartType}
+                      onChange={(val) => setChartType(val || 'bar')}
+                      data={[
+                        { value: 'bar', label: 'Gráfico de Barras' },
+                        { value: 'pie', label: 'Gráfico de Pizza' },
+                        { value: 'donut', label: 'Gráfico de Rosca' },
+                        { value: 'line', label: 'Gráfico de Linhas' },
+                        { value: 'area', label: 'Gráfico de Área' }
+                      ]}
+                      size="sm"
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                    <Select
+                      label="Métrica do Gráfico"
+                      placeholder="Métrica padrão (Automática)"
+                      value={chartMetric || ''}
+                      onChange={(val) => setChartMetric(val || '')}
+                      data={[
+                        { value: '', label: 'Automática (Primeira coluna numérica)' },
+                        ...outputColumns.map(col => ({
+                          value: col.label || col.field,
+                          label: col.label || col.field
+                        }))
+                      ]}
+                      size="sm"
+                      clearable
+                    />
+                  </Grid.Col>
+                </>
               )}
             </Grid>
           </Paper>
@@ -1431,14 +1484,26 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(previewData.totalSum)}
                           </Title>
                         </Stack>
-                        <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff' }}>
-                          <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
-                            {groupByEmail ? "Total Geral de Usuários" : groupByTeam ? "Total Geral de Equipes" : groupByClassification ? "Total Geral de Níveis" : "Total Geral de Contratos"}
-                          </Text>
-                          <Text size="md" fw={700} style={{ textAlign: 'center', color: '#1f2937' }}>
-                            {previewData.totalCount}
-                          </Text>
-                        </Paper>
+                        <Group gap="sm">
+                          {previewData.overallRetention !== undefined && previewData.overallRetention !== null && (
+                            <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px' }}>
+                              <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
+                                {summaryRetentionType === 'strict' ? "Retenção Estrita Geral" : "Retenção Geral"}
+                              </Text>
+                              <Text size="md" fw={700} style={{ textAlign: 'center', color: '#0f766e' }}>
+                                {new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(previewData.overallRetention)}
+                              </Text>
+                            </Paper>
+                          )}
+                          <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px' }}>
+                            <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
+                              {groupByEmail ? "Total Geral de Usuários" : groupByTeam ? "Total Geral de Equipes" : groupByClassification ? "Total Geral de Níveis" : "Total Geral de Contratos"}
+                            </Text>
+                            <Text size="md" fw={700} style={{ textAlign: 'center', color: '#1f2937' }}>
+                              {previewData.totalCount}
+                            </Text>
+                          </Paper>
+                        </Group>
                       </Group>
                     </Paper>
                   )}

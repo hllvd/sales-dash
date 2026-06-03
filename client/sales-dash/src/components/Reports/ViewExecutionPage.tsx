@@ -74,16 +74,30 @@ const ReportCard: React.FC<ReportCardProps> = ({ reportFilterId }) => {
       || columns[0];
     const labelKey = groupCol ? groupCol.label : columns[0]?.label;
 
-    const numericCol = columns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
-      || columns.find(c => {
-           const val = results.rows[0][c.label];
-           return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^0-9.-]+/g, ''))));
-         })
-      || columns[1]
-      || columns[0];
-    const valueKey = numericCol ? numericCol.label : null;
+    // 2. Identify metric/value key (filter.chartMetric if matched, otherwise totalAmount or first numeric col)
+    let valueKey: string | null = null;
+    if (filter?.chartMetric) {
+      const found = columns.find(c => c.label === filter.chartMetric || c.field === filter.chartMetric);
+      if (found) {
+        valueKey = found.label;
+      }
+    }
 
-    if (!labelKey || !valueKey) return [];
+    if (!valueKey) {
+      const numericCol = columns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
+        || columns.find(c => {
+             const val = results.rows[0][c.label];
+             return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^0-9.-]+/g, ''))));
+           })
+        || columns[1]
+        || columns[0];
+      valueKey = numericCol ? numericCol.label : null;
+    }
+
+    const activeLabelKey = labelKey;
+    const activeValueKey = valueKey;
+
+    if (!activeLabelKey || !activeValueKey) return [];
 
     const colors = [
       '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#228be6',
@@ -91,7 +105,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ reportFilterId }) => {
     ];
 
     return results.rows.map((row, idx) => {
-      const rawVal = row[valueKey];
+      const rawVal = row[activeValueKey];
       let valNum = 0;
       if (typeof rawVal === 'number') {
         valNum = rawVal;
@@ -100,7 +114,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ reportFilterId }) => {
         valNum = parseFloat(clean) || 0;
       }
       return {
-        name: String(row[labelKey] || `Item ${idx + 1}`),
+        name: String(row[activeLabelKey] || `Item ${idx + 1}`),
         value: valNum,
         color: colors[idx % colors.length]
       };

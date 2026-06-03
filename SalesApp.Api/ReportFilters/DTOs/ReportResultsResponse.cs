@@ -30,5 +30,6 @@ namespace SalesApp.ReportFilters.DTOs
         public List<OutputColumnResponse> Columns { get; set; } = new();
 
         public decimal? TotalSum { get; set; }
+        public decimal? OverallRetention { get; set; }
     }
 }

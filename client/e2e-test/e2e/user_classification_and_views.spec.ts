@@ -45,6 +45,31 @@ test.describe('User Classification and Views Engine E2E Tests', () => {
       const staleCard = page.locator('.cls-level-card', { hasText: 'E2E User Level Test' }).first();
       if (await staleCard.isVisible()) {
         console.log('>>> Cleaning up stale E2E user level card');
+        
+        // Open members modal
+        await staleCard.locator('button').nth(0).click();
+        const membersModal = page.locator('.mantine-Modal-content');
+        await expect(membersModal).toBeVisible({ timeout: 5000 });
+        
+        // Remove all active members
+        let hasActiveMembers = true;
+        while (hasActiveMembers) {
+          const firstMemberCard = membersModal.locator('.cls-member-card').first();
+          if (await firstMemberCard.isVisible()) {
+            console.log('>>> Removing active member from stale level...');
+            await firstMemberCard.locator('button').last().click();
+            await page.waitForTimeout(600); // wait for state refresh
+          } else {
+            hasActiveMembers = false;
+          }
+        }
+        
+        // Close members modal
+        await membersModal.locator('button.mantine-Modal-close').click();
+        await expect(membersModal).not.toBeVisible();
+        await page.waitForTimeout(500);
+
+        // Delete the level
         await staleCard.locator('button').nth(2).click();
         const dialog = page.getByRole('dialog');
         await dialog.getByRole('button', { name: 'Excluir' }).click();

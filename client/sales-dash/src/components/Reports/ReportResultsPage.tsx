@@ -31,6 +31,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalSum, setTotalSum] = useState<number | undefined>(undefined);
+  const [overallRetention, setOverallRetention] = useState<number | undefined>(undefined);
   const pageSize = 25; // Replicating pagination size
 
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
@@ -55,6 +56,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
       setTotalPages(resultsData.totalPages);
       setTotalCount(resultsData.totalCount);
       setTotalSum(resultsData.totalSum);
+      setOverallRetention(resultsData.overallRetention);
     } catch (err: any) {
       notifications.show({ title: 'Erro', message: err.message || 'Falha ao carregar resultados do relatório', color: 'red' });
     } finally {
@@ -94,18 +96,31 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
       
     const labelKey = groupCol ? groupCol.label : columns[0]?.label;
 
-    // 2. Identify metric/value key (totalAmount or first numeric col)
-    const numericCol = columns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
-      || columns.find(c => {
-           const val = rows[0][c.label];
-           return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^0-9.-]+/g, ''))));
-         })
-      || columns[1]
-      || columns[0];
+    // 2. Identify metric/value key (report.chartMetric if matched, otherwise totalAmount or first numeric col)
+    let valueKey: string | null = null;
+    if (report?.chartMetric) {
+      const found = columns.find(c => c.label === report.chartMetric || c.field === report.chartMetric);
+      if (found) {
+        valueKey = found.label;
+      }
+    }
+    
+    if (!valueKey) {
+      const numericCol = columns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
+        || columns.find(c => {
+             const val = rows[0][c.label];
+             return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^0-9.-]+/g, ''))));
+           })
+        || columns[1]
+        || columns[0];
 
-    const valueKey = numericCol ? numericCol.label : null;
+      valueKey = numericCol ? numericCol.label : null;
+    }
 
-    if (!labelKey || !valueKey) return [];
+    const activeLabelKey = labelKey;
+    const activeValueKey = valueKey;
+
+    if (!activeLabelKey || !activeValueKey) return [];
 
     const colors = [
       '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#228be6',
@@ -113,7 +128,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
     ];
 
     return rows.map((row, idx) => {
-      const rawVal = row[valueKey];
+      const rawVal = row[activeValueKey];
       let valNum = 0;
       if (typeof rawVal === 'number') {
         valNum = rawVal;
@@ -123,7 +138,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
       }
 
       return {
-        name: String(row[labelKey] || `Item ${idx + 1}`),
+        name: String(row[activeLabelKey] || `Item ${idx + 1}`),
         value: valNum,
         color: colors[idx % colors.length]
       };
@@ -250,20 +265,32 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                 <Group justify="space-between" align="center">
                   <Stack gap={2}>
                     <Text size="xs" c="dimmed" tt="uppercase" fw={700} style={{ letterSpacing: '0.05em' }}>
-                      Resumo Financeiro (Summary)
+                      Resumo do Relatório (Summary)
                     </Text>
                     <Title order={3} style={{ color: '#0f766e', fontWeight: 700 }}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSum)}
                     </Title>
                   </Stack>
-                  <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff' }}>
-                    <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
-                      {report?.groupByEmail ? "Total Geral de Usuários" : report?.groupByTeam ? "Total Geral de Equipes" : report?.groupByClassification ? "Total Geral de Níveis" : "Total Geral de Contratos"}
-                    </Text>
-                    <Text size="md" fw={700} style={{ textAlign: 'center', color: '#1f2937' }}>
-                      {totalCount}
-                    </Text>
-                  </Paper>
+                  <Group gap="sm">
+                    {overallRetention !== undefined && overallRetention !== null && (
+                      <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px' }}>
+                        <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
+                          {report?.summaryRetentionType === 'strict' ? "Retenção Estrita Geral" : "Retenção Geral"}
+                        </Text>
+                        <Text size="md" fw={700} style={{ textAlign: 'center', color: '#0f766e' }}>
+                          {new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(overallRetention)}
+                        </Text>
+                      </Paper>
+                    )}
+                    <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px' }}>
+                      <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
+                        {report?.groupByEmail ? "Total Geral de Usuários" : report?.groupByTeam ? "Total Geral de Equipes" : report?.groupByClassification ? "Total Geral de Níveis" : "Total Geral de Contratos"}
+                      </Text>
+                      <Text size="md" fw={700} style={{ textAlign: 'center', color: '#1f2937' }}>
+                        {totalCount}
+                      </Text>
+                    </Paper>
+                  </Group>
                 </Group>
               </Paper>
             )}

@@ -250,7 +250,9 @@ namespace SalesApp.ReportFilters.Repositories
                 { "updatedAt",     new AttributeValue { S = f.UpdatedAt.ToString("O") } },
                 { "sumTotal",      new AttributeValue { BOOL = f.SumTotal } },
                 { "outputType",    new AttributeValue { S = f.OutputType ?? "table" } },
-                { "chartType",     new AttributeValue { S = f.ChartType ?? "bar" } }
+                { "chartType",     new AttributeValue { S = f.ChartType ?? "bar" } },
+                { "summaryRetentionType", new AttributeValue { S = f.SummaryRetentionType ?? "standard" } },
+                { "chartMetric",   new AttributeValue { S = f.ChartMetric ?? "" } }
             };
 
             if (f.AllowedTeamIds != null)
@@ -291,6 +293,8 @@ namespace SalesApp.ReportFilters.Repositories
                 SumTotal  = item.GetValueOrDefault("sumTotal")?.BOOL ?? false,
                 OutputType = item.GetValueOrDefault("outputType")?.S ?? "table",
                 ChartType = item.GetValueOrDefault("chartType")?.S ?? "bar",
+                SummaryRetentionType = item.GetValueOrDefault("summaryRetentionType")?.S ?? "standard",
+                ChartMetric = item.GetValueOrDefault("chartMetric")?.S,
                 AllowedTeamIds = item.ContainsKey("allowedTeamIds") 
                     ? JsonConvert.DeserializeObject<List<int>>(item["allowedTeamIds"].S) 
                     : new List<int>(),

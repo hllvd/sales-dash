@@ -48,6 +48,8 @@ export interface ReportFilter {
   sumTotal?: boolean;
   outputType?: string;
   chartType?: string;
+  summaryRetentionType?: 'standard' | 'strict';
+  chartMetric?: string;
 }
 
 export interface CreateReportFilterRequest {
@@ -67,6 +69,8 @@ export interface CreateReportFilterRequest {
   sumTotal?: boolean;
   outputType?: string;
   chartType?: string;
+  summaryRetentionType?: 'standard' | 'strict';
+  chartMetric?: string;
 }
 
 export interface UpdateReportFilterRequest {
@@ -86,6 +90,8 @@ export interface UpdateReportFilterRequest {
   sumTotal?: boolean;
   outputType?: string;
   chartType?: string;
+  summaryRetentionType?: 'standard' | 'strict';
+  chartMetric?: string;
 }
 
 export interface SourceColumns {
@@ -105,6 +111,7 @@ export interface ReportResultsResponse {
   columns: OutputColumn[];
   rows: Record<string, any>[];
   totalSum?: number;
+  overallRetention?: number;
 }
 
 

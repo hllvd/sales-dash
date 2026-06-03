@@ -26,6 +26,8 @@ namespace SalesApp.ReportFilters.DTOs
         public bool SumTotal { get; set; }
         public string OutputType { get; set; } = "table";
         public string ChartType { get; set; } = "bar";
+        public string? SummaryRetentionType { get; set; }
+        public string? ChartMetric { get; set; }
     }
 
     public class FilterConfigResponse
