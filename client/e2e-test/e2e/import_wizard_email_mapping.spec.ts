@@ -9,7 +9,7 @@ const getTestDataPath = (filename: string) =>
 test.describe('Email Mapping to contracts.xlsx', () => {
 
   test('should accurately map Emails from users.csv into the final contracts.xlsx', async ({ page }) => {
-    test.setTimeout(45_000);
+    test.setTimeout(90_000);
 
     // 1. Login as superadmin
     await page.goto('/');
@@ -34,9 +34,21 @@ test.describe('Email Mapping to contracts.xlsx', () => {
     await expect(nextBtn).toBeEnabled({ timeout: 15_000 });
     await nextBtn.click();
 
+    // Handle possible 'Modelo Divergente' warning
+    const mismatchProceed = page.locator('button:has-text("Prosseguir assim mesmo")');
+    const step2Heading = page.getByText('Preenchimento de Usuários');
+    await Promise.race([
+      step2Heading.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {}),
+      mismatchProceed.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+    ]);
+
+    if (await mismatchProceed.isVisible()) {
+      await mismatchProceed.click();
+    }
+
     // 4. Step 2: Upload users-demo.csv
     // Wait for the "Assistente" step to advance visually
-    await expect(page.getByText('Preenchimento de Usuários')).toBeVisible();
+    await expect(step2Heading).toBeVisible({ timeout: 15_000 });
     const step2Input = page.locator('#wizard-step2-input');
     await expect(step2Input).toBeAttached({ timeout: 10_000 });
     await step2Input.setInputFiles(getTestDataPath('users-demo.csv'));

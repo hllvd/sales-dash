@@ -27,9 +27,9 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
 
     // Search and select User
     await page.fill('input[placeholder="Digite para buscar um usuário"]', targetUserEmail);
-    // Wait for the 3s debounce + API call
-    await page.waitForTimeout(4000);
-    await page.click(`div[role="option"]:has-text("${targetUserEmail}")`);
+    const option = page.locator('[role="option"]').filter({ hasText: targetUserEmail });
+    await expect(option).toBeVisible({ timeout: 10000 });
+    await option.click();
 
     await page.fill('input[placeholder="Ex: MAT-001"]', initialMatricula);
     await page.click('button:has-text("Criar Matrícula")');
@@ -57,7 +57,7 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
     // Change status to Pending (or Active if it was something else)
     const statusSelect = page.locator('label:has-text("Status")').locator('..').locator('.mantine-Select-input');
     await statusSelect.click();
-    await page.click('div[role="option"]:has-text("Pendente")');
+    await page.locator('[role="option"]').filter({ hasText: 'Pendente' }).click();
 
     await page.click('button:has-text("Salvar Alterações")');
 

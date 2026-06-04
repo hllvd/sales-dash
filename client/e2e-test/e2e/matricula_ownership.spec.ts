@@ -28,9 +28,9 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
 
     // Search and select User 1
     await page.fill('input[placeholder="Digite para buscar um usuário"]', user1);
-    // Wait for the 3s debounce + API call
-    await page.waitForTimeout(4000);
-    await page.click(`div[role="option"]:has-text("${user1}")`);
+    const option1 = page.locator('[role="option"]').filter({ hasText: user1 });
+    await expect(option1).toBeVisible({ timeout: 10000 });
+    await option1.click();
 
     await page.fill('input[placeholder="Ex: MAT-001"]', testMatricula);
 
@@ -54,9 +54,9 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
 
     // Search and select User 2
     await page.fill('input[placeholder="Digite para buscar um usuário"]', user2);
-    await page.waitForTimeout(6000);
-    await page.click(`div[role="option"]:has-text("${user2}")`);
-    await page.waitForTimeout(6000);
+    const option2 = page.locator('[role="option"]').filter({ hasText: user2 });
+    await expect(option2).toBeVisible({ timeout: 10000 });
+    await option2.click();
     await page.fill('input[placeholder="Ex: MAT-001"]', testMatricula);
 
     // Try to mark as Owner again
