@@ -10,5 +10,17 @@ namespace SalesApp.Services
         Task<int> GetLevelAsync(Guid userId);
         Task<User?> GetRootUserAsync();
         Task<string?> ValidateHierarchyChangeAsync(Guid userId, Guid? newParentId);
+
+        /// <summary>
+        /// Returns the set of GUIDs for the given user and ALL their descendants
+        /// (BFS traversal of the ParentUserId hierarchy). Only includes active users.
+        /// </summary>
+        Task<HashSet<Guid>> GetDescendantIdsAsync(Guid userId);
+
+        /// <summary>
+        /// Returns the set of InternalIds for the given user and ALL their descendants
+        /// (BFS traversal of the ParentUserId hierarchy). Only includes active users.
+        /// </summary>
+        Task<HashSet<int>> GetDescendantInternalIdsAsync(Guid userId);
     }
 }

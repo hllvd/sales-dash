@@ -202,7 +202,9 @@ namespace SalesApp.Services
                     job.Filters.ShowUnassigned,
                     job.Filters.Matricula,
                     job.Filters.UserEmail,
-                    job.Scope);
+                    job.Scope,
+                    job.Filters.TeamIds,
+                    job.Filters.UserIds);
 
                 job.TotalRows = contracts.Count;
 

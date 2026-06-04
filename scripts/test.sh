@@ -53,6 +53,17 @@ print_header() {
 summarize_log() {
   local LOG_FILE=$1
   local ERROR_FILE=$2
+  local EXIT_CODE=${3:-0}
+
+  if [ "$EXIT_CODE" -eq 0 ]; then
+    echo ""
+    echo "Summary:"
+    echo "- Full log: $LOG_FILE"
+    echo "✅ No final failures (any logged warnings/retries were resolved)"
+    echo ""
+    printf "" > "$ERROR_FILE"
+    return 0
+  fi
 
   local CLEANED
   CLEANED=$(sed 's/\x1b\[[0-9;]*[A-Za-z]//g' "$LOG_FILE" \
@@ -137,7 +148,8 @@ build() {
 
   summarize_log \
     artifacts/full-build.log \
-    artifacts/build-errors.log
+    artifacts/build-errors.log \
+    $EXIT_CODE
 
   if [ "$EXIT_CODE" -ne 0 ]; then
     echo ""
@@ -188,7 +200,8 @@ integration() {
 
   summarize_log \
     artifacts/full-integration.log \
-    artifacts/integration-errors.log
+    artifacts/integration-errors.log \
+    $EXIT_CODE
 
   if [ "$EXIT_CODE" -ne 0 ]; then
     echo ""
@@ -224,7 +237,8 @@ e2e() {
 
   summarize_log \
     artifacts/full-e2e.log \
-    artifacts/e2e-errors.log
+    artifacts/e2e-errors.log \
+    $EXIT_CODE
 
   if [ "$EXIT_CODE" -ne 0 ]; then
     echo ""
@@ -258,7 +272,8 @@ build_client() {
 
   summarize_log \
     artifacts/full-build.log \
-    artifacts/build-errors.log
+    artifacts/build-errors.log \
+    $EXIT_CODE
 
   if [ "$EXIT_CODE" -ne 0 ]; then
     echo ""

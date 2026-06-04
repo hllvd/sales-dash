@@ -28,12 +28,13 @@ test.describe('[TEAR 3] Contract Export Verification', () => {
     // Increase timeout for users to load and ensure we're looking at the right element
     // await page.waitForSelector('#filterUser option:not([value=""])', { timeout: 15000 });
 
-    // Select Rodrigo Rosin using Mantine's SearchableDropdown component
-    await page.locator('#filterUser').click();
-    await page.locator('#filterUser').fill('Rodrigo Rosin');
+    // Select Rodrigo Rosin using Mantine's MultiSelect component
+    const userFilterInput = page.locator('input[placeholder="Selecionar usuários..."], input[placeholder="Nenhum usuário disponível"]').first();
+    await userFilterInput.click();
+    await userFilterInput.fill('Rodrigo Rosin');
     
     // Wait for the option to appear and click it
-    const rodrigoOption = page.locator('[role="option"]', { hasText: 'Rodrigo Rosin' });
+    const rodrigoOption = page.getByRole('option', { name: 'Rodrigo Rosin', exact: false });
     await rodrigoOption.waitFor({ state: 'visible', timeout: 5000 });
     await rodrigoOption.click();
 

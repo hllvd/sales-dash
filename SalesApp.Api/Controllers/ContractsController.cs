@@ -128,10 +128,12 @@ namespace SalesApp.Controllers
             [FromQuery] string? contractNumber = null,
             [FromQuery] bool? showUnassigned = null,
             [FromQuery] string? matricula = null,
-            [FromQuery] string? userEmail = null)
+            [FromQuery] string? userEmail = null,
+            [FromQuery] List<int>? teamIds = null,
+            [FromQuery] List<Guid>? userIds = null)
         {
             var scope = await _userScopeService.GetContractScopeAsync(User);
-            var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope);
+            var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds);
             
             var contractResponses = contracts.Select(MapToContractResponse).ToList();
             

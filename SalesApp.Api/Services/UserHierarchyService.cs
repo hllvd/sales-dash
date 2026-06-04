@@ -65,5 +65,62 @@ namespace SalesApp.Services
             
             return null; // Valid
         }
+
+        /// <inheritdoc />
+        public async Task<HashSet<Guid>> GetDescendantIdsAsync(Guid userId)
+        {
+            var allLinks = await _userRepository.GetAllHierarchyLinksAsync();
+            return BuildDescendantIds(userId, allLinks);
+        }
+
+        /// <inheritdoc />
+        public async Task<HashSet<int>> GetDescendantInternalIdsAsync(Guid userId)
+        {
+            // Optimized: fetch only the minimal projection needed for BFS — no full User entities.
+            var allLinks = await _userRepository.GetAllHierarchyLinksAsync();
+            var descendants = BuildDescendantIds(userId, allLinks);
+            var internalIdMap = allLinks.ToDictionary(l => l.Id, l => l.InternalId);
+
+            return descendants
+                .Where(id => internalIdMap.ContainsKey(id))
+                .Select(id => internalIdMap[id])
+                .ToHashSet();
+        }
+
+        private HashSet<Guid> BuildDescendantIds(Guid userId, List<UserHierarchyLink> allLinks)
+        {
+            // Build children map: parentId -> [childIds]
+            var childrenMap = new Dictionary<Guid, List<Guid>>();
+
+            foreach (var link in allLinks)
+            {
+                if (link.ParentUserId.HasValue)
+                {
+                    if (!childrenMap.ContainsKey(link.ParentUserId.Value))
+                        childrenMap[link.ParentUserId.Value] = new List<Guid>();
+                    childrenMap[link.ParentUserId.Value].Add(link.Id);
+                }
+            }
+
+            // BFS from userId — includes the user themselves
+            var descendants = new HashSet<Guid> { userId };
+            var queue = new Queue<Guid>();
+            queue.Enqueue(userId);
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if (childrenMap.TryGetValue(current, out var children))
+                {
+                    foreach (var childId in children)
+                    {
+                        if (descendants.Add(childId))
+                            queue.Enqueue(childId);
+                    }
+                }
+            }
+
+            return descendants;
+        }
     }
 }

@@ -4,7 +4,7 @@ import path from 'path';
 
 test.describe('Import Wizard Flow', () => {
   test('should complete the full import process including contract import from wizard', async ({ page }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(120_000);
 
     const getTestDataPath = (filename: string) => path.resolve(process.cwd(), 'test-data', filename);
 

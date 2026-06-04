@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Title, Button, Table, ActionIcon, Group, Text } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Text, MultiSelect } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
 import './ContractsPage.css';
 import Menu from './Menu';
@@ -10,16 +10,14 @@ import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
 import Pagination from './Pagination';
 import ContractStatusBadge from '../shared/ContractStatusBadge';
-import SearchableDropdown from '../shared/SearchableDropdown';
 import ExportButton from '../shared/ExportButton';
 import ExportProgressIndicator from '../shared/ExportProgressIndicator';
-import { apiService } from '../services/apiService';
+import { apiService, Team } from '../services/apiService';
 import { useContractsContext } from '../contexts/ContractsContext';
 import { toast } from '../utils/toast';
 import {
   Contract,
   User,
-  Group as ContractGroup,
   ContractAggregation,
   getContracts,
   deleteContract,
@@ -33,7 +31,7 @@ const ContractsPage: React.FC = () => {
   
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [groups, setGroups] = useState<ContractGroup[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -49,20 +47,18 @@ const ContractsPage: React.FC = () => {
 
   // Filters
   const [isInitializing, setIsInitializing] = useState(true);
-  const [filterUserId, setFilterUserId] = useState('');
-  const [debouncedUserId, setDebouncedUserId] = useState('');
-  const [filterGroupId, setFilterGroupId] = useState('');
-  const [debouncedGroupId, setDebouncedGroupId] = useState('');
+  const [filterUserIds, setFilterUserIds] = useState<string[]>([]); // stored as string[] for Mantine MultiSelect
+  const [debouncedUserIds, setDebouncedUserIds] = useState<string[]>([]);
   const [filterStartDate, setFilterStartDate] = useState('');
   const [debouncedStartDate, setDebouncedStartDate] = useState('');
   const [filterContractNumber, setFilterContractNumber] = useState('');
   const [debouncedContractNumber, setDebouncedContractNumber] = useState('');
-  const [filterUserEmail, setFilterUserEmail] = useState('');
-  const [debouncedUserEmail, setDebouncedUserEmail] = useState('');
   const [filterShowUnassigned, setFilterShowUnassigned] = useState<string>('all');
   const [debouncedShowUnassigned, setDebouncedShowUnassigned] = useState<string>('all');
   const [filterMatricula, setFilterMatricula] = useState('');
   const [debouncedMatricula, setDebouncedMatricula] = useState('');
+  const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]); // stored as string[] for Mantine MultiSelect
+  const [debouncedTeamIds, setDebouncedTeamIds] = useState<string[]>([]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,9 +69,13 @@ const ContractsPage: React.FC = () => {
 
   const loadFilters = useCallback(async () => {
     try {
-      const [usersData, groupsData] = await Promise.all([getUsers(), getGroups()]);
+      const [usersData, groupsData, teamsResponse] = await Promise.all([
+        getUsers(true),
+        getGroups(),
+        apiService.getTeams(),
+      ]);
       setUsers(usersData);
-      setGroups(groupsData);
+      setTeams(teamsResponse.data ?? []);
       // Cache the data in context for use by ContractForm
       setCachedUsers(usersData);
       setCachedGroups(groupsData);
@@ -91,14 +91,16 @@ const ContractsPage: React.FC = () => {
 
     try {
       const { contracts: data, aggregation: aggData } = await getContracts(
-        debouncedUserId || undefined,
-        debouncedGroupId ? parseInt(debouncedGroupId) : undefined,
+        undefined, // userId
+        undefined, // groupId
         debouncedStartDate || undefined,
         undefined, // Removed endDate
         debouncedContractNumber || undefined,
         debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
         debouncedMatricula || undefined,
-        debouncedUserEmail || undefined
+        undefined, // userEmail
+        debouncedTeamIds.length > 0 ? debouncedTeamIds.map(id => parseInt(id)) : undefined,
+        debouncedUserIds.length > 0 ? debouncedUserIds : undefined
       );
       setContracts(data);
       setAggregation(aggData || null);
@@ -111,7 +113,7 @@ const ContractsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedUserEmail, setCachedContracts]);
+  }, [debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds, debouncedUserIds, setCachedContracts]);
 
   // Load saved filters from localStorage
   useEffect(() => {
@@ -127,17 +129,16 @@ const ContractsPage: React.FC = () => {
   // Debounce all filters
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedUserId(filterUserId);
-      setDebouncedGroupId(filterGroupId);
+      setDebouncedUserIds(filterUserIds);
       setDebouncedStartDate(filterStartDate);
       setDebouncedContractNumber(filterContractNumber);
       setDebouncedShowUnassigned(filterShowUnassigned);
       setDebouncedMatricula(filterMatricula);
-      setDebouncedUserEmail(filterUserEmail);
+      setDebouncedTeamIds(filterTeamIds);
     }, 3000); // 3-second debounce for all fields
 
     return () => clearTimeout(timer);
-  }, [filterUserId, filterGroupId, filterStartDate, filterContractNumber, filterShowUnassigned, filterMatricula, filterUserEmail]);
+  }, [filterUserIds, filterStartDate, filterContractNumber, filterShowUnassigned, filterMatricula, filterTeamIds]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -147,7 +148,7 @@ const ContractsPage: React.FC = () => {
   // Reset to page 1 when filters change (using debounced values to avoid flickering)
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedUserId, debouncedGroupId, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedUserEmail]);
+  }, [debouncedUserIds, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds]);
 
   // Calculate pagination
   const totalPages = Math.ceil(contracts.length / pageSize);
@@ -221,13 +222,12 @@ const ContractsPage: React.FC = () => {
                   setIsExporting(true);
                   try {
                     const job = await apiService.startContractExport({
-                      userId: debouncedUserId || undefined,
-                      groupId: debouncedGroupId ? parseInt(debouncedGroupId) : undefined,
                       startDate: debouncedStartDate || undefined,
                       contractNumber: debouncedContractNumber || undefined,
-                      userEmail: debouncedUserEmail || undefined,
                       showUnassigned: debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
                       matricula: debouncedMatricula || undefined,
+                      teamIds: debouncedTeamIds.length > 0 ? debouncedTeamIds.map(id => parseInt(id)) : undefined,
+                      userIds: debouncedUserIds.length > 0 ? debouncedUserIds : undefined,
                     });
                     setExportJobId(job.jobId);
                   } catch (e: any) {
@@ -259,27 +259,16 @@ const ContractsPage: React.FC = () => {
 
           <div className="contracts-filters">
         <div className="filter-group">
-          <label htmlFor="filterUser">Usuário</label>
-          <SearchableDropdown
-            id="filterUser"
-            placeholder="Buscar por usuário..."
-            value={filterUserId}
-            onChange={(val) => setFilterUserId(val || '')}
-            data={users.map((user) => ({ value: user.id, label: user.name }))}
-            className="searchable-dropdown"
-          />
-        </div>
-
-        <div className="filter-group">
-          <label htmlFor="filterUserEmail">Email</label>
-          <SearchableDropdown
-            id="filterUserEmail"
-            placeholder="Buscar por email..."
-            value={filterUserEmail}
-            onChange={(val) => setFilterUserEmail(val || '')}
-            data={Array.from(new Set(users.filter(u => u.email).map(u => u.email)))
-              .map(email => ({ value: email, label: email }))}
-            className="searchable-dropdown"
+          <label htmlFor="filterUsers">Usuários</label>
+          <MultiSelect
+            id="filterUsers"
+            placeholder={users.length === 0 ? 'Nenhum usuário disponível' : 'Selecionar usuários...'}
+            value={filterUserIds}
+            onChange={setFilterUserIds}
+            data={users.map(u => ({ value: u.id, label: u.email ? `${u.name} (${u.email})` : u.name }))}
+            clearable
+            searchable
+            styles={{ input: { minHeight: '36px' } }}
           />
         </div>
 
@@ -297,19 +286,17 @@ const ContractsPage: React.FC = () => {
         </div>
 
         <div className="filter-group">
-          <label htmlFor="filterGroup">Grupo</label>
-          <select
-            id="filterGroup"
-            value={filterGroupId}
-            onChange={(e) => setFilterGroupId(e.target.value)}
-          >
-            <option value="">Todos</option>
-            {groups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
+          <label htmlFor="filterTeam">Time</label>
+          <MultiSelect
+            id="filterTeam"
+            placeholder={teams.length === 0 ? 'Nenhum time disponível' : 'Selecionar times...'}
+            value={filterTeamIds}
+            onChange={setFilterTeamIds}
+            data={teams.map(t => ({ value: String(t.id), label: t.name }))}
+            clearable
+            searchable
+            styles={{ input: { minHeight: '36px' } }}
+          />
         </div>
 
         <div className="filter-group">
@@ -353,16 +340,12 @@ const ContractsPage: React.FC = () => {
         </div>
 
 
-        {(filterUserId || filterUserEmail || filterGroupId || filterStartDate || filterContractNumber || filterMatricula || filterShowUnassigned !== 'all') && (
+        {(filterUserIds.length > 0 || filterStartDate || filterContractNumber || filterMatricula || filterShowUnassigned !== 'all' || filterTeamIds.length > 0) && (
           <button
             className="clear-filters-btn"
             onClick={() => {
-              setFilterUserId('');
-              setDebouncedUserId('');
-              setFilterUserEmail('');
-              setDebouncedUserEmail('');
-              setFilterGroupId('');
-              setDebouncedGroupId('');
+              setFilterUserIds([]);
+              setDebouncedUserIds([]);
               setFilterStartDate('');
               setDebouncedStartDate('');
               setFilterContractNumber('');
@@ -371,6 +354,8 @@ const ContractsPage: React.FC = () => {
               setDebouncedMatricula('');
               setFilterShowUnassigned('all');
               setDebouncedShowUnassigned('all');
+              setFilterTeamIds([]);
+              setDebouncedTeamIds([]);
               localStorage.removeItem('contracts_filterStartDate');
             }}
           >

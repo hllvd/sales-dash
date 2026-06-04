@@ -21,6 +21,7 @@ namespace SalesApp.Tests
         private readonly Mock<ITeamRepository> _mockTeamRepository;
         private readonly Mock<IUserRepository> _mockUserRepository;
         private readonly Mock<IMessageService> _mockMessageService;
+        private readonly Mock<IUserHierarchyService> _mockHierarchyService;
         private readonly TeamsController _controller;
 
         public TeamsControllerTests()
@@ -28,11 +29,13 @@ namespace SalesApp.Tests
             _mockTeamRepository = new Mock<ITeamRepository>();
             _mockUserRepository = new Mock<IUserRepository>();
             _mockMessageService = new Mock<IMessageService>();
+            _mockHierarchyService = new Mock<IUserHierarchyService>();
 
             _controller = new TeamsController(
                 _mockTeamRepository.Object,
                 _mockUserRepository.Object,
-                _mockMessageService.Object
+                _mockMessageService.Object,
+                _mockHierarchyService.Object
             );
 
             // Mock message service basic formatting

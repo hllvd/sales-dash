@@ -7,7 +7,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   // Use multiple workers to speed up independent tests
-  workers: process.env.CI ? 2 : undefined,
+  workers: 2,
   reporter: 'html',
   use: {
     baseURL: 'http://localhost',
@@ -55,6 +55,8 @@ export default defineConfig({
         'hierarchy_sibling_isolation.spec.ts',
         'hierarchy_deep_visibility.spec.ts',
         'contracts_filtering.spec.ts',
+        'contracts_team_filter.spec.ts',
+        'contracts_users_filter.spec.ts',
         'contract_export.spec.ts',
         'matricula_health_monitoring.spec.ts',
         'teams_hierarchy_visibility.spec.ts',

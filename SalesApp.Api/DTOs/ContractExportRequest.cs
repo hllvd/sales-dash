@@ -10,5 +10,7 @@ namespace SalesApp.DTOs
         public bool? ShowUnassigned { get; set; }
         public string? Matricula { get; set; }
         public string? UserEmail { get; set; }
+        public List<int>? TeamIds { get; set; }
+        public List<Guid>? UserIds { get; set; }
     }
 }

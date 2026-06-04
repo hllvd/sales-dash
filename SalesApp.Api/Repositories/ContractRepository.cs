@@ -53,7 +53,7 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
         
-        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null, UserScopeContext? scope = null)
+        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -111,6 +111,26 @@ namespace SalesApp.Repositories
                     (c.Matricula != null && c.Matricula.MatriculaNumber.ToLower().Contains(normalizedMatricula)) ||
                     (!string.IsNullOrEmpty(c.TempMatricula) && c.TempMatricula.ToLower().Contains(normalizedMatricula))
                 );
+            }
+
+            // Filter by team membership: resolve active members of selected teams, then filter contracts
+            if (teamIds != null && teamIds.Count > 0)
+            {
+                var now = DateTime.UtcNow;
+                var memberInternalIds = await _context.UserTeams
+                    .AsNoTracking()
+                    .Where(ut => teamIds.Contains(ut.TeamId)
+                              && (ut.EndDate == null || ut.EndDate > now))
+                    .Select(ut => ut.UserInternalId)
+                    .Distinct()
+                    .ToListAsync();
+
+                query = query.Where(c => c.UserInternalId != null && memberInternalIds.Contains(c.UserInternalId.Value));
+            }
+
+            if (userIds != null && userIds.Count > 0)
+            {
+                query = query.Where(c => c.User != null && userIds.Contains(c.User.Id));
             }
             
             return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();

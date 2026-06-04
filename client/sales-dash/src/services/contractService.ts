@@ -171,7 +171,9 @@ export const getContracts = async (
   contractNumber?: string,
   showUnassigned?: boolean,
   matricula?: string,
-  userEmail?: string
+  userEmail?: string,
+  teamIds?: number[],
+  userIds?: string[]
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
@@ -182,6 +184,9 @@ export const getContracts = async (
   if (showUnassigned !== undefined) params.append('showUnassigned', showUnassigned.toString());
   if (matricula) params.append('matricula', matricula);
   if (userEmail) params.append('userEmail', userEmail);
+  // ASP.NET Core binds repeated keys as a List<int>
+  if (teamIds && teamIds.length > 0) teamIds.forEach(id => params.append('teamIds', id.toString()));
+  if (userIds && userIds.length > 0) userIds.forEach(id => params.append('userIds', id));
 
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts${queryString ? `?${queryString}` : ''}`;
@@ -285,8 +290,12 @@ export const deleteContract = async (id: number): Promise<void> => {
 };
 
 // Helper functions to fetch users and groups for dropdowns
-export const getUsers = async (): Promise<User[]> => {
-  const response = await authenticatedFetch(`${API_BASE_URL}/users?page=1&pageSize=1000`, {
+export const getUsers = async (scopeToDescendants?: boolean): Promise<User[]> => {
+  const params = new URLSearchParams({ page: '1', pageSize: '1000' });
+  if (scopeToDescendants) {
+    params.append('scopeToDescendants', 'true');
+  }
+  const response = await authenticatedFetch(`${API_BASE_URL}/users?${params.toString()}`, {
     method: 'GET',
     headers: getAuthHeaders(),
   });

@@ -18,18 +18,21 @@ test.describe('Contracts Filtering', () => {
     // Wait for the initial users and contracts load
     //await page.waitForResponse(response => response.url().includes('/users?page=1') && response.status() === 200);
 
-    // 3. Filter by User Email
-    // Click on the mantine select input for Email
-    await page.locator('input[placeholder="Buscar por email..."]').click();
-    await page.locator('input[placeholder="Buscar por email..."]').fill('superadmin@salesapp.com');
+    // 3. Filter by User
+    const userFilterInput = page.locator('input[placeholder="Selecionar usuários..."], input[placeholder="Nenhum usuário disponível"]').first();
+    await userFilterInput.click();
+    await userFilterInput.fill('superadmin@salesapp.com');
     // Click the autocomplete option
-    await page.getByRole('option', { name: 'superadmin@salesapp.com' }).click();
+    await page.getByRole('option', { name: 'Super Admin', exact: false }).click();
+
+    // Close the dropdown to avoid overlapping and click interception
+    await page.keyboard.press('Escape');
 
     // The frontend debounces by 3 seconds, so we wait for the /api/contracts request with strict query param mapping
     const emailRequestPromise = page.waitForRequest(request =>
       request.url().includes('/api/contracts') &&
       !request.url().includes('/user/') && // specifically not for user contracts endpoint
-      request.url().includes('userEmail=superadmin%40salesapp.com') &&
+      request.url().includes('userIds=') &&
       request.method() === 'GET',
       { timeout: 10000 }
     );
@@ -63,16 +66,19 @@ test.describe('Contracts Filtering', () => {
     await page.getByRole('link', { name: 'Contratos', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
 
-    // 3. Filter by User Email
-    await page.locator('input[placeholder="Buscar por email..."]').click();
-    await page.locator('input[placeholder="Buscar por email..."]').fill('carlosmendes@example.com');
-    await page.getByRole('option', { name: 'carlosmendes@example.com' }).click();
+    // 3. Filter by User
+    const userFilterInput = page.locator('input[placeholder="Selecionar usuários..."], input[placeholder="Nenhum usuário disponível"]').first();
+    await userFilterInput.click();
+    await userFilterInput.fill('Carlos Mendes');
+    await page.getByRole('option', { name: 'Carlos Mendes', exact: false }).click();
+
+    await page.keyboard.press('Escape');
 
     // The frontend debounces by 3 seconds, so we wait for the /api/contracts request
     const emailRequestPromise = page.waitForRequest(request =>
       request.url().includes('/api/contracts') &&
       !request.url().includes('/user/') && 
-      request.url().includes('userEmail=carlosmendes%40example.com') &&
+      request.url().includes('userIds=') &&
       request.method() === 'GET',
       { timeout: 10000 }
     );
@@ -131,16 +137,19 @@ test.describe('Contracts Filtering', () => {
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15000 });
 
     // 3. Filter by child's email (juliomota@example.com)
-    await page.locator('input[placeholder="Buscar por email..."]').click();
-    await page.locator('input[placeholder="Buscar por email..."]').fill('juliomota@example.com');
+    const userFilterInput = page.locator('input[placeholder="Selecionar usuários..."], input[placeholder="Nenhum usuário disponível"]').first();
+    await userFilterInput.click();
+    await userFilterInput.fill('juliomota@example.com');
     
     // Select Julio Mota from autocomplete
-    await page.getByRole('option', { name: 'juliomota@example.com' }).first().click();
+    await page.getByRole('option', { name: 'Julio Mota', exact: false }).first().click();
+
+    await page.keyboard.press('Escape');
 
     // Wait for the debounced search request
     const searchRequestPromise = page.waitForRequest(request =>
       request.url().includes('/api/contracts') &&
-      request.url().includes('userEmail=juliomota%40example.com') &&
+      request.url().includes('userIds=') &&
       request.method() === 'GET',
       { timeout: 15000 }
     );

@@ -2,11 +2,14 @@ using SalesApp.Models;
 
 namespace SalesApp.Repositories
 {
+    /// <summary>Minimal projection used for hierarchy BFS traversal.</summary>
+    public record UserHierarchyLink(Guid Id, int InternalId, Guid? ParentUserId);
+
     public interface IUserRepository
     {
         Task<User?> GetByIdAsync(Guid id);
         Task<User?> GetByEmailAsync(string email);
-        Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null, string? contractNumber = null);
+        Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null, string? contractNumber = null, HashSet<Guid>? allowedUserIds = null);
         Task<User> CreateAsync(User user);
         Task<User> UpdateAsync(User user);
         Task<bool> EmailExistsAsync(string email, Guid? excludeId = null);
@@ -20,5 +23,11 @@ namespace SalesApp.Repositories
         Task<User?> GetRootUserAsync();
         Task<bool> HasRootUserAsync();
         Task<bool> WouldCreateCycleAsync(Guid userId, Guid? newParentId);
+
+        /// <summary>
+        /// Returns a minimal projection of all active users for BFS hierarchy traversal.
+        /// Fetches only Id, InternalId, and ParentUserId — avoids loading full User entities.
+        /// </summary>
+        Task<List<UserHierarchyLink>> GetAllHierarchyLinksAsync();
     }
 }

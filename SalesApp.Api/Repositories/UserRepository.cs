@@ -38,9 +38,14 @@ namespace SalesApp.Repositories
 
 
         
-        public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null, string? contractNumber = null)
+        public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null, string? contractNumber = null, HashSet<Guid>? allowedUserIds = null)
         {
             var query = _context.Users.AsNoTracking();
+
+            if (allowedUserIds != null)
+            {
+                query = query.Where(u => allowedUserIds.Contains(u.Id));
+            }
             
             if (!string.IsNullOrEmpty(search))
             {
@@ -230,6 +235,15 @@ namespace SalesApp.Repositories
             }
             
             return false;
+        }
+
+        public async Task<List<UserHierarchyLink>> GetAllHierarchyLinksAsync()
+        {
+            return await _context.Users
+                .AsNoTracking()
+                .Where(u => u.IsActive)
+                .Select(u => new UserHierarchyLink(u.Id, u.InternalId, u.ParentUserId))
+                .ToListAsync();
         }
     }
 }

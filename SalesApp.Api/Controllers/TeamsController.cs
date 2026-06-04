@@ -9,8 +9,6 @@ using SalesApp.Models;
 using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Attributes;
-using SalesApp.Data;
-using Microsoft.EntityFrameworkCore;
 
 namespace SalesApp.Controllers
 {
@@ -22,18 +20,18 @@ namespace SalesApp.Controllers
         private readonly ITeamRepository _teamRepository;
         private readonly IUserRepository _userRepository;
         private readonly IMessageService _messageService;
-        private readonly AppDbContext _context;
+        private readonly IUserHierarchyService _userHierarchyService;
 
         public TeamsController(
             ITeamRepository teamRepository,
             IUserRepository userRepository,
             IMessageService messageService,
-            AppDbContext context)
+            IUserHierarchyService userHierarchyService)
         {
             _teamRepository = teamRepository;
             _userRepository = userRepository;
             _messageService = messageService;
-            _context = context;
+            _userHierarchyService = userHierarchyService;
         }
 
         [HttpGet]
@@ -51,53 +49,7 @@ namespace SalesApp.Controllers
                     return Unauthorized();
                 }
 
-                // High-performance hierarchy resolution:
-                // Fetch only Id, InternalId, and ParentUserId for active users to prevent N+1 queries.
-                var allHierarchyLinks = await _context.Users
-                    .AsNoTracking()
-                    .Where(u => u.IsActive)
-                    .Select(u => new { u.Id, u.InternalId, u.ParentUserId })
-                    .ToListAsync();
-
-                var childrenMap = new Dictionary<Guid, List<Guid>>();
-                var userInternalIdMap = allHierarchyLinks.ToDictionary(u => u.Id, u => u.InternalId);
-
-                foreach (var link in allHierarchyLinks)
-                {
-                    if (link.ParentUserId.HasValue)
-                    {
-                        if (!childrenMap.ContainsKey(link.ParentUserId.Value))
-                            childrenMap[link.ParentUserId.Value] = new List<Guid>();
-                        
-                        childrenMap[link.ParentUserId.Value].Add(link.Id);
-                    }
-                }
-
-                // BFS traversal starting from current user
-                var descendants = new HashSet<Guid> { currentUserId };
-                var queue = new Queue<Guid>();
-                queue.Enqueue(currentUserId);
-
-                while (queue.Count > 0)
-                {
-                    var current = queue.Dequeue();
-                    if (childrenMap.TryGetValue(current, out var children))
-                    {
-                        foreach (var childId in children)
-                        {
-                            if (descendants.Add(childId))
-                            {
-                                queue.Enqueue(childId);
-                            }
-                        }
-                    }
-                }
-
-                allowedOwnerInternalIds = descendants
-                    .Select(id => userInternalIdMap.TryGetValue(id, out var internalId) ? internalId : (int?)null)
-                    .Where(internalId => internalId.HasValue)
-                    .Select(internalId => internalId!.Value)
-                    .ToHashSet();
+                allowedOwnerInternalIds = await _userHierarchyService.GetDescendantInternalIdsAsync(currentUserId);
             }
 
             var teams = await _teamRepository.GetAllAsync(allowedOwnerInternalIds);

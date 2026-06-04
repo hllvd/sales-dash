@@ -300,9 +300,19 @@ namespace SalesApp.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null,
-            [FromQuery] string? contractNumber = null)
+            [FromQuery] string? contractNumber = null,
+            [FromQuery] bool scopeToDescendants = false)
         {
-            var (users, totalCount) = await _userRepository.GetAllAsync(page, pageSize, search, contractNumber);
+            HashSet<Guid>? allowedUserIds = null;
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+
+            if (scopeToDescendants && roleIdClaim != "1") // Scoped and not a Superadmin
+            {
+                var currentUserId = GetCurrentUserId();
+                allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
+            }
+
+            var (users, totalCount) = await _userRepository.GetAllAsync(page, pageSize, search, contractNumber, allowedUserIds);
             
             return Ok(new ApiResponse<PagedResponse<UserResponse>>
             {

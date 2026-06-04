@@ -66,7 +66,9 @@ namespace SalesApp.Tests.Services
                 It.IsAny<bool?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<UserScopeContext?>()))
+                It.IsAny<UserScopeContext?>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<List<Guid>?>()))
                 .ReturnsAsync(contracts);
 
             var filters = new ContractExportRequest();
@@ -120,7 +122,9 @@ namespace SalesApp.Tests.Services
                 It.IsAny<bool?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<UserScopeContext?>()))
+                It.IsAny<UserScopeContext?>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<List<Guid>?>()))
                 .ReturnsAsync(new List<Contract>());
 
             var filters = new ContractExportRequest();
