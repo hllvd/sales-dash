@@ -176,6 +176,12 @@ const COLUMN_METADATA_DICT: Record<string, ColumnMetadata> = {
   }
 };
 
+const toISOStringSafe = (val: any): string | undefined => {
+  if (!val) return undefined;
+  const d = val instanceof Date ? val : new Date(val);
+  return !isNaN(d.getTime()) ? d.toISOString() : undefined;
+};
+
 const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [localFilterId, setLocalFilterId] = useState<string | undefined>(filterId);
   const isEditMode = !!localFilterId;
@@ -499,8 +505,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const buildPayload = () => {
     const filterConfig: FilterConfig = {
       matriculas: matriculas.length > 0 ? matriculas : undefined,
-      startDate: dateMode === 'absolute' && dateRange[0] ? dateRange[0].toISOString() : undefined,
-      endDate: dateMode === 'absolute' && dateRange[1] ? dateRange[1].toISOString() : undefined,
+      startDate: dateMode === 'absolute' ? toISOStringSafe(dateRange[0]) : undefined,
+      endDate: dateMode === 'absolute' ? toISOStringSafe(dateRange[1]) : undefined,
       relativeStartDate: dateMode === 'relative' && relativeStartDate ? relativeStartDate.trim() : undefined,
       relativeEndDate: dateMode === 'relative' && relativeEndDate ? relativeEndDate.trim() : undefined,
       currentUserAsParent: currentUserAsParent || undefined,
