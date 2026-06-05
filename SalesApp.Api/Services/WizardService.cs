@@ -86,6 +86,7 @@ namespace SalesApp.Services
 
             // Duplicate contract number detection
             var contractNumberSeen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var desistenteContracts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             await foreach (var row in _fileParser.ParseFileStreamedAsync(file))
             {
@@ -125,6 +126,16 @@ namespace SalesApp.Services
                 {
                     contractNumberSeen.TryGetValue(contractNumberVal, out var count);
                     contractNumberSeen[contractNumberVal] = count + 1;
+                }
+
+                // Track desistente contract numbers
+                var statusVal = GetColumnValue(row, "Status", "Conferência", "conferencia", "Situação Cobrança", "Situação", "Situacao");
+                if (!string.IsNullOrWhiteSpace(statusVal) && statusVal.Trim().Equals("DESISTENTE", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrWhiteSpace(contractNumberVal))
+                    {
+                        desistenteContracts.Add(contractNumberVal);
+                    }
                 }
 
                 // Keep first 10 rows for preview response
@@ -218,6 +229,10 @@ namespace SalesApp.Services
                 .OrderBy(n => n)
                 .ToList();
 
+            var desistenteContractNumbers = desistenteContracts
+                .OrderBy(n => n)
+                .ToList();
+
             return new ImportPreviewResponse
             {
                 UploadId = uploadId,
@@ -234,7 +249,8 @@ namespace SalesApp.Services
                 SuggestedMappings = suggestedMappings,
                 RequiredFields = requiredFields,
                 OptionalFields = optionalFields,
-                DuplicateContractNumbers = duplicateContractNumbers
+                DuplicateContractNumbers = duplicateContractNumbers,
+                DesistenteContractNumbers = desistenteContractNumbers
             };
         }
 
@@ -646,6 +662,7 @@ namespace SalesApp.Services
                 totalResult.Warnings.AddRange(result.Warnings);
                 totalResult.CreatedGroups.AddRange(result.CreatedGroups);
                 totalResult.CreatedPVs.AddRange(result.CreatedPVs);
+                totalResult.DesistenteContractNumbers.AddRange(result.DesistenteContractNumbers);
             }
 
             // ── Update session ───────────────────────────────────────────────────
@@ -666,19 +683,24 @@ namespace SalesApp.Services
                 Warnings = totalResult.Warnings,
                 CreatedGroups = totalResult.CreatedGroups.Distinct().ToList(),
                 CreatedPVs = totalResult.CreatedPVs.Distinct().ToList(),
+                DesistenteContractNumbers = totalResult.DesistenteContractNumbers.Distinct().ToList(),
             };
         }
 
         private string MapConferenciaToStatus(string conferencia)
         {
             var normalized = conferencia.Trim().ToUpper();
+            if (normalized == "DESISTENTE")
+            {
+                return "DESISTENTE";
+            }
             return normalized switch
             {
                 "NORMAL" => "Active",
                 "NCONT 1 AT" => "Late1",
                 "NCONT 2 AT" => "Late2",
                 "SUJ. A CANCELAMENTO" => "Late3",
-                "EXCLUIDO" or "DESISTENTE" => "Defaulted",
+                "EXCLUIDO" => "Defaulted",
                 _ => "Active"
             };
         }

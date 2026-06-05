@@ -23,7 +23,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id && c.ContractStatus.Name.ToLower() != "desistente");
         }
         
         public async Task<Contract?> GetByContractNumberAsync(string contractNumber)
@@ -35,7 +35,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
+                .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber && c.ContractStatus.Name.ToLower() != "desistente");
         }
 
         public async Task<List<Contract>> GetByContractNumbersAsync(List<string> contractNumbers)
@@ -49,7 +49,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .Where(c => contractNumbers.Contains(c.ContractNumber))
+                .Where(c => contractNumbers.Contains(c.ContractNumber) && c.ContractStatus.Name.ToLower() != "desistente")
                 .ToListAsync();
         }
         
@@ -62,7 +62,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .Where(c => c.IsActive);
+                .Where(c => c.IsActive && c.ContractStatus.Name.ToLower() != "desistente");
 
             // Apply hierarchical data scope before any other filters
             if (scope != null && !scope.IsGlobal)
@@ -145,7 +145,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .Where(c => c.User.Id == userId && c.IsActive);
+                .Where(c => c.User.Id == userId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente");
             
             if (startDate.HasValue)
                 query = query.Where(c => c.SaleStartDate >= startDate.Value);
@@ -174,7 +174,7 @@ namespace SalesApp.Repositories
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .Where(c => c.UploadId == uploadId)
+                .Where(c => c.UploadId == uploadId && c.ContractStatus.Name.ToLower() != "desistente")
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
         }
@@ -234,7 +234,7 @@ namespace SalesApp.Repositories
             // ✅ Push grouping to database instead of loading all contracts into memory
             var query = _context.Contracts
                 .AsNoTracking()
-                .Where(c => c.IsActive);
+                .Where(c => c.IsActive && c.ContractStatus.Name.ToLower() != "desistente");
             
             if (userId.HasValue)
                 query = query.Where(c => c.User.Id == userId.Value);
@@ -298,7 +298,7 @@ namespace SalesApp.Repositories
             // We project to an anonymous type first to ensure EF Core translates the null coalescing correctly
             var healthData = await _context.Contracts
                 .AsNoTracking()
-                .Where(c => c.IsActive)
+                .Where(c => c.IsActive && c.ContractStatus.Name.ToLower() != "desistente")
                 .Select(c => new 
                 { 
                     Matricula = c.Matricula != null ? c.Matricula.MatriculaNumber : c.TempMatricula,

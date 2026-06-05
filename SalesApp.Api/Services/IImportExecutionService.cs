@@ -19,6 +19,7 @@ namespace SalesApp.Services
         public List<User> CreatedUsers { get; set; } = new();
         public List<string> CreatedGroups { get; set; } = new();
         public List<string> CreatedPVs { get; set; } = new();
+        public List<string> DesistenteContractNumbers { get; set; } = new();
         public List<MatriculaChangeRecord> MatriculaChanges { get; set; } = new();
     }
 

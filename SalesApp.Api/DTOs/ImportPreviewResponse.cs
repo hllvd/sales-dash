@@ -17,5 +17,6 @@ namespace SalesApp.DTOs
         public bool IsTemplateMatch { get; set; } = true;
         public string? MatchMessage { get; set; }
         public List<string> DuplicateContractNumbers { get; set; } = new();
+        public List<string> DesistenteContractNumbers { get; set; } = new();
     }
 }

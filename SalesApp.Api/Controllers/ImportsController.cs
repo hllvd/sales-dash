@@ -636,6 +636,7 @@ namespace SalesApp.Controllers
                     totalResult.CreatedGroups.AddRange(result.CreatedGroups);
                     totalResult.CreatedPVs.AddRange(result.CreatedPVs);
                     totalResult.MatriculaChanges.AddRange(result.MatriculaChanges);
+                    totalResult.DesistenteContractNumbers.AddRange(result.DesistenteContractNumbers);
 
                     skipRows += 500;
                 }
@@ -688,6 +689,7 @@ namespace SalesApp.Controllers
                         CreatedPVs = totalResult.CreatedPVs.Distinct().ToList(),
                         Errors = totalResult.Errors,
                         Warnings = totalResult.Warnings,
+                        DesistenteContractNumbers = totalResult.DesistenteContractNumbers,
                         MatriculaChanges = totalResult.MatriculaChanges
                             .Select(c => new MatriculaChangeInfo
                             {

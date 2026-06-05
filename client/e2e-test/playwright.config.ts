@@ -37,6 +37,7 @@ export default defineConfig({
         'import_wizard_data_integrity.spec.ts',
         'import_wizard_validation.spec.ts',
         'import_wizard_duplicate_contracts.spec.ts',
+        'import_wizard_desistente_contracts.spec.ts',
         'scrape_credentials.spec.ts',
         'matricula_ownership.spec.ts',
         'matricula_edit_normalization.spec.ts',

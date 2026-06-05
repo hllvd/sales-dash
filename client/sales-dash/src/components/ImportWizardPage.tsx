@@ -18,6 +18,8 @@ const ImportWizardPage: React.FC = () => {
   const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
   const [duplicateContracts, setDuplicateContracts] = useState<string[]>([]);
   const [allowDuplicates, setAllowDuplicates] = useState(false);
+  const [desistenteContracts, setDesistenteContracts] = useState<string[]>([]);
+  const [allowDesistentes, setAllowDesistentes] = useState(false);
 
   // Step 2: Users File
   const [usersFile, setUsersFile] = useState<File | null>(null);
@@ -42,6 +44,8 @@ const ImportWizardPage: React.FC = () => {
     setMismatchWarning(null);
     setDuplicateContracts([]);
     setAllowDuplicates(false);
+    setDesistenteContracts([]);
+    setAllowDesistentes(false);
     try {
       const response = await apiService.uploadWizardStep1(contractFile);
       if (response.success) {
@@ -52,10 +56,21 @@ const ImportWizardPage: React.FC = () => {
         } else {
           setUploadData(response.data);
           const dupes: string[] = response.data.duplicateContractNumbers ?? [];
+          const desistentes: string[] = response.data.desistenteContractNumbers ?? [];
+          
+          let hasWarning = false;
           if (dupes.length > 0) {
             setDuplicateContracts(dupes);
             toast.warning(`${dupes.length} número(s) de contrato duplicado(s) encontrado(s)`);
-          } else {
+            hasWarning = true;
+          }
+          if (desistentes.length > 0) {
+            setDesistenteContracts(desistentes);
+            toast.warning(`${desistentes.length} contrato(s) com status "desistente" encontrado(s)`);
+            hasWarning = true;
+          }
+
+          if (!hasWarning) {
             setActiveStep(1);
             toast.success('Arquivo processado com sucesso');
           }
@@ -260,6 +275,8 @@ const ImportWizardPage: React.FC = () => {
                     setMismatchWarning(null);
                     setDuplicateContracts([]);
                     setAllowDuplicates(false);
+                    setDesistenteContracts([]);
+                    setAllowDesistentes(false);
                   }}
                   accept=".csv,.xlsx"
                   fileInputProps={{ id: 'wizard-step1-input' }}
@@ -281,7 +298,7 @@ const ImportWizardPage: React.FC = () => {
                 )}
 
                 {duplicateContracts.length > 0 && (
-                  <Alert icon={<IconAlertCircle size={16} />} title="Contratos Duplicados Encontrados" color="orange" mt="md">
+                  <Alert icon={<IconAlertCircle size={16} />} title="Contratos Duplicados Encontrados" color="orange" mt="md" data-testid="duplicate-warning">
                     <Text size="sm" mb="sm">
                       Os seguintes números de contrato aparecem mais de uma vez no arquivo:
                     </Text>
@@ -304,22 +321,55 @@ const ImportWizardPage: React.FC = () => {
                         Permitir duplicatas e prosseguir para o próximo passo
                       </label>
                     </Group>
-                    {allowDuplicates && (
-                      <Group justify="flex-end" mt="md">
-                        <Button
-                          color="orange"
-                          size="xs"
-                          rightSection={<IconChevronRight size={16} />}
-                          onClick={() => { setActiveStep(1); toast.success('Prosseguindo com duplicatas'); }}
-                        >
-                          Avançar para Passo 2
-                        </Button>
-                      </Group>
-                    )}
                   </Alert>
                 )}
 
-                {!mismatchWarning && duplicateContracts.length === 0 && (
+                {desistenteContracts.length > 0 && (
+                  <Alert icon={<IconAlertCircle size={16} />} title="Contratos Desistentes Encontrados" color="orange" mt="md" data-testid="desistente-warning">
+                    <Text size="sm" mb="sm">
+                      We've detected some contract with status "desistente", we won't import it
+                    </Text>
+                    <List size="xs" mb="sm">
+                      {desistenteContracts.slice(0, 20).map((c) => (
+                        <List.Item key={c}><strong>{c}</strong></List.Item>
+                      ))}
+                      {desistenteContracts.length > 20 && (
+                        <List.Item>... e mais {desistenteContracts.length - 20} contrato(s) desistente(s).</List.Item>
+                      )}
+                    </List>
+                    <Group gap="xs" align="center" mt="xs">
+                      <input
+                        type="checkbox"
+                        id="wiz-allow-desistentes"
+                        checked={allowDesistentes}
+                        onChange={(e) => setAllowDesistentes(e.target.checked)}
+                      />
+                      <label htmlFor="wiz-allow-desistentes" style={{ fontSize: 13, color: '#92400e', cursor: 'pointer', fontWeight: 500 }}>
+                        Confirmar ciência e prosseguir
+                      </label>
+                    </Group>
+                  </Alert>
+                )}
+
+                {(duplicateContracts.length > 0 || desistenteContracts.length > 0) &&
+                 (duplicateContracts.length === 0 || allowDuplicates) &&
+                 (desistenteContracts.length === 0 || allowDesistentes) && (
+                  <Group justify="flex-end" mt="md">
+                    <Button
+                      color="orange"
+                      rightSection={<IconChevronRight size={16} />}
+                      onClick={() => {
+                        setActiveStep(1);
+                        toast.success('Prosseguindo para o próximo passo');
+                      }}
+                      id="btn-advance-with-warnings"
+                    >
+                      Avançar para Passo 2
+                    </Button>
+                  </Group>
+                )}
+
+                {!mismatchWarning && duplicateContracts.length === 0 && desistenteContracts.length === 0 && (
                   <Group justify="flex-end" mt="md">
                     <Button 
                       onClick={() => handleStep1Upload()} 
@@ -539,6 +589,22 @@ const ImportWizardPage: React.FC = () => {
                       </Stack>
                     )}
 
+                    {contractImportResult.desistenteContractNumbers?.length > 0 && (
+                      <Alert icon={<IconAlertCircle size={16} />} title="Contratos com status 'DESISTENTE' detectados" color="yellow" mt="md" data-testid="desistente-skipped-warning">
+                        <Text size="sm" mb="xs">
+                          Detectamos {contractImportResult.desistenteContractNumbers.length} contrato(s) com status "DESISTENTE". Eles não foram importados conforme a regra de negócio:
+                        </Text>
+                        <List size="xs">
+                          {contractImportResult.desistenteContractNumbers.slice(0, 10).map((num: string) => (
+                            <List.Item key={num}><strong>{num}</strong></List.Item>
+                          ))}
+                          {contractImportResult.desistenteContractNumbers.length > 10 && (
+                            <List.Item>... e mais {contractImportResult.desistenteContractNumbers.length - 10} contrato(s).</List.Item>
+                          )}
+                        </List>
+                      </Alert>
+                    )}
+
                     {contractImportResult.errors?.length > 0 && (
                       <Alert icon={<IconAlertCircle size={16} />} title="Erros encontrados" color="red">
                         <List size="xs">
@@ -640,6 +706,10 @@ const ImportWizardPage: React.FC = () => {
                   setUsersFile(null);
                   setUploadData(null);
                   setImportResult(null);
+                  setDuplicateContracts([]);
+                  setAllowDuplicates(false);
+                  setDesistenteContracts([]);
+                  setAllowDesistentes(false);
                 }}>
                   Nova Importação Completa
                 </Button>

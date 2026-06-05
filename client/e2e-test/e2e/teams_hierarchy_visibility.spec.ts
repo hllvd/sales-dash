@@ -268,13 +268,22 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
   // Helper to log in to UI
   async function loginAndGoToTeams(page: any, email: string, password: string) {
     await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+    await page.reload();
+    await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15_000 });
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', password);
     await page.click('button.login-button');
 
-    // Wait for landing page, then navigate to #/teams directly
+    // Wait for landing page layout to mount (Meus Contratos link is visible for all roles)
+    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15_000 });
+
+    // Navigate to #/teams directly
     await page.goto('/#/teams');
-    await page.waitForTimeout(2000); // Allow list to load
+    await expect(page.locator('.teams-container')).toBeVisible({ timeout: 15_000 });
   }
 
   test('Superadmin should see all seeded teams', async ({ page }) => {

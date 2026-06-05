@@ -545,7 +545,7 @@ namespace SalesApp.Controllers
             // 2. Total active user contracts
             var userContracts = await _context.Contracts
                 .Include(c => c.ContractStatus)
-                .Where(c => c.UserInternalId == user.InternalId && c.IsActive)
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente")
                 .ToListAsync();
             
             decimal totalProduction = userContracts.Sum(c => c.TotalAmount);

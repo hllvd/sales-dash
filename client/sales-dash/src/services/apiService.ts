@@ -1088,6 +1088,7 @@ export interface ImportStatusResponse {
   createdGroups?: string[];
   createdPVs?: string[];
   warnings?: string[];
+  desistenteContractNumbers?: string[];
 }
 
 export interface PV {

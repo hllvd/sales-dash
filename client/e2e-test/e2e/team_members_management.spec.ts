@@ -220,11 +220,21 @@ test.describe('Team Members Management E2E', () => {
 
   async function loginAndGoToTeams(page: any) {
     await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+    await page.reload();
+    await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15_000 });
     await page.fill('input[type="email"]', users.superadmin.email);
     await page.fill('input[type="password"]', users.superadmin.password);
     await page.click('button.login-button');
+
+    // Wait for landing page layout to mount (Meus Contratos link is visible for all roles)
+    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15_000 });
+
     await page.goto('/#/teams');
-    await page.waitForTimeout(1500); // Allow list to fully render
+    await expect(page.locator('.teams-container')).toBeVisible({ timeout: 15_000 });
   }
 
   test('should sort available users by BFS owner hierarchy in left column', async ({ page }) => {

@@ -50,6 +50,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [createdGroups, setCreatedGroups] = useState<string[]>([])
   const [createdPVs, setCreatedPVs] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
+  const [desistenteContractNumbers, setDesistenteContractNumbers] = useState<string[]>([])
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role?.toLowerCase() === 'superadmin' || user.roleName?.toLowerCase() === 'superadmin';
@@ -90,6 +91,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null)
+    setDesistenteContractNumbers([])
     const files = e.target.files
     if (files && files.length > 0) {
       setFile(files[0])
@@ -235,6 +237,10 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
 
         if (confirmResp.data.warnings && confirmResp.data.warnings.length > 0) {
           setWarnings(confirmResp.data.warnings)
+        }
+
+        if (confirmResp.data.desistenteContractNumbers && confirmResp.data.desistenteContractNumbers.length > 0) {
+          setDesistenteContractNumbers(confirmResp.data.desistenteContractNumbers)
         }
         
         setStep("result")
@@ -559,6 +565,23 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
 
       {step === "result" && (
         <div className="result-section">
+          {desistenteContractNumbers.length > 0 && (
+            <div className="desistente-skipped-info" style={{ marginTop: '15px', padding: '10px', background: '#fffbeb', borderRadius: '4px', border: '1px solid #fef3c7', textAlign: 'left' }} data-testid="desistente-skipped-warning">
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#b45309' }}>Contratos com status "DESISTENTE" detectados:</h4>
+              <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#b45309' }}>
+                Detectamos {desistenteContractNumbers.length} contrato(s) com status "DESISTENTE". Eles não foram importados:
+              </p>
+              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#b45309' }}>
+                {desistenteContractNumbers.slice(0, 10).map(num => (
+                  <li key={num}><strong>{num}</strong></li>
+                ))}
+                {desistenteContractNumbers.length > 10 && (
+                  <li>... e mais {desistenteContractNumbers.length - 10} contrato(s).</li>
+                )}
+              </ul>
+            </div>
+          )}
+
           {createdGroups.length > 0 && (
             <div className="created-groups-info" style={{ marginTop: '15px', padding: '10px', background: '#f0fdf4', borderRadius: '4px', border: '1px solid #dcfce7', textAlign: 'left' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#166534' }}>Grupos Criados Automaticamente:</h4>

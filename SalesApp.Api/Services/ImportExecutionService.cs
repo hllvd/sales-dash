@@ -123,6 +123,16 @@ namespace SalesApp.Services
                     var row = rows[i];
                     var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
 
+                    var rawStatus = GetFieldValue(row, reverseMappings, "Status");
+                    if (!string.IsNullOrWhiteSpace(rawStatus) && rawStatus.Trim().Equals("DESISTENTE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.IsNullOrWhiteSpace(contractNumber))
+                        {
+                            result.DesistenteContractNumbers.Add(contractNumber);
+                        }
+                        continue;
+                    }
+
                     // Skip row if contract number is missing and skip option is enabled
                     if (skipMissingContractNumber)
                     {
@@ -1268,6 +1278,16 @@ namespace SalesApp.Services
                     // ✅ MANDATORY SILENT SKIP if no contract number found (New user request)
                     if (string.IsNullOrWhiteSpace(contractNumber))
                     {
+                        continue;
+                    }
+
+                    var rawStatus = GetFieldValue(row, reverseMappings, "Status");
+                    if (!string.IsNullOrWhiteSpace(rawStatus) && rawStatus.Trim().Equals("DESISTENTE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.IsNullOrWhiteSpace(contractNumber))
+                        {
+                            result.DesistenteContractNumbers.Add(contractNumber);
+                        }
                         continue;
                     }
 
