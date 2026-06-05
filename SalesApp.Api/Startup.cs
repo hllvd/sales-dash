@@ -277,7 +277,7 @@ namespace SalesApp
                     dbConnection.Open();
                     using (var command = dbConnection.CreateCommand())
                     {
-                        command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA cache_size=-100000;";
+                        command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA cache_size=-100000; PRAGMA busy_timeout=10000;";
                         command.ExecuteNonQuery();
                     }
                 }

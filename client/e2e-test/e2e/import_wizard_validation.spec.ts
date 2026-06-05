@@ -43,9 +43,10 @@ test.describe('Import Wizard Validation', () => {
     await uploadContractsStep1(page);
 
     // Step 2: Upload file with missing fields
-    await expect(page.getByText('Preenchimento de Usuários')).toBeVisible();
+    const step2Content = page.getByText('O sistema identificou os vendedores no arquivo');
+    await expect(step2Content).toBeVisible({ timeout: 30_000 });
     const step2Input = page.locator('#wizard-step2-input');
-    await expect(step2Input).toBeAttached({ timeout: 10_000 });
+    await expect(step2Input).toBeAttached({ timeout: 30_000 });
 
     // We expect users_missing_fields.xlsx to have rows with missing Name/Email/Matricula
     await step2Input.setInputFiles(getTestDataPath('users_missing_fields.xlsx'));

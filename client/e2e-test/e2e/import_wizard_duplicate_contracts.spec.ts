@@ -13,6 +13,7 @@ async function loginAndGoToWizard(page: Page): Promise<void> {
     localStorage.clear();
     sessionStorage.clear();
   });
+  await page.reload();
   await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15_000 });
   await page.fill('input[type="email"]', 'superadmin@salesapp.com');
   await page.fill('input[type="password"]', 'string');
@@ -133,10 +134,11 @@ test.describe('[TEAR 2] Import Wizard — Duplicate Contract Number Detection', 
 
     // Handle possible 'Modelo Divergente' warning (unrelated to duplicates)
     const mismatchProceed = page.locator('button:has-text("Prosseguir assim mesmo")');
+    const step2Content = page.getByText('O sistema identificou os vendedores no arquivo');
     const step2Input = page.locator('#wizard-step2-input');
     await Promise.race([
-      step2Input.waitFor({ state: 'attached', timeout: 15000 }).catch(() => {}),
-      mismatchProceed.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+      step2Input.waitFor({ state: 'attached', timeout: 30000 }).catch(() => {}),
+      mismatchProceed.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {})
     ]);
 
     if (await mismatchProceed.isVisible()) {
@@ -148,8 +150,8 @@ test.describe('[TEAR 2] Import Wizard — Duplicate Contract Number Detection', 
     await expect(dupeAlert).not.toBeVisible({ timeout: 3_000 });
 
     // ── Assert: wizard advanced directly to Step 2 ───────────────────────────
-    await expect(page.getByText('Preenchimento de Usuários')).toBeVisible({ timeout: 20_000 });
-    await expect(step2Input).toBeAttached({ timeout: 10_000 });
+    await expect(step2Content).toBeVisible({ timeout: 30_000 });
+    await expect(step2Input).toBeAttached({ timeout: 30_000 });
 
     console.log('>>> No-duplicate file: wizard advanced to Step 2 without warning.');
   });

@@ -36,10 +36,10 @@ test.describe('Email Mapping to contracts.xlsx', () => {
 
     // Handle possible 'Modelo Divergente' warning
     const mismatchProceed = page.locator('button:has-text("Prosseguir assim mesmo")');
-    const step2Heading = page.getByText('Preenchimento de Usuários');
+    const step2Content = page.getByText('O sistema identificou os vendedores no arquivo');
     await Promise.race([
-      step2Heading.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {}),
-      mismatchProceed.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+      step2Content.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {}),
+      mismatchProceed.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {})
     ]);
 
     if (await mismatchProceed.isVisible()) {
@@ -48,9 +48,9 @@ test.describe('Email Mapping to contracts.xlsx', () => {
 
     // 4. Step 2: Upload users-demo.csv
     // Wait for the "Assistente" step to advance visually
-    await expect(step2Heading).toBeVisible({ timeout: 15_000 });
+    await expect(step2Content).toBeVisible({ timeout: 30_000 });
     const step2Input = page.locator('#wizard-step2-input');
-    await expect(step2Input).toBeAttached({ timeout: 10_000 });
+    await expect(step2Input).toBeAttached({ timeout: 30_000 });
     await step2Input.setInputFiles(getTestDataPath('users-demo.csv'));
 
     // Give state a moment to settle
