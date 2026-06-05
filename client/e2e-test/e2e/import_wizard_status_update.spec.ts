@@ -60,17 +60,9 @@ test.describe('Contract Status Update Flow', () => {
     // The backend already maps: Contrato→ContractNumber, Email→UserEmail, Valor→TotalAmount, STATUS→Status
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 15000 });
 
-    // Wait for auto-mapping to settle
-    await page.waitForTimeout(10000);
-
-    // Explicitly map Matricula if not auto-mapped
-    // const matriculaRow = page.locator('.mapping-row', { hasText: 'Matrícula' });
-    // const matriculaSelect = matriculaRow.locator('select');
-    // await matriculaSelect.selectOption('MatriculaNumber');
-    //await page.waitForTimeout(10000);
     // Confirm import (auto-mapping is correct, button should already be enabled)
     const confirmBtn = page.locator('button:has-text("Confirmar e Importar")');
-    await expect(confirmBtn).toBeEnabled({ timeout: 15000 });
+    await expect(confirmBtn).toBeEnabled({ timeout: 25000 });
     await confirmBtn.click();
 
     // DEBUG: capture any error shown in the modal before timing out

@@ -133,7 +133,13 @@ test.describe('[TEAR 2] Import Wizard — Duplicate Contract Number Detection', 
 
     // Handle possible 'Modelo Divergente' warning (unrelated to duplicates)
     const mismatchProceed = page.locator('button:has-text("Prosseguir assim mesmo")');
-    if (await mismatchProceed.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    const step2Input = page.locator('#wizard-step2-input');
+    await Promise.race([
+      step2Input.waitFor({ state: 'attached', timeout: 15000 }).catch(() => {}),
+      mismatchProceed.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+    ]);
+
+    if (await mismatchProceed.isVisible()) {
       await mismatchProceed.click();
     }
 
@@ -143,7 +149,7 @@ test.describe('[TEAR 2] Import Wizard — Duplicate Contract Number Detection', 
 
     // ── Assert: wizard advanced directly to Step 2 ───────────────────────────
     await expect(page.getByText('Preenchimento de Usuários')).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator('#wizard-step2-input')).toBeAttached({ timeout: 10_000 });
+    await expect(step2Input).toBeAttached({ timeout: 10_000 });
 
     console.log('>>> No-duplicate file: wizard advanced to Step 2 without warning.');
   });

@@ -20,10 +20,8 @@ test.describe('Import Wizard Record Verification', () => {
 
   test('verify contract 90001305 - Leonardo Bandieri', async ({ page }) => {
     await page.fill('input#filterContractNumber', '90001305');
-    await page.waitForTimeout(5000);
-
     const row = page.locator('table tbody tr').filter({ hasText: '90001305' });
-    await expect(row).toBeVisible({ timeout: 10000 });
+    await expect(row).toBeVisible({ timeout: 20000 });
     await row.locator('button[title="Editar"]').click();
     await expect(page.getByRole('heading', { name: 'Editar Contrato' }).first()).toBeVisible({ timeout: 5000 });
 
@@ -40,10 +38,8 @@ test.describe('Import Wizard Record Verification', () => {
 
   test('verify contract 868498 - Paulo Carvalho', async ({ page }) => {
     await page.fill('input#filterContractNumber', '868498');
-    await page.waitForTimeout(5000);
-
     const row = page.locator('table tbody tr').filter({ hasText: '868498' });
-    await expect(row).toBeVisible({ timeout: 10000 });
+    await expect(row).toBeVisible({ timeout: 20000 });
     await row.locator('button[title="Editar"]').click();
     await expect(page.getByRole('heading', { name: 'Editar Contrato' }).first()).toBeVisible({ timeout: 5000 });
 

@@ -180,11 +180,10 @@ test.describe.serial('[TEAR-1] Dashboard Import — Matricula Change Detection',
 
     // Mapping step
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(10000); // allow auto-mapping to settle
 
     // Confirm import
     const confirmBtn = page.locator('button:has-text("Confirmar e Importar")');
-    await expect(confirmBtn).toBeEnabled({ timeout: 15000 });
+    await expect(confirmBtn).toBeEnabled({ timeout: 25000 });
     await confirmBtn.click();
 
     // Wait for result step

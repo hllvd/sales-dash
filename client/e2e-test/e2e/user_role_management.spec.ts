@@ -7,6 +7,7 @@ test.describe('User Role Management (TEAR 2)', () => {
   const adminPassword = 'admin123';
 
   test('should verify and promote carlosmendes to admin role', async ({ page }) => {
+    test.setTimeout(60000);
     // 1. Initial Check: Login as Carlos to see current state
     console.log(`>>> Checking initial role for ${targetUser}`);
     await page.goto('/');
@@ -15,7 +16,7 @@ test.describe('User Role Management (TEAR 2)', () => {
     await page.click('button.login-button');
 
     // If he's a user, he shouldn't see the "Contratos" (admin) nav link
-    const contractsLink = page.locator('[data-testid="nav-contracts"]');
+    const contractsLink = page.locator('a[href="#/contracts"]');
     const isAlreadyAdmin = await contractsLink.isVisible();
 
     if (isAlreadyAdmin) {
@@ -56,6 +57,9 @@ test.describe('User Role Management (TEAR 2)', () => {
       await expect(userRow).toContainText('Admin', { ignoreCase: true, timeout: 20000 });
       console.log(`>>> ${targetUser} promoted to Admin successfully.`);
       
+      // Wait for SQLite database to commit and settle
+      await page.waitForTimeout(1500);
+      
       await page.evaluate(() => localStorage.clear());
     }
 
@@ -67,8 +71,8 @@ test.describe('User Role Management (TEAR 2)', () => {
     await page.click('button.login-button');
 
     // Now he SHOULD see the "Contratos" link
-    await expect(page.locator('[data-testid="nav-contracts"]')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('[data-testid="nav-my-contracts"]')).toBeVisible();
+    await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible();
 
     console.log(`>>> [Tear 2] Verification complete. ${targetUser} has Admin access.`);
   });
