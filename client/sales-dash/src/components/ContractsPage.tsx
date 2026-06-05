@@ -135,7 +135,7 @@ const ContractsPage: React.FC = () => {
       setDebouncedShowUnassigned(filterShowUnassigned);
       setDebouncedMatricula(filterMatricula);
       setDebouncedTeamIds(filterTeamIds);
-    }, 3000); // 3-second debounce for all fields
+    }, 500); // 500ms debounce for all fields
 
     return () => clearTimeout(timer);
   }, [filterUserIds, filterStartDate, filterContractNumber, filterShowUnassigned, filterMatricula, filterTeamIds]);

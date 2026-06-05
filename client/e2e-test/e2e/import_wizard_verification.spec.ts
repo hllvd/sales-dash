@@ -20,10 +20,14 @@ test.describe('Import Wizard Record Verification', () => {
 
   test('verify contract 90001305 - Leonardo Bandieri', async ({ page }) => {
     await page.fill('input#filterContractNumber', '90001305');
+    // Wait for filter debounce and table to settle
+    await page.waitForTimeout(1000);
     const row = page.locator('table tbody tr').filter({ hasText: '90001305' });
     await expect(row).toBeVisible({ timeout: 20000 });
-    await row.locator('button[title="Editar"]').click();
-    await expect(page.getByRole('heading', { name: 'Editar Contrato' }).first()).toBeVisible({ timeout: 5000 });
+    const editBtn = row.locator('button[title="Editar"]');
+    await expect(editBtn).toBeVisible({ timeout: 10000 });
+    await editBtn.click();
+    await expect(page.getByRole('heading', { name: 'Editar Contrato' }).first()).toBeVisible({ timeout: 15000 });
 
     await expect(getFormField(page, 'Número do Contrato').locator('input')).toHaveValue('90001305');
     await expect(getFormField(page, 'Vendedor').getByRole('textbox')).toHaveValue(/Leonardo Bandieri.*11177/);
@@ -38,10 +42,14 @@ test.describe('Import Wizard Record Verification', () => {
 
   test('verify contract 868498 - Paulo Carvalho', async ({ page }) => {
     await page.fill('input#filterContractNumber', '868498');
+    // Wait for filter debounce and table to settle
+    await page.waitForTimeout(1000);
     const row = page.locator('table tbody tr').filter({ hasText: '868498' });
     await expect(row).toBeVisible({ timeout: 20000 });
-    await row.locator('button[title="Editar"]').click();
-    await expect(page.getByRole('heading', { name: 'Editar Contrato' }).first()).toBeVisible({ timeout: 5000 });
+    const editBtn = row.locator('button[title="Editar"]');
+    await expect(editBtn).toBeVisible({ timeout: 10000 });
+    await editBtn.click();
+    await expect(page.getByRole('heading', { name: 'Editar Contrato' }).first()).toBeVisible({ timeout: 15000 });
 
     await expect(getFormField(page, 'Número do Contrato').locator('input')).toHaveValue('868498');
     await expect(getFormField(page, 'Vendedor').getByRole('textbox')).toHaveValue(/Paulo Carvalho.*6111/);

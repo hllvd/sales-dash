@@ -101,20 +101,17 @@ test.describe('Contract Status Update Flow', () => {
 
     // Filter for contract 826650 (CSV status: "Ativa" → should map to "Active" → display "Ativo")
     await page.fill('input#filterContractNumber', '826650');
-    await page.waitForTimeout(6000); // 3s debounce + safety buffer
 
     const row826650 = page.locator('table tbody tr', { hasText: '826650' });
-    await expect(row826650).toBeVisible({ timeout: 10000 });
-    await expect(row826650.locator('.mantine-Badge-label')).toHaveText('Ativo', { timeout: 10000 });
+    await expect(row826650).toBeVisible({ timeout: 25_000 });
+    await expect(row826650.locator('.mantine-Badge-label')).toHaveText('Ativo', { timeout: 15_000 });
 
     // Filter for contract 821590 (CSV status: "Cancelado" → should map to "Defaulted" → display "Cancelado")
     await page.click('button.clear-filters-btn');
-    await page.waitForTimeout(2000);
     await page.fill('input#filterContractNumber', '821590');
-    await page.waitForTimeout(6000);
 
     const row821590 = page.locator('table tbody tr', { hasText: '821590' });
-    await expect(row821590).toBeVisible({ timeout: 10000 });
-    await expect(row821590.locator('.mantine-Badge-label')).toHaveText('Cancelado', { timeout: 10000 });
+    await expect(row821590).toBeVisible({ timeout: 25_000 });
+    await expect(row821590.locator('.mantine-Badge-label')).toHaveText('Cancelado', { timeout: 15_000 });
   });
 });

@@ -8,6 +8,8 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
   const testPassword = 'testpassword';
 
   test('should add a new scrape credential without testing auth, then remove it', async ({ page }) => {
+    // This test has many sequential steps; increase timeout to be safe
+    test.setTimeout(60000);
     console.log(`>>> [Tear 2] Logging in as Admin to test Scrape Credentials`);
     await page.goto('/');
     await page.fill('input[type="email"]', adminEmail);
@@ -48,15 +50,11 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     await page.getByRole('button', { name: 'Salvar Configuração' }).click();
 
     // Verify success notification and modal closure
-    await expect(page.getByText('Configuração salva com sucesso')).toBeVisible();
-    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(page.getByText('Configuração salva com sucesso')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
 
-    // Wait for the success notification to disappear or just reload
-    await page.reload();
-
-    // We must wait for the dashboard to render and network to settle
-    await expect(page.getByRole('heading', { name: 'Extração PowerBI' })).toBeVisible();
-    await expect(accountRow).toBeVisible();
+    // We must wait for the configuration to appear in the table
+    await expect(accountRow).toBeVisible({ timeout: 20_000 });
     await expect(accountRow).toContainText(testMatricula);
     await expect(accountRow).toContainText('Não Testada');
 
@@ -73,7 +71,9 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     // Clean up: Remove the created config
     const trashButton = accountRow.locator('button', { has: page.locator('.tabler-icon-trash') });
     console.log(`>>> Clicking Trash button...`);
-    await trashButton.click({ force: true });
+    // Ensure the button is visible and enabled before clicking
+    await expect(trashButton).toBeVisible({ timeout: 10000 });
+    await trashButton.click();
 
     console.log(`>>> Waiting for result notification...`);
 

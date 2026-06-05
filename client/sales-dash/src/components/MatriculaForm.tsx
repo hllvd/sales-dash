@@ -63,7 +63,7 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
       } finally {
         setLoadingUsers(false);
       }
-    }, 3000); // 3 seconds debounce per user request
+    }, 500); // 500ms debounce per user request
 
     return () => clearTimeout(handler);
   }, [userSearch, isEdit]);

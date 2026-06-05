@@ -27,8 +27,10 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
 
     // Search and select User
     await page.fill('input[placeholder="Digite para buscar um usuário"]', targetUserEmail);
+    // Wait for the async search to return results
+    await page.waitForTimeout(1000);
     const option = page.locator('[role="option"]').filter({ hasText: targetUserEmail });
-    await expect(option).toBeVisible({ timeout: 10000 });
+    await expect(option).toBeVisible({ timeout: 15000 });
     await option.click();
 
     await page.fill('input[placeholder="Ex: MAT-001"]', initialMatricula);
@@ -40,10 +42,10 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
     console.log('>>> Step 2: Find and edit the matricula');
     // Search to isolate the row
     await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', initialMatricula);
-    await page.waitForTimeout(1000); // Wait for debounce
+    await page.waitForTimeout(1500); // Wait for debounce
 
     const row = page.locator('tr', { hasText: initialMatricula });
-    await expect(row).toBeVisible();
+    await expect(row).toBeVisible({ timeout: 10000 });
 
     // Click Edit button (IconEdit)
     await row.locator('.tabler-icon-edit').click();
@@ -68,7 +70,7 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
     // Clear search and search for the new normalized number
     await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', '');
     await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', normalizedValue);
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
 
     const updatedRow = page.locator('tr', { hasText: normalizedValue });
     await expect(updatedRow).toBeVisible();

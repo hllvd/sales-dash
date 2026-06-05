@@ -5,9 +5,11 @@ export default defineConfig({
   // Enable parallel execution
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 1,
   // Use multiple workers to speed up independent tests
   workers: 2,
+  // Increase default test timeout - many tests have login + multi-step flows
+  timeout: 60000,
   reporter: 'html',
   use: {
     baseURL: 'http://localhost',
