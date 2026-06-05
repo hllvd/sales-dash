@@ -109,13 +109,25 @@ test.describe('Contracts Team Filter', () => {
         data: { name, email, password: 'Password123!', role, parentUserId: parentId },
       });
       if (res.ok()) return (await res.json()).data.id as string;
-      // Self-heal: already exists
+      // Self-heal: already exists (either active or inactive/soft-deleted)
       if (res.status() === 400) {
-        const listBody = await (await request.get('/api/users?pageSize=1000', {
+        const searchRes = await request.get(`/api/users?search=${encodeURIComponent(email)}`, {
           headers: { Authorization: `Bearer ${superadminToken}` },
-        })).json();
-        const found = (listBody.data?.items ?? []).find((u: any) => u.email === email);
-        if (found) return found.id as string;
+        });
+        if (searchRes.ok()) {
+          const listBody = await searchRes.json();
+          const found = (listBody.data?.items ?? []).find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+          if (found) {
+            if (!found.isActive) {
+              const updateRes = await request.put(`/api/users/${found.id}`, {
+                headers: { Authorization: `Bearer ${superadminToken}` },
+                data: { isActive: true, role, parentUserId: parentId },
+              });
+              expect(updateRes.ok()).toBeTruthy();
+            }
+            return found.id as string;
+          }
+        }
       }
       throw new Error(`User registration failed: ${await res.text()}`);
     };

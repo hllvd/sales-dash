@@ -111,22 +111,26 @@ test.describe('Team Members Management E2E', () => {
           return body.data.id as string;
         }
 
-        // Self-Healing: Check if email already exists
+        // Self-Healing: Check if email already exists (either active or inactive/soft-deleted)
         if (res.status() === 400) {
-          const bodyText = await res.text();
-          if (bodyText.includes("Email já existe")) {
-            console.log(`[Self-Healing] User ${name} (${email}) was already registered by a previous try. Retrieving User ID...`);
-            const listRes = await request.get('/api/users?pageSize=1000', {
-              headers: { Authorization: `Bearer ${superadminToken}` }
-            });
-            if (listRes.ok()) {
-              const listBody = await listRes.json();
-              const usersList = listBody.data?.items || (Array.isArray(listBody.data) ? listBody.data : (Array.isArray(listBody) ? listBody : []));
-              const foundUser = usersList.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
-              if (foundUser) {
-                console.log(`[Self-Healing] Successfully recovered User ID for ${email}: ${foundUser.id}`);
-                return foundUser.id as string;
+          const searchRes = await request.get(`/api/users?search=${encodeURIComponent(email)}`, {
+            headers: { Authorization: `Bearer ${superadminToken}` }
+          });
+          if (searchRes.ok()) {
+            const listBody = await searchRes.json();
+            const usersList = listBody.data?.items || (Array.isArray(listBody.data) ? listBody.data : (Array.isArray(listBody) ? listBody : []));
+            const foundUser = usersList.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+            if (foundUser) {
+              console.log(`[Self-Healing] User ${name} (${email}) already exists. Checking activation status...`);
+              if (!foundUser.isActive) {
+                const updateRes = await request.put(`/api/users/${foundUser.id}`, {
+                  headers: { Authorization: `Bearer ${superadminToken}` },
+                  data: { isActive: true, role, parentUserId }
+                });
+                expect(updateRes.ok()).toBeTruthy();
+                console.log(`[Self-Healing] Successfully reactivated User ID for ${email}`);
               }
+              return foundUser.id as string;
             }
           }
         }
