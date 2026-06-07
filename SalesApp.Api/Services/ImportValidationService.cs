@@ -32,7 +32,27 @@ namespace SalesApp.Services
             }
 
             var requiredFields = customRequiredFields ?? _requiredFields[entityType];
-            var reverseMappings = mappings.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+            var reverseMappings = new Dictionary<string, string>();
+            foreach (var kvp in mappings)
+            {
+                if (!string.IsNullOrWhiteSpace(kvp.Value))
+                {
+                    if (reverseMappings.ContainsKey(kvp.Value))
+                    {
+                        var existingCol = reverseMappings[kvp.Value];
+                        bool hasNewVal = row.ContainsKey(kvp.Key) && !string.IsNullOrWhiteSpace(row[kvp.Key]);
+                        bool hasExistingVal = row.ContainsKey(existingCol) && !string.IsNullOrWhiteSpace(row[existingCol]);
+                        if (row.ContainsKey(kvp.Key) && (!row.ContainsKey(existingCol) || (!hasExistingVal && hasNewVal)))
+                        {
+                            reverseMappings[kvp.Value] = kvp.Key;
+                        }
+                    }
+                    else
+                    {
+                        reverseMappings[kvp.Value] = kvp.Key;
+                    }
+                }
+            }
 
             var startDateCol = reverseMappings.GetValueOrDefault("SaleStartDate");
             bool shouldSilentSkipDate = false;

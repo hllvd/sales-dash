@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Title, Button, Table, ActionIcon, Group, Text, MultiSelect } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
 import './ContractsPage.css';
@@ -26,6 +26,9 @@ import {
 } from '../services/contractService';
 
 const ContractsPage: React.FC = () => {
+  // Track latest API request to prevent race conditions
+  const requestCountRef = useRef(0);
+
   // Get context for caching
   const { setContracts: setCachedContracts, setUsers: setCachedUsers, setGroups: setCachedGroups } = useContractsContext();
   
@@ -88,6 +91,7 @@ const ContractsPage: React.FC = () => {
   const loadContracts = useCallback(async () => {
     setLoading(true);
     setError('');
+    const requestId = ++requestCountRef.current;
 
     try {
       const { contracts: data, aggregation: aggData } = await getContracts(
@@ -102,16 +106,20 @@ const ContractsPage: React.FC = () => {
         debouncedTeamIds.length > 0 ? debouncedTeamIds.map(id => parseInt(id)) : undefined,
         debouncedUserIds.length > 0 ? debouncedUserIds : undefined
       );
+      if (requestId !== requestCountRef.current) return;
       setContracts(data);
       setAggregation(aggData || null);
       // Cache contracts in context
       setCachedContracts(data);
     } catch (err: any) {
+      if (requestId !== requestCountRef.current) return;
       const errorMessage = err.message || 'Falha ao carregar contratos';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
-      setLoading(false);
+      if (requestId === requestCountRef.current) {
+        setLoading(false);
+      }
     }
   }, [debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds, debouncedUserIds, setCachedContracts]);
 

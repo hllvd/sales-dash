@@ -1002,7 +1002,11 @@ namespace SalesApp.Services
             {
                 if (row.ContainsKey(sourceColumn))
                 {
-                    return row[sourceColumn]?.Trim();
+                    var value = row[sourceColumn]?.Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        return value;
+                    }
                 }
             }
 

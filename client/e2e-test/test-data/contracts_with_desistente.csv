@@ -1,3 +1,3 @@
 Contrato,Código PV,Nome PV,Matrícula,Consultor,Grupo,Cota,Data da Venda,Valor,Nome do Cliente,Tipo,Status
-TEST-DES-001,PV100,Loja Sul,6111,Arthur Terplak,G1,001,2024-05-01,1000.00,Cliente A,Normal,DESISTENTE
-TEST-OK-002,PV100,Loja Sul,6111,Arthur Terplak,G1,002,2024-05-02,2000.00,Cliente B,Normal,Ativo
+TEST-DES-001,PV100,Loja Sul,6111,Arthur Terplak,G1,G1;001;X;Cliente A;TEST-DES-001,2024-05-01,1000.00,Cliente A,Normal,DESISTENTE
+TEST-OK-002,PV100,Loja Sul,6111,Arthur Terplak,G1,G1;002;X;Cliente B;TEST-OK-002,2024-05-02,2000.00,Cliente B,Normal,Ativo

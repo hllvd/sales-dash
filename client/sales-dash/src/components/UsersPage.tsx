@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { Title, Button, Table, ActionIcon, Group, Badge, Text } from '@mantine/core';
 import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload, IconMedal } from '@tabler/icons-react';
 import "./UsersPage.css"
@@ -16,6 +16,9 @@ import { useUsers } from "../contexts/UsersContext"
 import { UserProfileModal } from "./UserProfile"
 
 const UsersPage: React.FC = () => {
+  // Track latest API request to prevent race conditions
+  const requestCountRef = useRef(0);
+
   const { setUsers: setCachedUsers, getUserById } = useUsers()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,16 +36,19 @@ const UsersPage: React.FC = () => {
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null)
   const pageSize = 10
 
-  // Fetch users
   const fetchUsers = useCallback(async () => {
+    setLoading(true)
+    setError("")
+    const requestId = ++requestCountRef.current
+
     try {
-      setLoading(true)
-      setError("")
       const response = await apiService.getUsers(
         page,
         pageSize,
         searchDebounce || undefined
       )
+
+      if (requestId !== requestCountRef.current) return
 
       if (response.success && response.data) {
         setUsers(response.data.items)
@@ -51,9 +57,12 @@ const UsersPage: React.FC = () => {
         setTotalPages(Math.ceil(response.data.totalCount / pageSize))
       }
     } catch (err: any) {
+      if (requestId !== requestCountRef.current) return
       setError(err.message || "Failed to load users")
     } finally {
-      setLoading(false)
+      if (requestId === requestCountRef.current) {
+        setLoading(false)
+      }
     }
   }, [page, searchDebounce, setCachedUsers])
 

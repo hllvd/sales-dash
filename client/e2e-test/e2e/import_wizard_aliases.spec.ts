@@ -112,6 +112,7 @@ test.describe('Import Wizard Aliases Flow', () => {
     
     // Execute Import
     await page.click('button:has-text("Confirmar e Importar")');
+    await expect(page.getByText(/Importados:/)).toBeVisible({ timeout: 30000 });
     await page.click('button:has-text("Fechar")');
     
     // Verify the data is actually in the table (TEST-001, TEST-002, TEST-003 from our demo file)

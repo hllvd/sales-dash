@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Title, Button, Table, TextInput, Select, Alert, Badge } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { normalizeNumber } from '../utils/normalization';
@@ -27,6 +27,9 @@ import {
 import { apiService, UserMatricula } from '../services/apiService';
 
 const MyContractsPage: React.FC = () => {
+  // Track latest API request to prevent race conditions
+  const requestCountRef = useRef(0);
+
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -60,6 +63,7 @@ const MyContractsPage: React.FC = () => {
   const loadMyContracts = useCallback(async () => {
     setLoading(true);
     setError('');
+    const requestId = ++requestCountRef.current;
 
     try {
       // Get current user ID from localStorage
@@ -78,12 +82,16 @@ const MyContractsPage: React.FC = () => {
         endDate || undefined,
         debouncedMatricula || undefined
       );
+      if (requestId !== requestCountRef.current) return;
       setContracts(data);
       setAggregation(aggData || null);
     } catch (err: any) {
+      if (requestId !== requestCountRef.current) return;
       setError(err.message || 'Falha ao carregar contratos');
     } finally {
-      setLoading(false);
+      if (requestId === requestCountRef.current) {
+        setLoading(false);
+      }
     }
   }, [startDate, endDate, debouncedMatricula]);
 
@@ -101,7 +109,7 @@ const MyContractsPage: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedMatricula(matriculaFilter);
-    }, 2000);
+    }, 500);
     return () => clearTimeout(timer);
   }, [matriculaFilter]);
 
