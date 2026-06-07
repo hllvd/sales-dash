@@ -3,6 +3,7 @@ import "./BulkImportModal.css"
 import { apiService } from "../services/apiService"
 import StandardModal from "../shared/StandardModal"
 import InfoHelper from "../shared/InfoHelper"
+import { downloadFailedRowsCsv } from "../utils/csvDownloader"
 
 interface Props {
   onClose: () => void
@@ -243,6 +244,10 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
           setDesistenteContractNumbers(confirmResp.data.desistenteContractNumbers)
         }
         
+        if (failedRows > 0) {
+          downloadFailedRowsCsv(confirmResp.data.failedRowsDetails, 'bulk_import_errors');
+        }
+
         setStep("result")
       } else {
         setError(confirmResp.message || "Falha ao confirmar importação")

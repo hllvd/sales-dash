@@ -637,6 +637,7 @@ namespace SalesApp.Controllers
                     totalResult.CreatedPVs.AddRange(result.CreatedPVs);
                     totalResult.MatriculaChanges.AddRange(result.MatriculaChanges);
                     totalResult.DesistenteContractNumbers.AddRange(result.DesistenteContractNumbers);
+                    totalResult.FailedRowsDetails.AddRange(result.FailedRowsDetails);
 
                     skipRows += 500;
                 }
@@ -696,7 +697,8 @@ namespace SalesApp.Controllers
                                 ContractNumber = c.ContractNumber,
                                 OldMatricula   = c.OldMatricula,
                                 NewMatricula   = c.NewMatricula
-                            }).ToList()
+                            }).ToList(),
+                        FailedRowsDetails = totalResult.FailedRowsDetails
                     },
                     Message = successMessage
                 });

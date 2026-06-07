@@ -1089,6 +1089,7 @@ export interface ImportStatusResponse {
   createdPVs?: string[];
   warnings?: string[];
   desistenteContractNumbers?: string[];
+  failedRowsDetails?: Record<string, string>[];
 }
 
 export interface PV {
