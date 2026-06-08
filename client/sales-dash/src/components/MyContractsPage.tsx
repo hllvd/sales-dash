@@ -25,8 +25,10 @@ import {
   PendingClaimResponse
 } from '../services/contractService';
 import { apiService, UserMatricula } from '../services/apiService';
+import { useCurrentUser } from '../contexts/CurrentUserContext';
 
 const MyContractsPage: React.FC = () => {
+  const { currentUser } = useCurrentUser();
   // Track latest API request to prevent race conditions
   const requestCountRef = useRef(0);
 
@@ -53,6 +55,7 @@ const MyContractsPage: React.FC = () => {
   const [retrievedContract, setRetrievedContract] = useState<Contract | null>(null);
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState('');
+  const [isAlreadyClaimed, setIsAlreadyClaimed] = useState(false);
   const [userMatriculas, setUserMatriculas] = useState<UserMatricula[]>([]);
   const [selectedMatricula, setSelectedMatricula] = useState<string>('');
 
@@ -66,8 +69,8 @@ const MyContractsPage: React.FC = () => {
     const requestId = ++requestCountRef.current;
 
     try {
-      // Get current user ID from localStorage
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      // Get current user ID (prefer fresh context)
+      const user = currentUser || JSON.parse(localStorage.getItem('user') || '{}');
       const userId = user.id;
 
       if (!userId) {
@@ -93,7 +96,7 @@ const MyContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [startDate, endDate, debouncedMatricula]);
+  }, [startDate, endDate, debouncedMatricula, currentUser]);
 
   // Load saved date filters from localStorage
   useEffect(() => {
@@ -118,24 +121,21 @@ const MyContractsPage: React.FC = () => {
       const myClaims = await getMyPendingClaims();
       setPendingClaims(myClaims);
 
-      const userStr = localStorage.getItem('user');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        if (user.isMatriculaOwner && user.activeMatriculas) {
-          const allMatriculaClaims = [];
-          for (const m of user.activeMatriculas) {
-            if (m.isOwner) {
-              const claims = await getPendingClaimsByMatricula(m.matriculaId);
-              allMatriculaClaims.push(...claims);
-            }
+      const user = currentUser || JSON.parse(localStorage.getItem('user') || '{}');
+      if (user && user.isMatriculaOwner && user.activeMatriculas) {
+        const allMatriculaClaims = [];
+        for (const m of user.activeMatriculas) {
+          if (m.isOwner) {
+            const claims = await getPendingClaimsByMatricula(m.matriculaId);
+            allMatriculaClaims.push(...claims);
           }
-          setMatriculaPendingClaims(allMatriculaClaims);
         }
+        setMatriculaPendingClaims(allMatriculaClaims);
       }
     } catch (err) {
       console.error("Failed to load pending claims", err);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     loadMyContracts();
@@ -147,12 +147,11 @@ const MyContractsPage: React.FC = () => {
     setRetrievedContract(null);
     setAssignError('');
     setSelectedMatricula('');
+    setIsAlreadyClaimed(false);
 
-    // Read matriculas from the login response already stored in localStorage.
-    // Using the API (getUserMatriculas) is not viable here because regular users
-    // lack the "matriculas:read" permission — it would silently return empty.
+    // Read matriculas from the fresh context, with a fallback to localStorage.
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = currentUser || JSON.parse(localStorage.getItem('user') || '{}');
       const rawMatriculas: any[] = user.activeMatriculas || [];
       const now = new Date();
       const activeMatriculas = rawMatriculas
@@ -221,6 +220,7 @@ const MyContractsPage: React.FC = () => {
         setContractNotYetImported(true);
         if (err.alreadyClaimed) {
           setAssignError(err.message);
+          setIsAlreadyClaimed(true);
         }
       } else {
         setAssignError(err.message || 'Contrato não encontrado');
@@ -510,7 +510,7 @@ const MyContractsPage: React.FC = () => {
           <HistoricProduction
             startDate={startDate}
             endDate={endDate}
-            userId={JSON.parse(localStorage.getItem('user') || '{}').id}
+            userId={currentUser?.id || JSON.parse(localStorage.getItem('user') || '{}').id}
           />
         )}
 
@@ -595,6 +595,8 @@ const MyContractsPage: React.FC = () => {
           setShowAssignModal(false);
           setContractNotYetImported(false);
           setContractNumber('');
+          setAssignError('');
+          setIsAlreadyClaimed(false);
         }}
         title="Atribuir Contrato"
         size="md"
@@ -627,6 +629,8 @@ const MyContractsPage: React.FC = () => {
                 onClick={() => {
                   setRetrievedContract(null);
                   setContractNotYetImported(false);
+                  setAssignError('');
+                  setIsAlreadyClaimed(false);
                 }}
                 disabled={assignLoading}
               >
@@ -635,7 +639,7 @@ const MyContractsPage: React.FC = () => {
               <button
                 className="btn-submit"
                 onClick={handleConfirmAssignment}
-                disabled={assignLoading || (userMatriculas.length > 1 && !selectedMatricula) || (contractNotYetImported && !!assignError)}
+                disabled={assignLoading || (userMatriculas.length > 1 && !selectedMatricula) || isAlreadyClaimed}
               >
                 {assignLoading ? 'Processando...' : (contractNotYetImported ? 'Registrar Interesse' : 'Confirmar Atribuição')}
               </button>
@@ -696,13 +700,13 @@ const MyContractsPage: React.FC = () => {
         )}
 
         <>
-          {contractNotYetImported && !assignError && (
+          {contractNotYetImported && (
             <Alert color="blue" title="Contrato não encontrado" mb="md">
               Este contrato ainda não foi importado para o sistema. Você pode registrar seu interesse e ele será atribuído automaticamente à sua matrícula quando for importado.
             </Alert>
           )}
           {/* Matricula Selection */}
-          {(contractNotYetImported || retrievedContract) && !assignError && userMatriculas.length >= 1 && (
+          {(contractNotYetImported || retrievedContract) && userMatriculas.length >= 1 && (
             <FormField
               label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
               description={
@@ -720,7 +724,10 @@ const MyContractsPage: React.FC = () => {
                 <Select
                   placeholder="Selecione uma matrícula..."
                   value={selectedMatricula}
-                  onChange={(value) => setSelectedMatricula(value || '')}
+                  onChange={(value) => {
+                    setSelectedMatricula(value || '');
+                    setAssignError('');
+                  }}
                   comboboxProps={{ zIndex: 2000 }}
                   data={userMatriculas.map((m) => ({
                     value: m.matriculaNumber,
