@@ -1042,6 +1042,12 @@ namespace SalesApp.ReportFilters.Services
                 var now = DateTime.UtcNow;
                 return new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
             }
+            if (expr.Equals("thisMonthEnd", StringComparison.OrdinalIgnoreCase))
+            {
+                var now = DateTime.UtcNow;
+                var lastDay = DateTime.DaysInMonth(now.Year, now.Month);
+                return new DateTime(now.Year, now.Month, lastDay, 23, 59, 59, DateTimeKind.Utc);
+            }
             
             bool isNegative = expr.StartsWith("-");
             bool isPositive = expr.StartsWith("+");
