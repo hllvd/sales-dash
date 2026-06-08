@@ -38,7 +38,7 @@ namespace SalesApp.Tests.Repositories
             var contract = new Contract
             {
                 ContractNumber = "CTR-001",
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 GroupId = group.Id,
                 TotalAmount = 1000,
                 ContractType = 1,
@@ -73,7 +73,7 @@ namespace SalesApp.Tests.Repositories
             var contract = new Contract
             {
                 ContractNumber = "CTR-002",
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 GroupId = group.Id,
                 TotalAmount = 2000,
                 ContractType = 1,

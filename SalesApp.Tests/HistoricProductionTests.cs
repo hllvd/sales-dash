@@ -24,6 +24,8 @@ namespace SalesApp.Tests
         private readonly Mock<IUserScopeService> _mockScopeService;
         private readonly Mock<IExportService> _mockExportService;
         private readonly Mock<IContractStatusMapper> _mockStatusMapper;
+        private readonly Mock<IContractStatusService> _mockStatusService;
+        private readonly Mock<IPendingContractClaimRepository> _mockPendingClaimRepository;
         private readonly ContractsController _controller;
 
         public HistoricProductionTests()
@@ -38,6 +40,8 @@ namespace SalesApp.Tests
             _mockScopeService = new Mock<IUserScopeService>();
             _mockExportService = new Mock<IExportService>();
             _mockStatusMapper = new Mock<IContractStatusMapper>();
+            _mockStatusService = new Mock<IContractStatusService>();
+            _mockPendingClaimRepository = new Mock<IPendingContractClaimRepository>();
             _controller = new ContractsController(
                 _mockRepository.Object,
                 _mockUserRepository.Object,
@@ -48,7 +52,9 @@ namespace SalesApp.Tests
                 _mockMessageService.Object,
                 _mockScopeService.Object,
                 _mockExportService.Object,
-                _mockStatusMapper.Object
+                _mockStatusMapper.Object,
+                _mockStatusService.Object,
+                _mockPendingClaimRepository.Object
             );
 
             // Setup MessageService to return English messages for tests

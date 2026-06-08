@@ -42,7 +42,7 @@ namespace SalesApp.Tests
             _mockMessageService.Setup(m => m.Get(It.IsAny<AppMessage>()))
                 .Returns((AppMessage msg) => msg.ToString());
             _mockMessageService.Setup(m => m.Get(It.IsAny<AppMessage>(), It.IsAny<object[]>()))
-                .Returns((AppMessage msg, object[] args) => string.Format(msg.ToString(), args));
+                .Returns((AppMessage msg, object[] args) => $"{msg.ToString()}: {string.Join(", ", args)}");
 
             SetupUser(Guid.NewGuid().ToString(), "superadmin");
         }
@@ -229,7 +229,6 @@ namespace SalesApp.Tests
                 }
             };
 
-            _mockTeamRepository.Setup(x => x.GetByIdAsync(teamId)).ReturnsAsync(team);
             _mockUserRepository.Setup(x => x.GetByIdAsync(userGuid)).ReturnsAsync(user);
             _mockTeamRepository.Setup(x => x.FindOverlappingMembershipsAsync(456, It.IsAny<DateTime>(), null))
                 .ReturnsAsync(new List<UserTeam> { existingOverlap });
@@ -243,7 +242,9 @@ namespace SalesApp.Tests
                     new UserTeam { TeamId = teamId, UserInternalId = 456, User = user, StartDate = DateTime.UtcNow.AddYears(-8) }
                 }
             };
-            _mockTeamRepository.Setup(x => x.GetByIdAsync(teamId)).ReturnsAsync(reloadedTeam);
+            _mockTeamRepository.SetupSequence(x => x.GetByIdAsync(teamId))
+                .ReturnsAsync(team)
+                .ReturnsAsync(reloadedTeam);
 
             // Act
             var result = await _controller.AddMembers(teamId, request);

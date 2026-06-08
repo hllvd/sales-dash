@@ -28,14 +28,15 @@ namespace SalesApp.Tests.Repositories
         public async Task CreateMatricula_WithIsOwnerTrue_ShouldSetAsOwner()
         {
             // Arrange
-            var userId = Guid.NewGuid();
+            var user = new User { Id = Guid.NewGuid(), Name = "Test User", Email = "test@test.com" };
+            _context.Users.Add(user);
             var mat = new Matricula { MatriculaNumber = "MAT-001", StartDate = DateTime.UtcNow, Status = "active" };
             _context.Matriculas.Add(mat);
             await _context.SaveChangesAsync();
 
             var matricula = new UserMatricula
             {
-                UserId = userId,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
@@ -52,14 +53,15 @@ namespace SalesApp.Tests.Repositories
         public async Task CreateMatricula_WithIsOwnerFalse_ShouldNotSetAsOwner()
         {
             // Arrange
-            var userId = Guid.NewGuid();
+            var user = new User { Id = Guid.NewGuid(), Name = "Test User", Email = "test@test.com" };
+            _context.Users.Add(user);
             var mat = new Matricula { MatriculaNumber = "MAT-002", StartDate = DateTime.UtcNow, Status = "active" };
             _context.Matriculas.Add(mat);
             await _context.SaveChangesAsync();
 
             var matricula = new UserMatricula
             {
-                UserId = userId,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
@@ -78,6 +80,9 @@ namespace SalesApp.Tests.Repositories
             // Arrange
             var user1Id = Guid.NewGuid();
             var user2Id = Guid.NewGuid();
+            var user1 = new User { Id = user1Id, Name = "User 1", Email = "user1@test.com" };
+            var user2 = new User { Id = user2Id, Name = "User 2", Email = "user2@test.com" };
+            _context.Users.AddRange(user1, user2);
             var mat = new Matricula { MatriculaNumber = "MAT-TRANSFER", StartDate = DateTime.UtcNow, Status = "active" };
             _context.Matriculas.Add(mat);
             await _context.SaveChangesAsync();
@@ -85,7 +90,7 @@ namespace SalesApp.Tests.Repositories
             // Create first matricula with IsOwner = true
             var matricula1 = new UserMatricula
             {
-                UserId = user1Id,
+                UserInternalId = user1.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
@@ -95,7 +100,7 @@ namespace SalesApp.Tests.Repositories
             // Act - Create second matricula with same number and IsOwner = true
             var matricula2 = new UserMatricula
             {
-                UserId = user2Id,
+                UserInternalId = user2.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
@@ -117,6 +122,9 @@ namespace SalesApp.Tests.Repositories
             // Arrange
             var user1Id = Guid.NewGuid();
             var user2Id = Guid.NewGuid();
+            var user1 = new User { Id = user1Id, Name = "User 1", Email = "user1@test.com" };
+            var user2 = new User { Id = user2Id, Name = "User 2", Email = "user2@test.com" };
+            _context.Users.AddRange(user1, user2);
             var mat = new Matricula { MatriculaNumber = "MAT-UPDATE", StartDate = DateTime.UtcNow, Status = "active" };
             _context.Matriculas.Add(mat);
             await _context.SaveChangesAsync();
@@ -124,7 +132,7 @@ namespace SalesApp.Tests.Repositories
             // Create two matriculas with same number, first one is owner
             var matricula1 = await _repository.CreateAsync(new UserMatricula
             {
-                UserId = user1Id,
+                UserInternalId = user1.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
@@ -132,7 +140,7 @@ namespace SalesApp.Tests.Repositories
 
             var matricula2 = await _repository.CreateAsync(new UserMatricula
             {
-                UserId = user2Id,
+                UserInternalId = user2.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
@@ -166,13 +174,16 @@ namespace SalesApp.Tests.Repositories
             // Arrange
             var ownerId = Guid.NewGuid();
             var nonOwnerId = Guid.NewGuid();
+            var ownerUser = new User { Id = ownerId, Name = "Owner User", Email = "owner@test.com" };
+            var nonOwnerUser = new User { Id = nonOwnerId, Name = "Non Owner User", Email = "nonowner@test.com" };
+            _context.Users.AddRange(ownerUser, nonOwnerUser);
             var mat = new Matricula { MatriculaNumber = "MAT-OWNER", StartDate = DateTime.UtcNow, Status = "active" };
             _context.Matriculas.Add(mat);
             await _context.SaveChangesAsync();
 
             await _repository.CreateAsync(new UserMatricula
             {
-                UserId = ownerId,
+                UserInternalId = ownerUser.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
@@ -180,7 +191,7 @@ namespace SalesApp.Tests.Repositories
 
             await _repository.CreateAsync(new UserMatricula
             {
-                UserId = nonOwnerId,
+                UserInternalId = nonOwnerUser.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
@@ -191,7 +202,7 @@ namespace SalesApp.Tests.Repositories
 
             // Assert
             owner.Should().NotBeNull();
-            owner!.UserId.Should().Be(ownerId);
+            owner!.UserInternalId.Should().Be(ownerUser.InternalId);
             owner.IsOwner.Should().BeTrue();
         }
 
@@ -199,14 +210,15 @@ namespace SalesApp.Tests.Repositories
         public async Task GetOwnerByMatriculaIdAsync_NoOwner_ShouldReturnNull()
         {
             // Arrange
-            var userId = Guid.NewGuid();
+            var user = new User { Id = Guid.NewGuid(), Name = "Test User", Email = "test@test.com" };
+            _context.Users.Add(user);
             var mat = new Matricula { MatriculaNumber = "MAT-NO-OWNER", StartDate = DateTime.UtcNow, Status = "active" };
             _context.Matriculas.Add(mat);
             await _context.SaveChangesAsync();
 
             await _repository.CreateAsync(new UserMatricula
             {
-                UserId = userId,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
@@ -226,13 +238,17 @@ namespace SalesApp.Tests.Repositories
             var user1Id = Guid.NewGuid();
             var user2Id = Guid.NewGuid();
             var user3Id = Guid.NewGuid();
+            var user1 = new User { Id = user1Id, Name = "User 1", Email = "user1@test.com" };
+            var user2 = new User { Id = user2Id, Name = "User 2", Email = "user2@test.com" };
+            var user3 = new User { Id = user3Id, Name = "User 3", Email = "user3@test.com" };
+            _context.Users.AddRange(user1, user2, user3);
             var mat = new Matricula { MatriculaNumber = "MAT-SET-OWNER", StartDate = DateTime.UtcNow, Status = "active" };
             _context.Matriculas.Add(mat);
             await _context.SaveChangesAsync();
 
             await _repository.CreateAsync(new UserMatricula
             {
-                UserId = user1Id,
+                UserInternalId = user1.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = true,
                 IsActive = true
@@ -240,7 +256,7 @@ namespace SalesApp.Tests.Repositories
 
             await _repository.CreateAsync(new UserMatricula
             {
-                UserId = user2Id,
+                UserInternalId = user2.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
@@ -248,7 +264,7 @@ namespace SalesApp.Tests.Repositories
 
             await _repository.CreateAsync(new UserMatricula
             {
-                UserId = user3Id,
+                UserInternalId = user3.InternalId,
                 MatriculaId = mat.Id,
                 IsOwner = false,
                 IsActive = true
@@ -276,16 +292,24 @@ namespace SalesApp.Tests.Repositories
             _context.Matriculas.Add(mat);
             await _context.SaveChangesAsync();
 
-            var users = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+            var userGuids = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+            var users = new List<User>();
+            for (int i = 0; i < userGuids.Length; i++)
+            {
+                var user = new User { Id = userGuids[i], Name = $"User {i}", Email = $"user{i}@test.com" };
+                _context.Users.Add(user);
+                users.Add(user);
+            }
+            await _context.SaveChangesAsync();
 
             // Create matriculas for all users, last one is owner
-            for (int i = 0; i < users.Length; i++)
+            for (int i = 0; i < users.Count; i++)
             {
                 await _repository.CreateAsync(new UserMatricula
                 {
-                    UserId = users[i],
+                    UserInternalId = users[i].InternalId,
                     MatriculaId = mat.Id,
-                    IsOwner = (i == users.Length - 1), // Last user is owner
+                    IsOwner = (i == users.Count - 1), // Last user is owner
                     IsActive = true
                 });
             }

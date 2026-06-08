@@ -49,7 +49,7 @@ namespace SalesApp.Tests
             var result = await _service.ValidateHierarchyChangeAsync(userId, parentId);
 
             // Assert
-            result.Should().Be("Parent user does not exist or is inactive");
+            result.Should().Be("O usuário superior não existe ou está inativo");
         }
 
         [Fact]
@@ -66,7 +66,7 @@ namespace SalesApp.Tests
             var result = await _service.ValidateHierarchyChangeAsync(userId, parentId);
 
             // Assert
-            result.Should().Be("This change would create a circular reference in the hierarchy");
+            result.Should().Be("Esta alteração criaria uma referência circular na hierarquia");
         }
 
         [Fact]
@@ -79,7 +79,7 @@ namespace SalesApp.Tests
             var result = await _service.ValidateHierarchyChangeAsync(userId, userId);
 
             // Assert
-            result.Should().Be("A user cannot be their own parent");
+            result.Should().Be("Um usuário não pode ser seu próprio superior");
         }
 
         [Fact]
@@ -110,7 +110,7 @@ namespace SalesApp.Tests
             var result = await _service.ValidateHierarchyChangeAsync(userId, null);
 
             // Assert
-            result.Should().Be("Only one root user is allowed in the system");
+            result.Should().Be("Apenas um usuário raiz (sem superior) é permitido no sistema");
         }
 
         [Fact]

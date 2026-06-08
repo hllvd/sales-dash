@@ -1660,7 +1660,7 @@ namespace SalesApp.Services
         /// Pure function: determines whether a contract's matricula has changed.
         /// Returns true only when both IDs are known (non-null) and differ.
         /// </summary>
-        internal static bool IsMatriculaChanged(int? existingMatriculaId, int? incomingMatriculaId)
+        public static bool IsMatriculaChanged(int? existingMatriculaId, int? incomingMatriculaId)
             => incomingMatriculaId.HasValue
                && existingMatriculaId.HasValue
                && existingMatriculaId.Value != incomingMatriculaId.Value;

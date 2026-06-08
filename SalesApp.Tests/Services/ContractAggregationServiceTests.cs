@@ -21,9 +21,9 @@ namespace SalesApp.Tests.Services
             // Arrange - All active means 100% retention
             var contracts = new List<Contract>
             {
-                new Contract { TotalAmount = 1000, Status = "Active" },
-                new Contract { TotalAmount = 2000, Status = "Active" },
-                new Contract { TotalAmount = 1500, Status = "Active" }
+                new Contract { TotalAmount = 1000, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { TotalAmount = 2000, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { TotalAmount = 1500, ContractStatus = new ContractStatusEntity { Name = "Active" } }
             };
 
             // Act
@@ -41,8 +41,8 @@ namespace SalesApp.Tests.Services
             // Arrange - Only defaulted means 0% retention, but Late1 is included in TotalActive
             var contracts = new List<Contract>
             {
-                new Contract { TotalAmount = 1000, Status = "Defaulted" },
-                new Contract { TotalAmount = 2000, Status = "Late1" }
+                new Contract { TotalAmount = 1000, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } },
+                new Contract { TotalAmount = 2000, ContractStatus = new ContractStatusEntity { Name = "Late1" } }
             };
 
             // Act
@@ -61,10 +61,10 @@ namespace SalesApp.Tests.Services
             // Arrange - Active + Late contracts = 3000 out of 5000 total = 0.6
             var contracts = new List<Contract>
             {
-                new Contract { TotalAmount = 1000, Status = "Active" },
-                new Contract { TotalAmount = 2000, Status = "Defaulted" },
-                new Contract { TotalAmount = 1500, Status = "Late1" },
-                new Contract { TotalAmount = 500, Status = "Late2" }
+                new Contract { TotalAmount = 1000, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { TotalAmount = 2000, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } },
+                new Contract { TotalAmount = 1500, ContractStatus = new ContractStatusEntity { Name = "Late1" } },
+                new Contract { TotalAmount = 500, ContractStatus = new ContractStatusEntity { Name = "Late2" } }
             };
 
             // Act
@@ -98,9 +98,9 @@ namespace SalesApp.Tests.Services
             // Arrange - 1500 active out of 4500 total = 0.333...
             var contracts = new List<Contract>
             {
-                new Contract { TotalAmount = 1000, Status = "DEFAULTED" },
-                new Contract { TotalAmount = 2000, Status = "defaulted" },
-                new Contract { TotalAmount = 1500, Status = "Active" }
+                new Contract { TotalAmount = 1000, ContractStatus = new ContractStatusEntity { Name = "DEFAULTED" } },
+                new Contract { TotalAmount = 2000, ContractStatus = new ContractStatusEntity { Name = "defaulted" } },
+                new Contract { TotalAmount = 1500, ContractStatus = new ContractStatusEntity { Name = "Active" } }
             };
 
             // Act
@@ -117,8 +117,8 @@ namespace SalesApp.Tests.Services
             // Arrange - Example: 1000000 active, 100001 defaulted
             var contracts = new List<Contract>
             {
-                new Contract { TotalAmount = 100001, Status = "Defaulted" },
-                new Contract { TotalAmount = 1000000, Status = "Active" }
+                new Contract { TotalAmount = 100001, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } },
+                new Contract { TotalAmount = 1000000, ContractStatus = new ContractStatusEntity { Name = "Active" } }
             };
 
             // Act

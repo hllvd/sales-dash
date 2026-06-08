@@ -24,6 +24,8 @@ namespace SalesApp.Tests
         private readonly Mock<IUserScopeService> _mockUserScopeService;
         private readonly Mock<IExportService> _mockExportService;
         private readonly Mock<IContractStatusMapper> _mockStatusMapper;
+        private readonly Mock<IContractStatusService> _mockStatusService;
+        private readonly Mock<IPendingContractClaimRepository> _mockPendingClaimRepository;
         private readonly ContractsController _controller;
 
         public ContractsControllerTests()
@@ -38,6 +40,8 @@ namespace SalesApp.Tests
             _mockUserScopeService = new Mock<IUserScopeService>();
             _mockExportService = new Mock<IExportService>();
             _mockStatusMapper = new Mock<IContractStatusMapper>();
+            _mockStatusService = new Mock<IContractStatusService>();
+            _mockPendingClaimRepository = new Mock<IPendingContractClaimRepository>();
 
             _mockStatusMapper.Setup(s => s.IsValidStatus(It.IsAny<string>())).Returns(true);
             _mockStatusMapper.Setup(s => s.GetValidStatuses()).Returns(new string[] { "Active", "Inactive" });
@@ -52,7 +56,9 @@ namespace SalesApp.Tests
                 _mockMessageService.Object,
                 _mockUserScopeService.Object,
                 _mockExportService.Object,
-                _mockStatusMapper.Object);
+                _mockStatusMapper.Object,
+                _mockStatusService.Object,
+                _mockPendingClaimRepository.Object);
             
             // Setup MessageService to return English messages for tests
             var enumToMessage = new System.Func<AppMessage, string>(msg => {
@@ -249,7 +255,7 @@ namespace SalesApp.Tests
             };
 
             var group = new Group { Id = request.GroupId!.Value, IsActive = true };
-            var contract = new Contract { Id = 1, ContractNumber = request.ContractNumber, UserId = null };
+            var contract = new Contract { Id = 1, ContractNumber = request.ContractNumber, UserInternalId = null };
 
             _mockContractRepository.Setup(x => x.GetByContractNumberAsync(request.ContractNumber))
                 .ReturnsAsync((Contract?)null);

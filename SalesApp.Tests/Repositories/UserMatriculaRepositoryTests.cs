@@ -37,7 +37,7 @@ namespace SalesApp.Tests.Repositories
 
             var userMatricula = new UserMatricula
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 MatriculaId = matricula.Id,
                 IsActive = true
             };
@@ -49,7 +49,7 @@ namespace SalesApp.Tests.Repositories
             result.Should().NotBeNull();
             result.Id.Should().BeGreaterThan(0);
             result.MatriculaId.Should().Be(matricula.Id);
-            result.UserId.Should().Be(user.Id);
+            result.UserInternalId.Should().Be(user.InternalId);
         }
 
         [Fact]
@@ -65,7 +65,7 @@ namespace SalesApp.Tests.Repositories
 
             var userMatricula = new UserMatricula
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 MatriculaId = matricula.Id
             };
             _context.UserMatriculas.Add(userMatricula);
@@ -91,8 +91,8 @@ namespace SalesApp.Tests.Repositories
             _context.Matriculas.AddRange(mat1, mat2);
             await _context.SaveChangesAsync();
 
-            var userMatricula1 = new UserMatricula { UserId = user.Id, MatriculaId = mat1.Id };
-            var userMatricula2 = new UserMatricula { UserId = user.Id, MatriculaId = mat2.Id };
+            var userMatricula1 = new UserMatricula { UserInternalId = user.InternalId, MatriculaId = mat1.Id };
+            var userMatricula2 = new UserMatricula { UserInternalId = user.InternalId, MatriculaId = mat2.Id };
             _context.UserMatriculas.AddRange(userMatricula1, userMatricula2);
             await _context.SaveChangesAsync();
 
@@ -120,19 +120,19 @@ namespace SalesApp.Tests.Repositories
 
             var activeMatricula = new UserMatricula 
             { 
-                UserId = user.Id, 
+                UserInternalId = user.InternalId, 
                 MatriculaId = mat1.Id, 
                 IsActive = true
             };
             var inactiveMatricula = new UserMatricula 
             { 
-                UserId = user.Id, 
+                UserInternalId = user.InternalId, 
                 MatriculaId = mat2.Id, 
                 IsActive = false
             };
             var expiredMatricula = new UserMatricula 
             { 
-                UserId = user.Id, 
+                UserInternalId = user.InternalId, 
                 MatriculaId = mat3.Id, 
                 EndDate = DateTime.UtcNow.AddDays(-1),
                 IsActive = true
@@ -162,7 +162,7 @@ namespace SalesApp.Tests.Repositories
 
             var matricula = new UserMatricula
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat.Id,
                 IsActive = true
             };
@@ -190,7 +190,7 @@ namespace SalesApp.Tests.Repositories
 
             var matricula = new UserMatricula
             {
-                UserId = user1.Id,
+                UserInternalId = user1.InternalId,
                 MatriculaId = mat.Id,
                 IsActive = true
             };
@@ -217,7 +217,7 @@ namespace SalesApp.Tests.Repositories
 
             var matricula = new UserMatricula
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat.Id,
                 IsActive = true
             };
@@ -247,7 +247,7 @@ namespace SalesApp.Tests.Repositories
 
             var matricula = new UserMatricula
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat.Id
             };
             _context.UserMatriculas.Add(matricula);
@@ -275,7 +275,7 @@ namespace SalesApp.Tests.Repositories
 
             var matricula1 = new UserMatricula
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat.Id,
                 IsActive = true
             };
@@ -283,7 +283,7 @@ namespace SalesApp.Tests.Repositories
 
             var matricula2 = new UserMatricula
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat.Id,
                 IsActive = true
             };
@@ -306,7 +306,7 @@ namespace SalesApp.Tests.Repositories
 
             var matricula1 = new UserMatricula
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat1.Id,
                 IsActive = true
             };
@@ -314,7 +314,7 @@ namespace SalesApp.Tests.Repositories
 
             var matricula2 = new UserMatricula
             {
-                UserId = user.Id,
+                UserInternalId = user.InternalId,
                 MatriculaId = mat2.Id,
                 IsActive = true
             };

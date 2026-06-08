@@ -6,9 +6,9 @@ namespace SalesApp.Tests.Libs
     public class CotaDecomposerTests
     {
         [Theory]
-        [InlineData("012173;4103;0;MARIO;1100326334", "012173", "4103", "MARIO", "1100326334")]
-        [InlineData("012176;2578;0;TIAGO DA SILVA;1100326702", "012176", "2578", "TIAGO DA SILVA", "1100326702")]
-        [InlineData(" 012176 ; 2578 ; 0 ; TIAGO DA SILVA ; 1100326702 ", "012176", "2578", "TIAGO DA SILVA", "1100326702")]
+        [InlineData("012173;4103;0;MARIO;1100326334", "12173", "4103", "MARIO", "1100326334")]
+        [InlineData("012176;2578;0;TIAGO DA SILVA;1100326702", "12176", "2578", "TIAGO DA SILVA", "1100326702")]
+        [InlineData(" 012176 ; 2578 ; 0 ; TIAGO DA SILVA ; 1100326702 ", "12176", "2578", "TIAGO DA SILVA", "1100326702")]
         public void Decompose_ShouldParseValidConcatenatedString(string input, string expectedGroup, string expectedMatricula, string expectedCustomer, string expectedContract)
         {
             // Act

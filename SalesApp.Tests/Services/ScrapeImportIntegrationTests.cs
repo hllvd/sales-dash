@@ -145,7 +145,10 @@ namespace SalesApp.Tests.Services
                 .ReturnsAsync((PV?)null);
 
             var mockBaseMatriculaRepo = new Mock<IMatriculaRepository>();
+            var mockStatusService = new Mock<IContractStatusService>();
+            mockStatusService.Setup(s => s.GetStatusIdByNameAsync(It.IsAny<string>())).ReturnsAsync(1);
             var mockErrorService = new Mock<IImportErrorService>();
+            var mockPendingClaimService = new Mock<IPendingClaimService>();
 
             return new ImportExecutionService(
                 mockContractRepo.Object,
@@ -159,7 +162,9 @@ namespace SalesApp.Tests.Services
                 mockMetadataRepo.Object,
                 mockPvRepo.Object,
                 mockStatusMapper.Object,
-                mockErrorService.Object
+                mockStatusService.Object,
+                mockErrorService.Object,
+                mockPendingClaimService.Object
             );
         }
 
@@ -225,10 +230,11 @@ namespace SalesApp.Tests.Services
             var mockMetadataRepo  = new Mock<IContractMetadataRepository>();
             var mockEmailService  = new Mock<IEmailService>();
             var testUserId        = Guid.NewGuid();
+            var testUser          = new User { Id = testUserId, Email = "user@test.com", IsActive = true };
 
             mockUserRepo
                 .Setup(r => r.GetByEmailAsync("user@test.com"))
-                .ReturnsAsync(new User { Id = testUserId, Email = "user@test.com", IsActive = true });
+                .ReturnsAsync(testUser);
             mockStatusMapper
                 .Setup(m => m.MapStatus(It.IsAny<string>()))
                 .Returns("Active");
@@ -237,13 +243,17 @@ namespace SalesApp.Tests.Services
                 .ReturnsAsync((PV?)null);
 
             var mockBaseMatriculaRepo = new Mock<IMatriculaRepository>();
+            var mockStatusService = new Mock<IContractStatusService>();
+            mockStatusService.Setup(s => s.GetStatusIdByNameAsync(It.IsAny<string>())).ReturnsAsync(1);
             var mockErrorService = new Mock<IImportErrorService>();
+            var mockPendingClaimService = new Mock<IPendingClaimService>();
 
             var serviceWithCapture = new ImportExecutionService(
                 mockContractRepo.Object, mockGroupRepo.Object, mockUserRepo.Object,
                 mockRoleRepo.Object, mockMatriculaRepo.Object, mockBaseMatriculaRepo.Object, 
                 mockEmailService.Object, mockContext.Object, mockMetadataRepo.Object, 
-                mockPvRepo.Object, mockStatusMapper.Object, mockErrorService.Object);
+                mockPvRepo.Object, mockStatusMapper.Object, mockStatusService.Object,
+                mockErrorService.Object, mockPendingClaimService.Object);
 
             // Act
             var result = await serviceWithCapture.ExecuteContractImportAsync(
@@ -269,7 +279,7 @@ namespace SalesApp.Tests.Services
             contract.ContractNumber.Should().Be("CTR-2026-001",    "mapped from 'Cota'");
             contract.TotalAmount.Should().Be(50000m,               "mapped from 'Crédito Venda' (BR currency format)");
             contract.CustomerName.Should().Be("JOÃO DA SILVA",     "mapped from 'Consultor'");
-            contract.UserId.Should().Be(testUserId);
+            contract.UserInternalId.Should().Be(testUser.InternalId);
             contract.IsActive.Should().BeTrue();
         }
 
@@ -290,7 +300,7 @@ namespace SalesApp.Tests.Services
                 Id = 99,
                 ContractNumber = "CTR-2026-001",
                 TotalAmount = 50000m,
-                Status = "Active",
+                ContractStatusId = 1,
                 IsActive = true
             };
 
@@ -308,9 +318,10 @@ namespace SalesApp.Tests.Services
             var mockEmailService  = new Mock<IEmailService>();
 
             var testUserId = Guid.NewGuid();
+            var testUser = new User { Id = testUserId, Email = "user@test.com", IsActive = true };
             mockUserRepo
                 .Setup(r => r.GetByEmailAsync("user@test.com"))
-                .ReturnsAsync(new User { Id = testUserId, Email = "user@test.com", IsActive = true });
+                .ReturnsAsync(testUser);
 
             // Return the existing contract for the pre-fetch step
             mockContractRepo
@@ -335,13 +346,18 @@ namespace SalesApp.Tests.Services
                 .ReturnsAsync((PV?)null);
 
             var mockBaseMatriculaRepo = new Mock<IMatriculaRepository>();
+            var mockStatusService = new Mock<IContractStatusService>();
+            mockStatusService.Setup(s => s.GetStatusIdByNameAsync("Active")).ReturnsAsync(1);
+            mockStatusService.Setup(s => s.GetStatusIdByNameAsync("Late1")).ReturnsAsync(2);
             var mockErrorService = new Mock<IImportErrorService>();
+            var mockPendingClaimService = new Mock<IPendingClaimService>();
 
             var service = new ImportExecutionService(
                 mockContractRepo.Object, mockGroupRepo.Object, mockUserRepo.Object,
                 mockRoleRepo.Object, mockMatriculaRepo.Object, mockBaseMatriculaRepo.Object,
                 mockEmailService.Object, mockContext.Object, mockMetadataRepo.Object,
-                mockPvRepo.Object, mockStatusMapper.Object, mockErrorService.Object);
+                mockPvRepo.Object, mockStatusMapper.Object, mockStatusService.Object,
+                mockErrorService.Object, mockPendingClaimService.Object);
 
             // Act
             var result = await service.ExecuteContractImportAsync(
@@ -362,7 +378,7 @@ namespace SalesApp.Tests.Services
             // The existing contract should have been updated in-place (EF change tracking)
             existingContract.TotalAmount.Should().Be(55000m,
                 "the second row (55.000,00) should have overwritten the first row's value on the same entity");
-            existingContract.Status.Should().Be("Late1",
+            existingContract.ContractStatusId.Should().Be(2,
                 "status should be updated to Late1 by the second row");
 
             // No new contracts inserted — it was an update

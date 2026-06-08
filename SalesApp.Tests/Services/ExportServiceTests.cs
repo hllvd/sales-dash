@@ -51,7 +51,7 @@ namespace SalesApp.Tests.Services
                     Id = i + 1,
                     ContractNumber = $"C{i + 1}",
                     TotalAmount = 100 * (i + 1),
-                    Status = "Active",
+                    ContractStatus = new ContractStatusEntity { Name = "Active" },
                     SaleStartDate = DateTime.UtcNow,
                     CreatedAt = DateTime.UtcNow
                 });

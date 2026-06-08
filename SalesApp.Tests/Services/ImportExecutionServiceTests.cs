@@ -23,7 +23,9 @@ namespace SalesApp.Tests.Services
         private readonly Mock<IContractMetadataRepository> _mockMetadataRepository;
         private readonly Mock<IPVRepository> _mockPvRepository;
         private readonly Mock<IContractStatusMapper> _mockStatusMapper;
+        private readonly Mock<IContractStatusService> _mockStatusService;
         private readonly Mock<IImportErrorService> _mockErrorService;
+        private readonly Mock<IPendingClaimService> _mockPendingClaimService;
         private readonly ImportExecutionService _service;
 
         public ImportExecutionServiceTests()
@@ -39,7 +41,11 @@ namespace SalesApp.Tests.Services
             _mockMetadataRepository = new Mock<IContractMetadataRepository>();
             _mockPvRepository = new Mock<IPVRepository>();
             _mockStatusMapper = new Mock<IContractStatusMapper>();
+            _mockStatusService = new Mock<IContractStatusService>();
             _mockErrorService = new Mock<IImportErrorService>();
+            _mockPendingClaimService = new Mock<IPendingClaimService>();
+
+            _mockStatusService.Setup(s => s.GetStatusIdByNameAsync(It.IsAny<string>())).ReturnsAsync(1);
             
             _service = new ImportExecutionService(
                 _mockContractRepository.Object,
@@ -53,7 +59,9 @@ namespace SalesApp.Tests.Services
                 _mockMetadataRepository.Object,
                 _mockPvRepository.Object,
                 _mockStatusMapper.Object,
-                _mockErrorService.Object
+                _mockStatusService.Object,
+                _mockErrorService.Object,
+                _mockPendingClaimService.Object
             );
         }
 
