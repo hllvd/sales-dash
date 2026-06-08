@@ -4,6 +4,7 @@ import { IconUpload, IconDownload, IconCheck, IconAlertCircle, IconChevronRight,
 import Menu from './Menu';
 import { apiService } from '../services/apiService';
 import { toast } from '../utils/toast';
+import { downloadFailedRowsCsv } from '../utils/csvDownloader';
 import '../shared/InfoHelper.css';
 
 const ImportWizardPage: React.FC = () => {
@@ -112,8 +113,11 @@ const ImportWizardPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await apiService.runWizardStep2(uploadData.uploadId, usersFile);
-      if (response.success) {
+      if (response.success && response.data) {
         setImportResult(response.data);
+        if (response.data.failedRows > 0) {
+          downloadFailedRowsCsv(response.data.failedRowsDetails, 'wizard_users_errors');
+        }
         setActiveStep(2);
         toast.success('Usuários e matrículas importados com sucesso');
       }
@@ -167,8 +171,11 @@ const ImportWizardPage: React.FC = () => {
         allowAutoCreatePVs,
         dateFormat: 'MM/DD/YYYY',
       });
-      if (response.success) {
+      if (response.success && response.data) {
         setContractImportResult(response.data);
+        if (response.data.failedRows > 0) {
+          downloadFailedRowsCsv(response.data.failedRowsDetails, 'wizard_contracts_errors');
+        }
         toast.success('Contratos importados com sucesso');
       }
     } catch (err: any) {

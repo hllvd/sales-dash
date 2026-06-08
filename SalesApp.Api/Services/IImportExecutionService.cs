@@ -21,6 +21,7 @@ namespace SalesApp.Services
         public List<string> CreatedPVs { get; set; } = new();
         public List<string> DesistenteContractNumbers { get; set; } = new();
         public List<MatriculaChangeRecord> MatriculaChanges { get; set; } = new();
+        public List<Dictionary<string, string>> FailedRowsDetails { get; set; } = new();
     }
 
     public interface IImportExecutionService

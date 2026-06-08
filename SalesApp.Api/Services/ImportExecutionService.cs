@@ -183,12 +183,16 @@ namespace SalesApp.Services
                     else
                     {
                         result.FailedRows++;
+                        var failedRowDetails = new Dictionary<string, string>(rows[i]) { ["ERR"] = "Failed to create/update contract" };
+                        result.FailedRowsDetails.Add(failedRowDetails);
                         result.Errors.Add($"Row {i + 1}: Failed to create/update contract");
                     }
                 }
                 catch (Exception ex)
                 {
                     result.FailedRows++;
+                    var failedRowDetails = new Dictionary<string, string>(rows[i]) { ["ERR"] = ex.Message };
+                    result.FailedRowsDetails.Add(failedRowDetails);
                     result.Errors.Add($"Row {i + 1}: {ex.Message}");
                 }
             }
@@ -216,6 +220,15 @@ namespace SalesApp.Services
                     result.ProcessedRows -= contractsToAdd.Count;
                     result.Errors.Add($"Erro ao salvar novos contratos: {innerMessage}");
                     
+                    foreach (var failedContract in contractsToAdd)
+                    {
+                        result.FailedRowsDetails.Add(new Dictionary<string, string>
+                        {
+                            ["ContractNumber"] = failedContract.ContractNumber ?? "",
+                            ["ERR"] = $"Batch insert failed: {innerMessage}"
+                        });
+                    }
+
                     // ✅ Log critical DB error to DynamoDB
                     await _errorService.LogErrorAsync(ImportErrorType.SystemError, "Contract", $"Batch insert failed: {innerMessage}", new { Exception = ex.ToString() }, importSessionId);
                 }
@@ -225,6 +238,15 @@ namespace SalesApp.Services
                     result.FailedRows += contractsToAdd.Count;
                     result.ProcessedRows -= contractsToAdd.Count;
                     result.Errors.Add($"Erro inesperado no banco de dados: {ex.Message}");
+
+                    foreach (var failedContract in contractsToAdd)
+                    {
+                        result.FailedRowsDetails.Add(new Dictionary<string, string>
+                        {
+                            ["ContractNumber"] = failedContract.ContractNumber ?? "",
+                            ["ERR"] = $"Unexpected DB error: {ex.Message}"
+                        });
+                    }
                 }
             }
 
@@ -589,12 +611,16 @@ namespace SalesApp.Services
                     else
                     {
                         result.FailedRows++;
+                        var failedRowDetails = new Dictionary<string, string>(rows[i]) { ["ERR"] = "Failed to create user" };
+                        result.FailedRowsDetails.Add(failedRowDetails);
                         result.Errors.Add($"Row {i + 1}: Failed to create user");
                     }
                 }
                 catch (Exception ex)
                 {
                     result.FailedRows++;
+                    var failedRowDetails = new Dictionary<string, string>(rows[i]) { ["ERR"] = ex.Message };
+                    result.FailedRowsDetails.Add(failedRowDetails);
                     result.Errors.Add($"Row {i + 1}: {ex.Message}");
                 }
             }
@@ -1326,12 +1352,16 @@ namespace SalesApp.Services
                     else
                     {
                         result.FailedRows++;
+                        var failedRowDetails = new Dictionary<string, string>(rows[i]) { ["ERR"] = "Failed to create/update contract" };
+                        result.FailedRowsDetails.Add(failedRowDetails);
                         result.Errors.Add($"Row {i + 1}: Failed to create/update contract");
                     }
                 }
                 catch (Exception ex)
                 {
                     result.FailedRows++;
+                    var failedRowDetails = new Dictionary<string, string>(rows[i]) { ["ERR"] = ex.Message };
+                    result.FailedRowsDetails.Add(failedRowDetails);
                     result.Errors.Add($"Row {i + 1}: {ex.Message}");
                 }
             }
@@ -1402,6 +1432,15 @@ namespace SalesApp.Services
                     result.FailedRows += contractsToAdd.Count;
                     result.ProcessedRows -= contractsToAdd.Count;
                     result.Errors.Add($"Batch insert failed: {ex.Message}");
+
+                    foreach (var failedContract in contractsToAdd)
+                    {
+                        result.FailedRowsDetails.Add(new Dictionary<string, string>
+                        {
+                            ["ContractNumber"] = failedContract.ContractNumber ?? "",
+                            ["ERR"] = $"Batch insert failed: {ex.Message}"
+                        });
+                    }
                 }
             }
 

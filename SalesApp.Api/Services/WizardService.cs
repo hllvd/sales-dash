@@ -365,7 +365,8 @@ namespace SalesApp.Services
                 TotalRows = userRows.Count,
                 ProcessedRows = userResult.ProcessedRows,
                 FailedRows = userResult.FailedRows,
-                Errors = userResult.Errors
+                Errors = userResult.Errors,
+                FailedRowsDetails = userResult.FailedRowsDetails
             };
         }
 
@@ -663,6 +664,7 @@ namespace SalesApp.Services
                 totalResult.CreatedGroups.AddRange(result.CreatedGroups);
                 totalResult.CreatedPVs.AddRange(result.CreatedPVs);
                 totalResult.DesistenteContractNumbers.AddRange(result.DesistenteContractNumbers);
+                totalResult.FailedRowsDetails.AddRange(result.FailedRowsDetails);
             }
 
             // ── Update session ───────────────────────────────────────────────────
@@ -684,6 +686,7 @@ namespace SalesApp.Services
                 CreatedGroups = totalResult.CreatedGroups.Distinct().ToList(),
                 CreatedPVs = totalResult.CreatedPVs.Distinct().ToList(),
                 DesistenteContractNumbers = totalResult.DesistenteContractNumbers.Distinct().ToList(),
+                FailedRowsDetails = totalResult.FailedRowsDetails,
             };
         }
 

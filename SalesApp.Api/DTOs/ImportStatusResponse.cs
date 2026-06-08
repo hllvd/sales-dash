@@ -28,5 +28,6 @@ namespace SalesApp.DTOs
         public List<string> Warnings { get; set; } = new();
         public List<string> DesistenteContractNumbers { get; set; } = new();
         public List<MatriculaChangeInfo> MatriculaChanges { get; set; } = new();
+        public List<Dictionary<string, string>> FailedRowsDetails { get; set; } = new();
     }
 }

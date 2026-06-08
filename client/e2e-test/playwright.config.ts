@@ -47,7 +47,8 @@ export default defineConfig({
         'powerbi_credentials.spec.ts',
         'contract_edit_robustness.spec.ts',
         'import_wizard_verification.spec.ts',
-        'import_dashboard_matricula_change.spec.ts'
+        'import_dashboard_matricula_change.spec.ts',
+        'import_error_csv_download.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-1-setup-and-import']
