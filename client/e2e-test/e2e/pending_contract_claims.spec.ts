@@ -30,17 +30,31 @@ async function login(page: Page, email: string, password: string) {
 }
 
 /**
- * Opens the assign modal, searches for contractNumber.
- * If alreadyClaimed=true → asserts error message and closes without registering.
- * Otherwise → selects matricula from dropdown and clicks "Registrar Interesse".
+ * Opens the assign modal, searches for contractNumber, and validates the
+ * matricula selection UI before submitting.
+ *
+ * Rules enforced:
+ *   - activeMatriculaCount === 1 → the UI must auto-select the matricula and
+ *     render a disabled read-only TextInput showing the matricula number.
+ *     This asserts that `handleNewClick` auto-select logic is working.
+ *   - activeMatriculaCount > 1  → the UI must render an interactive Select
+ *     (combobox). We explicitly pick `mat` from it and assert the value is
+ *     set before submitting. A silent skip here would now be a hard failure.
+ *   - alreadyClaimed=true → asserts the conflict message and exits early.
  */
-async function claimContract(page: Page, contractNumber: string, mat: string, alreadyClaimed = false) {
+async function claimContract(
+  page: Page,
+  contractNumber: string,
+  mat: string,
+  activeMatriculaCount: number,
+  alreadyClaimed = false,
+) {
   await expect(page.locator('.my-contracts-page')).toBeVisible({ timeout: 10000 });
   await page.click('button:has-text("Novo")');
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
 
   await page.fill('input[placeholder="Digite o número do contrato"]', contractNumber);
-  
+
   // Wait for the GET /contracts/number/{num} response
   const [searchResponse] = await Promise.all([
     page.waitForResponse(resp => resp.url().includes(`/contracts/number/${contractNumber}`) && resp.request().method() === 'GET', { timeout: 15000 }),
@@ -60,20 +74,41 @@ async function claimContract(page: Page, contractNumber: string, mat: string, al
     return;
   }
 
-  // Blue "not yet imported" alert
+  // Blue "not yet imported" alert must always be visible at this point
   await expect(page.getByRole('dialog').locator('.mantine-Alert-root')).toBeVisible({ timeout: 10000 });
 
-  // Select matricula from dropdown if visible
-  const matSelect = page.getByRole('dialog').locator('.mantine-Select-input');
-  if (await matSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
+  const dialog = page.getByRole('dialog');
+
+  if (activeMatriculaCount === 1) {
+    // ── Single-matricula path ─────────────────────────────────────────────
+    // The UI should render a disabled read-only TextInput that already contains
+    // the matricula number (auto-selected in handleNewClick). Assert this is
+    // the case — if auto-select regressed, this will fail loudly.
+    const readonlyInput = dialog.locator('input[readonly][disabled]');
+    await expect(readonlyInput).toBeVisible({ timeout: 5000 });
+    await expect(readonlyInput).toHaveValue(new RegExp(mat));
+  } else {
+    // ── Multi-matricula path ──────────────────────────────────────────────
+    // The UI must render an interactive combobox (Mantine Select).
+    // We pick the target matricula from the dropdown and assert the value
+    // was set before we proceed. A missing or broken dropdown is now a
+    // hard test failure, not a silent skip.
+    const matSelect = dialog.getByPlaceholder('Selecione uma matrícula...');
+    await expect(matSelect).toBeVisible({ timeout: 5000 });
     await matSelect.click();
-    await page.click(`[role="option"]:has-text("${mat}")`);
+    
+    const option = page.getByRole('option', { name: new RegExp(mat) });
+    await expect(option).toBeVisible({ timeout: 5000 });
+    await option.click();
+    
+    // Assert the select now reflects the selected matricula
+    await expect(matSelect).toHaveValue(new RegExp(mat));
   }
 
   // Wait for the POST /contracts/claims response before checking modal state
   const [response] = await Promise.all([
     page.waitForResponse(resp => resp.url().includes('/contracts/claims') && resp.request().method() === 'POST', { timeout: 15000 }),
-    page.getByRole('dialog').locator('button:has-text("Registrar Interesse")').click(),
+    dialog.locator('button:has-text("Registrar Interesse")').click(),
   ]);
 
   if (!response.ok()) {
@@ -158,11 +193,12 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
   });
 
   // Step 2: User1 claims CLM1 and CLM2
+  // user1 (lucaspereira) has 3 active matriculas (6111, 11177, 10134) → dropdown path
   test('Step 2 – User1 claims contract1 and contract2', async ({ page }) => {
     await login(page, user1.email, user1.password);
 
-    await claimContract(page, CLM1, MAT);
-    await claimContract(page, CLM2, MAT);
+    await claimContract(page, CLM1, MAT, 3);
+    await claimContract(page, CLM2, MAT, 3);
 
     // Both contracts appear in the "Contratos Solicitados" pending table
     const pendingSection = page.locator('text=Contratos Solicitados').locator('../..');
@@ -174,14 +210,15 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
   });
 
   // Step 3: User2 gets duplicate error on CLM2, then claims CLM3
+  // user2 (carlafranciele) has 3 active matriculas (6111, 11177, 10134) → dropdown path
   test('Step 3 – User2 gets error on contract2 (already claimed), claims contract3', async ({ page }) => {
     await login(page, user2.email, user2.password);
 
     // CLM2 is already claimed by user1 — expect conflict message
-    await claimContract(page, CLM2, MAT, true /* alreadyClaimed */);
+    await claimContract(page, CLM2, MAT, 3, true /* alreadyClaimed */);
 
     // CLM3 is free — should succeed
-    await claimContract(page, CLM3, MAT);
+    await claimContract(page, CLM3, MAT, 3);
 
     // Pending table shows CLM3 only
     await expect(page.locator('table').filter({ hasText: CLM3 })).toBeVisible({ timeout: 10000 });
@@ -229,7 +266,7 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
     await expect(clm2Row).toBeHidden({ timeout: 10000 });
     
     // Re-claim it for the rest of the test lifecycle
-    await claimContract(page, CLM2, MAT);
+    await claimContract(page, CLM2, MAT, 3);
     await expect(page.locator('table.mantine-Table-table').filter({ hasText: CLM2 })).toBeVisible({ timeout: 10000 });
   });
 
