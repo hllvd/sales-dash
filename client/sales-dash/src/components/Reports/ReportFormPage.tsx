@@ -21,7 +21,8 @@ import {
   Collapse,
   Modal,
   ScrollArea,
-  Checkbox
+  Checkbox,
+  TagsInput
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { BarChart, PieChart, DonutChart, LineChart, AreaChart } from '@mantine/charts';
@@ -182,6 +183,9 @@ const toISOStringSafe = (val: any): string | undefined => {
   return !isNaN(d.getTime()) ? d.toISOString() : undefined;
 };
 
+const CURRENT_USER_TEAM_SENTINEL = '__current_user_team__';
+const CURRENT_USER_MATRICULA_SENTINEL = '★ Matrícula do usuário atual';
+
 const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [localFilterId, setLocalFilterId] = useState<string | undefined>(filterId);
   const isEditMode = !!localFilterId;
@@ -285,7 +289,9 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setAllowedRoles(report.allowedRoles || []);
         
         const fc = report.filterConfig;
-        setMatriculas(fc.matriculas || []);
+        const restoredMatriculas = [...(fc.matriculas || [])];
+        if (fc.currentUserMatricula) restoredMatriculas.unshift(CURRENT_USER_MATRICULA_SENTINEL);
+        setMatriculas(restoredMatriculas);
         setDateRange([
           fc.startDate ? new Date(fc.startDate) : null,
           fc.endDate ? new Date(fc.endDate) : null
@@ -314,7 +320,9 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setCurrentUserAsParent(fc.currentUserAsParent || false);
         setEmails(fc.emails || []);
         setGroups((fc.groups || []).map(g => g.toString()));
-        setTeams((fc.teams || []).map(t => t.toString()));
+        const restoredTeams = (fc.teams || []).map(t => t.toString());
+        if (fc.currentUserTeam) restoredTeams.unshift(CURRENT_USER_TEAM_SENTINEL);
+        setTeams(restoredTeams);
         setPvs((fc.pvs || []).map(p => p.toString()));
         setStatuses(fc.statuses || []);
         setStatusOperator(fc.statusOperator || 'or');
@@ -503,8 +511,14 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
   // Safe build of standard report payload
   const buildPayload = () => {
+    const hasCurrentUserTeam = teams.includes(CURRENT_USER_TEAM_SENTINEL);
+    const hasCurrentUserMatricula = matriculas.includes(CURRENT_USER_MATRICULA_SENTINEL);
+    const cleanTeams = teams.filter(t => t !== CURRENT_USER_TEAM_SENTINEL);
+    const cleanMatriculas = matriculas.filter(m => m !== CURRENT_USER_MATRICULA_SENTINEL);
+
     const filterConfig: FilterConfig = {
-      matriculas: matriculas.length > 0 ? matriculas : undefined,
+      matriculas: cleanMatriculas.length > 0 ? cleanMatriculas : undefined,
+      currentUserMatricula: hasCurrentUserMatricula || undefined,
       startDate: dateMode === 'absolute' ? toISOStringSafe(dateRange[0]) : undefined,
       endDate: dateMode === 'absolute' ? toISOStringSafe(dateRange[1]) : undefined,
       relativeStartDate: dateMode === 'relative' && relativeStartDate ? relativeStartDate.trim() : undefined,
@@ -512,7 +526,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       currentUserAsParent: currentUserAsParent || undefined,
       emails: emails.length > 0 ? emails : undefined,
       groups: groups.length > 0 ? groups.map(Number) : undefined,
-      teams: teams.length > 0 ? teams.map(Number) : undefined,
+      teams: cleanTeams.length > 0 ? cleanTeams.map(Number) : undefined,
+      currentUserTeam: hasCurrentUserTeam || undefined,
       pvs: pvs.length > 0 ? pvs.map(Number) : undefined,
       statuses: statuses.length > 0 ? statuses : undefined,
       statusOperator: statuses.length > 1 ? statusOperator : undefined,
@@ -947,10 +962,23 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   <MultiSelect
                     label="Equipes"
                     placeholder="Filtrar por equipes"
-                    data={teamOptions}
+                    data={[
+                      { value: CURRENT_USER_TEAM_SENTINEL, label: '★ Equipe do usuário atual' },
+                      ...teamOptions
+                    ]}
                     value={teams}
                     onChange={setTeams}
                     searchable
+                    size="sm"
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <TagsInput
+                    label="Matrícula"
+                    placeholder="Digite um número e pressione Enter"
+                    value={matriculas}
+                    onChange={setMatriculas}
+                    data={[CURRENT_USER_MATRICULA_SENTINEL]}
                     size="sm"
                   />
                 </Grid.Col>
@@ -1006,14 +1034,6 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                         description="Filtra para incluir apenas usuários hierarquicamente sob o usuário logado."
                         checked={currentUserAsParent}
                         onChange={(e) => setCurrentUserAsParent(e.currentTarget.checked)}
-                      />
-                      <TextInput
-                        label="Matrículas"
-                        description="Lista de matrículas separadas por vírgula"
-                        placeholder="12345, 67890"
-                        value={matriculas.join(', ')}
-                        onChange={(e) => setMatriculas(e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean))}
-                        size="sm"
                       />
                       {statuses.length > 1 && (
                         <Stack gap={2}>

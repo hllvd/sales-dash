@@ -27,6 +27,18 @@ namespace SalesApp.ReportFilters.Models
         /// </summary>
         public bool? CurrentUserAsParent { get; set; }
 
+        /// <summary>
+        /// When true, injects the authenticated user's currently active team IDs into the Teams
+        /// filter at query time. Resolved from the JWT — never stored as a concrete team ID.
+        /// </summary>
+        public bool? CurrentUserTeam { get; set; }
+
+        /// <summary>
+        /// When true, injects the authenticated user's active matricula number(s) into the
+        /// Matriculas filter at query time. Resolved from the JWT — never stored as a literal number.
+        /// </summary>
+        public bool? CurrentUserMatricula { get; set; }
+
         /// <summary>User email addresses to filter by (all users available).</summary>
         public List<string>? Emails { get; set; }
 

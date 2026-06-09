@@ -38,6 +38,8 @@ namespace SalesApp.ReportFilters.DTOs
         public string? RelativeStartDate { get; set; }
         public string? RelativeEndDate { get; set; }
         public bool? CurrentUserAsParent { get; set; }
+        public bool? CurrentUserTeam { get; set; }
+        public bool? CurrentUserMatricula { get; set; }
         public List<string>? Emails { get; set; }
         public List<int>? Groups { get; set; }
         public List<int>? Teams { get; set; }

@@ -11,6 +11,8 @@ export interface FilterConfig {
   relativeStartDate?: string;
   relativeEndDate?: string;
   currentUserAsParent?: boolean;
+  currentUserTeam?: boolean;
+  currentUserMatricula?: boolean;
   emails?: string[];
   groups?: number[];
   teams?: number[];
