@@ -32,6 +32,7 @@ if ls /var/run/docker.sock 2>&1 | grep -q "Operation not permitted" || \
   exit 1
 fi
 
+export COMPOSE_PROJECT_NAME=sales-dash
 mkdir -p artifacts
 
 FILTER='[Ff]ail(ed)?|[Ee]xception|[Pp]anic|[Ff]atal|[Ee]rror:?|Assert\.|FAILED|✗|\[ERR\]|\[WRN\]|\[CRIT\]|Connection refused|\b50[023]\b'
@@ -113,7 +114,7 @@ build() {
   print_header "BUILD"
 
   local EXIT_CODE=0
-  ASPNETCORE_ENVIRONMENT=E2E docker-compose up --build -d \
+  ASPNETCORE_ENVIRONMENT=E2E docker-compose up --build -d salesapp-api client nginx pbi-scraper \
     > artifacts/full-build.log 2>&1 || EXIT_CODE=$?
 
   if [ "$EXIT_CODE" -eq 0 ]; then
