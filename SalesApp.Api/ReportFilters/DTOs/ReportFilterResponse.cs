@@ -46,6 +46,13 @@ namespace SalesApp.ReportFilters.DTOs
         public List<int>? Pvs { get; set; }
         public List<string>? Statuses { get; set; }
         public string? StatusOperator { get; set; }
+        public List<int>? ClassificationLevelIds { get; set; }
+        public decimal? MinRetention { get; set; }
+        public decimal? MaxRetention { get; set; }
+        public decimal? MinStrictRetention { get; set; }
+        public decimal? MaxStrictRetention { get; set; }
+        public decimal? MinProduction { get; set; }
+        public decimal? MaxProduction { get; set; }
     }
 
     public class OutputColumnResponse

@@ -173,8 +173,17 @@ test.describe('User Classification and Views Engine E2E Tests', () => {
     console.log('>>> Adding layout row...');
     await page.click('button:has-text("+ Linha (1 Coluna)")');
 
+    // Close the "Linha Adicionada" notification alert to prevent pointer interception
+    const toastCloseBtn = page.locator('div[role="alert"] button').first();
+    if (await toastCloseBtn.isVisible()) {
+      await toastCloseBtn.click();
+      await expect(toastCloseBtn).not.toBeVisible({ timeout: 5000 });
+    }
+
     // Save dashboard
-    await page.click('button:has-text("Salvar Dashboard")');
+    const saveBtn = page.locator('button:has-text("Salvar Dashboard")');
+    await expect(saveBtn).toBeEnabled({ timeout: 5000 });
+    await saveBtn.click();
     await page.waitForTimeout(1000);
 
     // Verify it exists in the dashboards list

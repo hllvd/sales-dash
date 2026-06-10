@@ -475,6 +475,78 @@ namespace SalesApp.ReportFilters.Services
                 contracts = contracts.Where(c => getTeamName(c) != "(Sem equipe)").ToList();
             }
 
+            // Filter by selected Classification Level IDs
+            if (fc.ClassificationLevelIds?.Count > 0)
+            {
+                contracts = contracts.Where(c =>
+                {
+                    if (c.UserInternalId == null) return false;
+                    var match = allClassifications.FirstOrDefault(x => 
+                        x.UserInternalId == c.UserInternalId.Value &&
+                        TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
+                    if (match != null)
+                    {
+                        return fc.ClassificationLevelIds.Contains(match.LevelId);
+                    }
+                    var currentMatch = allClassifications.FirstOrDefault(x =>
+                        x.UserInternalId == c.UserInternalId.Value &&
+                        x.EndDate == null);
+                    return currentMatch != null && fc.ClassificationLevelIds.Contains(currentMatch.LevelId);
+                }).ToList();
+            }
+
+            // ── Performance Metrics Filters ──────────────────────────────────────
+            bool hasMetricFilter = fc.MinRetention.HasValue || fc.MaxRetention.HasValue
+                || fc.MinStrictRetention.HasValue || fc.MaxStrictRetention.HasValue
+                || fc.MinProduction.HasValue || fc.MaxProduction.HasValue;
+
+            if (hasMetricFilter)
+            {
+                // Single-pass GroupBy to calculate production and retention metrics per user
+                var metricsByUser = contracts
+                    .GroupBy(c => c.UserInternalId ?? -1)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var total = g.Sum(c => c.TotalAmount);
+                            var activeSum = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+                            
+                            var strictActiveSum = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase)
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late1.ToApiString(), StringComparison.OrdinalIgnoreCase)
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late2.ToApiString(), StringComparison.OrdinalIgnoreCase)
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late3.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+
+                            return new
+                            {
+                                Production = total,
+                                Retention = total <= 0 ? 0m : activeSum / total,
+                                StrictRetention = total <= 0 ? 0m : strictActiveSum / total
+                            };
+                        });
+
+                contracts = contracts.Where(c =>
+                {
+                    var uid = c.UserInternalId ?? -1;
+                    if (!metricsByUser.TryGetValue(uid, out var metrics)) return false;
+
+                    if (fc.MinRetention.HasValue && metrics.Retention < fc.MinRetention.Value) return false;
+                    if (fc.MaxRetention.HasValue && metrics.Retention > fc.MaxRetention.Value) return false;
+                    
+                    if (fc.MinStrictRetention.HasValue && metrics.StrictRetention < fc.MinStrictRetention.Value) return false;
+                    if (fc.MaxStrictRetention.HasValue && metrics.StrictRetention > fc.MaxStrictRetention.Value) return false;
+                    
+                    if (fc.MinProduction.HasValue && metrics.Production < fc.MinProduction.Value) return false;
+                    if (fc.MaxProduction.HasValue && metrics.Production > fc.MaxProduction.Value) return false;
+                    
+                    return true;
+                }).ToList();
+            }
+
             // ── Compute per-user/team retention BEFORE status filtering ───────
             // Retention must reflect a user's/team's FULL portfolio (all statuses), not just
             // the subset visible after a status filter is applied.
@@ -1163,7 +1235,14 @@ namespace SalesApp.ReportFilters.Services
                     Teams               = f.FilterConfig.Teams,
                     Pvs                 = f.FilterConfig.Pvs,
                     Statuses            = f.FilterConfig.Statuses,
-                    StatusOperator      = f.FilterConfig.StatusOperator
+                    StatusOperator      = f.FilterConfig.StatusOperator,
+                    ClassificationLevelIds = f.FilterConfig.ClassificationLevelIds,
+                    MinRetention        = f.FilterConfig.MinRetention,
+                    MaxRetention        = f.FilterConfig.MaxRetention,
+                    MinStrictRetention  = f.FilterConfig.MinStrictRetention,
+                    MaxStrictRetention  = f.FilterConfig.MaxStrictRetention,
+                    MinProduction       = f.FilterConfig.MinProduction,
+                    MaxProduction       = f.FilterConfig.MaxProduction
                 },
                 OutputColumns = f.OutputColumns
                     .OrderBy(c => c.Order)
@@ -1193,7 +1272,14 @@ namespace SalesApp.ReportFilters.Services
                 Teams               = req.Teams,
                 Pvs                 = req.Pvs,
                 Statuses            = req.Statuses,
-                StatusOperator      = req.StatusOperator
+                StatusOperator      = req.StatusOperator,
+                ClassificationLevelIds = req.ClassificationLevelIds,
+                MinRetention        = req.MinRetention,
+                MaxRetention        = req.MaxRetention,
+                MinStrictRetention  = req.MinStrictRetention,
+                MaxStrictRetention  = req.MaxStrictRetention,
+                MinProduction       = req.MinProduction,
+                MaxProduction       = req.MaxProduction
             };
 
         private static List<OutputColumn> MapOutputColumns(List<OutputColumnRequest> columns) =>
