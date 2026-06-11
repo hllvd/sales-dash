@@ -1075,6 +1075,35 @@ export const apiService = {
     if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch level members"))
     return response.json()
   },
+
+  async getCurrentUserTree(depth: number = 10): Promise<ApiResponse<UserTreeResponse>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/tree?depth=${depth}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to fetch user tree"))
+    }
+    return response.json()
+  },
+}
+
+export interface UserHierarchyNode {
+  id: string
+  name: string
+  email: string
+  role: string
+  parentUserId?: string | null
+  parentUserName?: string | null
+  level: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserTreeResponse {
+  users: UserHierarchyNode[]
+  totalUsers: number
+  maxDepth: number
 }
 
 

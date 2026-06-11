@@ -3,6 +3,7 @@ import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import LoginPage from './components/LoginPage';
 import UsersPage from './components/UsersPage';
+import UserTreePage from './components/UserTreePage';
 import ContractsPage from './components/ContractsPage';
 import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
@@ -60,6 +61,8 @@ function App() {
     switch (currentRoute) {
       case '#/users':
         return <UsersPage />;
+      case '#/users/tree':
+        return <UserTreePage />;
       case '#/contracts':
         return <ContractsPage />;
       case '#/point-of-sale':

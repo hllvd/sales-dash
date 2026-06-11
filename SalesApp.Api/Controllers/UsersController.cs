@@ -668,6 +668,26 @@ namespace SalesApp.Controllers
             });
         }
         
+        [HttpGet("me/tree")]
+        [HasPermission("users:read")]
+        public async Task<ActionResult<ApiResponse<UserTreeResponse>>> GetCurrentUserTree([FromQuery] int depth = 10)
+        {
+            var currentUserId = GetCurrentUserId();
+            var tree = await _hierarchyService.GetTreeAsync(currentUserId, depth);
+            
+            return Ok(new ApiResponse<UserTreeResponse>
+            {
+                Success = true,
+                Data = new UserTreeResponse
+                {
+                    Users = tree.Select(MapToHierarchyResponse).ToList(),
+                    TotalUsers = tree.Count,
+                    MaxDepth = tree.Any() ? tree.Max(u => u.Level) : 0
+                },
+                Message = _messageService.Get(AppMessage.TreeRetrievedSuccessfully)
+            });
+        }
+        
         [HttpGet("{id}/tree")]
         [HasPermission("users:read")]
         public async Task<ActionResult<ApiResponse<UserTreeResponse>>> GetTree(Guid id, [FromQuery] int depth = -1)

@@ -65,6 +65,15 @@ To maintain high contrast and unified styling across all pages, refer to these a
 
 ---
 
+## 🧭 Navigation Submenus
+
+To keep navigation menus modular, group related child views within a parent `<NavLink>` using:
+* `childrenOffset={28}` for indent alignment.
+* Custom `navLinkStyles` handler (e.g. tracking key string paths like `users-parent`) to highlight the parent item as active whenever any subordinate route is matched.
+* High-contrast Tabler icons on all key menu triggers.
+
+---
+
 ## ❌ strictly Forbiden Patterns (Do Not Implement)
 1. **Raw CSS Banner Colors**: Do not override warning boxes with solid, saturated blocks or thick borders.
 2. **Raw HTML Inputs**: Do not introduce native `<select>` or `<input>` fields that clash with Mantine's focus borders and rounding.

@@ -197,8 +197,44 @@ To ensure flawless readability on both light and dark backgrounds, form fields a
 
 ---
 
+## 🧭 Navigation Submenus
+
+To keep the main application shell structured and neat, group related pages using collapsible navigation submenus.
+* **Pattern**: Parent `<NavLink>` component containing child `<NavLink>` items.
+* **Visual styling**: Offset children using `childrenOffset={28}` and apply custom active root logic to highlight the parent whenever a sub-page route is active.
+* **Consistency**: Do not mix flat link items with submenus without assigning clear semantic parent icons (e.g. `IconUsers` or `IconActivity`).
+
+```typescript
+<NavLink
+  label="Usuários"
+  leftSection={<IconUsers size={20} />}
+  childrenOffset={28}
+  styles={navLinkStyles('users-parent')}
+  active={currentPath === '#/users' || currentPath === '#/users/tree'}
+  color="red"
+  variant="filled"
+  defaultOpened={currentPath === '#/users' || currentPath === '#/users/tree'}
+>
+  <NavLink
+    href="#/users"
+    label="Lista"
+    active={isActive('#/users')}
+    styles={navLinkStyles('#/users')}
+  />
+  <NavLink
+    href="#/users/tree"
+    label="Árvore"
+    leftSection={<IconSitemap size={16} />}
+    active={isActive('#/users/tree')}
+    styles={navLinkStyles('#/users/tree')}
+  />
+</NavLink>
+```
+
+---
+
 ## 🛡️ Anti-Patterns (Forbid These)
 
-1. **❌ Raw CSS Styling Override Banners**: Avoid styling alerts with absolute black/dark badge blocks or hard borders (`border: '1px solid rgba(253, 224, 71, 0.4)'`). Rely on Mantine's native theme engine.
-2. **❌ raw HTML inputs**: Use Mantine's `<TextInput>`, `<Select>`, or `<FileInput>` instead of browser defaults to maintain border-radius and focus-ring consistency.
-3. **❌ Hard-coded Card Layouts for Tabular Lists**: Do not display tables/lists as a vertical list of disjointed cards inside dynamic modals; use a clean, scoped standard `<table>` instead.
+1.  **❌ Raw CSS Styling Override Banners**: Avoid styling alerts with absolute black/dark badge blocks or hard borders (`border: '1px solid rgba(253, 224, 71, 0.4)'`). Rely on Mantine's native theme engine.
+2.  **❌ raw HTML inputs**: Use Mantine's `<TextInput>`, `<Select>`, or `<FileInput>` instead of browser defaults to maintain border-radius and focus-ring consistency.
+3.  **❌ Hard-coded Card Layouts for Tabular Lists**: Do not display tables/lists as a vertical list of disjointed cards inside dynamic modals; use a clean, scoped standard `<table>` instead.
