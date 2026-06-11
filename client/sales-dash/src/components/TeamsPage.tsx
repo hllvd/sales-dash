@@ -33,7 +33,15 @@ const TeamsPage: React.FC = () => {
   const [ownerUserId, setOwnerUserId] = useState<string>("")
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = useState(() => {
+    try {
+      const queryStr = window.location.hash.split("?")[1];
+      if (queryStr) {
+        return new URLSearchParams(queryStr).get("search") || "";
+      }
+    } catch {}
+    return "";
+  })
 
   // Fetch teams
   const fetchTeams = useCallback(async () => {

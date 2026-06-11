@@ -1108,6 +1108,8 @@ export interface UserHierarchyNode {
   isActive: boolean
   createdAt: string
   updatedAt: string
+  ownedTeamId?: number | null
+  ownedTeamName?: string | null
 }
 
 export interface UserTreeResponse {

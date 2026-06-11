@@ -23,12 +23,14 @@ import {
   IconEye,
   IconChevronRight,
   IconChevronDown,
-  IconUsers
+  IconUsers,
+  IconEdit
 } from "@tabler/icons-react"
 import "./UserTreePage.css"
 import Menu from "./Menu"
-import { apiService, UserHierarchyNode } from "../services/apiService"
+import { apiService, UserHierarchyNode, User } from "../services/apiService"
 import { UserProfileModal } from "./UserProfile"
+import UserForm from "./UserForm"
 
 const UserTreePage: React.FC = () => {
   const [users, setUsers] = useState<UserHierarchyNode[]>([])
@@ -41,13 +43,17 @@ const UserTreePage: React.FC = () => {
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null)
   
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [canEdit, setCanEdit] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | undefined>(undefined)
   const [availableUsers, setAvailableUsers] = useState<Array<{ value: string, label: string }>>([])
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}")
     const superadmin = user.role === "superadmin"
+    const isAdminOrSuper = user.role === "superadmin" || user.role === "admin"
     setIsSuperAdmin(superadmin)
+    setCanEdit(isAdminOrSuper)
 
     if (superadmin) {
       apiService.getUsers(1, 1000)
@@ -75,6 +81,7 @@ const UserTreePage: React.FC = () => {
         : await apiService.getCurrentUserTree(currentDepth)
 
       if (response.success && response.data) {
+        console.log(">>> E2E TREE LOADED users =", response.data.users);
         setUsers(response.data.users)
         setTotalUsers(response.data.totalUsers)
         setMaxDepth(response.data.maxDepth)
@@ -85,6 +92,17 @@ const UserTreePage: React.FC = () => {
       setError(err.message || "Erro ao conectar-se com o servidor.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUpdateUser = async (userData: any) => {
+    if (editingUser) {
+      await apiService.updateUser(editingUser.id, userData)
+      setEditingUser(undefined)
+      const numericDepth = typeof depth === "number" ? depth : parseInt(depth, 10)
+      if (!isNaN(numericDepth) && numericDepth > 0) {
+        fetchTree(numericDepth, selectedUserId)
+      }
     }
   }
 
@@ -224,16 +242,70 @@ const UserTreePage: React.FC = () => {
             <span className="tree-node-name">{userNode.name}</span>
             {getRoleBadge(userNode.role)}
             {isInactive && <Badge size="xs" color="gray" variant="outline">Inativo</Badge>}
+            {userNode.ownedTeamName && (
+              <Badge color="teal" variant="light" leftSection={<IconUsers size={12} />}>
+                Dono: {userNode.ownedTeamName}
+              </Badge>
+            )}
           </Group>
           <span className="tree-node-email">{userNode.email}</span>
         </div>
+
+        {userNode.ownedTeamId && (
+          <Tooltip label={`Ir para Equipe: ${userNode.ownedTeamName}`} position="top" withArrow>
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="teal"
+              className="tree-node-action team-nav-btn"
+              aria-label="Ir para Equipe"
+              onClick={(e) => {
+                e.stopPropagation()
+                window.location.hash = `#/teams?search=${encodeURIComponent(userNode.ownedTeamName!)}`
+              }}
+            >
+              <IconUsers size={16} />
+            </ActionIcon>
+          </Tooltip>
+        )}
+
+        {canEdit && (
+          <Tooltip label="Editar Usuário" position="top" withArrow>
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="blue"
+              className="tree-node-action edit-user-btn"
+              aria-label="Editar Usuário"
+              onClick={(e) => {
+                e.stopPropagation()
+                const mappedUser: User = {
+                  id: userNode.id,
+                  name: userNode.name,
+                  email: userNode.email,
+                  role: userNode.role,
+                  parentUserId: userNode.parentUserId || undefined,
+                  parentUserName: userNode.parentUserName || undefined,
+                  isActive: userNode.isActive,
+                  isMatriculaOwner: false,
+                  createdAt: userNode.createdAt,
+                  updatedAt: userNode.updatedAt
+                }
+                setEditingUser(mappedUser)
+              }}
+            >
+              <IconEdit size={16} />
+            </ActionIcon>
+          </Tooltip>
+        )}
 
         <Tooltip label="Visualizar Perfil" position="right" withArrow>
           <ActionIcon
             size="sm"
             variant="subtle"
             color="indigo"
-            className="tree-node-action"
+            className="tree-node-action view-details-btn"
+            aria-label="Visualizar Perfil"
             onClick={(e) => {
               e.stopPropagation()
               setSelectedProfileUserId(userNode.id)
@@ -343,6 +415,15 @@ const UserTreePage: React.FC = () => {
           opened={selectedProfileUserId !== null}
           onClose={() => setSelectedProfileUserId(null)}
         />
+
+        {editingUser && (
+          <UserForm
+            user={editingUser}
+            onSubmit={handleUpdateUser}
+            onCancel={() => setEditingUser(undefined)}
+            isEdit={true}
+          />
+        )}
       </div>
     </Menu>
   )

@@ -12,6 +12,8 @@ namespace SalesApp.DTOs
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public int? OwnedTeamId { get; set; }
+        public string? OwnedTeamName { get; set; }
     }
     
     public class UserTreeResponse
