@@ -26,6 +26,33 @@ export interface UserMatriculaInfo {
   endDate: string | null
 }
 
+export interface UserMetadataFieldValue {
+  fieldId: number
+  key: string
+  label: string
+  fieldType: string
+  dropdownOptions?: string
+  isRequired: boolean
+  value?: string
+}
+
+export interface UserMetadataGroup {
+  groupLabel: string | null
+  fields: UserMetadataFieldValue[]
+}
+
+export interface UserMetadataFieldDef {
+  id: number
+  key: string
+  label: string
+  groupLabel?: string | null
+  fieldType: string
+  dropdownOptions?: string | null
+  displayOrder: number
+  isRequired: boolean
+  isActive: boolean
+}
+
 export interface User {
   id: string
   name: string
@@ -44,6 +71,7 @@ export interface User {
   activeMatriculas?: UserMatriculaInfo[]
   powerBiUsername?: string
   hasPowerBiCredentials?: boolean
+  metadataGroups?: UserMetadataGroup[]
 }
 
 export interface UserStats {
@@ -1073,6 +1101,72 @@ export const apiService = {
       headers: getAuthHeaders(),
     })
     if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch level members"))
+    return response.json()
+  },
+
+  // ── User Metadata Fields & Values ──────────────────────────────────────────────
+
+  async getUserMetadataFields(): Promise<ApiResponse<UserMetadataFieldDef[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermetadata/fields`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch metadata fields"))
+    return response.json()
+  },
+
+  async createMetadataField(req: Omit<UserMetadataFieldDef, 'id' | 'isActive'>): Promise<ApiResponse<UserMetadataFieldDef>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermetadata/fields`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(req),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to create metadata field"))
+    return response.json()
+  },
+
+  async updateMetadataField(id: number, req: Omit<UserMetadataFieldDef, 'id' | 'isActive'>): Promise<ApiResponse<UserMetadataFieldDef>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermetadata/fields/${id}`, {
+      method: "PUT",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(req),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to update metadata field"))
+    return response.json()
+  },
+
+  async deleteMetadataField(id: number): Promise<ApiResponse<object>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermetadata/fields/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to delete metadata field"))
+    return response.json()
+  },
+
+  async getUserMetadataValues(userId: string): Promise<ApiResponse<UserMetadataGroup[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermetadata/${userId}/values`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch metadata values"))
+    return response.json()
+  },
+
+  async upsertUserMetadataValues(userId: string, values: { fieldId: number; value?: string }[]): Promise<ApiResponse<object>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/usermetadata/${userId}/values`, {
+      method: "PUT",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ values }),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to save metadata values"))
     return response.json()
   },
 }

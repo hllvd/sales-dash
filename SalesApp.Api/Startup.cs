@@ -89,6 +89,7 @@ namespace SalesApp
             services.AddScoped<IContractAggregationService, ContractAggregationService>();
             services.AddScoped<IUserMatriculaRepository, UserMatriculaRepository>();
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
+            services.AddScoped<IUserMetadataRepository, UserMetadataRepository>();
             services.AddScoped<IWizardService, WizardService>();
             services.AddScoped<IWizardHeaderValidator, WizardHeaderValidator>();
             services.AddScoped<IPendingClaimService, PendingClaimService>();

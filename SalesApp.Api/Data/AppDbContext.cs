@@ -39,6 +39,8 @@ namespace SalesApp.Data
         public DbSet<UserTeam> UserTeams { get; set; }
         public DbSet<ClassificationLevel> ClassificationLevels { get; set; }
         public DbSet<UserClassification> UserClassifications { get; set; }
+        public DbSet<UserMetadataField> UserMetadataFields { get; set; }
+        public DbSet<UserMetadataValue> UserMetadataValues { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -471,6 +473,36 @@ namespace SalesApp.Data
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasIndex(e => new { e.UserInternalId, e.EndDate });
+            });
+
+            // UserMetadataField entity configuration
+            modelBuilder.Entity<UserMetadataField>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.HasIndex(e => e.Key).IsUnique();
+                entity.Property(e => e.Key).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Label).IsRequired().HasMaxLength(150);
+                entity.Property(e => e.FieldType).IsRequired().HasMaxLength(50).HasDefaultValue("text");
+            });
+
+            // UserMetadataValue entity configuration
+            modelBuilder.Entity<UserMetadataValue>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.HasIndex(e => new { e.UserInternalId, e.UserMetadataFieldId }).IsUnique();
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserInternalId)
+                    .HasPrincipalKey(u => u.InternalId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Field)
+                    .WithMany(f => f.Values)
+                    .HasForeignKey(e => e.UserMetadataFieldId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
         

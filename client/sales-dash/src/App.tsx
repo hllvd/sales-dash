@@ -17,6 +17,7 @@ import ScrapeDashboard from './components/Scrape/ScrapeDashboard';
 import ReportsRouter from './components/Reports/ReportsRouter';
 import ViewsRouter from './components/Reports/ViewsRouter';
 import MatriculaHealthPage from './components/Monitoring/MatriculaHealthPage';
+import UserMetadataAdminPage from './components/UserMetadataAdmin/UserMetadataAdminPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -85,6 +86,8 @@ function App() {
         return <ScrapeDashboard initialTab={currentRoute === '#/scrapes/historial' ? 'history' : 'links'} />;
       case '#/monitoring/matricula-health':
         return <MatriculaHealthPage />;
+      case '#/user-metadata-fields':
+        return <UserMetadataAdminPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':

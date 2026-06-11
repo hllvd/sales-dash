@@ -21,6 +21,7 @@ namespace SalesApp.DTOs
         public bool IsMatriculaOwner { get; set; }
         
         public List<UserMatriculaInfo> ActiveMatriculas { get; set; } = new List<UserMatriculaInfo>();
+        public List<UserMetadataGroupDto> MetadataGroups { get; set; } = new();
     }
     
     public class LoginResponse

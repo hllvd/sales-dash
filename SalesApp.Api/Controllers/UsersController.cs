@@ -594,6 +594,37 @@ namespace SalesApp.Controllers
                 .Select(uc => uc.Level.Name)
                 .FirstOrDefault();
 
+            // Get user metadata groups
+            var activeFields = _context.UserMetadataFields
+                .Where(f => f.IsActive)
+                .OrderBy(f => f.DisplayOrder)
+                .ThenBy(f => f.Label)
+                .ToList();
+
+            var userValues = _context.UserMetadataValues
+                .Where(v => v.UserInternalId == user.InternalId)
+                .ToList();
+
+            var valuesMap = userValues.ToDictionary(v => v.UserMetadataFieldId, v => v.Value);
+
+            var metadataGroups = activeFields
+                .GroupBy(f => f.GroupLabel)
+                .Select(g => new UserMetadataGroupDto(
+                    g.Key,
+                    g.Select(f => new UserMetadataFieldValueDto(
+                        f.Id,
+                        f.Key,
+                        f.Label,
+                        f.FieldType,
+                        f.DropdownOptions,
+                        f.IsRequired,
+                        valuesMap.TryGetValue(f.Id, out var val) ? val : null
+                    )).ToList()
+                ))
+                .OrderBy(g => g.GroupLabel == null ? 1 : 0)
+                .ThenBy(g => g.GroupLabel)
+                .ToList();
+
             return new UserResponse
             {
                 Id = user.Id,
@@ -631,6 +662,7 @@ namespace SalesApp.Controllers
                     })
                     .ToList() ?? new List<UserMatriculaInfo>(),
                 
+                MetadataGroups = metadataGroups
             };
         }
         

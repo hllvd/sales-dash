@@ -248,6 +248,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
+          {userRole === 'superadmin' && (
+            <NavLink
+              href="#/user-metadata-fields"
+              label="Campos de Metadados"
+              leftSection={<IconClipboardList size={20} />}
+              active={isActive('#/user-metadata-fields')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/user-metadata-fields')}
+              onClick={() => { if (opened) close(); }}
+            />
+          )}
+
           {(hasPermission('roles:read') && userRole !== UserRole.ADMIN) && (
             <NavLink
               href="#/access-control"

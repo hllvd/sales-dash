@@ -70,7 +70,8 @@ export default defineConfig({
         'classification_management.spec.ts',
         'user_classification_and_views.spec.ts',
         'import_wizard_aliases.spec.ts',
-        'pending_contract_claims.spec.ts'
+        'pending_contract_claims.spec.ts',
+        'user_metadata.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']

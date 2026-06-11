@@ -3,6 +3,7 @@ import { Title, Button, TextInput, PasswordInput, Modal, Loader, Badge, Paper, G
 import { IconUser, IconMail, IconPencil, IconCheck, IconX, IconLock, IconCalendar, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { useCurrentUser } from '../../contexts/CurrentUserContext';
 import { apiService, User, UserClassification, UserStats } from '../../services/apiService';
+import { UserMetadataSection } from './UserMetadataSection';
 import { toast } from '../../utils/toast';
 import { validatePassword } from '../../utils/validators';
 import './UserProfile.css';
@@ -43,6 +44,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
   const [newMatriculaNumber, setNewMatriculaNumber] = useState('');
   const [submittingMatricula, setSubmittingMatricula] = useState(false);
 
+  // Metadata changes state
+  const [pendingMetadataChanges, setPendingMetadataChanges] = useState<Record<number, string>>({});
+
   const statsRef = useRef<HTMLDivElement>(null);
 
   // Can edit logic: currently logged-in user editing their own profile OR an admin/superadmin editing
@@ -63,6 +67,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
         setUser(userResponse.data);
         setName(userResponse.data.name);
         setEmail(userResponse.data.email);
+        setPendingMetadataChanges({});
       }
       
       if (historyResponse.success && historyResponse.data) {
@@ -163,6 +168,16 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
 
     setSaving(true);
     try {
+      // 1. Save metadata changes first
+      const metadataPayload = Object.entries(pendingMetadataChanges).map(([id, val]) => ({
+        fieldId: Number(id),
+        value: val,
+      }));
+      if (metadataPayload.length > 0) {
+        await apiService.upsertUserMetadataValues(userId, metadataPayload);
+      }
+
+      // 2. Save core profile details
       const updateData: any = { name, email };
       if (showPasswordFields && newPassword) {
         updateData.password = newPassword;
@@ -176,6 +191,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
+        setPendingMetadataChanges({});
         
         // Refresh local details
         await loadProfileData();
@@ -408,6 +424,18 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
               )}
             </div>
 
+            {user?.metadataGroups && user.metadataGroups.length > 0 && (
+              <UserMetadataSection
+                groups={user.metadataGroups}
+                isEditing={isEditing}
+                values={pendingMetadataChanges}
+                onChange={(fieldId, val) => {
+                  setPendingMetadataChanges(prev => ({ ...prev, [fieldId]: val }));
+                }}
+                canEdit={canEdit}
+              />
+            )}
+
             <div className="edit-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
               <Button 
                 variant="subtle" 
@@ -416,6 +444,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
                   setShowPasswordFields(false);
                   setName(user.name);
                   setEmail(user.email);
+                  setPendingMetadataChanges({});
                 }}
                 disabled={saving}
               >
@@ -550,6 +579,19 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
           </Paper>
         </Grid.Col>
       </Grid>
+
+      {/* VIEW-MODE ADDITIONAL USER METADATA SECTION */}
+      {!isEditing && user?.metadataGroups && user.metadataGroups.length > 0 && (
+        <UserMetadataSection
+          groups={user.metadataGroups}
+          isEditing={isEditing}
+          values={pendingMetadataChanges}
+          onChange={(fieldId, val) => {
+            setPendingMetadataChanges(prev => ({ ...prev, [fieldId]: val }));
+          }}
+          canEdit={canEdit}
+        />
+      )}
 
       {/* BOTTOM SECTION - LAZY-LOADED STATS */}
       <div ref={statsRef} className="profile-stats-section" style={{ marginTop: '30px' }}>
