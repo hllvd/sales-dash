@@ -530,6 +530,35 @@ namespace SalesApp.Tests
         }
 
         [Fact]
+        public async Task GetCurrentUserTree_ValidRequest_ReturnsTree()
+        {
+            // Arrange
+            var currentUserId = Guid.NewGuid();
+            SetupUser(currentUserId.ToString(), "user");
+
+            var treeUsers = new List<User>
+            {
+                new User { Id = currentUserId, Name = "Current User", Level = 0 },
+                new User { Id = Guid.NewGuid(), Name = "Child 1", Level = 1 },
+                new User { Id = Guid.NewGuid(), Name = "Child 2", Level = 1 }
+            };
+
+            _mockHierarchyService.Setup(x => x.GetTreeAsync(currentUserId, 10)).ReturnsAsync(treeUsers);
+
+            // Act
+            var result = await _controller.GetCurrentUserTree(10);
+
+            // Assert
+            result.Result.Should().BeOfType<OkObjectResult>();
+            var okResult = result.Result as OkObjectResult;
+            var response = okResult!.Value as ApiResponse<UserTreeResponse>;
+            response!.Success.Should().BeTrue();
+            response.Data!.Users.Should().HaveCount(3);
+            response.Data.TotalUsers.Should().Be(3);
+            response.Data.MaxDepth.Should().Be(1);
+        }
+
+        [Fact]
         public async Task GetLevel_ValidRequest_ReturnsLevel()
         {
             // Arrange

@@ -11,12 +11,21 @@ export interface FilterConfig {
   relativeStartDate?: string;
   relativeEndDate?: string;
   currentUserAsParent?: boolean;
+  currentUserTeam?: boolean;
+  currentUserMatricula?: boolean;
   emails?: string[];
   groups?: number[];
   teams?: number[];
   pvs?: number[];
   statuses?: string[];
   statusOperator?: 'or' | 'and';
+  classificationLevelIds?: number[];
+  minRetention?: number;
+  maxRetention?: number;
+  minStrictRetention?: number;
+  maxStrictRetention?: number;
+  minProduction?: number;
+  maxProduction?: number;
 }
 
 export interface OutputColumn {

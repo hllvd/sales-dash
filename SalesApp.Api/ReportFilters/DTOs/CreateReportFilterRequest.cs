@@ -12,12 +12,21 @@ namespace SalesApp.ReportFilters.DTOs
         public string? RelativeStartDate { get; set; }
         public string? RelativeEndDate { get; set; }
         public bool? CurrentUserAsParent { get; set; }
+        public bool? CurrentUserTeam { get; set; }
+        public bool? CurrentUserMatricula { get; set; }
         public List<string>? Emails { get; set; }
         public List<int>? Groups { get; set; }
         public List<int>? Teams { get; set; }
         public List<int>? Pvs { get; set; }
         public List<string>? Statuses { get; set; }
         public string? StatusOperator { get; set; }
+        public List<int>? ClassificationLevelIds { get; set; }
+        public decimal? MinRetention { get; set; }
+        public decimal? MaxRetention { get; set; }
+        public decimal? MinStrictRetention { get; set; }
+        public decimal? MaxStrictRetention { get; set; }
+        public decimal? MinProduction { get; set; }
+        public decimal? MaxProduction { get; set; }
     }
 
     /// <summary>

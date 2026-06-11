@@ -3,6 +3,7 @@ import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import LoginPage from './components/LoginPage';
 import UsersPage from './components/UsersPage';
+import UserTreePage from './components/UserTreePage';
 import ContractsPage from './components/ContractsPage';
 import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
@@ -50,17 +51,21 @@ function App() {
   }
 
   const renderPage = () => {
-    if (currentRoute.startsWith('#/reports')) {
+    const routePath = currentRoute.split('?')[0];
+
+    if (routePath.startsWith('#/reports')) {
       return <ReportsRouter currentRoute={currentRoute} />;
     }
 
-    if (currentRoute.startsWith('#/views')) {
+    if (routePath.startsWith('#/views')) {
       return <ViewsRouter currentRoute={currentRoute} />;
     }
 
-    switch (currentRoute) {
+    switch (routePath) {
       case '#/users':
         return <UsersPage />;
+      case '#/users/tree':
+        return <UserTreePage />;
       case '#/contracts':
         return <ContractsPage />;
       case '#/point-of-sale':

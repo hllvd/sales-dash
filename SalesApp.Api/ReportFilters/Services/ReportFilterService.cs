@@ -383,6 +383,59 @@ namespace SalesApp.ReportFilters.Services
                 userIdFilter = currentUserId;
             }
 
+            // currentUserTeam / currentUserMatricula: load the current user entity once if either flag is set.
+            // GetByIdAsync eagerly loads UserMatriculas (with Matricula) and UserTeams, so no extra round-trips.
+            if ((fc.CurrentUserTeam == true || fc.CurrentUserMatricula == true) && currentUserId.HasValue)
+            {
+                var currentUserEntity = await _userRepository.GetByIdAsync(currentUserId.Value);
+                if (currentUserEntity != null)
+                {
+                    // currentUserTeam: inject the user's currently-active team IDs into fc.Teams
+                    if (fc.CurrentUserTeam == true)
+                    {
+                        var now = DateTime.UtcNow;
+                        var activeTeamIds = memberTeamMapping
+                            .Where(x => x.UserInternalId == currentUserEntity.InternalId
+                                     && x.StartDate <= now
+                                     && (x.EndDate == null || x.EndDate > now))
+                            .Select(x => x.TeamId)
+                            .Distinct()
+                            .ToList();
+
+                        fc.Teams = (fc.Teams ?? new List<int>())
+                            .Union(activeTeamIds)
+                            .Distinct()
+                            .ToList();
+                    }
+
+                    // currentUserMatricula: inject the user's active matricula numbers into fc.Matriculas
+                    if (fc.CurrentUserMatricula == true)
+                    {
+                        var userMatriculaNumbers = currentUserEntity.UserMatriculas
+                            .Where(um => um.Matricula != null
+                                      && !string.IsNullOrWhiteSpace(um.Matricula.MatriculaNumber))
+                            .Select(um => um.Matricula!.MatriculaNumber)
+                            .Distinct()
+                            .ToList();
+
+                        fc.Matriculas = (fc.Matriculas ?? new List<string>())
+                            .Union(userMatriculaNumbers)
+                            .Distinct()
+                            .ToList();
+                    }
+                }
+
+                // If dynamic resolution resulted in no values (or user entity not found),
+                // we must force an empty match instead of skipping the filter and returning everything.
+                if (fc.CurrentUserTeam == true && (fc.Teams == null || fc.Teams.Count == 0))
+                {
+                    fc.Teams = new List<int> { -1 };
+                }
+                if (fc.CurrentUserMatricula == true && (fc.Matriculas == null || fc.Matriculas.Count == 0))
+                {
+                    fc.Matriculas = new List<string> { "__invalid_non_existent_matricula__" };
+                }
+            }
 
 
             // Reuse existing GetAllAsync — same logic as /api/contracts, no duplication
@@ -420,6 +473,78 @@ namespace SalesApp.ReportFilters.Services
             if (report.HideUnassignedTeams)
             {
                 contracts = contracts.Where(c => getTeamName(c) != "(Sem equipe)").ToList();
+            }
+
+            // Filter by selected Classification Level IDs
+            if (fc.ClassificationLevelIds?.Count > 0)
+            {
+                contracts = contracts.Where(c =>
+                {
+                    if (c.UserInternalId == null) return false;
+                    var match = allClassifications.FirstOrDefault(x => 
+                        x.UserInternalId == c.UserInternalId.Value &&
+                        TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
+                    if (match != null)
+                    {
+                        return fc.ClassificationLevelIds.Contains(match.LevelId);
+                    }
+                    var currentMatch = allClassifications.FirstOrDefault(x =>
+                        x.UserInternalId == c.UserInternalId.Value &&
+                        x.EndDate == null);
+                    return currentMatch != null && fc.ClassificationLevelIds.Contains(currentMatch.LevelId);
+                }).ToList();
+            }
+
+            // ── Performance Metrics Filters ──────────────────────────────────────
+            bool hasMetricFilter = fc.MinRetention.HasValue || fc.MaxRetention.HasValue
+                || fc.MinStrictRetention.HasValue || fc.MaxStrictRetention.HasValue
+                || fc.MinProduction.HasValue || fc.MaxProduction.HasValue;
+
+            if (hasMetricFilter)
+            {
+                // Single-pass GroupBy to calculate production and retention metrics per user
+                var metricsByUser = contracts
+                    .GroupBy(c => c.UserInternalId ?? -1)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var total = g.Sum(c => c.TotalAmount);
+                            var activeSum = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+                            
+                            var strictActiveSum = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase)
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late1.ToApiString(), StringComparison.OrdinalIgnoreCase)
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late2.ToApiString(), StringComparison.OrdinalIgnoreCase)
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late3.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
+
+                            return new
+                            {
+                                Production = total,
+                                Retention = total <= 0 ? 0m : activeSum / total,
+                                StrictRetention = total <= 0 ? 0m : strictActiveSum / total
+                            };
+                        });
+
+                contracts = contracts.Where(c =>
+                {
+                    var uid = c.UserInternalId ?? -1;
+                    if (!metricsByUser.TryGetValue(uid, out var metrics)) return false;
+
+                    if (fc.MinRetention.HasValue && metrics.Retention < fc.MinRetention.Value) return false;
+                    if (fc.MaxRetention.HasValue && metrics.Retention > fc.MaxRetention.Value) return false;
+                    
+                    if (fc.MinStrictRetention.HasValue && metrics.StrictRetention < fc.MinStrictRetention.Value) return false;
+                    if (fc.MaxStrictRetention.HasValue && metrics.StrictRetention > fc.MaxStrictRetention.Value) return false;
+                    
+                    if (fc.MinProduction.HasValue && metrics.Production < fc.MinProduction.Value) return false;
+                    if (fc.MaxProduction.HasValue && metrics.Production > fc.MaxProduction.Value) return false;
+                    
+                    return true;
+                }).ToList();
             }
 
             // ── Compute per-user/team retention BEFORE status filtering ───────
@@ -1103,12 +1228,21 @@ namespace SalesApp.ReportFilters.Services
                     RelativeStartDate   = f.FilterConfig.RelativeStartDate,
                     RelativeEndDate     = f.FilterConfig.RelativeEndDate,
                     CurrentUserAsParent = f.FilterConfig.CurrentUserAsParent,
+                    CurrentUserTeam     = f.FilterConfig.CurrentUserTeam,
+                    CurrentUserMatricula = f.FilterConfig.CurrentUserMatricula,
                     Emails              = f.FilterConfig.Emails,
                     Groups              = f.FilterConfig.Groups,
                     Teams               = f.FilterConfig.Teams,
                     Pvs                 = f.FilterConfig.Pvs,
                     Statuses            = f.FilterConfig.Statuses,
-                    StatusOperator      = f.FilterConfig.StatusOperator
+                    StatusOperator      = f.FilterConfig.StatusOperator,
+                    ClassificationLevelIds = f.FilterConfig.ClassificationLevelIds,
+                    MinRetention        = f.FilterConfig.MinRetention,
+                    MaxRetention        = f.FilterConfig.MaxRetention,
+                    MinStrictRetention  = f.FilterConfig.MinStrictRetention,
+                    MaxStrictRetention  = f.FilterConfig.MaxStrictRetention,
+                    MinProduction       = f.FilterConfig.MinProduction,
+                    MaxProduction       = f.FilterConfig.MaxProduction
                 },
                 OutputColumns = f.OutputColumns
                     .OrderBy(c => c.Order)
@@ -1131,12 +1265,21 @@ namespace SalesApp.ReportFilters.Services
                 RelativeStartDate   = req.RelativeStartDate,
                 RelativeEndDate     = req.RelativeEndDate,
                 CurrentUserAsParent = req.CurrentUserAsParent,
+                CurrentUserTeam     = req.CurrentUserTeam,
+                CurrentUserMatricula = req.CurrentUserMatricula,
                 Emails              = req.Emails,
                 Groups              = req.Groups,
                 Teams               = req.Teams,
                 Pvs                 = req.Pvs,
                 Statuses            = req.Statuses,
-                StatusOperator      = req.StatusOperator
+                StatusOperator      = req.StatusOperator,
+                ClassificationLevelIds = req.ClassificationLevelIds,
+                MinRetention        = req.MinRetention,
+                MaxRetention        = req.MaxRetention,
+                MinStrictRetention  = req.MinStrictRetention,
+                MaxStrictRetention  = req.MaxStrictRetention,
+                MinProduction       = req.MinProduction,
+                MaxProduction       = req.MaxProduction
             };
 
         private static List<OutputColumn> MapOutputColumns(List<OutputColumnRequest> columns) =>

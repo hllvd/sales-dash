@@ -21,7 +21,9 @@ import {
   Collapse,
   Modal,
   ScrollArea,
-  Checkbox
+  Checkbox,
+  TagsInput,
+  NumberInput
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { BarChart, PieChart, DonutChart, LineChart, AreaChart } from '@mantine/charts';
@@ -53,7 +55,7 @@ import {
   SourceColumns,
   ReportResultsResponse
 } from '../../services/reportFilterService';
-import { apiService, User } from '../../services/apiService';
+import { apiService, User, ClassificationLevel } from '../../services/apiService';
 import { getGroups } from '../../services/contractService';
 
 interface ReportFormPageProps {
@@ -182,6 +184,9 @@ const toISOStringSafe = (val: any): string | undefined => {
   return !isNaN(d.getTime()) ? d.toISOString() : undefined;
 };
 
+const CURRENT_USER_TEAM_SENTINEL = '__current_user_team__';
+const CURRENT_USER_MATRICULA_SENTINEL = '★ Matrícula do usuário atual';
+
 const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [localFilterId, setLocalFilterId] = useState<string | undefined>(filterId);
   const isEditMode = !!localFilterId;
@@ -214,6 +219,17 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [teams, setTeams] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
+
+  // Classification & Performance Filters
+  const [classificationLevelIds, setClassificationLevelIds] = useState<string[]>([]);
+  const [classificationOptions, setClassificationOptions] = useState<{value: string, label: string}[]>([]);
+  const [minRetention, setMinRetention] = useState<number | ''>('');
+  const [maxRetention, setMaxRetention] = useState<number | ''>('');
+  const [minStrictRetention, setMinStrictRetention] = useState<number | ''>('');
+  const [maxStrictRetention, setMaxStrictRetention] = useState<number | ''>('');
+  const [minProduction, setMinProduction] = useState<number | ''>('');
+  const [maxProduction, setMaxProduction] = useState<number | ''>('');
+  const [performanceFiltersOpen, setPerformanceFiltersOpen] = useState(false);
 
   // Grouping
   const [groupingType, setGroupingType] = useState<'none' | 'team' | 'email' | 'classification'>('none');
@@ -262,18 +278,20 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       const colsRes = await getAvailableColumns();
       setAvailableColumns(colsRes.sources);
 
-      // Fetch users, groups, PVs, teams for multiselects
-      const [usersRes, groupsData, pvsRes, teamsRes] = await Promise.all([
+      // Fetch users, groups, PVs, teams, classification levels for multiselects
+      const [usersRes, groupsData, pvsRes, teamsRes, classRes] = await Promise.all([
         apiService.getUsers(1, 1000),
         getGroups(),
         apiService.getPVs(),
-        apiService.getTeams()
+        apiService.getTeams(),
+        apiService.getClassificationLevels()
       ]);
       
       setUserOptions((usersRes.data?.items || []).map((u: User) => ({ value: u.email, label: u.name })));
       setGroupOptions((groupsData || []).map((g: any) => ({ value: g.id.toString(), label: g.name })));
       setTeamOptions((teamsRes.data || []).map((t: any) => ({ value: t.id.toString(), label: t.name })));
       setPvOptions((pvsRes.data || []).map((p: any) => ({ value: p.id.toString(), label: p.name })));
+      setClassificationOptions((classRes.data || []).map((c: ClassificationLevel) => ({ value: c.id.toString(), label: c.name })));
 
       // If edit mode, fetch the report filter
       if (localFilterId) {
@@ -285,7 +303,9 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setAllowedRoles(report.allowedRoles || []);
         
         const fc = report.filterConfig;
-        setMatriculas(fc.matriculas || []);
+        const restoredMatriculas = [...(fc.matriculas || [])];
+        if (fc.currentUserMatricula) restoredMatriculas.unshift(CURRENT_USER_MATRICULA_SENTINEL);
+        setMatriculas(restoredMatriculas);
         setDateRange([
           fc.startDate ? new Date(fc.startDate) : null,
           fc.endDate ? new Date(fc.endDate) : null
@@ -314,10 +334,33 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setCurrentUserAsParent(fc.currentUserAsParent || false);
         setEmails(fc.emails || []);
         setGroups((fc.groups || []).map(g => g.toString()));
-        setTeams((fc.teams || []).map(t => t.toString()));
+        const restoredTeams = (fc.teams || []).map(t => t.toString());
+        if (fc.currentUserTeam) restoredTeams.unshift(CURRENT_USER_TEAM_SENTINEL);
+        setTeams(restoredTeams);
         setPvs((fc.pvs || []).map(p => p.toString()));
         setStatuses(fc.statuses || []);
         setStatusOperator(fc.statusOperator || 'or');
+
+        const restoredClassIds = (fc.classificationLevelIds || []).map(String);
+        setClassificationLevelIds(restoredClassIds);
+        setMinRetention(fc.minRetention != null ? Math.round(fc.minRetention * 100) : '');
+        setMaxRetention(fc.maxRetention != null ? Math.round(fc.maxRetention * 100) : '');
+        setMinStrictRetention(fc.minStrictRetention != null ? Math.round(fc.minStrictRetention * 100) : '');
+        setMaxStrictRetention(fc.maxStrictRetention != null ? Math.round(fc.maxStrictRetention * 100) : '');
+        setMinProduction(fc.minProduction ?? '');
+        setMaxProduction(fc.maxProduction ?? '');
+
+        if (
+          restoredClassIds.length > 0 ||
+          fc.minRetention != null ||
+          fc.maxRetention != null ||
+          fc.minStrictRetention != null ||
+          fc.maxStrictRetention != null ||
+          fc.minProduction != null ||
+          fc.maxProduction != null
+        ) {
+          setPerformanceFiltersOpen(true);
+        }
         
         setOutputColumns(report.outputColumns || []);
         setGroupByEmail(report.groupByEmail || false);
@@ -503,8 +546,14 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
   // Safe build of standard report payload
   const buildPayload = () => {
+    const hasCurrentUserTeam = teams.includes(CURRENT_USER_TEAM_SENTINEL);
+    const hasCurrentUserMatricula = matriculas.includes(CURRENT_USER_MATRICULA_SENTINEL);
+    const cleanTeams = teams.filter(t => t !== CURRENT_USER_TEAM_SENTINEL);
+    const cleanMatriculas = matriculas.filter(m => m !== CURRENT_USER_MATRICULA_SENTINEL);
+
     const filterConfig: FilterConfig = {
-      matriculas: matriculas.length > 0 ? matriculas : undefined,
+      matriculas: cleanMatriculas.length > 0 ? cleanMatriculas : undefined,
+      currentUserMatricula: hasCurrentUserMatricula || undefined,
       startDate: dateMode === 'absolute' ? toISOStringSafe(dateRange[0]) : undefined,
       endDate: dateMode === 'absolute' ? toISOStringSafe(dateRange[1]) : undefined,
       relativeStartDate: dateMode === 'relative' && relativeStartDate ? relativeStartDate.trim() : undefined,
@@ -512,10 +561,18 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       currentUserAsParent: currentUserAsParent || undefined,
       emails: emails.length > 0 ? emails : undefined,
       groups: groups.length > 0 ? groups.map(Number) : undefined,
-      teams: teams.length > 0 ? teams.map(Number) : undefined,
+      teams: cleanTeams.length > 0 ? cleanTeams.map(Number) : undefined,
+      currentUserTeam: hasCurrentUserTeam || undefined,
       pvs: pvs.length > 0 ? pvs.map(Number) : undefined,
       statuses: statuses.length > 0 ? statuses : undefined,
       statusOperator: statuses.length > 1 ? statusOperator : undefined,
+      classificationLevelIds: classificationLevelIds.length > 0 ? classificationLevelIds.map(Number) : undefined,
+      minRetention: minRetention !== '' ? minRetention / 100 : undefined,
+      maxRetention: maxRetention !== '' ? maxRetention / 100 : undefined,
+      minStrictRetention: minStrictRetention !== '' ? minStrictRetention / 100 : undefined,
+      maxStrictRetention: maxStrictRetention !== '' ? maxStrictRetention / 100 : undefined,
+      minProduction: minProduction !== '' ? minProduction : undefined,
+      maxProduction: maxProduction !== '' ? maxProduction : undefined,
     };
 
     return {
@@ -947,10 +1004,23 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   <MultiSelect
                     label="Equipes"
                     placeholder="Filtrar por equipes"
-                    data={teamOptions}
+                    data={[
+                      { value: CURRENT_USER_TEAM_SENTINEL, label: '★ Equipe do usuário atual' },
+                      ...teamOptions
+                    ]}
                     value={teams}
                     onChange={setTeams}
                     searchable
+                    size="sm"
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <TagsInput
+                    label="Matrícula"
+                    placeholder="Digite um número e pressione Enter"
+                    value={matriculas}
+                    onChange={setMatriculas}
+                    data={[CURRENT_USER_MATRICULA_SENTINEL]}
                     size="sm"
                   />
                 </Grid.Col>
@@ -1007,14 +1077,6 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                         checked={currentUserAsParent}
                         onChange={(e) => setCurrentUserAsParent(e.currentTarget.checked)}
                       />
-                      <TextInput
-                        label="Matrículas"
-                        description="Lista de matrículas separadas por vírgula"
-                        placeholder="12345, 67890"
-                        value={matriculas.join(', ')}
-                        onChange={(e) => setMatriculas(e.currentTarget.value.split(',').map(s => s.trim()).filter(Boolean))}
-                        size="sm"
-                      />
                       {statuses.length > 1 && (
                         <Stack gap={2}>
                           <Text size="xs" fw={500}>Operador lógico dos Status</Text>
@@ -1030,6 +1092,113 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                         </Stack>
                       )}
                     </Stack>
+                  </Paper>
+                </Collapse>
+              </div>
+
+              {/* Filtros de Desempenho Collapse */}
+              <div>
+                <Button 
+                  variant="subtle" 
+                  color="gray" 
+                  onClick={() => setPerformanceFiltersOpen(!performanceFiltersOpen)}
+                  rightSection={performanceFiltersOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+                  size="xs"
+                  p={0}
+                  mt="xs"
+                >
+                  Filtros de Desempenho
+                </Button>
+                
+                <Collapse in={performanceFiltersOpen}>
+                  <Paper withBorder p="sm" mt="xs" style={{ backgroundColor: '#fafafa' }}>
+                    <Grid gutter="sm">
+                      <Grid.Col span={12}>
+                        <MultiSelect
+                          label="Nível de Classificação"
+                          placeholder="Filtrar por nível (ex: Prata, Ouro)"
+                          data={classificationOptions}
+                          value={classificationLevelIds}
+                          onChange={setClassificationLevelIds}
+                          searchable
+                          size="sm"
+                        />
+                      </Grid.Col>
+                      
+                      <Grid.Col span={{ base: 12, md: 6 }}>
+                        <Text size="xs" fw={500} mb={3}>Retenção Padrão</Text>
+                        <Group grow gap="xs">
+                          <NumberInput
+                            placeholder="Mínimo"
+                            min={0}
+                            max={100}
+                            suffix="%"
+                            value={minRetention}
+                            onChange={(val) => setMinRetention(val === '' || typeof val !== 'number' ? '' : val)}
+                            size="sm"
+                          />
+                          <NumberInput
+                            placeholder="Máximo"
+                            min={0}
+                            max={100}
+                            suffix="%"
+                            value={maxRetention}
+                            onChange={(val) => setMaxRetention(val === '' || typeof val !== 'number' ? '' : val)}
+                            size="sm"
+                          />
+                        </Group>
+                      </Grid.Col>
+
+                      <Grid.Col span={{ base: 12, md: 6 }}>
+                        <Text size="xs" fw={500} mb={3}>Retenção Estrita</Text>
+                        <Group grow gap="xs">
+                          <NumberInput
+                            placeholder="Mínimo"
+                            min={0}
+                            max={100}
+                            suffix="%"
+                            value={minStrictRetention}
+                            onChange={(val) => setMinStrictRetention(val === '' || typeof val !== 'number' ? '' : val)}
+                            size="sm"
+                          />
+                          <NumberInput
+                            placeholder="Máximo"
+                            min={0}
+                            max={100}
+                            suffix="%"
+                            value={maxStrictRetention}
+                            onChange={(val) => setMaxStrictRetention(val === '' || typeof val !== 'number' ? '' : val)}
+                            size="sm"
+                          />
+                        </Group>
+                      </Grid.Col>
+
+                      <Grid.Col span={12}>
+                        <Text size="xs" fw={500} mb={3}>Produção Total</Text>
+                        <Group grow gap="xs">
+                          <NumberInput
+                            placeholder="Mínima (R$)"
+                            min={0}
+                            prefix="R$ "
+                            thousandSeparator="."
+                            decimalSeparator=","
+                            value={minProduction}
+                            onChange={(val) => setMinProduction(val === '' || typeof val !== 'number' ? '' : val)}
+                            size="sm"
+                          />
+                          <NumberInput
+                            placeholder="Máxima (R$)"
+                            min={0}
+                            prefix="R$ "
+                            thousandSeparator="."
+                            decimalSeparator=","
+                            value={maxProduction}
+                            onChange={(val) => setMaxProduction(val === '' || typeof val !== 'number' ? '' : val)}
+                            size="sm"
+                          />
+                        </Group>
+                      </Grid.Col>
+                    </Grid>
                   </Paper>
                 </Collapse>
               </div>

@@ -700,18 +700,58 @@ namespace SalesApp.Controllers
             });
         }
         
-        [HttpGet("{id}/tree")]
+        [HttpGet("me/tree")]
         [HasPermission("users:read")]
-        public async Task<ActionResult<ApiResponse<UserTreeResponse>>> GetTree(Guid id, [FromQuery] int depth = -1)
+        public async Task<ActionResult<ApiResponse<UserTreeResponse>>> GetCurrentUserTree([FromQuery] int depth = 10)
         {
-            var tree = await _hierarchyService.GetTreeAsync(id, depth);
+            var currentUserId = GetCurrentUserId();
+            var tree = await _hierarchyService.GetTreeAsync(currentUserId, depth);
+            
+            var teams = await _context.Teams.AsNoTracking().ToListAsync();
+            var teamOwnersMap = new Dictionary<int, Team>();
+            foreach (var team in teams)
+            {
+                if (team.OwnerUserInternalId.HasValue)
+                {
+                    teamOwnersMap[team.OwnerUserInternalId.Value] = team;
+                }
+            }
             
             return Ok(new ApiResponse<UserTreeResponse>
             {
                 Success = true,
                 Data = new UserTreeResponse
                 {
-                    Users = tree.Select(MapToHierarchyResponse).ToList(),
+                    Users = tree.Select(u => MapToHierarchyResponse(u, teamOwnersMap)).ToList(),
+                    TotalUsers = tree.Count,
+                    MaxDepth = tree.Any() ? tree.Max(u => u.Level) : 0
+                },
+                Message = _messageService.Get(AppMessage.TreeRetrievedSuccessfully)
+            });
+        }
+        
+        [HttpGet("{id}/tree")]
+        [HasPermission("users:read")]
+        public async Task<ActionResult<ApiResponse<UserTreeResponse>>> GetTree(Guid id, [FromQuery] int depth = -1)
+        {
+            var tree = await _hierarchyService.GetTreeAsync(id, depth);
+            
+            var teams = await _context.Teams.AsNoTracking().ToListAsync();
+            var teamOwnersMap = new Dictionary<int, Team>();
+            foreach (var team in teams)
+            {
+                if (team.OwnerUserInternalId.HasValue)
+                {
+                    teamOwnersMap[team.OwnerUserInternalId.Value] = team;
+                }
+            }
+            
+            return Ok(new ApiResponse<UserTreeResponse>
+            {
+                Success = true,
+                Data = new UserTreeResponse
+                {
+                    Users = tree.Select(u => MapToHierarchyResponse(u, teamOwnersMap)).ToList(),
                     TotalUsers = tree.Count,
                     MaxDepth = tree.Any() ? tree.Max(u => u.Level) : 0
                 },
@@ -1051,6 +1091,17 @@ namespace SalesApp.Controllers
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt
             };
+        }
+
+        private UserHierarchyResponse MapToHierarchyResponse(User user, Dictionary<int, Team> teamOwnersMap)
+        {
+            var response = MapToHierarchyResponse(user);
+            if (teamOwnersMap.TryGetValue(user.InternalId, out var team))
+            {
+                response.OwnedTeamId = team.Id;
+                response.OwnedTeamName = team.Name;
+            }
+            return response;
         }
     }
 }

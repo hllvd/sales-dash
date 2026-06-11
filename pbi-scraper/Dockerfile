@@ -3,7 +3,7 @@ FROM node:20-slim
 WORKDIR /app
 
 # Install Chromium and its system dependencies for Puppeteer
-RUN apt-get update && apt-get install -y \
+RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update && apt-get install -y --allow-unauthenticated \
     chromium \
     fonts-liberation \
     libatk-bridge2.0-0 \

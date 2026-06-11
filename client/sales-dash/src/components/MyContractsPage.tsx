@@ -163,7 +163,8 @@ const MyContractsPage: React.FC = () => {
       if (activeMatriculas.length === 1) {
         setSelectedMatricula(activeMatriculas[0].matriculaNumber);
       } else {
-        setSelectedMatricula('');
+        const ownedMatricula = activeMatriculas.find(m => m.isOwner);
+        setSelectedMatricula(ownedMatricula ? ownedMatricula.matriculaNumber : '');
       }
       setShowAssignModal(true);
     } catch (err) {

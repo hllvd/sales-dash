@@ -27,6 +27,18 @@ namespace SalesApp.ReportFilters.Models
         /// </summary>
         public bool? CurrentUserAsParent { get; set; }
 
+        /// <summary>
+        /// When true, injects the authenticated user's currently active team IDs into the Teams
+        /// filter at query time. Resolved from the JWT — never stored as a concrete team ID.
+        /// </summary>
+        public bool? CurrentUserTeam { get; set; }
+
+        /// <summary>
+        /// When true, injects the authenticated user's active matricula number(s) into the
+        /// Matriculas filter at query time. Resolved from the JWT — never stored as a literal number.
+        /// </summary>
+        public bool? CurrentUserMatricula { get; set; }
+
         /// <summary>User email addresses to filter by (all users available).</summary>
         public List<string>? Emails { get; set; }
 
@@ -44,5 +56,26 @@ namespace SalesApp.ReportFilters.Models
 
         /// <summary>"or" | "and" — logical operator applied to Statuses list. Defaults to "or".</summary>
         public string? StatusOperator { get; set; }
+
+        /// <summary>Classification level IDs to filter by (any match = include).</summary>
+        public List<int>? ClassificationLevelIds { get; set; }
+
+        /// <summary>Minimum standard retention (0.0–1.0). Only users/groups at or above this threshold are included.</summary>
+        public decimal? MinRetention { get; set; }
+
+        /// <summary>Maximum standard retention (0.0–1.0).</summary>
+        public decimal? MaxRetention { get; set; }
+
+        /// <summary>Minimum strict retention (0.0–1.0).</summary>
+        public decimal? MinStrictRetention { get; set; }
+
+        /// <summary>Maximum strict retention (0.0–1.0).</summary>
+        public decimal? MaxStrictRetention { get; set; }
+
+        /// <summary>Minimum total production (TotalAmount sum per user).</summary>
+        public decimal? MinProduction { get; set; }
+
+        /// <summary>Maximum total production (TotalAmount sum per user).</summary>
+        public decimal? MaxProduction { get; set; }
     }
 }

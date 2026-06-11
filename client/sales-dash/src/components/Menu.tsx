@@ -18,6 +18,9 @@ import {
   IconActivity,
   IconMedal,
   IconLayoutDashboard,
+  IconSitemap,
+  IconChevronDown,
+  IconChevronRight,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -31,6 +34,15 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   const [opened, { toggle, close }] = useDisclosure();
   const isMobile = useMediaQuery('(max-width: 62em)', false);
   const { buildInfo } = useBuildInfo();
+  const [usersMenuOpened, setUsersMenuOpened] = useState(
+    window.location.hash === '#/users' || window.location.hash === '#/users/tree'
+  );
+
+  useEffect(() => {
+    if (currentPath === '#/users' || currentPath === '#/users/tree') {
+      setUsersMenuOpened(true);
+    }
+  }, [currentPath]);
 
   useEffect(() => {
     // Extract dynamic PBAC Permissions from JWT
@@ -87,19 +99,22 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     return currentPath === path;
   };
 
-  const navLinkStyles = (path: string) => ({
-    root: {
-      color: '#d1d5db',
-      borderRadius: '8px',
-      marginBottom: '4px',
-      '&:hover': {
-        backgroundColor: '#374151',
-        color: 'white',
+  const navLinkStyles = (path: string) => {
+    const isNodeActive = isActive(path) || (path === 'users-parent' && (currentPath === '#/users' || currentPath === '#/users/tree'));
+    return {
+      root: {
+        color: '#d1d5db',
+        borderRadius: '8px',
+        marginBottom: '4px',
+        '&:hover': {
+          backgroundColor: '#374151',
+          color: 'white',
+        },
+        backgroundColor: isNodeActive ? undefined : 'transparent',
       },
-      backgroundColor: isActive(path) ? undefined : 'transparent',
-    },
-    label: { color: isActive(path) ? 'white' : 'inherit' },
-  });
+      label: { color: isNodeActive ? 'white' : 'inherit' },
+    };
+  };
 
   return (
     <AppShell
@@ -170,16 +185,45 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
 
 
           {hasPermission('users:read') && (
-            <NavLink
-              href="#/users"
-              label="Usuários"
-              leftSection={<IconUsers size={20} />}
-              active={isActive('#/users')}
-              variant="filled"
-              color="red"
-              styles={navLinkStyles('#/users')}
-              onClick={() => { if (opened) close(); }}
-            />
+            <>
+              <NavLink
+                component="a"
+                href="#/users"
+                role="link"
+                label="Usuários"
+                leftSection={<IconUsers size={20} />}
+                styles={navLinkStyles('users-parent')}
+                active={currentPath === '#/users' || currentPath === '#/users/tree'}
+                color="red"
+                variant="filled"
+                rightSection={usersMenuOpened ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+                onClick={() => {
+                  setUsersMenuOpened(!usersMenuOpened);
+                  if (opened) close();
+                }}
+              />
+              {usersMenuOpened && (
+                <>
+                  <NavLink
+                    href="#/users"
+                    label="Lista"
+                    active={isActive('#/users')}
+                    styles={navLinkStyles('#/users')}
+                    style={{ paddingLeft: 28 }}
+                    onClick={() => { if (opened) close(); }}
+                  />
+                  <NavLink
+                    href="#/users/tree"
+                    label="Árvore"
+                    leftSection={<IconSitemap size={16} />}
+                    active={isActive('#/users/tree')}
+                    styles={navLinkStyles('#/users/tree')}
+                    style={{ paddingLeft: 28 }}
+                    onClick={() => { if (opened) close(); }}
+                  />
+                </>
+              )}
+            </>
           )}
 
           {hasPermission('system:admin') && (
