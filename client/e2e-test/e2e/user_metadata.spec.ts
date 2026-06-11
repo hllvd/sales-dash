@@ -39,7 +39,7 @@ test.describe('User Metadata Fields E2E Tests', () => {
 
     // 1. Create Required Text Field
     await page.getByRole('button', { name: 'Novo Campo' }).click();
-    await expect(page.getByRole('heading', { name: 'Novo Campo de Metadados' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Novo Campo de Metadados' }).first()).toBeVisible();
 
     await page.fill('input[placeholder="ex: secretary_name"]', textKey);
     await page.fill('input[placeholder="ex: Nome da Secretária"]', textLabel);
@@ -56,7 +56,7 @@ test.describe('User Metadata Fields E2E Tests', () => {
 
     // 2. Create Optional Dropdown Field
     await page.getByRole('button', { name: 'Novo Campo' }).click();
-    await expect(page.getByRole('heading', { name: 'Novo Campo de Metadados' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Novo Campo de Metadados' }).first()).toBeVisible();
 
     await page.fill('input[placeholder="ex: secretary_name"]', dropdownKey);
     await page.fill('input[placeholder="ex: Nome da Secretária"]', dropdownLabel);
@@ -146,7 +146,7 @@ test.describe('User Metadata Fields E2E Tests', () => {
     await row.locator('button[title="Inativar"]').click();
 
     // Modal confirmation
-    await expect(page.getByRole('heading', { name: 'Confirmar Inativação' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Confirmar Inativação' }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Inativar' }).click();
 
     // Verify it becomes Inactive

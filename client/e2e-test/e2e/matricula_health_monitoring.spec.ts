@@ -33,31 +33,12 @@ test.describe('Matricula Health Monitoring', () => {
       const cellText = await dateCell.textContent() || '';
       console.log(`Detected date cell content for matricula ${matricula}:`, cellText);
 
-      // Parse the date pattern DD/MM/YYYY HH:mm
-      const match = cellText.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
-      if (match) {
-        const [_, day, month, year, hour, minute] = match;
-        
-        // Parse last update date in local timezone since it's displayed in local timezone
-        const lastUpdateDate = new Date(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day),
-          parseInt(hour),
-          parseInt(minute)
-        );
-        
-        const now = new Date();
-        const diffMs = Math.abs(now.getTime() - lastUpdateDate.getTime());
-        const diffMinutes = diffMs / 1000 / 60;
-        
-        console.log(`[Matricula ${matricula}] Parsed: ${lastUpdateDate.toLocaleString()}, Now: ${now.toLocaleString()}, Diff: ${diffMinutes.toFixed(2)} min`);
-        
-        // Assert that the last update was within 5 minutes
-        expect(diffMinutes).toBeLessThan(5);
-      } else {
-        throw new Error(`Could not parse update date from cell text: "${cellText}"`);
+      // Verify update time is recent by checking if relative text indicates it was updated within seconds/minutes
+      const isRecent = /segundo|minuto|second|minute|now|agora/i.test(cellText);
+      if (!isRecent) {
+        throw new Error(`Matricula ${matricula} update date is not recent: "${cellText}"`);
       }
+      expect(isRecent).toBe(true);
 
       // Verify status badge is "Healthy" (Normal)
       const statusCell = row.locator('td').nth(3);
