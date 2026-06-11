@@ -1085,6 +1085,16 @@ export const apiService = {
     }
     return response.json()
   },
+
+  async getUserTree(id: string, depth: number = 10): Promise<ApiResponse<UserTreeResponse>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/${id}/tree?depth=${depth}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to fetch user tree"))
+    }
+    return response.json()
+  },
 }
 
 export interface UserHierarchyNode {

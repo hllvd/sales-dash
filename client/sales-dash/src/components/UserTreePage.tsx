@@ -12,6 +12,7 @@ import {
   ActionIcon,
   Tooltip,
   Tree,
+  Select,
   RenderTreeNodePayload,
   TreeNodeData,
   useTree
@@ -38,13 +39,41 @@ const UserTreePage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null)
+  
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [availableUsers, setAvailableUsers] = useState<Array<{ value: string, label: string }>>([])
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}")
+    const superadmin = user.role === "superadmin"
+    setIsSuperAdmin(superadmin)
+
+    if (superadmin) {
+      apiService.getUsers(1, 1000)
+        .then(res => {
+          if (res.success && res.data) {
+            setAvailableUsers(
+              res.data.items.map(u => ({
+                value: u.id,
+                label: `${u.name} (${u.email})`
+              }))
+            )
+          }
+        })
+        .catch(err => console.error("Error loading users list", err))
+    }
+  }, [])
 
   // Fetch hierarchical data from the API
-  const fetchTree = async (currentDepth: number) => {
+  const fetchTree = async (currentDepth: number, userId: string | null) => {
     setLoading(true)
     setError("")
     try {
-      const response = await apiService.getCurrentUserTree(currentDepth)
+      const response = userId 
+        ? await apiService.getUserTree(userId, currentDepth)
+        : await apiService.getCurrentUserTree(currentDepth)
+
       if (response.success && response.data) {
         setUsers(response.data.users)
         setTotalUsers(response.data.totalUsers)
@@ -59,13 +88,13 @@ const UserTreePage: React.FC = () => {
     }
   }
 
-  // Reload when depth value changes (clamped between 1 and 100)
+  // Reload when depth or selected user changes (clamped between 1 and 100)
   useEffect(() => {
     const numericDepth = typeof depth === "number" ? depth : parseInt(depth, 10)
     if (!isNaN(numericDepth) && numericDepth > 0) {
-      fetchTree(numericDepth)
+      fetchTree(numericDepth, selectedUserId)
     }
-  }, [depth])
+  }, [depth, selectedUserId])
 
   // Map user ID to full details for quick O(1) lookup during rendering
   const nodesMap = useMemo(() => {
@@ -234,6 +263,17 @@ const UserTreePage: React.FC = () => {
         {/* Control bar */}
         <Card withBorder className="tree-controls-card">
           <Group align="flex-end" grow>
+            {isSuperAdmin && (
+              <Select
+                label="Visualizar Árvore de"
+                placeholder="Selecione um usuário (Padrão: Minha Árvore)"
+                data={availableUsers}
+                value={selectedUserId}
+                onChange={setSelectedUserId}
+                clearable
+                searchable
+              />
+            )}
             <TextInput
               placeholder="Buscar por nome, email ou função..."
               label="Buscar na Árvore"
@@ -243,7 +283,6 @@ const UserTreePage: React.FC = () => {
             />
             <NumberInput
               label="Profundidade da Hierarquia"
-              description="Níveis de hierarquia a exibir"
               value={depth}
               onChange={(val) => setDepth(val || 1)}
               min={1}
