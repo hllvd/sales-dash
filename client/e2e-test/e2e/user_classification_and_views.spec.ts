@@ -54,7 +54,7 @@ test.describe('User Classification and Views Engine E2E Tests', () => {
         // Remove all active members
         let hasActiveMembers = true;
         while (hasActiveMembers) {
-          const firstMemberCard = membersModal.locator('.cls-member-card').first();
+          const firstMemberCard = membersModal.locator('.cls-member-card:not(.inactive)').first();
           if (await firstMemberCard.isVisible()) {
             console.log('>>> Removing active member from stale level...');
             await firstMemberCard.locator('button').last().click();
