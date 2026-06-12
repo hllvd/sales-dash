@@ -425,7 +425,7 @@ const AdminRegistrationPage: React.FC = () => {
                 </div>
 
                 <div className="form-group-reg">
-                  <label className="form-label-reg" htmlFor="classification">Classificação Atual *</label>
+                  <label className="form-label-reg" htmlFor="classification">Nível Atual (Classificação do gestor) *</label>
                   <select
                     id="classification"
                     className="form-input-reg form-select-reg"

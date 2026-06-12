@@ -166,7 +166,7 @@ namespace SalesApp.Controllers
                 });
             }
 
-            var role = await _roleRepository.GetByNameAsync(UserRole.User);
+            var role = await _roleRepository.GetByNameAsync(UserRole.Admin);
             if (role == null)
             {
                 return BadRequest(new ApiResponse<object>
