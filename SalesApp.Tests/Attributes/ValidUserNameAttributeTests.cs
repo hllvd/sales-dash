@@ -51,7 +51,7 @@ namespace SalesApp.Tests.Attributes
             // Assert
             Assert.NotNull(result);
             Assert.NotEqual(ValidationResult.Success, result);
-            Assert.Contains("letters, spaces, hyphens, and apostrophes", result.ErrorMessage);
+            Assert.Contains("só pode conter letras, espaços, hífens, apóstrofos e acentuação", result.ErrorMessage);
         }
 
         [Fact]

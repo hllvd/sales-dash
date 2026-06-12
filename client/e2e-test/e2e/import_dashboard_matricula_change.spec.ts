@@ -131,7 +131,7 @@ test.describe.serial('[TEAR-1] Dashboard Import — Matricula Change Detection',
     const token = await getToken(page);
 
     // Get Carlos Mendes userId
-    const usersResp = await page.request.get(`/api/users?email=${CARLOS}`, {
+    const usersResp = await page.request.get(`/api/users?pageSize=1000`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const usersData = (await usersResp.json()).data;

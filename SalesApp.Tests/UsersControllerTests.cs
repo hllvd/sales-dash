@@ -12,6 +12,8 @@ using SalesApp.Data;
 using System.Security.Claims;
 using Xunit;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
+using SalesApp.Models.Configuration;
 
 namespace SalesApp.Tests
 {
@@ -28,6 +30,10 @@ namespace SalesApp.Tests
         private readonly Mock<IMessageService> _mockMessageService;
         private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<IExportService> _mockExportService;
+        private readonly Mock<ITeamRepository> _mockTeamRepository;
+        private readonly Mock<IUserClassificationRepository> _mockUserClassificationRepository;
+        private readonly Mock<IUserMetadataRepository> _mockUserMetadataRepository;
+        private readonly Mock<IOptions<AdminInfoOptions>> _mockAdminInfoOptions;
         private readonly AppDbContext _context;
         private readonly UsersController _controller;
 
@@ -44,6 +50,12 @@ namespace SalesApp.Tests
             _mockMessageService = new Mock<IMessageService>();
             _mockEmailService = new Mock<IEmailService>();
             _mockExportService = new Mock<IExportService>();
+            _mockTeamRepository = new Mock<ITeamRepository>();
+            _mockUserClassificationRepository = new Mock<IUserClassificationRepository>();
+            _mockUserMetadataRepository = new Mock<IUserMetadataRepository>();
+            _mockAdminInfoOptions = new Mock<IOptions<AdminInfoOptions>>();
+
+            _mockAdminInfoOptions.Setup(o => o.Value).Returns(new AdminInfoOptions { ContactPhone = "47989133138" });
             
             // Create in-memory database for testing
             var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -63,7 +75,11 @@ namespace SalesApp.Tests
                 _context,
                 _mockMessageService.Object,
                 _mockEmailService.Object,
-                _mockExportService.Object);
+                _mockExportService.Object,
+                _mockTeamRepository.Object,
+                _mockUserClassificationRepository.Object,
+                _mockUserMetadataRepository.Object,
+                _mockAdminInfoOptions.Object);
             
             // Setup MessageService to return English messages for tests
             var enumToMessage = new System.Func<AppMessage, string>(msg => {

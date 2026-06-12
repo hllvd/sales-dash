@@ -8,7 +8,7 @@ namespace SalesApp.Attributes
     public class ValidUserNameAttribute : ValidationAttribute
     {
         private static readonly System.Text.RegularExpressions.Regex NamePattern = new(
-            @"^[a-zA-Z\u00C0-\u00FF\s'-]+$",
+            @"^[\p{L}\p{M}\s'-]+$",
             System.Text.RegularExpressions.RegexOptions.Compiled
         );
 
@@ -23,8 +23,9 @@ namespace SalesApp.Attributes
 
             if (!NamePattern.IsMatch(name))
             {
+                var displayName = validationContext.DisplayName ?? validationContext.MemberName ?? "Nome";
                 return new ValidationResult(
-                    $"{validationContext.DisplayName ?? validationContext.MemberName} can only contain letters, spaces, hyphens, and apostrophes.",
+                    $"{displayName} só pode conter letras, espaços, hífens, apóstrofos e acentuação.",
                     new[] { validationContext.MemberName ?? "Name" }
                 );
             }

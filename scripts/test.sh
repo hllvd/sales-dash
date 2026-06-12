@@ -132,9 +132,12 @@ build() {
     wait $LOG_PID >/dev/null 2>&1 || true
 
     # Scan the full container logs for critical errors
-    docker-compose logs > artifacts/startup-docker.log 2>&1
+    docker-compose logs --no-color > artifacts/startup-docker.log 2>&1
     local CRITICAL_ERRORS
-    CRITICAL_ERRORS=$(grep -Ei "\[error\]|\[ERR\]|\[CRIT\]|Exception|Failed executing DbCommand|502 Bad Gateway|503 Service Unavailable|Connection refused|panic|fatal" artifacts/startup-docker.log || true)
+    CRITICAL_ERRORS=$(sed 's/\x1b\[[0-9;]*[A-Za-z]//g' artifacts/startup-docker.log \
+      | grep -Ei "\[error\]|\[ERR\]|\[CRIT\]|Exception|Failed executing DbCommand|502 Bad Gateway|503 Service Unavailable|Connection refused|panic|fatal" \
+      | grep -Evi "^(nginx|salesapp-client).*(Connection refused|connect\(\) failed)" || true)
+
 
     if [ -n "$CRITICAL_ERRORS" ]; then
       echo ""

@@ -180,7 +180,47 @@ namespace SalesApp.Data
             }
             
             await SeedPermissions(context);
+            await SeedMetadataFields(context);
+            await SeedClassificationLevels(context);
             
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedClassificationLevels(AppDbContext context)
+        {
+            var levels = new List<ClassificationLevel>
+            {
+                new() { Id = 1, Name = "Bronze", Description = "Nível Bronze", SalesGoal = 10000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new() { Id = 2, Name = "Prata", Description = "Nível Prata", SalesGoal = 30000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new() { Id = 3, Name = "Ouro", Description = "Nível Ouro", SalesGoal = 60000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
+            };
+
+            foreach (var level in levels)
+            {
+                if (!await context.ClassificationLevels.AnyAsync(l => l.Id == level.Id || l.Name == level.Name))
+                {
+                    context.ClassificationLevels.Add(level);
+                }
+            }
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedMetadataFields(AppDbContext context)
+        {
+            var fields = new List<UserMetadataField>
+            {
+                new() { Key = "secretary_name", Label = "Nome da Secretária", GroupLabel = "Secretária", FieldType = "text", IsRequired = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Key = "secretary_email", Label = "E-mail da Secretária", GroupLabel = "Secretária", FieldType = "text", IsRequired = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Key = "secretary_whatsapp", Label = "WhatsApp da Secretária", GroupLabel = "Secretária", FieldType = "text", IsRequired = false, IsActive = true, CreatedAt = DateTime.UtcNow }
+            };
+
+            foreach (var field in fields)
+            {
+                if (!await context.UserMetadataFields.AnyAsync(f => f.Key == field.Key))
+                {
+                    context.UserMetadataFields.Add(field);
+                }
+            }
             await context.SaveChangesAsync();
         }
 

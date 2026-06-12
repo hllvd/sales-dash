@@ -1189,6 +1189,24 @@ export const apiService = {
     }
     return response.json()
   },
+
+  async checkEmail(email: string): Promise<ApiResponse<EmailCheckResponse>> {
+    const response = await fetch(`${API_BASE_URL}/users/check-email?email=${encodeURIComponent(email)}`)
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to check email"))
+    return response.json()
+  },
+
+  async adminRegister(payload: AdminRegistrationRequest): Promise<ApiResponse<object>> {
+    const response = await fetch(`${API_BASE_URL}/users/admin-register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to register user"))
+    return response.json()
+  },
 }
 
 export interface UserHierarchyNode {
@@ -1363,4 +1381,22 @@ export interface AssignUserLevelRequest {
   levelId: number
   startDate: string
   endDate?: string | null
+}
+
+export interface EmailCheckResponse {
+  exists: boolean
+  contactPhone?: string
+}
+
+export interface AdminRegistrationRequest {
+  email: string
+  name: string
+  password: string
+  teamName: string
+  classificationLevelId: number
+  classificationStartDate?: string
+  role: 'manager' | 'secretary'
+  secretaryName?: string
+  secretaryEmail?: string
+  secretaryWhatsapp?: string
 }

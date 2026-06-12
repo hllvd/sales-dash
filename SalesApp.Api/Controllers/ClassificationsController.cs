@@ -34,8 +34,9 @@ namespace SalesApp.Controllers
         }
 
         // ── Level CRUD ───────────────────────────────────────────────────────────
-
+        
         [HttpGet("levels")]
+        [AllowAnonymous]
         public async Task<ActionResult<ApiResponse<List<ClassificationLevelResponse>>>> GetLevels()
         {
             var levels = await _levelRepo.GetAllAsync();

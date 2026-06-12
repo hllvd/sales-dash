@@ -10,6 +10,8 @@ using SalesApp.Utils;
 using System.Security.Claims;
 using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using SalesApp.Models.Configuration;
 
 namespace SalesApp.Controllers
 {
@@ -29,6 +31,10 @@ namespace SalesApp.Controllers
         private readonly IMessageService _messageService;
         private readonly IEmailService _emailService;
         private readonly IExportService _exportService;
+        private readonly ITeamRepository _teamRepository;
+        private readonly IUserClassificationRepository _userClassRepository;
+        private readonly IUserMetadataRepository _userMetadataRepository;
+        private readonly AdminInfoOptions _adminInfo;
         
         public UsersController(
             IUserRepository userRepository,
@@ -42,7 +48,11 @@ namespace SalesApp.Controllers
             AppDbContext context,
             IMessageService messageService,
             IEmailService emailService,
-            IExportService exportService)
+            IExportService exportService,
+            ITeamRepository teamRepository,
+            IUserClassificationRepository userClassRepository,
+            IUserMetadataRepository userMetadataRepository,
+            IOptions<AdminInfoOptions> adminInfoOptions)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
@@ -56,6 +66,10 @@ namespace SalesApp.Controllers
             _messageService = messageService;
             _emailService = emailService;
             _exportService = exportService;
+            _teamRepository = teamRepository;
+            _userClassRepository = userClassRepository;
+            _userMetadataRepository = userMetadataRepository;
+            _adminInfo = adminInfoOptions.Value;
         }
 
         // ── My-Contracts Export endpoints ────────────────────────────────────
@@ -108,6 +122,178 @@ namespace SalesApp.Controllers
 
 
         
+        [HttpGet("check-email")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<EmailCheckResponse>>> CheckEmail([FromQuery] string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return BadRequest(new ApiResponse<EmailCheckResponse>
+                {
+                    Success = false,
+                    Message = "Email parameter is required"
+                });
+            }
+
+            var normalizedEmail = email.ToLowerInvariant().Trim();
+            var exists = await _userRepository.EmailExistsAsync(normalizedEmail);
+
+            return Ok(new ApiResponse<EmailCheckResponse>
+            {
+                Success = true,
+                Data = new EmailCheckResponse
+                {
+                    Exists = exists,
+                    ContactPhone = exists ? _adminInfo.ContactPhone : null
+                },
+                Message = exists ? "User exists" : "User does not exist"
+            });
+        }
+
+        [HttpPost("admin-register")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<object>>> AdminRegister([FromBody] AdminRegistrationRequest request)
+        {
+            // Normalize email
+            request.Email = request.Email.ToLowerInvariant().Trim();
+
+            if (await _userRepository.EmailExistsAsync(request.Email))
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.EmailAlreadyExists)
+                });
+            }
+
+            var role = await _roleRepository.GetByNameAsync(UserRole.User);
+            if (role == null)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.InvalidRole)
+                });
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Create User
+                var user = new User
+                {
+                    Name = request.Name.Trim(),
+                    Email = request.Email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                    RoleId = role.Id,
+                    IsActive = true,
+                    Level = 1
+                };
+
+                await _userRepository.CreateAsync(user);
+
+                // 2. Upsert Team
+                var teamName = request.TeamName.Trim();
+                var team = await _teamRepository.GetByNameAsync(teamName);
+                if (team == null)
+                {
+                    team = new Team
+                    {
+                        Name = teamName
+                    };
+                    team = await _teamRepository.CreateAsync(team);
+                }
+
+                // Add Member to Team
+                var userTeam = new UserTeam
+                {
+                    TeamId = team.Id,
+                    UserInternalId = user.InternalId,
+                    StartDate = DateTime.UtcNow.AddYears(-8)
+                };
+                await _teamRepository.AddMemberAsync(userTeam);
+
+                // Set user as Owner of Team if team does not have an owner
+                if (team.OwnerUserInternalId == null)
+                {
+                    await _teamRepository.SetOwnerAsync(team.Id, user.InternalId);
+                }
+
+                // 3. Assign User Classification
+                var classificationStartDate = request.ClassificationStartDate ?? DateTime.UtcNow;
+                var currentClass = await _userClassRepository.GetActiveForUserAsync(user.InternalId);
+                if (currentClass != null)
+                {
+                    currentClass.EndDate = classificationStartDate;
+                    await _userClassRepository.UpdateAsync(currentClass);
+                }
+
+                var assignment = new UserClassification
+                {
+                    UserInternalId = user.InternalId,
+                    LevelId = request.ClassificationLevelId,
+                    StartDate = classificationStartDate,
+                    EndDate = null
+                };
+                await _userClassRepository.CreateAsync(assignment);
+
+                // 4. Save Secretary Metadata if role is secretary
+                if (request.Role.Equals("secretary", StringComparison.OrdinalIgnoreCase))
+                {
+                    var metadataItems = new List<UserMetadataValueItem>();
+
+                    if (!string.IsNullOrWhiteSpace(request.SecretaryName))
+                    {
+                        var field = await _userMetadataRepository.GetFieldByKeyAsync("secretary_name");
+                        if (field != null)
+                        {
+                            metadataItems.Add(new UserMetadataValueItem(field.Id, request.SecretaryName.Trim()));
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.SecretaryEmail))
+                    {
+                        var field = await _userMetadataRepository.GetFieldByKeyAsync("secretary_email");
+                        if (field != null)
+                        {
+                            metadataItems.Add(new UserMetadataValueItem(field.Id, request.SecretaryEmail.Trim()));
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.SecretaryWhatsapp))
+                    {
+                        var field = await _userMetadataRepository.GetFieldByKeyAsync("secretary_whatsapp");
+                        if (field != null)
+                        {
+                            metadataItems.Add(new UserMetadataValueItem(field.Id, request.SecretaryWhatsapp.Trim()));
+                        }
+                    }
+
+                    if (metadataItems.Any())
+                    {
+                        await _userMetadataRepository.UpsertValuesAsync(user.InternalId, metadataItems);
+                    }
+                }
+
+                await transaction.CommitAsync();
+
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "User registered successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"An error occurred during registration: {ex.Message}"
+                });
+            }
+        }
+
         [HttpPost("register")]
         public async Task<ActionResult<ApiResponse<UserResponse>>> Register(RegisterRequest request)
         {

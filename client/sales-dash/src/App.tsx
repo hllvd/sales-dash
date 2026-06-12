@@ -19,6 +19,7 @@ import ReportsRouter from './components/Reports/ReportsRouter';
 import ViewsRouter from './components/Reports/ViewsRouter';
 import MatriculaHealthPage from './components/Monitoring/MatriculaHealthPage';
 import UserMetadataAdminPage from './components/UserMetadataAdmin/UserMetadataAdminPage';
+import AdminRegistrationPage from './components/AdminRegistrationPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -42,7 +43,10 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  if (!isAuthenticated) {
+  const routePath = currentRoute.split('?')[0];
+  const isPublicRoute = routePath === '#/user/registration/admin';
+
+  if (!isAuthenticated && !isPublicRoute) {
     return (
       <div className="App">
         <LoginPage />
@@ -51,8 +55,6 @@ function App() {
   }
 
   const renderPage = () => {
-    const routePath = currentRoute.split('?')[0];
-
     if (routePath.startsWith('#/reports')) {
       return <ReportsRouter currentRoute={currentRoute} />;
     }
@@ -62,6 +64,8 @@ function App() {
     }
 
     switch (routePath) {
+      case '#/user/registration/admin':
+        return <AdminRegistrationPage />;
       case '#/users':
         return <UsersPage />;
       case '#/users/tree':

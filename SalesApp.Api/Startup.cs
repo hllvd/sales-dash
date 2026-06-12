@@ -112,6 +112,9 @@ namespace SalesApp
             // Scraper Column Mappings
             services.Configure<Models.Configuration.ScrapeImportOptions>(Configuration.GetSection("ScrapeImportMappings"));
 
+            // Admin Info Configuration
+            services.Configure<Models.Configuration.AdminInfoOptions>(Configuration.GetSection("AdminInfo"));
+
             // AWS DynamoDB
             services.AddSingleton<IAmazonDynamoDB>(sp => {
                 var config = sp.GetRequiredService<IConfiguration>();
