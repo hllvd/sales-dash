@@ -224,31 +224,57 @@ integration() {
   return $EXIT_CODE
 }
 
-e2e() {
-  print_header "PLAYWRIGHT E2E"
+# parse_playwright_stats <clean_log_file>
+# Prints a one-line summary: "X passed, X failed, X skipped (total: X)"
+parse_playwright_stats() {
+  local LOG=$1
+  local PASSED FAILED SKIPPED TOTAL
+  PASSED=$(grep -Eo '[0-9]+ passed' "$LOG" | tail -1 | grep -Eo '[0-9]+' || echo 0)
+  FAILED=$(grep -Eo '[0-9]+ failed' "$LOG" | tail -1 | grep -Eo '[0-9]+' || echo 0)
+  SKIPPED=$(grep -Eo '[0-9]+ skipped' "$LOG" | tail -1 | grep -Eo '[0-9]+' || echo 0)
+  PASSED=${PASSED:-0}
+  FAILED=${FAILED:-0}
+  SKIPPED=${SKIPPED:-0}
+  TOTAL=$(( PASSED + FAILED + SKIPPED ))
+  echo "✅ Passed: $PASSED  ❌ Failed: $FAILED  ⏭️  Skipped: $SKIPPED  (Total: $TOTAL)"
+}
+
+# run_e2e <run_label> <log_suffix>
+# Runs Playwright, writes artifacts/full-e2e-<log_suffix>.log, prints stats.
+# Returns the Playwright exit code (does NOT call exit).
+run_e2e() {
+  local LABEL=$1    # e.g. "Run 1 (Initial)" or "Run 2 (Idempotency Check)"
+  local SUFFIX=$2   # e.g. "1" or "2"
+
+  local LOG_FILE="artifacts/full-e2e-${SUFFIX}.log"
+  local ERR_FILE="artifacts/e2e-errors-${SUFFIX}.log"
+  local CLEAN_FILE="artifacts/clean-e2e-${SUFFIX}.log"
+
+  echo ""
+  echo "▶  E2E $LABEL"
+  echo "------------------------------------------------------------------"
 
   local EXIT_CODE=0
-  pushd client/e2e-test >/dev/null
+  pushd client/e2e-test > /dev/null
   set +e
-  environment=e2e PLAYWRIGHT_HTML_OPEN=never npx playwright test > ../../artifacts/full-e2e.log 2>&1
+  environment=e2e PLAYWRIGHT_HTML_OPEN=never npx playwright test > "../../$LOG_FILE" 2>&1
   EXIT_CODE=$?
   set -e
-  popd >/dev/null
+  popd > /dev/null
 
-  # Strip ANSI escape codes to get a clean text log for processing
-  local CLEAN_E2E="artifacts/clean-e2e.log"
-  sed 's/\x1b\[[0-9;]*[A-Za-z]//g' artifacts/full-e2e.log > "$CLEAN_E2E"
+  sed 's/\x1b\[[0-9;]*[A-Za-z]//g' "$LOG_FILE" > "$CLEAN_FILE"
 
-  summarize_log \
-    artifacts/full-e2e.log \
-    artifacts/e2e-errors.log \
-    $EXIT_CODE
+  # Print test stats
+  parse_playwright_stats "$CLEAN_FILE"
+  echo "📄 Full log: $LOG_FILE"
 
   if [ "$EXIT_CODE" -ne 0 ]; then
+    summarize_log "$LOG_FILE" "$ERR_FILE" "$EXIT_CODE"
+
     echo ""
-    echo "❌ E2E FAILURES DETECTED — printing e2e-errors.log:"
+    echo "❌ E2E FAILURES in $LABEL — printing errors:"
     echo "========================================================================="
-    cat artifacts/e2e-errors.log
+    cat "$ERR_FILE"
     echo "========================================================================="
 
     echo ""
@@ -262,10 +288,22 @@ e2e() {
       printf "%s\n" "$CONTAINER_ERRORS"
     fi
     echo "========================================================================="
-    exit $EXIT_CODE
   fi
 
   return $EXIT_CODE
+}
+
+e2e() {
+  print_header "PLAYWRIGHT E2E"
+  run_e2e "Initial Run" "1"
+  local EXIT_CODE=$?
+
+  # Keep backwards-compatible symlinks for single-run mode
+  cp artifacts/full-e2e-1.log artifacts/full-e2e.log 2>/dev/null || true
+  cp artifacts/e2e-errors-1.log artifacts/e2e-errors.log 2>/dev/null || true
+
+  [ "$EXIT_CODE" -ne 0 ] && exit $EXIT_CODE
+  return 0
 }
 
 build_client() {
@@ -309,8 +347,43 @@ build_client() {
 
 all() {
   build
+  rm_db
   integration
-  e2e
+
+  print_header "PLAYWRIGHT E2E (×2 — idempotency check)"
+
+  local E2E1_CODE=0
+  local E2E2_CODE=0
+
+  run_e2e "Run 1 — Initial" "1" || E2E1_CODE=$?
+
+  echo ""
+  echo "------------------------------------------------------------------"
+
+  run_e2e "Run 2 — Idempotency Check (no DB flush)" "2" || E2E2_CODE=$?
+
+  echo ""
+  print_header "E2E SUMMARY"
+  echo "Run 1 (Initial):"
+  parse_playwright_stats artifacts/clean-e2e-1.log
+  echo ""
+  echo "Run 2 (Idempotency Check):"
+  parse_playwright_stats artifacts/clean-e2e-2.log
+  echo ""
+
+  if [ "$E2E1_CODE" -ne 0 ]; then
+    echo "❌ Run 1 failed — see artifacts/e2e-errors-1.log"
+    exit $E2E1_CODE
+  fi
+
+  if [ "$E2E2_CODE" -ne 0 ]; then
+    echo "❌ Run 1 passed but Run 2 failed."
+    echo "⚠️  IDEMPOTENCY ERROR: the first E2E run passed but the second (no DB flush) failed."
+    echo "   Check artifacts/e2e-errors-2.log for details."
+    exit $E2E2_CODE
+  fi
+
+  echo "✅ Both E2E runs passed — suite is idempotent!"
 }
 
 logs() {
