@@ -199,7 +199,8 @@ namespace SalesApp.Controllers
                 {
                     team = new Team
                     {
-                        Name = teamName
+                        Name = teamName,
+                        OwnerUserInternalId = user.InternalId
                     };
                     team = await _teamRepository.CreateAsync(team);
                 }

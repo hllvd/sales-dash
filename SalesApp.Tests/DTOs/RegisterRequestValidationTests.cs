@@ -226,7 +226,6 @@ namespace SalesApp.Tests.DTOs
         [Theory]
         [InlineData("short")]
         [InlineData("12345")]
-        [InlineData("onlyletters")]
         public void Password_TooShort_FailsValidation(string password)
         {
             // Arrange

@@ -18,15 +18,5 @@ export const validatePassword = (password: string): { isValid: boolean; message:
     };
   }
 
-  const hasLetter = /[a-zA-Z]/.test(password);
-  const hasNumber = /\d/.test(password);
-
-  if (!hasLetter || !hasNumber) {
-    return { 
-      isValid: false, 
-      message: 'A senha deve conter pelo menos uma letra e um número' 
-    };
-  }
-
   return { isValid: true, message: '' };
 };

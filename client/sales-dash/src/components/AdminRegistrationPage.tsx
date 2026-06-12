@@ -402,7 +402,7 @@ const AdminRegistrationPage: React.FC = () => {
                     id="password"
                     type="password"
                     className="form-input-reg"
-                    placeholder="Mínimo 6 caracteres, 1 letra e 1 número"
+                    placeholder="Mínimo 6 caracteres"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
