@@ -345,6 +345,17 @@ prune() {
   echo "✅ Docker pruning completed successfully!"
 }
 
+rm_db() {
+  print_header "REMOVE DATABASE"
+  echo "Stopping containers..."
+  docker-compose down || true
+  echo "Removing E2E SQLite database files..."
+  rm -f data/SalesApp.E2E.db data/SalesApp.E2E.db-shm data/SalesApp.E2E.db-wal
+  rm -f data_e2e/SalesApp.E2E.db data_e2e/SalesApp.E2E.db-shm data_e2e/SalesApp.E2E.db-wal
+  echo "Starting containers..."
+  environment=e2e ASPNETCORE_ENVIRONMENT=E2E docker-compose up -d salesapp-api client nginx pbi-scraper
+}
+
 case "$1" in
   build)
     build
@@ -370,6 +381,9 @@ case "$1" in
   prune)
     prune
     ;;
+  rm-db)
+    rm_db
+    ;;
   docker-errors)
     docker_errors "$@"
     ;;
@@ -383,6 +397,7 @@ case "$1" in
     echo "./test.sh logs"
     echo "./test.sh clean"
     echo "./test.sh prune"
+    echo "./test.sh rm-db"
     echo "./test.sh docker-errors [tail=200]"
     exit 1
     ;;

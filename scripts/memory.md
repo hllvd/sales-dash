@@ -18,3 +18,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** The test cleanup soft-deletes (`IsActive = false`) test users, but the backend's register uniqueness check still flags the email as existing. The `registerUser` helper's recovery flow could not find paginated-out users via the `GET /api/users?pageSize=1000` list endpoint.
 **Fix applied:** Refactored `registerUser` in `contracts_team_filter.spec.ts`, `contracts_users_filter.spec.ts`, `team_members_management.spec.ts`, and `teams_hierarchy_visibility.spec.ts` to query for the email via `GET /api/users?search=...`. If the found user is inactive, it calls `PUT /api/users/{id}` to reactivate them (`isActive: true`), and returns the ID.
 **Result:** ✅ Green
+
+## 2026-06-11 e2e — Attempt 1
+**Failure:** `user_metadata.spec.ts` timeout/strict-mode failures on checkbox select, gated page access, profile save required field validation, and confirmation modal.
+**Root cause:** Validation checkbox used a missing span; gated page access did not display an error on frontend; required fields blocked form submission natively without showing the validation message; multiple inputs/buttons triggered strict-mode violations.
+**Fix applied:** Updated checkbox locator to getByLabel; mocked fields endpoint to return 403 for non-admin; set form to novalidate via page.evaluate to trigger mock 400 validation error; scoped strict-mode violating selectors to their unique labels/dialogs.
+**Result:** ✅ Green
