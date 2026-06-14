@@ -320,6 +320,32 @@ namespace SalesApp.IntegrationTests
                 await context.SaveChangesAsync();
             }
 
+            // Seed ClassificationLevels
+            if (!context.ClassificationLevels.Any())
+            {
+                var levels = new[]
+                {
+                    new SalesApp.Models.ClassificationLevel { Id = 1, Name = "Bronze", Description = "Nível Bronze", SalesGoal = 10000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 2, Name = "Prata", Description = "Nível Prata", SalesGoal = 30000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 3, Name = "Ouro", Description = "Nível Ouro", SalesGoal = 60000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
+                };
+                context.ClassificationLevels.AddRange(levels);
+                await context.SaveChangesAsync();
+            }
+
+            // Seed UserMetadataFields
+            if (!context.UserMetadataFields.Any())
+            {
+                var fields = new[]
+                {
+                    new SalesApp.Models.UserMetadataField { Key = "secretary_name", Label = "Nome da Secretária", GroupLabel = "Secretária", FieldType = "text", IsRequired = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.UserMetadataField { Key = "secretary_email", Label = "E-mail da Secretária", GroupLabel = "Secretária", FieldType = "text", IsRequired = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.UserMetadataField { Key = "secretary_whatsapp", Label = "WhatsApp da Secretária", GroupLabel = "Secretária", FieldType = "text", IsRequired = false, IsActive = true, CreatedAt = DateTime.UtcNow }
+                };
+                context.UserMetadataFields.AddRange(fields);
+                await context.SaveChangesAsync();
+            }
+
             // 🚀 Initialize RBAC Cache for Tests
             var rbacCache = scope.ServiceProvider.GetRequiredService<SalesApp.Services.IRbacCache>();
             var rolePerms = await context.Roles

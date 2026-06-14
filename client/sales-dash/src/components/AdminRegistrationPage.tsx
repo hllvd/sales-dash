@@ -119,6 +119,32 @@ const AdminRegistrationPage: React.FC = () => {
   const [selectedLevelId, setSelectedLevelId] = useState<number | ''>('');
   const [startDate, setStartDate] = useState('');
 
+  // Parent autocomplete suggestions
+  const [parentEmail, setParentEmail] = useState('');
+  const [parentSuggestions, setParentSuggestions] = useState<{ name: string; email: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    if (!parentEmail || parentEmail.length < 2) {
+      setParentSuggestions([]);
+      return;
+    }
+
+    const fetchSuggestions = async () => {
+      try {
+        const res = await apiService.autocompleteParents(parentEmail);
+        if (res.success && Array.isArray(res.data)) {
+          setParentSuggestions(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch parent suggestions:', err);
+      }
+    };
+
+    const delay = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(delay);
+  }, [parentEmail]);
+
   // Role selections (Step 2)
   const [selectedRole, setSelectedRole] = useState<'manager' | 'secretary'>('manager');
   const [secretaryName, setSecretaryName] = useState('');
@@ -220,6 +246,7 @@ const AdminRegistrationPage: React.FC = () => {
         secretaryName: selectedRole === 'secretary' ? secretaryName : undefined,
         secretaryEmail: selectedRole === 'secretary' ? secretaryEmail : undefined,
         secretaryWhatsapp: selectedRole === 'secretary' ? secretaryWhatsapp : undefined,
+        parentEmail: parentEmail || undefined,
       };
 
       const res = await apiService.adminRegister(payload);
@@ -453,6 +480,53 @@ const AdminRegistrationPage: React.FC = () => {
                     disabled={globalLoading || expired}
                   />
                 </div>
+                <div className="form-group-reg" style={{ position: 'relative' }}>
+                  <label className="form-label-reg" htmlFor="parentEmail">E-mail do Gestor Superior (Opcional)</label>
+                  <input
+                    id="parentEmail"
+                    type="email"
+                    className="form-input-reg"
+                    placeholder="Busque por nome ou e-mail..."
+                    value={parentEmail}
+                    onChange={(e) => {
+                      setParentEmail(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    disabled={globalLoading || expired}
+                  />
+                  {showSuggestions && parentSuggestions.length > 0 && (
+                    <ul className="autocomplete-suggestions">
+                      {parentSuggestions.map((suggestion, index) => (
+                        <li
+                          key={index}
+                          onClick={() => {
+                            setParentEmail(suggestion.email);
+                            setShowSuggestions(false);
+                          }}
+                          className="suggestion-item"
+                        >
+                          <span className="suggestion-name">{suggestion.name}</span>
+                          <span className="suggestion-email">({suggestion.email})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="field-helper-text">
+                    É importante colocar o nome do gestor acima de "{name || 'seu nome'}". Se não souber, deixe em branco e busque contato com{' '}
+                    <a
+                      href={`https://wa.me/55${contactPhone}?text=Olá,%20gostaria%20de%20saber%20quem%20é%20meu%20gestor%20superior.`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="whatsapp-link-inline"
+                    >
+                      <WhatsAppIcon className="whatsapp-icon-inline" />
+                      {contactPhone}
+                    </a>
+                  </p>
+                </div>
+
 
                 <div className="buttons-row">
                   <button type="submit" className="btn-reg btn-primary-reg" disabled={globalLoading || expired}>

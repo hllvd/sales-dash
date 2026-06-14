@@ -518,5 +518,64 @@ namespace SalesApp.IntegrationTests.Users
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
             return result?.Data?.Token ?? throw new Exception("Failed to get admin token from login response");
         }
+
+        [Fact]
+        public async Task GetAutocompleteParents_ShouldReturnOk()
+        {
+            // Act
+            var response = await _client.GetAsync("/api/users/autocomplete-parents?search=admin");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<ParentAutocompleteResponse>>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            // Should contain admin@test.com
+            result.Data.Should().Contain(p => p.Email == "admin@test.com");
+        }
+
+        [Fact]
+        public async Task AdminRegister_WithParentEmail_ShouldSetParentAndLevel()
+        {
+            // Arrange
+            var registerRequest = new
+            {
+                Email = $"manager_{Guid.NewGuid().ToString()[..8]}@test.com",
+                Name = "Child Manager",
+                Password = "Password123",
+                TeamName = $"New Team {Guid.NewGuid().ToString()[..8]}",
+                ClassificationLevelId = 1,
+                Role = "manager",
+                ParentEmail = "admin@test.com"
+            };
+
+            // Act
+            var response = await _client.PostAsJsonAsync("/api/users/admin-register", registerRequest);
+
+            // Assert
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to register: {response.StatusCode} - {content}");
+            }
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+
+            // Verify in DB
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = await context.Users
+                .Include(u => u.ParentUser)
+                .FirstOrDefaultAsync(u => u.Email == registerRequest.Email);
+
+            user.Should().NotBeNull();
+            user!.ParentUser.Should().NotBeNull();
+            user.ParentUser!.Email.Should().Be("admin@test.com");
+            // admin has level 1 (or we can assert it is parent.Level + 1)
+            user.Level.Should().Be(user.ParentUser.Level + 1);
+        }
     }
 }

@@ -150,6 +150,37 @@ namespace SalesApp.Controllers
             });
         }
 
+        [HttpGet("autocomplete-parents")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<List<ParentAutocompleteResponse>>>> GetAutocompleteParents([FromQuery] string? search = null)
+        {
+            var query = _context.Users
+                .AsNoTracking()
+                .Where(u => u.IsActive);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var normSearch = search.Trim().ToLower();
+                query = query.Where(u => u.Name.ToLower().Contains(normSearch) || u.Email.ToLower().Contains(normSearch));
+            }
+
+            var users = await query
+                .Select(u => new ParentAutocompleteResponse
+                {
+                    Name = u.Name,
+                    Email = u.Email
+                })
+                .Take(20)
+                .ToListAsync();
+
+            return Ok(new ApiResponse<List<ParentAutocompleteResponse>>
+            {
+                Success = true,
+                Data = users,
+                Message = "Parents for autocomplete retrieved successfully"
+            });
+        }
+
         [HttpPost("admin-register")]
         [AllowAnonymous]
         public async Task<ActionResult<ApiResponse<object>>> AdminRegister([FromBody] AdminRegistrationRequest request)
@@ -179,6 +210,18 @@ namespace SalesApp.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                Guid? parentUserId = null;
+                int level = 1;
+                if (!string.IsNullOrWhiteSpace(request.ParentEmail))
+                {
+                    var parentUser = await _userRepository.GetByEmailAsync(request.ParentEmail.Trim());
+                    if (parentUser != null)
+                    {
+                        parentUserId = parentUser.Id;
+                        level = parentUser.Level + 1;
+                    }
+                }
+
                 // 1. Create User
                 var user = new User
                 {
@@ -187,7 +230,8 @@ namespace SalesApp.Controllers
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                     RoleId = role.Id,
                     IsActive = true,
-                    Level = 1
+                    ParentUserId = parentUserId,
+                    Level = level
                 };
 
                 await _userRepository.CreateAsync(user);

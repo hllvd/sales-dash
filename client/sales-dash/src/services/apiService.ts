@@ -1196,6 +1196,12 @@ export const apiService = {
     return response.json()
   },
 
+  async autocompleteParents(search: string): Promise<ApiResponse<ParentAutocompleteResponse[]>> {
+    const response = await fetch(`${API_BASE_URL}/users/autocomplete-parents?search=${encodeURIComponent(search)}`)
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch parents for autocomplete"))
+    return response.json()
+  },
+
   async adminRegister(payload: AdminRegistrationRequest): Promise<ApiResponse<object>> {
     const response = await fetch(`${API_BASE_URL}/users/admin-register`, {
       method: "POST",
@@ -1388,6 +1394,11 @@ export interface EmailCheckResponse {
   contactPhone?: string
 }
 
+export interface ParentAutocompleteResponse {
+  name: string
+  email: string
+}
+
 export interface AdminRegistrationRequest {
   email: string
   name: string
@@ -1399,4 +1410,5 @@ export interface AdminRegistrationRequest {
   secretaryName?: string
   secretaryEmail?: string
   secretaryWhatsapp?: string
+  parentEmail?: string
 }

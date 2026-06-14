@@ -44,5 +44,9 @@ namespace SalesApp.DTOs
 
         [StringLength(20)]
         public string? SecretaryWhatsapp { get; set; }
+
+        [EmailAddress(ErrorMessage = "Invalid parent email format")]
+        [StringLength(254)]
+        public string? ParentEmail { get; set; }
     }
 }
