@@ -425,3 +425,6 @@ backup/rclone.conf
 SalesApp.Api/Library/
 SalesApp.DataMigrator/Library/
 
+# Test output log files
+test-output.txt
+
