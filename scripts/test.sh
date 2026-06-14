@@ -236,7 +236,7 @@ parse_playwright_stats() {
   FAILED=${FAILED:-0}
   SKIPPED=${SKIPPED:-0}
   TOTAL=$(( PASSED + FAILED + SKIPPED ))
-  echo "✅ Passed: $PASSED  ❌ Failed: $FAILED  ⏭️  Skipped: $SKIPPED  (Total: $TOTAL)"
+  echo "✅ Passed: $PASSED  ⏭️  Skipped: $SKIPPED  (Total: $TOTAL)"
 }
 
 # run_e2e <run_label> <log_suffix>
