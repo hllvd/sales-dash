@@ -163,7 +163,11 @@ namespace SalesApp.Services
             [AppMessage.UserClassificationUpdatedSuccessfully] = "Classificação do usuário atualizada com sucesso",
             [AppMessage.UserClassificationNotFound] = "Classificação do usuário não encontrada",
             [AppMessage.UserClassificationHistoryRetrievedSuccessfully] = "Histórico de classificações recuperado com sucesso",
-            [AppMessage.UserClassificationOverlapConflict] = "Conflito detectado: a atribuição anterior do usuário foi encerrada automaticamente na data de início da nova"
+            [AppMessage.UserClassificationOverlapConflict] = "Conflito detectado: a atribuição anterior do usuário foi encerrada automaticamente na data de início da nova",
+            
+            // Forgot Password Messages
+            [AppMessage.ForgotPasswordGenericResponse] = "Se este e-mail estiver cadastrado, uma nova senha será enviada em breve.",
+            [AppMessage.ForgotPasswordEmailRequired] = "O campo e-mail é obrigatório."
         };
         
         /// <summary>

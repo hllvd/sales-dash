@@ -11,6 +11,11 @@ namespace SalesApp.Services
         Task<bool> SendPasswordResetEmailAsync(string userEmail, string userName, string newPassword);
 
         /// <summary>
+        /// Sends a self-service password recovery email to a user
+        /// </summary>
+        Task<bool> SendForgotPasswordRecoveryEmailAsync(string userEmail, string userName, string newPassword);
+
+        /// <summary>
         /// Sends an admin notification email
         /// </summary>
         Task<bool> SendAdminNotificationEmailAsync(string adminEmail, string notificationType, string message, string? details = null);

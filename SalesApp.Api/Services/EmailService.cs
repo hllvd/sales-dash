@@ -34,6 +34,20 @@ namespace SalesApp.Services
             return await _emailSender.SendEmailAsync(message);
         }
 
+        public async Task<bool> SendForgotPasswordRecoveryEmailAsync(string userEmail, string userName, string newPassword)
+        {
+            var template = new ForgotPasswordRecoveryEmailTemplate(_fromAddress);
+            var parameters = new Dictionary<string, string>
+            {
+                ["userName"] = userName,
+                ["newPassword"] = newPassword,
+                ["userEmail"] = userEmail
+            };
+
+            var message = template.Build(parameters);
+            return await _emailSender.SendEmailAsync(message);
+        }
+
         public async Task<bool> SendAdminNotificationEmailAsync(string adminEmail, string notificationType, string message, string? details = null)
         {
             var template = new AdminNotificationEmailTemplate();

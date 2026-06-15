@@ -159,6 +159,10 @@ namespace SalesApp.Models
         UserClassificationUpdatedSuccessfully,
         UserClassificationNotFound,
         UserClassificationHistoryRetrievedSuccessfully,
-        UserClassificationOverlapConflict
+        UserClassificationOverlapConflict,
+        
+        // Forgot Password Messages
+        ForgotPasswordGenericResponse,
+        ForgotPasswordEmailRequired
     }
 }

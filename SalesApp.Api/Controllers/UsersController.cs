@@ -525,6 +525,46 @@ namespace SalesApp.Controllers
             });
         }
         
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<object>>> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Email))
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.ForgotPasswordEmailRequired)
+                });
+            }
+
+            var email = request.Email.ToLowerInvariant().Trim();
+            var user = await _userRepository.GetByEmailAsync(email);
+
+            if (user != null)
+            {
+                var newPassword = PasswordGenerator.GeneratePassword(user.Name);
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+                user.UpdatedAt = DateTime.UtcNow;
+                await _userRepository.UpdateAsync(user);
+
+                try
+                {
+                    await _emailService.SendForgotPasswordRecoveryEmailAsync(user.Email, user.Name, newPassword);
+                }
+                catch (Exception)
+                {
+                    // Fail gracefully to avoid leaking information
+                }
+            }
+
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = _messageService.Get(AppMessage.ForgotPasswordGenericResponse)
+            });
+        }
+
         [HttpGet]
         [HasPermission("users:read")]
         public async Task<ActionResult<ApiResponse<PagedResponse<UserResponse>>>> GetUsers(
