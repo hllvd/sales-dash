@@ -19,6 +19,8 @@ namespace SalesApp.Services
             var userName = parameters.GetValueOrDefault("userName", "Usuário");
             var newPassword = parameters.GetValueOrDefault("newPassword", "");
             var userEmail = parameters.GetValueOrDefault("userEmail", "");
+            var baseUrl = parameters.GetValueOrDefault("baseUrl", "http://localhost");
+            var loginUrl = baseUrl;
 
             var subject = "Recuperação de senha - SalesApp";
             var body = $@"
@@ -33,6 +35,8 @@ namespace SalesApp.Services
         .content {{ background-color: #f9f9f9; padding: 30px; border-radius: 0 0 5px 5px; }}
         .password-box {{ background-color: #fff; border: 2px solid #4CAF50; padding: 15px; margin: 20px 0; border-radius: 5px; text-align: center; }}
         .password {{ font-size: 24px; font-weight: bold; color: #4CAF50; letter-spacing: 2px; }}
+        .button-container {{ text-align: center; margin: 30px 0; }}
+        .btn {{ background-color: #4CAF50; color: white !important; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; }}
         .warning {{ background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0; }}
         .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #666; }}
     </style>
@@ -50,6 +54,10 @@ namespace SalesApp.Services
             <div class=""password-box"">
                 <p style=""margin: 0; font-size: 14px; color: #666;"">Sua nova senha é:</p>
                 <p class=""password"">{newPassword}</p>
+            </div>
+            
+            <div class=""button-container"">
+                <a href=""{loginUrl}"" class=""btn"">Acessar o SalesApp</a>
             </div>
             
             <div class=""warning"">

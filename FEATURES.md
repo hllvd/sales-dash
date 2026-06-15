@@ -28,3 +28,13 @@ The primary goal is to stabilize the data scraping pipeline by dynamically handl
 - **Scheduling**: Automated periodic scrapes (e.g., once every 2 days).
 - **Auto-Retry**: Systematic retries for intermittent failures with exponential backoff.
 - **Credential Management**: Transition from hardcoded tokens to using stored user credentials for dynamic authentication.
+
+## Feature Testing UI (Tester)
+
+We have a UI for testing features, such as email sending.
+
+- **URL Path**: `#/tester` (hash-based navigation)
+- **Menu Entry**: None (accessible only via direct URL)
+- **Key Capabilities**:
+  - **Email Service Test**: Input a user email to trigger the `forgot-password` recovery flow, validating that SMTP/SES connectivity and email templates are working correctly without requiring backend code changes or new test endpoints.
+

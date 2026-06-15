@@ -20,6 +20,7 @@ import ViewsRouter from './components/Reports/ViewsRouter';
 import MatriculaHealthPage from './components/Monitoring/MatriculaHealthPage';
 import UserMetadataAdminPage from './components/UserMetadataAdmin/UserMetadataAdminPage';
 import AdminRegistrationPage from './components/AdminRegistrationPage';
+import TesterPage from './components/TesterPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -97,6 +98,8 @@ function App() {
         return <MatriculaHealthPage />;
       case '#/user-metadata-fields':
         return <UserMetadataAdminPage />;
+      case '#/tester':
+        return <TesterPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':

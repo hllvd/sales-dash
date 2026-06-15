@@ -37,11 +37,13 @@ namespace SalesApp.Services
         public async Task<bool> SendForgotPasswordRecoveryEmailAsync(string userEmail, string userName, string newPassword)
         {
             var template = new ForgotPasswordRecoveryEmailTemplate(_fromAddress);
+            var baseUrl = _configuration["BaseUrl"] ?? "https://ademicon.hagadev.com";
             var parameters = new Dictionary<string, string>
             {
                 ["userName"] = userName,
                 ["newPassword"] = newPassword,
-                ["userEmail"] = userEmail
+                ["userEmail"] = userEmail,
+                ["baseUrl"] = baseUrl
             };
 
             var message = template.Build(parameters);

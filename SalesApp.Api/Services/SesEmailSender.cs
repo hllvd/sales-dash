@@ -12,23 +12,38 @@ namespace SalesApp.Services
     /// </summary>
     public class SesEmailSender : IEmailSender
     {
-        private readonly IConfiguration _configuration;
         private readonly string? _fromAddress;
+        private readonly string? _accessKey;
+        private readonly string? _secretKey;
+        private readonly string? _regionName;
         private readonly bool _isConfigured;
 
         public SesEmailSender(IConfiguration configuration)
         {
-            _configuration = configuration;
-            _fromAddress = _configuration["Email:FromAddress"];
+            _fromAddress = configuration["Email:FromAddress"];
             
-            // Check if AWS credentials are configured
-            var accessKey = _configuration["AWS:AccessKeyId"];
-            var secretKey = _configuration["AWS:SecretAccessKey"];
-            var region = _configuration["AWS:Region"];
+            // Check config first, then environment variables
+            _accessKey = configuration["AWS:AccessKeyId"];
+            if (string.IsNullOrEmpty(_accessKey))
+            {
+                _accessKey = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+            }
+
+            _secretKey = configuration["AWS:SecretAccessKey"];
+            if (string.IsNullOrEmpty(_secretKey))
+            {
+                _secretKey = Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+            }
+
+            _regionName = configuration["AWS:Region"];
+            if (string.IsNullOrEmpty(_regionName))
+            {
+                _regionName = Environment.GetEnvironmentVariable("AWS_REGION") ?? "us-east-1";
+            }
             
-            _isConfigured = !string.IsNullOrEmpty(accessKey) && 
-                           !string.IsNullOrEmpty(secretKey) && 
-                           !string.IsNullOrEmpty(region) &&
+            _isConfigured = !string.IsNullOrEmpty(_accessKey) && 
+                           !string.IsNullOrEmpty(_secretKey) && 
+                           !string.IsNullOrEmpty(_regionName) &&
                            !string.IsNullOrEmpty(_fromAddress);
         }
 
@@ -43,13 +58,9 @@ namespace SalesApp.Services
 
             try
             {
-                var accessKey = _configuration["AWS:AccessKeyId"]!;
-                var secretKey = _configuration["AWS:SecretAccessKey"]!;
-                var regionName = _configuration["AWS:Region"]!;
+                var region = RegionEndpoint.GetBySystemName(_regionName);
                 
-                var region = RegionEndpoint.GetBySystemName(regionName);
-                
-                using var client = new AmazonSimpleEmailServiceClient(accessKey, secretKey, region);
+                using var client = new AmazonSimpleEmailServiceClient(_accessKey, _secretKey, region);
                 
                 var sendRequest = new SendEmailRequest
                 {
