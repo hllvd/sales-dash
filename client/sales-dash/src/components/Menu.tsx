@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { AppShell, NavLink, Text, Group, Button, Tooltip, Burger } from '@mantine/core';
+import { AppShell, NavLink, Text, Group, Button, Tooltip, Burger, Badge } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { useBuildInfo } from '../contexts/BuildInfoContext';
 import { UserRole } from '../types/UserRole';
+import { useOnboarding } from '../contexts/OnboardingContext';
 import {
   IconUsers,
   IconFileText,
@@ -28,6 +29,7 @@ interface MenuProps {
 }
 
 const Menu: React.FC<MenuProps> = ({ children }) => {
+  const { steps, setShowWizard, isOnboardingComplete } = useOnboarding();
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<string>('');
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/home');
@@ -414,6 +416,25 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         </AppShell.Section>
 
         <AppShell.Section style={{ border: '0px', borderTop: '1px solid #374151', borderRadius: '8px', paddingTop: '16px' }}>
+          {steps.length > 0 && (
+            <NavLink
+              label="Guia de Configuração"
+              leftSection={<IconWand size={20} />}
+              onClick={() => {
+                setShowWizard(true);
+                if (opened) close();
+              }}
+              rightSection={
+                !isOnboardingComplete ? (
+                  <Badge color="red" size="xs" variant="filled">A fazer</Badge>
+                ) : (
+                  <Badge color="green" size="xs" variant="light">Pronto</Badge>
+                )
+              }
+              styles={navLinkStyles('')}
+              mb="xs"
+            />
+          )}
           <NavLink
             href="#/my-profile"
             label="Meu Usuário"

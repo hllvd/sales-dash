@@ -6,8 +6,10 @@ import { apiService } from '../services/apiService';
 import { toast } from '../utils/toast';
 import { downloadFailedRowsCsv } from '../utils/csvDownloader';
 import '../shared/InfoHelper.css';
+import { useOnboarding } from '../contexts/OnboardingContext';
 
 const ImportWizardPage: React.FC = () => {
+  const { markStepDone } = useOnboarding();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Aguarde...');
@@ -177,6 +179,7 @@ const ImportWizardPage: React.FC = () => {
           downloadFailedRowsCsv(response.data.failedRowsDetails, 'wizard_contracts_errors');
         }
         toast.success('Contratos importados com sucesso');
+        markStepDone('import_contracts');
       }
     } catch (err: any) {
       toast.error(err.message || 'Falha ao importar contratos');

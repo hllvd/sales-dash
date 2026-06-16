@@ -25,6 +25,8 @@ import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
 import { BuildInfoProvider } from './contexts/BuildInfoContext';
+import { OnboardingProvider } from './contexts/OnboardingContext';
+import { OnboardingChecklist } from './components/Onboarding/OnboardingChecklist';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/charts/styles.css';
@@ -111,16 +113,19 @@ function App() {
   return (
     <BuildInfoProvider>
       <CurrentUserProvider>
-        <UsersProvider>
-          <ContractsProvider>
-            <MantineProvider>
-              <Notifications />
-              <ErrorBoundary>
-                {renderPage()}
-              </ErrorBoundary>
-            </MantineProvider>
-          </ContractsProvider>
-        </UsersProvider>
+        <OnboardingProvider>
+          <UsersProvider>
+            <ContractsProvider>
+              <MantineProvider>
+                <Notifications />
+                <ErrorBoundary>
+                  {renderPage()}
+                  <OnboardingChecklist />
+                </ErrorBoundary>
+              </MantineProvider>
+            </ContractsProvider>
+          </UsersProvider>
+        </OnboardingProvider>
       </CurrentUserProvider>
     </BuildInfoProvider>
   );

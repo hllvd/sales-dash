@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReportListPage from './ReportListPage';
 import ReportFormPage from './ReportFormPage';
 import ReportResultsPage from './ReportResultsPage';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 interface ReportsRouterProps {
   currentRoute: string;
 }
 
 const ReportsRouter: React.FC<ReportsRouterProps> = ({ currentRoute }) => {
+  const { markStepDone } = useOnboarding();
+
+  useEffect(() => {
+    markStepDone('view_reports');
+  }, [markStepDone]);
   // Routes:
   // #/reports
   // #/reports/new

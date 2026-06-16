@@ -7,8 +7,10 @@ import FormField from './FormField';
 import TeamMembersModal from './TeamMembersModal';
 import { apiService, Team, User } from "../services/apiService"
 import "./TeamsPage.css"
+import { useOnboarding } from "../contexts/OnboardingContext"
 
 const TeamsPage: React.FC = () => {
+  const { markStepDone } = useOnboarding()
   const [teams, setTeams] = useState<Team[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,13 +53,17 @@ const TeamsPage: React.FC = () => {
       const response = await apiService.getTeams()
       if (response.success && response.data) {
         setTeams(response.data)
+        const hasMembers = response.data.some(t => t.members && t.members.length > 0)
+        if (hasMembers) {
+          markStepDone('add_teams')
+        }
       }
     } catch (err: any) {
       setError(err.message || "Falha ao carregar equipes")
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [markStepDone])
 
   // Fetch all users once for member selection
   const fetchUsers = useCallback(async () => {

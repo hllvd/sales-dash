@@ -26,9 +26,11 @@ import {
 } from '../services/contractService';
 import { apiService, UserMatricula } from '../services/apiService';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
 
 const MyContractsPage: React.FC = () => {
   const { currentUser } = useCurrentUser();
+  const { markStepDone } = useOnboarding();
   // Track latest API request to prevent race conditions
   const requestCountRef = useRef(0);
 
@@ -88,6 +90,7 @@ const MyContractsPage: React.FC = () => {
       if (requestId !== requestCountRef.current) return;
       setContracts(data);
       setAggregation(aggData || null);
+      markStepDone('check_contracts');
     } catch (err: any) {
       if (requestId !== requestCountRef.current) return;
       setError(err.message || 'Falha ao carregar contratos');
@@ -96,7 +99,7 @@ const MyContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [startDate, endDate, debouncedMatricula, currentUser]);
+  }, [startDate, endDate, debouncedMatricula, currentUser, markStepDone]);
 
   // Load saved date filters from localStorage
   useEffect(() => {

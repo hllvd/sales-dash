@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ViewsListPage from './ViewsListPage';
 import ViewFormPage from './ViewFormPage';
 import ViewExecutionPage from './ViewExecutionPage';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 interface ViewsRouterProps {
   currentRoute: string;
 }
 
 const ViewsRouter: React.FC<ViewsRouterProps> = ({ currentRoute }) => {
+  const { markStepDone } = useOnboarding();
+
+  useEffect(() => {
+    markStepDone('push_dashboard');
+  }, [markStepDone]);
   // Routes:
   // #/views
   // #/views/new
