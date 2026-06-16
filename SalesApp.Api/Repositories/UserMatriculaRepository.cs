@@ -88,21 +88,18 @@ namespace SalesApp.Repositories
             matricula.CreatedAt = DateTime.UtcNow;
             matricula.UpdatedAt = DateTime.UtcNow;
             
-            // ✅ Fix: If this matricula is being set as owner, unset others BEFORE adding this to the context
-            // This prevents a temporary state where two owners exist (violating SQLite unique constraint)
+            // ✅ Fix: Use ExecuteUpdateAsync (direct SQL, bypasses EF change tracker) to clear
+            // competing owners before inserting the new owner row, preventing any ordering issues
+            // that would violate the filtered UNIQUE index WHERE [IsOwner] = 1.
             if (matricula.IsOwner)
             {
-                var existingOwners = await _context.UserMatriculas
-                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.UserInternalId != matricula.UserInternalId)
-                    .ToListAsync();
-                
-                foreach (var owner in existingOwners)
-                {
-                    owner.IsOwner = false;
-                    owner.UpdatedAt = DateTime.UtcNow;
-                }
-                // Save the unsets first
-                await _context.SaveChangesAsync();
+                await _context.UserMatriculas
+                    .Where(m => m.MatriculaId == matricula.MatriculaId
+                             && m.IsOwner
+                             && m.UserInternalId != matricula.UserInternalId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(m => m.IsOwner, false)
+                        .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
             }
             
             _context.UserMatriculas.Add(matricula);
@@ -123,20 +120,19 @@ namespace SalesApp.Repositories
 
             matricula.UpdatedAt = DateTime.UtcNow;
             
-            // ✅ Fix: If this matricula is being set as owner, unset others BEFORE updating this record
+            // ✅ Fix: Use ExecuteUpdateAsync (direct SQL, bypasses EF change tracker) to clear
+            // competing owners BEFORE updating this record. The previous SaveChangesAsync() approach
+            // could batch the existing IsOwner=true entity alongside the update in a single round-trip,
+            // violating the filtered UNIQUE index WHERE [IsOwner] = 1.
             if (matricula.IsOwner)
             {
-                var existingOwners = await _context.UserMatriculas
-                    .Where(m => m.MatriculaId == matricula.MatriculaId && m.IsOwner && m.UserInternalId != matricula.UserInternalId)
-                    .ToListAsync();
-                
-                foreach (var owner in existingOwners)
-                {
-                    owner.IsOwner = false;
-                    owner.UpdatedAt = DateTime.UtcNow;
-                }
-                // Save the unsets first
-                await _context.SaveChangesAsync();
+                await _context.UserMatriculas
+                    .Where(m => m.MatriculaId == matricula.MatriculaId
+                             && m.IsOwner
+                             && m.UserInternalId != matricula.UserInternalId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(m => m.IsOwner, false)
+                        .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
             }
             
             var existingEntry = _context.ChangeTracker.Entries<UserMatricula>()
