@@ -49,7 +49,8 @@ namespace SalesApp.Repositories
             
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(u => u.Name.Contains(search) || u.Email.Contains(search));
+                var searchLower = search.ToLower();
+                query = query.Where(u => u.Name.ToLower().Contains(searchLower) || u.Email.ToLower().Contains(searchLower));
             }
 
             if (!string.IsNullOrEmpty(contractNumber))

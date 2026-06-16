@@ -577,5 +577,36 @@ namespace SalesApp.IntegrationTests.Users
             // admin has level 1 (or we can assert it is parent.Level + 1)
             user.Level.Should().Be(user.ParentUser.Level + 1);
         }
+
+        [Fact]
+        public async Task GetUsers_Search_ShouldBeCaseInsensitive()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var searchLower = "superadmin";
+            var searchUpper = "SUPERADMIN";
+
+            // Act
+            var responseLower = await client.GetAsync($"/api/users?search={searchLower}");
+            var responseUpper = await client.GetAsync($"/api/users?search={searchUpper}");
+
+            // Assert
+            responseLower.StatusCode.Should().Be(HttpStatusCode.OK);
+            responseUpper.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var resultLower = await responseLower.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
+            var resultUpper = await responseUpper.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
+
+            resultLower.Should().NotBeNull();
+            resultUpper.Should().NotBeNull();
+
+            resultLower!.Data!.Items.Should().NotBeEmpty();
+            resultUpper!.Data!.Items.Should().NotBeEmpty();
+
+            resultLower.Data.Items.Select(u => u.Id).Should().BeEquivalentTo(resultUpper.Data.Items.Select(u => u.Id));
+        }
     }
 }

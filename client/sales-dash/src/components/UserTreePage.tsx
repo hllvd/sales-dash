@@ -171,7 +171,8 @@ const UserTreePage: React.FC = () => {
     return (
       node.name.toLowerCase().includes(query) ||
       node.email.toLowerCase().includes(query) ||
-      node.role.toLowerCase().includes(query)
+      node.role.toLowerCase().includes(query) ||
+      (node.ownedTeamName ? node.ownedTeamName.toLowerCase().includes(query) : false)
     )
   }
 
