@@ -21,6 +21,7 @@ import MatriculaHealthPage from './components/Monitoring/MatriculaHealthPage';
 import UserMetadataAdminPage from './components/UserMetadataAdmin/UserMetadataAdminPage';
 import AdminRegistrationPage from './components/AdminRegistrationPage';
 import TesterPage from './components/TesterPage';
+import BatchPage from './components/BatchPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -100,6 +101,8 @@ function App() {
         return <UserMetadataAdminPage />;
       case '#/tester':
         return <TesterPage />;
+      case '#/batch':
+        return <BatchPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':

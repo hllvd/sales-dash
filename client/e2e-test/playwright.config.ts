@@ -56,6 +56,7 @@ export default defineConfig({
     {
       name: 'tear-3',
       testMatch: [
+        'batch_parent_update.spec.ts',
         'user_tree_hierarchy.spec.ts',
         'hierarchy_contract_visibility.spec.ts',
         'hierarchy_sibling_isolation.spec.ts',

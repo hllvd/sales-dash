@@ -269,6 +269,38 @@ export const apiService = {
     return response.json()
   },
 
+  async batchUpdateParent(
+    requestData: BatchUpdateParentRequest
+  ): Promise<ApiResponse<BatchUpdateParentResult>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/batch/users/parent`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestData),
+    })
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to perform batch update"))
+    }
+
+    return response.json()
+  },
+
+  async batchAssignTeam(
+    requestData: BatchAssignTeamRequest
+  ): Promise<ApiResponse<BatchAssignTeamResult>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/batch/team/assign`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestData),
+    })
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to perform batch team assignment"))
+    }
+
+    return response.json()
+  },
+
   async savePowerBiCredentials(username: string, password?: string): Promise<ApiResponse<User>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/powerbi-credentials`, {
       method: "PUT",
@@ -1411,4 +1443,50 @@ export interface AdminRegistrationRequest {
   secretaryEmail?: string
   secretaryWhatsapp?: string
   parentEmail?: string
+}
+
+export interface BatchUpdateParentRequest {
+  parentEmail: string
+  overrideExisting: boolean
+  teamId?: number
+  matricula?: string
+}
+
+export interface ModifiedUserSummary {
+  id: string
+  name: string
+  email: string
+  oldParentEmail?: string
+  newParentEmail: string
+}
+
+export interface SkippedUserSummary {
+  id: string
+  name: string
+  email: string
+  currentParentEmail?: string
+  reason: string
+}
+
+export interface BatchUpdateParentResult {
+  modified: ModifiedUserSummary[]
+  skipped: SkippedUserSummary[]
+}
+
+export interface BatchAssignTeamRequest {
+  parentEmail: string
+  teamId: number
+  startDate?: string
+  overrideExisting: boolean
+}
+
+export interface AddedMemberSummary {
+  id: string
+  name: string
+  email: string
+}
+
+export interface BatchAssignTeamResult {
+  added: AddedMemberSummary[]
+  skipped: SkippedUserSummary[]
 }
