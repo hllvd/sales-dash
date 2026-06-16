@@ -9,7 +9,7 @@ import {
 import { notifications } from '@mantine/notifications'
 import Menu from './Menu'
 import { useCurrentUser } from '../contexts/CurrentUserContext'
-import { apiService, BatchUpdateParentResult, BatchAssignTeamResult } from '../services/apiService'
+import { apiService, BatchUpdateParentResult, BatchAssignTeamResult, BatchAssignTeamRequest } from '../services/apiService'
 import './BatchPage.css'
 
 const BatchPage: React.FC = () => {
@@ -24,6 +24,7 @@ const BatchPage: React.FC = () => {
 
   // Tab 2: Team Assignment
   const [assignParentEmail, setAssignParentEmail] = useState('')
+  const [assignMatricula, setAssignMatricula] = useState('')
   const [assignTeamId, setAssignTeamId] = useState<string | null>(null)
   const [startDate, setStartDate] = useState<Date | null>(new Date())
   const [overrideExistingTeam, setOverrideExistingTeam] = useState(false)
@@ -162,8 +163,16 @@ const BatchPage: React.FC = () => {
     setError('')
     setAssignResult(null)
 
-    if (!assignParentEmail.trim()) {
-      setError('O e-mail do superior é obrigatório.')
+    const hasParentEmail = !!assignParentEmail.trim()
+    const hasMatricula = !!assignMatricula.trim()
+
+    if (!hasParentEmail && !hasMatricula) {
+      setError('Informe o e-mail do superior ou a matrícula.')
+      return
+    }
+
+    if (hasParentEmail && hasMatricula) {
+      setError('Informe apenas o e-mail do superior ou a matrícula, não ambos.')
       return
     }
 
@@ -174,8 +183,9 @@ const BatchPage: React.FC = () => {
 
     setSubmitting(true)
     try {
-      const payload = {
-        parentEmail: assignParentEmail.trim(),
+      const payload: BatchAssignTeamRequest = {
+        parentEmail: hasParentEmail ? assignParentEmail.trim() : undefined,
+        matricula: hasMatricula ? assignMatricula.trim() : undefined,
         teamId: parseInt(assignTeamId, 10),
         startDate: startDate ? startDate.toISOString() : undefined,
         overrideExisting: overrideExistingTeam
@@ -208,6 +218,7 @@ const BatchPage: React.FC = () => {
 
   const handleAssignClear = () => {
     setAssignParentEmail('')
+    setAssignMatricula('')
     setAssignTeamId(null)
     setStartDate(new Date())
     setOverrideExistingTeam(false)
@@ -407,7 +418,14 @@ const BatchPage: React.FC = () => {
                   placeholder="exemplo@salesapp.com"
                   value={assignParentEmail}
                   onChange={(e) => setAssignParentEmail(e.currentTarget.value)}
-                  required
+                  disabled={submitting}
+                />
+
+                <TextInput
+                  label="Matrícula"
+                  placeholder="Digite a matrícula exata"
+                  value={assignMatricula}
+                  onChange={(e) => setAssignMatricula(e.currentTarget.value)}
                   disabled={submitting}
                 />
 

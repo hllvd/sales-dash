@@ -41,7 +41,9 @@ namespace SalesApp.DTOs
 
     public class BatchAssignTeamRequest
     {
-        public string ParentEmail { get; set; } = string.Empty;
+        public string? ParentEmail { get; set; }
+
+        public string? Matricula { get; set; }
 
         public int TeamId { get; set; }
 

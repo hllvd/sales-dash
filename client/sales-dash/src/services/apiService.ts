@@ -1474,7 +1474,8 @@ export interface BatchUpdateParentResult {
 }
 
 export interface BatchAssignTeamRequest {
-  parentEmail: string
+  parentEmail?: string
+  matricula?: string
   teamId: number
   startDate?: string
   overrideExisting: boolean

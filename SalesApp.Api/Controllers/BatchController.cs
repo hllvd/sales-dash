@@ -199,16 +199,37 @@ namespace SalesApp.Controllers
             }
 
             // 2. Validate input parameters
-            if (request == null || string.IsNullOrWhiteSpace(request.ParentEmail))
+            if (request == null)
             {
                 return BadRequest(new ApiResponse<BatchAssignTeamResult>
                 {
                     Success = false,
-                    Message = "E-mail do superior é obrigatório."
+                    Message = "Requisição inválida."
                 });
             }
 
-            if (!request.ParentEmail.Contains("@"))
+            bool hasParentEmail = !string.IsNullOrWhiteSpace(request.ParentEmail);
+            bool hasMatricula = !string.IsNullOrWhiteSpace(request.Matricula);
+
+            if (!hasParentEmail && !hasMatricula)
+            {
+                return BadRequest(new ApiResponse<BatchAssignTeamResult>
+                {
+                    Success = false,
+                    Message = "Informe o e-mail do superior ou a matrícula."
+                });
+            }
+
+            if (hasParentEmail && hasMatricula)
+            {
+                return BadRequest(new ApiResponse<BatchAssignTeamResult>
+                {
+                    Success = false,
+                    Message = "Informe apenas o e-mail do superior ou a matrícula, não ambos."
+                });
+            }
+
+            if (hasParentEmail && !request.ParentEmail!.Contains("@"))
             {
                 return BadRequest(new ApiResponse<BatchAssignTeamResult>
                 {
@@ -226,18 +247,7 @@ namespace SalesApp.Controllers
                 });
             }
 
-            // 3. Resolve parent user
-            var parentUser = await _userRepository.GetByEmailAsync(request.ParentEmail.Trim());
-            if (parentUser == null)
-            {
-                return BadRequest(new ApiResponse<BatchAssignTeamResult>
-                {
-                    Success = false,
-                    Message = "Superior com o e-mail especificado não foi encontrado ou está inativo."
-                });
-            }
-
-            // 4. Resolve team
+            // 3. Resolve team
             var team = await _context.Teams
                 .Include(t => t.UserTeams)
                 .FirstOrDefaultAsync(t => t.Id == request.TeamId);
@@ -250,18 +260,53 @@ namespace SalesApp.Controllers
                 });
             }
 
-            // 5. Query direct children
-            var children = await _context.Users
-                .Where(u => u.IsActive && u.ParentUserId == parentUser.Id)
-                .ToListAsync();
+            // 4. Resolve target users
+            List<User> targetUsers = new List<User>();
+
+            if (hasParentEmail)
+            {
+                var parentUser = await _userRepository.GetByEmailAsync(request.ParentEmail!.Trim());
+                if (parentUser == null)
+                {
+                    return BadRequest(new ApiResponse<BatchAssignTeamResult>
+                    {
+                        Success = false,
+                        Message = "Superior com o e-mail especificado não foi encontrado ou está inativo."
+                    });
+                }
+
+                targetUsers = await _context.Users
+                    .Include(u => u.ParentUser)
+                    .Where(u => u.IsActive && u.ParentUserId == parentUser.Id)
+                    .ToListAsync();
+            }
+            else // hasMatricula
+            {
+                var matriculaNumber = request.Matricula!.Trim().ToLower();
+                var user = await _context.Users
+                    .Include(u => u.ParentUser)
+                    .Where(u => u.IsActive && _context.UserMatriculas.Any(um => um.UserInternalId == u.InternalId && um.IsActive && um.Matricula.MatriculaNumber.ToLower() == matriculaNumber))
+                    .FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    return BadRequest(new ApiResponse<BatchAssignTeamResult>
+                    {
+                        Success = false,
+                        Message = "Usuário com a matrícula especificada não foi encontrado ou está inativo."
+                    });
+                }
+
+                targetUsers = new List<User> { user };
+            }
 
             var result = new BatchAssignTeamResult();
             var startDate = request.StartDate ?? DateTime.UtcNow;
 
-            foreach (var child in children)
+            foreach (var targetUser in targetUsers)
             {
                 var activeMembership = team.UserTeams
-                    .FirstOrDefault(ut => ut.UserInternalId == child.InternalId && ut.EndDate == null);
+                    .FirstOrDefault(ut => ut.UserInternalId == targetUser.InternalId && ut.EndDate == null);
 
                 if (activeMembership != null)
                 {
@@ -269,10 +314,10 @@ namespace SalesApp.Controllers
                     {
                         result.Skipped.Add(new SkippedUserSummary
                         {
-                            Id = child.Id,
-                            Name = child.Name,
-                            Email = child.Email,
-                            CurrentParentEmail = parentUser.Email,
+                            Id = targetUser.Id,
+                            Name = targetUser.Name,
+                            Email = targetUser.Email,
+                            CurrentParentEmail = targetUser.ParentUser?.Email,
                             Reason = "Usuário já é membro ativo desta equipe"
                         });
                         continue;
@@ -284,9 +329,9 @@ namespace SalesApp.Controllers
 
                         result.Added.Add(new AddedMemberSummary
                         {
-                            Id = child.Id,
-                            Name = child.Name,
-                            Email = child.Email
+                            Id = targetUser.Id,
+                            Name = targetUser.Name,
+                            Email = targetUser.Email
                         });
                     }
                 }
@@ -295,7 +340,7 @@ namespace SalesApp.Controllers
                     var userTeam = new UserTeam
                     {
                         TeamId = team.Id,
-                        UserInternalId = child.InternalId,
+                        UserInternalId = targetUser.InternalId,
                         StartDate = startDate,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -304,9 +349,9 @@ namespace SalesApp.Controllers
 
                     result.Added.Add(new AddedMemberSummary
                     {
-                        Id = child.Id,
-                        Name = child.Name,
-                        Email = child.Email
+                        Id = targetUser.Id,
+                        Name = targetUser.Name,
+                        Email = targetUser.Email
                     });
                 }
             }

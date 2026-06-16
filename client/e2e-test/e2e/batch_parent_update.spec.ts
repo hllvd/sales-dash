@@ -13,13 +13,16 @@ test.describe('Batch Parent Update E2E', () => {
     parent: { name: `Batch Parent ${RUN_ID}`, email: `batch.parent.${RUN_ID}@test.com`, role: 'admin' },
     child1: { name: `Batch Child A ${RUN_ID}`, email: `batch.child1.${RUN_ID}@test.com`, role: 'user' },
     child2: { name: `Batch Child B ${RUN_ID}`, email: `batch.child2.${RUN_ID}@test.com`, role: 'user' },
+    child3: { name: `Batch Child C ${RUN_ID}`, email: `batch.child3.${RUN_ID}@test.com`, role: 'user' },
   };
 
   const teamName = `Batch Team E2E ${RUN_ID}`;
+  const matriculaVal = `matbatch${RUN_ID}`;
   let teamId: number;
   let parentId: string;
   let child1Id: string;
   let child2Id: string;
+  let child3Id: string;
   let superadminToken: string;
 
   test.beforeAll(async ({ request }) => {
@@ -63,7 +66,7 @@ test.describe('Batch Parent Update E2E', () => {
       const body = await getUsersRes.json();
       const usersList = body.data?.items || [];
       for (const u of usersList) {
-        if (u.email.includes("batch.parent.") || u.email.includes("batch.child1.") || u.email.includes("batch.child2.")) {
+        if (u.email.includes("batch.parent.") || u.email.includes("batch.child1.") || u.email.includes("batch.child2.") || u.email.includes("batch.child3.")) {
           await request.delete(`/api/users/${u.id}`, {
             headers: { Authorization: `Bearer ${superadminToken}` }
           });
@@ -92,6 +95,22 @@ test.describe('Batch Parent Update E2E', () => {
     await settle();
 
     child2Id = await registerUser(users.child2.name, users.child2.email, users.child2.role, superadminId);
+    await settle();
+
+    child3Id = await registerUser(users.child3.name, users.child3.email, users.child3.role, superadminId);
+    await settle();
+
+    // Link child3 to matricula
+    const linkRes = await request.post('/api/usermatriculas', {
+      headers: { Authorization: `Bearer ${superadminToken}` },
+      data: {
+        userEmail: users.child3.email,
+        matriculaNumber: matriculaVal,
+        isOwner: true,
+        isActive: true
+      }
+    });
+    expect(linkRes.ok()).toBeTruthy();
     await settle();
 
     // Create Team
@@ -236,5 +255,43 @@ test.describe('Batch Parent Update E2E', () => {
     await page.getByRole('tab', { name: 'Adicionados (2)' }).click();
     await expect(page.locator('table.batch-table td >> text=' + users.child1.name).first()).toBeVisible();
     await expect(page.locator('table.batch-table td >> text=' + users.child2.name).first()).toBeVisible();
+  });
+
+  test('should allow assigning a user to a team by matricula for superadmin', async ({ page }) => {
+    // 1. Login as superadmin
+    await page.goto('/');
+    await page.fill('input[type="email"]', users.superadmin.email);
+    await page.fill('input[type="password"]', users.superadmin.password);
+    await page.click('button.login-button');
+
+    // Wait for login redirection
+    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+
+    // Navigate to batch page
+    await page.goto('/#/batch');
+
+    // Click "Atribuir a Equipe" tab
+    await page.getByRole('tab', { name: 'Atribuir a Equipe' }).click();
+
+    // Fill Matrícula
+    await page.getByLabel('Matrícula').fill(matriculaVal);
+
+    // Select team from dropdown
+    const selectCombobox = page.locator('input[placeholder="Selecione uma equipe"]').last();
+    await selectCombobox.click();
+    await page.getByRole('option', { name: teamName }).click();
+
+    // Submit with overrideExisting = false (should succeed for child3 since child3 is not in team)
+    await page.click('button[type="submit"]:has-text("Atribuir a Equipe")');
+
+    // Verify results: matched: 1, added: 1, skipped: 0
+    await expect(page.getByRole('heading', { name: 'Resultado da Operação' })).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.batch-stat-value.total')).toHaveText('1');
+    await expect(page.locator('.batch-stat-value.success')).toHaveText('1');
+    await expect(page.locator('.batch-stat-value.skipped')).toHaveText('0');
+
+    // Expect added table to show child3
+    await page.getByRole('tab', { name: 'Adicionados (1)' }).click();
+    await expect(page.locator('table.batch-table td >> text=' + users.child3.name).first()).toBeVisible();
   });
 });

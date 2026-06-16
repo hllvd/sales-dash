@@ -436,7 +436,7 @@ namespace SalesApp.IntegrationTests.Users
         }
 
         [Fact]
-        public async Task BatchAssignTeam_WithMissingParentEmail_ShouldReturnBadRequest()
+        public async Task BatchAssignTeam_WithNoFilters_ShouldReturnBadRequest()
         {
             // Arrange
             var token = await GetSuperAdminToken();
@@ -446,6 +446,7 @@ namespace SalesApp.IntegrationTests.Users
             var request = new BatchAssignTeamRequest
             {
                 ParentEmail = "",
+                Matricula = "",
                 TeamId = 1,
                 OverrideExisting = true
             };
@@ -457,7 +458,110 @@ namespace SalesApp.IntegrationTests.Users
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<BatchAssignTeamResult>>();
             result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("E-mail do superior é obrigatório");
+            result.Message.Should().Contain("Informe o e-mail do superior ou a matrícula");
+        }
+
+        [Fact]
+        public async Task BatchAssignTeam_WithBothFilters_ShouldReturnBadRequest()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var request = new BatchAssignTeamRequest
+            {
+                ParentEmail = "parent@test.com",
+                Matricula = "MAT-123",
+                TeamId = 1,
+                OverrideExisting = true
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/batch/team/assign", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<BatchAssignTeamResult>>();
+            result!.Success.Should().BeFalse();
+            result.Message.Should().Contain("Informe apenas o e-mail do superior ou a matrícula, não ambos");
+        }
+
+        [Fact]
+        public async Task BatchAssignTeam_ByMatriculaFilter_ShouldAssignSuccessfully()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Team team;
+            Matricula matricula;
+            User user;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                team = new Team { Name = $"Assign Team Mat Test {Guid.NewGuid().ToString()[..6]}" };
+                context.Teams.Add(team);
+
+                matricula = new Matricula
+                {
+                    MatriculaNumber = $"MAT-ASSIGN-{Guid.NewGuid().ToString()[..6]}",
+                    StartDate = DateTime.UtcNow,
+                    Status = "active"
+                };
+                context.Matriculas.Add(matricula);
+                await context.SaveChangesAsync();
+
+                user = new User
+                {
+                    Name = "Matricula Assign User",
+                    Email = $"batch_assign_user_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    Level = 2,
+                    IsActive = true
+                };
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+
+                context.UserMatriculas.Add(new UserMatricula
+                {
+                    UserInternalId = user.InternalId,
+                    MatriculaId = matricula.Id,
+                    IsActive = true
+                });
+                await context.SaveChangesAsync();
+            }
+
+            var request = new BatchAssignTeamRequest
+            {
+                Matricula = matricula.MatriculaNumber,
+                TeamId = team.Id,
+                OverrideExisting = false
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/batch/team/assign", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<BatchAssignTeamResult>>();
+            result!.Success.Should().BeTrue();
+            result.Data!.Added.Should().ContainSingle(a => a.Email == user.Email);
+            result.Data.Skipped.Should().BeEmpty();
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var members = await context.UserTeams
+                    .Where(ut => ut.TeamId == team.Id)
+                    .Select(ut => ut.UserInternalId)
+                    .ToListAsync();
+
+                members.Should().ContainSingle(id => id == user.InternalId);
+            }
         }
 
         [Fact]
