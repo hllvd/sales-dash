@@ -231,7 +231,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             </>
           )}
 
-          {hasPermission('system:admin') && (
+          {(hasPermission('system:admin') || userRole === UserRole.ADMIN) && (
             <NavLink
               href="#/contracts"
               label="Contratos"
