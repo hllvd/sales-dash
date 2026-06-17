@@ -145,6 +145,9 @@ test.describe('Batch Parent Update E2E', () => {
     // Wait for login redirection
     await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
 
+    // Verify that 'Ferramentas Admin' is not visible in the menu for regular admins
+    await expect(page.getByText('Ferramentas Admin')).not.toBeVisible();
+
     // Try to access batch page directly via hash URL
     await page.goto('/#/batch');
     
@@ -162,6 +165,9 @@ test.describe('Batch Parent Update E2E', () => {
 
     // Wait for login redirection
     await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+
+    // Verify that 'Ferramentas Admin' is visible in the menu for superadmin
+    await expect(page.getByText('Ferramentas Admin')).toBeVisible();
 
     // Navigate to batch page
     await page.goto('/#/batch');

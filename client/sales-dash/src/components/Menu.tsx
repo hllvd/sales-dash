@@ -21,6 +21,7 @@ import {
   IconSitemap,
   IconChevronDown,
   IconChevronRight,
+  IconTools,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -30,6 +31,7 @@ interface MenuProps {
 const Menu: React.FC<MenuProps> = ({ children }) => {
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<string>('');
+  const [userEmail, setUserEmail] = useState<string>('');
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/home');
   const [opened, { toggle, close }] = useDisclosure();
   const isMobile = useMediaQuery('(max-width: 62em)', false);
@@ -66,6 +68,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
           const user = JSON.parse(userJson);
           if (user.role) {
             setUserRole(user.role);
+          }
+          if (user.email) {
+            setUserEmail(user.email);
           }
         }
       } catch (e) {
@@ -405,6 +410,31 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
                 label="Saúde das Matrículas"
                 active={isActive('#/monitoring/matricula-health')}
                 styles={navLinkStyles('#/monitoring/matricula-health')}
+                onClick={() => { if (opened) close(); }}
+              />
+            </NavLink>
+          )}
+
+          {userEmail === 'superadmin@salesapp.com' && (
+            <NavLink
+              label="Ferramentas Admin"
+              leftSection={<IconTools size={20} />}
+              childrenOffset={28}
+              styles={navLinkStyles('')}
+              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch'}
+            >
+              <NavLink
+                href="#/tester"
+                label="Painel de Testes"
+                active={isActive('#/tester')}
+                styles={navLinkStyles('#/tester')}
+                onClick={() => { if (opened) close(); }}
+              />
+              <NavLink
+                href="#/batch"
+                label="Modificação em Lote"
+                active={isActive('#/batch')}
+                styles={navLinkStyles('#/batch')}
                 onClick={() => { if (opened) close(); }}
               />
             </NavLink>
