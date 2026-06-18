@@ -284,7 +284,7 @@ const UserTreePage: React.FC = () => {
                   id: userNode.id,
                   name: userNode.name,
                   email: userNode.email,
-                  role: userNode.role,
+                  role: userNode.role ? userNode.role.toLowerCase().replace(/[^a-z]/g, "") : "user",
                   parentUserId: userNode.parentUserId || undefined,
                   parentUserName: userNode.parentUserName || undefined,
                   isActive: userNode.isActive,

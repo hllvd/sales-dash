@@ -14,6 +14,15 @@ interface UserFormProps {
   allowedParentUsers?: User[]
 }
 
+const normalizeRole = (r?: string) => {
+  if (!r) return undefined;
+  const normalized = r.toLowerCase().replace(/[^a-z]/g, "");
+  if (normalized === "superadmin" || normalized === "admin" || normalized === "user") {
+    return normalized;
+  }
+  return undefined;
+};
+
 const UserForm: React.FC<UserFormProps> = ({
   user,
   onSubmit,
@@ -26,7 +35,7 @@ const UserForm: React.FC<UserFormProps> = ({
     name: user?.name || "",
     email: user?.email || "",
     password: "",
-    role: user?.role || (isAdminRestricted ? "user" : "user"),
+    role: normalizeRole(user?.role) || (isAdminRestricted ? "user" : "user"),
     parentUserId: user?.parentUserId || "",
     isActive: user?.isActive ?? true,
     matriculaNumber: "",
@@ -38,15 +47,15 @@ const UserForm: React.FC<UserFormProps> = ({
   const [parentUserSearch, setParentUserSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
 
-  // Force role to "user" if Admin restricted
+  // Force role to "user" if Admin restricted and not editing
   useEffect(() => {
-    if (isAdminRestricted) {
+    if (isAdminRestricted && !isEdit) {
       setFormData(prev => ({
         ...prev,
         role: "user"
       }))
     }
-  }, [isAdminRestricted])
+  }, [isAdminRestricted, isEdit])
 
   // Debounce search input
   useEffect(() => {

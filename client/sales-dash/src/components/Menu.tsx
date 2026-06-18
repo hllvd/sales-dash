@@ -3,6 +3,7 @@ import { AppShell, NavLink, Text, Group, Button, Tooltip, Burger } from '@mantin
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { useBuildInfo } from '../contexts/BuildInfoContext';
 import { UserRole } from '../types/UserRole';
+import './Menu.css';
 import {
   IconUsers,
   IconFileText,
@@ -186,7 +187,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
           </Group>
         </AppShell.Section>
 
-        <AppShell.Section grow>
+        <AppShell.Section grow className="menu-nav-scrollable" style={{ overflowY: 'auto' }}>
 
 
           {hasPermission('users:read') && (
