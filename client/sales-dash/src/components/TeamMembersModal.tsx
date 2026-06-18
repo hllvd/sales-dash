@@ -383,7 +383,7 @@ const TeamMembersModal: React.FC<Props> = ({
         }
       }
     }
-    return allUsers.filter(u => visited.has(u.id) && u.id !== currentUserId);
+    return allUsers.filter(u => (visited.has(u.id) && u.id !== currentUserId) || !u.currentTeamName || !u.parentUserId);
   }, [allUsers, currentUserRole, currentUserId]);
 
   // available = in pool, active, NOT already a team member

@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test.describe('User Role Management (TEAR 2)', () => {
   const targetUser = 'carlosmendes@example.com';
   const targetPassword = '123456';
-  const adminEmail = 'admin@salesapp.com';
-  const adminPassword = 'admin123';
+  const adminEmail = 'superadmin@salesapp.com';
+  const adminPassword = 'string';
 
   test('should verify and promote carlosmendes to admin role', async ({ page }) => {
     test.setTimeout(60000);

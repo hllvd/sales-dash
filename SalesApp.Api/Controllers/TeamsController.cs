@@ -167,6 +167,26 @@ namespace SalesApp.Controllers
                 });
             }
 
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                var caller = await _userRepository.GetByIdAsync(currentUserId);
+                if (caller == null || team.OwnerUserInternalId != caller.InternalId)
+                {
+                    return Forbid();
+                }
+
+                if (request.OwnerUserId.HasValue)
+                {
+                    var allowedUserIds = await _userHierarchyService.GetDescendantIdsAsync(currentUserId);
+                    if (!allowedUserIds.Contains(request.OwnerUserId.Value))
+                    {
+                        return Forbid();
+                    }
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Name) && request.Name.Trim().ToLower() != team.Name.ToLower())
             {
                 if (await _teamRepository.NameExistsAsync(request.Name, id))
@@ -254,12 +274,45 @@ namespace SalesApp.Controllers
                 });
             }
 
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            Guid.TryParse(userIdClaim, out var currentUserId);
+
+            if (roleIdClaim == "2")
+            {
+                var caller = await _userRepository.GetByIdAsync(currentUserId);
+                if (caller == null || team.OwnerUserInternalId != caller.InternalId)
+                {
+                    return Forbid();
+                }
+            }
+
             var warnings = new List<string>();
 
             foreach (var memberReq in request.Members)
             {
                 var user = await _userRepository.GetByIdAsync(memberReq.UserId);
                 if (user == null) continue;
+
+                if (roleIdClaim == "2")
+                {
+                    var allowedUserIds = await _userHierarchyService.GetDescendantIdsAsync(currentUserId);
+                    if (!allowedUserIds.Contains(user.Id))
+                    {
+                        var hasNoParent = user.ParentUserId == null;
+                        var memberships = await _teamRepository.GetActiveMembershipsForUserAsync(user.InternalId, DateTime.UtcNow);
+                        var hasNoTeam = !memberships.Any();
+
+                        if (!hasNoParent && !hasNoTeam)
+                        {
+                            return BadRequest(new ApiResponse<TeamResponse>
+                            {
+                                Success = false,
+                                Message = $"Cannot add user '{user.Name}' to team: Admin can only add descendants or users without a parent or without a team."
+                            });
+                        }
+                    }
+                }
 
                 var start = memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8);
 
@@ -317,6 +370,17 @@ namespace SalesApp.Controllers
                 });
             }
 
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                var caller = await _userRepository.GetByIdAsync(currentUserId);
+                if (caller == null || team.OwnerUserInternalId != caller.InternalId)
+                {
+                    return Forbid();
+                }
+            }
+
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null)
             {
@@ -357,6 +421,23 @@ namespace SalesApp.Controllers
                     Success = false,
                     Message = _messageService.Get(AppMessage.TeamNotFound)
                 });
+            }
+
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                var caller = await _userRepository.GetByIdAsync(currentUserId);
+                if (caller == null || team.OwnerUserInternalId != caller.InternalId)
+                {
+                    return Forbid();
+                }
+
+                var allowedUserIds = await _userHierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (!allowedUserIds.Contains(ownerUserId))
+                {
+                    return Forbid();
+                }
             }
 
             var user = await _userRepository.GetByIdAsync(ownerUserId);

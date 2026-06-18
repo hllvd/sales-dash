@@ -10,6 +10,8 @@ interface UserFormProps {
   onSubmit: (userData: any) => Promise<void>
   onCancel: () => void
   isEdit?: boolean
+  isAdminRestricted?: boolean
+  allowedParentUsers?: User[]
 }
 
 const UserForm: React.FC<UserFormProps> = ({
@@ -17,12 +19,14 @@ const UserForm: React.FC<UserFormProps> = ({
   onSubmit,
   onCancel,
   isEdit = false,
+  isAdminRestricted = false,
+  allowedParentUsers = [],
 }) => {
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
     password: "",
-    role: user?.role || "user",
+    role: user?.role || (isAdminRestricted ? "user" : "user"),
     parentUserId: user?.parentUserId || "",
     isActive: user?.isActive ?? true,
     matriculaNumber: "",
@@ -33,6 +37,16 @@ const UserForm: React.FC<UserFormProps> = ({
   const [users, setUsers] = useState<User[]>([])
   const [parentUserSearch, setParentUserSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
+
+  // Force role to "user" if Admin restricted
+  useEffect(() => {
+    if (isAdminRestricted) {
+      setFormData(prev => ({
+        ...prev,
+        role: "user"
+      }))
+    }
+  }, [isAdminRestricted])
 
   // Debounce search input
   useEffect(() => {
@@ -45,6 +59,17 @@ const UserForm: React.FC<UserFormProps> = ({
 
   // Load users for parent selection
   useEffect(() => {
+    if (isAdminRestricted && allowedParentUsers.length > 0) {
+      setUsers(allowedParentUsers)
+      if (user?.parentUserId) {
+        const parentUser = allowedParentUsers.find(u => u.id === user.parentUserId)
+        if (parentUser) {
+          setParentUserSearch(`${parentUser.name} (${parentUser.email})`)
+        }
+      }
+      return
+    }
+
     const loadUsers = async () => {
       try {
         const response = await apiService.getUsers(1, 100)
@@ -65,7 +90,7 @@ const UserForm: React.FC<UserFormProps> = ({
       }
     }
     loadUsers()
-  }, [user?.parentUserId])
+  }, [user?.parentUserId, isAdminRestricted, allowedParentUsers])
 
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({
@@ -187,6 +212,7 @@ const UserForm: React.FC<UserFormProps> = ({
         <FormField label="Função" required>
           <Select
             required
+            disabled={isAdminRestricted}
             value={formData.role}
             onChange={(value) => handleChange('role', value)}
             data={[
@@ -205,14 +231,18 @@ const UserForm: React.FC<UserFormProps> = ({
             placeholder="Digite para buscar..."
             value={parentUserSearch}
             onChange={handleParentUserSelect}
-            data={users
-              .filter(u => {
-                if (!debouncedSearch) return true
-                const searchLower = debouncedSearch.toLowerCase()
-                return u.name.toLowerCase().includes(searchLower) || 
-                       u.email.toLowerCase().includes(searchLower)
-              })
-              .map(u => `${u.name} (${u.email})`)}
+            data={Array.from(
+              new Set(
+                users
+                  .filter(u => {
+                    if (!debouncedSearch) return true
+                    const searchLower = debouncedSearch.toLowerCase()
+                    return u.name.toLowerCase().includes(searchLower) || 
+                           u.email.toLowerCase().includes(searchLower)
+                  })
+                  .map(u => `${u.name} (${u.email})`)
+              )
+            )}
             limit={10}
           />
         </FormField>

@@ -346,6 +346,39 @@ namespace SalesApp.Controllers
             // Normalize email to lowercase
             request.Email = request.Email.ToLowerInvariant().Trim();
             
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim == "2")
+            {
+                if (string.IsNullOrEmpty(request.Role) || !request.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "Admins can only create users with the user role."
+                    });
+                }
+
+                if (!request.ParentUserId.HasValue)
+                {
+                    return BadRequest(new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "Parent user is required for admin creations."
+                    });
+                }
+
+                var currentUserId = GetCurrentUserId();
+                var allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (!allowedUserIds.Contains(request.ParentUserId.Value))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "O usuário pai informado não pertence à sua hierarquia."
+                    });
+                }
+            }
+            
             if (!UserRole.IsValid(request.Role))
             {
                 return BadRequest(new ApiResponse<UserResponse>
@@ -680,6 +713,38 @@ namespace SalesApp.Controllers
                     Message = _messageService.Get(AppMessage.UserNotFound)
                 });
             }
+
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim == "2")
+            {
+                var allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (!allowedUserIds.Contains(id))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "Você não tem permissão para editar este usuário fora de sua hierarquia."
+                    });
+                }
+
+                if (!string.IsNullOrEmpty(request.Role) && !request.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "Admins can only set the user role."
+                    });
+                }
+
+                if (request.ParentUserId.HasValue && !allowedUserIds.Contains(request.ParentUserId.Value))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "O usuário pai informado não pertence à sua hierarquia."
+                    });
+                }
+            }
             
             if (!string.IsNullOrEmpty(request.Name))
                 user.Name = request.Name;
@@ -775,6 +840,21 @@ namespace SalesApp.Controllers
                     Success = false,
                     Message = _messageService.Get(AppMessage.UserNotFound)
                 });
+            }
+            
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim == "2")
+            {
+                var currentUserId = GetCurrentUserId();
+                var allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (!allowedUserIds.Contains(id))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Você não tem permissão para excluir este usuário fora de sua hierarquia."
+                    });
+                }
             }
             
             user.IsActive = false;

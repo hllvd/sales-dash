@@ -34,6 +34,28 @@ const UsersPage: React.FC = () => {
   const [currentUserRole, setCurrentUserRole] = useState<string>("")
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null)
+  const [descendantUsers, setDescendantUsers] = useState<User[]>([])
+  const [allowedUserIds, setAllowedUserIds] = useState<Set<string>>(new Set())
+
+  const fetchAllowedUserIds = useCallback(async () => {
+    try {
+      const response = await apiService.getUsers(1, 1000, undefined, undefined, true)
+      if (response.success && response.data) {
+        const items = response.data.items
+        setDescendantUsers(items)
+        setAllowedUserIds(new Set(items.map(u => u.id)))
+      }
+    } catch (err) {
+      console.error("Failed to fetch allowed descendant user IDs", err)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (currentUserRole === "admin") {
+      fetchAllowedUserIds()
+    }
+  }, [currentUserRole, fetchAllowedUserIds])
+
   const pageSize = 10
 
   const fetchUsers = useCallback(async () => {
@@ -90,6 +112,9 @@ const UsersPage: React.FC = () => {
     await apiService.createUser(userData)
     setShowForm(false)
     fetchUsers()
+    if (currentUserRole === "admin") {
+      fetchAllowedUserIds()
+    }
   }
 
   const handleUpdateUser = async (userData: UpdateUserRequest) => {
@@ -98,6 +123,9 @@ const UsersPage: React.FC = () => {
       setShowForm(false)
       setEditingUser(undefined)
       fetchUsers()
+      if (currentUserRole === "admin") {
+        fetchAllowedUserIds()
+      }
     }
   }
 
@@ -106,6 +134,9 @@ const UsersPage: React.FC = () => {
       await apiService.deleteUser(id)
       setDeleteConfirm(null)
       fetchUsers()
+      if (currentUserRole === "admin") {
+        fetchAllowedUserIds()
+      }
     } catch (err: any) {
       setError(err.message || "Failed to delete user")
     }
@@ -143,6 +174,33 @@ const UsersPage: React.FC = () => {
     })
   }
 
+
+  const adminFromStorage = JSON.parse(localStorage.getItem("user") || "{}")
+  const rawAllowed = currentUserRole === "admin" ? [
+    {
+      id: adminFromStorage.id,
+      name: adminFromStorage.name || adminFromStorage.email,
+      email: adminFromStorage.email,
+      role: adminFromStorage.role || "admin",
+      isActive: true,
+      createdAt: "",
+      updatedAt: ""
+    } as User,
+    ...descendantUsers
+  ] : []
+
+  // Ensure unique by email to prevent Mantine Autocomplete duplicate key crash
+  const seenEmails = new Set<string>()
+  const allowedParentUsers: User[] = []
+  for (const u of rawAllowed) {
+    if (u.email) {
+      const emailLower = u.email.toLowerCase().trim()
+      if (!seenEmails.has(emailLower)) {
+        seenEmails.add(emailLower)
+        allowedParentUsers.push(u)
+      }
+    }
+  }
 
   return (
     <Menu>
@@ -268,35 +326,39 @@ const UsersPage: React.FC = () => {
                           </Table.Td>
                           <Table.Td>{formatDate(user.createdAt)}</Table.Td>
                           <Table.Td>
-                            <Group gap="xs">
-                              <ActionIcon
-                                variant="subtle"
-                                color="blue"
-                                onClick={() => openEditForm(user)}
-                                title="Editar"
-                              >
-                                <IconEdit size={16} />
-                              </ActionIcon>
-                              {user.isActive ? (
+                            {currentUserRole === "superadmin" || (currentUserRole === "admin" && allowedUserIds.has(user.id)) ? (
+                              <Group gap="xs">
                                 <ActionIcon
                                   variant="subtle"
-                                  color="red"
-                                  onClick={() => setDeleteConfirm(user.id)}
-                                  title="Excluir"
+                                  color="blue"
+                                  onClick={() => openEditForm(user)}
+                                  title="Editar"
                                 >
-                                  <IconTrash size={16} />
+                                  <IconEdit size={16} />
                                 </ActionIcon>
-                              ) : (
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="green"
-                                  onClick={() => handleReactivateUser(user.id)}
-                                  title="Reativar"
-                                >
-                                  <IconRefresh size={16} />
-                                </ActionIcon>
-                              )}
-                            </Group>
+                                {user.isActive ? (
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="red"
+                                    onClick={() => setDeleteConfirm(user.id)}
+                                    title="Excluir"
+                                  >
+                                    <IconTrash size={16} />
+                                  </ActionIcon>
+                                ) : (
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="green"
+                                    onClick={() => handleReactivateUser(user.id)}
+                                    title="Reativar"
+                                  >
+                                    <IconRefresh size={16} />
+                                  </ActionIcon>
+                                )}
+                              </Group>
+                            ) : (
+                              <span style={{ color: '#9ca3af', fontSize: 12, fontStyle: 'italic' }}>Apenas leitura</span>
+                            )}
                           </Table.Td>
                         </Table.Tr>
                       ))}
@@ -334,6 +396,8 @@ const UsersPage: React.FC = () => {
           onSubmit={editingUser ? handleUpdateUser : handleCreateUser}
           onCancel={closeForm}
           isEdit={!!editingUser}
+          isAdminRestricted={currentUserRole === "admin"}
+          allowedParentUsers={allowedParentUsers}
         />
       )}
 

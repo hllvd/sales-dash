@@ -17,17 +17,20 @@ namespace SalesApp.Controllers
         private readonly IMatriculaRepository _matriculaRepository;
         private readonly IUserRepository _userRepository;
         private readonly IMessageService _messageService;
+        private readonly IUserHierarchyService _hierarchyService;
 
         public UserMatriculasController(
             IUserMatriculaRepository userMatriculaRepository,
             IMatriculaRepository matriculaRepository,
             IUserRepository userRepository,
-            IMessageService messageService)
+            IMessageService messageService,
+            IUserHierarchyService hierarchyService)
         {
             _userMatriculaRepository = userMatriculaRepository;
             _matriculaRepository = matriculaRepository;
             _userRepository = userRepository;
             _messageService = messageService;
+            _hierarchyService = hierarchyService;
         }
 
         // GET: api/usermatriculas
@@ -132,6 +135,26 @@ namespace SalesApp.Controllers
                 });
             }
 
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim == "2")
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(userIdClaim, out var currentUserId))
+                {
+                    return Forbid();
+                }
+
+                var allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (!allowedUserIds.Contains(userId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<UserMatriculaResponse>
+                    {
+                        Success = false,
+                        Message = "Você não tem permissão para gerenciar matrículas para este usuário."
+                    });
+                }
+            }
+
             // 1. Ensure the Matricula exists
             var normalizedNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
             var matriculaEntity = await _matriculaRepository.GetByMatriculaNumberAsync(normalizedNumber);
@@ -227,6 +250,25 @@ namespace SalesApp.Controllers
                         continue;
                     }
 
+                    // Check Admin role scoping
+                    var roleIdClaim = User.FindFirst("role_id")?.Value;
+                    if (roleIdClaim == "2")
+                    {
+                        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                        if (!Guid.TryParse(userIdClaim, out var currentUserId) || 
+                            !(await _hierarchyService.GetDescendantIdsAsync(currentUserId)).Contains(userId))
+                        {
+                            response.Errors.Add(new BulkImportError
+                            {
+                                RowNumber = i + 2,
+                                MatriculaNumber = item.MatriculaNumber ?? "",
+                                UserEmail = item.UserEmail ?? "",
+                                Error = "Admin does not have access to manage matriculas for this user."
+                            });
+                            continue;
+                        }
+                    }
+
                     // Validate required fields
                     if (string.IsNullOrEmpty(item.MatriculaNumber))
                     {
@@ -308,6 +350,26 @@ namespace SalesApp.Controllers
                     Success = false,
                     Message = _messageService.Get(AppMessage.MatriculaNotFound)
                 });
+            }
+
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim == "2")
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(userIdClaim, out var currentUserId))
+                {
+                    return Forbid();
+                }
+
+                var allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (userMatricula.User == null || !allowedUserIds.Contains(userMatricula.User.Id))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<UserMatriculaResponse>
+                    {
+                        Success = false,
+                        Message = "Você não tem permissão para gerenciar matrículas para este usuário."
+                    });
+                }
             }
 
             // Handle Matricula entity updates
@@ -401,6 +463,26 @@ namespace SalesApp.Controllers
                 });
             }
 
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim == "2")
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(userIdClaim, out var currentUserId))
+                {
+                    return Forbid();
+                }
+
+                var allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (matricula.User == null || !allowedUserIds.Contains(matricula.User.Id))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Você não tem permissão para gerenciar matrículas para este usuário."
+                    });
+                }
+            }
+
             await _userMatriculaRepository.DeleteAsync(id);
 
             return Ok(new ApiResponse<object>
@@ -423,6 +505,17 @@ namespace SalesApp.Controllers
                 Errors = new List<string>()
             };
 
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            HashSet<Guid>? allowedUserIds = null;
+            if (roleIdClaim == "2")
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (Guid.TryParse(userIdClaim, out var currentUserId))
+                {
+                    allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
+                }
+            }
+
             foreach (var assignment in request.Assignments)
             {
                 try
@@ -433,6 +526,15 @@ namespace SalesApp.Controllers
                     {
                         result.Errors.Add($"User {assignment.UserId} not found for matricula {assignment.MatriculaNumber}");
                         continue;
+                    }
+
+                    if (roleIdClaim == "2")
+                    {
+                        if (allowedUserIds == null || !allowedUserIds.Contains(assignment.UserId))
+                        {
+                            result.Errors.Add($"Admin does not have access to manage matriculas for user {assignment.UserId}");
+                            continue;
+                        }
                     }
 
                     // Check if matricula already exists for this user

@@ -64,7 +64,8 @@ namespace SalesApp.Repositories
                 .Include(u => u.Role)
                 .Include(u => u.UserMatriculas).ThenInclude(um => um.Matricula)
                 .Include(u => u.UserTeams).ThenInclude(ut => ut.Team)
-                .OrderByDescending(u => u.IsActive)
+                .OrderBy(u => u.RoleId)
+                .ThenByDescending(u => u.IsActive)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

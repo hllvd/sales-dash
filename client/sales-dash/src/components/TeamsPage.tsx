@@ -258,8 +258,27 @@ const TeamsPage: React.FC = () => {
     }
   }
 
+  // Visible users for Admin: descendants + no team + no parent
+  const allowedMemberUsers = React.useMemo(() => {
+    if (currentUserRole !== 'admin') return allUsers;
+
+    const visited = new Set<string>([currentUserId]);
+    const queue = [currentUserId];
+    while (queue.length) {
+      const id = queue.shift()!;
+      for (const u of allUsers) {
+        if (u.parentUserId === id && !visited.has(u.id)) {
+          visited.add(u.id);
+          queue.push(u.id);
+        }
+      }
+    }
+
+    return allUsers.filter(u => (visited.has(u.id) && u.id !== currentUserId) || !u.currentTeamName || !u.parentUserId);
+  }, [allUsers, currentUserRole, currentUserId]);
+
   // Render member options for MultiSelect
-  const userOptions = allUsers.map(user => ({
+  const userOptions = allowedMemberUsers.map(user => ({
     value: user.id,
     label: `${user.name} (${user.email})`
   }))

@@ -149,7 +149,8 @@ export const apiService = {
     page: number = 1,
     pageSize: number = 10,
     search?: string,
-    contractNumber?: string
+    contractNumber?: string,
+    scopeToDescendants: boolean = false
   ): Promise<ApiResponse<PagedResponse<User>>> {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -162,6 +163,10 @@ export const apiService = {
 
     if (contractNumber) {
       params.append("contractNumber", contractNumber)
+    }
+
+    if (scopeToDescendants) {
+      params.append("scopeToDescendants", "true")
     }
 
     const response = await authenticatedFetch(`${API_BASE_URL}/users?${params}`, {
