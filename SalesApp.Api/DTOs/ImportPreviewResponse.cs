@@ -18,5 +18,7 @@ namespace SalesApp.DTOs
         public string? MatchMessage { get; set; }
         public List<string> DuplicateContractNumbers { get; set; } = new();
         public List<string> DesistenteContractNumbers { get; set; } = new();
+        public List<string> ConflictingUserNames { get; set; } = new();
+        public List<string> ConflictingMatriculas { get; set; } = new();
     }
 }

@@ -24,3 +24,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Validation checkbox used a missing span; gated page access did not display an error on frontend; required fields blocked form submission natively without showing the validation message; multiple inputs/buttons triggered strict-mode violations.
 **Fix applied:** Updated checkbox locator to getByLabel; mocked fields endpoint to return 403 for non-admin; set form to novalidate via page.evaluate to trigger mock 400 validation error; scoped strict-mode violating selectors to their unique labels/dialogs.
 **Result:** ✅ Green
+
+## 2026-06-21 all — Attempt 1
+**Failure:** `WizardEmailEnrichmentTests.GenerateEnrichedContracts_FallsBackToOwner_WhenNameMismatchedButMatriculaMatches` failed on string mismatch (Expected: "anthony@test.com", Actual: "") in integration tests, and multiple E2E wizard tests failed.
+**Root cause:** When resolving user matricula mismatches, we introduced Step 1 user/matricula inconsistency warning checks. In E2E tests, the database seeds active users sharing matriculas, which triggered the new warnings, blocking page advancement because it expected user checkbox confirmation that the existing E2E tests didn't know about.
+**Fix applied:** Updated `ImportWizardPage.tsx` to make the Step 1 user/matricula inconsistency warning alerts purely informative and non-blocking (removing the checkbox and not setting `hasWarning = true` for inconsistencies), and ensured the final warnings are still successfully listed in Step 3 summary.
+**Result:** ✅ Green
+

@@ -87,6 +87,8 @@ namespace SalesApp.Services
             // Duplicate contract number detection
             var contractNumberSeen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var desistenteContracts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var fileSellers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var fileMatriculas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             await foreach (var row in _fileParser.ParseFileStreamedAsync(file))
             {
@@ -109,11 +111,15 @@ namespace SalesApp.Services
                     }
                 }
 
+                var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "Nome", "Usuário");
+                var matVal = GetColumnValue(row, "Matrícula", "Matricula", "Mat", "ID");
+
+                if (!string.IsNullOrWhiteSpace(nameVal)) fileSellers.Add(nameVal.Trim());
+                if (!string.IsNullOrWhiteSpace(matVal)) fileMatriculas.Add(matVal.Trim());
+
                 // Check if this row is "valid" for user extraction (has both name and matricula candidates)
                 if (!foundAtLeastOneValidRow)
                 {
-                    var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "Nome", "Usuário");
-                    var matVal = GetColumnValue(row, "Matrícula", "Matricula", "Mat", "ID");
                     if (!string.IsNullOrEmpty(nameVal) && !string.IsNullOrEmpty(matVal))
                     {
                         foundAtLeastOneValidRow = true;
@@ -233,6 +239,52 @@ namespace SalesApp.Services
                 .OrderBy(n => n)
                 .ToList();
 
+            // ── Inconsistency Detection (Pre-Import Warning) ────────────────────
+            var conflictingUserNames = new List<string>();
+            var conflictingMatriculas = new List<string>();
+
+            if (fileSellers.Count > 0 || fileMatriculas.Count > 0)
+            {
+                var activeUsers = await _context.Users
+                    .AsNoTracking()
+                    .Include(u => u.UserMatriculas)
+                        .ThenInclude(um => um.Matricula)
+                    .Where(u => u.IsActive)
+                    .OrderBy(u => u.InternalId)
+                    .ToListAsync();
+
+                // 1. Ambiguous active user names in file
+                var nameGroups = activeUsers
+                    .GroupBy(u => u.Name.Trim().ToLower())
+                    .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+                foreach (var seller in fileSellers)
+                {
+                    if (nameGroups.TryGetValue(seller, out var matchedUsers) && matchedUsers.Count > 1)
+                    {
+                        var emails = string.Join(" e ", matchedUsers.Select(u => u.Email));
+                        conflictingUserNames.Add($"O vendedor '{seller}' possui múltiplos e-mails ativos: {emails}");
+                    }
+                }
+
+                // 2. Matriculas with multiple active users/owners
+                var matriculaGroups = activeUsers
+                    .SelectMany(u => u.UserMatriculas
+                        .Where(um => um.IsActive)
+                        .Select(um => new { User = u, MatriculaNumber = um.Matricula.MatriculaNumber.Trim() }))
+                    .GroupBy(x => x.MatriculaNumber)
+                    .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+                foreach (var mat in fileMatriculas)
+                {
+                    if (matriculaGroups.TryGetValue(mat, out var matchedMatriculas) && matchedMatriculas.Count > 1)
+                    {
+                        var userDetails = string.Join(" | ", matchedMatriculas.Select(x => $"{x.User.Name} ({x.User.Email})"));
+                        conflictingMatriculas.Add($"A matrícula '{mat}' está associada a múltiplos usuários ativos: {userDetails}");
+                    }
+                }
+            }
+
             return new ImportPreviewResponse
             {
                 UploadId = uploadId,
@@ -250,7 +302,9 @@ namespace SalesApp.Services
                 RequiredFields = requiredFields,
                 OptionalFields = optionalFields,
                 DuplicateContractNumbers = duplicateContractNumbers,
-                DesistenteContractNumbers = desistenteContractNumbers
+                DesistenteContractNumbers = desistenteContractNumbers,
+                ConflictingUserNames = conflictingUserNames,
+                ConflictingMatriculas = conflictingMatriculas
             };
         }
 
@@ -394,17 +448,28 @@ namespace SalesApp.Services
                 .Include(u => u.UserMatriculas)
                     .ThenInclude(um => um.Matricula)
                 .Where(u => u.IsActive)
+                .OrderBy(u => u.InternalId) // Force deterministic ordering
                 .ToListAsync();
 
             var exactMatchLookup = new Dictionary<(string mat, string name), string>();
             var nameLookup = new Dictionary<string, string>();
             var matriculaOwnerLookup = new Dictionary<string, string>();
             var matriculaAnyLookup = new Dictionary<string, string>();
+            var ambiguousNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var ambiguousMatriculaOwners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var ambiguousMatriculas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var u in allActiveUsers)
             {
                 var normalizedName = u.Name.ToLower().Trim();
-                nameLookup[normalizedName] = u.Email;
+                if (nameLookup.ContainsKey(normalizedName))
+                {
+                    ambiguousNames.Add(normalizedName);
+                }
+                else
+                {
+                    nameLookup[normalizedName] = u.Email;
+                }
 
                 foreach (var m in u.UserMatriculas.Where(m => m.IsActive))
                 {
@@ -412,15 +477,28 @@ namespace SalesApp.Services
                     exactMatchLookup[(normalizedMat, normalizedName)] = u.Email;
                     
                     if (m.IsOwner) {
-                        matriculaOwnerLookup[normalizedMat] = u.Email;
+                        if (matriculaOwnerLookup.ContainsKey(normalizedMat))
+                        {
+                            ambiguousMatriculaOwners.Add(normalizedMat);
+                        }
+                        else
+                        {
+                            matriculaOwnerLookup[normalizedMat] = u.Email;
+                        }
                     }
                     
-                    if (!matriculaAnyLookup.ContainsKey(normalizedMat)) {
+                    if (matriculaAnyLookup.ContainsKey(normalizedMat))
+                    {
+                        ambiguousMatriculas.Add(normalizedMat);
+                    }
+                    else
+                    {
                         matriculaAnyLookup[normalizedMat] = u.Email;
                     }
                 }
             }
 
+            ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
             using var package = new ExcelPackage();
             var worksheet = package.Workbook.Worksheets.Add("Contratos");
             int excelRow = 1;
@@ -469,15 +547,15 @@ namespace SalesApp.Services
                     {
                         email = exactEmail;
                     }
-                    else if (!string.IsNullOrEmpty(nameNorm) && nameLookup.TryGetValue(nameNorm, out var nameEmail))
+                    else if (!string.IsNullOrEmpty(nameNorm) && !ambiguousNames.Contains(nameNorm) && nameLookup.TryGetValue(nameNorm, out var nameEmail))
                     {
                         email = nameEmail;
                     }
                     else if (!string.IsNullOrEmpty(matNorm))
                     {
-                        if (matriculaOwnerLookup.TryGetValue(matNorm, out var ownerEmail)) {
+                        if (!ambiguousMatriculaOwners.Contains(matNorm) && matriculaOwnerLookup.TryGetValue(matNorm, out var ownerEmail)) {
                             email = ownerEmail;
-                        } else if (matriculaAnyLookup.TryGetValue(matNorm, out var anyEmail)) {
+                        } else if (!ambiguousMatriculas.Contains(matNorm) && matriculaAnyLookup.TryGetValue(matNorm, out var anyEmail)) {
                             email = anyEmail;
                         }
                     }
@@ -529,8 +607,7 @@ namespace SalesApp.Services
             var xlsxBytes = package.GetAsByteArray();
 
             // ── Persist to temp folder for audit and later direct import ─────────
-            var tempDir = Path.Combine("/app", "wizard-temp");
-            Directory.CreateDirectory(tempDir);
+            var tempDir = GetTempDirectory();
             var tempFileName = $"{userId}_{uploadId}.xlsx";
             var tempFilePath = Path.Combine(tempDir, tempFileName);
             await File.WriteAllBytesAsync(tempFilePath, xlsxBytes);
@@ -542,7 +619,7 @@ namespace SalesApp.Services
         public async Task<ImportStatusResponse> ImportWizardContractsAsync(string uploadId, Guid userId, WizardContractImportOptions options)
         {
             // ── Locate temp file ─────────────────────────────────────────────────
-            var tempDir = Path.Combine("/app", "wizard-temp");
+            var tempDir = GetTempDirectory();
             var tempFileName = $"{userId}_{uploadId}.xlsx";
             var tempFilePath = Path.Combine(tempDir, tempFileName);
 
@@ -641,8 +718,84 @@ namespace SalesApp.Services
             };
             await _sessionRepository.CreateAsync(importSession);
 
+            // ── Pre-import contract count snapshot ────────────────────────────────
+            var fileEmails = rows
+                .Select(r => r.TryGetValue("Email", out var emailVal) ? emailVal?.Trim() : null)
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Distinct()
+                .ToList();
+
+            var affectedUsers = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.IsActive && fileEmails.Contains(u.Email))
+                .ToListAsync();
+            var affectedUserIds = affectedUsers.Select(u => u.InternalId).ToList();
+
+            var preImportCounts = await _context.Contracts
+                .AsNoTracking()
+                .Where(c => affectedUserIds.Contains(c.UserInternalId ?? 0))
+                .GroupBy(c => c.UserInternalId)
+                .Select(g => new { UserInternalId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.UserInternalId ?? 0, x => x.Count);
+
             // ── Execute import in batches ────────────────────────────────────────
             var totalResult = new ImportResult();
+
+            // ── Fallback/Inconsistency Warnings Detection ────────────────────────
+            var activeUsers = await _context.Users
+                .AsNoTracking()
+                .Include(u => u.UserMatriculas)
+                    .ThenInclude(um => um.Matricula)
+                .Where(u => u.IsActive)
+                .OrderBy(u => u.InternalId)
+                .ToListAsync();
+
+            var usersByEmail = activeUsers.ToDictionary(u => u.Email, u => u, StringComparer.OrdinalIgnoreCase);
+            var nameGroups = activeUsers.GroupBy(u => u.Name.Trim().ToLower()).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+            var matriculaGroups = activeUsers
+                .SelectMany(u => u.UserMatriculas.Where(um => um.IsActive).Select(um => new { User = u, Mat = um.Matricula.MatriculaNumber.Trim() }))
+                .GroupBy(x => x.Mat)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            var fallbackWarnings = new HashSet<string>();
+
+            foreach (var row in rows)
+            {
+                var emailVal = row.TryGetValue("Email", out var e) ? e?.Trim() : null;
+                var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "name", "Nome", "Usuário");
+                var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
+
+                var nameNorm = nameVal?.Trim().ToLower();
+                var matNorm = matVal?.Trim().ToLower();
+
+                if (!string.IsNullOrEmpty(emailVal))
+                {
+                    if (usersByEmail.TryGetValue(emailVal, out var user))
+                    {
+                        var userMatriculas = user.UserMatriculas.Where(m => m.IsActive).Select(m => m.Matricula.MatriculaNumber.ToLower().Trim()).ToList();
+                        var userNameNorm = user.Name.ToLower().Trim();
+
+                        if (!string.IsNullOrEmpty(nameNorm) && userNameNorm != nameNorm)
+                        {
+                            if (nameGroups.TryGetValue(nameNorm, out var dupUsers) && dupUsers.Count > 1)
+                            {
+                                fallbackWarnings.Add($"O contrato do consultor '{nameVal}' foi associado a '{user.Name}' ({user.Email}) devido a ambiguidade no nome.");
+                            }
+                            else if (!string.IsNullOrEmpty(matNorm) && !userMatriculas.Contains(matNorm))
+                            {
+                                fallbackWarnings.Add($"O contrato com matrícula '{matVal}' e nome '{nameVal}' foi associado a '{user.Name}' ({user.Email}) via fallback de matrícula, pois o nome é diferente.");
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(matNorm) && matriculaGroups.TryGetValue(matNorm, out var sharedMats) && sharedMats.Count > 1)
+                        {
+                            fallbackWarnings.Add($"A matrícula '{matVal}' é compartilhada entre múltiplos usuários ativos. O contrato foi associado a '{user.Name}' ({user.Email}).");
+                        }
+                    }
+                }
+            }
+
+            totalResult.Warnings.AddRange(fallbackWarnings);
             int batchSize = 500;
             for (int i = 0; i < rows.Count; i += batchSize)
             {
@@ -667,6 +820,29 @@ namespace SalesApp.Services
                 totalResult.FailedRowsDetails.AddRange(result.FailedRowsDetails);
             }
 
+            // ── Post-import contract count snapshot ───────────────────────────────
+            var postImportCounts = await _context.Contracts
+                .AsNoTracking()
+                .Where(c => affectedUserIds.Contains(c.UserInternalId ?? 0))
+                .GroupBy(c => c.UserInternalId)
+                .Select(g => new { UserInternalId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.UserInternalId ?? 0, x => x.Count);
+
+            var userDeltas = new List<UserContractCountDelta>();
+            foreach (var user in affectedUsers)
+            {
+                preImportCounts.TryGetValue(user.InternalId, out var beforeCount);
+                postImportCounts.TryGetValue(user.InternalId, out var afterCount);
+                userDeltas.Add(new UserContractCountDelta
+                {
+                    UserName = user.Name,
+                    Email = user.Email,
+                    Before = beforeCount,
+                    After = afterCount,
+                    Delta = afterCount - beforeCount
+                });
+            }
+
             // ── Update session ───────────────────────────────────────────────────
             importSession.Status = totalResult.FailedRows > 0 ? "completed_with_errors" : "completed";
             importSession.CompletedAt = DateTime.UtcNow;
@@ -687,6 +863,7 @@ namespace SalesApp.Services
                 CreatedPVs = totalResult.CreatedPVs.Distinct().ToList(),
                 DesistenteContractNumbers = totalResult.DesistenteContractNumbers.Distinct().ToList(),
                 FailedRowsDetails = totalResult.FailedRowsDetails,
+                UserContractCountDeltas = userDeltas
             };
         }
 
@@ -718,6 +895,47 @@ namespace SalesApp.Services
                 if (key != null && !string.IsNullOrEmpty(row[key])) return row[key];
             }
             return string.Empty;
+        }
+
+        private bool NameMatchesOrIsSimilar(string rowNameNorm, string userEmail, List<User> activeUsers)
+        {
+            var user = activeUsers.FirstOrDefault(u => u.Email.Equals(userEmail, StringComparison.OrdinalIgnoreCase));
+            if (user == null) return false;
+            
+            var dbNameNorm = user.Name.ToLower().Trim();
+            if (dbNameNorm == rowNameNorm) return true;
+            
+            var rowFirstWord = rowNameNorm.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            var dbFirstWord = dbNameNorm.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            
+            if (!string.IsNullOrEmpty(rowFirstWord) && !string.IsNullOrEmpty(dbFirstWord))
+            {
+                return rowFirstWord == dbFirstWord;
+            }
+            
+            return false;
+        }
+
+        private string GetTempDirectory()
+        {
+            var tempDir = Path.Combine("/app", "wizard-temp");
+            try
+            {
+                if (!Directory.Exists(tempDir))
+                {
+                    Directory.CreateDirectory(tempDir);
+                }
+                return tempDir;
+            }
+            catch
+            {
+                var fallbackDir = Path.Combine(Directory.GetCurrentDirectory(), "wizard-temp");
+                if (!Directory.Exists(fallbackDir))
+                {
+                    Directory.CreateDirectory(fallbackDir);
+                }
+                return fallbackDir;
+            }
         }
     }
 }

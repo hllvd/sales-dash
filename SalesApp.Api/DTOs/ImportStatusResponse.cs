@@ -14,6 +14,15 @@ namespace SalesApp.DTOs
         public string NewMatricula   { get; set; } = string.Empty;
     }
 
+    public class UserContractCountDelta
+    {
+        public string UserName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public int Before { get; set; }
+        public int After { get; set; }
+        public int Delta { get; set; }
+    }
+
     public class ImportStatusResponse
     {
         public string UploadId { get; set; } = string.Empty;
@@ -29,5 +38,6 @@ namespace SalesApp.DTOs
         public List<string> DesistenteContractNumbers { get; set; } = new();
         public List<MatriculaChangeInfo> MatriculaChanges { get; set; } = new();
         public List<Dictionary<string, string>> FailedRowsDetails { get; set; } = new();
+        public List<UserContractCountDelta> UserContractCountDeltas { get; set; } = new();
     }
 }

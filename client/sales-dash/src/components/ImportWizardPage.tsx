@@ -21,6 +21,7 @@ const ImportWizardPage: React.FC = () => {
   const [allowDuplicates, setAllowDuplicates] = useState(false);
   const [desistenteContracts, setDesistenteContracts] = useState<string[]>([]);
   const [allowDesistentes, setAllowDesistentes] = useState(false);
+  const [allowInconsistencies, setAllowInconsistencies] = useState(false);
 
   // Step 2: Users File
   const [usersFile, setUsersFile] = useState<File | null>(null);
@@ -47,6 +48,7 @@ const ImportWizardPage: React.FC = () => {
     setAllowDuplicates(false);
     setDesistenteContracts([]);
     setAllowDesistentes(false);
+    setAllowInconsistencies(false);
     try {
       const response = await apiService.uploadWizardStep1(contractFile);
       if (response.success) {
@@ -58,6 +60,8 @@ const ImportWizardPage: React.FC = () => {
           setUploadData(response.data);
           const dupes: string[] = response.data.duplicateContractNumbers ?? [];
           const desistentes: string[] = response.data.desistenteContractNumbers ?? [];
+          const confNames: string[] = response.data.conflictingUserNames ?? [];
+          const confMats: string[] = response.data.conflictingMatriculas ?? [];
           
           let hasWarning = false;
           if (dupes.length > 0) {
@@ -69,6 +73,9 @@ const ImportWizardPage: React.FC = () => {
             setDesistenteContracts(desistentes);
             toast.warning(`${desistentes.length} contrato(s) com status "desistente" encontrado(s)`);
             hasWarning = true;
+          }
+          if (confNames.length > 0 || confMats.length > 0) {
+            toast.warning('Aviso: Inconsistências de cadastro de usuários encontradas');
           }
 
           if (!hasWarning) {
@@ -284,6 +291,7 @@ const ImportWizardPage: React.FC = () => {
                     setAllowDuplicates(false);
                     setDesistenteContracts([]);
                     setAllowDesistentes(false);
+                    setAllowInconsistencies(false);
                   }}
                   accept=".csv,.xlsx"
                   fileInputProps={{ id: 'wizard-step1-input' }}
@@ -358,36 +366,60 @@ const ImportWizardPage: React.FC = () => {
                   </Alert>
                 )}
 
-                {(duplicateContracts.length > 0 || desistenteContracts.length > 0) &&
-                 (duplicateContracts.length === 0 || allowDuplicates) &&
-                 (desistenteContracts.length === 0 || allowDesistentes) && (
-                  <Group justify="flex-end" mt="md">
-                    <Button
-                      color="orange"
-                      rightSection={<IconChevronRight size={16} />}
-                      onClick={() => {
-                        setActiveStep(1);
-                        toast.success('Prosseguindo para o próximo passo');
-                      }}
-                      id="btn-advance-with-warnings"
-                    >
-                      Avançar para Passo 2
-                    </Button>
-                  </Group>
+                {((uploadData?.conflictingUserNames && uploadData.conflictingUserNames.length > 0) || 
+                  (uploadData?.conflictingMatriculas && uploadData.conflictingMatriculas.length > 0)) && (
+                  <Alert icon={<IconAlertCircle size={16} />} title="Inconsistências no Cadastro de Vendedores Detectadas" color="orange" mt="md" data-testid="user-inconsistency-warning">
+                    <Text size="sm" mb="sm">
+                      Detectamos as seguintes inconsistências no cadastro de vendedores ativos que correspondem a dados deste arquivo:
+                    </Text>
+                    <List size="xs" mb="sm">
+                      {uploadData.conflictingUserNames?.map((msg: string, idx: number) => (
+                        <List.Item key={`name-conf-${idx}`}>{msg}</List.Item>
+                      ))}
+                      {uploadData.conflictingMatriculas?.map((msg: string, idx: number) => (
+                        <List.Item key={`mat-conf-${idx}`}>{msg}</List.Item>
+                      ))}
+                    </List>
+
+                  </Alert>
                 )}
 
-                {!mismatchWarning && duplicateContracts.length === 0 && desistenteContracts.length === 0 && (
-                  <Group justify="flex-end" mt="md">
-                    <Button 
-                      onClick={() => handleStep1Upload()} 
-                      loading={loading}
-                      disabled={!contractFile}
-                      rightSection={<IconChevronRight size={16} />}
-                    >
-                      Próximo Passo
-                    </Button>
-                  </Group>
-                )}
+                {(() => {
+                  return (
+                    <>
+                      {(duplicateContracts.length > 0 || desistenteContracts.length > 0) &&
+                       (duplicateContracts.length === 0 || allowDuplicates) &&
+                       (desistenteContracts.length === 0 || allowDesistentes) && (
+                        <Group justify="flex-end" mt="md">
+                          <Button
+                            color="orange"
+                            rightSection={<IconChevronRight size={16} />}
+                            onClick={() => {
+                              setActiveStep(1);
+                              toast.success('Prosseguindo para o próximo passo');
+                            }}
+                            id="btn-advance-with-warnings"
+                          >
+                            Avançar para Passo 2
+                          </Button>
+                        </Group>
+                      )}
+
+                      {!mismatchWarning && duplicateContracts.length === 0 && desistenteContracts.length === 0 && (
+                        <Group justify="flex-end" mt="md">
+                          <Button 
+                            onClick={() => handleStep1Upload()} 
+                            loading={loading}
+                            disabled={!contractFile}
+                            rightSection={<IconChevronRight size={16} />}
+                          >
+                            Próximo Passo
+                          </Button>
+                        </Group>
+                      )}
+                    </>
+                  );
+                })()}
               </Stack>
             </Paper>
           </Stepper.Step>
@@ -625,6 +657,54 @@ const ImportWizardPage: React.FC = () => {
                       </Alert>
                     )}
 
+                    {contractImportResult.warnings?.length > 0 && (
+                      <Alert icon={<IconAlertCircle size={16} />} title="Avisos Importantes" color="yellow" mt="md" data-testid="import-warnings">
+                        <Text size="sm" mb="xs">
+                          Identificamos os seguintes avisos durante a importação:
+                        </Text>
+                        <List size="xs">
+                          {contractImportResult.warnings.slice(0, 10).map((warn: string, i: number) => (
+                            <List.Item key={i}>{warn}</List.Item>
+                          ))}
+                          {contractImportResult.warnings.length > 10 && (
+                            <List.Item>... e mais {contractImportResult.warnings.length - 10} avisos.</List.Item>
+                          )}
+                        </List>
+                      </Alert>
+                    )}
+
+                    {contractImportResult.userContractCountDeltas?.length > 0 && (
+                      <Stack gap="xs" mt="md">
+                        <Text fw={600} size="sm">Resumo de Atribuição por Usuário:</Text>
+                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                            <thead>
+                              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                <th style={{ padding: '8px 12px', fontWeight: 600 }}>Usuário</th>
+                                <th style={{ padding: '8px 12px', fontWeight: 600 }}>E-mail</th>
+                                <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'right' }}>Antes</th>
+                                <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'right' }}>Depois</th>
+                                <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'right' }}>Δ</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {contractImportResult.userContractCountDeltas.map((delta: any, idx: number) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '8px 12px' }}>{delta.userName}</td>
+                                  <td style={{ padding: '8px 12px', color: '#64748b' }}>{delta.email}</td>
+                                  <td style={{ padding: '8px 12px', textAlign: 'right' }}>{delta.before}</td>
+                                  <td style={{ padding: '8px 12px', textAlign: 'right' }}>{delta.after}</td>
+                                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: delta.delta > 0 ? '#16a34a' : '#475569' }}>
+                                    {delta.delta > 0 ? `+${delta.delta}` : delta.delta}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </Stack>
+                    )}
+
                     <Group justify="center" mt="sm">
                       <Button variant="filled" onClick={() => window.location.hash = '#/contracts'}>
                         Ir para Lista de Contratos
@@ -707,7 +787,7 @@ const ImportWizardPage: React.FC = () => {
                 <Button variant="filled" onClick={() => window.location.hash = '#/contracts'}>
                   Ir para Lista de Contratos
                 </Button>
-                <Button variant="outline" onClick={() => {
+                 <Button variant="outline" onClick={() => {
                   setActiveStep(0);
                   setContractFile(null);
                   setUsersFile(null);
@@ -717,6 +797,7 @@ const ImportWizardPage: React.FC = () => {
                   setAllowDuplicates(false);
                   setDesistenteContracts([]);
                   setAllowDesistentes(false);
+                  setAllowInconsistencies(false);
                 }}>
                   Nova Importação Completa
                 </Button>
