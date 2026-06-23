@@ -87,6 +87,13 @@ test.describe('Import Wizard — Desistente Status Handling', () => {
     await page.click('button:has-text("Ir para Lista de Contratos")');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
+    // Clear filters if any are active
+    const clearFiltersBtn = page.locator('button.clear-filters-btn');
+    if (await clearFiltersBtn.isVisible()) {
+      await clearFiltersBtn.click();
+      await page.waitForTimeout(1000);
+    }
+
     // Search for TEST-OK-002 (should exist)
     await page.fill('input#filterContractNumber', 'TEST-OK-002');
     await page.waitForTimeout(6000); // safety buffer for search debounce

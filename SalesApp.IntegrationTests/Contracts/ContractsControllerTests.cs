@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Data;
@@ -644,6 +645,66 @@ namespace SalesApp.IntegrationTests.Contracts
             updateResult!.Success.Should().BeTrue();
             // Note: The quota might still be the old value since we only update if HasValue
             // This is expected behavior for partial updates
+        }
+
+        [Fact]
+        public async Task GetContracts_ShouldReturnPagedResponse_WhenPageParametersProvided()
+        {
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Arrange - create a user and status
+            var user = new User { Id = Guid.NewGuid(), Name = "Paged Test User", Email = "pagedtest@test.com", RoleId = 1 };
+            var group = new Group { Id = 105, Name = "Paged Test Group" };
+            int statusId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                context.Users.Add(user);
+                context.Groups.Add(group);
+                
+                var statusService = scope.ServiceProvider.GetRequiredService<SalesApp.Services.IContractStatusService>();
+                statusId = await statusService.GetStatusIdByNameAsync("Active");
+                
+                // Add two contracts
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = $"PAG-{Guid.NewGuid().ToString()[..8]}",
+                    UserInternalId = user.InternalId,
+                    GroupId = group.Id,
+                    ContractStatusId = statusId,
+                    TotalAmount = 1000m,
+                    SaleStartDate = DateTime.UtcNow,
+                    IsActive = true
+                });
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = $"PAG-{Guid.NewGuid().ToString()[..8]}",
+                    UserInternalId = user.InternalId,
+                    GroupId = group.Id,
+                    ContractStatusId = statusId,
+                    TotalAmount = 2000m,
+                    SaleStartDate = DateTime.UtcNow.AddDays(-1),
+                    IsActive = true
+                });
+                await context.SaveChangesAsync();
+            }
+
+            // Act
+            var response = await _client.GetAsync("/api/contracts?page=1&pageSize=1");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedContractResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Items.Should().HaveCount(1);
+            result.Data.TotalCount.Should().BeGreaterThanOrEqualTo(2);
+            result.Data.Page.Should().Be(1);
+            result.Data.PageSize.Should().Be(1);
+            result.Data.Aggregation.Should().NotBeNull();
         }
     }
 }

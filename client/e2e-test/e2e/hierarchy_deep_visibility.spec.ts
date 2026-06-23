@@ -52,6 +52,13 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
       await expect(navLink).toBeVisible({ timeout: 10_000 });
       await navLink.click();
       await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
+
+      // Clear filters if any are active (clearing default 15-month date filter)
+      const clearFiltersBtn = page.locator('button.clear-filters-btn');
+      if (await clearFiltersBtn.isVisible()) {
+        await clearFiltersBtn.click();
+        await page.waitForTimeout(1000);
+      }
     } else {
       // Regular users land on Meus Contratos
       await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 15_000 });

@@ -114,10 +114,35 @@ test.describe('Import Wizard Aliases Flow', () => {
     await page.click('button:has-text("Confirmar e Importar")');
     await expect(page.getByText(/Importados:/)).toBeVisible({ timeout: 30000 });
     await page.click('button:has-text("Fechar")');
+
+    // Clear filters if any are active (clearing default 15-month date filter)
+    const clearFiltersBtn = page.locator('button.clear-filters-btn');
+    if (await clearFiltersBtn.isVisible()) {
+      await clearFiltersBtn.click();
+      await page.waitForTimeout(1000);
+    }
     
     // Verify the data is actually in the table (TEST-001, TEST-002, TEST-003 from our demo file)
+    await page.fill('input#filterContractNumber', 'TEST-001');
+    await page.waitForTimeout(6000); // debounce wait
     await expect(page.getByText('TEST-001')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('TEST-002')).toBeVisible();
-    await expect(page.getByText('TEST-003')).toBeVisible();
+
+    if (await clearFiltersBtn.isVisible()) {
+      await clearFiltersBtn.click();
+      await page.waitForTimeout(1000);
+    }
+
+    await page.fill('input#filterContractNumber', 'TEST-002');
+    await page.waitForTimeout(6000); // debounce wait
+    await expect(page.getByText('TEST-002')).toBeVisible({ timeout: 15000 });
+
+    if (await clearFiltersBtn.isVisible()) {
+      await clearFiltersBtn.click();
+      await page.waitForTimeout(1000);
+    }
+
+    await page.fill('input#filterContractNumber', 'TEST-003');
+    await page.waitForTimeout(6000); // debounce wait
+    await expect(page.getByText('TEST-003')).toBeVisible({ timeout: 15000 });
   });
 });

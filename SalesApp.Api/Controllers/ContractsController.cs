@@ -120,7 +120,7 @@ namespace SalesApp.Controllers
         
         [HttpGet]
         [HasPermission("contracts:read")]
-        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetContracts(
+        public async Task<IActionResult> GetContracts(
             [FromQuery] Guid? userId = null,
             [FromQuery] int? groupId = null,
             [FromQuery] DateTime? startDate = null,
@@ -130,23 +130,52 @@ namespace SalesApp.Controllers
             [FromQuery] string? matricula = null,
             [FromQuery] string? userEmail = null,
             [FromQuery] List<int>? teamIds = null,
-            [FromQuery] List<Guid>? userIds = null)
+            [FromQuery] List<Guid>? userIds = null,
+            [FromQuery] int? page = null,
+            [FromQuery] int? pageSize = null)
         {
             var scope = await _userScopeService.GetContractScopeAsync(User);
-            var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds);
-            
-            var contractResponses = contracts.Select(MapToContractResponse).ToList();
-            
-            // Calculate aggregations using service
-            var aggregation = _aggregationService.CalculateAggregation(contracts);
-            
-            return Ok(new ApiResponse<List<ContractResponse>>
+
+            if (page.HasValue && pageSize.HasValue)
             {
-                Success = true,
-                Data = contractResponses,
-                Message = _messageService.Get(AppMessage.ContractsRetrievedSuccessfully),
-                Aggregation = aggregation
-            });
+                var (contracts, totalCount) = await _contractRepository.GetPagedAsync(
+                    page.Value, pageSize.Value, userId, groupId, startDate, endDate,
+                    contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds);
+
+                var contractResponses = contracts.Select(MapToContractResponse).ToList();
+                var aggregation = await _contractRepository.GetAggregationAsync(
+                    userId, groupId, startDate, endDate, contractNumber, showUnassigned,
+                    matricula, userEmail, scope, teamIds, userIds);
+
+                return Ok(new ApiResponse<PagedContractResponse>
+                {
+                    Success = true,
+                    Data = new PagedContractResponse
+                    {
+                        Items = contractResponses,
+                        TotalCount = totalCount,
+                        Page = page.Value,
+                        PageSize = pageSize.Value,
+                        Aggregation = aggregation
+                    },
+                    Message = _messageService.Get(AppMessage.ContractsRetrievedSuccessfully),
+                    Aggregation = aggregation
+                });
+            }
+            else
+            {
+                var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds);
+                var contractResponses = contracts.Select(MapToContractResponse).ToList();
+                var aggregation = _aggregationService.CalculateAggregation(contracts);
+
+                return Ok(new ApiResponse<List<ContractResponse>>
+                {
+                    Success = true,
+                    Data = contractResponses,
+                    Message = _messageService.Get(AppMessage.ContractsRetrievedSuccessfully),
+                    Aggregation = aggregation
+                });
+            }
         }
         
         [HttpGet("user/{userId}")]

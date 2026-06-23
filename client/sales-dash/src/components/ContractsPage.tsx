@@ -42,6 +42,7 @@ const ContractsPage: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [aggregation, setAggregation] = useState<ContractAggregation | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Export state
   const [exportJobId, setExportJobId] = useState<string | null>(null);
@@ -94,7 +95,7 @@ const ContractsPage: React.FC = () => {
     const requestId = ++requestCountRef.current;
 
     try {
-      const { contracts: data, aggregation: aggData } = await getContracts(
+      const { contracts: data, aggregation: aggData, totalCount: fetchedTotalCount } = await getContracts(
         undefined, // userId
         undefined, // groupId
         debouncedStartDate || undefined,
@@ -104,11 +105,14 @@ const ContractsPage: React.FC = () => {
         debouncedMatricula || undefined,
         undefined, // userEmail
         debouncedTeamIds.length > 0 ? debouncedTeamIds.map(id => parseInt(id)) : undefined,
-        debouncedUserIds.length > 0 ? debouncedUserIds : undefined
+        debouncedUserIds.length > 0 ? debouncedUserIds : undefined,
+        currentPage,
+        pageSize
       );
       if (requestId !== requestCountRef.current) return;
       setContracts(data);
       setAggregation(aggData || null);
+      setTotalCount(fetchedTotalCount);
       // Cache contracts in context
       setCachedContracts(data);
     } catch (err: any) {
@@ -121,7 +125,7 @@ const ContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds, debouncedUserIds, setCachedContracts]);
+  }, [debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds, debouncedUserIds, currentPage, pageSize, setCachedContracts]);
 
   // Load saved filters from localStorage
   useEffect(() => {
@@ -129,6 +133,13 @@ const ContractsPage: React.FC = () => {
     if (savedStartDate) {
       setFilterStartDate(savedStartDate);
       setDebouncedStartDate(savedStartDate);
+    } else {
+      const d = new Date();
+      d.setMonth(d.getMonth() - 15);
+      const defaultDate = d.toISOString().split('T')[0]; // "YYYY-MM-DD"
+      setFilterStartDate(defaultDate);
+      setDebouncedStartDate(defaultDate);
+      localStorage.setItem('contracts_filterStartDate', defaultDate);
     }
     loadFilters();
     setIsInitializing(false);
@@ -159,10 +170,8 @@ const ContractsPage: React.FC = () => {
   }, [debouncedUserIds, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds]);
 
   // Calculate pagination
-  const totalPages = Math.ceil(contracts.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedContracts = contracts.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const paginatedContracts = contracts;
 
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
@@ -390,7 +399,7 @@ const ContractsPage: React.FC = () => {
             currentPage={currentPage}
             totalPages={totalPages}
             pageSize={pageSize}
-            totalItems={contracts.length}
+            totalItems={totalCount}
             onPageChange={setCurrentPage}
             onPageSizeChange={handlePageSizeChange}
             showBottomControls={false}
@@ -454,7 +463,7 @@ const ContractsPage: React.FC = () => {
           currentPage={currentPage}
           totalPages={totalPages}
           pageSize={pageSize}
-          totalItems={contracts.length}
+          totalItems={totalCount}
           onPageChange={setCurrentPage}
           onPageSizeChange={handlePageSizeChange}
           showTopControls={false}
@@ -463,7 +472,7 @@ const ContractsPage: React.FC = () => {
       )}
 
       {/* Aggregation Summary */}
-      {aggregation && contracts.length > 0 && (
+      {aggregation && totalCount > 0 && (
         <AggregationSummary
           total={aggregation?.total || 0}
           totalCancel={aggregation?.totalCancel || 0}
@@ -475,7 +484,7 @@ const ContractsPage: React.FC = () => {
       )}
 
       {/* Historic Production */}
-      {contracts.length > 0 && (
+      {totalCount > 0 && (
         <HistoricProduction
           startDate={filterStartDate}
           endDate={undefined}

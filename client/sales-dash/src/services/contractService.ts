@@ -173,8 +173,10 @@ export const getContracts = async (
   matricula?: string,
   userEmail?: string,
   teamIds?: number[],
-  userIds?: string[]
-): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
+  userIds?: string[],
+  page?: number,
+  pageSize?: number
+): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation; totalCount: number }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
   if (groupId) params.append('groupId', groupId.toString());
@@ -187,6 +189,8 @@ export const getContracts = async (
   // ASP.NET Core binds repeated keys as a List<int>
   if (teamIds && teamIds.length > 0) teamIds.forEach(id => params.append('teamIds', id.toString()));
   if (userIds && userIds.length > 0) userIds.forEach(id => params.append('userIds', id));
+  if (page !== undefined) params.append('page', page.toString());
+  if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
 
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts${queryString ? `?${queryString}` : ''}`;
@@ -200,8 +204,22 @@ export const getContracts = async (
     throw new Error('Failed to fetch contracts');
   }
 
-  const result: ApiResponse<Contract[]> = await response.json();
-  return { contracts: result.data, aggregation: result.aggregation };
+  const result = await response.json();
+
+  if (page !== undefined && pageSize !== undefined) {
+    const data = result.data;
+    return {
+      contracts: data.items,
+      aggregation: data.aggregation || result.aggregation,
+      totalCount: data.totalCount
+    };
+  } else {
+    return {
+      contracts: result.data,
+      aggregation: result.aggregation,
+      totalCount: result.data ? result.data.length : 0
+    };
+  }
 };
 
 export const getUserContracts = async (

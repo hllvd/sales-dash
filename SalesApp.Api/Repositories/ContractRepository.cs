@@ -53,15 +53,13 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
         
-        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null)
+        private async Task<IQueryable<Contract>> BuildFilteredQueryAsync(
+            Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null,
+            string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null,
+            string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
-                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
-                .Include(c => c.Group)
-                .Include(c => c.PV)
-                .Include(c => c.ContractStatus)
                 .Where(c => c.IsActive && c.ContractStatus.Name.ToLower() != "desistente");
 
             // Apply hierarchical data scope before any other filters
@@ -132,8 +130,103 @@ namespace SalesApp.Repositories
             {
                 query = query.Where(c => c.User != null && userIds.Contains(c.User.Id));
             }
+
+            return query;
+        }
+
+        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null)
+        {
+            var query = await BuildFilteredQueryAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumber, userEmail, scope, teamIds, userIds);
             
-            return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
+            return await query
+                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
+                .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
+                .OrderByDescending(c => c.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<(List<Contract> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null)
+        {
+            var query = await BuildFilteredQueryAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumber, userEmail, scope, teamIds, userIds);
+
+            int totalCount = await query.CountAsync();
+
+            var items = await query
+                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
+                .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
+                .OrderByDescending(c => c.SaleStartDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
+        public async Task<ContractAggregation> GetAggregationAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, string? matriculaNumber = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null)
+        {
+            var query = await BuildFilteredQueryAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumber, userEmail, scope, teamIds, userIds);
+
+            var groupings = await query
+                .GroupBy(c => c.ContractStatus.Name)
+                .Select(g => new
+                {
+                    StatusName = g.Key,
+                    TotalAmount = g.Sum(c => c.TotalAmount)
+                })
+                .ToListAsync();
+
+            decimal total = 0m;
+            decimal totalCancel = 0m;
+            decimal totalActive = 0m;
+            decimal totalLate = 0m;
+
+            var defaultedName = ContractStatus.Defaulted.ToApiString();
+            var late1Name = ContractStatus.Late1.ToApiString();
+            var late2Name = ContractStatus.Late2.ToApiString();
+            var late3Name = ContractStatus.Late3.ToApiString();
+
+            foreach (var g in groupings)
+            {
+                var amount = g.TotalAmount;
+                var status = g.StatusName;
+
+                total += amount;
+
+                if (status.Equals(defaultedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    totalCancel += amount;
+                }
+                else
+                {
+                    totalActive += amount;
+
+                    if (status.Equals(late1Name, StringComparison.OrdinalIgnoreCase) ||
+                        status.Equals(late2Name, StringComparison.OrdinalIgnoreCase) ||
+                        status.Equals(late3Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        totalLate += amount;
+                    }
+                }
+            }
+
+            var retention = total > 0 ? totalActive / total : 0m;
+            var strictRetention = total > 0 ? (totalActive - totalLate) / total : 0m;
+
+            return new ContractAggregation
+            {
+                Total = total,
+                TotalCancel = totalCancel,
+                TotalActive = totalActive,
+                TotalLate = totalLate,
+                Retention = retention,
+                StrictRetention = strictRetention
+            };
         }
         
         public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null)
