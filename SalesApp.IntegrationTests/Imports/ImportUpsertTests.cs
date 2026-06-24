@@ -611,6 +611,54 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01,MAT-123
             contractsResult.Data!.First().Status.Should().Be("Late2");
         }
 
+        [Fact]
+        public async Task ImportContractDashboard_WithContBemPend1AtrStatus_ShouldMapToLate1()
+        {
+            // Arrange
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      "G1;123;C1;Cust1;CNT-CONT-BEM-PEND-1,1000,2024-01-01,CONT BEM PEND 1 ATR,MAT-DASH-BEM-PEND-1";
+
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var uploadId = await UploadFile(csv, "dashboard_status_late1_bem_pend.csv", templateId: 3);
+
+            var mappingRequest = new ColumnMappingRequest
+            {
+                Mappings = new Dictionary<string, string>
+                {
+                    { "Cota", "Cota" },
+                    { "Total", "TotalAmount" },
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
+                }
+            };
+
+            // Act - Step 1: Mapping/Validation
+            var mappingResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings?entityType=Contract", mappingRequest);
+            var mappingResult = await mappingResponse.Content.ReadFromJsonAsync<ApiResponse<ImportStatusResponse>>();
+
+            // Assert Validation
+            mappingResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            mappingResult!.Data!.Errors.Should().BeEmpty();
+
+            // Act - Step 2: Confirm
+            var confirmRequest = new ConfirmImportRequest { DateFormat = "YYYY-MM-DD", AllowAutoCreateGroups = true };
+            var confirmResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", confirmRequest);
+            var confirmResult = await confirmResponse.Content.ReadFromJsonAsync<ApiResponse<ImportStatusResponse>>();
+
+            // Assert Execution
+            confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            confirmResult!.Data!.ProcessedRows.Should().Be(1);
+
+            // Verify status in DB
+            var contractsResponse = await _client.GetAsync("/api/contracts?contractNumber=CNT-CONT-BEM-PEND-1");
+            var contractsResult = await contractsResponse.Content.ReadFromJsonAsync<ApiResponse<List<ContractResponse>>>();
+            contractsResult!.Data.Should().NotBeEmpty();
+            contractsResult.Data!.First().Status.Should().Be("Late1");
+        }
+
         private async Task<string> UploadFile(string content, string fileName, int templateId = 2)
         {
             var multipartContent = new MultipartFormDataContent();

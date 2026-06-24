@@ -114,6 +114,9 @@ build() {
   print_header "BUILD"
 
   local EXIT_CODE=0
+  # Record time before starting containers so --since filters out stale logs from prior runs
+  local BUILD_START_TIME
+  BUILD_START_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
   ASPNETCORE_ENVIRONMENT=E2E docker-compose up --build -d salesapp-api client nginx pbi-scraper \
     > artifacts/full-build.log 2>&1 || EXIT_CODE=$?
 
@@ -132,7 +135,7 @@ build() {
     wait $LOG_PID >/dev/null 2>&1 || true
 
     # Scan the full container logs for critical errors
-    docker-compose logs --no-color > artifacts/startup-docker.log 2>&1
+    docker-compose logs --no-color --since "$BUILD_START_TIME" > artifacts/startup-docker.log 2>&1
     local CRITICAL_ERRORS
     CRITICAL_ERRORS=$(sed 's/\x1b\[[0-9;]*[A-Za-z]//g' artifacts/startup-docker.log \
       | grep -Ei "\[error\]|\[ERR\]|\[CRIT\]|Exception|Failed executing DbCommand|502 Bad Gateway|503 Service Unavailable|Connection refused|panic|fatal" \

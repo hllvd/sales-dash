@@ -31,3 +31,15 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated `ImportWizardPage.tsx` to make the Step 1 user/matricula inconsistency warning alerts purely informative and non-blocking (removing the checkbox and not setting `hasWarning = true` for inconsistencies), and ensured the final warnings are still successfully listed in Step 3 summary.
 **Result:** ✅ Green
 
+
+## [2026-06-24] e2e — Attempt 1
+**Failure:** `expect(locator).not.toHaveAttribute(expected) failed` / `element(s) not found` in `contract_dashboard_bem_pend_1_atr.spec.ts`
+**Root cause:** Test asserted `[data-status]` DOM attribute which doesn't exist — the status badge renders localised text "Atrasado 1" as plain text inside a `<td>`, not via a data attribute.
+**Fix applied:** Replaced `toHaveAttribute('data-status', 'Late1')` with `toContainText('Atrasado 1')` on the 7th table cell (`rowBemPend.locator('td').nth(6)`).
+**Result:** ✅ Green — 105/105 passed
+
+## [2026-06-24] build — Stale log false-positive (infrastructure)
+**Failure:** `❌ CRITICAL CONTAINER ERROR DETECTED DURING STARTUP!` — nginx `salesapp-api could not be resolved` errors detected
+**Root cause:** `scripts/test.sh` ran `docker-compose logs --no-color` with no time window, picking up stale nginx DNS errors from a previous run's cold-start before the API was ready.
+**Fix applied:** Captured `BUILD_START_TIME` before `docker-compose up` and added `--since "$BUILD_START_TIME"` to the log scan command, scoping it to the current build only.
+**Result:** ✅ Green — false positive eliminated

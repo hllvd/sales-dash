@@ -1,0 +1,3 @@
+Contrato,Código PV,Nome PV,Matrícula,Consultor,Grupo,Cota,Data da Venda,Valor,Nome do Cliente,Tipo,Status
+TEST-BEM-PEND1-001,PV100,Loja Sul,6111,Arthur Terplak,G1,G1;001;X;Cliente A;TEST-BEM-PEND1-001,2024-05-01,1000.00,Cliente A,Normal,CONT BEM PEND 1 ATR
+TEST-BEM-PEND1-OK,PV100,Loja Sul,6111,Arthur Terplak,G1,G1;002;X;Cliente B;TEST-BEM-PEND1-OK,2024-05-02,2000.00,Cliente B,Normal,Ativo
