@@ -29,8 +29,12 @@ function getEightYearsAgo(): string {
   return d.toISOString();
 }
 
-/** BFS from ownerUserId → returns users ordered by proximity to owner, then createdAt */
-function sortByHierarchy(users: User[], ownerUserId: string | null): User[] {
+/** BFS from ownerUserId → returns users ordered by proximity to owner, then createdAt.
+ *  The owner is only omitted from the left (available) column when they are ALREADY an
+ *  active team member (right column). If they have no active membership they must remain
+ *  visible so they can be re-added.
+ */
+function sortByHierarchy(users: User[], ownerUserId: string | null, activeMemberIds?: Set<string>): User[] {
   if (!ownerUserId) return [...users].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   const byId = new Map(users.map(u => [u.id, u]));
@@ -48,12 +52,16 @@ function sortByHierarchy(users: User[], ownerUserId: string | null): User[] {
   const result: User[] = [];
   const queue: string[] = [ownerUserId];
 
+  // The owner is only hidden from the left column when they are already an active member.
+  // If not an active member they need to remain available so they can be re-added.
+  const ownerIsAlreadyMember = activeMemberIds ? activeMemberIds.has(ownerUserId) : true;
+
   while (queue.length) {
     const id = queue.shift()!;
     if (visited.has(id)) continue;
     visited.add(id);
     const u = byId.get(id);
-    if (u && id !== ownerUserId) result.push(u); // owner is already a member; skip from left col
+    if (u && !(id === ownerUserId && ownerIsAlreadyMember)) result.push(u);
     const kids = childrenOf.get(id) ?? [];
     for (const k of kids) queue.push(k.id);
   }
@@ -391,7 +399,7 @@ const TeamMembersModal: React.FC<Props> = ({
 
   const available = useMemo(() => {
     const pool = userPool.filter(u => u.isActive && !activeMemberIds.has(u.id));
-    return sortByHierarchy(pool, ownerUserId);
+    return sortByHierarchy(pool, ownerUserId, activeMemberIds);
   }, [userPool, activeMemberIds, ownerUserId]);
 
   const filteredAvailable = useMemo(() => {
