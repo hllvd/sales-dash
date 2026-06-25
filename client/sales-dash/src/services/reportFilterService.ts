@@ -16,6 +16,8 @@ export interface FilterConfig {
   emails?: string[];
   groups?: number[];
   teams?: number[];
+  /** "current" (default) or "historical" — controls how team membership is resolved when filtering by team */
+  teamMembershipMode?: 'current' | 'historical';
   pvs?: number[];
   statuses?: string[];
   statusOperator?: 'or' | 'and';

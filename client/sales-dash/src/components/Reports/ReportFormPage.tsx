@@ -217,6 +217,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [emails, setEmails] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]); 
   const [teams, setTeams] = useState<string[]>([]);
+  const [teamMembershipMode, setTeamMembershipMode] = useState<'current' | 'historical'>('current');
   const [pvs, setPvs] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
 
@@ -337,6 +338,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         const restoredTeams = (fc.teams || []).map(t => t.toString());
         if (fc.currentUserTeam) restoredTeams.unshift(CURRENT_USER_TEAM_SENTINEL);
         setTeams(restoredTeams);
+        setTeamMembershipMode(fc.teamMembershipMode || 'current');
         setPvs((fc.pvs || []).map(p => p.toString()));
         setStatuses(fc.statuses || []);
         setStatusOperator(fc.statusOperator || 'or');
@@ -563,6 +565,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       groups: groups.length > 0 ? groups.map(Number) : undefined,
       teams: cleanTeams.length > 0 ? cleanTeams.map(Number) : undefined,
       currentUserTeam: hasCurrentUserTeam || undefined,
+      teamMembershipMode: cleanTeams.length > 0 ? teamMembershipMode : undefined,
       pvs: pvs.length > 0 ? pvs.map(Number) : undefined,
       statuses: statuses.length > 0 ? statuses : undefined,
       statusOperator: statuses.length > 1 ? statusOperator : undefined,
@@ -1013,6 +1016,26 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                     searchable
                     size="sm"
                   />
+                  {teams.filter(t => t !== CURRENT_USER_TEAM_SENTINEL).length > 0 && (
+                    <div style={{ marginTop: 6 }}>
+                      <Text size="xs" fw={500} c="dimmed" mb={4}>Modo de vínculo com equipe</Text>
+                      <SegmentedControl
+                        size="xs"
+                        fullWidth
+                        value={teamMembershipMode}
+                        onChange={(val: any) => setTeamMembershipMode(val)}
+                        data={[
+                          { label: '👤 Membros atuais', value: 'current' },
+                          { label: '📅 Histórico do período', value: 'historical' },
+                        ]}
+                      />
+                      <Text size="xs" c="dimmed" mt={4}>
+                        {teamMembershipMode === 'current'
+                          ? 'Exibe contratos de quem está na equipe hoje (ignora ex-membros).'
+                          : 'Exibe contratos de quem estava na equipe durante o intervalo do relatório.'}
+                      </Text>
+                    </div>
+                  )}
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 6 }}>
                   <TagsInput

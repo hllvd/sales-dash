@@ -48,6 +48,15 @@ namespace SalesApp.ReportFilters.Models
         /// <summary>Team identifiers to filter by.</summary>
         public List<int>? Teams { get; set; }
 
+        /// <summary>
+        /// Controls how the Teams filter resolves membership:
+        /// - "current" (default): include only contracts whose seller is CURRENTLY an active member
+        ///   of the selected team(s). A user who was moved out of the team will NOT appear.
+        /// - "historical": include contracts whose seller was a member of the selected team(s)
+        ///   at the time of the sale (original temporal behavior).
+        /// </summary>
+        public string? TeamMembershipMode { get; set; }
+
         /// <summary>PV identifiers (integer IDs) to filter by.</summary>
         public List<int>? Pvs { get; set; }
 

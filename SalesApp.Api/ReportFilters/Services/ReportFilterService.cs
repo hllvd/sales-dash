@@ -457,16 +457,46 @@ namespace SalesApp.ReportFilters.Services
                 contracts = contracts.Where(c => c.PvId.HasValue && fc.Pvs.Contains(c.PvId.Value)).ToList();
             }
 
-            // Filter by selected Team IDs
+            // Filter by selected Team IDs.
+            // Behaviour is controlled by TeamMembershipMode:
+            //   "current"    (default) – user must be CURRENTLY an active member of the team.
+            //                           A user moved to another team will NOT appear here.
+            //   "historical"           – user must have been a member at the time of the sale
+            //                           AND within the report date range (original temporal logic).
             if (fc.Teams?.Count > 0)
             {
-                contracts = contracts.Where(c => {
-                    if (c.UserInternalId == null) return false;
-                    var match = memberTeamMapping.FirstOrDefault(x => 
-                        x.UserInternalId == c.UserInternalId.Value &&
-                        TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
-                    return match != null && fc.Teams.Contains(match.TeamId);
-                }).ToList();
+                var isHistorical = string.Equals(
+                    fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+
+                if (isHistorical)
+                {
+                    // Historical: membership active at the time of the contract sale
+                    contracts = contracts.Where(c =>
+                    {
+                        if (c.UserInternalId == null) return false;
+                        var match = memberTeamMapping.FirstOrDefault(x =>
+                            x.UserInternalId == c.UserInternalId.Value &&
+                            TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
+                        return match != null && fc.Teams.Contains(match.TeamId);
+                    }).ToList();
+                }
+                else
+                {
+                    // Current (default): user must be an active member RIGHT NOW.
+                    // A membership is "current" when StartDate <= now and EndDate is null or in the future.
+                    var now = DateTime.UtcNow;
+                    var currentTeamByUser = memberTeamMapping
+                        .Where(x => x.StartDate <= now && (x.EndDate == null || x.EndDate > now))
+                        .GroupBy(x => x.UserInternalId)
+                        .ToDictionary(g => g.Key, g => g.Select(x => x.TeamId).ToHashSet());
+
+                    contracts = contracts.Where(c =>
+                    {
+                        if (c.UserInternalId == null) return false;
+                        return currentTeamByUser.TryGetValue(c.UserInternalId.Value, out var userTeams)
+                               && userTeams.Any(tid => fc.Teams.Contains(tid));
+                    }).ToList();
+                }
             }
 
             // Exclude contracts from unassigned teams if HideUnassignedTeams is active
@@ -1233,6 +1263,7 @@ namespace SalesApp.ReportFilters.Services
                     Emails              = f.FilterConfig.Emails,
                     Groups              = f.FilterConfig.Groups,
                     Teams               = f.FilterConfig.Teams,
+                    TeamMembershipMode  = f.FilterConfig.TeamMembershipMode,
                     Pvs                 = f.FilterConfig.Pvs,
                     Statuses            = f.FilterConfig.Statuses,
                     StatusOperator      = f.FilterConfig.StatusOperator,
@@ -1270,6 +1301,7 @@ namespace SalesApp.ReportFilters.Services
                 Emails              = req.Emails,
                 Groups              = req.Groups,
                 Teams               = req.Teams,
+                TeamMembershipMode  = req.TeamMembershipMode,
                 Pvs                 = req.Pvs,
                 Statuses            = req.Statuses,
                 StatusOperator      = req.StatusOperator,
