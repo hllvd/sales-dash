@@ -18,5 +18,6 @@ namespace SalesApp.Repositories
         Task<Contract> UpdateAsync(Contract contract);
         Task<List<MonthlyProduction>> GetMonthlyProductionAsync(Guid? userId, DateTime? startDate, DateTime? endDate, bool? showUnassigned = null);
         Task<List<MatriculaHealthResponse>> GetMatriculaHealthAsync();
+        Task<List<Contract>> GetContractsForMigrationAsync(Guid userId);
     }
 }

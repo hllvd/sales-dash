@@ -428,3 +428,6 @@ SalesApp.DataMigrator/Library/
 # Test output log files
 test-output.txt
 
+# Wizard temporary files
+wizard-temp/
+

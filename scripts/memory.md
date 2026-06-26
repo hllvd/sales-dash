@@ -43,3 +43,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** `scripts/test.sh` ran `docker-compose logs --no-color` with no time window, picking up stale nginx DNS errors from a previous run's cold-start before the API was ready.
 **Fix applied:** Captured `BUILD_START_TIME` before `docker-compose up` and added `--since "$BUILD_START_TIME"` to the log scan command, scoping it to the current build only.
 **Result:** ✅ Green — false positive eliminated
+
+## [2026-06-26] integration — Attempt 1
+**Failure:** `MigrateContracts_ShouldBeAllowedByAdmin_OnlyForDirectChild` failed with BadRequest (400) instead of OK (200).
+**Root cause:** The test used the standard seeded `admin@test.com` user, which had accumulated multiple active owned matriculas from other test files run within the same shared database container. This caused the contract migration logic to fail with an ambiguous selection error.
+**Fix applied:** Updated the test to create a brand new custom Admin user for child parentage, completely isolating it from matricula pollution.
+**Result:** ✅ Green
+

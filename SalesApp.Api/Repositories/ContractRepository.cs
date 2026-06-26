@@ -422,5 +422,15 @@ namespace SalesApp.Repositories
                 }
             }).ToList();
         }
+
+        public async Task<List<Contract>> GetContractsForMigrationAsync(Guid userId)
+        {
+            return await _context.Contracts
+                .Include(c => c.User)
+                .Include(c => c.Matricula)
+                .Include(c => c.ContractStatus)
+                .Where(c => c.User.Id == userId)
+                .ToListAsync();
+        }
     }
 }

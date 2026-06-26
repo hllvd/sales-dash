@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { Title, Button, Table, ActionIcon, Group, Badge, Text } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Badge } from '@mantine/core';
 import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload, IconMedal } from '@tabler/icons-react';
 import "./UsersPage.css"
 import Menu from "./Menu"
 import UserForm from "./UserForm"
 import BulkImportModal from "./BulkImportModal"
-import StandardModal from "../shared/StandardModal"
+
 import {
   apiService,
   User,
@@ -14,6 +14,8 @@ import {
 } from "../services/apiService"
 import { useUsers } from "../contexts/UsersContext"
 import { UserProfileModal } from "./UserProfile"
+import { DeleteUserModal } from "./DeleteUserModal"
+
 
 const UsersPage: React.FC = () => {
   // Track latest API request to prevent race conditions
@@ -32,7 +34,7 @@ const UsersPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | undefined>(undefined)
   const [showImportModal, setShowImportModal] = useState(false)
   const [currentUserRole, setCurrentUserRole] = useState<string>("")
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<User | null>(null)
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null)
   const [descendantUsers, setDescendantUsers] = useState<User[]>([])
   const [allowedUserIds, setAllowedUserIds] = useState<Set<string>>(new Set())
@@ -129,18 +131,7 @@ const UsersPage: React.FC = () => {
     }
   }
 
-  const handleDeleteUser = async (id: string) => {
-    try {
-      await apiService.deleteUser(id)
-      setDeleteConfirm(null)
-      fetchUsers()
-      if (currentUserRole === "admin") {
-        fetchAllowedUserIds()
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to delete user")
-    }
-  }
+
 
   // Reactivate user by calling API and refreshing list
   const handleReactivateUser = async (id: string) => {
@@ -340,7 +331,7 @@ const UsersPage: React.FC = () => {
                                   <ActionIcon
                                     variant="subtle"
                                     color="red"
-                                    onClick={() => setDeleteConfirm(user.id)}
+                                    onClick={() => setDeleteConfirm(user)}
                                     title="Excluir"
                                   >
                                     <IconTrash size={16} />
@@ -413,35 +404,17 @@ const UsersPage: React.FC = () => {
         />
       )}
 
-      <StandardModal
+      <DeleteUserModal
+        user={deleteConfirm}
         isOpen={deleteConfirm !== null}
         onClose={() => setDeleteConfirm(null)}
-        title="Confirmar Exclusão"
-        size="md"
-        footer={
-          <>
-            <Button
-              variant="default"
-              onClick={() => setDeleteConfirm(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              color="red"
-              onClick={() => handleDeleteUser(deleteConfirm!)}
-            >
-              Excluir
-            </Button>
-          </>
-        }
-      >
-        <div style={{ padding: '10px 0' }}>
-          <Text size="sm">
-            Tem certeza que deseja excluir este usuário? Esta ação irá
-            desativá-lo.
-          </Text>
-        </div>
-      </StandardModal>
+        onSuccess={() => {
+          fetchUsers()
+          if (currentUserRole === "admin") {
+            fetchAllowedUserIds()
+          }
+        }}
+      />
 
       <UserProfileModal
         userId={selectedProfileUserId}

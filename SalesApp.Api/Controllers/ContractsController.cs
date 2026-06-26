@@ -7,6 +7,9 @@ using SalesApp.Services;
 using SalesApp.Attributes;
 using SalesApp.Utils;
 using System.Security.Claims;
+using Microsoft.Extensions.DependencyInjection;
+using SalesApp.Data;
+
 
 namespace SalesApp.Controllers
 {
@@ -878,6 +881,315 @@ namespace SalesApp.Controllers
         }
         
     
+        [HttpGet("user/{userId}/migrate-preview")]
+        public async Task<ActionResult<ApiResponse<List<ContractMigrationPreviewItem>>>> GetMigrationPreview(Guid userId)
+        {
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var currentUserId = GetCurrentUserId();
+            var currentUserRole = GetCurrentUserRole();
+
+            var isSuperAdmin = User.HasClaim("perm", "system:superadmin") || currentUserRole == UserRole.SuperAdmin;
+            var isAdmin = roleIdClaim == "2" || currentUserRole == UserRole.Admin;
+
+            if (!isSuperAdmin && !isAdmin)
+            {
+                return Forbid();
+            }
+
+            var childUser = await _userRepository.GetByIdAsync(userId);
+            if (childUser == null)
+            {
+                return NotFound(new ApiResponse<List<ContractMigrationPreviewItem>>
+                {
+                    Success = false,
+                    Message = "User not found"
+                });
+            }
+
+            if (isAdmin && childUser.ParentUserId != currentUserId)
+            {
+                return Forbid();
+            }
+
+            if (!childUser.ParentUserId.HasValue)
+            {
+                return BadRequest(new ApiResponse<List<ContractMigrationPreviewItem>>
+                {
+                    Success = false,
+                    Message = "User does not have a parent user to migrate contracts to."
+                });
+            }
+
+            var parentUserId = childUser.ParentUserId.Value;
+            var parentUser = await _userRepository.GetByIdAsync(parentUserId);
+            if (parentUser == null)
+            {
+                return BadRequest(new ApiResponse<List<ContractMigrationPreviewItem>>
+                {
+                    Success = false,
+                    Message = "Parent user not found."
+                });
+            }
+
+            var parentUserMatriculas = await _userMatriculaRepository.GetByUserIdAsync(parentUserId);
+            var parentActiveOwnedMatriculas = parentUserMatriculas
+                .Where(um => um.IsOwner && um.IsActive && (um.EndDate == null || um.EndDate > DateTime.UtcNow))
+                .ToList();
+
+            if (!parentActiveOwnedMatriculas.Any())
+            {
+                return BadRequest(new ApiResponse<List<ContractMigrationPreviewItem>>
+                {
+                    Success = false,
+                    Message = "Parent user does not have any active owned matricula."
+                });
+            }
+
+            var contracts = await _contractRepository.GetContractsForMigrationAsync(userId);
+            var previewItems = new List<ContractMigrationPreviewItem>();
+
+            foreach (var contract in contracts)
+            {
+                var currentMatriculaNumber = contract.Matricula?.MatriculaNumber ?? contract.TempMatricula ?? string.Empty;
+
+                if (parentActiveOwnedMatriculas.Count == 1)
+                {
+                    var parentMatricula = parentActiveOwnedMatriculas[0];
+                    previewItems.Add(new ContractMigrationPreviewItem
+                    {
+                        ContractId = contract.Id,
+                        ContractNumber = contract.ContractNumber,
+                        TotalAmount = contract.TotalAmount,
+                        Status = contract.ContractStatus?.Name ?? string.Empty,
+                        CurrentMatriculaId = contract.MatriculaId,
+                        CurrentMatriculaNumber = currentMatriculaNumber,
+                        TargetMatriculaId = parentMatricula.MatriculaId,
+                        TargetMatriculaNumber = parentMatricula.Matricula?.MatriculaNumber ?? string.Empty,
+                        IsAutoSelected = true
+                    });
+                }
+                else
+                {
+                    // Check if there is a match by matricula number
+                    var matchingMatricula = parentActiveOwnedMatriculas
+                        .FirstOrDefault(um => string.Equals(um.Matricula?.MatriculaNumber, currentMatriculaNumber, StringComparison.OrdinalIgnoreCase));
+
+                    if (matchingMatricula != null)
+                    {
+                        // Add the matching one as auto-selected
+                        previewItems.Add(new ContractMigrationPreviewItem
+                        {
+                            ContractId = contract.Id,
+                            ContractNumber = contract.ContractNumber,
+                            TotalAmount = contract.TotalAmount,
+                            Status = contract.ContractStatus?.Name ?? string.Empty,
+                            CurrentMatriculaId = contract.MatriculaId,
+                            CurrentMatriculaNumber = currentMatriculaNumber,
+                            TargetMatriculaId = matchingMatricula.MatriculaId,
+                            TargetMatriculaNumber = matchingMatricula.Matricula?.MatriculaNumber ?? string.Empty,
+                            IsAutoSelected = true
+                        });
+
+                        // Add the rest as not auto-selected
+                        foreach (var otherMatricula in parentActiveOwnedMatriculas.Where(um => um.MatriculaId != matchingMatricula.MatriculaId))
+                        {
+                            previewItems.Add(new ContractMigrationPreviewItem
+                            {
+                                ContractId = contract.Id,
+                                ContractNumber = contract.ContractNumber,
+                                TotalAmount = contract.TotalAmount,
+                                Status = contract.ContractStatus?.Name ?? string.Empty,
+                                CurrentMatriculaId = contract.MatriculaId,
+                                CurrentMatriculaNumber = currentMatriculaNumber,
+                                TargetMatriculaId = otherMatricula.MatriculaId,
+                                TargetMatriculaNumber = otherMatricula.Matricula?.MatriculaNumber ?? string.Empty,
+                                IsAutoSelected = false
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // No match by number, show all of them with IsAutoSelected = false
+                        foreach (var matricula in parentActiveOwnedMatriculas)
+                        {
+                            previewItems.Add(new ContractMigrationPreviewItem
+                            {
+                                ContractId = contract.Id,
+                                ContractNumber = contract.ContractNumber,
+                                TotalAmount = contract.TotalAmount,
+                                Status = contract.ContractStatus?.Name ?? string.Empty,
+                                CurrentMatriculaId = contract.MatriculaId,
+                                CurrentMatriculaNumber = currentMatriculaNumber,
+                                TargetMatriculaId = matricula.MatriculaId,
+                                TargetMatriculaNumber = matricula.Matricula?.MatriculaNumber ?? string.Empty,
+                                IsAutoSelected = false
+                            });
+                        }
+                    }
+                }
+            }
+
+            return Ok(new ApiResponse<List<ContractMigrationPreviewItem>>
+            {
+                Success = true,
+                Data = previewItems,
+                Message = "Migration preview generated successfully."
+            });
+        }
+
+        [HttpPost("user/{userId}/migrate")]
+        public async Task<ActionResult<ApiResponse<ContractMigrationResult>>> MigrateContracts(Guid userId, [FromBody] ContractMigrationRequest request)
+        {
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var currentUserId = GetCurrentUserId();
+            var currentUserRole = GetCurrentUserRole();
+
+            var isSuperAdmin = User.HasClaim("perm", "system:superadmin") || currentUserRole == UserRole.SuperAdmin;
+            var isAdmin = roleIdClaim == "2" || currentUserRole == UserRole.Admin;
+
+            if (!isSuperAdmin && !isAdmin)
+            {
+                return Forbid();
+            }
+
+            var childUser = await _userRepository.GetByIdAsync(userId);
+            if (childUser == null)
+            {
+                return NotFound(new ApiResponse<ContractMigrationResult>
+                {
+                    Success = false,
+                    Message = "User not found"
+                });
+            }
+
+            if (isAdmin && childUser.ParentUserId != currentUserId)
+            {
+                return Forbid();
+            }
+
+            if (!childUser.ParentUserId.HasValue)
+            {
+                return BadRequest(new ApiResponse<ContractMigrationResult>
+                {
+                    Success = false,
+                    Message = "User does not have a parent user to migrate contracts to."
+                });
+            }
+
+            var parentUserId = childUser.ParentUserId.Value;
+            var parentUser = await _userRepository.GetByIdAsync(parentUserId);
+            if (parentUser == null)
+            {
+                return BadRequest(new ApiResponse<ContractMigrationResult>
+                {
+                    Success = false,
+                    Message = "Parent user not found."
+                });
+            }
+
+            var parentUserMatriculas = await _userMatriculaRepository.GetByUserIdAsync(parentUserId);
+            var parentActiveOwnedMatriculas = parentUserMatriculas
+                .Where(um => um.IsOwner && um.IsActive && (um.EndDate == null || um.EndDate > DateTime.UtcNow))
+                .ToList();
+
+            if (!parentActiveOwnedMatriculas.Any())
+            {
+                return BadRequest(new ApiResponse<ContractMigrationResult>
+                {
+                    Success = false,
+                    Message = "Parent user does not have any active owned matricula."
+                });
+            }
+
+            var contracts = await _contractRepository.GetContractsForMigrationAsync(userId);
+            if (!contracts.Any())
+            {
+                return Ok(new ApiResponse<ContractMigrationResult>
+                {
+                    Success = true,
+                    Data = new ContractMigrationResult { MigratedCount = 0 },
+                    Message = "No contracts found to migrate."
+                });
+            }
+
+            var context = HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+            using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                foreach (var contract in contracts)
+                {
+                    int targetMatriculaId = 0;
+
+                    if (parentActiveOwnedMatriculas.Count == 1)
+                    {
+                        targetMatriculaId = parentActiveOwnedMatriculas[0].MatriculaId;
+                    }
+                    else
+                    {
+                        // Check if a mapping was supplied in the request body
+                        var mapping = request?.Mappings?.FirstOrDefault(m => m.ContractId == contract.Id);
+                        if (mapping != null)
+                        {
+                            // Verify the mapped matricula belongs to parent
+                            if (!parentActiveOwnedMatriculas.Any(um => um.MatriculaId == mapping.TargetMatriculaId))
+                            {
+                                return BadRequest(new ApiResponse<ContractMigrationResult>
+                                {
+                                    Success = false,
+                                    Message = $"Specified target matricula {mapping.TargetMatriculaId} for contract {contract.ContractNumber} is not active and owned by parent user."
+                                });
+                            }
+                            targetMatriculaId = mapping.TargetMatriculaId;
+                        }
+                        else
+                        {
+                            // Try to match by number
+                            var currentMatriculaNumber = contract.Matricula?.MatriculaNumber ?? contract.TempMatricula ?? string.Empty;
+                            var matchingMatricula = parentActiveOwnedMatriculas
+                                .FirstOrDefault(um => string.Equals(um.Matricula?.MatriculaNumber, currentMatriculaNumber, StringComparison.OrdinalIgnoreCase));
+
+                            if (matchingMatricula != null)
+                            {
+                                targetMatriculaId = matchingMatricula.MatriculaId;
+                            }
+                            else
+                            {
+                                return BadRequest(new ApiResponse<ContractMigrationResult>
+                                {
+                                    Success = false,
+                                    Message = $"Ambiguous matricula selection for contract {contract.ContractNumber}. Parent user has multiple owned matriculas. Please specify the target matricula mapping."
+                                });
+                            }
+                        }
+                    }
+
+                    contract.UserInternalId = parentUser.InternalId;
+                    contract.MatriculaId = targetMatriculaId;
+
+                    await _contractRepository.UpdateAsync(contract);
+                }
+
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(new ApiResponse<ContractMigrationResult>
+                {
+                    Success = false,
+                    Message = $"An error occurred during contract migration: {ex.Message}"
+                });
+            }
+
+            return Ok(new ApiResponse<ContractMigrationResult>
+            {
+                Success = true,
+                Data = new ContractMigrationResult { MigratedCount = contracts.Count },
+                Message = "Contracts migrated successfully."
+            });
+        }
+
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

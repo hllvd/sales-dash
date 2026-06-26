@@ -74,6 +74,23 @@ export interface User {
   metadataGroups?: UserMetadataGroup[]
 }
 
+export interface ContractMigrationPreviewItem {
+  contractId: number
+  contractNumber: string
+  totalAmount: number
+  status: string
+  currentMatriculaId?: number
+  currentMatriculaNumber: string
+  targetMatriculaId: number
+  targetMatriculaNumber: string
+  isAutoSelected: boolean
+}
+
+export interface ContractMigrationResult {
+  migratedCount: number
+}
+
+
 export interface UserStats {
   pendingContractsCount: number
   totalProduction: number
@@ -273,6 +290,37 @@ export const apiService = {
 
     return response.json()
   },
+
+  async getMigrationPreview(userId: string): Promise<ApiResponse<ContractMigrationPreviewItem[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/contracts/user/${userId}/migrate-preview`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to get migration preview"))
+    }
+
+    return response.json()
+  },
+
+  async migrateContracts(
+    userId: string,
+    mappings?: { contractId: number; targetMatriculaId: number }[]
+  ): Promise<ApiResponse<ContractMigrationResult>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/contracts/user/${userId}/migrate`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ mappings: mappings || null }),
+    })
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to migrate contracts"))
+    }
+
+    return response.json()
+  },
+
 
   async batchUpdateParent(
     requestData: BatchUpdateParentRequest
