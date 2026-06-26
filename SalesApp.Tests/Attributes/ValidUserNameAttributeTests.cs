@@ -21,6 +21,9 @@ namespace SalesApp.Tests.Attributes
         [InlineData("François Müller")]
         [InlineData("Anne-Marie")]
         [InlineData("D'Angelo")]
+        [InlineData("John/Jane")]
+        [InlineData("John & Jane")]
+        [InlineData("Julio Mota - Admin")]
         public void IsValid_ValidName_ReturnsSuccess(string name)
         {
             // Arrange
@@ -51,7 +54,7 @@ namespace SalesApp.Tests.Attributes
             // Assert
             Assert.NotNull(result);
             Assert.NotEqual(ValidationResult.Success, result);
-            Assert.Contains("só pode conter letras, espaços, hífens, apóstrofos e acentuação", result.ErrorMessage);
+            Assert.Contains("só pode conter letras, espaços, hífens, apóstrofos, acentuação, barras e e-comercial", result.ErrorMessage);
         }
 
         [Fact]
