@@ -112,8 +112,12 @@ test.describe('Contracts Filtering', () => {
     await page.fill('input#filterStartDate', '2025-10-15');
     await startDatePromise;
 
-    // Check if table has exactly 12 rows (6 from Oct 15, 2 from Oct 16, 3 from Oct 17, 1 from Oct 21)
-    await expect(page.locator('table tbody tr')).toHaveCount(12, { timeout: 15000 });
+    // Check if table has at least 12 rows (6 from Oct 15, 2 from Oct 16, 3 from Oct 17, 1 from Oct 21 + any dynamically created by other tests)
+    await expect.poll(async () => {
+      return await page.locator('table tbody tr').count();
+    }, {
+      timeout: 15000,
+    }).toBeGreaterThanOrEqual(12);
   });
 
   test('admin Carlos Mendes should see his child Julio Mota contracts', async ({ page }) => {

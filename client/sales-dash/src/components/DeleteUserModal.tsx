@@ -42,11 +42,18 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
           if (response.success && response.data) {
             setPreviewItems(response.data)
           } else {
-            setPreviewError(response.message || "Falha ao obter dados de migração.")
+            let msg = response.message || "Falha ao obter dados de migração."
+            if (msg.includes("Parent user does not have any active owned matricula")) {
+              msg = "O usuário superior não possui nenhuma matrícula ativa sob sua titularidade."
+            }
+            setPreviewError(msg)
           }
         })
         .catch((err: any) => {
-          const msg = err.message || ""
+          let msg = err.message || ""
+          if (msg.includes("Parent user does not have any active owned matricula")) {
+            msg = "O usuário superior não possui nenhuma matrícula ativa sob sua titularidade."
+          }
           if (msg.includes("No contracts found") || msg.includes("não possui contratos") || msg.includes("no contracts")) {
             setPreviewItems([])
           } else {
@@ -102,7 +109,11 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
     try {
       const migrateResponse = await apiService.migrateContracts(user.id)
       if (!migrateResponse.success) {
-        toast.error(migrateResponse.message || "Falha ao migrar contratos.")
+        let msg = migrateResponse.message || "Falha ao migrar contratos."
+        if (msg.includes("Parent user does not have any active owned matricula")) {
+          msg = "O usuário superior não possui nenhuma matrícula ativa sob sua titularidade."
+        }
+        toast.error(msg)
         setLoading(false)
         return
       }
@@ -122,7 +133,11 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
         )
       }
     } catch (err: any) {
-      toast.error(err.message || "Erro ao realizar o processo de migração e exclusão.")
+      let msg = err.message || "Erro ao realizar o processo de migração e exclusão."
+      if (msg.includes("Parent user does not have any active owned matricula")) {
+        msg = "O usuário superior não possui nenhuma matrícula ativa sob sua titularidade."
+      }
+      toast.error(msg)
     } finally {
       setLoading(false)
     }

@@ -76,7 +76,8 @@ export default defineConfig({
         'pending_contract_claims.spec.ts',
         'user_metadata.spec.ts',
         'admin_registration.spec.ts',
-        'admin_permissions.spec.ts'
+        'admin_permissions.spec.ts',
+        'delete_user_migration.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']

@@ -1,0 +1,3 @@
+Name,Email,ParentEmail,Matricula
+Superior E2E 5122,superior.e2e.5122@test.com,,MAT-SUP-5122
+Subordinado E2E 5122,subordinado.e2e.5122@test.com,superior.e2e.5122@test.com,MAT-SUB-5122
