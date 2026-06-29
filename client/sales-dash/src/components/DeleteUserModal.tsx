@@ -23,13 +23,23 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [previewItems, setPreviewItems] = useState<ContractMigrationPreviewItem[]>([])
   const [migrateChecked, setMigrateChecked] = useState(true)
+  const [currentUserRole, setCurrentUserRole] = useState<string>("")
 
   const hasParent = !!user?.parentUserId
   const parentName = user?.parentUserName || ""
   const hasContracts = previewItems.length > 0
 
   useEffect(() => {
-    if (isOpen && user && hasParent) {
+    if (isOpen) {
+      const cachedUser = JSON.parse(localStorage.getItem("user") || "{}")
+      setCurrentUserRole(cachedUser.role || "")
+    } else {
+      setCurrentUserRole("")
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (isOpen && user && hasParent && currentUserRole && currentUserRole !== "admin") {
       setStep(1)
       setMigrateChecked(true)
       setPreviewItems([])
@@ -70,7 +80,7 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
       setPreviewError(null)
       setLoadingPreview(false)
     }
-  }, [isOpen, user, hasParent])
+  }, [isOpen, user, hasParent, currentUserRole])
 
   if (!user) return null
 
@@ -152,6 +162,17 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   }
 
   const renderContent = () => {
+    if (currentUserRole === "admin") {
+      const superiorText = parentName ? `"${parentName}"` : "superior";
+      return (
+        <Alert color="red" title="Atenção" style={{ marginTop: "8px" }}>
+          <Text size="sm">
+            Você não pode fazer isso. Para excluir e migrar os contratos deste usuário para o usuário superior {superiorText}, entre em contato com um superadmin.
+          </Text>
+        </Alert>
+      )
+    }
+
     if (loadingPreview) {
       return (
         <Group justify="center" p="xl">
@@ -236,6 +257,14 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   }
 
   const renderFooter = () => {
+    if (currentUserRole === "admin") {
+      return (
+        <Button variant="default" onClick={onClose}>
+          Fechar
+        </Button>
+      )
+    }
+
     if (loadingPreview) return null
 
     if (step === 1) {
@@ -271,7 +300,13 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
     <StandardModal
       isOpen={isOpen}
       onClose={onClose}
-      title={step === 1 ? "Confirmar Exclusão" : "Prévia da Migração de Contratos"}
+      title={
+        currentUserRole === "admin"
+          ? "Ação Não Permitida"
+          : step === 1
+          ? "Confirmar Exclusão"
+          : "Prévia da Migração de Contratos"
+      }
       size="md"
       footer={renderFooter()}
     >

@@ -157,4 +157,48 @@ test.describe('Delete User with Contract Migration E2E Flow', () => {
     // Verify parent user becomes Inactive
     await expect(parentRow.getByText('Inativo')).toBeVisible({ timeout: 15000 });
   });
+
+  test('admin should see restriction message when trying to delete a user', async ({ page }) => {
+    test.setTimeout(45000);
+
+    // 1. Login as Admin Carlos Mendes
+    await page.goto('/');
+    await page.fill('input[type="email"]', 'carlosmendes@example.com');
+    await page.fill('input[type="password"]', '123456');
+    await page.click('button.login-button');
+
+    // Wait for landing page to load
+    await expect(page.locator('.mantine-AppShell-navbar')).toBeVisible({ timeout: 15000 });
+
+    // 2. Go to Users page
+    await page.click('a[href="#/users"]');
+    await expect(page.getByRole('heading', { name: 'Gerenciamento de Usuários' })).toBeVisible();
+
+    // 3. Find Julio Mota
+    await page.fill('input[placeholder="Buscar por nome ou email..."]', 'juliomota@example.com');
+    await page.waitForTimeout(1000); // Wait for debounce
+
+    const childRow = page.locator('table tbody tr').filter({ hasText: 'juliomota@example.com' });
+    await expect(childRow).toBeVisible({ timeout: 10000 });
+
+    // 4. Click Excluir
+    await childRow.locator('button[title="Excluir"]').click();
+
+    // 5. Verify the Portuguese restriction warning
+    const deleteDialog = page.getByRole('dialog');
+    await expect(deleteDialog).toBeVisible();
+    await expect(deleteDialog.getByText('Ação Não Permitida')).toBeVisible();
+    await expect(deleteDialog.getByText('Você não pode fazer isso. Para excluir e migrar os contratos deste usuário para o usuário superior')).toBeVisible();
+
+    // 6. Verify only Fechar button is available (no Continuar/Excluir/Executar)
+    const fecharButton = deleteDialog.getByRole('button', { name: 'Fechar' });
+    await expect(fecharButton).toBeVisible();
+    await expect(deleteDialog.getByRole('button', { name: 'Continuar' })).not.toBeVisible();
+    await expect(deleteDialog.getByRole('button', { name: 'Excluir' })).not.toBeVisible();
+    await expect(deleteDialog.getByRole('button', { name: 'Executar' })).not.toBeVisible();
+
+    // 7. Click Fechar and verify dialog is closed
+    await fecharButton.click();
+    await expect(deleteDialog).not.toBeVisible();
+  });
 });
