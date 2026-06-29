@@ -941,7 +941,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<List<ContractMigrationPreviewItem>>
                 {
                     Success = false,
-                    Message = "Parent user does not have any active owned matricula."
+                    Message = "O usuário superior não possui nenhuma matrícula ativa sob sua titularidade."
                 });
             }
 
@@ -1097,7 +1097,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<ContractMigrationResult>
                 {
                     Success = false,
-                    Message = "Parent user does not have any active owned matricula."
+                    Message = "O usuário superior não possui nenhuma matrícula ativa sob sua titularidade."
                 });
             }
 

@@ -375,7 +375,7 @@ namespace SalesApp.IntegrationTests.Contracts
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractMigrationResult>>();
             result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("does not have any active owned matricula");
+            result.Message.Should().Contain("não possui nenhuma matrícula ativa sob sua titularidade");
         }
 
         [Fact]

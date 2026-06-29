@@ -48,6 +48,20 @@ Always clear `localStorage` and reset date/text filters in `test.beforeEach` or 
 #### 3. Unique Identifiers
 Always append a timestamp or random suffix to test-generated entities (Contracts, Users, Matriculas) to ensure parallel workers never collide on the same database keys.
 
+#### 4. Assertions on Shared/Global Datasets (Idempotency)
+When asserting the count of records returned by a filter or search (e.g., date ranges, status filters, or user-scoped lists), **DO NOT** assert an exact count like `toHaveCount(X)` if other tests might create matching records during the suite execution. 
+Since the test suite runs a second time without flushing the database (`Run 2 — Idempotency Check`), any records created by earlier tests will still exist.
+Instead, use `expect.poll` with `toBeGreaterThanOrEqual(X)` to ensure the assertion is resilient to additional test-generated data.
+
+Example:
+```typescript
+await expect.poll(async () => {
+  return await page.locator('table tbody tr').count();
+}, {
+  timeout: 15000,
+}).toBeGreaterThanOrEqual(12);
+```
+
 Field Pre-Validation Pattern (e.g., Status):
 
 Backend: New POST /validate-{field} reads 50 rows from ImportRows and applies mapping logic.
