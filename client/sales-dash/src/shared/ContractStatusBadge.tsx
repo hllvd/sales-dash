@@ -1,5 +1,5 @@
 import React from 'react';
-import { Badge } from '@mantine/core';
+import { Badge, Tooltip } from '@mantine/core';
 
 interface ContractStatusBadgeProps {
   status: string;
@@ -23,6 +23,8 @@ export const getStatusLabel = (status: string): string => {
       return 'Quitado';
     case 'delinquent':
       return 'Inadimplente';
+    case 'awaitingpayment':
+      return 'Aguardando Pagamento';
     default:
       return status;
   }
@@ -47,6 +49,8 @@ export const getStatusColor = (status: string): string => {
       return 'blue';
     case 'paid_off':
       return 'teal';
+    case 'awaitingpayment':
+      return 'orange';
     default:
       return 'gray';
   }
@@ -61,18 +65,35 @@ export const CONTRACT_STATUS_OPTIONS = [
   { value: 'Defaulted', label: 'Cancelado' },
   { value: 'Transferred', label: 'Transferido' },
   { value: 'PaidOff', label: 'Quitado' },
+  { value: 'AwaitingPayment', label: 'Aguardando Pagamento' },
 ];
 
 const ContractStatusBadge: React.FC<ContractStatusBadgeProps> = ({ status }) => {
-  return (
+  const isAwaitingPayment = status.toLowerCase() === 'awaitingpayment';
+  
+  const badgeElement = (
     <Badge 
       color={getStatusColor(status)}
-      title={getStatusLabel(status)}
+      title={isAwaitingPayment ? undefined : getStatusLabel(status)}
       style={{ cursor: 'help' }}
     >
       {getStatusLabel(status)}
     </Badge>
   );
+
+  if (isAwaitingPayment) {
+    return (
+      <Tooltip 
+        label="Este contrato não é utilizado para calcular qualquer retenção ou somar ao total" 
+        withArrow 
+        position="top"
+      >
+        {badgeElement}
+      </Tooltip>
+    );
+  }
+
+  return badgeElement;
 };
 
 export default ContractStatusBadge;

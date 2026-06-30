@@ -15,7 +15,9 @@ namespace SalesApp.Attributes
             ContractStatus.Late1.ToApiString(), 
             ContractStatus.Late2.ToApiString(), 
             ContractStatus.Late3.ToApiString(), 
-            ContractStatus.Defaulted.ToApiString() 
+            ContractStatus.Defaulted.ToApiString(),
+            ContractStatus.Transferred.ToApiString(),
+            ContractStatus.AwaitingPayment.ToApiString()
         };
 
         protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)

@@ -539,16 +539,20 @@ namespace SalesApp.ReportFilters.Services
                         g => g.Key,
                         g =>
                         {
-                            var total = g.Sum(c => c.TotalAmount);
+                            var total = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
                             var activeSum = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase)
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
                             
                             var strictActiveSum = g
                                 .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase)
                                          && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late1.ToApiString(), StringComparison.OrdinalIgnoreCase)
                                          && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late2.ToApiString(), StringComparison.OrdinalIgnoreCase)
-                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late3.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late3.ToApiString(), StringComparison.OrdinalIgnoreCase)
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
 
                             return new
@@ -588,12 +592,18 @@ namespace SalesApp.ReportFilters.Services
                         g => g.Key,
                         g =>
                         {
-                            var total = g.Sum(c => c.TotalAmount);
+                            var total = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
                             if (total <= 0) return 0m;
                             var active = g
                                 .Where(c => !string.Equals(
                                     c.ContractStatus?.Name,
                                     ContractStatus.Defaulted.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.AwaitingPayment.ToApiString(),
                                     StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
                             return active / total;
@@ -605,7 +615,9 @@ namespace SalesApp.ReportFilters.Services
                         g => g.Key,
                         g =>
                         {
-                            var total = g.Sum(c => c.TotalAmount);
+                            var total = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
                             if (total <= 0) return 0m;
                             var strictActive = g
                                 .Where(c => !string.Equals(
@@ -623,6 +635,10 @@ namespace SalesApp.ReportFilters.Services
                                             !string.Equals(
                                     c.ContractStatus?.Name,
                                     ContractStatus.Late3.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.AwaitingPayment.ToApiString(),
                                     StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
                             return strictActive / total;
@@ -642,12 +658,18 @@ namespace SalesApp.ReportFilters.Services
                         g => g.Key,
                         g =>
                         {
-                            var total = g.Sum(c => c.TotalAmount);
+                            var total = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
                             if (total <= 0) return 0m;
                             var active = g
                                 .Where(c => !string.Equals(
                                     c.ContractStatus?.Name,
                                     ContractStatus.Defaulted.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.AwaitingPayment.ToApiString(),
                                     StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
                             return active / total;
@@ -659,7 +681,9 @@ namespace SalesApp.ReportFilters.Services
                         g => g.Key,
                         g =>
                         {
-                            var total = g.Sum(c => c.TotalAmount);
+                            var total = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
                             if (total <= 0) return 0m;
                             var strictActive = g
                                 .Where(c => !string.Equals(
@@ -677,6 +701,10 @@ namespace SalesApp.ReportFilters.Services
                                             !string.Equals(
                                     c.ContractStatus?.Name,
                                     ContractStatus.Late3.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.AwaitingPayment.ToApiString(),
                                     StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
                             return strictActive / total;
@@ -696,12 +724,18 @@ namespace SalesApp.ReportFilters.Services
                         g => g.Key,
                         g =>
                         {
-                            var total = g.Sum(c => c.TotalAmount);
+                            var total = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
                             if (total <= 0) return 0m;
                             var active = g
                                 .Where(c => !string.Equals(
                                     c.ContractStatus?.Name,
                                     ContractStatus.Defaulted.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.AwaitingPayment.ToApiString(),
                                     StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
                             return active / total;
@@ -713,7 +747,9 @@ namespace SalesApp.ReportFilters.Services
                         g => g.Key,
                         g =>
                         {
-                            var total = g.Sum(c => c.TotalAmount);
+                            var total = g
+                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Sum(c => c.TotalAmount);
                             if (total <= 0) return 0m;
                             var strictActive = g
                                 .Where(c => !string.Equals(
@@ -731,6 +767,10 @@ namespace SalesApp.ReportFilters.Services
                                             !string.Equals(
                                     c.ContractStatus?.Name,
                                     ContractStatus.Late3.ToApiString(),
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(
+                                    c.ContractStatus?.Name,
+                                    ContractStatus.AwaitingPayment.ToApiString(),
                                     StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
                             return strictActive / total;

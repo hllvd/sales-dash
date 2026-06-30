@@ -1068,7 +1068,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                       { value: 'Late2', label: 'Atraso 2' },
                       { value: 'Late3', label: 'Atraso 3' },
                       { value: 'Defaulted', label: 'Desistente/Excluído' },
-                      { value: 'Transferred', label: 'Transferido' }
+                      { value: 'Transferred', label: 'Transferido' },
+                      { value: 'AwaitingPayment', label: 'Aguardando Pagamento' }
                     ]}
                     value={statuses}
                     onChange={setStatuses}

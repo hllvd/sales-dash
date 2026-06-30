@@ -12,7 +12,8 @@ export enum ContractStatus {
   Defaulted = 'Defaulted',
   Delinquent = 'Delinquent',
   Transferred = 'Transferred',
-  PaidOff = 'PaidOff'
+  PaidOff = 'PaidOff',
+  AwaitingPayment = 'AwaitingPayment'
 }
 
 // TypeScript Interfaces

@@ -24,6 +24,11 @@ namespace SalesApp.Services
                 new { Total = 0m, Cancel = 0m, Active = 0m, Late = 0m },
                 (acc, c) =>
                 {
+                    if (c.ContractStatus.Name.Equals(ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        return acc;
+                    }
+
                     var total = acc.Total + c.TotalAmount;
                     var cancel = acc.Cancel;
                     var active = acc.Active;

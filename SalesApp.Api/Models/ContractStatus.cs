@@ -33,7 +33,12 @@ namespace SalesApp.Models
         /// <summary>
         /// Transferred to another unit or entity
         /// </summary>
-        Transferred
+        Transferred,
+
+        /// <summary>
+        /// Awaiting initial payment
+        /// </summary>
+        AwaitingPayment
     }
 
     /// <summary>
@@ -65,7 +70,8 @@ namespace SalesApp.Models
                 "Late3" or "late3" => ContractStatus.Late3,
                 "Defaulted" or "defaulted" => ContractStatus.Defaulted,
                 "Transferred" or "transferred" => ContractStatus.Transferred,
-                _ => throw new ArgumentException($"Invalid contract status: {value}. Valid values are: Active, Late1, Late2, Late3, Defaulted, Transferred")
+                "AwaitingPayment" or "awaitingpayment" => ContractStatus.AwaitingPayment,
+                _ => throw new ArgumentException($"Invalid contract status: {value}. Valid values are: Active, Late1, Late2, Late3, Defaulted, Transferred, AwaitingPayment")
             };
         }
 

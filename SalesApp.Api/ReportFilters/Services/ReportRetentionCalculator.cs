@@ -24,7 +24,9 @@ namespace SalesApp.ReportFilters.Services
                 return 0m;
             }
 
-            var totalAmount = contracts.Sum(c => c.TotalAmount);
+            var totalAmount = contracts
+                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                .Sum(c => c.TotalAmount);
             if (totalAmount <= 0m)
             {
                 return 0m;
@@ -51,6 +53,10 @@ namespace SalesApp.ReportFilters.Services
                                 !string.Equals(
                         c.ContractStatus?.Name,
                         ContractStatus.Late3.ToApiString(),
+                        StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(
+                        c.ContractStatus?.Name,
+                        ContractStatus.AwaitingPayment.ToApiString(),
                         StringComparison.OrdinalIgnoreCase))
                     .Sum(c => c.TotalAmount);
             }
@@ -60,6 +66,10 @@ namespace SalesApp.ReportFilters.Services
                     .Where(c => !string.Equals(
                         c.ContractStatus?.Name,
                         ContractStatus.Defaulted.ToApiString(),
+                        StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(
+                        c.ContractStatus?.Name,
+                        ContractStatus.AwaitingPayment.ToApiString(),
                         StringComparison.OrdinalIgnoreCase))
                     .Sum(c => c.TotalAmount);
             }

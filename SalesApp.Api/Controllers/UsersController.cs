@@ -899,18 +899,22 @@ namespace SalesApp.Controllers
                 .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente")
                 .ToListAsync();
             
-            decimal totalProduction = userContracts.Sum(c => c.TotalAmount);
+            decimal totalProduction = userContracts
+                .Where(c => !c.ContractStatus.Name.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase))
+                .Sum(c => c.TotalAmount);
             
             // Calculate active vs total for retention
             decimal activeAmount = userContracts
-                .Where(c => !c.ContractStatus.Name.Equals("Defaulted", StringComparison.OrdinalIgnoreCase))
+                .Where(c => !c.ContractStatus.Name.Equals("Defaulted", StringComparison.OrdinalIgnoreCase) &&
+                            !c.ContractStatus.Name.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase))
                 .Sum(c => c.TotalAmount);
 
             decimal strictActiveAmount = userContracts
                 .Where(c => !c.ContractStatus.Name.Equals("Defaulted", StringComparison.OrdinalIgnoreCase) &&
                             !c.ContractStatus.Name.Equals("Late1", StringComparison.OrdinalIgnoreCase) &&
                             !c.ContractStatus.Name.Equals("Late2", StringComparison.OrdinalIgnoreCase) &&
-                            !c.ContractStatus.Name.Equals("Late3", StringComparison.OrdinalIgnoreCase))
+                            !c.ContractStatus.Name.Equals("Late3", StringComparison.OrdinalIgnoreCase) &&
+                            !c.ContractStatus.Name.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase))
                 .Sum(c => c.TotalAmount);
                 
             decimal totalRetention = totalProduction > 0 ? (activeAmount / totalProduction) * 100 : 0m;

@@ -190,11 +190,17 @@ namespace SalesApp.Repositories
             var late1Name = ContractStatus.Late1.ToApiString();
             var late2Name = ContractStatus.Late2.ToApiString();
             var late3Name = ContractStatus.Late3.ToApiString();
+            var awaitingPaymentName = ContractStatus.AwaitingPayment.ToApiString();
 
             foreach (var g in groupings)
             {
                 var amount = g.TotalAmount;
                 var status = g.StatusName;
+
+                if (status.Equals(awaitingPaymentName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
 
                 total += amount;
 

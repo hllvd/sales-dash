@@ -108,7 +108,8 @@ namespace SalesApp.IntegrationTests
                     new SalesApp.Models.ContractStatusEntity { Id = 3, Name = "Late2" },
                     new SalesApp.Models.ContractStatusEntity { Id = 4, Name = "Late3" },
                     new SalesApp.Models.ContractStatusEntity { Id = 5, Name = "Defaulted" },
-                    new SalesApp.Models.ContractStatusEntity { Id = 6, Name = "Transferred" }
+                    new SalesApp.Models.ContractStatusEntity { Id = 6, Name = "Transferred" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 7, Name = "AwaitingPayment" }
                 };
                 context.ContractStatuses.AddRange(statuses);
                 await context.SaveChangesAsync();
@@ -314,7 +315,9 @@ namespace SalesApp.IntegrationTests
                     new SalesApp.Models.ContractStatusEntity { Id = 2, Name = "Late1" },
                     new SalesApp.Models.ContractStatusEntity { Id = 3, Name = "Late2" },
                     new SalesApp.Models.ContractStatusEntity { Id = 4, Name = "Late3" },
-                    new SalesApp.Models.ContractStatusEntity { Id = 5, Name = "Defaulted" }
+                    new SalesApp.Models.ContractStatusEntity { Id = 5, Name = "Defaulted" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 6, Name = "Transferred" },
+                    new SalesApp.Models.ContractStatusEntity { Id = 7, Name = "AwaitingPayment" }
                 };
                 context.ContractStatuses.AddRange(statuses);
                 await context.SaveChangesAsync();
