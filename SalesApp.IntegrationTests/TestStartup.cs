@@ -65,6 +65,11 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IWizardService, WizardService>();
             services.AddScoped<IWizardHeaderValidator, WizardHeaderValidator>();
             services.AddScoped<IContractStatusService, ContractStatusService>();
+
+            // Monitoring & Notifications
+            services.AddScoped<IMonitoringRepository, MonitoringRepository>();
+            services.AddScoped<IMonitoringService, MonitoringService>();
+            services.AddSingleton<INotificationService, LoggingNotificationService>();
             
             // Classification feature repositories
             services.AddScoped<IClassificationLevelRepository, ClassificationLevelRepository>();

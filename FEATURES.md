@@ -38,3 +38,16 @@ We have a UI for testing features, such as email sending.
 - **Key Capabilities**:
   - **Email Service Test**: Input a user email to trigger the `forgot-password` recovery flow, validating that SMTP/SES connectivity and email templates are working correctly without requiring backend code changes or new test endpoints.
 
+## Saúde das Matrículas Tabs (Monitoring)
+
+This feature structures the matricula health monitoring interface into tabs for easier navigation, grouping, and administrative insight.
+
+### Core Objectives
+Improve visibility over matricula data freshness by allowing grouping by team and tracking administrative update activities.
+
+### Key Capabilities
+- **Matrículas Tab**: The baseline view displaying all matriculas, their total active contract volume, last update, and status based on age.
+- **Equipes Tab**: Displays distinct matriculas grouped by active team membership. Employs lazy Mantine Accordion panels to render high counts efficiently. Teams with no active matriculas are hidden. Group headers show the worst health status of any matricula in that team.
+- **Admins Tab**: Tracks administrative actions. Displays all admin users, their total successful imports count, and their last upload timestamp derived from completed `ImportSessions` for the `contractDashboard` template.
+
+

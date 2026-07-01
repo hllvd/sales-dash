@@ -21,7 +21,9 @@ test.describe('Matricula Health Monitoring', () => {
 
     // Helper to verify matricula row content, freshness, and status
     async function verifyMatriculaRow(matricula: string, expectedCount: string) {
-      const row = page.locator('table tbody tr').filter({ hasText: matricula });
+      const row = page.locator('.matriculas-tab-container table tbody tr').filter({
+        has: page.locator('td').first().filter({ hasText: new RegExp(`^${matricula}$`) })
+      });
       await expect(row).toBeVisible({ timeout: 10000 });
 
       // Verify contract count

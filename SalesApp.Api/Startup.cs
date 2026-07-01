@@ -93,6 +93,11 @@ namespace SalesApp
             services.AddScoped<IWizardService, WizardService>();
             services.AddScoped<IWizardHeaderValidator, WizardHeaderValidator>();
             services.AddScoped<IPendingClaimService, PendingClaimService>();
+
+            // Monitoring & Notifications
+            services.AddScoped<IMonitoringRepository, MonitoringRepository>();
+            services.AddScoped<IMonitoringService, MonitoringService>();
+            services.AddSingleton<INotificationService, LoggingNotificationService>();
             services.AddScoped<IContractStatusService, ContractStatusService>();
             
             // Export service (singleton — holds in-memory export jobs)

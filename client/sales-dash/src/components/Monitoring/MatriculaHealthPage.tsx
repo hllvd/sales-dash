@@ -1,45 +1,71 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Title, 
-  Table, 
-  Badge, 
   Text, 
   Group, 
-  TextInput, 
   Paper, 
   ActionIcon, 
   Tooltip,
   Loader,
   Center,
   SimpleGrid,
-  NumberFormatter
+  NumberFormatter,
+  Tabs
 } from '@mantine/core';
-import { IconSearch, IconRefresh, IconActivity, IconAlertCircle, IconCheck, IconFileAnalytics, IconAlertTriangle, IconCircleX } from '@tabler/icons-react';
-import { getMatriculaHealth, MatriculaHealth } from '../../services/contractService';
+import { 
+  IconRefresh, 
+  IconActivity, 
+  IconFileAnalytics, 
+  IconAlertTriangle, 
+  IconCircleX,
+  IconUsers,
+  IconUserCheck
+} from '@tabler/icons-react';
+import { 
+  getMatriculaHealth, 
+  getEquipesHealth, 
+  getAdminImportStats,
+  MatriculaHealth, 
+  TeamMatriculaHealth, 
+  AdminImportStats 
+} from '../../services/contractService';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/pt-br';
 import Menu from '../Menu';
+import MatriculasTab from './MatriculasTab';
+import EquipesTab from './EquipesTab';
+import AdminsTab from './AdminsTab';
 import './MatriculaHealthPage.css';
 
 dayjs.extend(relativeTime);
 dayjs.locale('pt-br');
 
 const MatriculaHealthPage: React.FC = () => {
-  const [data, setData] = useState<MatriculaHealth[]>([]);
+  const [matriculasData, setMatriculasData] = useState<MatriculaHealth[]>([]);
+  const [equipesData, setEquipesData] = useState<TeamMatriculaHealth[]>([]);
+  const [adminsData, setAdminsData] = useState<AdminImportStats[]>([]);
+  
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<string | null>('matriculas');
 
   const fetchData = async (isManual = false) => {
     try {
       if (isManual) setRefreshing(true);
       else setLoading(true);
       
-      const healthData = await getMatriculaHealth();
-      setData(healthData);
+      const [healthData, teamsData, adminStats] = await Promise.all([
+        getMatriculaHealth(),
+        getEquipesHealth(),
+        getAdminImportStats()
+      ]);
+
+      setMatriculasData(healthData);
+      setEquipesData(teamsData);
+      setAdminsData(adminStats);
     } catch (error) {
-      console.error('Failed to fetch health data', error);
+      console.error('Failed to fetch monitoring data', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -50,51 +76,14 @@ const MatriculaHealthPage: React.FC = () => {
     fetchData();
   }, []);
 
-  const filteredData = data.filter(item => 
-    item.matricula.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Healthy':
-        return <Badge color="green" leftSection={<IconCheck size={12} />}>Normal</Badge>;
-      case 'Warning':
-        return <Badge color="yellow" leftSection={<IconAlertCircle size={12} />}>Requer Atenção</Badge>;
-      case 'OutOfDate':
-        return <Badge color="orange" leftSection={<IconAlertCircle size={12} />}>Atenção</Badge>;
-      case 'Danger':
-        return <Badge color="red" leftSection={<IconAlertCircle size={12} />}>Muito Importante</Badge>;
-      default:
-        return <Badge color="gray">{status}</Badge>;
-    }
-  };
-
   const stats = {
-    total: data.length,
-    healthy: data.filter(d => d.status === 'Healthy').length,
-    warning: data.filter(d => d.status === 'Warning').length,
-    outOfDate: data.filter(d => d.status === 'OutOfDate').length,
-    danger: data.filter(d => d.status === 'Danger').length,
-    totalContracts: data.reduce((acc, curr) => acc + curr.contractCount, 0)
+    total: matriculasData.length,
+    healthy: matriculasData.filter(d => d.status === 'Healthy').length,
+    warning: matriculasData.filter(d => d.status === 'Warning').length,
+    outOfDate: matriculasData.filter(d => d.status === 'OutOfDate').length,
+    danger: matriculasData.filter(d => d.status === 'Danger').length,
+    totalContracts: matriculasData.reduce((acc, curr) => acc + curr.contractCount, 0)
   };
-
-  const rows = filteredData.map((item) => (
-    <Table.Tr key={item.matricula}>
-      <Table.Td>
-        <Text fw={600}>{item.matricula}</Text>
-      </Table.Td>
-      <Table.Td>
-        <Text fw={600} size="sm">
-          <NumberFormatter value={item.contractCount} thousandSeparator="." decimalSeparator="," />
-        </Text>
-      </Table.Td>
-      <Table.Td>
-        <Text size="sm">{dayjs(item.lastUpdate).format('DD/MM/YYYY HH:mm')}</Text>
-        <Text size="xs" c="dimmed">{dayjs(item.lastUpdate).fromNow()}</Text>
-      </Table.Td>
-      <Table.Td>{getStatusBadge(item.status)}</Table.Td>
-    </Table.Tr>
-  ));
 
   return (
     <Menu>
@@ -104,7 +93,7 @@ const MatriculaHealthPage: React.FC = () => {
             <Title order={2} size="h2">Saúde das Matrículas</Title>
           </div>
           <Group className="monitoring-header-actions">
-            <Tooltip label="Atualizar dados">
+            <Tooltip label="Atualizar todos os dados">
               <ActionIcon 
                 variant="light" 
                 size="lg" 
@@ -158,44 +147,36 @@ const MatriculaHealthPage: React.FC = () => {
           </Paper>
         </SimpleGrid>
 
-        <div className="search-container">
-          <TextInput
-            placeholder="Pesquisar matrícula..."
-            leftSection={<IconSearch size={16} />}
-            value={search}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-            style={{ maxWidth: 400 }}
-          />
-        </div>
-
         {loading ? (
           <Center py="xl">
             <Loader size="lg" />
           </Center>
         ) : (
-          <div className="monitoring-table-container">
-            <Table.ScrollContainer minWidth={600}>
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Matrícula</Table.Th>
-                    <Table.Th>Qtd. Contratos</Table.Th>
-                    <Table.Th>Última Atualização</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {rows.length > 0 ? rows : (
-                    <Table.Tr>
-                      <Table.Td colSpan={4}>
-                        <Text c="dimmed" ta="center" py="xl">Nenhuma matrícula encontrada</Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  )}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          </div>
+          <Tabs value={activeTab} onChange={setActiveTab} variant="outline" defaultValue="matriculas">
+            <Tabs.List style={{ marginBottom: '1.5rem' }}>
+              <Tabs.Tab value="matriculas" leftSection={<IconActivity size={16} />}>
+                Matrículas
+              </Tabs.Tab>
+              <Tabs.Tab value="equipes" leftSection={<IconUsers size={16} />}>
+                Equipes
+              </Tabs.Tab>
+              <Tabs.Tab value="admins" leftSection={<IconUserCheck size={16} />}>
+                Admins
+              </Tabs.Tab>
+            </Tabs.List>
+
+            <Tabs.Panel value="matriculas">
+              <MatriculasTab data={matriculasData} />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="equipes">
+              <EquipesTab data={equipesData} />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="admins">
+              <AdminsTab data={adminsData} />
+            </Tabs.Panel>
+          </Tabs>
         )}
       </div>
     </Menu>

@@ -163,6 +163,52 @@ export const getMatriculaHealth = async (): Promise<MatriculaHealth[]> => {
   return result.data;
 };
 
+export interface TeamMatriculaHealth {
+  teamId: number;
+  teamName: string;
+  totalMatriculas: number;
+  worstStatus: 'Healthy' | 'Warning' | 'OutOfDate' | 'Danger';
+  matriculas: MatriculaHealth[];
+}
+
+export interface AdminImportStats {
+  userId: string;
+  userInternalId: number;
+  userName: string;
+  userEmail: string;
+  lastImportAt: string | null;
+  totalImports: number;
+}
+
+export const getEquipesHealth = async (): Promise<TeamMatriculaHealth[]> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/monitoring/equipes`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch equipes health data');
+  }
+
+  const result: ApiResponse<TeamMatriculaHealth[]> = await response.json();
+  return result.data;
+};
+
+export const getAdminImportStats = async (): Promise<AdminImportStats[]> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/monitoring/admins`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch admin import statistics');
+  }
+
+  const result: ApiResponse<AdminImportStats[]> = await response.json();
+  return result.data;
+};
+
+
 // Contract CRUD Operations
 export const getContracts = async (
   userId?: string,
