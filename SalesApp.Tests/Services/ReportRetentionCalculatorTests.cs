@@ -107,5 +107,22 @@ namespace SalesApp.Tests.Services
             // Assert
             result.Should().Be(1500m / 1700m);
         }
+
+        [Fact]
+        public void CalculateOverallRetention_WithTransferredStatus_ShouldTreatAsActive()
+        {
+            // Arrange
+            var contracts = new List<Contract>
+            {
+                new Contract { TotalAmount = 1000m, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { TotalAmount = 500m, ContractStatus = new ContractStatusEntity { Name = "Transferred" } },
+                // Standard active should be 1500, Strict active should be 1500
+                new Contract { TotalAmount = 200m, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } }
+            }; // Total = 1700
+
+            // Act & Assert
+            ReportRetentionCalculator.CalculateOverallRetention(contracts, "standard").Should().Be(1500m / 1700m);
+            ReportRetentionCalculator.CalculateOverallRetention(contracts, "strict").Should().Be(1500m / 1700m);
+        }
     }
 }
