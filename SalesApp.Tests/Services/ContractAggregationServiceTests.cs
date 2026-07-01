@@ -130,5 +130,28 @@ namespace SalesApp.Tests.Services
             // 1000000 / 1100001 ≈ 0.909
             result.Retention.Should().BeApproximately(0.909m, 0.001m);
         }
+
+        [Fact]
+        public void CalculateAggregation_WithTransferredStatus_ShouldTreatAsActive()
+        {
+            // Arrange
+            var contracts = new List<Contract>
+            {
+                new Contract { TotalAmount = 1000, ContractStatus = new ContractStatusEntity { Name = "Transferred" } },
+                new Contract { TotalAmount = 500, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { TotalAmount = 200, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } }
+            }; // Total = 1700, Active = 1500
+
+            // Act
+            var result = _service.CalculateAggregation(contracts);
+
+            // Assert
+            result.Total.Should().Be(1700);
+            result.TotalActive.Should().Be(1500);
+            result.TotalCancel.Should().Be(200);
+            result.TotalLate.Should().Be(0);
+            result.Retention.Should().Be(1500m / 1700m);
+            result.StrictRetention.Should().Be(1500m / 1700m);
+        }
     }
 }
