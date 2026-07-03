@@ -56,7 +56,5 @@ This collection of features allows administrators and users to customize their c
 
 ### Key Capabilities
 - **End Date Filter & Local Validation**: Added end date filter to `ContractsPage`, defaulting to the current date and persisted in `localStorage`. Includes local validation that checks if the `End Date` is earlier than the `Start Date`, displaying an inline error message and preventing redundant API calls.
-- **Dynamic Visible Columns Selection**: Users can choose which columns are visible in the contracts table using a Mantine checkboxed modal. Visibility settings are saved to `localStorage`. Includes a single-click option to restore columns to their default layout.
+- **Dynamic Visible Columns Selection**: Users can choose which columns are visible in the contracts table (including the "Cota" column which is off by default) using a Mantine checkboxed modal. Visibility settings are saved to localStorage. Includes a single-click option to restore columns to their default layout.
 - **Improved Empty State Messages**: Enhanced the empty state display on `MyContractsPage`. If no contracts are returned while filters (date/matricula) are active, it prompts the user with an improved Portuguese instruction: *"Nenhum contrato correspondente aos filtros aplicados foi encontrado. Você pode limpar os filtros para tentar novamente."* and a clear button to reset filters.
-
-

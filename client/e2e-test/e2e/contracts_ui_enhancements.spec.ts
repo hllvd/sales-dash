@@ -88,29 +88,45 @@ test.describe('Contracts UI Enhancements', () => {
     await expect(userCheckbox).toBeVisible();
     await expect(userCheckbox).toBeChecked();
 
-    // 5. Uncheck 'Usuário' and click 'Concluir'
+    const quotaCheckbox = modal.getByRole('checkbox', { name: 'Cota' });
+    await expect(quotaCheckbox).toBeVisible();
+    await expect(quotaCheckbox).not.toBeChecked();
+
+    // Verify 'Cota' is not visible in table headers initially
+    const tableHeader = page.locator('table thead tr th');
+    await expect(tableHeader.filter({ hasText: 'Cota' })).not.toBeVisible();
+
+    // 5. Uncheck 'Usuário', check 'Cota' and click 'Concluir'
     await userCheckbox.uncheck();
+    await quotaCheckbox.check();
     await modal.getByRole('button', { name: 'Concluir' }).click();
 
     // Verify modal is closed
     await expect(modalTitle).not.toBeVisible();
 
-    // Verify 'Usuário' header is no longer in the table
-    const tableHeader = page.locator('table thead tr th');
+    // Verify 'Usuário' header is no longer in the table, but 'Cota' is
     await expect(tableHeader.filter({ hasText: 'Usuário' })).not.toBeVisible();
+    await expect(tableHeader.filter({ hasText: 'Cota' })).toBeVisible();
 
     // Verify localStorage has the state saved
     const visibleColumns = await page.evaluate(() => localStorage.getItem('contracts_visibleColumns'));
     expect(visibleColumns).toContain('"user":false');
+    expect(visibleColumns).toContain('"quota":true');
 
     // 6. Click 'Colunas' again and click 'Restaurar Padrão'
     await colBtn.click();
     await expect(modalTitle).toBeVisible();
     await modal.getByRole('button', { name: 'Restaurar Padrão' }).click();
+    
+    // Check that checkbox states are restored
+    await expect(quotaCheckbox).not.toBeChecked();
+    await expect(userCheckbox).toBeChecked();
+    
     await modal.getByRole('button', { name: 'Concluir' }).click();
 
-    // Verify 'Usuário' is visible again
+    // Verify 'Usuário' is visible again, and 'Cota' is hidden
     await expect(tableHeader.filter({ hasText: 'Usuário' })).toBeVisible();
+    await expect(tableHeader.filter({ hasText: 'Cota' })).not.toBeVisible();
   });
 
   test('should show correct empty state in My Contracts when filters are applied', async ({ page }) => {

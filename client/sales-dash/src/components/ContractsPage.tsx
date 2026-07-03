@@ -34,6 +34,7 @@ interface VisibleColumns {
   totalAmount: boolean;
   status: boolean;
   startDate: boolean;
+  quota: boolean;
 }
 
 const DEFAULT_COLUMNS: VisibleColumns = {
@@ -45,6 +46,7 @@ const DEFAULT_COLUMNS: VisibleColumns = {
   totalAmount: true,
   status: true,
   startDate: true,
+  quota: false,
 };
 
 const ContractsPage: React.FC = () => {
@@ -509,6 +511,7 @@ const ContractsPage: React.FC = () => {
                 {visibleColumns.user && <Table.Th>Usuário</Table.Th>}
                 {visibleColumns.matricula && <Table.Th>Matrícula</Table.Th>}
                 {visibleColumns.group && <Table.Th>Grupo</Table.Th>}
+                {visibleColumns.quota && <Table.Th>Cota</Table.Th>}
                 {visibleColumns.customer && <Table.Th>Cliente</Table.Th>}
                 {visibleColumns.totalAmount && <Table.Th>Valor Total</Table.Th>}
                 {visibleColumns.status && <Table.Th>Status</Table.Th>}
@@ -523,6 +526,7 @@ const ContractsPage: React.FC = () => {
                   {visibleColumns.user && <Table.Td>{contract.userName}</Table.Td>}
                   {visibleColumns.matricula && <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>}
                   {visibleColumns.group && <Table.Td>{contract.groupName}</Table.Td>}
+                  {visibleColumns.quota && <Table.Td>{contract.quota || '-'}</Table.Td>}
                   {visibleColumns.customer && <Table.Td>{contract.customerName || '-'}</Table.Td>}
                   {visibleColumns.totalAmount && <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>}
                   {visibleColumns.status && (
@@ -650,6 +654,11 @@ const ContractsPage: React.FC = () => {
             label="Data Início"
             checked={visibleColumns.startDate}
             onChange={(e) => handleColumnToggle('startDate', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Cota"
+            checked={visibleColumns.quota}
+            onChange={(e) => handleColumnToggle('quota', e.currentTarget.checked)}
           />
         </div>
       </StandardModal>
