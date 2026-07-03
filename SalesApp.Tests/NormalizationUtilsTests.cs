@@ -15,6 +15,10 @@ namespace SalesApp.Tests.Utils
         [InlineData("123", "123")]
         [InlineData("A001", "A001")]
         [InlineData("00A001", "A001")]
+        // Contract number investigation cases
+        [InlineData("1100239686", "1100239686")] // no leading zeros — unchanged
+        [InlineData("0239686", "239686")]         // one leading zero stripped
+        [InlineData("10239686", "10239686")]      // leading '1' is NOT a zero — unchanged
         public void NormalizeNumber_ShouldRemoveLeadingZeros(string input, string expected)
         {
             var result = NormalizationUtils.NormalizeNumber(input);

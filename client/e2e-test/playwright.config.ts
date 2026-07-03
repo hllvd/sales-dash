@@ -63,6 +63,7 @@ export default defineConfig({
         'hierarchy_sibling_isolation.spec.ts',
         'hierarchy_deep_visibility.spec.ts',
         'contracts_filtering.spec.ts',
+        'contracts_ui_enhancements.spec.ts',
         'contracts_team_filter.spec.ts',
         'contracts_users_filter.spec.ts',
         'contract_export.spec.ts',

@@ -444,9 +444,9 @@ const MyContractsPage: React.FC = () => {
           </div>
         ) : contracts.length === 0 ? (
           <div className="my-contracts-empty">
-            {startDate || endDate ? (
+            {startDate || endDate || matriculaFilter ? (
               <>
-                <p>Nenhum contrato encontrado para o período selecionado.</p>
+                <p>Nenhum contrato correspondente aos filtros aplicados foi encontrado. Você pode limpar os filtros para tentar novamente.</p>
                 <Button onClick={handleClearFilters}>
                   Limpar Filtros
                 </Button>

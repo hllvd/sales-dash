@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Title, Button, Table, ActionIcon, Group, Text, MultiSelect } from '@mantine/core';
-import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
+import { Title, Button, Table, ActionIcon, Group, Text, MultiSelect, Checkbox } from '@mantine/core';
+import { IconEdit, IconTrash, IconPlus, IconUpload, IconSettings } from '@tabler/icons-react';
 import './ContractsPage.css';
 import Menu from './Menu';
 import ContractForm from './ContractForm';
@@ -24,6 +24,28 @@ import {
   getUsers,
   getGroups,
 } from '../services/contractService';
+
+interface VisibleColumns {
+  contractNumber: boolean;
+  user: boolean;
+  matricula: boolean;
+  group: boolean;
+  customer: boolean;
+  totalAmount: boolean;
+  status: boolean;
+  startDate: boolean;
+}
+
+const DEFAULT_COLUMNS: VisibleColumns = {
+  contractNumber: true,
+  user: true,
+  matricula: true,
+  group: true,
+  customer: true,
+  totalAmount: true,
+  status: true,
+  startDate: true,
+};
 
 const ContractsPage: React.FC = () => {
   // Track latest API request to prevent race conditions
@@ -55,6 +77,8 @@ const ContractsPage: React.FC = () => {
   const [debouncedUserIds, setDebouncedUserIds] = useState<string[]>([]);
   const [filterStartDate, setFilterStartDate] = useState('');
   const [debouncedStartDate, setDebouncedStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [debouncedEndDate, setDebouncedEndDate] = useState('');
   const [filterContractNumber, setFilterContractNumber] = useState('');
   const [debouncedContractNumber, setDebouncedContractNumber] = useState('');
   const [filterShowUnassigned, setFilterShowUnassigned] = useState<string>('all');
@@ -63,6 +87,26 @@ const ContractsPage: React.FC = () => {
   const [debouncedMatricula, setDebouncedMatricula] = useState('');
   const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]); // stored as string[] for Mantine MultiSelect
   const [debouncedTeamIds, setDebouncedTeamIds] = useState<string[]>([]);
+
+  // Columns visibility state
+  const [showColumnsModal, setShowColumnsModal] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>(() => {
+    const saved = localStorage.getItem('contracts_visibleColumns');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse visible columns state:', e);
+      }
+    }
+    return DEFAULT_COLUMNS;
+  });
+
+  const handleColumnToggle = (columnKey: keyof VisibleColumns, value: boolean) => {
+    const updated = { ...visibleColumns, [columnKey]: value };
+    setVisibleColumns(updated);
+    localStorage.setItem('contracts_visibleColumns', JSON.stringify(updated));
+  };
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -90,6 +134,15 @@ const ContractsPage: React.FC = () => {
   }, [setCachedUsers, setCachedGroups]);
 
   const loadContracts = useCallback(async () => {
+    // Local date validation: block api call if end date is before start date
+    if (debouncedStartDate && debouncedEndDate && debouncedEndDate < debouncedStartDate) {
+      setLoading(false);
+      setContracts([]);
+      setAggregation(null);
+      setTotalCount(0);
+      return;
+    }
+
     setLoading(true);
     setError('');
     const requestId = ++requestCountRef.current;
@@ -99,7 +152,7 @@ const ContractsPage: React.FC = () => {
         undefined, // userId
         undefined, // groupId
         debouncedStartDate || undefined,
-        undefined, // Removed endDate
+        debouncedEndDate || undefined,
         debouncedContractNumber || undefined,
         debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
         debouncedMatricula || undefined,
@@ -125,7 +178,7 @@ const ContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds, debouncedUserIds, currentPage, pageSize, setCachedContracts]);
+  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds, debouncedUserIds, currentPage, pageSize, setCachedContracts]);
 
   // Load saved filters from localStorage
   useEffect(() => {
@@ -141,6 +194,18 @@ const ContractsPage: React.FC = () => {
       setDebouncedStartDate(defaultDate);
       localStorage.setItem('contracts_filterStartDate', defaultDate);
     }
+
+    const savedEndDate = localStorage.getItem('contracts_filterEndDate');
+    if (savedEndDate) {
+      setFilterEndDate(savedEndDate);
+      setDebouncedEndDate(savedEndDate);
+    } else {
+      const defaultEndDate = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+      setFilterEndDate(defaultEndDate);
+      setDebouncedEndDate(defaultEndDate);
+      localStorage.setItem('contracts_filterEndDate', defaultEndDate);
+    }
+
     loadFilters();
     setIsInitializing(false);
   }, [loadFilters]);
@@ -150,6 +215,7 @@ const ContractsPage: React.FC = () => {
     const timer = setTimeout(() => {
       setDebouncedUserIds(filterUserIds);
       setDebouncedStartDate(filterStartDate);
+      setDebouncedEndDate(filterEndDate);
       setDebouncedContractNumber(filterContractNumber);
       setDebouncedShowUnassigned(filterShowUnassigned);
       setDebouncedMatricula(filterMatricula);
@@ -157,7 +223,7 @@ const ContractsPage: React.FC = () => {
     }, 500); // 500ms debounce for all fields
 
     return () => clearTimeout(timer);
-  }, [filterUserIds, filterStartDate, filterContractNumber, filterShowUnassigned, filterMatricula, filterTeamIds]);
+  }, [filterUserIds, filterStartDate, filterEndDate, filterContractNumber, filterShowUnassigned, filterMatricula, filterTeamIds]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -167,7 +233,7 @@ const ContractsPage: React.FC = () => {
   // Reset to page 1 when filters change (using debounced values to avoid flickering)
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedUserIds, debouncedStartDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds]);
+  }, [debouncedUserIds, debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds]);
 
   // Calculate pagination
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -240,6 +306,7 @@ const ContractsPage: React.FC = () => {
                   try {
                     const job = await apiService.startContractExport({
                       startDate: debouncedStartDate || undefined,
+                      endDate: debouncedEndDate || undefined,
                       contractNumber: debouncedContractNumber || undefined,
                       showUnassigned: debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
                       matricula: debouncedMatricula || undefined,
@@ -254,6 +321,9 @@ const ContractsPage: React.FC = () => {
                 }}
                 isExporting={isExporting}
               />
+              <Button onClick={() => setShowColumnsModal(true)} variant="default" leftSection={<IconSettings size={16} />}>
+                Colunas
+              </Button>
               <Button onClick={() => setShowImportModal(true)} leftSection={<IconUpload size={16} />}>
                 Importar
               </Button>
@@ -356,8 +426,31 @@ const ContractsPage: React.FC = () => {
           />
         </div>
 
+        <div className="filter-group">
+          <label htmlFor="filterEndDate">Data Fim</label>
+          <input
+            type="date"
+            id="filterEndDate"
+            value={filterEndDate}
+            onChange={(e) => {
+              const value = e.target.value;
+              setFilterEndDate(value);
+              if (value) {
+                localStorage.setItem('contracts_filterEndDate', value);
+              } else {
+                localStorage.removeItem('contracts_filterEndDate');
+              }
+            }}
+          />
+          {filterStartDate && filterEndDate && filterEndDate < filterStartDate && (
+            <span className="filter-error-msg" style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>
+              Data fim deve ser maior ou igual à data início
+            </span>
+          )}
+        </div>
 
-        {(filterUserIds.length > 0 || filterStartDate || filterContractNumber || filterMatricula || filterShowUnassigned !== 'all' || filterTeamIds.length > 0) && (
+
+        {(filterUserIds.length > 0 || filterStartDate || filterEndDate || filterContractNumber || filterMatricula || filterShowUnassigned !== 'all' || filterTeamIds.length > 0) && (
           <button
             className="clear-filters-btn"
             onClick={() => {
@@ -365,6 +458,8 @@ const ContractsPage: React.FC = () => {
               setDebouncedUserIds([]);
               setFilterStartDate('');
               setDebouncedStartDate('');
+              setFilterEndDate('');
+              setDebouncedEndDate('');
               setFilterContractNumber('');
               setDebouncedContractNumber('');
               setFilterMatricula('');
@@ -374,6 +469,7 @@ const ContractsPage: React.FC = () => {
               setFilterTeamIds([]);
               setDebouncedTeamIds([]);
               localStorage.removeItem('contracts_filterStartDate');
+              localStorage.removeItem('contracts_filterEndDate');
             }}
           >
             Limpar Filtros
@@ -409,30 +505,32 @@ const ContractsPage: React.FC = () => {
             <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Número do Contrato</Table.Th>
-                <Table.Th>Usuário</Table.Th>
-                <Table.Th>Matrícula</Table.Th>
-                <Table.Th>Grupo</Table.Th>
-                <Table.Th>Cliente</Table.Th>
-                <Table.Th>Valor Total</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Data Início</Table.Th>
+                {visibleColumns.contractNumber && <Table.Th>Número do Contrato</Table.Th>}
+                {visibleColumns.user && <Table.Th>Usuário</Table.Th>}
+                {visibleColumns.matricula && <Table.Th>Matrícula</Table.Th>}
+                {visibleColumns.group && <Table.Th>Grupo</Table.Th>}
+                {visibleColumns.customer && <Table.Th>Cliente</Table.Th>}
+                {visibleColumns.totalAmount && <Table.Th>Valor Total</Table.Th>}
+                {visibleColumns.status && <Table.Th>Status</Table.Th>}
+                {visibleColumns.startDate && <Table.Th>Data Início</Table.Th>}
                 <Table.Th>Ações</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {paginatedContracts.map((contract) => (
                 <Table.Tr key={contract.id}>
-                  <Table.Td>{contract.contractNumber}</Table.Td>
-                  <Table.Td>{contract.userName}</Table.Td>
-                  <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
-                  <Table.Td>{contract.groupName}</Table.Td>
-                  <Table.Td>{contract.customerName || '-'}</Table.Td>
-                  <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
-                  <Table.Td>
-                    <ContractStatusBadge status={contract.status} />
-                  </Table.Td>
-                  <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
+                  {visibleColumns.contractNumber && <Table.Td>{contract.contractNumber}</Table.Td>}
+                  {visibleColumns.user && <Table.Td>{contract.userName}</Table.Td>}
+                  {visibleColumns.matricula && <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>}
+                  {visibleColumns.group && <Table.Td>{contract.groupName}</Table.Td>}
+                  {visibleColumns.customer && <Table.Td>{contract.customerName || '-'}</Table.Td>}
+                  {visibleColumns.totalAmount && <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>}
+                  {visibleColumns.status && (
+                    <Table.Td>
+                      <ContractStatusBadge status={contract.status} />
+                    </Table.Td>
+                  )}
+                  {visibleColumns.startDate && <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>}
                   <Table.Td>
                     <Group gap="xs">
                       <ActionIcon
@@ -487,10 +585,74 @@ const ContractsPage: React.FC = () => {
       {totalCount > 0 && (
         <HistoricProduction
           startDate={filterStartDate}
-          endDate={undefined}
+          endDate={debouncedEndDate || undefined}
           showUnassigned={filterShowUnassigned === 'unassigned' ? true : filterShowUnassigned === 'assigned' ? false : undefined}
         />
       )}
+
+      {/* Select Columns Modal */}
+      <StandardModal
+        isOpen={showColumnsModal}
+        onClose={() => setShowColumnsModal(false)}
+        title="Selecionar Colunas"
+        size="md"
+        footer={
+          <>
+            <Button variant="default" onClick={() => {
+              setVisibleColumns(DEFAULT_COLUMNS);
+              localStorage.setItem('contracts_visibleColumns', JSON.stringify(DEFAULT_COLUMNS));
+            }}>
+              Restaurar Padrão
+            </Button>
+            <Button onClick={() => setShowColumnsModal(false)}>
+              Concluir
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Checkbox
+            label="Número do Contrato"
+            checked={visibleColumns.contractNumber}
+            onChange={(e) => handleColumnToggle('contractNumber', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Usuário"
+            checked={visibleColumns.user}
+            onChange={(e) => handleColumnToggle('user', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Matrícula"
+            checked={visibleColumns.matricula}
+            onChange={(e) => handleColumnToggle('matricula', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Grupo"
+            checked={visibleColumns.group}
+            onChange={(e) => handleColumnToggle('group', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Cliente"
+            checked={visibleColumns.customer}
+            onChange={(e) => handleColumnToggle('customer', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Valor Total"
+            checked={visibleColumns.totalAmount}
+            onChange={(e) => handleColumnToggle('totalAmount', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Status"
+            checked={visibleColumns.status}
+            onChange={(e) => handleColumnToggle('status', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Data Início"
+            checked={visibleColumns.startDate}
+            onChange={(e) => handleColumnToggle('startDate', e.currentTarget.checked)}
+          />
+        </div>
+      </StandardModal>
 
       {showForm && (
         <ContractForm
