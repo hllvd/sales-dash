@@ -89,6 +89,8 @@ namespace SalesApp.Services
             var desistenteContracts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var fileSellers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var fileMatriculas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int blankContractCount = 0;
+            var shortContractNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             await foreach (var row in _fileParser.ParseFileStreamedAsync(file))
             {
@@ -141,6 +143,25 @@ namespace SalesApp.Services
                     if (!string.IsNullOrWhiteSpace(contractNumberVal))
                     {
                         desistenteContracts.Add(contractNumberVal);
+                    }
+                }
+
+                // pre-validate Contrato field specifically (blank or short <= 3 length)
+                var contratoKey = row.Keys.FirstOrDefault(k => k.Equals("Contrato", StringComparison.OrdinalIgnoreCase));
+                if (contratoKey != null)
+                {
+                    var contratoVal = row[contratoKey];
+                    if (string.IsNullOrWhiteSpace(contratoVal))
+                    {
+                        blankContractCount++;
+                    }
+                    else
+                    {
+                        var trimmed = contratoVal.Trim();
+                        if (trimmed.Length <= 3)
+                        {
+                            shortContractNumbers.Add(trimmed);
+                        }
                     }
                 }
 
@@ -304,7 +325,9 @@ namespace SalesApp.Services
                 DuplicateContractNumbers = duplicateContractNumbers,
                 DesistenteContractNumbers = desistenteContractNumbers,
                 ConflictingUserNames = conflictingUserNames,
-                ConflictingMatriculas = conflictingMatriculas
+                ConflictingMatriculas = conflictingMatriculas,
+                BlankContractCount = blankContractCount,
+                ShortContractNumbers = shortContractNumbers.OrderBy(n => n).ToList()
             };
         }
 

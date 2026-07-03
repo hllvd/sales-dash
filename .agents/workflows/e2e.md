@@ -32,6 +32,15 @@ Run all: npx playwright test
 ## Temporary Files
 Any files generated during test execution (e.g., downloads, enriched exports) should be stored in the `./temp/` directory.
 
+## E2E Helper Utilities
+
+### Creating Excel Test Data Fixtures
+To generate custom spreadsheet files for E2E validation scenarios, you can run the utility script `create-xlsx-fixtures.js` located in `client/e2e-test/scripts/`:
+```bash
+node scripts/create-xlsx-fixtures.js
+```
+This script dynamically creates spreadsheet fixtures using the `xlsx` SheetJS library and outputs them to the `client/e2e-test/test-data/` directory. If you need to test new validation scenarios (e.g. invalid date formats, missing fields, or custom column names), expand this script rather than committing manually edited binary `.xlsx` files.
+
 ## E2E Test Stability and Soft-Delete Handling
 ### Problem: The "Ghost" Record Conflict
 Sequential E2E tests often fail on the second run because:

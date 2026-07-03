@@ -20,5 +20,7 @@ namespace SalesApp.DTOs
         public List<string> DesistenteContractNumbers { get; set; } = new();
         public List<string> ConflictingUserNames { get; set; } = new();
         public List<string> ConflictingMatriculas { get; set; } = new();
+        public int BlankContractCount { get; set; }
+        public List<string> ShortContractNumbers { get; set; } = new();
     }
 }

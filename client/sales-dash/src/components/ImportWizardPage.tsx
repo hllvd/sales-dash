@@ -22,6 +22,9 @@ const ImportWizardPage: React.FC = () => {
   const [desistenteContracts, setDesistenteContracts] = useState<string[]>([]);
   const [allowDesistentes, setAllowDesistentes] = useState(false);
   const [allowInconsistencies, setAllowInconsistencies] = useState(false);
+  const [blankContractCount, setBlankContractCount] = useState<number>(0);
+  const [shortContractNumbers, setShortContractNumbers] = useState<string[]>([]);
+  const [allowShortContracts, setAllowShortContracts] = useState(false);
 
   // Step 2: Users File
   const [usersFile, setUsersFile] = useState<File | null>(null);
@@ -49,6 +52,9 @@ const ImportWizardPage: React.FC = () => {
     setDesistenteContracts([]);
     setAllowDesistentes(false);
     setAllowInconsistencies(false);
+    setBlankContractCount(0);
+    setShortContractNumbers([]);
+    setAllowShortContracts(false);
     try {
       const response = await apiService.uploadWizardStep1(contractFile);
       if (response.success) {
@@ -62,8 +68,22 @@ const ImportWizardPage: React.FC = () => {
           const desistentes: string[] = response.data.desistenteContractNumbers ?? [];
           const confNames: string[] = response.data.conflictingUserNames ?? [];
           const confMats: string[] = response.data.conflictingMatriculas ?? [];
+          const blanks: number = response.data.blankContractCount ?? 0;
+          const shorts: string[] = response.data.shortContractNumbers ?? [];
           
+          setBlankContractCount(blanks);
+          setShortContractNumbers(shorts);
+          setAllowShortContracts(false);
+
           let hasWarning = false;
+          if (blanks > 0) {
+            toast.error(`Detectamos ${blanks} contrato(s) sem número no arquivo.`);
+            hasWarning = true;
+          }
+          if (shorts.length > 0) {
+            toast.warning(`${shorts.length} número(s) de contrato curto(s) encontrado(s)`);
+            hasWarning = true;
+          }
           if (dupes.length > 0) {
             setDuplicateContracts(dupes);
             toast.warning(`${dupes.length} número(s) de contrato duplicado(s) encontrado(s)`);
@@ -292,6 +312,9 @@ const ImportWizardPage: React.FC = () => {
                     setDesistenteContracts([]);
                     setAllowDesistentes(false);
                     setAllowInconsistencies(false);
+                    setBlankContractCount(0);
+                    setShortContractNumbers([]);
+                    setAllowShortContracts(false);
                   }}
                   accept=".csv,.xlsx"
                   fileInputProps={{ id: 'wizard-step1-input' }}
@@ -308,6 +331,41 @@ const ImportWizardPage: React.FC = () => {
                       <Button color="orange" size="xs" onClick={() => setActiveStep(1)}>
                         Prosseguir assim mesmo
                       </Button>
+                    </Group>
+                  </Alert>
+                )}
+
+                {blankContractCount > 0 && (
+                  <Alert icon={<IconAlertCircle size={16} />} title="Contratos Sem Número Detectados" color="red" mt="md" data-testid="blank-contracts-warning">
+                    <Text size="sm">
+                      Detectamos {blankContractCount} contrato(s) sem nenhum número. Por favor, preencha a planilha e faça o upload novamente.
+                    </Text>
+                  </Alert>
+                )}
+
+                {shortContractNumbers.length > 0 && (
+                  <Alert icon={<IconAlertCircle size={16} />} title="Contratos Curtos Encontrados" color="orange" mt="md" data-testid="short-contracts-warning">
+                    <Text size="sm" mb="sm">
+                      Os seguintes números de contrato possuem menos de 4 caracteres (são muito curtos):
+                    </Text>
+                    <List size="xs" mb="sm">
+                      {shortContractNumbers.slice(0, 20).map((c) => (
+                        <List.Item key={c}><strong>{c}</strong></List.Item>
+                      ))}
+                      {shortContractNumbers.length > 20 && (
+                        <List.Item>... e mais {shortContractNumbers.length - 20} contrato(s) curto(s).</List.Item>
+                      )}
+                    </List>
+                    <Group gap="xs" align="center" mt="xs">
+                      <input
+                        type="checkbox"
+                        id="wiz-allow-shorts"
+                        checked={allowShortContracts}
+                        onChange={(e) => setAllowShortContracts(e.target.checked)}
+                      />
+                      <label htmlFor="wiz-allow-shorts" style={{ fontSize: 13, color: '#92400e', cursor: 'pointer', fontWeight: 500 }}>
+                        Confirmar ciência dos contratos curtos e prosseguir
+                      </label>
                     </Group>
                   </Alert>
                 )}
@@ -387,9 +445,11 @@ const ImportWizardPage: React.FC = () => {
                 {(() => {
                   return (
                     <>
-                      {(duplicateContracts.length > 0 || desistenteContracts.length > 0) &&
+                      {(duplicateContracts.length > 0 || desistenteContracts.length > 0 || shortContractNumbers.length > 0) &&
                        (duplicateContracts.length === 0 || allowDuplicates) &&
-                       (desistenteContracts.length === 0 || allowDesistentes) && (
+                       (desistenteContracts.length === 0 || allowDesistentes) &&
+                       (shortContractNumbers.length === 0 || allowShortContracts) &&
+                       blankContractCount === 0 && (
                         <Group justify="flex-end" mt="md">
                           <Button
                             color="orange"
@@ -405,7 +465,7 @@ const ImportWizardPage: React.FC = () => {
                         </Group>
                       )}
 
-                      {!mismatchWarning && duplicateContracts.length === 0 && desistenteContracts.length === 0 && (
+                      {!mismatchWarning && duplicateContracts.length === 0 && desistenteContracts.length === 0 && shortContractNumbers.length === 0 && blankContractCount === 0 && (
                         <Group justify="flex-end" mt="md">
                           <Button 
                             onClick={() => handleStep1Upload()} 

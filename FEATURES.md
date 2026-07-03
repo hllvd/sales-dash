@@ -58,3 +58,12 @@ This collection of features allows administrators and users to customize their c
 - **End Date Filter & Local Validation**: Added end date filter to `ContractsPage`, defaulting to the current date and persisted in `localStorage`. Includes local validation that checks if the `End Date` is earlier than the `Start Date`, displaying an inline error message and preventing redundant API calls.
 - **Dynamic Visible Columns Selection**: Users can choose which columns are visible in the contracts table (including the "Cota" column which is off by default) using a Mantine checkboxed modal. Visibility settings are saved to localStorage. Includes a single-click option to restore columns to their default layout.
 - **Improved Empty State Messages**: Enhanced the empty state display on `MyContractsPage`. If no contracts are returned while filters (date/matricula) are active, it prompts the user with an improved Portuguese instruction: *"Nenhum contrato correspondente aos filtros aplicados foi encontrado. Você pode limpar os filtros para tentar novamente."* and a clear button to reset filters.
+
+## Import Wizard Contract Number Pre-Validation
+
+This feature detects malformed, blank, or short contract numbers during Step 1 of the Import Wizard before any records are committed to the database.
+
+### Key Capabilities
+- **Blank Contract Number Detection**: Automatically scans the `Contrato` column (case-insensitive) in uploaded spreadsheets. If any row is missing a contract number, a red block alert is displayed and advancement to Step 2 is blocked.
+- **Short Contract Number Validation**: Identifies contract numbers with 3 or fewer characters (length ≤ 3). Displays an orange alert listing these contracts, blocking progress until the user checks a confirmation checkbox ("Agree").
+- **E2E Test Data Generation Helpers**: Includes utility scripts (`create-xlsx-fixtures.js`) to programmatically compile Excel mock spreadsheets with specific validation criteria.
