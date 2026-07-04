@@ -38,6 +38,7 @@ export default defineConfig({
         'import_wizard_email_mapping.spec.ts',
         'import_wizard_data_integrity.spec.ts',
         'import_wizard_validation.spec.ts',
+        'import_wizard_email_duplicates.spec.ts',
         'import_wizard_duplicate_contracts.spec.ts',
         'import_wizard_desistente_contracts.spec.ts',
         'import_wizard_blank_contracts.spec.ts',

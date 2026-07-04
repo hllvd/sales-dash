@@ -250,5 +250,100 @@ namespace SalesApp.Tests.Services
             var emailVal = sheet.Cells[2, 4].Text;
             emailVal.Should().Be("glayse@test.com"); // first word match "Glayse" matches "Glayse Santos"
         }
+
+        [Fact]
+        public async Task ProcessStep2ImportAsync_ShouldThrowException_WhenDuplicateEmailWithDifferentNamesExist()
+        {
+            // Arrange
+            var uploadId = "test-upload";
+            var session = new ImportSession { Id = 1, UploadId = uploadId, Status = "wizard_step1" };
+            _mockSessionRepository.Setup(r => r.GetByUploadIdAsync(uploadId)).ReturnsAsync(session);
+
+            var rows = new List<Dictionary<string, string>>
+            {
+                new Dictionary<string, string> { { "Name", "John Doe" }, { "Email", "john@test.com" } },
+                new Dictionary<string, string> { { "Name", "Jane Smith" }, { "Email", "john@test.com" } }
+            };
+
+            var mockFile = new Mock<IFormFile>();
+            _mockFileParser.Setup(p => p.ParseFileAsync(mockFile.Object)).ReturnsAsync(rows);
+
+            // Act
+            Func<Task> act = async () => await _service.ProcessStep2ImportAsync(uploadId, mockFile.Object, Guid.NewGuid());
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<ArgumentException>();
+            exception.WithMessage("*O e-mail 'john@test.com' está associado a múltiplos usuários: Jane Smith, John Doe.*");
+        }
+
+        [Fact]
+        public async Task ProcessStep2ImportAsync_ShouldProceed_WhenDuplicateEmailWithSameNameExists()
+        {
+            // Arrange
+            var uploadId = "test-upload";
+            var session = new ImportSession { Id = 1, UploadId = uploadId, Status = "wizard_step1" };
+            _mockSessionRepository.Setup(r => r.GetByUploadIdAsync(uploadId)).ReturnsAsync(session);
+
+            var rows = new List<Dictionary<string, string>>
+            {
+                new Dictionary<string, string> { { "Name", "John Doe" }, { "Email", "john@test.com" } },
+                // Same email and name (casing/spaces aside)
+                new Dictionary<string, string> { { "Name", " JOHN DOE " }, { "Email", "john@test.com" } }
+            };
+
+            var mockFile = new Mock<IFormFile>();
+            _mockFileParser.Setup(p => p.ParseFileAsync(mockFile.Object)).ReturnsAsync(rows);
+
+            var importResult = new ImportResult
+            {
+                ProcessedRows = 2,
+                FailedRows = 0,
+                Errors = new List<string>(),
+                FailedRowsDetails = new List<Dictionary<string, string>>()
+            };
+
+            _mockImportExecution.Setup(e => e.ExecuteUserImportAsync(
+                uploadId,
+                session.Id,
+                rows,
+                It.IsAny<Dictionary<string, string>>()
+            )).ReturnsAsync(importResult);
+
+            var usersTemplate = new ImportTemplate { Id = 10, Name = "Users" };
+            _mockTemplateRepository.Setup(r => r.GetByNameAsync("Users")).ReturnsAsync(usersTemplate);
+
+            // Act
+            var result = await _service.ProcessStep2ImportAsync(uploadId, mockFile.Object, Guid.NewGuid());
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Status.Should().Be("completed");
+            result.ProcessedRows.Should().Be(2);
+        }
+
+        [Fact]
+        public async Task ProcessStep2ImportAsync_ShouldBeCaseInsensitive_ForEmails()
+        {
+            // Arrange
+            var uploadId = "test-upload";
+            var session = new ImportSession { Id = 1, UploadId = uploadId, Status = "wizard_step1" };
+            _mockSessionRepository.Setup(r => r.GetByUploadIdAsync(uploadId)).ReturnsAsync(session);
+
+            var rows = new List<Dictionary<string, string>>
+            {
+                new Dictionary<string, string> { { "Name", "John Doe" }, { "Email", "JOHN@TEST.COM" } },
+                new Dictionary<string, string> { { "Name", "Jane Smith" }, { "Email", "john@test.com" } }
+            };
+
+            var mockFile = new Mock<IFormFile>();
+            _mockFileParser.Setup(p => p.ParseFileAsync(mockFile.Object)).ReturnsAsync(rows);
+
+            // Act
+            Func<Task> act = async () => await _service.ProcessStep2ImportAsync(uploadId, mockFile.Object, Guid.NewGuid());
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<ArgumentException>();
+            exception.WithMessage("*O e-mail 'john@test.com' está associado a múltiplos usuários: Jane Smith, John Doe.*");
+        }
     }
 }

@@ -1,0 +1,3 @@
+Name,Email,ParentEmail,Matricula
+John Doe,duplicate@test.com,parent@test.com,MAT-1
+Jane Smith,duplicate@test.com,parent@test.com,MAT-2

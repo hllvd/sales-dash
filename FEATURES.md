@@ -67,3 +67,15 @@ This feature detects malformed, blank, or short contract numbers during Step 1 o
 - **Blank Contract Number Detection**: Automatically scans the `Contrato` column (case-insensitive) in uploaded spreadsheets. If any row is missing a contract number, a red block alert is displayed and advancement to Step 2 is blocked.
 - **Short Contract Number Validation**: Identifies contract numbers with 3 or fewer characters (length ≤ 3). Displays an orange alert listing these contracts, blocking progress until the user checks a confirmation checkbox ("Agree").
 - **E2E Test Data Generation Helpers**: Includes utility scripts (`create-xlsx-fixtures.js`) to programmatically compile Excel mock spreadsheets with specific validation criteria.
+
+## Wizard Step 2: Duplicate Email Validation
+
+This feature acts as a hard stop to prevent database pollution by rejecting users import when different user names share the same email address.
+
+### Core Objectives
+Detect and block imports where multiple user names are associated with the same email in the uploaded `users.xlsx` during Step 2 of the Import Wizard.
+
+### Key Capabilities
+- **Backend Validation Check**: Performs a case-insensitive, whitespace-trimmed check grouping user names by email address in the parsed rows.
+- **Identical Duplicates Allowed**: Allows multiple rows with the same name and same email, as it is expected that some users might have multiple matriculas.
+- **Frontend Red Alert Banner**: Displays a detailed list of duplicate email violations on Step 2 in a red alert block, blocking execution.
