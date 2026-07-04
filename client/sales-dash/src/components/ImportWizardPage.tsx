@@ -26,6 +26,8 @@ const ImportWizardPage: React.FC = () => {
   // Step 2: Users File
   const [usersFile, setUsersFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
+  const [duplicateEmailConflicts, setDuplicateEmailConflicts] = useState<string[]>([]);
+  const [step2Error, setStep2Error] = useState<string | null>(null);
 
   // Step 3: Contract import options (defaults all ON)
   const [skipMissingContractNumber, setSkipMissingContractNumber] = useState(true);
@@ -118,6 +120,8 @@ const ImportWizardPage: React.FC = () => {
 
     setLoadingMessage('Importando usuários e matrículas…');
     setLoading(true);
+    setStep2Error(null);
+    setDuplicateEmailConflicts([]);
     try {
       const response = await apiService.runWizardStep2(uploadData.uploadId, usersFile);
       if (response.success && response.data) {
@@ -129,7 +133,14 @@ const ImportWizardPage: React.FC = () => {
         toast.success('Usuários e matrículas importados com sucesso');
       }
     } catch (err: any) {
-      toast.error(err.message || 'Falha na importação de usuários');
+      const errorMsg = err.message || 'Falha na importação de usuários';
+      if (errorMsg.includes('está associado a múltiplos usuários')) {
+        const lines = errorMsg.split('\n').filter(Boolean);
+        setDuplicateEmailConflicts(lines);
+      } else {
+        setStep2Error(errorMsg);
+      }
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -452,11 +463,37 @@ const ImportWizardPage: React.FC = () => {
                   placeholder="Selecione o arquivo users.xlsx atualizado"
                   required
                   value={usersFile}
-                  onChange={setUsersFile}
+                  onChange={(file) => {
+                    setUsersFile(file);
+                    setStep2Error(null);
+                    setDuplicateEmailConflicts([]);
+                  }}
                   accept=".csv,.xlsx"
                   fileInputProps={{ id: 'wizard-step2-input' }}
                   leftSection={<IconUpload size={16} />}
                 />
+
+                {duplicateEmailConflicts.length > 0 && (
+                  <Alert icon={<IconAlertCircle size={16} />} title="E-mails Duplicados com Nomes Diferentes" color="red" mt="md" data-testid="duplicate-email-error">
+                    <Text size="sm" mb="sm">
+                      Não é permitido o mesmo e-mail para usuários com nomes diferentes. Por favor, corrija as seguintes linhas no arquivo de usuários:
+                    </Text>
+                    <List size="xs" mb="sm">
+                      {duplicateEmailConflicts.slice(0, 20).map((c, idx) => (
+                        <List.Item key={idx}><strong>{c}</strong></List.Item>
+                      ))}
+                      {duplicateEmailConflicts.length > 20 && (
+                        <List.Item>... e mais {duplicateEmailConflicts.length - 20} e-mail(s) duplicado(s).</List.Item>
+                      )}
+                    </List>
+                  </Alert>
+                )}
+
+                {step2Error && (
+                  <Alert icon={<IconAlertCircle size={16} />} title="Falha na Importação de Usuários" color="red" mt="md" data-testid="step2-error">
+                    <Text size="sm">{step2Error}</Text>
+                  </Alert>
+                )}
 
                 <Group justify="space-between" mt="md">
                   <Button variant="default" onClick={prevStep} leftSection={<IconChevronLeft size={16} />}>

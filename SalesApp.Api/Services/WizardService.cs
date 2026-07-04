@@ -384,6 +384,42 @@ namespace SalesApp.Services
             }
 
             var userRows = await _fileParser.ParseFileAsync(usersFile);
+
+            // Check for duplicate emails with different user names (case-insensitive)
+            var emailToNames = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in userRows)
+            {
+                var nameVal = GetColumnValue(row, "Name", "name", "Nome", "Usuário")?.Trim();
+                var emailVal = GetColumnValue(row, "Email", "email", "E-mail")?.Trim()?.ToLowerInvariant();
+
+                if (string.IsNullOrWhiteSpace(emailVal) || string.IsNullOrWhiteSpace(nameVal))
+                {
+                    continue;
+                }
+
+                if (!emailToNames.TryGetValue(emailVal, out var names))
+                {
+                    names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    emailToNames[emailVal] = names;
+                }
+                names.Add(nameVal);
+            }
+
+            var duplicateEmailErrors = new List<string>();
+            foreach (var kvp in emailToNames)
+            {
+                if (kvp.Value.Count > 1)
+                {
+                    var sortedNames = kvp.Value.OrderBy(n => n).ToList();
+                    duplicateEmailErrors.Add($"O e-mail '{kvp.Key}' está associado a múltiplos usuários: {string.Join(", ", sortedNames)}.");
+                }
+            }
+
+            if (duplicateEmailErrors.Any())
+            {
+                throw new ArgumentException(string.Join("\n", duplicateEmailErrors));
+            }
             
             var userMappings = new Dictionary<string, string>
             {
