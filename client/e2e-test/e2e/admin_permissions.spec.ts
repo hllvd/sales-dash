@@ -523,15 +523,15 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await page.waitForTimeout(500);
     await expect(page.locator('.tmc-user-card', { hasText: CHILD_EMAIL })).toBeVisible();
 
-    // 6.2 User with no parent (carlosmendes@example.com) -> Should be present/available (Orphan)
+    // 6.2 User with no parent (carlosmendes@example.com) -> Should NOT be present/available (Orphan but not descendant)
     await searchInput.fill('carlosmendes@example.com');
     await page.waitForTimeout(500);
-    await expect(page.locator('.tmc-user-card', { hasText: 'carlosmendes@example.com' })).toBeVisible();
+    await expect(page.locator('.tmc-user-card', { hasText: 'carlosmendes@example.com' })).not.toBeVisible();
 
-    // 6.3 User with no team (NOTEAM_EMAIL) -> Should be present/available (Orphan)
+    // 6.3 User with no team (NOTEAM_EMAIL) -> Should NOT be present/available (Orphan but not descendant)
     await searchInput.fill(NOTEAM_EMAIL);
     await page.waitForTimeout(500);
-    await expect(page.locator('.tmc-user-card', { hasText: NOTEAM_EMAIL })).toBeVisible();
+    await expect(page.locator('.tmc-user-card', { hasText: NOTEAM_EMAIL })).not.toBeVisible();
 
     // 6.4 Ineligible user with parent AND team (INELIGIBLE_EMAIL) -> Should NOT be present/available
     await searchInput.fill(INELIGIBLE_EMAIL);
