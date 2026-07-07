@@ -49,7 +49,8 @@ namespace SalesApp.Controllers
                     return Unauthorized();
                 }
 
-                allowedOwnerInternalIds = await _userHierarchyService.GetDescendantInternalIdsAsync(currentUserId);
+                // Explicitly displaying only 4 levels below the current user admin.
+                allowedOwnerInternalIds = await GetDescendantsUpToLevel4Async(currentUserId);
                 var caller = await _userRepository.GetByIdAsync(currentUserId);
                 if (caller != null)
                 {
@@ -187,7 +188,9 @@ namespace SalesApp.Controllers
             if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
             {
                 var caller = await _userRepository.GetByIdAsync(currentUserId);
-                if (caller == null || team.OwnerUserInternalId != caller.InternalId)
+                // Explicitly displaying only 4 levels below the current user admin.
+                var allowedOwnerInternalIds = await GetDescendantsUpToLevel4Async(currentUserId);
+                if (caller == null || (team.OwnerUserInternalId != caller.InternalId && (team.OwnerUserInternalId == null || !allowedOwnerInternalIds.Contains(team.OwnerUserInternalId.Value))))
                 {
                     return Forbid();
                 }
@@ -306,7 +309,9 @@ namespace SalesApp.Controllers
             if (roleIdClaim == "2")
             {
                 var caller = await _userRepository.GetByIdAsync(currentUserId);
-                if (caller == null || team.OwnerUserInternalId != caller.InternalId)
+                // Explicitly displaying only 4 levels below the current user admin.
+                var allowedOwnerInternalIds = await GetDescendantsUpToLevel4Async(currentUserId);
+                if (caller == null || (team.OwnerUserInternalId != caller.InternalId && (team.OwnerUserInternalId == null || !allowedOwnerInternalIds.Contains(team.OwnerUserInternalId.Value))))
                 {
                     return Forbid();
                 }
@@ -400,7 +405,9 @@ namespace SalesApp.Controllers
             if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
             {
                 var caller = await _userRepository.GetByIdAsync(currentUserId);
-                if (caller == null || team.OwnerUserInternalId != caller.InternalId)
+                // Explicitly displaying only 4 levels below the current user admin.
+                var allowedOwnerInternalIds = await GetDescendantsUpToLevel4Async(currentUserId);
+                if (caller == null || (team.OwnerUserInternalId != caller.InternalId && (team.OwnerUserInternalId == null || !allowedOwnerInternalIds.Contains(team.OwnerUserInternalId.Value))))
                 {
                     return Forbid();
                 }
@@ -453,7 +460,9 @@ namespace SalesApp.Controllers
             if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
             {
                 var caller = await _userRepository.GetByIdAsync(currentUserId);
-                if (caller == null || team.OwnerUserInternalId != caller.InternalId)
+                // Explicitly displaying only 4 levels below the current user admin.
+                var allowedOwnerInternalIds = await GetDescendantsUpToLevel4Async(currentUserId);
+                if (caller == null || (team.OwnerUserInternalId != caller.InternalId && (team.OwnerUserInternalId == null || !allowedOwnerInternalIds.Contains(team.OwnerUserInternalId.Value))))
                 {
                     return Forbid();
                 }
@@ -558,6 +567,60 @@ namespace SalesApp.Controllers
                 Data = MapToTeamResponse(reloadedTeam ?? team),
                 Message = "Datas atualizadas com sucesso"
             });
+        }
+
+        private async Task<HashSet<int>> GetDescendantsUpToLevel4Async(Guid userId)
+        {
+            // Explicitly displaying only 4 levels below the current user admin.
+            // Level 0: The Admin themselves
+            // Level 1: Immediate children
+            // Level 2: Grandchildren
+            // Level 3: Great-grandchildren
+            // Level 4: Great-great-grandchildren
+            
+            var allLinks = await _userRepository.GetAllHierarchyLinksAsync();
+            var childrenMap = new Dictionary<Guid, List<Guid>>();
+
+            foreach (var link in allLinks)
+            {
+                if (link.ParentUserId.HasValue)
+                {
+                    if (!childrenMap.ContainsKey(link.ParentUserId.Value))
+                        childrenMap[link.ParentUserId.Value] = new List<Guid>();
+                    childrenMap[link.ParentUserId.Value].Add(link.Id);
+                }
+            }
+
+            var descendants = new HashSet<Guid>();
+            var queue = new Queue<(Guid Id, int Depth)>();
+            queue.Enqueue((userId, 0));
+
+            while (queue.Count > 0)
+            {
+                var (currentId, currentDepth) = queue.Dequeue();
+                
+                if (currentDepth > 0)
+                {
+                    descendants.Add(currentId);
+                }
+
+                if (currentDepth < 4)
+                {
+                    if (childrenMap.TryGetValue(currentId, out var children))
+                    {
+                        foreach (var childId in children)
+                        {
+                            queue.Enqueue((childId, currentDepth + 1));
+                        }
+                    }
+                }
+            }
+
+            var internalIdMap = allLinks.ToDictionary(l => l.Id, l => l.InternalId);
+            return descendants
+                .Where(id => internalIdMap.ContainsKey(id))
+                .Select(id => internalIdMap[id])
+                .ToHashSet();
         }
 
         private TeamMemberResponse MapToMemberResponse(UserTeam ut, int? ownerId)
