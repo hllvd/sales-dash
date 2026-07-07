@@ -22,26 +22,14 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [previewItems, setPreviewItems] = useState<ContractMigrationPreviewItem[]>([])
-  const [migrateChecked, setMigrateChecked] = useState(true)
-  const [currentUserRole, setCurrentUserRole] = useState<string>("")
 
   const hasParent = !!user?.parentUserId
   const parentName = user?.parentUserName || ""
   const hasContracts = previewItems.length > 0
 
   useEffect(() => {
-    if (isOpen) {
-      const cachedUser = JSON.parse(localStorage.getItem("user") || "{}")
-      setCurrentUserRole(cachedUser.role || "")
-    } else {
-      setCurrentUserRole("")
-    }
-  }, [isOpen])
-
-  useEffect(() => {
-    if (isOpen && user && hasParent && currentUserRole && currentUserRole !== "admin") {
+    if (isOpen && user) {
       setStep(1)
-      setMigrateChecked(true)
       setPreviewItems([])
       setPreviewError(null)
       setLoadingPreview(true)
@@ -75,12 +63,11 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
         })
     } else {
       setStep(1)
-      setMigrateChecked(true)
       setPreviewItems([])
       setPreviewError(null)
       setLoadingPreview(false)
     }
-  }, [isOpen, user, hasParent, currentUserRole])
+  }, [isOpen, user])
 
   if (!user) return null
 
@@ -154,7 +141,7 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   }
 
   const handleContinue = () => {
-    if (migrateChecked && hasContracts) {
+    if (hasContracts) {
       setStep(2)
     } else {
       handleDeleteOnly()
@@ -162,17 +149,6 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   }
 
   const renderContent = () => {
-    if (currentUserRole === "admin") {
-      const superiorText = parentName ? `"${parentName}"` : "superior";
-      return (
-        <Alert color="red" title="Atenção" style={{ marginTop: "8px" }}>
-          <Text size="sm">
-            Você não pode fazer isso. Para excluir e migrar os contratos deste usuário para o usuário superior {superiorText}, entre em contato com um superadmin.
-          </Text>
-        </Alert>
-      )
-    }
-
     if (loadingPreview) {
       return (
         <Group justify="center" p="xl">
@@ -198,11 +174,21 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
           )}
 
           {!hasParent && (
-            <Alert color="yellow" title="Sem Superior Cadastrado" style={{ marginTop: "8px" }}>
-              <Text size="sm">
-                O usuário <strong>{user.name}</strong> não possui um superior cadastrado. Caso queira migrar seus contratos antes de excluí-lo, é necessário definir um superior direto nas configurações do usuário.
-              </Text>
-            </Alert>
+            <>
+              {hasContracts ? (
+                <Alert color="red" title="Erro: Superior Mandatório" style={{ marginTop: "8px" }}>
+                  <Text size="sm">
+                    Este usuário possui <strong>{previewItems.length}</strong> contrato(s) ativo(s) em seu nome. Para desativá-lo, é obrigatório que ele possua um usuário superior para que os contratos possam ser migrados. Edite o usuário e atribua um superior antes de prosseguir.
+                  </Text>
+                </Alert>
+              ) : (
+                <Alert color="yellow" title="Sem Superior Cadastrado" style={{ marginTop: "8px" }}>
+                  <Text size="sm">
+                    O usuário <strong>{user.name}</strong> não possui um superior cadastrado. Como ele não possui contratos, você pode prosseguir com a exclusão direta.
+                  </Text>
+                </Alert>
+              )}
+            </>
           )}
 
           {!previewError && hasParent && hasContracts && (
@@ -210,14 +196,8 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 <Text size="sm">
                   Detectamos que este usuário possui <strong>{previewItems.length}</strong> contrato(s) atribuído(s).
-                  Gostaria de atribuir estes contratos ao superior <strong>{parentName}</strong>?
+                  A migração destes contratos para o superior <strong>{parentName}</strong> é obrigatória para prosseguir com a exclusão.
                 </Text>
-                <Checkbox
-                  label="Sim, transferir contratos para o superior"
-                  checked={migrateChecked}
-                  onChange={(e) => setMigrateChecked(e.currentTarget.checked)}
-                  styles={{ label: { fontWeight: 500 } }}
-                />
               </div>
             </Alert>
           )}
@@ -257,15 +237,17 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   }
 
   const renderFooter = () => {
-    if (currentUserRole === "admin") {
+    if (loadingPreview) return null
+
+    const isBlocked = (!hasParent && hasContracts) || !!previewError
+
+    if (isBlocked) {
       return (
         <Button variant="default" onClick={onClose}>
           Fechar
         </Button>
       )
     }
-
-    if (loadingPreview) return null
 
     if (step === 1) {
       return (
@@ -274,11 +256,11 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
             Cancelar
           </Button>
           <Button
-            color={migrateChecked && hasContracts ? "blue" : "red"}
+            color={hasContracts ? "blue" : "red"}
             loading={loading}
             onClick={handleContinue}
           >
-            {migrateChecked && hasContracts ? "Continuar" : "Excluir"}
+            {hasContracts ? "Continuar" : "Excluir"}
           </Button>
         </>
       )
@@ -301,9 +283,7 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={
-        currentUserRole === "admin"
-          ? "Ação Não Permitida"
-          : step === 1
+        step === 1
           ? "Confirmar Exclusão"
           : "Prévia da Migração de Contratos"
       }

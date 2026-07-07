@@ -803,6 +803,21 @@ namespace SalesApp.Controllers
             
             if (request.IsActive.HasValue && hasUpdatePermission)
             {
+                if (!request.IsActive.Value && user.IsActive)
+                {
+                    var hasContractsCheck = await _context.Contracts
+                        .Include(c => c.ContractStatus)
+                        .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente");
+                    
+                    if (hasContractsCheck)
+                    {
+                        return BadRequest(new ApiResponse<UserResponse>
+                        {
+                            Success = false,
+                            Message = "Este usuário possui contratos ativos em seu nome. Para desativá-lo, utilize a opção de exclusão para realizar a migração obrigatória dos contratos."
+                        });
+                    }
+                }
                 user.IsActive = request.IsActive.Value;
             }
 
@@ -846,15 +861,36 @@ namespace SalesApp.Controllers
             if (roleIdClaim == "2")
             {
                 var currentUserId = GetCurrentUserId();
-                var allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
-                if (!allowedUserIds.Contains(id))
+                if (user.ParentUserId != currentUserId)
                 {
                     return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "Você não tem permissão para excluir este usuário fora de sua hierarquia."
+                        Message = "Você não tem permissão para excluir este usuário, pois ele não é seu subordinado direto."
                     });
                 }
+            }
+
+            var hasContracts = await _context.Contracts
+                .Include(c => c.ContractStatus)
+                .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente");
+
+            if (hasContracts)
+            {
+                if (!user.ParentUserId.HasValue)
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Este usuário possui contratos ativos em seu nome. Para desativá-lo, é obrigatório que ele possua um usuário superior para que os contratos possam ser migrados."
+                    });
+                }
+
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Este usuário possui contratos ativos em seu nome. Os contratos devem ser migrados para o superior antes de desativar o usuário."
+                });
             }
             
             user.IsActive = false;

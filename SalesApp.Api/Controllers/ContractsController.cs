@@ -900,10 +900,30 @@ namespace SalesApp.Controllers
 
             if (!childUser.ParentUserId.HasValue)
             {
-                return BadRequest(new ApiResponse<List<ContractMigrationPreviewItem>>
+                var previewItemsNoParent = new List<ContractMigrationPreviewItem>();
+                var contractsNoParent = await _contractRepository.GetContractsForMigrationAsync(userId);
+                foreach (var contract in contractsNoParent)
                 {
-                    Success = false,
-                    Message = "User does not have a parent user to migrate contracts to."
+                    var currentMatriculaNumber = contract.Matricula?.MatriculaNumber ?? contract.TempMatricula ?? string.Empty;
+                    previewItemsNoParent.Add(new ContractMigrationPreviewItem
+                    {
+                        ContractId = contract.Id,
+                        ContractNumber = contract.ContractNumber,
+                        TotalAmount = contract.TotalAmount,
+                        Status = contract.ContractStatus?.Name ?? string.Empty,
+                        CurrentMatriculaId = contract.MatriculaId,
+                        CurrentMatriculaNumber = currentMatriculaNumber,
+                        TargetMatriculaId = 0,
+                        TargetMatriculaNumber = string.Empty,
+                        IsAutoSelected = false
+                    });
+                }
+
+                return Ok(new ApiResponse<List<ContractMigrationPreviewItem>>
+                {
+                    Success = true,
+                    Data = previewItemsNoParent,
+                    Message = "Migration preview generated successfully."
                 });
             }
 

@@ -254,7 +254,6 @@ namespace SalesApp.Data
 
             // Assign to Admin (Most permissions except high-risk ones)
             var adminPerms = allPerms.Where(p => 
-                p.Name != "users:delete" && 
                 p.Name != "imports:rollback" && 
                 p.Name != "system:superadmin" &&
                 p.Name != "roles:delete" &&

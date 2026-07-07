@@ -91,3 +91,13 @@ This feature allows Admin users to access and manage their own team (Equipe), wh
 - **Member Management Scoping**: Admins can add or remove members in their team. They are restricted to adding only descendants (children users) or orphaned users (without parent and without active team). Attempting to add users from other hierarchies is blocked at both UI and API levels (returning 400 Bad Request).
 - **UI Gating**: The "Nova Equipe" creation button and "Excluir" trash icons are hidden on the Teams page for users with the Admin role.
 
+## User Deactivation and Mandatory Contract Migration
+
+This feature controls deactivation and ensures that user contracts are never left orphaned when a user is deactivated (soft-deleted) or disabled.
+
+### Key Capabilities
+- **Admin Deactivation Control**: Admins are granted the `users:delete` permission to deactivate (soft-delete) users. They are restricted in the backend to only deactivating their **direct child/subordinate users** (checked at `DELETE /api/users/{id}`).
+- **Mandatory Contract Migration**: If a user being deactivated has active contracts assigned to them, migration to their direct superior is strictly **mandatory**. The user cannot skip migration (the optional check box has been removed from the confirmation modal).
+- **Superior Mandatory Guard**: Deactivating a user who has active contracts but **no superior** is blocked. The confirmation modal will render a red blocking Alert preventing the action.
+- **Deactivation Form Guard**: The "Usuário Ativo" checkbox in the profile edit form is disabled and documented for users with active contracts, forcing them to proceed via the Excluir/Delete flow where migration is enforced. If bypassed at the API level, the backend `PUT /api/users/{id}` returns a 400 Bad Request error.
+
