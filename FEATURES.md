@@ -79,3 +79,15 @@ Detect and block imports where multiple user names are associated with the same 
 - **Backend Validation Check**: Performs a case-insensitive, whitespace-trimmed check grouping user names by email address in the parsed rows.
 - **Identical Duplicates Allowed**: Allows multiple rows with the same name and same email, as it is expected that some users might have multiple matriculas.
 - **Frontend Red Alert Banner**: Displays a detailed list of duplicate email violations on Step 2 in a red alert block, blocking execution.
+
+## Equipe (Teams) Permission & Scoping
+
+This feature allows Admin users to access and manage their own team (Equipe), while enforcing security boundaries via the RBAC (Access Control) system and scoping API/UI access.
+
+### Key Capabilities
+- **RBAC Matrix Control**: Admin access to the Equipes feature is managed via the `teams:manage` permission on the Access Control (`Controle de Acesso`) page. Toggling it ON/OFF controls both backend API access and frontend menu visibility.
+- **Hierarchical Team Scoping**: Admins who own a team can see their own team (along with descendant-owned teams) in the list, but teams owned by unrelated Admins or other hierarchies remain completely hidden.
+- **REST CRUD Restrictions**: Admin-role users are prohibited from creating new teams (`POST /api/teams` returns 403 Forbidden) and deleting teams (`DELETE /api/teams/{id}` returns 403 Forbidden), regardless of UI settings.
+- **Member Management Scoping**: Admins can add or remove members in their team. They are restricted to adding only descendants (children users) or orphaned users (without parent and without active team). Attempting to add users from other hierarchies is blocked at both UI and API levels (returning 400 Bad Request).
+- **UI Gating**: The "Nova Equipe" creation button and "Excluir" trash icons are hidden on the Teams page for users with the Admin role.
+

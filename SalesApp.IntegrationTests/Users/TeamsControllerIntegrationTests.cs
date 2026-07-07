@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using SalesApp.Data;
 using SalesApp.Models;
 using SalesApp.DTOs;
+using SalesApp.Services;
 using Xunit;
 
 namespace SalesApp.IntegrationTests.Users
@@ -403,6 +404,130 @@ namespace SalesApp.IntegrationTests.Users
 
             // 4. Should NOT see team without an owner
             visibleTeamIds.Should().NotContain(teamNoOwner.Id);
+        }
+
+        [Fact]
+        public async Task CreateTeam_AsAdmin_ShouldReturnForbidden()
+        {
+            // Arrange
+            var adminEmail = $"admin_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var password = "Password123!";
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superadmin = await context.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+                
+                var adminUser = new User
+                {
+                    Name = "Test Admin",
+                    Email = adminEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    RoleId = 2, // Admin
+                    ParentUserId = superadmin.Id
+                };
+                context.Users.Add(adminUser);
+                await context.SaveChangesAsync();
+
+                // Grant teams:manage permission to Admin role (if not already done)
+                var permission = await context.Permissions.FirstOrDefaultAsync(p => p.Name == "teams:manage");
+                if (permission != null)
+                {
+                    var hasPerm = await context.RolePermissions.AnyAsync(rp => rp.RoleId == 2 && rp.PermissionId == permission.Id);
+                    if (!hasPerm)
+                    {
+                        context.RolePermissions.Add(new RolePermission { RoleId = 2, PermissionId = permission.Id });
+                        await context.SaveChangesAsync();
+                        
+                        // Clear the RBAC cache to pick up changes
+                        var rbacCache = scope.ServiceProvider.GetRequiredService<IRbacCache>();
+                        var updatedPerms = await context.RolePermissions
+                            .Include(rp => rp.Permission)
+                            .Where(rp => rp.RoleId == 2)
+                            .Select(rp => rp.Permission!.Name)
+                            .ToListAsync();
+                        rbacCache.UpdateRolePermissions(2, updatedPerms.ToHashSet());
+                    }
+                }
+            }
+
+            var adminToken = await GetTokenForUser(adminEmail, password);
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", adminToken);
+
+            var request = new CreateTeamRequest
+            {
+                Name = $"Admin Team {Guid.NewGuid()}",
+                Members = new List<TeamMemberRequest>()
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/teams", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        [Fact]
+        public async Task DeleteTeam_AsAdmin_ShouldReturnForbidden()
+        {
+            // Arrange
+            var adminEmail = $"admin_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var password = "Password123!";
+            int teamId;
+            
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superadmin = await context.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+                
+                var adminUser = new User
+                {
+                    Name = "Test Admin",
+                    Email = adminEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    RoleId = 2, // Admin
+                    ParentUserId = superadmin.Id
+                };
+                context.Users.Add(adminUser);
+                
+                var team = new Team { Name = $"Admin Delete Team {Guid.NewGuid()}" };
+                context.Teams.Add(team);
+                
+                await context.SaveChangesAsync();
+                teamId = team.Id;
+
+                // Grant teams:manage permission to Admin role (if not already done)
+                var permission = await context.Permissions.FirstOrDefaultAsync(p => p.Name == "teams:manage");
+                if (permission != null)
+                {
+                    var hasPerm = await context.RolePermissions.AnyAsync(rp => rp.RoleId == 2 && rp.PermissionId == permission.Id);
+                    if (!hasPerm)
+                    {
+                        context.RolePermissions.Add(new RolePermission { RoleId = 2, PermissionId = permission.Id });
+                        await context.SaveChangesAsync();
+                        
+                        // Clear the RBAC cache to pick up changes
+                        var rbacCache = scope.ServiceProvider.GetRequiredService<IRbacCache>();
+                        var updatedPerms = await context.RolePermissions
+                            .Include(rp => rp.Permission)
+                            .Where(rp => rp.RoleId == 2)
+                            .Select(rp => rp.Permission!.Name)
+                            .ToListAsync();
+                        rbacCache.UpdateRolePermissions(2, updatedPerms.ToHashSet());
+                    }
+                }
+            }
+
+            var adminToken = await GetTokenForUser(adminEmail, password);
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", adminToken);
+
+            // Act
+            var response = await client.DeleteAsync($"/api/teams/{teamId}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         }
 
         private async Task<Team> CreateTeamWithOwner(AppDbContext context, string teamName, User owner)

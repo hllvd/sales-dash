@@ -50,6 +50,11 @@ namespace SalesApp.Controllers
                 }
 
                 allowedOwnerInternalIds = await _userHierarchyService.GetDescendantInternalIdsAsync(currentUserId);
+                var caller = await _userRepository.GetByIdAsync(currentUserId);
+                if (caller != null)
+                {
+                    allowedOwnerInternalIds.Add(caller.InternalId);
+                }
             }
 
             var teams = await _teamRepository.GetAllAsync(allowedOwnerInternalIds);
@@ -89,6 +94,16 @@ namespace SalesApp.Controllers
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> CreateTeam(CreateTeamRequest request)
         {
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim == "2") // Admin
+            {
+                return StatusCode(403, new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = "Administradores não podem criar equipes."
+                });
+            }
+
             if (await _teamRepository.NameExistsAsync(request.Name))
             {
                 return BadRequest(new ApiResponse<TeamResponse>
@@ -241,6 +256,16 @@ namespace SalesApp.Controllers
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteTeam(int id)
         {
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim == "2") // Admin
+            {
+                return StatusCode(403, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Administradores não podem excluir equipes."
+                });
+            }
+
             var team = await _teamRepository.GetByIdAsync(id);
             if (team == null)
             {

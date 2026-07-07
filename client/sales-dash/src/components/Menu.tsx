@@ -272,7 +272,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {userRole === 'superadmin' && (
+          {hasPermission('teams:manage') && (
             <NavLink
               href="#/teams"
               label="Equipes"

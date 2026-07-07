@@ -310,9 +310,11 @@ const TeamsPage: React.FC = () => {
               Configure e gerencie as equipes de vendas e seus respectivos membros.
             </p>
           </div>
-          <Button onClick={openCreateForm} leftSection={<IconPlus size={16} />}>
-            Nova Equipe
-          </Button>
+          {currentUserRole !== 'admin' && (
+            <Button onClick={openCreateForm} leftSection={<IconPlus size={16} />}>
+              Nova Equipe
+            </Button>
+          )}
         </div>
 
         {error && <div className="error-banner">{error}</div>}
@@ -413,14 +415,16 @@ const TeamsPage: React.FC = () => {
                             >
                               <IconEdit size={16} />
                             </ActionIcon>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              onClick={() => setDeleteConfirm(team.id)}
-                              title="Excluir"
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
+                            {currentUserRole !== 'admin' && (
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                onClick={() => setDeleteConfirm(team.id)}
+                                title="Excluir"
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            )}
                           </Group>
                         </Table.Td>
                       </Table.Tr>
