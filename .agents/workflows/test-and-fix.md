@@ -6,6 +6,16 @@ description: Autonomous test-fix loop using test.sh. Run tests, read summaries, 
 
 # Test & Fix Workflow
 
+## When to Use this Workflow
+
+Just use the test-and-fix workflow if:
+- We find a bug and need to test it.
+- We need to write down how to test a new feature on the implementation plan.
+
+**CRITICAL:** Don't run `./test.sh all` just to create or prepare the implementation plan. This is useless and delays programming tasks.
+
+---
+
 ## Step 1 — Run the full suite
 
 ```bash
