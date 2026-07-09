@@ -30,14 +30,14 @@ test.describe('Import Wizard Record Verification', () => {
     await expect(page.getByRole('heading', { name: 'Editar Contrato' }).first()).toBeVisible({ timeout: 15000 });
 
     await expect(getFormField(page, 'Número do Contrato').locator('input')).toHaveValue('90001305');
-    await expect(getFormField(page, 'Vendedor').getByRole('textbox')).toHaveValue(/Leonardo Bandieri.*11177/);
+    await expect(getFormField(page, 'Vendedor').getByRole('textbox')).toHaveValue(/Leonardo Bandieri/);
     await expect(getFormField(page, 'Grupo (Opcional)').getByRole('textbox')).toHaveValue('1680');
     await expect(getFormField(page, 'Ponto de Venda').getByRole('textbox')).toHaveValue('KNAAN INVESTIMENTOS LTDA');
     await expect(getFormField(page, 'Valor Total').locator('input')).toHaveValue(/50.*000/);
     await expect(getFormField(page, 'Status').getByRole('textbox')).toHaveValue('Ativo');
     await expect(getFormField(page, 'Data de Início').locator('input')).toHaveValue('2025-09-19');
     await expect(getFormField(page, 'Nome do Cliente').locator('input')).toHaveValue('Lucas Maggio de Oliveira');
-    await expect(getFormField(page, 'Número da Matrícula (Opcional)').locator('input')).toHaveValue('11177');
+    await expect(getFormField(page, 'Número da Matrícula').getByRole('textbox')).toHaveValue('11177');
   });
 
   test('verify contract 868498 - Paulo Carvalho', async ({ page }) => {
@@ -52,13 +52,13 @@ test.describe('Import Wizard Record Verification', () => {
     await expect(page.getByRole('heading', { name: 'Editar Contrato' }).first()).toBeVisible({ timeout: 15000 });
 
     await expect(getFormField(page, 'Número do Contrato').locator('input')).toHaveValue('868498');
-    await expect(getFormField(page, 'Vendedor').getByRole('textbox')).toHaveValue(/Paulo Carvalho.*6111/);
+    await expect(getFormField(page, 'Vendedor').getByRole('textbox')).toHaveValue(/Paulo Carvalho/);
     await expect(getFormField(page, 'Grupo (Opcional)').getByRole('textbox')).toHaveValue('12135');
     await expect(getFormField(page, 'Ponto de Venda').getByRole('textbox')).toHaveValue('TSALACH CONSULTORIA LTDA');
     await expect(getFormField(page, 'Valor Total').locator('input')).toHaveValue(/100.*000/);
     await expect(getFormField(page, 'Status').getByRole('textbox')).toHaveValue('Cancelado');
     await expect(getFormField(page, 'Data de Início').locator('input')).toHaveValue('2025-06-05');
     await expect(getFormField(page, 'Nome do Cliente').locator('input')).toHaveValue('Ellen Mansur do Nascimento');
-    await expect(getFormField(page, 'Número da Matrícula (Opcional)').locator('input')).toHaveValue('6111');
+    await expect(getFormField(page, 'Número da Matrícula').getByRole('textbox')).toHaveValue('6111');
   });
 });

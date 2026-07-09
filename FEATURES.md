@@ -101,3 +101,15 @@ This feature controls deactivation and ensures that user contracts are never lef
 - **Superior Mandatory Guard**: Deactivating a user who has active contracts but **no superior** is blocked. The confirmation modal will render a red blocking Alert preventing the action.
 - **Deactivation Form Guard**: The "Usuário Ativo" checkbox in the profile edit form is disabled and documented for users with active contracts, forcing them to proceed via the Excluir/Delete flow where migration is enforced. If bypassed at the API level, the backend `PUT /api/users/{id}` returns a 400 Bad Request error.
 
+## Contract Assignment Scoping and Matricula Guards
+
+This feature enforces user scoping and active matricula checks during contract assignment in the contract creation and editing form.
+
+### Key Capabilities
+- **Hierarchical Vendor Scoping**: When an Admin accesses the contract form, the "Vendedor" (Seller) dropdown is restricted to only their descendant users.
+- **Active Matricula Verification**: Displays a prominent Portuguese warning message if the selected seller has no active matriculas: `"Este usuário não possui matrícula, por favor vá em matrícula e atribua uma a ele antes de atribuir este contrato"`. Disables the submit button to block the assignment.
+- **Auto-Selection Rules**:
+  - If the selected seller has exactly one owner matricula (`isOwner === true`), it is automatically selected in the "Número da Matrícula" dropdown by default.
+  - If the seller has more than one owner matricula, no default selection is made to prevent incorrect assignments, requiring the administrator to select one manually.
+- **Form Validation Enforcement**: Prevents submitting the form if a seller is selected but no matricula has been selected, displaying an error toast/validation block.
+

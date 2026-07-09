@@ -1144,7 +1144,7 @@ namespace SalesApp.Controllers
                                 return BadRequest(new ApiResponse<ContractMigrationResult>
                                 {
                                     Success = false,
-                                    Message = $"Specified target matricula {mapping.TargetMatriculaId} for contract {contract.ContractNumber} is not active and owned by parent user."
+                                    Message = $"A matrícula de destino especificada {mapping.TargetMatriculaId} para o contrato {contract.ContractNumber} não é ativa ou não pertence ao usuário superior."
                                 });
                             }
                             targetMatriculaId = mapping.TargetMatriculaId;
@@ -1165,7 +1165,7 @@ namespace SalesApp.Controllers
                                 return BadRequest(new ApiResponse<ContractMigrationResult>
                                 {
                                     Success = false,
-                                    Message = $"Ambiguous matricula selection for contract {contract.ContractNumber}. Parent user has multiple owned matriculas. Please specify the target matricula mapping."
+                                    Message = $"Seleção de matrícula ambígua para o contrato {contract.ContractNumber}. O usuário superior possui múltiplas matrículas. Por favor, especifique o mapeamento da matrícula de destino."
                                 });
                             }
                         }

@@ -157,7 +157,7 @@ namespace SalesApp.IntegrationTests.Imports
             var (session, group) = await SetupAsync(context, groupRepo, Guid.NewGuid().ToString());
 
             // "0" prefix + unique suffix. After NormalizeNumber the "0" is stripped → suffix
-            var suffix        = Guid.NewGuid().ToString("N")[..6];
+            var suffix        = "1" + Guid.NewGuid().ToString("N")[..5];
             var contractValue = $"0{suffix}";    // leading zero
             var expected      = suffix;           // leading zero stripped
 

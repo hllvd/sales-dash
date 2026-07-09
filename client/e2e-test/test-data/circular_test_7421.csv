@@ -1,0 +1,4 @@
+Name,Email,ParentEmail,Matricula
+User A,cycle.a.7421@test.com,cycle.b.7421@test.com,MAT-A-7421
+User B,cycle.b.7421@test.com,cycle.c.7421@test.com,MAT-B-7421
+User C,cycle.c.7421@test.com,cycle.a.7421@test.com,MAT-C-7421

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { Button, Checkbox, Table, Group, Text, Loader, Alert } from "@mantine/core"
+import { Button, Checkbox, Table, Group, Text, Loader, Alert, Select } from "@mantine/core"
 import StandardModal from "../shared/StandardModal"
 import { apiService, ContractMigrationPreviewItem, User } from "../services/apiService"
 import { toast } from "../utils/toast"
@@ -22,6 +22,17 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [previewItems, setPreviewItems] = useState<ContractMigrationPreviewItem[]>([])
+  const [selectedMappings, setSelectedMappings] = useState<{ [contractId: number]: number | null }>({})
+
+  interface ContractMigrationGroup {
+    contractId: number
+    contractNumber: string
+    totalAmount: number
+    status: string
+    currentMatriculaNumber: string
+    options: { targetMatriculaId: number; targetMatriculaNumber: string }[]
+    selectedTargetMatriculaId: number | null
+  }
 
   const hasParent = !!user?.parentUserId
   const parentName = user?.parentUserName || ""
@@ -69,18 +80,60 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
     }
   }, [isOpen, user])
 
+  useEffect(() => {
+    if (previewItems.length > 0) {
+      const initialMappings: { [contractId: number]: number | null } = {}
+      const groups: { [contractId: number]: ContractMigrationPreviewItem[] } = {}
+
+      previewItems.forEach((item) => {
+        if (!groups[item.contractId]) {
+          groups[item.contractId] = []
+        }
+        groups[item.contractId].push(item)
+      })
+
+      Object.keys(groups).forEach((idStr) => {
+        const id = parseInt(idStr)
+        const items = groups[id]
+        const autoSelectedItem = items.find((item) => item.isAutoSelected)
+        if (autoSelectedItem) {
+          initialMappings[id] = autoSelectedItem.targetMatriculaId
+        } else if (items.length === 1) {
+          initialMappings[id] = items[0].targetMatriculaId
+        } else {
+          initialMappings[id] = null
+        }
+      })
+      setSelectedMappings(initialMappings)
+    } else {
+      setSelectedMappings({})
+    }
+  }, [previewItems])
+
   if (!user) return null
 
-  const getMatriculaSummary = () => {
-    const summary: { [key: string]: { number: string; count: number } } = {}
+  const getContractGroups = (): ContractMigrationGroup[] => {
+    const groupsMap: { [contractId: number]: ContractMigrationGroup } = {}
     previewItems.forEach((item) => {
-      const key = item.targetMatriculaNumber || "Sem Matrícula"
-      if (!summary[key]) {
-        summary[key] = { number: key, count: 0 }
+      if (!groupsMap[item.contractId]) {
+        groupsMap[item.contractId] = {
+          contractId: item.contractId,
+          contractNumber: item.contractNumber,
+          totalAmount: item.totalAmount,
+          status: item.status,
+          currentMatriculaNumber: item.currentMatriculaNumber || "Sem Matrícula",
+          options: [],
+          selectedTargetMatriculaId: selectedMappings[item.contractId] ?? null,
+        }
       }
-      summary[key].count++
+      if (!groupsMap[item.contractId].options.some((opt) => opt.targetMatriculaId === item.targetMatriculaId)) {
+        groupsMap[item.contractId].options.push({
+          targetMatriculaId: item.targetMatriculaId,
+          targetMatriculaNumber: item.targetMatriculaNumber || "Sem Matrícula",
+        })
+      }
     })
-    return Object.values(summary)
+    return Object.values(groupsMap)
   }
 
   const handleDeleteOnly = async () => {
@@ -104,7 +157,14 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   const handleMigrateAndConfirm = async () => {
     setLoading(true)
     try {
-      const migrateResponse = await apiService.migrateContracts(user.id)
+      const mappings = Object.entries(selectedMappings)
+        .filter(([_, targetId]) => targetId !== null)
+        .map(([contractId, targetId]) => ({
+          contractId: parseInt(contractId),
+          targetMatriculaId: targetId!,
+        }))
+
+      const migrateResponse = await apiService.migrateContracts(user.id, mappings)
       if (!migrateResponse.success) {
         let msg = migrateResponse.message || "Falha ao migrar contratos."
         if (msg.includes("Parent user does not have any active owned matricula")) {
@@ -205,32 +265,54 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
       )
     }
 
-    const summaryList = getMatriculaSummary()
+    const contractGroups = getContractGroups()
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <Text size="sm">
-          Os contratos serão migrados para as seguintes matrículas de <strong>{parentName}</strong> antes da exclusão:
+          Selecione a matrícula de destino de <strong>{parentName}</strong> para cada contrato antes da exclusão:
         </Text>
 
         <Table border={1} style={{ borderCollapse: "collapse", width: "100%" }}>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th style={{ padding: "8px" }}>Matrícula</Table.Th>
-              <Table.Th style={{ padding: "8px", textAlign: "right" }}>Quantidade de Contratos</Table.Th>
+              <Table.Th style={{ padding: "8px" }}>Contrato</Table.Th>
+              <Table.Th style={{ padding: "8px" }}>Matrícula Atual</Table.Th>
+              <Table.Th style={{ padding: "8px" }}>Matrícula de Destino</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {summaryList.map((row) => (
-              <Table.Tr key={row.number}>
-                <Table.Td style={{ padding: "8px" }}>{row.number}</Table.Td>
-                <Table.Td style={{ padding: "8px", textAlign: "right" }}>{row.count}</Table.Td>
+            {contractGroups.map((group) => (
+              <Table.Tr key={group.contractId}>
+                <Table.Td style={{ padding: "8px" }}>{group.contractNumber}</Table.Td>
+                <Table.Td style={{ padding: "8px" }}>{group.currentMatriculaNumber}</Table.Td>
+                <Table.Td style={{ padding: "8px" }}>
+                  {group.options.length === 1 ? (
+                    <Text size="sm">{group.options[0].targetMatriculaNumber}</Text>
+                  ) : (
+                    <Select
+                      placeholder="Selecione a matrícula"
+                      data={group.options.map((opt) => ({
+                        value: opt.targetMatriculaId.toString(),
+                        label: opt.targetMatriculaNumber,
+                      }))}
+                      value={selectedMappings[group.contractId]?.toString() || null}
+                      onChange={(val) => {
+                        setSelectedMappings((prev) => ({
+                          ...prev,
+                          [group.contractId]: val ? parseInt(val) : null,
+                        }))
+                      }}
+                      size="xs"
+                    />
+                  )}
+                </Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
         </Table>
 
         <Text size="sm" style={{ fontWeight: 600, textAlign: "right" }}>
-          Total de contratos a migrar: {previewItems.length}
+          Total de contratos a migrar: {contractGroups.length}
         </Text>
       </div>
     )
@@ -266,12 +348,20 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
       )
     }
 
+    const contractGroups = getContractGroups()
+    const isExecutionDisabled = contractGroups.some((g) => g.selectedTargetMatriculaId === null)
+
     return (
       <>
         <Button variant="default" onClick={() => setStep(1)} disabled={loading}>
           Voltar
         </Button>
-        <Button color="red" loading={loading} onClick={handleMigrateAndConfirm}>
+        <Button
+          color="red"
+          loading={loading}
+          disabled={isExecutionDisabled}
+          onClick={handleMigrateAndConfirm}
+        >
           Executar
         </Button>
       </>

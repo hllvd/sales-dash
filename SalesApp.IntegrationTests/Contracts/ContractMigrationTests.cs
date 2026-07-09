@@ -331,7 +331,7 @@ namespace SalesApp.IntegrationTests.Contracts
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractMigrationResult>>();
             result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("Ambiguous matricula selection");
+            result.Message.Should().Contain("Seleção de matrícula ambígua");
         }
 
         [Fact]

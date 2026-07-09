@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TextInput, NumberInput, Select, Button, Group } from '@mantine/core';
+import { TextInput, NumberInput, Select, Button, Group, Text } from '@mantine/core';
 import { normalizeNumber } from '../utils/normalization';
 import {
   CreateContractRequest,
@@ -15,6 +15,7 @@ import {
 } from '../services/contractService';
 import { apiService, PV } from '../services/apiService';
 import { useContractsContext } from '../contexts/ContractsContext';
+import { useCurrentUser } from '../contexts/CurrentUserContext';
 import { toast } from '../utils/toast';
 import StyledModal from './StyledModal';
 import FormField from './FormField';
@@ -29,6 +30,10 @@ interface ContractFormProps {
 
 const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSuccess }) => {
   const isEditMode = !!contract;
+  
+  // Get current user context
+  const { currentUser } = useCurrentUser();
+  const isUserAdmin = currentUser?.role?.toLowerCase() === 'admin';
   
   // Get cached data from context
   const { users: cachedUsers, groups: cachedGroups } = useContractsContext();
@@ -45,7 +50,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     contractType: contract?.contractType || '',
     quota: contract?.quota || 0,
     customerName: contract?.customerName || '',
-    matriculaNumber: contract?.matriculaNumber || '',
+    matriculaNumber: contract?.matriculaNumber || null,
   });
 
   const [users, setUsers] = useState<User[]>([]);
@@ -55,19 +60,45 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!currentUser) return;
+
     const fetchDropdownData = async () => {
       try {
         const [usersData, groupsData] = await Promise.all([
-          getUsers(),
+          getUsers(isUserAdmin),
           getGroups(),
         ]);
-        setUsers(usersData);
+        
+        let listUsers = usersData;
+        if (contract && contract.userId && !usersData.some(u => u.id === contract.userId)) {
+          listUsers = [...usersData, {
+            id: contract.userId,
+            name: contract.userName || 'Vendedor Atual',
+            email: '',
+            role: '',
+            isActive: true,
+            activeMatriculas: contract.matriculaNumber ? [{
+              id: contract.userMatriculaId || 0,
+              matriculaNumber: contract.matriculaNumber,
+              isOwner: true,
+              status: 'active',
+              startDate: '',
+              endDate: null
+            }] : []
+          } as unknown as User];
+        }
+        
+        setUsers(listUsers);
         setGroups(groupsData);
         
         // Always fetch PVs (smaller dataset)
-        const pvsResponse = await apiService.getPVs();
-        if (pvsResponse.success && pvsResponse.data) {
-          setPVs(pvsResponse.data);
+        try {
+          const pvsResponse = await apiService.getPVs();
+          if (pvsResponse.success && pvsResponse.data) {
+            setPVs(pvsResponse.data);
+          }
+        } catch (pvErr) {
+          console.warn('Failed to fetch PVs', pvErr);
         }
         
         // For new contracts, set default contract type
@@ -85,16 +116,23 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     };
 
     fetchDropdownData();
-  }, [cachedUsers, cachedGroups, contract]);
+  }, [cachedUsers, cachedGroups, contract, currentUser, isUserAdmin]);
 
   const handleChange = (name: string, value: any) => {
-    // Special logic for unified selection dropdown
-    if (name === 'userMatriculaSelection') {
-      const [userId, matriculaNumber] = (value || '').split('|');
+    if (name === 'userId') {
+      const selectedUser = users.find((u) => u.id === value);
+      const activeMatriculas = selectedUser?.activeMatriculas || [];
+      const ownerMatriculas = activeMatriculas.filter((m) => m.isOwner);
+
+      let defaultMatricula: string | null = null;
+      if (ownerMatriculas.length === 1) {
+        defaultMatricula = ownerMatriculas[0].matriculaNumber;
+      }
+
       setFormData((prev) => ({
         ...prev,
-        userId: userId || '',
-        matriculaNumber: matriculaNumber || '',
+        userId: value || '',
+        matriculaNumber: defaultMatricula,
       }));
       return;
     }
@@ -125,6 +163,23 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
       setError(errorMessage);
       toast.error(errorMessage);
       return false;
+    }
+
+    if (formData.userId) {
+      const selectedUser = users.find((u) => u.id === formData.userId);
+      const activeMatriculas = selectedUser?.activeMatriculas || [];
+      if (activeMatriculas.length === 0) {
+        const errorMessage = 'Este usuário não possui matrícula, por favor vá em matrícula e atribua uma a ele antes de atribuir este contrato';
+        setError(errorMessage);
+        toast.error(errorMessage);
+        return false;
+      }
+      if (!formData.matriculaNumber) {
+        const errorMessage = 'Por favor, selecione uma matrícula para o vendedor';
+        setError(errorMessage);
+        toast.error(errorMessage);
+        return false;
+      }
     }
 
     return true;
@@ -208,34 +263,37 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         <FormField label="Vendedor">
           <Select
             placeholder="Selecione o vendedor"
-            data={(() => {
-              const options = [{ value: '', label: 'Sem vendedor atribuído' }];
-              const seenValues = new Set<string>(['']);
-              
-              users.forEach((u) => {
-                const matriculas = u.activeMatriculas && u.activeMatriculas.length > 0
-                  ? u.activeMatriculas
-                  : [{ matriculaNumber: '' }];
-                
-                matriculas.forEach((m) => {
-                  const val = `${u.id}|${m.matriculaNumber}`;
-                  if (!seenValues.has(val)) {
-                    seenValues.add(val);
-                    options.push({
-                      value: val,
-                      label: `${u.name} (${u.email})${m.matriculaNumber ? ` - ${m.matriculaNumber}` : ''}`,
-                    });
-                  }
-                });
-              });
-              
-              return options;
-            })()}
-            value={formData.userId ? `${formData.userId}|${formData.matriculaNumber}` : ''}
-            onChange={(value) => handleChange('userMatriculaSelection', value)}
+            data={[
+              { value: '', label: 'Sem vendedor atribuído' },
+              ...users.map((u) => ({
+                value: u.id,
+                label: `${u.name} (${u.email})`,
+              })),
+            ]}
+            value={formData.userId}
+            onChange={(value) => handleChange('userId', value)}
             searchable
             clearable
           />
+          {(() => {
+            if (!formData.userId) return null;
+            const selectedUser = users.find((u) => u.id === formData.userId);
+            const activeMatriculas = selectedUser?.activeMatriculas || [];
+            
+            if (activeMatriculas.length === 0) {
+              return (
+                <Text color="red" size="sm" mt="xs">
+                  Este usuário não possui matrícula, por favor vá em matrícula e atribua uma a ele antes de atribuir este contrato
+                </Text>
+              );
+            }
+            
+            return (
+              <Text color="dimmed" size="xs" mt="xs">
+                Matrículas associadas: {activeMatriculas.map((m) => `${m.matriculaNumber}${m.isOwner ? ' (Dona)' : ''}`).join(', ')}
+              </Text>
+            );
+          })()}
         </FormField>
 
         <FormField label="Grupo (Opcional)">
@@ -327,22 +385,56 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           />
         </FormField>
 
-        <FormField label="Número da Matrícula (Opcional)">
-          <TextInput
-            value={formData.matriculaNumber}
-            onChange={(e) => handleChange('matriculaNumber', e.target.value)}
-            placeholder="Ex: MAT-001"
-            maxLength={50}
-            disabled
-          />
-        </FormField>
+        {(() => {
+          if (!formData.userId) {
+            return (
+              <FormField label="Número da Matrícula (Opcional)">
+                <TextInput
+                  value=""
+                  placeholder="Ex: MAT-001"
+                  disabled
+                />
+              </FormField>
+            );
+          }
+
+          const selectedUser = users.find((u) => u.id === formData.userId);
+          const activeMatriculas = selectedUser?.activeMatriculas || [];
+
+          if (activeMatriculas.length === 0) {
+            return null;
+          }
+
+          return (
+            <FormField label="Número da Matrícula" required>
+              <Select
+                placeholder="Selecione a matrícula"
+                data={activeMatriculas.map((m) => ({
+                  value: m.matriculaNumber,
+                  label: `${m.matriculaNumber}${m.isOwner ? ' (Dona)' : ''}`,
+                }))}
+                value={formData.matriculaNumber}
+                onChange={(value) => handleChange('matriculaNumber', value)}
+                clearable
+              />
+            </FormField>
+          );
+        })()}
 
 
         <Group justify="flex-end" mt="xl">
           <Button variant="default" onClick={onClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button type="submit" loading={loading}>
+          <Button
+            type="submit"
+            loading={loading}
+            disabled={(() => {
+              if (!formData.userId) return false;
+              const selectedUser = users.find((u) => u.id === formData.userId);
+              return !selectedUser || !selectedUser.activeMatriculas || selectedUser.activeMatriculas.length === 0;
+            })()}
+          >
             {isEditMode ? 'Salvar Alterações' : 'Criar Contrato'}
           </Button>
         </Group>
