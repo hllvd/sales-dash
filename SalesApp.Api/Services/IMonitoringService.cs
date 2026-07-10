@@ -9,5 +9,6 @@ namespace SalesApp.Services
         Task<List<MatriculaHealthResponse>> GetMatriculaHealthAsync();
         Task<List<TeamMatriculaHealthResponse>> GetEquipesHealthAsync();
         Task<List<AdminImportStatsResponse>> GetAdminImportStatsAsync();
+        Task<LicensingReportResponse> GetLicensingReportAsync(int year, int month, int? minimumActiveDays);
     }
 }

@@ -208,6 +208,57 @@ export const getAdminImportStats = async (): Promise<AdminImportStats[]> => {
   return result.data;
 };
 
+export interface PriceTierInfo {
+  from: number;
+  to: number | null;
+  pricePerUser: number;
+  isCurrentTier: boolean;
+}
+
+export interface UserLicenseDetail {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  activeDaysInMonth: number;
+  isLicensed: boolean;
+}
+
+export interface LicensingReport {
+  year: number;
+  month: number;
+  minimumActiveDays: number;
+  totalLicensedUsers: number;
+  totalUsersConsidered: number;
+  pricePerUser: number;
+  totalCost: number;
+  priceTiers: PriceTierInfo[];
+  users: UserLicenseDetail[];
+}
+
+export const getLicensingReport = async (
+  year: number,
+  month: number,
+  minimumDays?: number
+): Promise<LicensingReport> => {
+  let url = `${API_BASE_URL}/monitoring/licensing?year=${year}&month=${month}`;
+  if (minimumDays !== undefined) {
+    url += `&minimumDays=${minimumDays}`;
+  }
+
+  const response = await authenticatedFetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch licensing report');
+  }
+
+  const result: ApiResponse<LicensingReport> = await response.json();
+  return result.data;
+};
+
 
 // Contract CRUD Operations
 export const getContracts = async (

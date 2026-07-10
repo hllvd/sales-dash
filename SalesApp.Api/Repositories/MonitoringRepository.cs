@@ -179,6 +179,210 @@ namespace SalesApp.Repositories
             .ToList();
         }
 
+        public async Task<LicensingReportResponse> GetLicensingReportAsync(
+            int year,
+            int month,
+            int minimumActiveDays,
+            List<string> excludedEmails,
+            List<SalesApp.Models.Configuration.PriceTier> priceTiers)
+        {
+            var monthStart = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var monthEnd = monthStart.AddMonths(1);
+            var daysInMonth = DateTime.DaysInMonth(year, month);
+
+            // Fetch users (including Role)
+            var users = await _context.Users
+                .Include(u => u.Role)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var excludedSet = new HashSet<string>(excludedEmails ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            var targetUsers = users
+                .Where(u => !excludedSet.Contains(u.Email))
+                .OrderBy(u => u.Name)
+                .ToList();
+
+            // Fetch audit logs for Users
+            var auditLogs = await _context.AuditLogs
+                .Where(a => a.EntityName == "User")
+                .AsNoTracking()
+                .OrderBy(a => a.Timestamp)
+                .ToListAsync();
+
+            // Group logs by UserId
+            var logsByUser = auditLogs
+                .Select(a => new { Log = a, UserId = ExtractGuid(a.EntityId) })
+                .Where(x => x.UserId.HasValue)
+                .GroupBy(x => x.UserId!.Value)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Log).ToList());
+
+            var userDetails = new List<UserLicenseDetailDto>();
+
+            foreach (var u in targetUsers)
+            {
+                // If user was created after the month ended, they had 0 active days
+                if (u.CreatedAt >= monthEnd)
+                {
+                    userDetails.Add(new UserLicenseDetailDto
+                    {
+                        UserId = u.Id,
+                        Name = u.Name,
+                        Email = u.Email,
+                        Role = u.Role?.Name ?? "user",
+                        ActiveDaysInMonth = 0,
+                        IsLicensed = false
+                    });
+                    continue;
+                }
+
+                List<AuditLog> userLogs;
+                if (!logsByUser.TryGetValue(u.Id, out userLogs))
+                {
+                    userLogs = new List<AuditLog>();
+                }
+
+                var logsBefore = userLogs.Where(l => l.Timestamp < monthStart).ToList();
+                var logsDuring = userLogs.Where(l => l.Timestamp >= monthStart && l.Timestamp < monthEnd).ToList();
+
+                // Determine starting IsActive status
+                bool startingIsActive = true;
+                var lastBefore = logsBefore.LastOrDefault(l => GetIsActiveValue(l, true).HasValue);
+                if (lastBefore != null)
+                {
+                    startingIsActive = GetIsActiveValue(lastBefore, true)!.Value;
+                }
+                else
+                {
+                    if (u.CreatedAt < monthStart)
+                    {
+                        // No logs before the month started, and created before.
+                        // If there are also no logs during the month, they kept u.IsActive status.
+                        startingIsActive = u.IsActive;
+                    }
+                    else
+                    {
+                        // Created during the month; they started as inactive (non-existent) before creation
+                        startingIsActive = false;
+                    }
+                }
+
+                double totalActiveDays = 0;
+                bool currentStatus = startingIsActive;
+                DateTime periodStart = monthStart > u.CreatedAt ? monthStart : u.CreatedAt;
+
+                foreach (var l in logsDuring)
+                {
+                    var newIsActive = GetIsActiveValue(l, true);
+                    if (newIsActive.HasValue)
+                    {
+                        if (currentStatus)
+                        {
+                            totalActiveDays += (l.Timestamp - periodStart).TotalDays;
+                        }
+                        currentStatus = newIsActive.Value;
+                        periodStart = l.Timestamp;
+                    }
+                }
+
+                if (currentStatus)
+                {
+                    totalActiveDays += (monthEnd - periodStart).TotalDays;
+                }
+
+                int activeDaysCount = (int)Math.Round(totalActiveDays);
+                if (activeDaysCount > daysInMonth) activeDaysCount = daysInMonth;
+                if (activeDaysCount < 0) activeDaysCount = 0;
+
+                userDetails.Add(new UserLicenseDetailDto
+                {
+                    UserId = u.Id,
+                    Name = u.Name,
+                    Email = u.Email,
+                    Role = u.Role?.Name ?? "user",
+                    ActiveDaysInMonth = activeDaysCount,
+                    IsLicensed = activeDaysCount >= minimumActiveDays
+                });
+            }
+
+            int totalLicensed = userDetails.Count(ud => ud.IsLicensed);
+
+            // Find matching tier
+            var matchedTier = priceTiers
+                .OrderBy(t => t.From)
+                .FirstOrDefault(t => totalLicensed >= t.From && (t.To == null || totalLicensed <= t.To));
+
+            decimal pricePerUser = matchedTier?.PricePerUser ?? 0;
+            decimal totalCost = totalLicensed * pricePerUser;
+
+            var priceTierDtos = priceTiers
+                .Select(t => new PriceTierDto
+                {
+                    From = t.From,
+                    To = t.To,
+                    PricePerUser = t.PricePerUser,
+                    IsCurrentTier = matchedTier != null && matchedTier.From == t.From && matchedTier.To == t.To
+                })
+                .ToList();
+
+            return new LicensingReportResponse
+            {
+                Year = year,
+                Month = month,
+                MinimumActiveDays = minimumActiveDays,
+                TotalLicensedUsers = totalLicensed,
+                TotalUsersConsidered = targetUsers.Count,
+                PricePerUser = pricePerUser,
+                TotalCost = totalCost,
+                PriceTiers = priceTierDtos,
+                Users = userDetails
+            };
+        }
+
+        private static Guid? ExtractGuid(string entityId)
+        {
+            if (string.IsNullOrEmpty(entityId)) return null;
+            try
+            {
+                using (var doc = System.Text.Json.JsonDocument.Parse(entityId))
+                {
+                    if (doc.RootElement.TryGetProperty("Id", out var idProp) || doc.RootElement.TryGetProperty("id", out idProp))
+                    {
+                        if (Guid.TryParse(idProp.GetString(), out var guid))
+                            return guid;
+                    }
+                }
+            }
+            catch
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(entityId, @"[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}");
+                if (match.Success && Guid.TryParse(match.Value, out var guid))
+                    return guid;
+            }
+            return null;
+        }
+
+        private static bool? GetIsActiveValue(AuditLog log, bool getNewValue)
+        {
+            if (string.IsNullOrEmpty(log.Changes)) return null;
+            try
+            {
+                using (var doc = System.Text.Json.JsonDocument.Parse(log.Changes))
+                {
+                    if (doc.RootElement.TryGetProperty("IsActive", out var prop) || doc.RootElement.TryGetProperty("isActive", out prop))
+                    {
+                        if (prop.ValueKind == System.Text.Json.JsonValueKind.Array && prop.GetArrayLength() == 2)
+                        {
+                            var valElement = prop[getNewValue ? 1 : 0];
+                            if (valElement.ValueKind == System.Text.Json.JsonValueKind.True) return true;
+                            if (valElement.ValueKind == System.Text.Json.JsonValueKind.False) return false;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
         private static int GetStatusSeverity(string status)
         {
             return status switch

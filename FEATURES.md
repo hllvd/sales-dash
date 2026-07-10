@@ -113,3 +113,14 @@ This feature enforces user scoping and active matricula checks during contract a
   - If the seller has more than one owner matricula, no default selection is made to prevent incorrect assignments, requiring the administrator to select one manually.
 - **Form Validation Enforcement**: Prevents submitting the form if a seller is selected but no matricula has been selected, displaying an error toast/validation block.
 
+## Active Users Licensing Dashboard
+
+This feature provides a dedicated dashboard for SuperAdmin users to track the number of active users per month and automatically calculate the corresponding licensing cost based on active days and volume pricing tiers.
+
+### Key Capabilities
+- **Audit-Log-Based Active Days Calculation**: Counts the exact number of days a user was active (`IsActive == true`) during the selected calendar month by parsing `AuditLogs` for user state changes.
+- **Dynamic Tiered Pricing**: Automatically maps the licensed user count (those with active days $\ge$ the threshold) to flat-rate pricing tiers (1–300 users: R$ 28; 301–800 users: R$ 26; >801 users: R$ 20).
+- **Flexible Threshold Control**: Allows adjusting the minimum active days threshold (defaulting to 15, configurable in `appsettings.json`).
+- **User Exclusion Rule**: Excludes specified accounts (e.g. `superadmin@salesapp.com`) from active count and pricing calculations via `appsettings.json` configuration.
+- **Interactive Reports View**: Provides monthly filtering, total licensing costs KPI, active tier highlighting, detailed list of users with active days status, and a CSV export helper.
+

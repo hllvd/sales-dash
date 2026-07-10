@@ -58,5 +58,30 @@ namespace SalesApp.Controllers
                 Message = "Admin import statistics retrieved successfully"
             });
         }
+
+        [HttpGet("licensing")]
+        [HasPermission("system:superadmin")]
+        public async Task<ActionResult<ApiResponse<LicensingReportResponse>>> GetLicensingReport(
+            [FromQuery] int year,
+            [FromQuery] int month,
+            [FromQuery] int? minimumDays)
+        {
+            if (year <= 0 || month < 1 || month > 12)
+            {
+                return BadRequest(new ApiResponse<LicensingReportResponse>
+                {
+                    Success = false,
+                    Message = "Invalid year or month parameters"
+                });
+            }
+
+            var report = await _monitoringService.GetLicensingReportAsync(year, month, minimumDays);
+            return Ok(new ApiResponse<LicensingReportResponse>
+            {
+                Success = true,
+                Data = report,
+                Message = "Licensing report generated successfully"
+            });
+        }
     }
 }

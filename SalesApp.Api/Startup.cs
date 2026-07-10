@@ -120,6 +120,9 @@ namespace SalesApp
             // Admin Info Configuration
             services.Configure<Models.Configuration.AdminInfoOptions>(Configuration.GetSection("AdminInfo"));
 
+            // Licensing Configuration
+            services.Configure<Models.Configuration.LicensingOptions>(Configuration.GetSection("Licensing"));
+
             // AWS DynamoDB
             services.AddSingleton<IAmazonDynamoDB>(sp => {
                 var config = sp.GetRequiredService<IConfiguration>();

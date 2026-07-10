@@ -23,6 +23,7 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconTools,
+  IconReceipt2,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -411,6 +412,14 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
                 label="Saúde das Matrículas"
                 active={isActive('#/monitoring/matricula-health')}
                 styles={navLinkStyles('#/monitoring/matricula-health')}
+                onClick={() => { if (opened) close(); }}
+              />
+              <NavLink
+                href="#/monitoring/licensing"
+                label="Licenciamento"
+                leftSection={<IconReceipt2 size={16} />}
+                active={isActive('#/monitoring/licensing')}
+                styles={navLinkStyles('#/monitoring/licensing')}
                 onClick={() => { if (opened) close(); }}
               />
             </NavLink>
