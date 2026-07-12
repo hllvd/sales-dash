@@ -807,7 +807,7 @@ namespace SalesApp.Controllers
                 {
                     var hasContractsCheck = await _context.Contracts
                         .Include(c => c.ContractStatus)
-                        .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente");
+                        .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente" && c.ContractStatus.Name.ToLower() != "naodefinido");
                     
                     if (hasContractsCheck)
                     {
@@ -873,7 +873,7 @@ namespace SalesApp.Controllers
 
             var hasContracts = await _context.Contracts
                 .Include(c => c.ContractStatus)
-                .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente");
+                .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente" && c.ContractStatus.Name.ToLower() != "naodefinido");
 
             if (hasContracts)
             {
@@ -932,7 +932,7 @@ namespace SalesApp.Controllers
             // 2. Total active user contracts
             var userContracts = await _context.Contracts
                 .Include(c => c.ContractStatus)
-                .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente")
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente" && c.ContractStatus.Name.ToLower() != "naodefinido")
                 .ToListAsync();
             
             decimal totalProduction = userContracts

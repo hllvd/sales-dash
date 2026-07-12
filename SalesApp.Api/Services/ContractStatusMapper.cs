@@ -40,11 +40,15 @@ namespace SalesApp.Services
             }
 
             // Valid statuses are the keys from the configuration
-            _validStatuses = options.Value.Mappings.Keys
-                .ToArray();
+            var validList = options.Value.Mappings.Keys.ToList();
+            if (!validList.Contains(ContractStatus.NaoDefinido.ToApiString(), StringComparer.OrdinalIgnoreCase))
+            {
+                validList.Add(ContractStatus.NaoDefinido.ToApiString());
+            }
+            _validStatuses = validList.ToArray();
             
             // Fallback if config is empty (though it shouldn't be)
-            if (_validStatuses.Length == 0)
+            if (_validStatuses.Length <= 1) // 1 because we just added NaoDefinido
             {
                 _validStatuses = new[] 
                 { 
@@ -53,7 +57,8 @@ namespace SalesApp.Services
                     ContractStatus.Late2.ToApiString(), 
                     ContractStatus.Late3.ToApiString(), 
                     ContractStatus.Defaulted.ToApiString(),
-                    ContractStatus.Transferred.ToApiString()
+                    ContractStatus.Transferred.ToApiString(),
+                    ContractStatus.NaoDefinido.ToApiString()
                 };
             }
         }
@@ -71,7 +76,13 @@ namespace SalesApp.Services
             }
 
             var trimmed = input.Trim();
-            return _statusAliases.TryGetValue(trimmed, out var canonical) ? canonical : null;
+            if (_statusAliases.TryGetValue(trimmed, out var canonical))
+            {
+                return canonical;
+            }
+
+            // Unknown status maps to NaoDefinido
+            return ContractStatus.NaoDefinido.ToApiString();
         }
 
         /// <summary>

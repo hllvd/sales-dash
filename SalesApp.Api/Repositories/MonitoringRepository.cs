@@ -202,6 +202,19 @@ namespace SalesApp.Repositories
                 .OrderBy(u => u.Name)
                 .ToList();
 
+            // Fetch active teams for users
+            var now = DateTime.UtcNow;
+            var userActiveTeams = await _context.UserTeams
+                .Include(ut => ut.Team)
+                .AsNoTracking()
+                .Where(ut => ut.StartDate <= now && (ut.EndDate == null || ut.EndDate > now))
+                .Select(ut => new { ut.UserInternalId, TeamName = ut.Team.Name })
+                .ToListAsync();
+
+            var userTeamsMap = userActiveTeams
+                .GroupBy(ut => ut.UserInternalId)
+                .ToDictionary(g => g.Key, g => g.First().TeamName);
+
             // Fetch audit logs for Users
             var auditLogs = await _context.AuditLogs
                 .Where(a => a.EntityName == "User")
@@ -220,6 +233,12 @@ namespace SalesApp.Repositories
 
             foreach (var u in targetUsers)
             {
+                string teamName = "Sem equipe";
+                if (userTeamsMap.TryGetValue(u.InternalId, out var team))
+                {
+                    teamName = team;
+                }
+
                 // If user was created after the month ended, they had 0 active days
                 if (u.CreatedAt >= monthEnd)
                 {
@@ -229,6 +248,7 @@ namespace SalesApp.Repositories
                         Name = u.Name,
                         Email = u.Email,
                         Role = u.Role?.Name ?? "user",
+                        TeamName = teamName,
                         ActiveDaysInMonth = 0,
                         IsLicensed = false
                     });
@@ -299,6 +319,7 @@ namespace SalesApp.Repositories
                     Name = u.Name,
                     Email = u.Email,
                     Role = u.Role?.Name ?? "user",
+                    TeamName = teamName,
                     ActiveDaysInMonth = activeDaysCount,
                     IsLicensed = activeDaysCount >= minimumActiveDays
                 });

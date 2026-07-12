@@ -78,11 +78,12 @@ const LicensingPage: React.FC = () => {
   const handleExportCSV = () => {
     if (!report) return;
     
-    const headers = ['Nome', 'Email', 'Cargo', 'Dias Ativos no Mês', 'Status Licenciamento'];
+    const headers = ['Nome', 'Email', 'Cargo', 'Equipe', 'Dias Ativos no Mês', 'Status Licenciamento'];
     const rows = report.users.map(u => [
       u.name,
       u.email,
       u.role,
+      u.teamName,
       `${u.activeDaysInMonth} dias`,
       u.isLicensed ? 'Licenciado' : 'Abaixo do mínimo'
     ]);
@@ -318,6 +319,7 @@ const LicensingPage: React.FC = () => {
                         <Table.Th>Nome</Table.Th>
                         <Table.Th>Email</Table.Th>
                         <Table.Th>Cargo</Table.Th>
+                        <Table.Th>Equipe</Table.Th>
                         <Table.Th>Dias Ativos no Mês</Table.Th>
                         <Table.Th>Status</Table.Th>
                       </Table.Tr>
@@ -332,6 +334,7 @@ const LicensingPage: React.FC = () => {
                               {u.role}
                             </Badge>
                           </Table.Td>
+                          <Table.Td style={{ color: '#4b5563' }}>{u.teamName}</Table.Td>
                           <Table.Td fw={600}>{u.activeDaysInMonth} dias</Table.Td>
                           <Table.Td>
                             {u.isLicensed ? (

@@ -43,6 +43,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [statusValidation, setStatusValidation] = useState<{
     isValid: boolean
     invalidValues: string[]
+    unrecognizedValues: string[]
   } | null>(null)
   const [statusValidating, setStatusValidating] = useState(false)
 
@@ -155,6 +156,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         setStatusValidation({
           isValid: resp.data.isValid,
           invalidValues: resp.data.invalidValues,
+          unrecognizedValues: resp.data.unrecognizedValues || [],
         })
       }
     } catch {
@@ -563,6 +565,20 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
           {statusValidation !== null && statusValidation.isValid && (
             <div style={{ marginTop: '16px', fontSize: '13px', color: '#15803d', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>✅</span> Todos os valores de status são válidos.
+            </div>
+          )}
+
+          {statusValidation !== null && statusValidation.unrecognizedValues && statusValidation.unrecognizedValues.length > 0 && (
+            <div
+              id="status-unrecognized-warning"
+              style={{ marginTop: '16px', padding: '12px', borderRadius: '6px', background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}
+            >
+              <strong style={{ display: 'block', marginBottom: '4px' }}>⚠️ Status Não Mapeados Detectados</strong>
+              {statusValidation.unrecognizedValues.map((val: string) => (
+                <p key={val} style={{ margin: '4px 0 0', fontSize: '13px' }}>
+                  We detected the status "{val}" and we will define it as "Nao definido"
+                </p>
+              ))}
             </div>
           )}
         </div>

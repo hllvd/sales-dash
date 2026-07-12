@@ -49,6 +49,9 @@ namespace SalesApp.Models
         
         public byte? Version { get; set; } // For contractDashboard import
         
+        [MaxLength(100)]
+        public string? RawStatus { get; set; } // Stores original status if mapped to NaoDefinido
+        
         [MaxLength(50)]
         public string? TempMatricula { get; set; } // Temporary matricula reference
         

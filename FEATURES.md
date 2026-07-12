@@ -124,3 +124,21 @@ This feature provides a dedicated dashboard for SuperAdmin users to track the nu
 - **User Exclusion Rule**: Excludes specified accounts (e.g. `superadmin@salesapp.com`) from active count and pricing calculations via `appsettings.json` configuration.
 - **Interactive Reports View**: Provides monthly filtering, total licensing costs KPI, active tier highlighting, detailed list of users with active days status, and a CSV export helper.
 
+## Contract "Não Definido" Status
+
+This feature handles unknown contract statuses gracefully during file imports using the `contractDashboard` template, defining them under a new visual-only **"Não Definido"** (Undefined) status.
+
+### Core Objectives
+Avoid crashing the entire contract dashboard import pipeline when an unknown status (such as `COBRANCA ADMINISTRATIVA`) is detected, by safely importing it without affecting metrics, sums, or deactivation validations.
+
+### Key Capabilities
+- **Fallback Status Mapping**: Unknown status values during import automatically map to the `"NaoDefinido"` status.
+- **Traceability of Original Status**: The raw original status string is preserved and saved in the contract's `RawStatus` column.
+- **Visual Display & Tooltip**: Shown in `/#/contract` with a neutral gray badge. Hovering over the badge displays a tooltip showing the original status name from the file (e.g., `Status original no arquivo: COBRANCA ADMINISTRATIVA`).
+- **Exclusion from Business Logic and Totals**:
+  - Excluded from production totals (`totalProduction`).
+  - Excluded from active retention calculations (`activeAmount` and `strictActiveAmount`).
+  - Excluded from user deactivation checks (contracts with `"NaoDefinido"` status do not block deactivating a user).
+- **Import Warning System**: Shows a warning in the import wizard / bulk import results screen specifying which unknown statuses were detected and mapped (e.g., `We detected the status "COBRANCA ADMINISTRATIVA" and we will define it as "Nao definido"`).
+
+

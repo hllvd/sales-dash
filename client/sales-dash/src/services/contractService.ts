@@ -13,7 +13,8 @@ export enum ContractStatus {
   Delinquent = 'Delinquent',
   Transferred = 'Transferred',
   PaidOff = 'PaidOff',
-  AwaitingPayment = 'AwaitingPayment'
+  AwaitingPayment = 'AwaitingPayment',
+  NaoDefinido = 'NaoDefinido'
 }
 
 // TypeScript Interfaces
@@ -37,6 +38,7 @@ export interface Contract {
   customerName?: string;
   matriculaNumber?: string;
   userMatriculaId?: number | null;
+  rawStatus?: string;
 }
 
 export interface CreateContractRequest {
@@ -220,6 +222,7 @@ export interface UserLicenseDetail {
   name: string;
   email: string;
   role: string;
+  teamName: string;
   activeDaysInMonth: number;
   isLicensed: boolean;
 }

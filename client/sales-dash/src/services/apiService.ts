@@ -534,6 +534,7 @@ export const apiService = {
   ): Promise<ApiResponse<{
     isValid: boolean
     invalidValues: string[]
+    unrecognizedValues: string[]
     sampleValues: string[]
     validCount: number
     totalChecked: number

@@ -531,7 +531,7 @@ const ContractsPage: React.FC = () => {
                   {visibleColumns.totalAmount && <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>}
                   {visibleColumns.status && (
                     <Table.Td>
-                      <ContractStatusBadge status={contract.status} />
+                      <ContractStatusBadge status={contract.status} rawStatus={contract.rawStatus} />
                     </Table.Td>
                   )}
                   {visibleColumns.startDate && <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>}

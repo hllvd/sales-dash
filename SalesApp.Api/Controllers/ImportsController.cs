@@ -758,6 +758,7 @@ namespace SalesApp.Controllers
                     .ToListAsync();
 
                 var invalidValues = new List<string>();
+                var unrecognizedValues = new List<string>();
                 var sampleValues = new List<string>();
                 int validCount = 0;
                 int nullCount = 0;
@@ -779,10 +780,20 @@ namespace SalesApp.Controllers
                         sampleValues.Add(trimmed);
 
                     var mapped = _validation.MapStatus(trimmed);
+                    bool isWarningStatus = mapped == ContractStatus.NaoDefinido.ToApiString() &&
+                                           !trimmed.Equals("NaoDefinido", StringComparison.OrdinalIgnoreCase) &&
+                                           !trimmed.Equals("Não definido", StringComparison.OrdinalIgnoreCase);
+                    
                     if (mapped == null)
                     {
                         if (!invalidValues.Contains(trimmed))
                             invalidValues.Add(trimmed);
+                    }
+                    else if (isWarningStatus)
+                    {
+                        if (!unrecognizedValues.Contains(trimmed))
+                            unrecognizedValues.Add(trimmed);
+                        validCount++;
                     }
                     else
                     {
@@ -791,7 +802,7 @@ namespace SalesApp.Controllers
                 }
 
                 // If every row has a null/empty status value the column is almost certainly wrong
-                bool allNull = validCount == 0 && invalidValues.Count == 0 && nullCount > 0;
+                bool allNull = validCount == 0 && invalidValues.Count == 0 && unrecognizedValues.Count == 0 && nullCount > 0;
                 if (allNull)
                     invalidValues.Add("(vazio — coluna sem valores de status)");
 
@@ -802,6 +813,7 @@ namespace SalesApp.Controllers
                     {
                         IsValid = invalidValues.Count == 0,
                         InvalidValues = invalidValues,
+                        UnrecognizedValues = unrecognizedValues,
                         SampleValues = sampleValues,
                         ValidCount = validCount,
                         TotalChecked = rows.Count

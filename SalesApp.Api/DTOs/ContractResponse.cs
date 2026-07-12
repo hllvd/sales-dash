@@ -20,5 +20,6 @@ namespace SalesApp.DTOs
         public string? CustomerName { get; set; }
         public int? MatriculaId { get; set; }
         public string? MatriculaNumber { get; set; }
+        public string? RawStatus { get; set; }
     }
 }

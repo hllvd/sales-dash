@@ -413,10 +413,17 @@ namespace SalesApp.Services
             // Extract optional fields
             var statusInput = GetFieldValue(row, reverseMappings, "Status");
             var mappedStatus = _statusMapper.MapStatus(statusInput);
-            if (mappedStatus == null && !string.IsNullOrWhiteSpace(statusInput))
+            bool isUnknown = !string.IsNullOrWhiteSpace(statusInput) && 
+                             mappedStatus == ContractStatus.NaoDefinido.ToApiString() && 
+                             !statusInput.Trim().Equals("NaoDefinido", StringComparison.OrdinalIgnoreCase) &&
+                             !statusInput.Trim().Equals("Não definido", StringComparison.OrdinalIgnoreCase);
+            if (isUnknown)
             {
-                var warning = $"Unrecognized status value: '{statusInput}' for contract '{contractNumber}'. Defaulting to Active.";
-                result.Warnings.Add(warning);
+                var warning = $"We detected the status \"{statusInput}\" and we will define it as \"Nao definido\"";
+                if (!result.Warnings.Contains(warning))
+                {
+                    result.Warnings.Add(warning);
+                }
                 
                 // ✅ Log Status Anomaly to DynamoDB
                 await _errorService.LogErrorAsync(
@@ -535,6 +542,7 @@ namespace SalesApp.Services
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
             contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
+            contract.RawStatus = status == ContractStatus.NaoDefinido.ToApiString() ? statusInput : null;
             if (saleStartDate.HasValue) contract.SaleStartDate = saleStartDate.Value;
             contract.UploadId = uploadId;
             contract.ImportSessionId = importSessionId;
@@ -1573,6 +1581,18 @@ namespace SalesApp.Services
             // Map Status
             var statusStr = GetFieldValue(row, reverseMappings, "Status");
             var status = MapSituacaoCobrancaToStatus(statusStr);
+            bool isUnknown = !string.IsNullOrWhiteSpace(statusStr) && 
+                             status == ContractStatus.NaoDefinido.ToApiString() && 
+                             !statusStr.Trim().Equals("NaoDefinido", StringComparison.OrdinalIgnoreCase) &&
+                             !statusStr.Trim().Equals("Não definido", StringComparison.OrdinalIgnoreCase);
+            if (isUnknown && result != null)
+            {
+                var warning = $"We detected the status \"{statusStr}\" and we will define it as \"Nao definido\"";
+                if (!result.Warnings.Contains(warning))
+                {
+                    result.Warnings.Add(warning);
+                }
+            }
             
             // Handle Category metadata
             int? categoryMetadataId = null;
@@ -1624,6 +1644,7 @@ namespace SalesApp.Services
             {
                 // Update status and reactivate
                 contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
+                contract.RawStatus = status == ContractStatus.NaoDefinido.ToApiString() ? statusStr : null;
                 if (userInternalId.HasValue) contract.UserInternalId = userInternalId;
                 contract.IsActive = true;
                 contract.UpdatedAt = DateTime.UtcNow;
@@ -1674,6 +1695,7 @@ namespace SalesApp.Services
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
             contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
+            contract.RawStatus = status == ContractStatus.NaoDefinido.ToApiString() ? statusStr : null;
             if (saleStartDate.HasValue) contract.SaleStartDate = saleStartDate.Value;
             contract.UploadId = uploadId;
             contract.IsActive = true;

@@ -24,7 +24,8 @@ namespace SalesApp.Services
                 new { Total = 0m, Cancel = 0m, Active = 0m, Late = 0m },
                 (acc, c) =>
                 {
-                    if (c.ContractStatus.Name.Equals(ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                    if (c.ContractStatus.Name.Equals(ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase) ||
+                        c.ContractStatus.Name.Equals(ContractStatus.NaoDefinido.ToApiString(), StringComparison.OrdinalIgnoreCase))
                     {
                         return acc;
                     }

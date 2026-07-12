@@ -9,6 +9,7 @@ namespace SalesApp.DTOs
     {
         public bool IsValid { get; set; }
         public List<string> InvalidValues { get; set; } = new();
+        public List<string> UnrecognizedValues { get; set; } = new();
         public List<string> SampleValues { get; set; } = new();
         public int ValidCount { get; set; }
         public int TotalChecked { get; set; }

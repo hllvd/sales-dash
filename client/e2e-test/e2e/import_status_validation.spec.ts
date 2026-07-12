@@ -67,7 +67,7 @@ test.describe('Status Column Validation on Mapping Step', () => {
   // Configure tests in this file to run serially to prevent database lock contention in SQLite
   test.describe.configure({ mode: 'serial' });
 
-  test('should block confirm when Status column contains invalid values', async ({ page }) => {
+  test('should show warning but allow confirm when Status column contains unrecognized values', async ({ page }) => {
     test.setTimeout(60000);
     await login(page);
     await openImportModal(page);
@@ -82,14 +82,13 @@ test.describe('Status Column Validation on Mapping Step', () => {
     await validationPromise;
 
     // The warning should appear automatically since "Situação Cobrança" is auto-mapped to Status
-    await expect(page.locator('#status-validation-warning')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('#status-validation-warning')).toContainText('Valores de Status Inválidos');
-    // The warning contains either the bad value or the "vazio" message — both mean the column is invalid
-    await expect(page.locator('#status-validation-warning p').first()).not.toBeEmpty();
+    await expect(page.locator('#status-unrecognized-warning')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#status-unrecognized-warning')).toContainText('Status Não Mapeados Detectados');
+    await expect(page.locator('#status-unrecognized-warning')).toContainText('We detected the status "VALOR_INVALIDO_XYZ" and we will define it as "Nao definido"');
 
-    // Confirm button must be disabled
+    // Confirm button must be enabled
     const confirmBtn = page.locator('button:has-text("Confirmar e Importar")');
-    await expect(confirmBtn).toBeDisabled({ timeout: 5000 });
+    await expect(confirmBtn).toBeEnabled({ timeout: 10000 });
   });
 
   test('should show success indicator and allow confirm when Status values are valid', async ({ page }) => {
@@ -108,6 +107,7 @@ test.describe('Status Column Validation on Mapping Step', () => {
 
     // No warning should appear
     await expect(page.locator('#status-validation-warning')).not.toBeVisible();
+    await expect(page.locator('#status-unrecognized-warning')).not.toBeVisible();
 
     // Success indicator should appear
     await expect(page.getByText('Todos os valores de status são válidos.')).toBeVisible({ timeout: 10000 });
@@ -132,14 +132,14 @@ test.describe('Status Column Validation on Mapping Step', () => {
     await validationPromise;
 
     // Warning should be visible
-    await expect(page.locator('#status-validation-warning')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#status-unrecognized-warning')).toBeVisible({ timeout: 10000 });
 
     // Now remap "Situação Cobrança" away from Status (select "-- Não mapear --")
     const statusRow = page.locator('.mapping-row', { hasText: 'Situação Cobrança' });
     await statusRow.locator('select').selectOption('');
 
     // Warning should disappear
-    await expect(page.locator('#status-validation-warning')).not.toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#status-unrecognized-warning')).not.toBeVisible({ timeout: 5000 });
   });
 
 });

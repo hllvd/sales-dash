@@ -586,5 +586,85 @@ namespace SalesApp.IntegrationTests.Imports
             result.FailedRows.Should().Be(0);
             result.CreatedContracts[0].GroupId.Should().BeNull();
         }
+
+        [Fact]
+        public async Task ImportContracts_WithUnknownStatus_ShouldMapToNaoDefinidoAndSaveRawStatus()
+        {
+            // Arrange
+            using var scope = _factory.Services.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<IImportExecutionService>();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var groupRepo = scope.ServiceProvider.GetRequiredService<IGroupRepository>();
+
+            var uploadId = Guid.NewGuid().ToString();
+            var session = await CreateTestSessionAsync(context, uploadId);
+
+            var group = new Group
+            {
+                Name = $"Test Group {Guid.NewGuid().ToString()[..8]}",
+                IsActive = true
+            };
+            await groupRepo.CreateAsync(group);
+
+            var rows = new List<Dictionary<string, string>>
+            {
+                new()
+                {
+                    { "ContractNumber", $"CNT-{Guid.NewGuid().ToString()[..8]}" },
+                    { "TotalAmount", "1000.00" },
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-STATUS-1" },
+                    { "GroupId", group.Name },
+                    { "Status", "COBRANCA ADMINISTRATIVA" }
+                },
+                new()
+                {
+                    { "ContractNumber", $"CNT-{Guid.NewGuid().ToString()[..8]}" },
+                    { "TotalAmount", "1000.00" },
+                    { "SaleStartDate", "2024-01-01" },
+                    { "MatriculaNumber", "MAT-STATUS-2" },
+                    { "GroupId", group.Name },
+                    { "Status", "FOO_BAR_STATUS" }
+                }
+            };
+
+            var mappings = new Dictionary<string, string>
+            {
+                { "ContractNumber", "ContractNumber" },
+                { "TotalAmount", "TotalAmount" },
+                { "SaleStartDate", "SaleStartDate" },
+                { "MatriculaNumber", "MatriculaNumber" },
+                { "GroupId", "GroupId" },
+                { "Status", "Status" }
+            };
+
+            // Act
+            var result = await service.ExecuteContractImportAsync(uploadId, session.Id, rows, mappings, "MM/DD/YYYY");
+
+            // Assert
+            result.ProcessedRows.Should().Be(2);
+            result.FailedRows.Should().Be(0);
+            
+            // Retrieve contracts from DB to inspect status name
+            var dbContracts = await context.Contracts
+                .Include(c => c.ContractStatus)
+                .Where(c => c.UploadId == uploadId)
+                .ToListAsync();
+
+            dbContracts.Should().HaveCount(2);
+
+            var contract1 = dbContracts.FirstOrDefault(c => c.Matricula?.MatriculaNumber == "MAT-STATUS-1");
+            contract1.Should().NotBeNull();
+            contract1!.ContractStatus.Name.Should().Be(ContractStatus.NaoDefinido.ToApiString());
+            contract1.RawStatus.Should().Be("COBRANCA ADMINISTRATIVA");
+
+            var contract2 = dbContracts.FirstOrDefault(c => c.Matricula?.MatriculaNumber == "MAT-STATUS-2");
+            contract2.Should().NotBeNull();
+            contract2!.ContractStatus.Name.Should().Be(ContractStatus.NaoDefinido.ToApiString());
+            contract2.RawStatus.Should().Be("FOO_BAR_STATUS");
+
+            result.Warnings.Should().Contain(w => w.Contains("COBRANCA ADMINISTRATIVA") && w.Contains("Nao definido"));
+            result.Warnings.Should().Contain(w => w.Contains("FOO_BAR_STATUS") && w.Contains("Nao definido"));
+        }
     }
 }

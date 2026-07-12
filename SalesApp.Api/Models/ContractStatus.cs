@@ -38,7 +38,12 @@ namespace SalesApp.Models
         /// <summary>
         /// Awaiting initial payment
         /// </summary>
-        AwaitingPayment
+        AwaitingPayment,
+
+        /// <summary>
+        /// Undefined/unmapped status (purely visual)
+        /// </summary>
+        NaoDefinido
     }
 
     /// <summary>
@@ -71,7 +76,8 @@ namespace SalesApp.Models
                 "Defaulted" or "defaulted" => ContractStatus.Defaulted,
                 "Transferred" or "transferred" => ContractStatus.Transferred,
                 "AwaitingPayment" or "awaitingpayment" => ContractStatus.AwaitingPayment,
-                _ => throw new ArgumentException($"Invalid contract status: {value}. Valid values are: Active, Late1, Late2, Late3, Defaulted, Transferred, AwaitingPayment")
+                "NaoDefinido" or "naodefinido" => ContractStatus.NaoDefinido,
+                _ => throw new ArgumentException($"Invalid contract status: {value}. Valid values are: Active, Late1, Late2, Late3, Defaulted, Transferred, AwaitingPayment, NaoDefinido")
             };
         }
 

@@ -863,7 +863,8 @@ namespace SalesApp.Controllers
                 PvId = contract.PvId,
                 CustomerName = contract.CustomerName,
                 MatriculaId = contract.MatriculaId,
-                MatriculaNumber = matriculaNumber
+                MatriculaNumber = matriculaNumber,
+                RawStatus = contract.RawStatus
             };
         }
         

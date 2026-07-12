@@ -30,6 +30,7 @@ namespace SalesApp.DTOs
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
+        public string TeamName { get; set; } = "Sem equipe";
         public int ActiveDaysInMonth { get; set; }
         public bool IsLicensed { get; set; }   // ActiveDaysInMonth >= MinimumActiveDays
     }

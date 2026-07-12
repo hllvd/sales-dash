@@ -259,5 +259,6 @@ namespace SalesApp.Services
             }
         }
         public string? MapStatus(string? value) => _statusMapper.MapStatus(value);
+        public bool IsValidStatus(string? value) => _statusMapper.IsValidStatus(value);
     }
 }

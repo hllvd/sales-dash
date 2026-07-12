@@ -3,6 +3,7 @@ import { Badge, Tooltip } from '@mantine/core';
 
 interface ContractStatusBadgeProps {
   status: string;
+  rawStatus?: string;
 }
 
 export const getStatusLabel = (status: string): string => {
@@ -25,6 +26,8 @@ export const getStatusLabel = (status: string): string => {
       return 'Inadimplente';
     case 'awaitingpayment':
       return 'Aguardando Pagamento';
+    case 'naodefinido':
+      return 'Não Definido';
     default:
       return status;
   }
@@ -51,6 +54,8 @@ export const getStatusColor = (status: string): string => {
       return 'teal';
     case 'awaitingpayment':
       return 'orange';
+    case 'naodefinido':
+      return 'gray';
     default:
       return 'gray';
   }
@@ -66,15 +71,17 @@ export const CONTRACT_STATUS_OPTIONS = [
   { value: 'Transferred', label: 'Transferido' },
   { value: 'PaidOff', label: 'Quitado' },
   { value: 'AwaitingPayment', label: 'Aguardando Pagamento' },
+  { value: 'NaoDefinido', label: 'Não Definido' },
 ];
 
-const ContractStatusBadge: React.FC<ContractStatusBadgeProps> = ({ status }) => {
+const ContractStatusBadge: React.FC<ContractStatusBadgeProps> = ({ status, rawStatus }) => {
   const isAwaitingPayment = status.toLowerCase() === 'awaitingpayment';
+  const isNaoDefinido = status.toLowerCase() === 'naodefinido';
   
   const badgeElement = (
     <Badge 
       color={getStatusColor(status)}
-      title={isAwaitingPayment ? undefined : getStatusLabel(status)}
+      title={isAwaitingPayment || isNaoDefinido ? undefined : getStatusLabel(status)}
       style={{ cursor: 'help' }}
     >
       {getStatusLabel(status)}
@@ -85,6 +92,21 @@ const ContractStatusBadge: React.FC<ContractStatusBadgeProps> = ({ status }) => 
     return (
       <Tooltip 
         label="Este contrato não é utilizado para calcular qualquer retenção ou somar ao total" 
+        withArrow 
+        position="top"
+      >
+        {badgeElement}
+      </Tooltip>
+    );
+  }
+
+  if (isNaoDefinido) {
+    const tooltipLabel = rawStatus 
+      ? `Status original no arquivo: ${rawStatus}` 
+      : 'Status não definido';
+    return (
+      <Tooltip 
+        label={tooltipLabel} 
         withArrow 
         position="top"
       >

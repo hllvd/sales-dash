@@ -5,5 +5,6 @@ namespace SalesApp.Services
         Task<List<string>> ValidateRowAsync(Dictionary<string, string> row, Dictionary<string, string> mappings, string entityType, List<string>? requiredFields = null, bool allowAutoCreateGroups = false, bool allowAutoCreatePVs = false, bool skipMissingContractNumber = false);
         Task<Dictionary<int, List<string>>> ValidateAllRowsAsync(List<Dictionary<string, string>> rows, Dictionary<string, string> mappings, string entityType, List<string>? requiredFields = null, bool allowAutoCreateGroups = false, bool allowAutoCreatePVs = false, bool skipMissingContractNumber = false);
         string? MapStatus(string? value);
+        bool IsValidStatus(string? value);
     }
 }
