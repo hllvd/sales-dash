@@ -162,7 +162,8 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         data-collapsed={!opened}
         style={{ 
           backgroundColor: '#1f2937',
-          display: isMobile ? (opened ? 'block' : 'none') : 'block'
+          display: isMobile ? (opened ? 'flex' : 'none') : 'flex',
+          flexDirection: 'column'
         }}
       >
         <AppShell.Section>

@@ -91,19 +91,29 @@
 }
 
 /* Custom scrollbar for menu navigation list */
-.menu-nav-scrollable::-webkit-scrollbar {
-  width: 6px;
+.menu-nav-scrollable {
+  --scrollbar-thumb: #4b5563;
+  --scrollbar-track: rgba(0, 0, 0, 0.1);
+
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
 }
 
-.menu-nav-scrollable::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-}
+@supports not (scrollbar-color: auto) {
+  .menu-nav-scrollable::-webkit-scrollbar {
+    width: 6px;
+  }
 
-.menu-nav-scrollable::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border-radius: 3px;
-}
+  .menu-nav-scrollable::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
 
-.menu-nav-scrollable::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  .menu-nav-scrollable::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+
+  .menu-nav-scrollable::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }
 }
