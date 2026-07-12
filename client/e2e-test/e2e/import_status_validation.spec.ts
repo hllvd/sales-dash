@@ -142,4 +142,59 @@ test.describe('Status Column Validation on Mapping Step', () => {
     await expect(page.locator('#status-unrecognized-warning')).not.toBeVisible({ timeout: 5000 });
   });
 
+  test('should map unknown status to NaoDefinido and show raw status on tooltip in contracts page', async ({ page }) => {
+    test.setTimeout(90000);
+    await login(page);
+    await openImportModal(page);
+
+    // Setup network listener for status validation request
+    const validationPromise = page.waitForResponse(response => 
+      response.url().includes('/validate-status') && response.status() === 200,
+      { timeout: 15000 }
+    );
+
+    const unknownStatusCsv = `Obs Cota,Cota,Versao,Dt Venda,Dt Produção,Dt Cancelamento,Dt Contemplacao,Produção Analitica,Categoria,Consultor,Cód. PV,PV,Unidade Original,Unidade Atual,Crédito Venda,Tem Pagamento?,Situação Cobrança,Prazo Grupo,Plano Venda,id_bi,Matricula
+,6111;300;X;Arthur;999826650,1,2026-04-30,,,,,AP,,,,,,300000,,COBRANCA_NOVA_XYZ,,,,6111
+`;
+
+    await uploadAndAdvanceToMapping(page, unknownStatusCsv);
+    await validationPromise;
+
+    // Check warning in validation mapping step
+    await expect(page.locator('#status-unrecognized-warning')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#status-unrecognized-warning')).toContainText('COBRANCA_NOVA_XYZ');
+
+    // Confirm and Import
+    const confirmBtn = page.locator('button:has-text("Confirmar e Importar")');
+    await expect(confirmBtn).toBeEnabled({ timeout: 10000 });
+    await confirmBtn.click();
+
+    // Wait for import result
+    await expect(page.getByText(/Importados:/)).toBeVisible({ timeout: 30000 });
+    await page.click('button:has-text("Fechar")');
+
+    // Verify in Contracts table
+    // Ensure filters are clear
+    const clearBtn = page.locator('button.clear-filters-btn');
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click();
+      await page.waitForTimeout(1000);
+    }
+
+    // Filter by contract number
+    await page.fill('input#filterContractNumber', '999826650');
+
+    const row = page.locator('table tbody tr', { hasText: '999826650' });
+    await expect(row).toBeVisible({ timeout: 25000 });
+
+    const badge = row.locator('.mantine-Badge-root');
+    await expect(badge).toHaveText('Não Definido', { timeout: 15000 });
+
+    // Hover over the badge to check tooltip
+    await badge.hover();
+
+    // Check tooltip is visible and contains original status
+    await expect(page.locator('.mantine-Tooltip-tooltip')).toContainText('Status original no arquivo: COBRANCA_NOVA_XYZ', { timeout: 10000 });
+  });
+
 });
