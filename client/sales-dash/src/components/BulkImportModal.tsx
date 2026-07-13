@@ -35,6 +35,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [requiredFields, setRequiredFields] = useState<string[]>([])
   const [optionalFields, setOptionalFields] = useState<string[]>([])
   const [dateFormat] = useState<string>("MM/DD/YYYY")
+  const [showVideoModal, setShowVideoModal] = useState(false)
   const [skipMissingContractNumber, setSkipMissingContractNumber] = useState<boolean>(true)
   const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState<boolean>(true)
   const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState<boolean>(true)
@@ -344,7 +345,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
       <div className="info-helper-card-body">
         <h4>Tutorial em vídeo disponível</h4>
         <p>Veja o passo a passo completo de como preparar sua planilha e importar contratos com sucesso.</p>
-        <a href="#" className="info-helper-btn" onClick={(e) => e.preventDefault()}>
+        <a href="#" className="info-helper-btn" onClick={(e) => { e.preventDefault(); setShowVideoModal(true); }}>
           Assistir tutorial
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}>
             <line x1="7" y1="17" x2="17" y2="7"></line>
@@ -356,14 +357,15 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   );
 
   return (
-    <StandardModal
-      isOpen={true}
-      onClose={onClose}
-      title={title}
-      size="xl"
-      footer={renderFooter()}
-      headerActions={<InfoHelper label="Como Importar?">{helperContent}</InfoHelper>}
-    >
+    <>
+      <StandardModal
+        isOpen={true}
+        onClose={onClose}
+        title={title}
+        size="xl"
+        footer={renderFooter()}
+        headerActions={templateId === 3 ? <InfoHelper label="Como Importar?">{helperContent}</InfoHelper> : undefined}
+      >
       {error && <div className="error-message">{error}</div>}
       {resultMessage && <div className="success-message">{resultMessage}</div>}
 
@@ -638,6 +640,26 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         </div>
       )}
     </StandardModal>
+
+    {showVideoModal && (
+      <StandardModal
+        isOpen={true}
+        onClose={() => setShowVideoModal(false)}
+        title="Como Importar Contratos em Lote"
+        size="lg"
+      >
+        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '8px' }}>
+          <iframe
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+            src="https://www.youtube.com/embed/2QQs2FGnaqs"
+            title="Como Importar Contratos em Lote"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          ></iframe>
+        </div>
+      </StandardModal>
+    )}
+  </>
   )
 }
 

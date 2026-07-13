@@ -19,6 +19,22 @@ namespace SalesApp.DTOs
         public string? Prize { get; set; }
 
         public decimal? SalesGoal { get; set; }
+
+        /// <summary>Retention target as a percentage (0–100).</summary>
+        [Range(0, 100)]
+        public int? Retention { get; set; }
+
+        /// <summary>FK to the next classification level in the chain (optional).</summary>
+        public int? NextLevelId { get; set; }
+
+        public int? MinimumDirect1LevelId { get; set; }
+        public int? MinimumDirect1MinCount { get; set; }
+        public int? MinimumDirect2LevelId { get; set; }
+        public int? MinimumDirect2MinCount { get; set; }
+
+        public bool ClearNextLevel { get; set; } = false;
+        public bool ClearMinimumDirect1 { get; set; } = false;
+        public bool ClearMinimumDirect2 { get; set; } = false;
     }
 
     public class UpdateClassificationLevelRequest
@@ -33,6 +49,22 @@ namespace SalesApp.DTOs
         public string? Prize { get; set; }
 
         public decimal? SalesGoal { get; set; }
+
+        [Range(0, 100)]
+        public int? Retention { get; set; }
+
+        public int? NextLevelId { get; set; }
+
+        /// <summary>Set to true to explicitly clear the NextLevel link (set to null).</summary>
+        public bool ClearNextLevel { get; set; } = false;
+
+        public int? MinimumDirect1LevelId { get; set; }
+        public bool ClearMinimumDirect1 { get; set; } = false;
+        public int? MinimumDirect1MinCount { get; set; }
+
+        public int? MinimumDirect2LevelId { get; set; }
+        public bool ClearMinimumDirect2 { get; set; } = false;
+        public int? MinimumDirect2MinCount { get; set; }
     }
 
     public class ClassificationLevelResponse
@@ -42,6 +74,19 @@ namespace SalesApp.DTOs
         public string? Description { get; set; }
         public string? Prize { get; set; }
         public decimal? SalesGoal { get; set; }
+        public int? Retention { get; set; }
+
+        public int? NextLevelId { get; set; }
+        public string? NextLevelName { get; set; }
+
+        public int? MinimumDirect1LevelId { get; set; }
+        public string? MinimumDirect1LevelName { get; set; }
+        public int? MinimumDirect1MinCount { get; set; }
+
+        public int? MinimumDirect2LevelId { get; set; }
+        public string? MinimumDirect2LevelName { get; set; }
+        public int? MinimumDirect2MinCount { get; set; }
+
         public int ActiveUsersCount { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

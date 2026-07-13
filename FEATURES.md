@@ -141,4 +141,16 @@ Avoid crashing the entire contract dashboard import pipeline when an unknown sta
   - Excluded from user deactivation checks (contracts with `"NaoDefinido"` status do not block deactivating a user).
 - **Import Warning System**: Shows a warning in the import wizard / bulk import results screen specifying which unknown statuses were detected and mapped (e.g., `We detected the status "COBRANCA ADMINISTRATIVA" and we will define it as "Nao definido"`).
 
+## Gamification Fields on ClassificationLevel
 
+This feature enriches the `ClassificationLevel` entity with gamification metadata, enabling administrators to define progression chains, retention targets, and hierarchical minimum-direct-report requirements for each classification tier.
+
+### Key Capabilities
+- **Retention Target**: Each level can define an optional retention percentage (0–100%), displayed as an orange badge on the classification card.
+- **Next Level (Progression Chain)**: A self-referencing FK (`NextLevelId`) allows building an ordered chain of levels (e.g., Bronze → Silver → Gold). The next-level name is shown as a violet chip on the card.
+- **Minimum Direct Rules (#1 and #2)**: Two optional composed rules per level, each specifying:
+  - A target classification level that must be directly below (another self-referencing FK)
+  - A minimum number of people in that tier (`0` = unlimited, shown as ∞)
+  - Displayed as cyan badges on the card when set.
+- **Clear/Nullify Logic**: Update requests use explicit `ClearNextLevel`, `ClearMinimumDirect1`, and `ClearMinimumDirect2` boolean flags to explicitly null-out previously set FKs, avoiding ambiguity between "not sending the field" and "clearing it".
+- **Database**: All FKs use `SET NULL` on delete — deleting a referenced level does not cascade-delete or block levels that reference it.

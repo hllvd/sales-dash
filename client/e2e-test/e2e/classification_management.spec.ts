@@ -49,7 +49,7 @@ test.describe('User Classification and Level Management (TEAR 3)', () => {
           const staleCard = page.locator('.cls-level-card', { hasText: name }).first();
           await staleCard.locator('button').nth(2).click();
           await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
-          await page.waitForTimeout(800);
+          await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
           keepCleaning = true; // re-scan after DOM update
           break;
         }
@@ -74,6 +74,9 @@ test.describe('User Classification and Level Management (TEAR 3)', () => {
     // Fill Goal (salesGoal is a mantine number input)
     await page.fill('input[placeholder="Ex: 50000"]', testGoal.toString());
 
+    // Fill Retention
+    await page.fill('input[placeholder="Ex: 85"]', '80');
+
     // Submit
     await page.click('button[type="submit"]:has-text("Criar Nível")');
 
@@ -82,6 +85,7 @@ test.describe('User Classification and Level Management (TEAR 3)', () => {
     await expect(newCard).toBeVisible({ timeout: 10000 });
     await expect(newCard.locator('.cls-level-card__stats')).toContainText(`Meta: R$ ${testGoal.toLocaleString('pt-BR')}`);
     await expect(newCard.locator('.cls-level-card__stats')).toContainText(testPrize);
+    await expect(newCard.locator('.cls-level-card__stats')).toContainText('Retenção: 80%');
 
     // ────────────────────────────────────────────────────────────────────────
     // 2. ASCENDING ORDERING VERIFICATION
@@ -118,6 +122,9 @@ test.describe('User Classification and Level Management (TEAR 3)', () => {
 
     // Verify modal header is visible and correct
     await expect(modalTitle).toContainText(`Editar: ${testLevelName}`);
+
+    // Verify Retention is pre-populated from the created level
+    await expect(page.locator('input[placeholder="Ex: 85"]')).toHaveValue('80%');
 
     // Update goal
     const newGoal = testGoal + 25000;

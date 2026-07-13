@@ -75,6 +75,7 @@ export default defineConfig({
         'team_report_setup.spec.ts',
         'team_members_management.spec.ts',
         'classification_management.spec.ts',
+        'classification_next_level.spec.ts',
         'user_classification_and_views.spec.ts',
         'import_wizard_aliases.spec.ts',
         'pending_contract_claims.spec.ts',

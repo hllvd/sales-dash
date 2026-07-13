@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   Title, Button, ActionIcon, Group, Badge, Text, TextInput, Textarea,
-  Modal, Stack, ScrollArea, Tooltip, Loader, Divider, Checkbox
+  Modal, Stack, ScrollArea, Tooltip, Loader, Divider, Checkbox, Select, NumberInput
 } from '@mantine/core'
 import {
   IconPlus, IconEdit, IconTrash, IconStar, IconUsers, IconTrophy,
   IconHistory, IconUserPlus, IconCheck, IconX, IconMedal,
-  IconChevronDown, IconChevronUp
+  IconChevronDown, IconChevronUp, IconArrowRight, IconTarget, IconLink
 } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import Menu from './Menu'
@@ -44,6 +44,12 @@ const ClassificationsPage: React.FC = () => {
   const [fDesc, setFDesc] = useState('')
   const [fPrize, setFPrize] = useState('')
   const [fGoal, setFGoal] = useState('')
+  const [fRetention, setFRetention] = useState<number | string>('')
+  const [fNextLevelId, setFNextLevelId] = useState<string | null>(null)
+  const [fDirect1LevelId, setFDirect1LevelId] = useState<string | null>(null)
+  const [fDirect1Min, setFDirect1Min] = useState<number | string>('')
+  const [fDirect2LevelId, setFDirect2LevelId] = useState<string | null>(null)
+  const [fDirect2Min, setFDirect2Min] = useState<number | string>('')
   const [formError, setFormError] = useState('')
 
   // Members / assign modal
@@ -94,7 +100,11 @@ const ClassificationsPage: React.FC = () => {
   // ── Level form helpers ───────────────────────────────────────────────────
   const openCreate = () => {
     setEditingLevel(null)
-    setFName(''); setFDesc(''); setFPrize(''); setFGoal(''); setFormError('')
+    setFName(''); setFDesc(''); setFPrize(''); setFGoal('')
+    setFRetention(''); setFNextLevelId(null)
+    setFDirect1LevelId(null); setFDirect1Min('')
+    setFDirect2LevelId(null); setFDirect2Min('')
+    setFormError('')
     setShowLevelForm(true)
   }
 
@@ -104,6 +114,12 @@ const ClassificationsPage: React.FC = () => {
     setFDesc(level.description ?? '')
     setFPrize(level.prize ?? '')
     setFGoal(level.salesGoal != null ? String(level.salesGoal) : '')
+    setFRetention(level.retention != null ? level.retention : '')
+    setFNextLevelId(level.nextLevelId != null ? String(level.nextLevelId) : null)
+    setFDirect1LevelId(level.minimumDirect1LevelId != null ? String(level.minimumDirect1LevelId) : null)
+    setFDirect1Min(level.minimumDirect1MinCount != null ? level.minimumDirect1MinCount : '')
+    setFDirect2LevelId(level.minimumDirect2LevelId != null ? String(level.minimumDirect2LevelId) : null)
+    setFDirect2Min(level.minimumDirect2MinCount != null ? level.minimumDirect2MinCount : '')
     setFormError('')
     setShowLevelForm(true)
   }
@@ -112,11 +128,28 @@ const ClassificationsPage: React.FC = () => {
     e.preventDefault()
     if (!fName.trim()) { setFormError('Nome é obrigatório'); return }
     setSaving(true); setFormError('')
+
+    const nextLevelIdNum = fNextLevelId ? Number(fNextLevelId) : undefined
+    const direct1IdNum = fDirect1LevelId ? Number(fDirect1LevelId) : undefined
+    const direct2IdNum = fDirect2LevelId ? Number(fDirect2LevelId) : undefined
+
     const payload: CreateClassificationLevelRequest = {
       name: fName.trim(),
       description: fDesc.trim() || undefined,
       prize: fPrize.trim() || undefined,
-      salesGoal: fGoal !== '' ? Number(fGoal) : undefined
+      salesGoal: fGoal !== '' ? Number(fGoal) : undefined,
+      retention: fRetention !== '' ? Number(fRetention) : undefined,
+      // NextLevel
+      nextLevelId: nextLevelIdNum,
+      clearNextLevel: editingLevel != null && fNextLevelId === null && editingLevel.nextLevelId != null,
+      // MinimumDirect #1
+      minimumDirect1LevelId: direct1IdNum,
+      minimumDirect1MinCount: fDirect1Min !== '' ? Number(fDirect1Min) : undefined,
+      clearMinimumDirect1: editingLevel != null && fDirect1LevelId === null && editingLevel.minimumDirect1LevelId != null,
+      // MinimumDirect #2
+      minimumDirect2LevelId: direct2IdNum,
+      minimumDirect2MinCount: fDirect2Min !== '' ? Number(fDirect2Min) : undefined,
+      clearMinimumDirect2: editingLevel != null && fDirect2LevelId === null && editingLevel.minimumDirect2LevelId != null,
     }
     try {
       if (editingLevel) {
@@ -297,6 +330,26 @@ const ClassificationsPage: React.FC = () => {
                       Meta: R$ {level.salesGoal.toLocaleString('pt-BR')}
                     </Badge>
                   )}
+                  {level.retention != null && (
+                    <Badge color="orange" variant="light" leftSection={<IconTarget size={12} />}>
+                      Retenção: {level.retention}%
+                    </Badge>
+                  )}
+                  {level.nextLevelName && (
+                    <Badge color="violet" variant="light" leftSection={<IconArrowRight size={12} />} className="cls-next-level-chip">
+                      {level.nextLevelName}
+                    </Badge>
+                  )}
+                  {level.minimumDirect1LevelName && (
+                    <Badge color="cyan" variant="light" leftSection={<IconLink size={12} />}>
+                      Dir.1: {level.minimumDirect1LevelName}{level.minimumDirect1MinCount != null ? ` (mín ${level.minimumDirect1MinCount === 0 ? '∞' : level.minimumDirect1MinCount})` : ''}
+                    </Badge>
+                  )}
+                  {level.minimumDirect2LevelName && (
+                    <Badge color="cyan" variant="light" leftSection={<IconLink size={12} />}>
+                      Dir.2: {level.minimumDirect2LevelName}{level.minimumDirect2MinCount != null ? ` (mín ${level.minimumDirect2MinCount === 0 ? '∞' : level.minimumDirect2MinCount})` : ''}
+                    </Badge>
+                  )}
                 </div>
                 <div className="cls-level-card__actions">
                   <Tooltip label="Gerenciar membros" withArrow position="top">
@@ -369,6 +422,72 @@ const ClassificationsPage: React.FC = () => {
                   onChange={e => setFGoal(e.target.value)}
                   min={0}
                 />
+                <NumberInput
+                  label="Retenção (%)"
+                  placeholder="Ex: 85"
+                  min={0}
+                  max={100}
+                  value={fRetention}
+                  onChange={setFRetention}
+                  suffix="%"
+                  leftSection={<IconTarget size={14} />}
+                />
+                <Select
+                  label="Próximo Nível"
+                  placeholder="Selecione o próximo nível (opcional)"
+                  data={levels
+                    .filter(l => !editingLevel || l.id !== editingLevel.id)
+                    .map(l => ({ value: String(l.id), label: l.name }))}
+                  value={fNextLevelId}
+                  onChange={setFNextLevelId}
+                  clearable
+                  clearButtonProps={{ 'aria-label': 'Clear' }}
+                  leftSection={<IconArrowRight size={14} />}
+                  data-testid="select-next-level"
+                />
+                <Divider label="Mínimo Direto" labelPosition="center" />
+                <Group grow align="flex-end">
+                  <Select
+                    label="Mínimo Direto #1 — Nível"
+                    placeholder="Selecione um nível"
+                    data={levels
+                      .filter(l => !editingLevel || l.id !== editingLevel.id)
+                      .map(l => ({ value: String(l.id), label: l.name }))}
+                    value={fDirect1LevelId}
+                    onChange={setFDirect1LevelId}
+                    clearable
+                    clearButtonProps={{ 'aria-label': 'Clear' }}
+                  />
+                  <NumberInput
+                    label="Mín. pessoas (0 = ilimitado)"
+                    placeholder="0"
+                    min={0}
+                    value={fDirect1Min}
+                    onChange={setFDirect1Min}
+                    disabled={!fDirect1LevelId}
+                  />
+                </Group>
+                <Group grow align="flex-end">
+                  <Select
+                    label="Mínimo Direto #2 — Nível"
+                    placeholder="Selecione um nível"
+                    data={levels
+                      .filter(l => !editingLevel || l.id !== editingLevel.id)
+                      .map(l => ({ value: String(l.id), label: l.name }))}
+                    value={fDirect2LevelId}
+                    onChange={setFDirect2LevelId}
+                    clearable
+                    clearButtonProps={{ 'aria-label': 'Clear' }}
+                  />
+                  <NumberInput
+                    label="Mín. pessoas (0 = ilimitado)"
+                    placeholder="0"
+                    min={0}
+                    value={fDirect2Min}
+                    onChange={setFDirect2Min}
+                    disabled={!fDirect2LevelId}
+                  />
+                </Group>
                 <Group justify="flex-end" pt="md" style={{ borderTop: '1px solid #e5e7eb' }}>
                   <Button variant="subtle" color="gray" onClick={() => setShowLevelForm(false)} disabled={saving}>
                     Cancelar

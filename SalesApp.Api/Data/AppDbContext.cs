@@ -457,7 +457,29 @@ namespace SalesApp.Data
                 entity.Property(e => e.Description).HasMaxLength(500);
                 entity.Property(e => e.Prize).HasMaxLength(200);
                 entity.Property(e => e.SalesGoal).HasColumnType("decimal(18,2)");
+
+                // Self-referencing FK: next level in the progression chain
+                entity.HasOne(e => e.NextLevel)
+                    .WithMany()
+                    .HasForeignKey(e => e.NextLevelId)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .IsRequired(false);
+
+                // Self-referencing FK: minimum direct rule #1
+                entity.HasOne(e => e.MinimumDirect1Level)
+                    .WithMany()
+                    .HasForeignKey(e => e.MinimumDirect1LevelId)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .IsRequired(false);
+
+                // Self-referencing FK: minimum direct rule #2
+                entity.HasOne(e => e.MinimumDirect2Level)
+                    .WithMany()
+                    .HasForeignKey(e => e.MinimumDirect2LevelId)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .IsRequired(false);
             });
+
 
             // UserClassification entity configuration
             modelBuilder.Entity<UserClassification>(entity =>

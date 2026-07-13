@@ -89,14 +89,22 @@ namespace SalesApp.Controllers
                 Name = request.Name.Trim(),
                 Description = request.Description?.Trim(),
                 Prize = request.Prize?.Trim(),
-                SalesGoal = request.SalesGoal
+                SalesGoal = request.SalesGoal,
+                Retention = request.Retention,
+                NextLevelId = request.NextLevelId,
+                MinimumDirect1LevelId = request.MinimumDirect1LevelId,
+                MinimumDirect1MinCount = request.MinimumDirect1MinCount,
+                MinimumDirect2LevelId = request.MinimumDirect2LevelId,
+                MinimumDirect2MinCount = request.MinimumDirect2MinCount
             };
 
             var created = await _levelRepo.CreateAsync(level);
+            // Reload with navigation properties (NextLevel, MinimumDirect levels)
+            var createdWithNav = await _levelRepo.GetByIdAsync(created.Id);
             return Ok(new ApiResponse<ClassificationLevelResponse>
             {
                 Success = true,
-                Data = MapToLevelResponse(created, 0),
+                Data = MapToLevelResponse(createdWithNav!, 0),
                 Message = _messageService.Get(AppMessage.ClassificationLevelCreatedSuccessfully)
             });
         }
@@ -126,13 +134,46 @@ namespace SalesApp.Controllers
             if (request.Description != null) level.Description = request.Description.Trim();
             if (request.Prize != null) level.Prize = request.Prize.Trim();
             if (request.SalesGoal.HasValue) level.SalesGoal = request.SalesGoal;
+            if (request.Retention.HasValue) level.Retention = request.Retention;
 
-            var updated = await _levelRepo.UpdateAsync(level);
+            // NextLevel: explicit clear flag takes priority over new value
+            if (request.ClearNextLevel)
+                level.NextLevelId = null;
+            else if (request.NextLevelId.HasValue)
+                level.NextLevelId = request.NextLevelId;
+
+            // MinimumDirect #1
+            if (request.ClearMinimumDirect1)
+            {
+                level.MinimumDirect1LevelId = null;
+                level.MinimumDirect1MinCount = null;
+            }
+            else
+            {
+                if (request.MinimumDirect1LevelId.HasValue) level.MinimumDirect1LevelId = request.MinimumDirect1LevelId;
+                if (request.MinimumDirect1MinCount.HasValue) level.MinimumDirect1MinCount = request.MinimumDirect1MinCount;
+            }
+
+            // MinimumDirect #2
+            if (request.ClearMinimumDirect2)
+            {
+                level.MinimumDirect2LevelId = null;
+                level.MinimumDirect2MinCount = null;
+            }
+            else
+            {
+                if (request.MinimumDirect2LevelId.HasValue) level.MinimumDirect2LevelId = request.MinimumDirect2LevelId;
+                if (request.MinimumDirect2MinCount.HasValue) level.MinimumDirect2MinCount = request.MinimumDirect2MinCount;
+            }
+
+            await _levelRepo.UpdateAsync(level);
+            // Reload with navigation properties so NextLevelName etc. are populated
+            var reloaded = await _levelRepo.GetByIdAsync(id);
             var count = await _levelRepo.GetActiveUsersCountAsync(id);
             return Ok(new ApiResponse<ClassificationLevelResponse>
             {
                 Success = true,
-                Data = MapToLevelResponse(updated, count),
+                Data = MapToLevelResponse(reloaded!, count),
                 Message = _messageService.Get(AppMessage.ClassificationLevelUpdatedSuccessfully)
             });
         }
@@ -355,6 +396,15 @@ namespace SalesApp.Controllers
                 Description = l.Description,
                 Prize = l.Prize,
                 SalesGoal = l.SalesGoal,
+                Retention = l.Retention,
+                NextLevelId = l.NextLevelId,
+                NextLevelName = l.NextLevel?.Name,
+                MinimumDirect1LevelId = l.MinimumDirect1LevelId,
+                MinimumDirect1LevelName = l.MinimumDirect1Level?.Name,
+                MinimumDirect1MinCount = l.MinimumDirect1MinCount,
+                MinimumDirect2LevelId = l.MinimumDirect2LevelId,
+                MinimumDirect2LevelName = l.MinimumDirect2Level?.Name,
+                MinimumDirect2MinCount = l.MinimumDirect2MinCount,
                 ActiveUsersCount = activeCount,
                 CreatedAt = l.CreatedAt,
                 UpdatedAt = l.UpdatedAt

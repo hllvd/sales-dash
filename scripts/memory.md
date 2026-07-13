@@ -50,3 +50,14 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated the test to create a brand new custom Admin user for child parentage, completely isolating it from matricula pollution.
 **Result:** ✅ Green
 
+## [2026-07-13] build — Attempt 1
+**Failure:** `SQLite does not support this migration operation ('AddForeignKeyOperation')` in migration `20260713120000_AddGamificationFields`
+**Root cause:** SQLite cannot add foreign keys to existing tables via `ALTER TABLE`. `AddForeignKey` is not supported for existing tables — only valid inside `CreateTable`. The rest of the project's migrations already follow this pattern (FKs only inside CreateTable).
+**Fix applied:** Removed all `AddForeignKey` and `DropForeignKey` calls from the migration. EF Core model config in AppDbContext still defines the relationships correctly for query/navigation purposes. SQLite FK constraints are not enforced at the DDL level on existing tables.
+**Result:** ✅ Green
+
+## [2026-07-13] all — Attempt 1
+**Failure:** Locator.click timeout on clear button in classification_next_level.spec.ts in E2E Run 2 (Idempotency).
+**Root cause:** Mantine Select clear button only appears on hover of its wrapper, causing selector timeout; additionally, admin_registration.spec.ts defaulted to the first available level (which was the E2E Chain Level) leaving active members that blocked subsequent deletions.
+**Fix applied:** Added hover action on Select wrapper and targeted button element for robustness; explicitly selected Bronze level during admin registration E2E to prevent database contamination; added dynamic not.toBeVisible waits for deletion dialogs in pre-cleanup loops.
+**Result:** ✅ Green

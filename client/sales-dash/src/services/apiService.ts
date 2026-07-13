@@ -1439,6 +1439,15 @@ export interface ClassificationLevel {
   description?: string
   prize?: string
   salesGoal?: number
+  retention?: number
+  nextLevelId?: number
+  nextLevelName?: string
+  minimumDirect1LevelId?: number
+  minimumDirect1LevelName?: string
+  minimumDirect1MinCount?: number
+  minimumDirect2LevelId?: number
+  minimumDirect2LevelName?: string
+  minimumDirect2MinCount?: number
   activeUsersCount: number
   createdAt: string
   updatedAt: string
@@ -1466,6 +1475,15 @@ export interface CreateClassificationLevelRequest {
   description?: string
   prize?: string
   salesGoal?: number
+  retention?: number
+  nextLevelId?: number
+  clearNextLevel?: boolean
+  minimumDirect1LevelId?: number
+  minimumDirect1MinCount?: number
+  clearMinimumDirect1?: boolean
+  minimumDirect2LevelId?: number
+  minimumDirect2MinCount?: number
+  clearMinimumDirect2?: boolean
 }
 
 export interface AssignUserLevelRequest {

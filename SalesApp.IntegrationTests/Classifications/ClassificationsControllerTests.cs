@@ -38,7 +38,9 @@ namespace SalesApp.IntegrationTests.Classifications
                 Name = levelName,
                 Description = "Integration Test Level Description",
                 Prize = "Bonus R$ 100",
-                SalesGoal = 50000
+                SalesGoal = 50000,
+                Retention = 80,
+                MinimumDirect1MinCount = 0
             };
 
             var levelResponse = await clientWithToken.PostAsJsonAsync("/api/classifications/levels", createLevelReq);
@@ -48,6 +50,8 @@ namespace SalesApp.IntegrationTests.Classifications
             levelResult.Should().NotBeNull();
             levelResult!.Success.Should().BeTrue();
             levelResult.Data.Should().NotBeNull();
+            levelResult.Data!.Retention.Should().Be(80);
+            levelResult.Data.MinimumDirect1MinCount.Should().Be(0);
             
             var levelId = levelResult.Data!.Id;
 
@@ -110,6 +114,47 @@ namespace SalesApp.IntegrationTests.Classifications
             membersResult.Data.Should().HaveCount(1);
             membersResult.Data![0].Id.Should().Be(assignmentId);
             membersResult.Data[0].IsActive.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task NextLevelChain_ShouldPersistAndClear()
+        {
+            // 1. Authenticate
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // 2. Create Level A
+            var levelAName = $"Int Chain A {Guid.NewGuid().ToString()[..8]}";
+            var levelARes = await _client.PostAsJsonAsync("/api/classifications/levels",
+                new CreateClassificationLevelRequest { Name = levelAName });
+            levelARes.StatusCode.Should().Be(HttpStatusCode.OK);
+            var levelA = (await levelARes.Content.ReadFromJsonAsync<ApiResponse<ClassificationLevelResponse>>())!.Data!;
+
+            // 3. Create Level B
+            var levelBName = $"Int Chain B {Guid.NewGuid().ToString()[..8]}";
+            var levelBRes = await _client.PostAsJsonAsync("/api/classifications/levels",
+                new CreateClassificationLevelRequest { Name = levelBName });
+            levelBRes.StatusCode.Should().Be(HttpStatusCode.OK);
+            var levelB = (await levelBRes.Content.ReadFromJsonAsync<ApiResponse<ClassificationLevelResponse>>())!.Data!;
+
+            // 4. Update Level A → set NextLevelId = Level B
+            var updateRes = await _client.PutAsJsonAsync($"/api/classifications/levels/{levelA.Id}",
+                new UpdateClassificationLevelRequest { NextLevelId = levelB.Id });
+            updateRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var updated = (await updateRes.Content.ReadFromJsonAsync<ApiResponse<ClassificationLevelResponse>>())!.Data!;
+            updated.NextLevelId.Should().Be(levelB.Id);
+            updated.NextLevelName.Should().Be(levelBName);
+
+            // 5. Clear NextLevel
+            var clearRes = await _client.PutAsJsonAsync($"/api/classifications/levels/{levelA.Id}",
+                new UpdateClassificationLevelRequest { ClearNextLevel = true });
+            clearRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var cleared = (await clearRes.Content.ReadFromJsonAsync<ApiResponse<ClassificationLevelResponse>>())!.Data!;
+            cleared.NextLevelId.Should().BeNull();
+            cleared.NextLevelName.Should().BeNull();
         }
 
         private async Task<string> GetSuperAdminToken()
