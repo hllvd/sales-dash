@@ -154,3 +154,20 @@ This feature enriches the `ClassificationLevel` entity with gamification metadat
   - Displayed as cyan badges on the card when set.
 - **Clear/Nullify Logic**: Update requests use explicit `ClearNextLevel`, `ClearMinimumDirect1`, and `ClearMinimumDirect2` boolean flags to explicitly null-out previously set FKs, avoiding ambiguity between "not sending the field" and "clearing it".
 - **Database**: All FKs use `SET NULL` on delete — deleting a referenced level does not cascade-delete or block levels that reference it.
+
+## UI Performance Optimization & Caching
+
+This feature optimizes the React client-side application performance, eliminating redundant API requests, parallelizing serial waterfalls, and implementing an in-memory session-scoped Reference Data Cache.
+
+### Core Objectives
+Improve UI response times, eliminate redundant load on the backend, and prevent redundant network calls during page navigation or common user actions (such as opening forms).
+
+### Key Capabilities
+- **Reference Data Context (`ReferenceDataContext`)**: Serves as a centralized, in-memory cache for long-lived reference data sets (Teams, PVs, Classifications, Matriculas, and all users). Data is fetched once and reused across route navigation.
+- **Cache Invalidation on Mutation**: The cache is automatically invalidated when a user performs a write action (Create, Update, or Delete) on Matriculas, Teams, Classification Levels, or PVs. This ensures subsequent fetches retrieve fresh, consistent data.
+- **Client-side Search Filtering**: Decouples the Matriculas search debouncer from the fetch lifecycle. The full matriculas list is fetched once on mount; filtering for search input is executed entirely in-memory using `useMemo`, eliminating API calls on keystrokes.
+- **Manual Refresh Actions**: Introduces a manual "Atualizar" (Refresh) button on the Matriculas, Teams, Classifications, and PV management pages, allowing users to explicitly bust the session cache and retrieve fresh data.
+- **Contract Form Optimization**: Overhauls `ContractForm` to read from the cache for users, groups, and PVs, completely eliminating up to 3 redundant API calls every time the "Criar/Editar Contrato" modal is opened.
+- **Waterfall Fetch Elimination**: 
+  - **MyContractsPage**: Parallelizes pending claims retrieval using `Promise.all` instead of a serial `for...of` loop (one query per owned matricula). Also separates date-based filter changes from claims loading.
+  - **TeamsPage**: Parallelizes member removal logic using `Promise.all` to execute all removal calls simultaneously.

@@ -16,6 +16,7 @@ import {
 import { apiService, PV } from '../services/apiService';
 import { useContractsContext } from '../contexts/ContractsContext';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
+import { useReferenceData } from '../contexts/ReferenceDataContext';
 import { toast } from '../utils/toast';
 import StyledModal from './StyledModal';
 import FormField from './FormField';
@@ -37,6 +38,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   
   // Get cached data from context
   const { users: cachedUsers, groups: cachedGroups } = useContractsContext();
+  const { fetchPVs } = useReferenceData();
 
   const [formData, setFormData] = useState({
     contractNumber: contract?.contractNumber || '',
@@ -64,10 +66,15 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
     const fetchDropdownData = async () => {
       try {
-        const [usersData, groupsData] = await Promise.all([
-          getUsers(isUserAdmin),
-          getGroups(),
-        ]);
+        let usersData = cachedUsers;
+        if (!usersData || usersData.length === 0) {
+          usersData = await getUsers(isUserAdmin);
+        }
+
+        let groupsData = cachedGroups;
+        if (!groupsData || groupsData.length === 0) {
+          groupsData = await getGroups();
+        }
         
         let listUsers = usersData;
         if (contract && contract.userId && !usersData.some(u => u.id === contract.userId)) {
@@ -91,12 +98,10 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         setUsers(listUsers);
         setGroups(groupsData);
         
-        // Always fetch PVs (smaller dataset)
+        // Fetch PVs from reference data context cache
         try {
-          const pvsResponse = await apiService.getPVs();
-          if (pvsResponse.success && pvsResponse.data) {
-            setPVs(pvsResponse.data);
-          }
+          const pvsData = await fetchPVs();
+          setPVs(pvsData);
         } catch (pvErr) {
           console.warn('Failed to fetch PVs', pvErr);
         }
@@ -116,7 +121,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     };
 
     fetchDropdownData();
-  }, [cachedUsers, cachedGroups, contract, currentUser, isUserAdmin]);
+  }, [cachedUsers, cachedGroups, contract, currentUser, isUserAdmin, fetchPVs]);
 
   const handleChange = (name: string, value: any) => {
     if (name === 'userId') {

@@ -9,11 +9,13 @@ import {
 import { notifications } from '@mantine/notifications'
 import Menu from './Menu'
 import { useCurrentUser } from '../contexts/CurrentUserContext'
+import { useReferenceData } from '../contexts/ReferenceDataContext'
 import { apiService, BatchUpdateParentResult, BatchAssignTeamResult, BatchAssignTeamRequest } from '../services/apiService'
 import './BatchPage.css'
 
 const BatchPage: React.FC = () => {
   const { currentUser, loading: loadingUser } = useCurrentUser()
+  const { fetchTeams } = useReferenceData()
   
   // Tab 1: Parent Email Update
   const [parentEmail, setParentEmail] = useState('')
@@ -37,17 +39,15 @@ const BatchPage: React.FC = () => {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const fetchTeams = async () => {
+    const loadTeams = async () => {
       setLoadingTeams(true)
       try {
-        const response = await apiService.getTeams()
-        if (response.success && response.data) {
-          const formattedTeams = response.data.map(team => ({
-            value: team.id.toString(),
-            label: team.name
-          }))
-          setTeams(formattedTeams)
-        }
+        const teamsData = await fetchTeams()
+        const formattedTeams = teamsData.map(team => ({
+          value: team.id.toString(),
+          label: team.name
+        }))
+        setTeams(formattedTeams)
       } catch (err: any) {
         console.error('Failed to load teams:', err)
         notifications.show({
@@ -61,10 +61,10 @@ const BatchPage: React.FC = () => {
       }
     }
 
-    if (currentUser?.email === 'superadmin@salesapp.com' || currentUser?.email === 'superadmin@test.com') {
-      fetchTeams()
+    if (currentUser?.role === 'superadmin') {
+      loadTeams()
     }
-  }, [currentUser])
+  }, [currentUser, fetchTeams])
 
   if (loadingUser) {
     return (

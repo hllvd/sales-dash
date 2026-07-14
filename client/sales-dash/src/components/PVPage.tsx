@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Title, Button, Table, ActionIcon, Group, Text } from '@mantine/core';
-import { IconEdit, IconTrash, IconPlus, IconUpload } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconPlus, IconUpload, IconRefresh } from '@tabler/icons-react';
 import './PVPage.css';
 import Menu from './Menu';
 import PVForm from './PVForm';
 import PVImportModal from './PVImportModal';
 import StandardModal from '../shared/StandardModal';
 import { apiService, PV } from '../services/apiService';
+import { useReferenceData } from '../contexts/ReferenceDataContext';
 
 const PVPage: React.FC = () => {
+  const { fetchPVs: getCachedPVs, invalidatePVs } = useReferenceData();
   const [pvs, setPVs] = useState<PV[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,15 +23,13 @@ const PVPage: React.FC = () => {
     loadPVs();
   }, []);
 
-  const loadPVs = async () => {
+  const loadPVs = async (forceRefresh?: boolean) => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await apiService.getPVs();
-      if (response.success && response.data) {
-        setPVs(response.data);
-      }
+      const pvData = await getCachedPVs(forceRefresh);
+      setPVs(pvData);
     } catch (err: any) {
       setError(err.message || 'Failed to load PVs');
     } finally {
@@ -57,7 +57,8 @@ const PVPage: React.FC = () => {
     try {
       await apiService.deletePV(deleteConfirm);
       setDeleteConfirm(null);
-      loadPVs();
+      invalidatePVs();
+      loadPVs(true);
     } catch (err: any) {
       setError(err.message || 'Failed to delete PV');
       setDeleteConfirm(null);
@@ -71,7 +72,8 @@ const PVPage: React.FC = () => {
       await apiService.createPV(pvData);
     }
     setShowForm(false);
-    loadPVs();
+    invalidatePVs();
+    loadPVs(true);
   };
 
   const formatDate = (dateString: string): string => {
@@ -85,6 +87,9 @@ const PVPage: React.FC = () => {
           <div className="pv-header">
             <Title order={2} size="h2">Gerenciamento de PV</Title>
             <div className="pv-header-actions">
+              <Button onClick={() => loadPVs(true)} variant="default" leftSection={<IconRefresh size={16} />}>
+                Atualizar
+              </Button>
               <Button onClick={() => setShowImportModal(true)} leftSection={<IconUpload size={16} />}>
                 Importar
               </Button>

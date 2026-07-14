@@ -14,6 +14,7 @@ import ExportButton from '../shared/ExportButton';
 import ExportProgressIndicator from '../shared/ExportProgressIndicator';
 import { apiService, Team } from '../services/apiService';
 import { useContractsContext } from '../contexts/ContractsContext';
+import { useReferenceData } from '../contexts/ReferenceDataContext';
 import { toast } from '../utils/toast';
 import {
   Contract,
@@ -55,6 +56,7 @@ const ContractsPage: React.FC = () => {
 
   // Get context for caching
   const { setContracts: setCachedContracts, setUsers: setCachedUsers, setGroups: setCachedGroups } = useContractsContext();
+  const { fetchTeams } = useReferenceData();
   
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -119,13 +121,13 @@ const ContractsPage: React.FC = () => {
 
   const loadFilters = useCallback(async () => {
     try {
-      const [usersData, groupsData, teamsResponse] = await Promise.all([
+      const [usersData, groupsData, teamsData] = await Promise.all([
         getUsers(true),
         getGroups(),
-        apiService.getTeams(),
+        fetchTeams(),
       ]);
       setUsers(usersData);
-      setTeams(teamsResponse.data ?? []);
+      setTeams(teamsData);
       // Cache the data in context for use by ContractForm
       setCachedUsers(usersData);
       setCachedGroups(groupsData);
@@ -133,7 +135,7 @@ const ContractsPage: React.FC = () => {
       console.error('Failed to load filter options:', err);
       toast.error(err.message || 'Falha ao carregar opções de filtro');
     }
-  }, [setCachedUsers, setCachedGroups]);
+  }, [setCachedUsers, setCachedGroups, fetchTeams]);
 
   const loadContracts = useCallback(async () => {
     // Local date validation: block api call if end date is before start date

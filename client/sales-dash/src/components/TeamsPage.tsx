@@ -1,15 +1,22 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { Title, Button, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Alert, Stack, Table, List, Modal } from '@mantine/core';
-import { IconEdit, IconTrash, IconPlus, IconAlertTriangle, IconUser, IconCrown, IconTrashX, IconUsers, IconUsersGroup } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconPlus, IconAlertTriangle, IconUser, IconCrown, IconTrashX, IconUsers, IconUsersGroup, IconRefresh } from '@tabler/icons-react';
 import Menu from "./Menu"
 import StyledModal from './StyledModal';
 import FormField from './FormField';
 import TeamMembersModal from './TeamMembersModal';
 import { apiService, Team, User } from "../services/apiService"
+import { useReferenceData } from "../contexts/ReferenceDataContext"
 import { normalizeTeamName } from "../utils/normalization"
 import "./TeamsPage.css"
 
 const TeamsPage: React.FC = () => {
+  const {
+    fetchTeams: getCachedTeams,
+    fetchAllUsers: getCachedAllUsers,
+    invalidateTeams,
+    invalidateAllUsers
+  } = useReferenceData()
   const [teams, setTeams] = useState<Team[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,33 +52,29 @@ const TeamsPage: React.FC = () => {
   })
 
   // Fetch teams
-  const fetchTeams = useCallback(async () => {
+  const fetchTeams = useCallback(async (forceRefresh?: boolean) => {
     try {
       setLoading(true)
       setError("")
-      const response = await apiService.getTeams()
-      if (response.success && response.data) {
-        setTeams(response.data)
-      }
+      const teamsData = await getCachedTeams(forceRefresh)
+      setTeams(teamsData)
     } catch (err: any) {
       setError(err.message || "Falha ao carregar equipes")
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [getCachedTeams])
 
   // Fetch all users once for member selection
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (forceRefresh?: boolean) => {
     try {
-      const response = await apiService.getUsers(1, 1000)
-      if (response.success && response.data) {
-        // Filter out inactive users
-        setAllUsers(response.data.items.filter(u => u.isActive))
-      }
+      const usersData = await getCachedAllUsers(forceRefresh)
+      // Filter out inactive users
+      setAllUsers(usersData.filter(u => u.isActive))
     } catch (err) {
       console.error("Falha ao carregar usuários para membros", err)
     }
-  }, [])
+  }, [getCachedAllUsers])
 
   useEffect(() => {
     fetchTeams()
@@ -108,6 +111,7 @@ const TeamsPage: React.FC = () => {
         setNewTeamName("")
         setTeams(prev => [response.data!, ...prev])
         setManagingTeam(response.data) // Instantly launch managing modal!
+        invalidateTeams()
       }
     } catch (err: any) {
       setError(err.message || "Erro ao criar equipe")
@@ -205,8 +209,9 @@ const TeamsPage: React.FC = () => {
         const currentActiveMemberIds = editingTeam.members.filter(m => m.isActive).map(m => m.userId)
         const toRemove = currentActiveMemberIds.filter(id => !selectedMemberIds.includes(id))
         
-        for (const userId of toRemove) {
-          await apiService.removeTeamMember(editingTeam.id, userId)
+        // Fix serial removals waterfall
+        if (toRemove.length > 0) {
+          await Promise.all(toRemove.map(userId => apiService.removeTeamMember(editingTeam.id, userId)))
         }
 
         // Add/Update current members
@@ -241,7 +246,10 @@ const TeamsPage: React.FC = () => {
       }
 
       setShowForm(false)
-      fetchTeams()
+      invalidateTeams()
+      invalidateAllUsers()
+      fetchTeams(true)
+      fetchUsers(true)
     } catch (err: any) {
       setError(err.message || "Erro ao salvar equipe")
     } finally {
@@ -255,7 +263,9 @@ const TeamsPage: React.FC = () => {
       setError("")
       await apiService.deleteTeam(id)
       setDeleteConfirm(null)
-      fetchTeams()
+      invalidateTeams()
+      invalidateAllUsers()
+      fetchTeams(true)
     } catch (err: any) {
       setError(err.message || "Falha ao excluir equipe")
     }
@@ -313,11 +323,20 @@ const TeamsPage: React.FC = () => {
               Configure e gerencie as equipes de vendas e seus respectivos membros.
             </p>
           </div>
-          {currentUserRole !== 'admin' && (
-            <Button onClick={openCreateForm} leftSection={<IconPlus size={16} />}>
-              Nova Equipe
+          <Group gap="sm">
+            <Button 
+              variant="default" 
+              onClick={() => { fetchTeams(true); fetchUsers(true); }} 
+              leftSection={<IconRefresh size={16} />}
+            >
+              Atualizar
             </Button>
-          )}
+            {currentUserRole !== 'admin' && (
+              <Button onClick={openCreateForm} leftSection={<IconPlus size={16} />}>
+                Nova Equipe
+              </Button>
+            )}
+          </Group>
         </div>
 
         {error && <div className="error-banner">{error}</div>}

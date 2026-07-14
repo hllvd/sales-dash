@@ -6,10 +6,11 @@ import {
 import {
   IconPlus, IconEdit, IconTrash, IconStar, IconUsers, IconTrophy,
   IconHistory, IconUserPlus, IconCheck, IconX, IconMedal,
-  IconChevronDown, IconChevronUp, IconArrowRight, IconTarget, IconLink
+  IconChevronDown, IconChevronUp, IconArrowRight, IconTarget, IconLink, IconRefresh
 } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import Menu from './Menu'
+import { useReferenceData } from '../contexts/ReferenceDataContext'
 import {
   apiService, ClassificationLevel, UserClassification, User,
   CreateClassificationLevelRequest
@@ -28,6 +29,12 @@ const todayISO = () => new Date().toISOString().split('T')[0]
 
 // ────────────────────────────────────────────────────────────────────────────
 const ClassificationsPage: React.FC = () => {
+  const {
+    fetchClassificationLevels: getCachedClassificationLevels,
+    fetchAllUsers: getCachedAllUsers,
+    invalidateClassificationLevels,
+    invalidateAllUsers
+  } = useReferenceData()
   const [levels, setLevels] = useState<ClassificationLevel[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -72,25 +79,25 @@ const ClassificationsPage: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(false)
 
   // ── Fetches ──────────────────────────────────────────────────────────────
-  const fetchLevels = useCallback(async () => {
+  const fetchLevels = useCallback(async (forceRefresh?: boolean) => {
     try {
       setLoading(true)
       setError('')
-      const res = await apiService.getClassificationLevels()
-      if (res.success && res.data) setLevels(res.data)
+      const levelsData = await getCachedClassificationLevels(forceRefresh)
+      setLevels(levelsData)
     } catch (e: any) {
       setError(e.message || 'Erro ao carregar níveis')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [getCachedClassificationLevels])
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (forceRefresh?: boolean) => {
     try {
-      const res = await apiService.getUsers(1, 1000)
-      if (res.success && res.data) setAllUsers(res.data.items.filter(u => u.isActive))
+      const usersData = await getCachedAllUsers(forceRefresh)
+      setAllUsers(usersData.filter(u => u.isActive))
     } catch { /* silent */ }
-  }, [])
+  }, [getCachedAllUsers])
 
   useEffect(() => {
     fetchLevels()
@@ -160,7 +167,8 @@ const ClassificationsPage: React.FC = () => {
         notifications.show({ title: 'Nível criado', message: fName, color: 'green', icon: <IconCheck size={16} /> })
       }
       setShowLevelForm(false)
-      fetchLevels()
+      invalidateClassificationLevels()
+      fetchLevels(true)
     } catch (e: any) {
       setFormError(e.message || 'Erro ao salvar')
     } finally {
@@ -173,7 +181,8 @@ const ClassificationsPage: React.FC = () => {
       await apiService.deleteClassificationLevel(id)
       notifications.show({ title: 'Nível excluído', message: '', color: 'green', icon: <IconCheck size={16} /> })
       setDeleteConfirm(null)
-      fetchLevels()
+      invalidateClassificationLevels()
+      fetchLevels(true)
     } catch (e: any) {
       notifications.show({ title: 'Erro', message: e.message || 'Não foi possível excluir', color: 'red', icon: <IconX size={16} /> })
     }
@@ -187,9 +196,6 @@ const ClassificationsPage: React.FC = () => {
     setInactiveCollapsed(true)
     setMembersLoading(true)
     try {
-      const res = await apiService.getClassificationLevels() // reload for count
-      if (res.success && res.data) setLevels(res.data)
-      
       const membersRes = await apiService.getLevelMembers(level.id)
       if (membersRes.success && membersRes.data) {
         const activeMembers = membersRes.data.filter(m => m.isActive)
@@ -206,6 +212,9 @@ const ClassificationsPage: React.FC = () => {
     try {
       await apiService.removeUserClassification(assignmentId)
       notifications.show({ title: 'Usuário removido do nível', message: '', color: 'orange', icon: <IconCheck size={16} /> })
+      invalidateClassificationLevels()
+      invalidateAllUsers()
+      await fetchLevels(true)
       openMembers(membersLevel!)
     } catch (e: any) {
       notifications.show({ title: 'Erro', message: e.message, color: 'red', icon: <IconX size={16} /> })
@@ -234,8 +243,10 @@ const ClassificationsPage: React.FC = () => {
         icon: <IconCheck size={16} />
       })
       setSelectedUserIds([])
+      invalidateClassificationLevels()
+      invalidateAllUsers()
+      await fetchLevels(true)
       openMembers(membersLevel!)
-      fetchLevels()
     } catch (e: any) {
       notifications.show({ title: 'Erro na atribuição', message: e.message, color: 'red', icon: <IconX size={16} /> })
     } finally {
@@ -289,9 +300,18 @@ const ClassificationsPage: React.FC = () => {
             <Title order={2}>Níveis de Classificação</Title>
             <p className="cls-subtitle">Gerencie os níveis de performance e atribua usuários a cada categoria.</p>
           </div>
-          <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
-            Novo Nível
-          </Button>
+          <Group gap="sm">
+            <Button 
+              variant="default" 
+              onClick={() => { fetchLevels(true); fetchUsers(true); }} 
+              leftSection={<IconRefresh size={16} />}
+            >
+              Atualizar
+            </Button>
+            <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
+              Novo Nível
+            </Button>
+          </Group>
         </div>
 
         {error && <div className="error-banner" style={{ marginBottom: 20 }}>{error}</div>}

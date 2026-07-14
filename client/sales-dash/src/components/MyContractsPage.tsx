@@ -123,13 +123,11 @@ const MyContractsPage: React.FC = () => {
 
       const user = currentUser || JSON.parse(localStorage.getItem('user') || '{}');
       if (user && user.isMatriculaOwner && user.activeMatriculas) {
-        const allMatriculaClaims = [];
-        for (const m of user.activeMatriculas) {
-          if (m.isOwner) {
-            const claims = await getPendingClaimsByMatricula(m.matriculaId);
-            allMatriculaClaims.push(...claims);
-          }
-        }
+        const activeOwnedMatriculas = user.activeMatriculas.filter((m: any) => m.isOwner);
+        const claimsArrays = await Promise.all(
+          activeOwnedMatriculas.map((m: any) => getPendingClaimsByMatricula(m.matriculaId))
+        );
+        const allMatriculaClaims = claimsArrays.flat();
         setMatriculaPendingClaims(allMatriculaClaims);
       }
     } catch (err) {
@@ -139,8 +137,11 @@ const MyContractsPage: React.FC = () => {
 
   useEffect(() => {
     loadMyContracts();
+  }, [loadMyContracts]);
+
+  useEffect(() => {
     loadPendingClaims();
-  }, [loadMyContracts, loadPendingClaims]);
+  }, [loadPendingClaims]);
 
   const handleNewClick = async () => {
     setContractNumber('');

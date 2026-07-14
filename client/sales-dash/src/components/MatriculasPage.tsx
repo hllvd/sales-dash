@@ -8,6 +8,7 @@ import MatriculaImportModal from "./MatriculaImportModal"
 import StandardModal from '../shared/StandardModal';
 import { MatriculaStatus, MatriculaStatusLabels, ActiveState, ActiveStateLabels } from '../types/MatriculaStatus';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
+import { useReferenceData } from "../contexts/ReferenceDataContext"
 import {
   apiService,
   UserMatricula,
@@ -17,7 +18,8 @@ import {
 
 const MatriculasPage: React.FC = () => {
   const { refreshCurrentUser } = useCurrentUser();
-  const [matriculas, setMatriculas] = useState<UserMatricula[]>([])
+  const { fetchAllMatriculas: getCachedMatriculas, invalidateAllMatriculas, invalidateAllUsers } = useReferenceData()
+  const [rawMatriculas, setRawMatriculas] = useState<UserMatricula[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [search, setSearch] = useState("")
@@ -28,32 +30,18 @@ const MatriculasPage: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
 
   // Fetch matriculas
-  const fetchMatriculas = useCallback(async () => {
+  const fetchMatriculas = useCallback(async (forceRefresh?: boolean) => {
     try {
       setLoading(true)
       setError("")
-      const response = await apiService.getAllMatriculas()
-
-      if (response.success && response.data) {
-        let filtered = response.data
-        
-        // Client-side filtering
-        if (searchDebounce) {
-          const searchLower = searchDebounce.toLowerCase()
-          filtered = filtered.filter(m => 
-            m.matriculaNumber.toLowerCase().includes(searchLower) ||
-            m.userName.toLowerCase().includes(searchLower)
-          )
-        }
-        
-        setMatriculas(filtered)
-      }
+      const matriculasData = await getCachedMatriculas(forceRefresh)
+      setRawMatriculas(matriculasData)
     } catch (err: any) {
       setError(err.message || "Failed to load matriculas")
     } finally {
       setLoading(false)
     }
-  }, [searchDebounce])
+  }, [getCachedMatriculas])
 
   // Debounce search input
   useEffect(() => {
@@ -64,15 +52,27 @@ const MatriculasPage: React.FC = () => {
     return () => clearTimeout(timer)
   }, [search])
 
-  // Call fetchMatriculas when searchDebounce changes
+  // Call fetchMatriculas once on mount
   useEffect(() => {
     fetchMatriculas()
   }, [fetchMatriculas])
 
+  // Derive filtered matriculas list client-side
+  const matriculas = React.useMemo(() => {
+    if (!searchDebounce) return rawMatriculas
+    const searchLower = searchDebounce.toLowerCase()
+    return rawMatriculas.filter(m => 
+      m.matriculaNumber.toLowerCase().includes(searchLower) ||
+      m.userName.toLowerCase().includes(searchLower)
+    )
+  }, [rawMatriculas, searchDebounce])
+
   const handleCreateMatricula = async (data: CreateMatriculaRequest) => {
     await apiService.createMatricula(data)
     setShowForm(false)
-    fetchMatriculas()
+    invalidateAllMatriculas()
+    invalidateAllUsers()
+    fetchMatriculas(true)
     refreshCurrentUser() // Refresh current user context
   }
 
@@ -81,7 +81,9 @@ const MatriculasPage: React.FC = () => {
       await apiService.updateMatricula(editingMatricula.id, data)
       setShowForm(false)
       setEditingMatricula(undefined)
-      fetchMatriculas()
+      invalidateAllMatriculas()
+      invalidateAllUsers()
+      fetchMatriculas(true)
       refreshCurrentUser() // Refresh current user context
     }
   }
@@ -90,7 +92,9 @@ const MatriculasPage: React.FC = () => {
     try {
       await apiService.deleteMatricula(id)
       setDeleteConfirm(null)
-      fetchMatriculas()
+      invalidateAllMatriculas()
+      invalidateAllUsers()
+      fetchMatriculas(true)
       refreshCurrentUser() // Refresh current user context
     } catch (err: any) {
       setError(err.message || "Failed to delete matricula")
@@ -135,7 +139,7 @@ const MatriculasPage: React.FC = () => {
           <Group className="matriculas-header-actions">
             <Button
               leftSection={<IconRefresh size={16} />}
-              onClick={fetchMatriculas}
+              onClick={() => fetchMatriculas(true)}
               variant="light"
             >
               Atualizar

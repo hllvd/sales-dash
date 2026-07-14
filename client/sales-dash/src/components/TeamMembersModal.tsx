@@ -10,6 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { apiService, Team, TeamMember, User } from '../services/apiService';
 import { normalizeTeamName } from '../utils/normalization';
+import { useReferenceData } from '../contexts/ReferenceDataContext';
 import './TeamMembersModal.css';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -337,6 +338,7 @@ const TeamMembersModal: React.FC<Props> = ({
   onClose,
   onTeamChanged,
 }) => {
+  const { invalidateTeams, invalidateAllUsers } = useReferenceData();
   const [team, setTeam] = useState<Team>(initialTeam);
   const [leftSearch, setLeftSearch] = useState('');
   const [rightSearch, setRightSearch] = useState('');
@@ -418,8 +420,10 @@ const TeamMembersModal: React.FC<Props> = ({
     if (res.data) {
       setTeam(res.data);
       onTeamChanged(res.data);
+      invalidateTeams();
+      invalidateAllUsers();
     }
-  }, [onTeamChanged]);
+  }, [onTeamChanged, invalidateTeams, invalidateAllUsers]);
 
   const handleAdd = useCallback(async (user: User) => {
     setAddingId(user.id);

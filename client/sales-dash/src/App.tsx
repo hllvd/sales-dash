@@ -27,6 +27,7 @@ import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
 import { BuildInfoProvider } from './contexts/BuildInfoContext';
+import { ReferenceDataProvider } from './contexts/ReferenceDataContext';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/charts/styles.css';
@@ -128,12 +129,14 @@ function App() {
       <CurrentUserProvider>
         <UsersProvider>
           <ContractsProvider>
-            <MantineProvider>
-              <Notifications />
-              <ErrorBoundary>
-                {renderPage()}
-              </ErrorBoundary>
-            </MantineProvider>
+            <ReferenceDataProvider>
+              <MantineProvider>
+                <Notifications />
+                <ErrorBoundary>
+                  {renderPage()}
+                </ErrorBoundary>
+              </MantineProvider>
+            </ReferenceDataProvider>
           </ContractsProvider>
         </UsersProvider>
       </CurrentUserProvider>
