@@ -17,7 +17,7 @@ test.describe('Teams Setup for Reports E2E', () => {
     const token = loginData.data.token;
 
     // 2. Fetch all users in the system to resolve IDs
-    const usersRes = await request.get('/api/users?pageSize=100', {
+    const usersRes = await request.get('/api/users?pageSize=1000', {
       headers: { Authorization: `Bearer ${token}` }
     });
     expect(usersRes.ok()).toBeTruthy();
@@ -127,8 +127,8 @@ test.describe('Teams Setup for Reports E2E', () => {
     await page.waitForTimeout(2000); // Allow list to load
 
     const container = page.locator('.teams-container');
-    await expect(container).toContainText('Equipe Alpha');
-    await expect(container).toContainText('Equipe Beta');
+    await expect(container).toContainText('EQUIPE ALPHA');
+    await expect(container).toContainText('EQUIPE BETA');
 
     console.log('>>> SUCCESS: Both teams created successfully and verified in the UI!');
   });

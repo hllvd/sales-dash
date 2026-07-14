@@ -17,7 +17,7 @@ test.describe('User Tree Hierarchy & Submenu Navigation', () => {
     const token = loginData.data.token;
 
     // 2. Fetch all users to resolve Carlos Mendes ID
-    const usersRes = await request.get('/api/users?pageSize=100', {
+    const usersRes = await request.get('/api/users?pageSize=1000', {
       headers: { Authorization: `Bearer ${token}` }
     });
     console.log('>>> E2E SETUP: getUsers status =', usersRes.status());
@@ -203,7 +203,7 @@ test.describe('User Tree Hierarchy & Submenu Navigation', () => {
     // Check that only Equipe Alpha is visible in the table
     const tableRow = page.locator('table tbody tr');
     await expect(tableRow).toHaveCount(1);
-    await expect(tableRow.first().locator('td').first()).toHaveText('Equipe Alpha');
+    await expect(tableRow.first().locator('td').first()).toHaveText('EQUIPE ALPHA');
 
     console.log('>>> User Tree Hierarchy, Submenu, User Edit, and Team Navigation E2E checks completed successfully!');
   });

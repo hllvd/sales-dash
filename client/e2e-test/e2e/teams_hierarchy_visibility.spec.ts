@@ -92,7 +92,7 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
     }
 
     // B. Delete legacy test users (3-pass algorithm to cleanly bypass foreign key parent-child constraint locks)
-    const usersListRes = await request.get('/api/users?pageSize=100', {
+    const usersListRes = await request.get('/api/users?pageSize=1000', {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (usersListRes.ok()) {
@@ -292,11 +292,11 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
 
     // Verify all Teams A, B, C, D, E are visible
     const container = page.locator('.teams-container');
-    await expect(container).toContainText(teams.A);
-    await expect(container).toContainText(teams.B);
-    await expect(container).toContainText(teams.C);
-    await expect(container).toContainText(teams.D);
-    await expect(container).toContainText(teams.E);
+    await expect(container).toContainText(teams.A.toUpperCase());
+    await expect(container).toContainText(teams.B.toUpperCase());
+    await expect(container).toContainText(teams.C.toUpperCase());
+    await expect(container).toContainText(teams.D.toUpperCase());
+    await expect(container).toContainText(teams.E.toUpperCase());
   });
 
   test('User D (Admin) should see only Team D and Team E', async ({ page }) => {
@@ -305,14 +305,14 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
 
     // Should see D and E
     const container = page.locator('.teams-container');
-    await expect(container).toContainText(teams.D);
-    await expect(container).toContainText(teams.E);
+    await expect(container).toContainText(teams.D.toUpperCase());
+    await expect(container).toContainText(teams.E.toUpperCase());
 
     // Should NOT see A, B, or C
     const containerText = await container.innerText();
-    expect(containerText).not.toContain(teams.A);
-    expect(containerText).not.toContain(teams.B);
-    expect(containerText).not.toContain(teams.C);
+    expect(containerText).not.toContain(teams.A.toUpperCase());
+    expect(containerText).not.toContain(teams.B.toUpperCase());
+    expect(containerText).not.toContain(teams.C.toUpperCase());
   });
 
   test('User A (Admin) should see Team A, B and C', async ({ page }) => {
@@ -321,14 +321,14 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
 
     // Should see A, B and C
     const container = page.locator('.teams-container');
-    await expect(container).toContainText(teams.A);
-    await expect(container).toContainText(teams.B);
-    await expect(container).toContainText(teams.C);
+    await expect(container).toContainText(teams.A.toUpperCase());
+    await expect(container).toContainText(teams.B.toUpperCase());
+    await expect(container).toContainText(teams.C.toUpperCase());
 
     // Should NOT see D or E
     const containerText = await container.innerText();
-    expect(containerText).not.toContain(teams.D);
-    expect(containerText).not.toContain(teams.E);
+    expect(containerText).not.toContain(teams.D.toUpperCase());
+    expect(containerText).not.toContain(teams.E.toUpperCase());
   });
 
   test('Search field should filter teams in the table', async ({ page }) => {
@@ -340,11 +340,11 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
     await page.waitForTimeout(500); // Wait for input/render
 
     const container = page.locator('.teams-container');
-    await expect(container).toContainText(teams.D);
+    await expect(container).toContainText(teams.D.toUpperCase());
     
     // Team A should NOT be visible under the filtered results
     const containerText = await container.innerText();
-    expect(containerText).not.toContain(teams.A);
+    expect(containerText).not.toContain(teams.A.toUpperCase());
   });
 
   test('Search field should filter teams by member name', async ({ page }) => {
@@ -357,11 +357,11 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
 
     const container = page.locator('.teams-container');
     // Team D and Team E should both be visible since User E belongs to both
-    await expect(container).toContainText(teams.D);
-    await expect(container).toContainText(teams.E);
+    await expect(container).toContainText(teams.D.toUpperCase());
+    await expect(container).toContainText(teams.E.toUpperCase());
     
     // Team A should NOT be visible under the filtered results
     const containerText = await container.innerText();
-    expect(containerText).not.toContain(teams.A);
+    expect(containerText).not.toContain(teams.A.toUpperCase());
   });
 });

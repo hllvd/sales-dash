@@ -6,6 +6,7 @@ import StyledModal from './StyledModal';
 import FormField from './FormField';
 import TeamMembersModal from './TeamMembersModal';
 import { apiService, Team, User } from "../services/apiService"
+import { normalizeTeamName } from "../utils/normalization"
 import "./TeamsPage.css"
 
 const TeamsPage: React.FC = () => {
@@ -93,14 +94,15 @@ const TeamsPage: React.FC = () => {
 
   const handleQuickCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTeamName.trim()) {
+    const normalizedName = normalizeTeamName(newTeamName)
+    if (!normalizedName) {
       setError("O nome da equipe é obrigatório")
       return
     }
     setCreatingTeam(true)
     setError("")
     try {
-      const response = await apiService.createTeam(newTeamName.trim(), [])
+      const response = await apiService.createTeam(normalizedName, [])
       if (response.success && response.data) {
         setShowCreatePrompt(false)
         setNewTeamName("")
@@ -178,7 +180,8 @@ const TeamsPage: React.FC = () => {
   // Submit create or edit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!teamName.trim()) {
+    const normalizedName = normalizeTeamName(teamName)
+    if (!normalizedName) {
       setError("O nome da equipe é obrigatório")
       return
     }
@@ -195,7 +198,7 @@ const TeamsPage: React.FC = () => {
 
       if (editingTeam) {
         // 1. Update team basic info
-        await apiService.updateTeam(editingTeam.id, teamName.trim())
+        await apiService.updateTeam(editingTeam.id, normalizedName)
 
         // 2. Refresh members list using set-members/add-members endpoint
         // To update completely, let's remove any members who are no longer selected
@@ -224,7 +227,7 @@ const TeamsPage: React.FC = () => {
         }
       } else {
         // Create Team
-        const response = await apiService.createTeam(teamName.trim(), payloadMembers)
+        const response = await apiService.createTeam(normalizedName, payloadMembers)
         
         if (response.success && response.data) {
           // Set Owner if selected (since team is created)
@@ -379,7 +382,7 @@ const TeamsPage: React.FC = () => {
                     const activeMembers = team.members.filter(m => m.isActive)
                     return (
                       <Table.Tr key={team.id}>
-                        <Table.Td style={{ fontWeight: 600, fontSize: '15px' }}>{team.name}</Table.Td>
+                        <Table.Td style={{ fontWeight: 600, fontSize: '15px' }}>{team.name.toUpperCase()}</Table.Td>
                         <Table.Td>
                           {team.owner ? (
                             <Group gap="xs">
@@ -486,6 +489,7 @@ const TeamsPage: React.FC = () => {
                       fontWeight: 600,
                       color: '#212529',
                       fontSize: '14px',
+                      textTransform: 'uppercase',
                     },
                     label: {
                       fontWeight: 700,
@@ -526,6 +530,11 @@ const TeamsPage: React.FC = () => {
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   size="md"
+                  styles={{
+                    input: {
+                      textTransform: 'uppercase',
+                    }
+                  }}
                 />
               </FormField>
 

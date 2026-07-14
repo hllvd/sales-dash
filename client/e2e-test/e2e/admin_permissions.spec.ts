@@ -39,7 +39,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
       const token = localStorage.getItem("token");
       
       // Get all users
-      const res = await fetch('/api/users?page=1&pageSize=100', {
+      const res = await fetch('/api/users?page=1&pageSize=1000', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -62,7 +62,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
       const teamsData = await teamsRes.json();
       if (teamsData.success && teamsData.data) {
         for (const t of teamsData.data) {
-          if (t.name.includes('Equipe EE') || (t.owner && t.owner.userEmail.includes('admin.scope'))) {
+          if (t.name.includes('Equipe EE') || (t.owner && t.owner.userEmail.includes('admin.scope')) || t.name.includes('ee ')) {
             await fetch(`/api/teams/${t.id}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
@@ -260,18 +260,18 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
       return data.data.items[0]?.id || '';
     }, INELIGIBLE_EMAIL);
     expect(ineligibleUserId).not.toBe('');
-
+ 
     // 1.7 Create a Team for the Ineligible user so they are in a team
     await page.click('a[href="#/teams"]');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Equipes (Equipes)' })).toBeVisible();
     await page.click('button:has-text("Nova Equipe")');
-    await page.fill('input[placeholder="Ex: Equipe Fênix"]', `Equipe Outra ${RUN_ID}`);
+    await page.fill('input[placeholder="Ex: Equipe Fênix"]', `outra ${RUN_ID}`);
     await page.click('button:has-text("Criar e Gerenciar")');
     await page.waitForTimeout(500);
     // Close the members modal
     await page.click('button.mantine-Modal-close');
     await page.waitForTimeout(200);
-
+ 
     // Get the other team ID and assign the Ineligible user to it
     const otherTeamId = await page.evaluate(async (teamName) => {
       const token = localStorage.getItem("token");
@@ -281,7 +281,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
       const data = await res.json();
       const team = data.data.find((t: any) => t.name === teamName);
       return team?.id || 0;
-    }, `Equipe Outra ${RUN_ID}`);
+    }, `outra ${RUN_ID}`);
     expect(otherTeamId).toBeGreaterThan(0);
 
     await page.evaluate(async ({ teamId, userId }) => {
@@ -300,13 +300,13 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
 
     // 1.8 Create Admin's own Team (owned by ADMIN_EMAIL)
     await page.click('button:has-text("Nova Equipe")');
-    await page.fill('input[placeholder="Ex: Equipe Fênix"]', `Equipe EE ${RUN_ID}`);
+    await page.fill('input[placeholder="Ex: Equipe Fênix"]', `ee ${RUN_ID}`);
     await page.click('button:has-text("Criar e Gerenciar")');
     await page.waitForTimeout(500);
     // Close the members modal
     await page.click('button.mantine-Modal-close');
     await page.waitForTimeout(200);
-
+ 
     teamId = await page.evaluate(async ({ teamName, adminId }) => {
       const token = localStorage.getItem("token");
       // Find the team
@@ -316,7 +316,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
       const data = await res.json();
       const team = data.data.find((t: any) => t.name === teamName);
       if (!team) return 0;
-
+ 
       // Add Admin EE as member first
       await fetch(`/api/teams/${team.id}/members`, {
         method: 'POST',
@@ -328,7 +328,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
           members: [{ userId: adminId, startDate: new Date().toISOString() }]
         })
       });
-
+ 
       // Make Admin EE the owner
       await fetch(`/api/teams/${team.id}/owner`, {
         method: 'POST',
@@ -338,10 +338,10 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
         },
         body: JSON.stringify(adminId)
       });
-
+ 
       return team.id;
-    }, { teamName: `Equipe EE ${RUN_ID}`, adminId: adminUserId });
-
+    }, { teamName: `ee ${RUN_ID}`, adminId: adminUserId });
+ 
     expect(teamId).toBeGreaterThan(0);
     console.log(`>>> Admin's Team ID: ${teamId}`);
 
@@ -506,8 +506,8 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Equipes (Equipes)' })).toBeVisible();
 
     // Search for the Admin's team
-    await page.fill('input[placeholder="Buscar por equipe, proprietário ou membro..."]', `Equipe EE ${RUN_ID}`);
-    const teamRow = page.locator('table tbody tr').filter({ hasText: `Equipe EE ${RUN_ID}` });
+    await page.fill('input[placeholder="Buscar por equipe, proprietário ou membro..."]', `ee ${RUN_ID}`);
+    const teamRow = page.locator('table tbody tr').filter({ hasText: `EE ${RUN_ID}` });
     await expect(teamRow).toBeVisible();
 
     // Click manage members
