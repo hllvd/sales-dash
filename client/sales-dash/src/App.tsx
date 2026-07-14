@@ -46,6 +46,15 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  useEffect(() => {
+    if (typeof (window as any).gtag === 'function') {
+      (window as any).gtag('event', 'page_view', {
+        page_path: currentRoute,
+        page_title: document.title,
+      });
+    }
+  }, [currentRoute]);
+
   const routePath = currentRoute.split('?')[0];
   const isPublicRoute = routePath === '#/user/registration/admin';
 
