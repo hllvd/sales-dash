@@ -35,7 +35,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
       const token = localStorage.getItem("token");
       
       // Get all users
-      const res = await fetch('/api/users?page=1&pageSize=100', {
+      const res = await fetch('/api/users?page=1&pageSize=1000', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -58,7 +58,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
       const teamsData = await teamsRes.json();
       if (teamsData.success && teamsData.data) {
         for (const t of teamsData.data) {
-          if (t.name.includes('Equipe Admin A') || t.name.includes('Equipe Admin B')) {
+          if (t.name.includes('Equipe Admin A') || t.name.includes('Equipe Admin B') || t.name.includes('admin a') || t.name.includes('admin b')) {
             await fetch(`/api/teams/${t.id}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
@@ -202,7 +202,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     // 1.5 Create Team A (Admin A as Owner)
     await page.click('a[href="#/teams"]');
     await page.click('button:has-text("Nova Equipe")');
-    await page.fill('input[placeholder="Ex: Equipe Fênix"]', `Equipe Admin A ${RUN_ID}`);
+    await page.fill('input[placeholder="Ex: Equipe Fênix"]', `admin a ${RUN_ID}`);
     await page.click('button:has-text("Criar e Gerenciar")');
     await page.waitForTimeout(500);
     await page.click('button.mantine-Modal-close');
@@ -229,12 +229,12 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
       });
       
       return team.id;
-    }, { teamName: `Equipe Admin A ${RUN_ID}`, adminId: adminAUserId });
+    }, { teamName: `admin a ${RUN_ID}`, adminId: adminAUserId });
     expect(teamAId).toBeGreaterThan(0);
 
     // 1.6 Create Team B (Admin B as Owner)
     await page.click('button:has-text("Nova Equipe")');
-    await page.fill('input[placeholder="Ex: Equipe Fênix"]', `Equipe Admin B ${RUN_ID}`);
+    await page.fill('input[placeholder="Ex: Equipe Fênix"]', `admin b ${RUN_ID}`);
     await page.click('button:has-text("Criar e Gerenciar")');
     await page.waitForTimeout(500);
     await page.click('button.mantine-Modal-close');
@@ -268,7 +268,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
       });
       
       return team.id;
-    }, { teamName: `Equipe Admin B ${RUN_ID}`, adminId: adminBUserId, childBId: childBUserId });
+    }, { teamName: `admin b ${RUN_ID}`, adminId: adminBUserId, childBId: childBUserId });
     expect(teamBId).toBeGreaterThan(0);
 
     // 1.7 Toggle teams:manage permission ON for Admin role in RBAC
@@ -304,10 +304,10 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await expect(page.locator('.teams-container')).toBeVisible();
 
     const container = page.locator('.teams-container');
-    await expect(container).toContainText(`Equipe Admin A ${RUN_ID}`);
+    await expect(container).toContainText(`ADMIN A ${RUN_ID}`);
     
     const containerText = await container.innerText();
-    expect(containerText).not.toContain(`Equipe Admin B ${RUN_ID}`);
+    expect(containerText).not.toContain(`ADMIN B ${RUN_ID}`);
   });
 
   test('4. UI buttons visibility on TeamsPage for Admin A', async ({ page }) => {
@@ -320,7 +320,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await expect(createBtn).not.toBeVisible();
 
     // 4.2 Delete button on row should NOT be visible
-    const teamRow = page.locator('table tbody tr').filter({ hasText: `Equipe Admin A ${RUN_ID}` });
+    const teamRow = page.locator('table tbody tr').filter({ hasText: `ADMIN A ${RUN_ID}` });
     await expect(teamRow.locator('button[title="Excluir"]')).not.toBeVisible();
   });
 

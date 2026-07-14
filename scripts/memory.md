@@ -61,3 +61,16 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Mantine Select clear button only appears on hover of its wrapper, causing selector timeout; additionally, admin_registration.spec.ts defaulted to the first available level (which was the E2E Chain Level) leaving active members that blocked subsequent deletions.
 **Fix applied:** Added hover action on Select wrapper and targeted button element for robustness; explicitly selected Bronze level during admin registration E2E to prevent database contamination; added dynamic not.toBeVisible waits for deletion dialogs in pre-cleanup loops.
 **Result:** ✅ Green
+
+## [2026-07-14] e2e — Attempt 1
+**Failure:** E2E test failures on `teams_hierarchy_visibility`, `team_members_management`, `user_tree_hierarchy`, `admin_permissions`, `equipe_admin_permission`, and `team_report_setup`.
+**Root cause:**
+1. Case mismatch: E2E tests expected team names with original casing (e.g., `"Team A"`, `"Equipe Alpha"`), but the UI renders them in uppercase.
+2. Warnings mismatch: Warning toast message for date conflicts has the team name in lowercase because it's normalized to lowercase in the database, but the test expected the original casing.
+3. Dropdown option mismatch: When creating a child user, parent autocomplete select dropdown only loaded the first 100 users. On large databases (e.g., with 247+ users), newly created parent users were not present in the first page of 100 users, resulting in empty options.
+**Fix applied:**
+1. Updated Playwright E2E spec files to check for uppercase team names (`.toUpperCase()`) where displayed in UI headings and list items.
+2. Updated warning toast message checks to expect lowercase team names.
+3. Updated `UserForm.tsx` to fetch up to 1000 users for parent user select autocomplete.
+4. Updated cleanup and listing queries in E2E spec files to use `pageSize=1000` to avoid pagination issues.
+**Result:** ✅ Green — 124/124 passed

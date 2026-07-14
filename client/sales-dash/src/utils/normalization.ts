@@ -20,3 +20,19 @@ export const normalizeNumber = (value: string | null | undefined): string => {
   
   return normalized;
 };
+
+/**
+ * Normalizes a team name:
+ * - Removes the word "Equipe" (case-insensitive) as a whole word
+ * - Converts everything to lowercase
+ * - Trims whitespace
+ */
+export const normalizeTeamName = (name: string | null | undefined): string => {
+  if (!name) return '';
+  return name
+    .replace(/\bequipe\b/gi, '')
+    .replace(/\s+/g, ' ') // Collapse multiple spaces
+    .trim()
+    .toLowerCase();
+};
+

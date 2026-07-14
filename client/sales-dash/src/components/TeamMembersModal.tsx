@@ -9,6 +9,7 @@ import {
   IconUsers, IconUser, IconCheck, IconCalendar, IconX, IconSitemap
 } from '@tabler/icons-react';
 import { apiService, Team, TeamMember, User } from '../services/apiService';
+import { normalizeTeamName } from '../utils/normalization';
 import './TeamMembersModal.css';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -352,14 +353,15 @@ const TeamMembersModal: React.FC<Props> = ({
   }, [team.name]);
 
   const handleSaveName = async () => {
-    if (!tempName.trim()) {
+    const normalizedName = normalizeTeamName(tempName);
+    if (!normalizedName) {
       setNameError('O nome da equipe é obrigatório');
       return;
     }
     setSavingName(true);
     setNameError('');
     try {
-      const res = await apiService.updateTeam(team.id, tempName.trim());
+      const res = await apiService.updateTeam(team.id, normalizedName);
       applyTeamUpdate(res);
       notifications.show({ message: 'Nome da equipe atualizado com sucesso', color: 'green', autoClose: 2000 });
     } catch (e: any) {
@@ -490,7 +492,7 @@ const TeamMembersModal: React.FC<Props> = ({
         <Group gap="sm">
           <IconUsers size={22} color="#228be6" />
           <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>
-            Gerenciar Membros — {team.name}
+            Gerenciar Membros — {team.name.toUpperCase()}
           </Title>
           {team.owner && (
             <Badge color="yellow" variant="light" leftSection={<IconCrown size={11} />}>
@@ -536,7 +538,7 @@ const TeamMembersModal: React.FC<Props> = ({
           size="sm"
           error={nameError}
           rightSection={
-            tempName.trim() !== team.name && tempName.trim() !== "" ? (
+            tempName.trim().toLowerCase() !== team.name.toLowerCase() && tempName.trim() !== "" ? (
               <Tooltip label="Salvar novo nome" withArrow>
                 <ActionIcon
                   variant="filled"
@@ -556,6 +558,7 @@ const TeamMembersModal: React.FC<Props> = ({
               fontWeight: 600,
               color: '#212529',
               fontSize: '14px',
+              textTransform: 'uppercase',
             },
             label: {
               fontWeight: 700,

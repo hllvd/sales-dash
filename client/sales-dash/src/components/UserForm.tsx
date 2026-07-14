@@ -98,7 +98,7 @@ const UserForm: React.FC<UserFormProps> = ({
 
     const loadUsers = async () => {
       try {
-        const response = await apiService.getUsers(1, 100)
+        const response = await apiService.getUsers(1, 1000)
         if (response.success && response.data) {
           setUsers(response.data.items)
           

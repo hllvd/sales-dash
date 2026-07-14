@@ -251,7 +251,7 @@ test.describe('Team Members Management E2E', () => {
 
     // Check modal opens successfully using custom tmc class selector
     await expect(page.locator('.tmc-layout')).toBeVisible();
-    await expect(page.locator('.mantine-Modal-title')).toContainText(`Gerenciar Membros — ${teamName}`);
+    await expect(page.locator('.mantine-Modal-title')).toContainText(`Gerenciar Membros — ${teamName.toUpperCase()}`);
 
     // Fetch the list of visible names in the Left Column (Available Users)
     const availableCards = page.locator('.tmc-column--left .tmc-user-card__name');
@@ -328,7 +328,7 @@ test.describe('Team Members Management E2E', () => {
     await page.locator('button[title="Salvar novo nome"]').click();
 
     // Verify modal title updates reactively
-    await expect(page.locator('.mantine-Modal-title')).toContainText(`Gerenciar Membros — ${newName}`);
+    await expect(page.locator('.mantine-Modal-title')).toContainText(`Gerenciar Membros — ${newName.toUpperCase()}`);
 
     // Track the updated name for subsequent tests
     effectiveTeamName = newName;
@@ -338,7 +338,7 @@ test.describe('Team Members Management E2E', () => {
     await page.waitForTimeout(800);
 
     const tableCell = page.locator('.table-container td');
-    await expect(tableCell.first()).toContainText(newName);
+    await expect(tableCell.first()).toContainText(newName.toUpperCase());
   });
 
   test('should handle overlapping team membership dates and warning toast', async ({ page, request }) => {
@@ -401,7 +401,8 @@ test.describe('Team Members Management E2E', () => {
     const toastTitle = page.getByText('Aviso de Conflito').first();
     await expect(toastTitle).toBeVisible({ timeout: 10000 });
     // Use effectiveTeamName because the rename test may have updated the DB name
-    const currentTeamName = effectiveTeamName ?? teamName;
+    // The database name is normalized to lowercase on save, so toastMsg has it in lowercase
+    const currentTeamName = (effectiveTeamName ?? teamName).toLowerCase();
     const toastMsg = page.getByText(`O usuário '${users.childA.name}' foi removido da equipe '${currentTeamName}' por conflito de data.`).first();
     await expect(toastMsg).toBeVisible({ timeout: 10000 });
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import config from '../config';
 import { apiService } from '../services/apiService';
+import { normalizeTeamName } from '../utils/normalization';
 import './AdminRegistrationPage.css';
 
 // WhatsApp icon SVG component
@@ -239,7 +240,7 @@ const AdminRegistrationPage: React.FC = () => {
         email: managerEmail,
         name,
         password,
-        teamName,
+        teamName: normalizeTeamName(teamName),
         classificationLevelId: Number(selectedLevelId),
         classificationStartDate: startDate || undefined,
         role: selectedRole,
