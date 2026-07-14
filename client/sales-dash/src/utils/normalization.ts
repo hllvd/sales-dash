@@ -36,3 +36,35 @@ export const normalizeTeamName = (name: string | null | undefined): string => {
     .toLowerCase();
 };
 
+export const FIELD_TRANSLATIONS: Record<string, string> = {
+  // Contracts Template Fields
+  ContractNumber: "Número do Contrato",
+  TotalAmount: "Valor Total",
+  SaleStartDate: "Data de Venda",
+  MatriculaNumber: "Matrícula",
+  UserEmail: "Email do Usuário",
+  Status: "Status",
+  PvId: "ID do Ponto de Venda",
+  PvName: "Nome do Ponto de Venda",
+  Version: "Versão",
+  Category: "Categoria",
+  PlanoVenda: "Plano de Venda",
+
+  // Users Template Fields
+  Name: "Nome",
+  Email: "Email",
+  Role: "Função",
+  ParentEmail: "Email do Pai",
+  Matricula: "Matrícula",
+  Owner_Matricula: "Proprietário da Matrícula",
+  Password: "Senha"
+};
+
+export const getFriendlyFieldName = (field: string | null | undefined): string => {
+  if (!field) return '';
+  const normalizedKey = Object.keys(FIELD_TRANSLATIONS).find(
+    key => key.toLowerCase() === field.toLowerCase()
+  );
+  return normalizedKey ? FIELD_TRANSLATIONS[normalizedKey] : field;
+};
+

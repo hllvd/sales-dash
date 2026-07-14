@@ -4,6 +4,7 @@ import { apiService } from "../services/apiService"
 import StandardModal from "../shared/StandardModal"
 import InfoHelper from "../shared/InfoHelper"
 import { downloadFailedRowsCsv } from "../utils/csvDownloader"
+import { getFriendlyFieldName } from "../utils/normalization"
 
 interface Props {
   onClose: () => void
@@ -468,14 +469,14 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                     <optgroup label="Campos Obrigatórios">
                       {requiredFields.map((field) => (
                         <option key={field} value={field}>
-                          {field} *
+                          {getFriendlyFieldName(field)} *
                         </option>
                       ))}
                     </optgroup>
                     <optgroup label="Campos Opcionais">
                       {optionalFields.map((field) => (
                         <option key={field} value={field}>
-                          {field}
+                          {getFriendlyFieldName(field)}
                         </option>
                       ))}
                     </optgroup>
@@ -537,7 +538,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
 
           {!allRequiredFieldsMapped() && (
             <div className="error-message" style={{ marginTop: '20px', background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}>
-              <strong>Atenção:</strong> Faltam os seguintes campos obrigatórios: {getMissingRequiredFields().join(", ")}
+              <strong>Atenção:</strong> Faltam os seguintes campos obrigatórios: {getMissingRequiredFields().map(getFriendlyFieldName).join(", ")}
             </div>
           )}
 

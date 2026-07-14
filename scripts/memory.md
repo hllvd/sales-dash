@@ -74,3 +74,13 @@ Each entry records a fix attempt — past entries must be consulted before retry
 3. Updated `UserForm.tsx` to fetch up to 1000 users for parent user select autocomplete.
 4. Updated cleanup and listing queries in E2E spec files to use `pageSize=1000` to avoid pagination issues.
 **Result:** ✅ Green — 124/124 passed
+
+## [2026-07-14] e2e — Attempt 2
+**Failure:** Technical column names (e.g. `TotalAmount`, `SaleStartDate`, `MatriculaNumber`) displayed in the Bulk Import Modal validation error alert are not user-friendly.
+**Root cause:** The modal rendered raw required/optional field names returned by the API directly in dropdown option text and in the missing required fields error banner.
+**Fix applied:**
+1. Defined `FIELD_TRANSLATIONS` in shared utility `normalization.ts` mapping database keys to Portuguese column labels.
+2. Exported `getFriendlyFieldName` helper to map technical fields to labels case-insensitively.
+3. Updated `BulkImportModal.tsx` to use the helper in mapping selection dropdowns and the missing required fields error alert.
+**Result:** ✅ Green — 125/125 passed
+
