@@ -44,7 +44,7 @@ test.describe('[TEAR 2] Import Wizard Data Integrity', () => {
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Matrículas' })).toBeVisible();
 
     // 2. Search for Carlos Mendes
-    await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', 'Carlos Mendes');
+    await page.fill('input[placeholder="Buscar por número de matrícula (ou separadas por vírgula) ou usuário..."]', 'Carlos Mendes');
     
     // 3. Verify there are rows for both 6111 and 11177
     // Using .filter() to ensure we find the row that has both the name and the specific matricula
@@ -87,7 +87,7 @@ test.describe('[TEAR 2] Import Wizard Data Integrity', () => {
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Matrículas' })).toBeVisible();
 
     // 2. Search for Julio Mota's matricula 9999
-    await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', '9999');
+    await page.fill('input[placeholder="Buscar por número de matrícula (ou separadas por vírgula) ou usuário..."]', '9999');
 
     // 3. Verify it is linked to Julio Mota
     const matricula9999 = page.locator('tr', { hasText: '9999' });

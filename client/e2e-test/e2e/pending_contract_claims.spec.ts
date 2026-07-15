@@ -179,7 +179,7 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
     await page.click('a[href="#/matriculas"]');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Matrículas' })).toBeVisible();
 
-    await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', MAT);
+    await page.fill('input[placeholder="Buscar por número de matrícula (ou separadas por vírgula) ou usuário..."]', MAT);
     await page.waitForTimeout(2000);
 
     const ownerRow = page.locator('tr').filter({ hasText: MAT }).filter({ hasText: owner.name });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, Table, ActionIcon, Group, Badge, TextInput, Text } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Badge, TextInput, Text, Select } from '@mantine/core';
 import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload } from '@tabler/icons-react';
 import "./MatriculasPage.css"
 import Menu from "./Menu"
@@ -16,6 +16,20 @@ import {
   UpdateMatriculaRequest,
 } from "../services/apiService"
 
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+}
+
+const isActive = (matricula: UserMatricula) => {
+  if (!matricula.isActive) return false
+  if (!matricula.endDate) return true
+  return new Date(matricula.endDate) > new Date()
+}
+
 const MatriculasPage: React.FC = () => {
   const { refreshCurrentUser } = useCurrentUser();
   const { fetchAllMatriculas: getCachedMatriculas, invalidateAllMatriculas, invalidateAllUsers } = useReferenceData()
@@ -28,6 +42,7 @@ const MatriculasPage: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState(false)
   const [editingMatricula, setEditingMatricula] = useState<UserMatricula | undefined>(undefined)
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [activeFilter, setActiveFilter] = useState<string>("all")
 
   // Fetch matriculas
   const fetchMatriculas = useCallback(async (forceRefresh?: boolean) => {
@@ -59,13 +74,31 @@ const MatriculasPage: React.FC = () => {
 
   // Derive filtered matriculas list client-side
   const matriculas = React.useMemo(() => {
-    if (!searchDebounce) return rawMatriculas
-    const searchLower = searchDebounce.toLowerCase()
-    return rawMatriculas.filter(m => 
-      m.matriculaNumber.toLowerCase().includes(searchLower) ||
-      m.userName.toLowerCase().includes(searchLower)
-    )
-  }, [rawMatriculas, searchDebounce])
+    let filtered = rawMatriculas
+
+    // Filter by ActiveState (active/inactive)
+    if (activeFilter !== 'all') {
+      const wantActive = activeFilter === 'active'
+      filtered = filtered.filter(m => isActive(m) === wantActive)
+    }
+
+    // Filter by search tokens (comma separated support)
+    const tokens = searchDebounce
+      .split(',')
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+
+    if (tokens.length > 0) {
+      filtered = filtered.filter(m =>
+        tokens.some(token =>
+          m.matriculaNumber.toLowerCase().includes(token) ||
+          m.userName.toLowerCase().includes(token)
+        )
+      )
+    }
+
+    return filtered
+  }, [rawMatriculas, searchDebounce, activeFilter])
 
   const handleCreateMatricula = async (data: CreateMatriculaRequest) => {
     await apiService.createMatricula(data)
@@ -111,20 +144,6 @@ const MatriculasPage: React.FC = () => {
     setEditingMatricula(undefined)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
-  }
-
-  const isActive = (matricula: UserMatricula) => {
-    if (!matricula.isActive) return false
-    if (!matricula.endDate) return true
-    return new Date(matricula.endDate) > new Date()
-  }
-
   return (
     <Menu>
       <div className="matriculas-container">
@@ -163,12 +182,27 @@ const MatriculasPage: React.FC = () => {
         {error && <div className="error-message">{error}</div>}
 
         <div className="search-container">
-          <TextInput
-            placeholder="Buscar por número de matrícula ou usuário..."
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-            style={{ maxWidth: 400 }}
-          />
+          <Group gap="md" align="flex-end">
+            <TextInput
+              label="Pesquisar"
+              placeholder="Buscar por número de matrícula (ou separadas por vírgula) ou usuário..."
+              value={search}
+              onChange={(e) => setSearch(e.currentTarget.value)}
+              style={{ flexGrow: 1, maxWidth: 500 }}
+            />
+            <Select
+              label="Status da Matrícula"
+              placeholder="Filtrar por status..."
+              data={[
+                { value: 'all', label: 'Todas' },
+                { value: 'active', label: 'Ativas' },
+                { value: 'inactive', label: 'Inativas' }
+              ]}
+              value={activeFilter}
+              onChange={(val) => setActiveFilter(val || 'all')}
+              style={{ width: 200 }}
+            />
+          </Group>
         </div>
 
         {loading ? (

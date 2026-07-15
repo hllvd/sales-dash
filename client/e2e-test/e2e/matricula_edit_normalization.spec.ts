@@ -41,7 +41,7 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
 
     console.log('>>> Step 2: Find and edit the matricula');
     // Search to isolate the row
-    await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', initialMatricula);
+    await page.fill('input[placeholder="Buscar por número de matrícula (ou separadas por vírgula) ou usuário..."]', initialMatricula);
     await page.waitForTimeout(1500); // Wait for debounce
 
     const row = page.locator('tr', { hasText: initialMatricula });
@@ -57,7 +57,7 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
     await numberInput.fill(inputWithZeros);
 
     // Change status to Pending (or Active if it was something else)
-    const statusSelect = page.locator('label:has-text("Status")').locator('..').locator('.mantine-Select-input');
+    const statusSelect = page.getByRole('dialog').locator('label:has-text("Status")').locator('..').locator('.mantine-Select-input');
     await statusSelect.click();
     await page.locator('[role="option"]').filter({ hasText: 'Pendente' }).click();
 
@@ -68,8 +68,8 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
 
     console.log('>>> Step 4: Verify normalization and persistence');
     // Clear search and search for the new normalized number
-    await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', '');
-    await page.fill('input[placeholder="Buscar por número de matrícula ou usuário..."]', normalizedValue);
+    await page.fill('input[placeholder="Buscar por número de matrícula (ou separadas por vírgula) ou usuário..."]', '');
+    await page.fill('input[placeholder="Buscar por número de matrícula (ou separadas por vírgula) ou usuário..."]', normalizedValue);
     await page.waitForTimeout(1500);
 
     const updatedRow = page.locator('tr', { hasText: normalizedValue });

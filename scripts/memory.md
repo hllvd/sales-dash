@@ -83,4 +83,8 @@ Each entry records a fix attempt — past entries must be consulted before retry
 2. Exported `getFriendlyFieldName` helper to map technical fields to labels case-insensitively.
 3. Updated `BulkImportModal.tsx` to use the helper in mapping selection dropdowns and the missing required fields error alert.
 **Result:** ✅ Green — 125/125 passed
-
+## [2026-07-14] all — Attempt 3
+**Failure:** strict mode violation: locator('label:has-text("Status")').locator('..').locator('.mantine-Select-input') resolved to 2 elements:
+**Root cause:** Adding a new "Status da Matrícula" dropdown on the matriculas page caused a label collision in E2E tests searching for dialog's "Status" label.
+**Fix applied:** Scoped the "Status" label selector inside `matricula_edit_normalization.spec.ts` using `page.getByRole('dialog')`.
+**Result:** ✅ Green

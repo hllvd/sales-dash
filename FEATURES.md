@@ -165,7 +165,10 @@ Improve UI response times, eliminate redundant load on the backend, and prevent 
 ### Key Capabilities
 - **Reference Data Context (`ReferenceDataContext`)**: Serves as a centralized, in-memory cache for long-lived reference data sets (Teams, PVs, Classifications, Matriculas, and all users). Data is fetched once and reused across route navigation.
 - **Cache Invalidation on Mutation**: The cache is automatically invalidated when a user performs a write action (Create, Update, or Delete) on Matriculas, Teams, Classification Levels, or PVs. This ensures subsequent fetches retrieve fresh, consistent data.
-- **Client-side Search Filtering**: Decouples the Matriculas search debouncer from the fetch lifecycle. The full matriculas list is fetched once on mount; filtering for search input is executed entirely in-memory using `useMemo`, eliminating API calls on keystrokes.
+- **Client-side Search and Filtering (Matriculas)**: Decouples the search debouncer from API requests. The complete list of matriculas is fetched once on mount. 
+  - **Comma-Separated Search**: Search input accepts multiple terms separated by commas, checking matches for matricula number or username.
+  - **Status Selection Filter**: Introduces active/inactive filtering via a Mantine select dropdown, evaluating validity dates client-side.
+  - Done entirely in memory using `useMemo` with no additional API queries.
 - **Manual Refresh Actions**: Introduces a manual "Atualizar" (Refresh) button on the Matriculas, Teams, Classifications, and PV management pages, allowing users to explicitly bust the session cache and retrieve fresh data.
 - **Contract Form Optimization**: Overhauls `ContractForm` to read from the cache for users, groups, and PVs, completely eliminating up to 3 redundant API calls every time the "Criar/Editar Contrato" modal is opened.
 - **Waterfall Fetch Elimination**: 
