@@ -333,6 +333,7 @@ namespace SalesApp.Services
                 result.Errors.Add($"Failed to save updates to existing contracts: {ex.Message}");
             }
 
+            result.Warnings = result.Warnings.Distinct().ToList();
             return result;
         }
 
@@ -633,6 +634,7 @@ namespace SalesApp.Services
                 }
             }
 
+            result.Warnings = result.Warnings.Distinct().ToList();
             return result;
         }
 
@@ -1463,6 +1465,7 @@ namespace SalesApp.Services
                 result.Errors.Add($"Failed to save updates to existing contracts: {ex.Message}");
             }
 
+            result.Warnings = result.Warnings.Distinct().ToList();
             return result;
         }
 
