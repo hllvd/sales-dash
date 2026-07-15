@@ -58,6 +58,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role?.toLowerCase() === 'superadmin' || user.roleName?.toLowerCase() === 'superadmin';
+  const isAdmin = user.role?.toLowerCase() === 'admin' || user.roleName?.toLowerCase() === 'admin';
 
   // Debug logging for mapping state
   React.useEffect(() => {
@@ -78,11 +79,16 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         if (resp.success && resp.data) {
           setTemplates(resp.data);
           if (resp.data.length > 0) {
-            const found = resp.data.find((t: any) => t.id === templateId);
-            if (found) {
-              setSelectedTemplate(found.id);
-            } else if (!isSuperAdmin || resp.data.length === 1) {
-              setSelectedTemplate(resp.data[0].id);
+            const dashboardTemplate = resp.data.find((t: any) => t.name === "contractDashboard");
+            if (isAdmin && dashboardTemplate) {
+              setSelectedTemplate(dashboardTemplate.id);
+            } else {
+              const found = resp.data.find((t: any) => t.id === templateId);
+              if (found) {
+                setSelectedTemplate(found.id);
+              } else if (!isSuperAdmin || resp.data.length === 1) {
+                setSelectedTemplate(resp.data[0].id);
+              }
             }
           }
         }
@@ -91,7 +97,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
       }
     };
     fetchTemplates();
-  }, [templateId, isSuperAdmin]);
+  }, [templateId, isSuperAdmin, isAdmin]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null)
@@ -386,7 +392,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
             </p>
           </div>
 
-          {templates.length > 1 && (
+          {!isAdmin && templates.length > 1 && (
             <div className="form-group">
               <label htmlFor="templateSelection">Selecione o Modelo de Importação</label>
               <select 

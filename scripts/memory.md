@@ -88,3 +88,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Adding a new "Status da Matrícula" dropdown on the matriculas page caused a label collision in E2E tests searching for dialog's "Status" label.
 **Fix applied:** Scoped the "Status" label selector inside `matricula_edit_normalization.spec.ts` using `page.getByRole('dialog')`.
 **Result:** ✅ Green
+
+## [2026-07-15] all — Attempt 1
+**Failure:** Request to hide import template selection list for Admin users on /#/contracts.
+**Root cause:** Admin users should only use the seeded "contractDashboard" model and not see the selection options.
+**Fix applied:** Restricted dropdown visibility inside `BulkImportModal.tsx` when the user has `admin` role, and defaulted `selectedTemplate` specifically to the `"contractDashboard"` template's ID.
+**Result:** ✅ Green — 125/125 passed
