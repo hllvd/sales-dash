@@ -41,6 +41,18 @@ namespace SalesApp.Controllers
             var matriculas = await _userMatriculaRepository.GetAllAsync();
             var responses = matriculas.Select(MapToResponse).ToList();
 
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var currentUserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? UserRole.User;
+            var isAdmin = roleIdClaim == "2" || currentUserRole == UserRole.Admin;
+            if (isAdmin)
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (Guid.TryParse(userIdClaim, out var currentUserId))
+                {
+                    responses = responses.Where(m => m.UserId == currentUserId && m.IsOwner).ToList();
+                }
+            }
+
             return Ok(new ApiResponse<List<UserMatriculaResponse>>
             {
                 Success = true,
@@ -65,6 +77,25 @@ namespace SalesApp.Controllers
                 });
             }
 
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var currentUserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? UserRole.User;
+            var isAdmin = roleIdClaim == "2" || currentUserRole == UserRole.Admin;
+            if (isAdmin)
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (Guid.TryParse(userIdClaim, out var currentUserId))
+                {
+                    if (matricula.User?.Id != currentUserId || !matricula.IsOwner)
+                    {
+                        return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<UserMatriculaResponse>
+                        {
+                            Success = false,
+                            Message = "Você não tem permissão para acessar esta matrícula."
+                        });
+                    }
+                }
+            }
+
             return Ok(new ApiResponse<UserMatriculaResponse>
             {
                 Success = true,
@@ -80,6 +111,26 @@ namespace SalesApp.Controllers
         {
             var matriculas = await _userMatriculaRepository.GetByUserIdAsync(userId);
             var responses = matriculas.Select(MapToResponse).ToList();
+
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var currentUserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? UserRole.User;
+            var isAdmin = roleIdClaim == "2" || currentUserRole == UserRole.Admin;
+            if (isAdmin)
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (Guid.TryParse(userIdClaim, out var currentUserId))
+                {
+                    if (userId != currentUserId)
+                    {
+                        return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<List<UserMatriculaResponse>>
+                        {
+                            Success = false,
+                            Message = "Você não tem permissão para acessar matrículas de outro usuário."
+                        });
+                    }
+                    responses = responses.Where(m => m.IsOwner).ToList();
+                }
+            }
 
             return Ok(new ApiResponse<List<UserMatriculaResponse>>
             {

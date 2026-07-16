@@ -261,7 +261,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {(hasPermission('matriculas:read') && hasPermission('system:superadmin')) && (
+          {hasPermission('matriculas:read') && (
             <NavLink
               href="#/matriculas"
               label="Matrículas"

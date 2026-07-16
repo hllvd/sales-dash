@@ -175,3 +175,13 @@ Improve UI response times, eliminate redundant load on the backend, and prevent 
 - **Waterfall Fetch Elimination**: 
   - **MyContractsPage**: Parallelizes pending claims retrieval using `Promise.all` instead of a serial `for...of` loop (one query per owned matricula). Also separates date-based filter changes from claims loading.
   - **TeamsPage**: Parallelizes member removal logic using `Promise.all` to execute all removal calls simultaneously.
+
+## Admin Matrícula Filtering and Left Menu Integration
+
+This feature restricts Admin users on the Matrículas page to see only their own owned matrículas, while integrating left menu visibility with the Access Control (`Controle de acesso`) permission system.
+
+### Key Capabilities
+- **Access Control Left Menu Visibility**: The "Matrículas" option on the left menu is shown based on the dynamic `matriculas:read` permission (managed via `Controle de Acesso`), rather than being hardcoded to `system:superadmin`.
+- **Admin Matrícula Scoping**: Users with the Admin role (role ID 2 / role name "admin") are restricted in both frontend and backend to viewing only their own matrículas (where they are defined as the owner, i.e., `IsOwner == true` and `UserId == currentUserId`).
+- **Read-Only Screen for Admin**: Write actions on the Matrículas screen (including the "Nova Matrícula" button, "Importar CSV" button, and table "Ações" column containing edit and delete buttons) are hidden for the Admin role, rendering the page read-only for their own matrículas.
+- **SuperAdmin Unchanged**: The SuperAdmin retains full system access to all matrículas, and has full permission to create, import, edit, and delete any matrícula.

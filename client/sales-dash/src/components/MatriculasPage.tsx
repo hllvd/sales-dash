@@ -31,8 +31,9 @@ const isActive = (matricula: UserMatricula) => {
 }
 
 const MatriculasPage: React.FC = () => {
-  const { refreshCurrentUser } = useCurrentUser();
+  const { currentUser, refreshCurrentUser } = useCurrentUser();
   const { fetchAllMatriculas: getCachedMatriculas, invalidateAllMatriculas, invalidateAllUsers } = useReferenceData()
+  const isSuperAdmin = currentUser?.role === 'superadmin';
   const [rawMatriculas, setRawMatriculas] = useState<UserMatricula[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -163,19 +164,23 @@ const MatriculasPage: React.FC = () => {
             >
               Atualizar
             </Button>
-            <Button
-              leftSection={<IconUpload size={16} />}
-              onClick={() => setShowImportModal(true)}
-              variant="light"
-            >
-              Importar CSV
-            </Button>
-            <Button
-              leftSection={<IconPlus size={16} />}
-              onClick={() => setShowForm(true)}
-            >
-              Nova Matrícula
-            </Button>
+            {isSuperAdmin && (
+              <>
+                <Button
+                  leftSection={<IconUpload size={16} />}
+                  onClick={() => setShowImportModal(true)}
+                  variant="light"
+                >
+                  Importar CSV
+                </Button>
+                <Button
+                  leftSection={<IconPlus size={16} />}
+                  onClick={() => setShowForm(true)}
+                >
+                  Nova Matrícula
+                </Button>
+              </>
+            )}
           </Group>
         </div>
 
@@ -220,13 +225,13 @@ const MatriculasPage: React.FC = () => {
                     <Table.Th>Ativo</Table.Th>
                     <Table.Th>Status</Table.Th>
                     <Table.Th>Proprietário</Table.Th>
-                    <Table.Th>Ações</Table.Th>
+                    {isSuperAdmin && <Table.Th>Ações</Table.Th>}
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
                   {matriculas.length === 0 ? (
                     <Table.Tr>
-                      <Table.Td colSpan={8} style={{ textAlign: "center" }}>
+                      <Table.Td colSpan={isSuperAdmin ? 8 : 7} style={{ textAlign: "center" }}>
                         Nenhuma matrícula encontrada
                       </Table.Td>
                     </Table.Tr>
@@ -258,24 +263,26 @@ const MatriculasPage: React.FC = () => {
                             </Badge>
                           )}
                         </Table.Td>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <ActionIcon
-                              variant="light"
-                              color="blue"
-                              onClick={() => openEditForm(matricula)}
-                            >
-                              <IconEdit size={16} />
-                            </ActionIcon>
-                            <ActionIcon
-                              variant="light"
-                              color="red"
-                              onClick={() => setDeleteConfirm(matricula.id)}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Group>
-                        </Table.Td>
+                        {isSuperAdmin && (
+                          <Table.Td>
+                            <Group gap="xs">
+                              <ActionIcon
+                                variant="light"
+                                color="blue"
+                                onClick={() => openEditForm(matricula)}
+                              >
+                                <IconEdit size={16} />
+                              </ActionIcon>
+                              <ActionIcon
+                                variant="light"
+                                color="red"
+                                onClick={() => setDeleteConfirm(matricula.id)}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            </Group>
+                          </Table.Td>
+                        )}
                       </Table.Tr>
                     ))
                   )}
