@@ -82,6 +82,7 @@ export default defineConfig({
         'user_metadata.spec.ts',
         'admin_registration.spec.ts',
         'admin_permissions.spec.ts',
+        'matricula_admin_access.spec.ts',
         'equipe_admin_permission.spec.ts',
         'delete_user_migration.spec.ts'
       ],

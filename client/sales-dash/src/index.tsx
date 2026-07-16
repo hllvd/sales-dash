@@ -4,9 +4,13 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { initRUM } from './services/rumService';
+import { initGA } from './services/analyticsService';
 
 // Initialize CloudWatch RUM
 initRUM();
+
+// Initialize Google Analytics
+initGA();
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
