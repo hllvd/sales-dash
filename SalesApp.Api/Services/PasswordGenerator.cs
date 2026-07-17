@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace SalesApp.Services
 {
     /// <summary>
@@ -5,8 +7,6 @@ namespace SalesApp.Services
     /// </summary>
     public static class PasswordGenerator
     {
-        private static readonly Random _random = new Random();
-
         /// <summary>
         /// Generates an 8-character password based on user's full name
         /// Pattern: First letter of first name + First letter of last name + 6 random digits
@@ -76,7 +76,7 @@ namespace SalesApp.Services
             var digits = new char[length];
             for (int i = 0; i < length; i++)
             {
-                digits[i] = (char)('0' + _random.Next(0, 10));
+                digits[i] = (char)('0' + RandomNumberGenerator.GetInt32(0, 10));
             }
             return new string(digits);
         }

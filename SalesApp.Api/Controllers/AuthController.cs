@@ -27,11 +27,16 @@ namespace SalesApp.Controllers
                 return BadRequest(new { error = "unsupported_grant_type" });
             }
             
-            var user = await _userRepository.GetByEmailAsync(username);
+            var user = await _userRepository.GetByEmailForAuthAsync(username);
             
             if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             {
                 return Unauthorized(new { error = "invalid_grant" });
+            }
+
+            if (!user.IsActive)
+            {
+                return Unauthorized(new { error = "invalid_grant", error_description = "User account is inactive" });
             }
             
             var token = await _jwtService.GenerateToken(user);

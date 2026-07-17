@@ -884,10 +884,32 @@ namespace SalesApp.Services
                 IsActive = true
             };
 
-            // If existing user and custom password provided, update it
+            // If existing user and custom password provided, update it under safe conditions
             if (existingUser != null && !string.IsNullOrWhiteSpace(customPassword))
             {
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(customPassword);
+                var hasNoPassword = string.IsNullOrEmpty(existingUser.PasswordHash);
+                var isDefaultPassword = false;
+
+                if (!hasNoPassword)
+                {
+                    try
+                    {
+                        isDefaultPassword = BCrypt.Net.BCrypt.Verify("ChangeMe123!", existingUser.PasswordHash);
+                    }
+                    catch
+                    {
+                        // In case the hash in DB is invalid or not bcrypt, allow overwriting it to restore access
+                        isDefaultPassword = true;
+                    }
+                }
+
+                var hasNeverLoggedIn = !await _context.RefreshTokens
+                    .AnyAsync(rt => rt.UserInternalId == existingUser.InternalId);
+
+                if (isDefaultPassword || hasNoPassword || hasNeverLoggedIn)
+                {
+                    user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(customPassword);
+                }
             }
 
             user.Name = fullName;

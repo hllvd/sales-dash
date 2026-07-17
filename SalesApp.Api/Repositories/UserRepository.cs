@@ -36,6 +36,17 @@ namespace SalesApp.Repositories
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail && u.IsActive);
         }
 
+        public async Task<User?> GetByEmailForAuthAsync(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+            var normalizedEmail = email.ToLowerInvariant();
+
+            return await _context.Users
+                .Include(u => u.Role)
+                .Include(u => u.UserMatriculas).ThenInclude(um => um.Matricula)
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+        }
+
 
         
         public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null, string? contractNumber = null, HashSet<Guid>? allowedUserIds = null)

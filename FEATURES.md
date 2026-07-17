@@ -185,3 +185,14 @@ This feature restricts Admin users on the Matrículas page to see only their own
 - **Admin Matrícula Scoping**: Users with the Admin role (role ID 2 / role name "admin") are restricted in both frontend and backend to viewing only their own matrículas (where they are defined as the owner, i.e., `IsOwner == true` and `UserId == currentUserId`).
 - **Read-Only Screen for Admin**: Write actions on the Matrículas screen (including the "Nova Matrícula" button, "Importar CSV" button, and table "Ações" column containing edit and delete buttons) are hidden for the Admin role, rendering the page read-only for their own matrículas.
 - **SuperAdmin Unchanged**: The SuperAdmin retains full system access to all matrículas, and has full permission to create, import, edit, and delete any matrícula.
+
+## Authentication and Password Overwrite Security Fixes
+
+This feature resolves intermittent and silent login failures for advisors and managers, strengthening password security and stability.
+
+### Key Capabilities
+- **Thread-safe Password Generation**: Replaces the non-thread-safe `System.Random` class with `RandomNumberGenerator` from `System.Security.Cryptography` in `PasswordGenerator` to prevent random state corruption and password mismatches under concurrent requests.
+- **Accidental Password Overwrite Protection**: Restricts Excel spreadsheet imports so that an existing user's password is only overwritten if they still use the default `"ChangeMe123!"` password, have no password, or have never logged in. Active users with custom passwords will never have their passwords silently overwritten.
+- **Active RefreshToken Check**: Identifies users who have never logged into the system by querying the database for active RefreshTokens, allowing safe conditional password overwrites without requiring a new database schema migration.
+- **Separate Inactive User Check**: Distinguishes between incorrect passwords and deactivated users during authentication, preventing active session validation from returning misleading "invalid credentials" messages for disabled accounts.
+

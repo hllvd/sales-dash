@@ -315,6 +315,96 @@ User Four,{email4},MAT9,s";
             user4.Should().NotBeNull();
         }
 
+        [Fact]
+        public async Task UserImport_PasswordOverwriteSafety_ShouldRespectConditions()
+        {
+            // Arrange
+            var token = await GetAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var emailKeep = $"keep.password.{Guid.NewGuid().ToString()[..8]}@test.com";
+            var emailOverwrite = $"overwrite.password.{Guid.NewGuid().ToString()[..8]}@test.com";
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                // User 1: Has custom password and has logged in (has RefreshToken)
+                var userKeep = new User
+                {
+                    Name = "User Keep Password",
+                    Email = emailKeep,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("MyCustomPassword123!"),
+                    RoleId = 3,
+                    IsActive = true
+                };
+                context.Users.Add(userKeep);
+                await context.SaveChangesAsync();
+
+                var rt = new RefreshToken
+                {
+                    UserInternalId = userKeep.InternalId,
+                    Token = "dummy-token-for-test",
+                    ExpiresAt = DateTime.UtcNow.AddDays(1),
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.RefreshTokens.Add(rt);
+                await context.SaveChangesAsync();
+
+                // User 2: Has default password, never logged in
+                var userOverwrite = new User
+                {
+                    Name = "User Overwrite Password",
+                    Email = emailOverwrite,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("ChangeMe123!"),
+                    RoleId = 3,
+                    IsActive = true
+                };
+                context.Users.Add(userOverwrite);
+                await context.SaveChangesAsync();
+            }
+
+            // CSV with column Password pointing to a new password
+            var csvContent = $@"Name,Email,Matricula,Password
+User Keep Password,{emailKeep},MATKEEP,NewImportPassword999!
+User Overwrite Password,{emailOverwrite},MATOVER,NewImportPassword999!";
+
+            // Act
+            var uploadId = await UploadUserFile(csvContent, "password-overwrite-test.csv");
+            
+            var mappingRequest = new
+            {
+                mappings = new Dictionary<string, string>
+                {
+                    { "Name", "Name" },
+                    { "Email", "Email" },
+                    { "Matricula", "Matricula" },
+                    { "Password", "Password" }
+                }
+            };
+
+            await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings", mappingRequest);
+            var confirmResponse = await _client.PostAsync($"/api/imports/{uploadId}/confirm", null);
+            confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // Assert
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                var userKeepResult = await context.Users.FirstOrDefaultAsync(u => u.Email == emailKeep);
+                userKeepResult.Should().NotBeNull();
+                // Password should NOT be overwritten (verifying it is still "MyCustomPassword123!")
+                BCrypt.Net.BCrypt.Verify("MyCustomPassword123!", userKeepResult!.PasswordHash).Should().BeTrue();
+                BCrypt.Net.BCrypt.Verify("NewImportPassword999!", userKeepResult!.PasswordHash).Should().BeFalse();
+
+                var userOverwriteResult = await context.Users.FirstOrDefaultAsync(u => u.Email == emailOverwrite);
+                userOverwriteResult.Should().NotBeNull();
+                // Password SHOULD be overwritten (verifying it is now "NewImportPassword999!")
+                BCrypt.Net.BCrypt.Verify("NewImportPassword999!", userOverwriteResult!.PasswordHash).Should().BeTrue();
+            }
+        }
+
         private async Task<string> UploadUserFile(string content, string fileName)
         {
             var multipartContent = new MultipartFormDataContent();

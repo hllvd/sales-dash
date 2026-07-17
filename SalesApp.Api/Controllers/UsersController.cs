@@ -512,9 +512,8 @@ namespace SalesApp.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<ApiResponse<LoginResponse>>> Login(LoginRequest request)
         {
-            // Normalize email to lowercase
             var email = request.Email.ToLowerInvariant().Trim();
-            var user = await _userRepository.GetByEmailAsync(email);
+            var user = await _userRepository.GetByEmailForAuthAsync(email);
             
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
@@ -522,6 +521,15 @@ namespace SalesApp.Controllers
                 {
                     Success = false,
                     Message = _messageService.Get(AppMessage.InvalidCredentials)
+                });
+            }
+
+            if (!user.IsActive)
+            {
+                return Unauthorized(new ApiResponse<LoginResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserAccountInactive)
                 });
             }
             

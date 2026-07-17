@@ -12,6 +12,7 @@ namespace SalesApp.Services
             // Authentication & Authorization
             [AppMessage.LoginSuccessful] = "Login realizado com sucesso",
             [AppMessage.InvalidCredentials] = "Credenciais inválidas",
+            [AppMessage.UserAccountInactive] = "Sua conta está inativa. Entre em contato com o administrador.",
             [AppMessage.Unauthorized] = "Não autorizado",
             
             // User Messages

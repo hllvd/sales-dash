@@ -8,6 +8,7 @@ namespace SalesApp.Models
         // Authentication & Authorization
         LoginSuccessful,
         InvalidCredentials,
+        UserAccountInactive,
         Unauthorized,
         
         // User Messages
