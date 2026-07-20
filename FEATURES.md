@@ -196,3 +196,23 @@ This feature resolves intermittent and silent login failures for advisors and ma
 - **Active RefreshToken Check**: Identifies users who have never logged into the system by querying the database for active RefreshTokens, allowing safe conditional password overwrites without requiring a new database schema migration.
 - **Separate Inactive User Check**: Distinguishes between incorrect passwords and deactivated users during authentication, preventing active session validation from returning misleading "invalid credentials" messages for disabled accounts.
 
+## Equipe — Usuários Disponíveis Bug Fix
+
+Fixes a production bug where some users (including admin's direct children and all users visible to superadmin) were silently missing from the "Usuários Disponíveis" left-column in the Equipe (Team) management modal.
+
+### Root Causes Fixed
+- **Pagination Truncation (Bug 1):** `fetchAllUsers` in `ReferenceDataContext` called `getUsers(1, 1000)` — a single fixed page. Any users beyond position 1000 (sorted by role then active status) were silently dropped from `allUsers`, making them invisible even for superadmin.
+- **Missing Server-Side `IsActive` Filter (Bug 2):** `UserRepository.GetAllAsync` returned both active and inactive users. Inactive users wasted pagination slots, reducing the effective capacity of the 1000-user page and crowding out valid active users.
+- **Admin BFS Broken by Truncation (Bug 3):** The client-side BFS in `TeamMembersModal.tsx` traverses `allUsers` to find children by `parentUserId`. When a first-level child was beyond position 1000 they were absent from `allUsers`, so the BFS never visited them.
+
+### Changes
+- **`GET /api/users`:** New `activeOnly=true` query param. When set, `UserRepository.GetAllAsync` prepends a `.Where(u => u.IsActive)` filter server-side before pagination, eliminating wasted slots.
+- **`fetchAllUsers` (ReferenceDataContext):** Now loops pages (`pageSize=1000`) until `accumulated.length >= totalCount`, guaranteeing all users are fetched regardless of total count. Passes `activeOnly=true` to reduce payload size.
+- **`apiService.getUsers`:** New optional `activeOnly` parameter appended to query string when `true`.
+
+### Integration Tests Added
+Four new tests in `TeamsControllerIntegrationTests.cs`:
+1. `GetUsers_AsSuperadmin_ShouldReturnAllActiveUsers` — verifies active users appear and inactive are excluded with `activeOnly=true`.
+2. `GetUsers_WithoutActiveOnlyFilter_ShouldIncludeInactiveUsers` — documents the pre-fix behaviour (inactive users returned without `activeOnly`).
+3. `GetUsers_PaginationTruncation_TotalCountExceedsReturnedItems` — proves truncation occurs when `pageSize < totalCount`.
+4. `GetUsers_AsAdmin_DirectChildrenAppearWithCorrectParentUserId` — verifies admin's direct children appear with correct `parentUserId` so client BFS resolves them.

@@ -613,7 +613,8 @@ namespace SalesApp.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null,
             [FromQuery] string? contractNumber = null,
-            [FromQuery] bool scopeToDescendants = false)
+            [FromQuery] bool scopeToDescendants = false,
+            [FromQuery] bool activeOnly = false)
         {
             HashSet<Guid>? allowedUserIds = null;
             var roleIdClaim = User.FindFirst("role_id")?.Value;
@@ -624,7 +625,7 @@ namespace SalesApp.Controllers
                 allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
             }
 
-            var (users, totalCount) = await _userRepository.GetAllAsync(page, pageSize, search, contractNumber, allowedUserIds);
+            var (users, totalCount) = await _userRepository.GetAllAsync(page, pageSize, search, contractNumber, allowedUserIds, activeOnly);
             
             return Ok(new ApiResponse<PagedResponse<UserResponse>>
             {

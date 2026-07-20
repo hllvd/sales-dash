@@ -91,13 +91,26 @@ export const ReferenceDataProvider: React.FC<{ children: ReactNode }> = ({ child
     if (!forceRefresh && allUsers) {
       return allUsers.data
     }
-    const response = await apiService.getUsers(1, 1000)
-    if (!response.success || !response.data) {
-      throw new Error(response.message || 'Falha ao carregar usuários')
+    // Fetch all active users across all pages to prevent silent truncation
+    // when total users exceed a single page boundary.
+    const PAGE_SIZE = 1000
+    let page = 1
+    let accumulated: User[] = []
+    let totalCount = Infinity
+
+    while (accumulated.length < totalCount) {
+      const response = await apiService.getUsers(page, PAGE_SIZE, undefined, undefined, false, true)
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Falha ao carregar usuários')
+      }
+      totalCount = response.data.totalCount
+      accumulated = accumulated.concat(response.data.items)
+      if (accumulated.length >= totalCount) break
+      page++
     }
-    const freshData = response.data.items
-    setAllUsers({ data: freshData, fetchedAt: Date.now() })
-    return freshData
+
+    setAllUsers({ data: accumulated, fetchedAt: Date.now() })
+    return accumulated
   }, [allUsers])
 
   const invalidateTeams = useCallback(() => setTeams(null), [])

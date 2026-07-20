@@ -49,9 +49,14 @@ namespace SalesApp.Repositories
 
 
         
-        public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null, string? contractNumber = null, HashSet<Guid>? allowedUserIds = null)
+        public async Task<(List<User> Users, int TotalCount)> GetAllAsync(int page, int pageSize, string? search = null, string? contractNumber = null, HashSet<Guid>? allowedUserIds = null, bool activeOnly = false)
         {
             var query = _context.Users.AsNoTracking();
+
+            if (activeOnly)
+            {
+                query = query.Where(u => u.IsActive);
+            }
 
             if (allowedUserIds != null)
             {

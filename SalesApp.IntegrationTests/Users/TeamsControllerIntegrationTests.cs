@@ -530,6 +530,203 @@ namespace SalesApp.IntegrationTests.Users
             response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         }
 
+        // ─── Usuários Disponíveis (GetUsers) Integration Tests ─────────────────
+        // These tests verify GET /api/users — the common function that powers the
+        // "Usuários Disponíveis" left-column in the Equipe (Team) management modal.
+
+        [Fact]
+        public async Task GetUsers_AsSuperadmin_ShouldReturnAllActiveUsers()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var activeEmail1 = $"active1_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var activeEmail2 = $"active2_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var inactiveEmail = $"inactive_{Guid.NewGuid().ToString()[..8]}@test.com";
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superadmin = await context.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+
+                context.Users.AddRange(
+                    new User { Name = "Active User 1", Email = activeEmail1, PasswordHash = "h", RoleId = 3, ParentUserId = superadmin.Id, IsActive = true },
+                    new User { Name = "Active User 2", Email = activeEmail2, PasswordHash = "h", RoleId = 3, ParentUserId = superadmin.Id, IsActive = true },
+                    new User { Name = "Inactive User", Email = inactiveEmail, PasswordHash = "h", RoleId = 3, ParentUserId = superadmin.Id, IsActive = false }
+                );
+                await context.SaveChangesAsync();
+            }
+
+            // Act — fetch with activeOnly=true (same call as Equipe modal uses)
+            var response = await client.GetAsync("/api/users?page=1&pageSize=1000&activeOnly=true");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
+            result!.Success.Should().BeTrue();
+
+            var emails = result.Data!.Items.Select(u => u.Email).ToList();
+            emails.Should().Contain(activeEmail1, "active user 1 must appear for superadmin");
+            emails.Should().Contain(activeEmail2, "active user 2 must appear for superadmin");
+            emails.Should().NotContain(inactiveEmail, "inactive user must be excluded when activeOnly=true");
+        }
+
+        [Fact]
+        public async Task GetUsers_WithoutActiveOnlyFilter_ShouldIncludeInactiveUsers()
+        {
+            // Arrange — proves Bug 2: without activeOnly the API returns inactive users,
+            // which waste pagination slots and can crowd out valid users.
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var inactiveEmail = $"inactive_slot_{Guid.NewGuid().ToString()[..8]}@test.com";
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superadmin = await context.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+
+                context.Users.Add(new User
+                {
+                    Name = "Slot-Wasting Inactive",
+                    Email = inactiveEmail,
+                    PasswordHash = "h",
+                    RoleId = 3,
+                    ParentUserId = superadmin.Id,
+                    IsActive = false
+                });
+                await context.SaveChangesAsync();
+            }
+
+            // Act — fetch WITHOUT activeOnly (legacy call, no filter)
+            var response = await client.GetAsync("/api/users?page=1&pageSize=1000");
+
+            // Assert — inactive users ARE returned (current behaviour that wastes slots)
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
+            result!.Success.Should().BeTrue();
+            result.Data!.Items.Should().Contain(u => u.Email == inactiveEmail,
+                "without activeOnly=true the API returns inactive users, proving Bug 2");
+        }
+
+        [Fact]
+        public async Task GetUsers_PaginationTruncation_TotalCountExceedsReturnedItems()
+        {
+            // Arrange — proves Bug 1: pageSize truncation causes silent data loss.
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Seed 3 extra active users so we know at least 3 exist
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superadmin = await context.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+
+                for (int i = 0; i < 3; i++)
+                {
+                    context.Users.Add(new User
+                    {
+                        Name = $"Trunc User {i}",
+                        Email = $"trunc_{Guid.NewGuid().ToString()[..8]}@test.com",
+                        PasswordHash = "h",
+                        RoleId = 3,
+                        ParentUserId = superadmin.Id,
+                        IsActive = true
+                    });
+                }
+                await context.SaveChangesAsync();
+            }
+
+            // Act — very small pageSize to simulate truncation
+            var response = await client.GetAsync("/api/users?page=1&pageSize=2&activeOnly=true");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
+            result!.Success.Should().BeTrue();
+
+            // TotalCount must be greater than the items returned — proves truncation occurs
+            result.Data!.TotalCount.Should().BeGreaterThan(result.Data.Items.Count,
+                "when pageSize < totalCount the response silently drops users beyond the page boundary");
+            result.Data.Items.Should().HaveCount(2, "pageSize=2 must cap the result at 2 items");
+        }
+
+        [Fact]
+        public async Task GetUsers_AsAdmin_DirectChildrenAppearWithCorrectParentUserId()
+        {
+            // Arrange — proves Bug 3 is avoidable: when there is no truncation the
+            // client-side BFS in TeamMembersModal can correctly resolve first-children
+            // because their parentUserId is present in allUsers.
+            var password = "Password123!";
+            var adminEmail = $"admin_pool_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var child1Email = $"child1_pool_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var child2Email = $"child2_pool_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var unrelatedEmail = $"unrel_pool_{Guid.NewGuid().ToString()[..8]}@test.com";
+
+            Guid adminId;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superadmin = await context.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+
+                var admin = new User
+                {
+                    Name = "Pool Admin",
+                    Email = adminEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    RoleId = 2,
+                    ParentUserId = superadmin.Id,
+                    IsActive = true
+                };
+                context.Users.Add(admin);
+                await context.SaveChangesAsync();
+                adminId = admin.Id;
+
+                context.Users.AddRange(
+                    new User { Name = "Child One", Email = child1Email, PasswordHash = "h", RoleId = 3, ParentUserId = adminId, IsActive = true },
+                    new User { Name = "Child Two", Email = child2Email, PasswordHash = "h", RoleId = 3, ParentUserId = adminId, IsActive = true },
+                    new User { Name = "Unrelated User", Email = unrelatedEmail, PasswordHash = "h", RoleId = 3, ParentUserId = superadmin.Id, IsActive = true }
+                );
+                await context.SaveChangesAsync();
+            }
+
+            // Act — call as admin, large pageSize to avoid truncation
+            var adminToken = await GetTokenForUser(adminEmail, password);
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", adminToken);
+
+            var response = await client.GetAsync("/api/users?page=1&pageSize=1000&activeOnly=true");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
+            result!.Success.Should().BeTrue();
+
+            var items = result.Data!.Items;
+
+            // Both direct children must appear so the client BFS can find them
+            var child1 = items.FirstOrDefault(u => u.Email == child1Email);
+            var child2 = items.FirstOrDefault(u => u.Email == child2Email);
+
+            child1.Should().NotBeNull("admin's first child must appear in the user pool");
+            child2.Should().NotBeNull("admin's second child must appear in the user pool");
+
+            // parentUserId must be set correctly so BFS resolves them as children
+            child1!.ParentUserId.Should().Be(adminId,
+                "child's parentUserId must match admin's Id for client BFS to work");
+            child2!.ParentUserId.Should().Be(adminId,
+                "child's parentUserId must match admin's Id for client BFS to work");
+        }
+
         private async Task<Team> CreateTeamWithOwner(AppDbContext context, string teamName, User owner)
         {
             var team = new Team { Name = teamName };
