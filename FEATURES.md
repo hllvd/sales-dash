@@ -216,3 +216,12 @@ Four new tests in `TeamsControllerIntegrationTests.cs`:
 2. `GetUsers_WithoutActiveOnlyFilter_ShouldIncludeInactiveUsers` — documents the pre-fix behaviour (inactive users returned without `activeOnly`).
 3. `GetUsers_PaginationTruncation_TotalCountExceedsReturnedItems` — proves truncation occurs when `pageSize < totalCount`.
 4. `GetUsers_AsAdmin_DirectChildrenAppearWithCorrectParentUserId` — verifies admin's direct children appear with correct `parentUserId` so client BFS resolves them.
+
+## UI Copy Enhancements
+
+Provides clearest contextual language in UI screens to eliminate user confusion and support requests.
+
+### Key Changes
+- **Import Wizard Inconsistency Alert:** Renamed the alarming "Inconsistências no Cadastro de Vendedores Detectadas" alert title to "Resumo de Atribuições por Matrícula" and updated description copy to clearly explain existing assignments.
+- **My Contracts Matrícula Helper:** Added dynamic explanation text in the contract assignment modal's Matrícula field (e.g. *"A matrícula identifica você como vendedor responsável pelo contrato 123123123."*), helping users understand the concept of a Matrícula when claiming or registering contracts.
+

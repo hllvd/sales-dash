@@ -712,8 +712,9 @@ const MyContractsPage: React.FC = () => {
             <FormField
               label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
               description={
-                userMatriculas.length === 1 ? 'Matrícula será atribuída automaticamente' :
-                  'Selecione a matrícula para este contrato'
+                userMatriculas.length === 1
+                  ? `A matrícula identifica você como vendedor responsável pelo contrato ${contractNumber || retrievedContract?.contractNumber || ''}.`
+                  : `Selecione a matrícula que identifica você como vendedor responsável pelo contrato ${contractNumber || retrievedContract?.contractNumber || ''}.`
               }
             >
               {userMatriculas.length === 1 ? (

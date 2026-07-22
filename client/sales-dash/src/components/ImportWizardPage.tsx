@@ -437,9 +437,9 @@ const ImportWizardPage: React.FC = () => {
 
                 {((uploadData?.conflictingUserNames && uploadData.conflictingUserNames.length > 0) || 
                   (uploadData?.conflictingMatriculas && uploadData.conflictingMatriculas.length > 0)) && (
-                  <Alert icon={<IconAlertCircle size={16} />} title="Inconsistências no Cadastro de Vendedores Detectadas" color="orange" mt="md" data-testid="user-inconsistency-warning">
+                  <Alert icon={<IconAlertCircle size={16} />} title="Resumo de Atribuições por Matrícula" color="orange" mt="md" data-testid="user-inconsistency-warning">
                     <Text size="sm" mb="sm">
-                      Detectamos as seguintes inconsistências no cadastro de vendedores ativos que correspondem a dados deste arquivo:
+                      As matrículas/vendedores abaixo já possuem atribuições existentes no sistema. Revise antes de prosseguir:
                     </Text>
                     <List size="xs" mb="sm">
                       {uploadData.conflictingUserNames?.map((msg: string, idx: number) => (
