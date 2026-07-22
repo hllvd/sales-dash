@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Title, Button, Stepper, Group, FileInput, Text, Paper, Badge, Alert, Stack, List, LoadingOverlay, Box, Modal } from '@mantine/core';
-import { IconUpload, IconDownload, IconCheck, IconAlertCircle, IconChevronRight, IconChevronLeft } from '@tabler/icons-react';
+import { Title, Button, Stepper, Group, FileInput, Text, Paper, Badge, Alert, Stack, List, LoadingOverlay, Box, Modal, Table, Code } from '@mantine/core';
+import { IconUpload, IconDownload, IconCheck, IconAlertCircle, IconChevronRight, IconChevronLeft, IconAlertTriangle } from '@tabler/icons-react';
 import Menu from './Menu';
 import { apiService } from '../services/apiService';
 import { toast } from '../utils/toast';
@@ -25,6 +25,7 @@ const ImportWizardPage: React.FC = () => {
   const [blankContractCount, setBlankContractCount] = useState<number>(0);
   const [shortContractNumbers, setShortContractNumbers] = useState<string[]>([]);
   const [allowShortContracts, setAllowShortContracts] = useState(false);
+  const [outlierAmounts, setOutlierAmounts] = useState<any[]>([]);
 
   // Step 2: Users File
   const [usersFile, setUsersFile] = useState<File | null>(null);
@@ -57,6 +58,7 @@ const ImportWizardPage: React.FC = () => {
     setBlankContractCount(0);
     setShortContractNumbers([]);
     setAllowShortContracts(false);
+    setOutlierAmounts([]);
     try {
       const response = await apiService.uploadWizardStep1(contractFile);
       if (response.success) {
@@ -98,6 +100,12 @@ const ImportWizardPage: React.FC = () => {
           }
           if (confNames.length > 0 || confMats.length > 0) {
             toast.warning('Aviso: Inconsistências de cadastro de usuários encontradas');
+          }
+          const outliers: any[] = response.data.outlierAmounts ?? [];
+          setOutlierAmounts(outliers);
+          if (outliers.length > 0) {
+            toast.warning(`${outliers.length} valor(es) com formato ambíguo no campo Total`);
+            hasWarning = true;
           }
 
           if (!hasWarning) {
@@ -450,6 +458,54 @@ const ImportWizardPage: React.FC = () => {
                       ))}
                     </List>
 
+                  </Alert>
+                )}
+
+                {outlierAmounts.length > 0 && (
+                  <Alert
+                    icon={<IconAlertTriangle size={16} />}
+                    title="Valores com Formato Ambíguo no Campo Total"
+                    color="yellow"
+                    mt="md"
+                    data-testid="outlier-amounts-warning"
+                  >
+                    <Text size="sm" mb="xs">
+                      Detectamos valores no campo <strong>Total</strong> com separadores que podem ser interpretados
+                      de duas formas. O sistema utilizou a interpretação mais próxima da <strong>mediana do arquivo</strong>.
+                      Verifique se os valores abaixo estão corretos antes de continuar.
+                    </Text>
+                    <Text size="xs" mb="sm" c="dimmed">
+                      ✅ Formato correto:&nbsp;<Code>225.000,00</Code>&nbsp;(ponto para milhar, vírgula para decimal)&nbsp;&nbsp;
+                      ❌ Formato ambíguo:&nbsp;<Code>80.000.00</Code>&nbsp;(dois pontos — confuso)
+                    </Text>
+                    <Table striped withTableBorder mb="xs" style={{ fontSize: '13px' }}>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Linha</Table.Th>
+                          <Table.Th>Valor digitado</Table.Th>
+                          <Table.Th>Interpretado como</Table.Th>
+                          <Table.Th>Alternativa possível</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {outlierAmounts.map((o: any, i: number) => (
+                          <Table.Tr key={i}>
+                            <Table.Td>{o.rowNumber}</Table.Td>
+                            <Table.Td><Code>{o.rawValue}</Code></Table.Td>
+                            <Table.Td style={{ color: '#b45309', fontWeight: 600 }}>{o.likelyFormatted}</Table.Td>
+                            <Table.Td c="dimmed">{o.altFormatted}</Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                    {outlierAmounts[0]?.fileMedian > 0 && (
+                      <Text size="xs" c="dimmed">
+                        Mediana do arquivo: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(outlierAmounts[0].fileMedian)}</strong>. A interpretação mais próxima desse valor foi marcada como provável.
+                      </Text>
+                    )}
+                    <Text size="xs" mt="xs" c="dimmed">
+                      Se os valores estiverem incorretos, corrija o arquivo Excel e faça o upload novamente.
+                    </Text>
                   </Alert>
                 )}
 

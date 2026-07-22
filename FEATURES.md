@@ -225,3 +225,30 @@ Provides clearest contextual language in UI screens to eliminate user confusion 
 - **Import Wizard Inconsistency Alert:** Renamed the alarming "Inconsistências no Cadastro de Vendedores Detectadas" alert title to "Resumo de Atribuições por Matrícula" and updated description copy to clearly explain existing assignments.
 - **My Contracts Matrícula Helper:** Added dynamic explanation text in the contract assignment modal's Matrícula field (e.g. *"A matrícula identifica você como vendedor responsável pelo contrato 123123123."*), helping users understand the concept of a Matrícula when claiming or registering contracts.
 
+## Outlier Amount Detection — Contract Template Import
+
+Detects ambiguously formatted values in the **Total** column during contract template import (Step 1 scan), preventing silent data corruption where `80.000.00` would be misread as R$ 8,000,000.
+
+### Problem
+Users occasionally type values with two dots and no comma (e.g. `80.000.00`), intending R$ 80,000.00. The Brazilian currency parser strips all dots and produces R$ 8,000,000 — silently, with no error.
+
+### Detection Logic
+- During Step 1 file scan, every row's Total column value is inspected for the ambiguous pattern: **2+ dots and 0 commas**.
+- All unambiguous Total values (clear Brazilian `1.000,00` or US `1,000.00` formats) are collected to compute the **file median**.
+- For each ambiguous value, two interpretations are generated:
+  - **A** — last dot treated as decimal separator (e.g. `80.000.00` → R$ 80,000.00)
+  - **B** — all dots treated as thousand separators (e.g. `80.000.00` → R$ 8,000,000.00)
+- The interpretation **closest to the file median** is selected as "most likely correct".
+
+### User Experience
+- A yellow **"Valores com Formato Ambíguo no Campo Total"** alert appears in Step 1 with:
+  - Formatting guidance (correct vs. incorrect examples using `Code` blocks)
+  - A table listing: row number, raw value, likely interpretation (highlighted), alternative interpretation
+  - The file median displayed as context
+- The warning is **non-blocking** — users can still proceed with the import.
+- Up to 50 ambiguous values are shown.
+
+### Key Files
+- `ImportPreviewResponse.cs` — added `OutlierAmounts` list with `OutlierAmountEntry` record
+- `WizardService.cs` — outlier detection + median computation + `TryParseUnambiguousCurrency` helper
+- `ImportWizardPage.tsx` — new alert UI with table and formatting guidance

@@ -92,6 +92,10 @@ namespace SalesApp.Services
             int blankContractCount = 0;
             var shortContractNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            // Outlier amount detection: collect unambiguous totals (for median) and ambiguous ones
+            var unambiguousTotals = new List<decimal>();
+            var ambiguousRawTotals = new List<(int RowNumber, string RawValue)>();
+
             await foreach (var row in _fileParser.ParseFileStreamedAsync(file))
             {
                 // Inject virtual columns logic
@@ -161,6 +165,32 @@ namespace SalesApp.Services
                         if (trimmed.Length <= 3)
                         {
                             shortContractNumbers.Add(trimmed);
+                        }
+                    }
+                }
+
+                // Collect raw Total values for outlier detection
+                var totalRawKey = row.Keys.FirstOrDefault(k =>
+                    k.Equals("Total", StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals("Valor", StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals("Crédito Venda", StringComparison.OrdinalIgnoreCase));
+                if (totalRawKey != null && row.TryGetValue(totalRawKey, out var rawTotalVal) && !string.IsNullOrWhiteSpace(rawTotalVal))
+                {
+                    var cleaned = rawTotalVal.Trim().Replace("R$", "").Replace("$", "").Trim();
+                    int dotCount = cleaned.Count(c => c == '.');
+                    int commaCount = cleaned.Count(c => c == ',');
+
+                    if (dotCount >= 2 && commaCount == 0)
+                    {
+                        // Ambiguous: multiple dots, no comma (e.g. 80.000.00 or 1.000.000.00)
+                        ambiguousRawTotals.Add((rowIndex + 1, rawTotalVal.Trim()));
+                    }
+                    else
+                    {
+                        // Unambiguous: try parse normally to build median baseline
+                        if (TryParseUnambiguousCurrency(cleaned, dotCount, commaCount, out var unambigValue))
+                        {
+                            unambiguousTotals.Add(unambigValue);
                         }
                     }
                 }
@@ -260,6 +290,67 @@ namespace SalesApp.Services
                 .OrderBy(n => n)
                 .ToList();
 
+            // ── Outlier Amount Detection (median-based) ────────────────────────
+            var outlierAmounts = new List<OutlierAmountEntry>();
+            if (ambiguousRawTotals.Count > 0)
+            {
+                decimal fileMedian = 0m;
+                if (unambiguousTotals.Count > 0)
+                {
+                    var sorted = unambiguousTotals.OrderBy(v => v).ToList();
+                    int mid = sorted.Count / 2;
+                    fileMedian = sorted.Count % 2 == 0
+                        ? (sorted[mid - 1] + sorted[mid]) / 2m
+                        : sorted[mid];
+                }
+
+                foreach (var (rowNum, raw) in ambiguousRawTotals.Take(50))
+                {
+                    var cleaned = raw.Replace("R$", "").Replace("$", "").Trim();
+                    var parts = cleaned.Split('.');
+
+                    // Interpretation A: treat last dot as decimal separator (e.g. 80.000.00 → 80000.00)
+                    decimal interpA = 0m;
+                    var asDecimalStr = string.Join("", parts[..^1]) + "." + parts[^1];
+                    decimal.TryParse(asDecimalStr, System.Globalization.NumberStyles.Number,
+                        System.Globalization.CultureInfo.InvariantCulture, out interpA);
+
+                    // Interpretation B: all dots are thousand separators (e.g. 80.000.00 → 8000000)
+                    decimal interpB = 0m;
+                    var asThousandsStr = cleaned.Replace(".", "");
+                    decimal.TryParse(asThousandsStr, System.Globalization.NumberStyles.Number,
+                        System.Globalization.CultureInfo.InvariantCulture, out interpB);
+
+                    if (interpA <= 0 && interpB <= 0) continue;
+
+                    // Pick the interpretation closest to the file median as "likely"
+                    decimal likelyValue, altValue;
+                    if (fileMedian > 0)
+                    {
+                        var distA = Math.Abs(interpA - fileMedian);
+                        var distB = Math.Abs(interpB - fileMedian);
+                        likelyValue = distA <= distB ? interpA : interpB;
+                        altValue   = distA <= distB ? interpB : interpA;
+                    }
+                    else
+                    {
+                        // No baseline: default to smaller value (less likely to be catastrophically wrong)
+                        likelyValue = interpA < interpB ? interpA : interpB;
+                        altValue   = interpA < interpB ? interpB : interpA;
+                    }
+
+                    outlierAmounts.Add(new OutlierAmountEntry(
+                        RowNumber: rowNum,
+                        RawValue: raw,
+                        LikelyValue: likelyValue,
+                        AltValue: altValue,
+                        LikelyFormatted: likelyValue.ToString("C2", new System.Globalization.CultureInfo("pt-BR")),
+                        AltFormatted: altValue.ToString("C2", new System.Globalization.CultureInfo("pt-BR")),
+                        FileMedian: fileMedian
+                    ));
+                }
+            }
+
             // ── Inconsistency Detection (Pre-Import Warning) ────────────────────
             var conflictingUserNames = new List<string>();
             var conflictingMatriculas = new List<string>();
@@ -327,7 +418,8 @@ namespace SalesApp.Services
                 ConflictingUserNames = conflictingUserNames,
                 ConflictingMatriculas = conflictingMatriculas,
                 BlankContractCount = blankContractCount,
-                ShortContractNumbers = shortContractNumbers.OrderBy(n => n).ToList()
+                ShortContractNumbers = shortContractNumbers.OrderBy(n => n).ToList(),
+                OutlierAmounts = outlierAmounts
             };
         }
 
@@ -995,6 +1087,48 @@ namespace SalesApp.Services
                 }
                 return fallbackDir;
             }
+        }
+
+        /// <summary>
+        /// Parses a pre-cleaned (no currency symbol) numeric string only when its format is unambiguous.
+        /// Used to build the median baseline for outlier detection.
+        /// Returns false for multi-dot-no-comma patterns (those are the ambiguous ones we flag).
+        /// </summary>
+        private static bool TryParseUnambiguousCurrency(string cleaned, int dotCount, int commaCount, out decimal result)
+        {
+            result = 0;
+
+            // Skip patterns that are exactly the ambiguous case handled separately
+            if (dotCount >= 2 && commaCount == 0) return false;
+
+            string normalized = cleaned;
+
+            if (dotCount == 1 && commaCount == 1)
+            {
+                // Both separators: determine which is decimal (last one wins)
+                int lastDot   = cleaned.LastIndexOf('.');
+                int lastComma = cleaned.LastIndexOf(',');
+                normalized = lastComma > lastDot
+                    ? cleaned.Replace(".", "").Replace(",", ".")   // BR format: 1.000,00
+                    : cleaned.Replace(",", "");                    // US format: 1,000.00
+            }
+            else if (commaCount == 1 && dotCount == 0)
+            {
+                int commaIdx = cleaned.IndexOf(',');
+                int digitsAfter = cleaned.Length - commaIdx - 1;
+                normalized = digitsAfter == 2
+                    ? cleaned.Replace(",", ".")   // decimal comma: 100,00
+                    : cleaned.Replace(",", "");   // thousand comma: 1,000
+            }
+            else if (commaCount > 1 && dotCount == 0)
+            {
+                // Multiple commas → BR thousands+decimal: 1,000,000.00 style — strip commas
+                normalized = cleaned.Replace(",", "");
+            }
+            // else: no separators or only dots with count < 2 — use as-is
+
+            return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out result)
+                   && result > 0;
         }
     }
 }

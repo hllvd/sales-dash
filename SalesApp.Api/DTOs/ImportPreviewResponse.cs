@@ -22,5 +22,20 @@ namespace SalesApp.DTOs
         public List<string> ConflictingMatriculas { get; set; } = new();
         public int BlankContractCount { get; set; }
         public List<string> ShortContractNumbers { get; set; } = new();
+        public List<OutlierAmountEntry> OutlierAmounts { get; set; } = new();
     }
+
+    /// <summary>
+    /// Represents a Total column value whose formatting is ambiguous (e.g. "80.000.00").
+    /// Both numeric interpretations are provided along with which one the file median suggests is correct.
+    /// </summary>
+    public record OutlierAmountEntry(
+        int RowNumber,
+        string RawValue,
+        decimal LikelyValue,
+        decimal AltValue,
+        string LikelyFormatted,
+        string AltFormatted,
+        decimal FileMedian
+    );
 }
