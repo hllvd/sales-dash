@@ -47,7 +47,7 @@ namespace SalesApp.IntegrationTests
                     config.AddJsonFile("appsettings.json", optional: false);
                     config.AddInMemoryCollection(new Dictionary<string, string>
                     {
-                        { "ConnectionStrings:DefaultConnection", $"Data Source={_dbFileName}" }
+                        { "ConnectionStrings:DefaultConnection", $"Data Source={_dbFileName};Default Timeout=15;" }
                     });
                 });
 
@@ -66,7 +66,7 @@ namespace SalesApp.IntegrationTests
                     config.AddJsonFile("appsettings.json", optional: false);
                     config.AddInMemoryCollection(new Dictionary<string, string>
                     {
-                        { "ConnectionStrings:DefaultConnection", $"Data Source={_dbFileName}" }
+                        { "ConnectionStrings:DefaultConnection", $"Data Source={_dbFileName};Default Timeout=15;" }
                     });
                 })
                 .ConfigureTestServices(configureServices);

@@ -48,7 +48,7 @@ namespace SalesApp
                 {
                     connectionString = connectionString? .Replace("SalesApp.db", "SalesApp.E2E.db");
                 }
-                options.UseSqlite(connectionString);
+                options.UseSqlite(connectionString, b => b.CommandTimeout(15));
             });
 
             // Data Protection (fix encryption warning)

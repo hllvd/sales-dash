@@ -7,7 +7,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
-      - ConnectionStrings__DefaultConnection=Data Source=/app/data/SalesApp.db;Cache=Shared;Mode=ReadWriteCreate;
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/SalesApp.db;Cache=Shared;Mode=ReadWriteCreate;Default Timeout=15;
       - CW_ERROR_LOG=${CW_ERROR_LOG:-false}
       - CW_LOG_GROUP=${CW_LOG_GROUP:-/salesapp/api/errors}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
