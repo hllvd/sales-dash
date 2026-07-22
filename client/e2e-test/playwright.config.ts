@@ -42,6 +42,7 @@ export default defineConfig({
         'import_wizard_duplicate_contracts.spec.ts',
         'import_wizard_desistente_contracts.spec.ts',
         'import_wizard_blank_contracts.spec.ts',
+        'import_wizard_outliers.spec.ts',
         'contract_dashboard_desistente.spec.ts',
         'scrape_credentials.spec.ts',
         'matricula_ownership.spec.ts',

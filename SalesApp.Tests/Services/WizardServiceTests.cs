@@ -345,5 +345,91 @@ namespace SalesApp.Tests.Services
             var exception = await act.Should().ThrowAsync<ArgumentException>();
             exception.WithMessage("*O e-mail 'john@test.com' está associado a múltiplos usuários: Jane Smith, John Doe.*");
         }
+
+        private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IEnumerable<T> items)
+        {
+            foreach (var item in items)
+            {
+                yield return item;
+                await Task.Yield();
+            }
+        }
+
+        [Fact]
+        public async Task AnalyzeFileAsync_ShouldDetectAmbiguousTotalAmount_AndCalculateLikelyInterpretationUsingMedian()
+        {
+            // Arrange
+            var mockFile = new Mock<IFormFile>();
+            mockFile.Setup(f => f.FileName).Returns("test_outliers.xlsx");
+
+            var columns = new List<string> { "Contrato", "Total" };
+            _mockFileParser.Setup(p => p.GetColumnsAsync(mockFile.Object)).ReturnsAsync(columns);
+            _mockFileParser.Setup(p => p.GetFileType(mockFile.Object)).Returns("xlsx");
+
+            var rows = new List<Dictionary<string, string>>
+            {
+                new Dictionary<string, string> { { "Contrato", "CTR-001" }, { "Total", "200.000,00" } },
+                new Dictionary<string, string> { { "Contrato", "CTR-002" }, { "Total", "250.000,00" } },
+                new Dictionary<string, string> { { "Contrato", "CTR-003" }, { "Total", "300.000,00" } },
+                new Dictionary<string, string> { { "Contrato", "CTR-004" }, { "Total", "80.000.00" } }
+            };
+
+            _mockFileParser.Setup(p => p.ParseFileStreamedAsync(mockFile.Object))
+                .Returns(ToAsyncEnumerable(rows));
+
+            _mockHeaderValidator.Setup(v => v.Validate(It.IsAny<List<string>>()))
+                .Returns(new HeaderValidationResult { IsValid = true });
+
+            var mockUser = new User { Id = Guid.NewGuid(), InternalId = 1, Name = "Test Admin", Email = "admin@test.com" };
+            _mockUserRepository.Setup(u => u.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(mockUser);
+
+            // Act
+            var result = await _service.AnalyzeFileAsync(mockFile.Object, Guid.NewGuid());
+
+            // Assert
+            result.Should().NotBeNull();
+            result.OutlierAmounts.Should().HaveCount(1);
+
+            var entry = result.OutlierAmounts.Single();
+            entry.RowNumber.Should().Be(4); // 4th row
+            entry.RawValue.Should().Be("80.000.00");
+            entry.LikelyValue.Should().Be(80000m); // 80,000.00 is closer to median 250,000 than 8,000,000.00
+            entry.AltValue.Should().Be(8000000m);
+            entry.FileMedian.Should().Be(250000m);
+        }
+
+        [Fact]
+        public async Task AnalyzeFileAsync_ShouldReturnEmptyOutlierAmounts_WhenAllTotalsAreUnambiguous()
+        {
+            // Arrange
+            var mockFile = new Mock<IFormFile>();
+            mockFile.Setup(f => f.FileName).Returns("test_clean.xlsx");
+
+            var columns = new List<string> { "Contrato", "Total" };
+            _mockFileParser.Setup(p => p.GetColumnsAsync(mockFile.Object)).ReturnsAsync(columns);
+            _mockFileParser.Setup(p => p.GetFileType(mockFile.Object)).Returns("xlsx");
+
+            var rows = new List<Dictionary<string, string>>
+            {
+                new Dictionary<string, string> { { "Contrato", "CTR-001" }, { "Total", "225.000,00" } },
+                new Dictionary<string, string> { { "Contrato", "CTR-002" }, { "Total", "150.000,00" } }
+            };
+
+            _mockFileParser.Setup(p => p.ParseFileStreamedAsync(mockFile.Object))
+                .Returns(ToAsyncEnumerable(rows));
+
+            _mockHeaderValidator.Setup(v => v.Validate(It.IsAny<List<string>>()))
+                .Returns(new HeaderValidationResult { IsValid = true });
+
+            var mockUser = new User { Id = Guid.NewGuid(), InternalId = 1, Name = "Test Admin", Email = "admin@test.com" };
+            _mockUserRepository.Setup(u => u.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(mockUser);
+
+            // Act
+            var result = await _service.AnalyzeFileAsync(mockFile.Object, Guid.NewGuid());
+
+            // Assert
+            result.Should().NotBeNull();
+            result.OutlierAmounts.Should().BeEmpty();
+        }
     }
 }

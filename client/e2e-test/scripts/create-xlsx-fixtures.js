@@ -35,3 +35,11 @@ generateFile('contracts_with_short_numbers.xlsx', [
   ['999', '1234', 'PV TEST', 'MAT-001', 'Seller One', 'G1', '102', '2024-01-02', '150000', 'Client B', 'Imóvel', 'Ativa'],
   ['1100223344', '1234', 'PV TEST', 'MAT-001', 'Seller One', 'G1', '103', '2024-01-03', '150000', 'Client C', 'Imóvel', 'Ativa']
 ]);
+
+// 3. Contracts with outlier amounts (e.g. 80.000.00 in Total/Valor column)
+generateFile('contracts_with_outliers.xlsx', [
+  ['1100223301', '1234', 'PV TEST', 'MAT-001', 'Seller One', 'G1', '101', '2024-01-01', '200.000,00', 'Client A', 'Imóvel', 'Ativa'],
+  ['1100223302', '1234', 'PV TEST', 'MAT-001', 'Seller One', 'G1', '102', '2024-01-02', '250.000,00', 'Client B', 'Imóvel', 'Ativa'],
+  ['1100223303', '1234', 'PV TEST', 'MAT-001', 'Seller One', 'G1', '103', '2024-01-03', '80.000.00', 'Client C', 'Imóvel', 'Ativa']
+]);
+
