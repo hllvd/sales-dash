@@ -7,7 +7,7 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
   const user1Name = 'Carlos Mendes';
   const user2 = 'mariaeduarda@example.com';
   const user2Name = 'Maria Eduarda';
-  const testMatricula = 'OWNERSHIP-TEST-001';
+  const testMatricula = 'OWNERSHIP-TEST-' + Date.now();
 
   test.beforeEach(async ({ page }) => {
     // Login as Admin
@@ -41,7 +41,7 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
     await page.click('button:has-text("Criar Matrícula")');
 
     // Wait for the modal to disappear
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
 
     // Verify it appeared in the list — filter by name (table shows name, not email)
     const user1Row = page.locator('tr', { hasText: testMatricula }).filter({ hasText: user1Name });
@@ -66,7 +66,7 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
     
     // ✅ NEW BEHAVIOR: The assignment should succeed because we now support ownership transfer!
     // Verify the modal closes and the second user is now the owner
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
     
     // Verify User 2 is now owner — filter by name (table shows name, not email)
     const user2Row = page.locator('tr', { hasText: testMatricula }).filter({ hasText: user2Name });
@@ -93,7 +93,7 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
       count = await testRows.count();
     }
 
-    await expect(page.locator('tr', { hasText: testMatricula })).not.toBeVisible();
+    await expect(page.locator('tr', { hasText: testMatricula })).toHaveCount(0);
     console.log('>>> Cleanup complete.');
   });
 });

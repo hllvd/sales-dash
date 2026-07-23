@@ -86,7 +86,8 @@ export default defineConfig({
         'matricula_admin_access.spec.ts',
         'matricula_request_approval.spec.ts',
         'equipe_admin_permission.spec.ts',
-        'delete_user_migration.spec.ts'
+        'delete_user_migration.spec.ts',
+        'approval_requests.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']

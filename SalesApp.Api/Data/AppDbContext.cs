@@ -41,6 +41,7 @@ namespace SalesApp.Data
         public DbSet<UserClassification> UserClassifications { get; set; }
         public DbSet<UserMetadataField> UserMetadataFields { get; set; }
         public DbSet<UserMetadataValue> UserMetadataValues { get; set; }
+        public DbSet<ApprovalRequest> ApprovalRequests { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -530,6 +531,30 @@ namespace SalesApp.Data
                     .WithMany(f => f.Values)
                     .HasForeignKey(e => e.UserMetadataFieldId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ApprovalRequest entity configuration
+            modelBuilder.Entity<ApprovalRequest>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.RequestType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
+                entity.Property(e => e.PayloadJson).IsRequired();
+                entity.Property(e => e.ApproverComment).HasMaxLength(500);
+
+                entity.HasOne(e => e.Requester)
+                    .WithMany()
+                    .HasForeignKey(e => e.RequesterId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Approver)
+                    .WithMany()
+                    .HasForeignKey(e => e.ApproverId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.RequesterId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => new { e.RequestType, e.Status });
             });
         }
         

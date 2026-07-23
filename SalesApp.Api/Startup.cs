@@ -93,6 +93,7 @@ namespace SalesApp
             services.AddScoped<IWizardService, WizardService>();
             services.AddScoped<IWizardHeaderValidator, WizardHeaderValidator>();
             services.AddScoped<IPendingClaimService, PendingClaimService>();
+            services.AddScoped<IApprovalService, ApprovalService>();
 
             // Monitoring & Notifications
             services.AddScoped<IMonitoringRepository, MonitoringRepository>();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, Table, ActionIcon, Group, Badge, TextInput, Text, Select } from '@mantine/core';
-import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload } from '@tabler/icons-react';
+import { Title, Button, Table, ActionIcon, Group, Badge, TextInput, Text, Select, Modal, Alert } from '@mantine/core';
+import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload, IconSend, IconAlertCircle } from '@tabler/icons-react';
 import "./MatriculasPage.css"
 import Menu from "./Menu"
 import MatriculaForm from "./MatriculaForm"
@@ -44,6 +44,13 @@ const MatriculasPage: React.FC = () => {
   const [editingMatricula, setEditingMatricula] = useState<UserMatricula | undefined>(undefined)
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
   const [activeFilter, setActiveFilter] = useState<string>("all")
+
+  // Request Matricula state
+  const [showRequestModal, setShowRequestModal] = useState(false)
+  const [requestMatriculaNumber, setRequestMatriculaNumber] = useState("")
+  const [requestSubmitting, setRequestSubmitting] = useState(false)
+  const [requestError, setRequestError] = useState<string | null>(null)
+  const [requestSuccess, setRequestSuccess] = useState<string | null>(null)
 
   // Fetch matriculas
   const fetchMatriculas = useCallback(async (forceRefresh?: boolean) => {
@@ -145,6 +152,29 @@ const MatriculasPage: React.FC = () => {
     setEditingMatricula(undefined)
   }
 
+  const handleSendRequestMatricula = async () => {
+    if (!requestMatriculaNumber.trim()) {
+      setRequestError('O número da matrícula é obrigatório.');
+      return;
+    }
+    setRequestError(null);
+    setRequestSubmitting(true);
+    try {
+      const type = currentUser?.role === 'admin' ? 'AdminRequestMatricula' : 'RequestMatricula';
+      await apiService.createApprovalRequest({
+        requestType: type,
+        payloadJson: JSON.stringify({ matriculaNumber: requestMatriculaNumber.trim() }),
+      });
+      setRequestSuccess('Solicitação de matrícula enviada com sucesso!');
+      setShowRequestModal(false);
+      setRequestMatriculaNumber('');
+    } catch (err: any) {
+      setRequestError(err.message || 'Erro ao solicitar matrícula.');
+    } finally {
+      setRequestSubmitting(false);
+    }
+  };
+
   return (
     <Menu>
       <div className="matriculas-container">
@@ -164,7 +194,7 @@ const MatriculasPage: React.FC = () => {
             >
               Atualizar
             </Button>
-            {isSuperAdmin && (
+            {isSuperAdmin ? (
               <>
                 <Button
                   leftSection={<IconUpload size={16} />}
@@ -180,11 +210,27 @@ const MatriculasPage: React.FC = () => {
                   Nova Matrícula
                 </Button>
               </>
+            ) : (
+              <Button
+                leftSection={<IconPlus size={16} />}
+                color="red"
+                onClick={() => {
+                  setRequestError(null);
+                  setShowRequestModal(true);
+                }}
+              >
+                Solicitar Matrícula
+              </Button>
             )}
           </Group>
         </div>
 
         {error && <div className="error-message">{error}</div>}
+        {requestSuccess && (
+          <Alert color="green" mb="md" withCloseButton onClose={() => setRequestSuccess(null)}>
+            {requestSuccess}
+          </Alert>
+        )}
 
         <div className="search-container">
           <Group gap="md" align="flex-end">
@@ -334,6 +380,37 @@ const MatriculasPage: React.FC = () => {
             <Text size="sm">Tem certeza que deseja excluir esta matrícula?</Text>
           </div>
         </StandardModal>
+
+        <Modal
+          opened={showRequestModal}
+          onClose={() => setShowRequestModal(false)}
+          title={currentUser?.role === 'admin' ? 'Solicitar Criação de Matrícula (Admin)' : 'Solicitar Nova Matrícula'}
+          centered
+        >
+          {requestError && (
+            <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">
+              {requestError}
+            </Alert>
+          )}
+
+          <TextInput
+            label="Número da Matrícula"
+            placeholder="Ex: 123456"
+            required
+            value={requestMatriculaNumber}
+            onChange={(e) => setRequestMatriculaNumber(e.target.value)}
+            mb="md"
+          />
+
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setShowRequestModal(false)}>
+              Cancelar
+            </Button>
+            <Button color="red" leftSection={<IconSend size={16} />} loading={requestSubmitting} onClick={handleSendRequestMatricula}>
+              Enviar Solicitação
+            </Button>
+          </Group>
+        </Modal>
       </div>
     </Menu>
   )

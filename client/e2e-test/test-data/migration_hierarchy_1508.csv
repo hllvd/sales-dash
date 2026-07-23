@@ -1,0 +1,6 @@
+Name,Email,Role,ParentEmail,Matricula,IsMatriculaOwner,Password
+Superior E2E 1508,superior.e2e.1508@test.com,user,,MAT-SUP-1508,1,ChangeMe123!
+Subordinado E2E 1508,subordinado.e2e.1508@test.com,user,superior.e2e.1508@test.com,MAT-SUB-1508,1,ChangeMe123!
+Admin E2E 1508,admin.e2e.1508@test.com,admin,,MAT-ADM-1508,1,ChangeMe123!
+AdminChild E2E 1508,adminchild.e2e.1508@test.com,user,admin.e2e.1508@test.com,MAT-ADC-1508,1,ChangeMe123!
+Orphan E2E 1508,orphan.e2e.1508@test.com,user,,MAT-ORP-1508,1,ChangeMe123!

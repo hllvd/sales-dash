@@ -1304,6 +1304,44 @@ export const apiService = {
     if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to register user"))
     return response.json()
   },
+
+  async createApprovalRequest(payload: CreateApprovalRequestPayload): Promise<ApiResponse<ApprovalRequestItem>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/approval-requests`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to create approval request"))
+    return response.json()
+  },
+
+  async getPendingApprovalRequests(): Promise<ApiResponse<ApprovalRequestItem[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/approval-requests/pending`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch pending approval requests"))
+    return response.json()
+  },
+
+  async getMyApprovalRequests(): Promise<ApiResponse<ApprovalRequestItem[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/approval-requests/mine`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch user approval requests"))
+    return response.json()
+  },
+
+  async resolveApprovalRequest(id: number, payload: ResolveApprovalPayload): Promise<ApiResponse<ApprovalRequestItem>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/approval-requests/${id}/resolve`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to resolve approval request"))
+    return response.json()
+  },
 }
 
 export interface UserHierarchyNode {
@@ -1567,4 +1605,29 @@ export interface AddedMemberSummary {
 export interface BatchAssignTeamResult {
   added: AddedMemberSummary[]
   skipped: SkippedUserSummary[]
+}
+
+export interface ApprovalRequestItem {
+  id: number
+  requestType: string
+  requesterId: string
+  requesterName: string
+  requesterEmail: string
+  approverId?: string | null
+  approverName?: string | null
+  status: string
+  payloadJson: string
+  approverComment?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateApprovalRequestPayload {
+  requestType: string
+  payloadJson: string
+}
+
+export interface ResolveApprovalPayload {
+  action: string
+  comment?: string
 }

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { AppShell, NavLink, Text, Group, Button, Tooltip, Burger } from '@mantine/core';
+import { AppShell, NavLink, Text, Group, Button, Tooltip, Burger, Badge } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { useBuildInfo } from '../contexts/BuildInfoContext';
 import { UserRole } from '../types/UserRole';
+import { apiService } from '../services/apiService';
 import './Menu.css';
 import {
   IconUsers,
@@ -24,6 +25,7 @@ import {
   IconChevronRight,
   IconTools,
   IconReceipt2,
+  IconMailForward,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -41,6 +43,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   const [usersMenuOpened, setUsersMenuOpened] = useState(
     window.location.hash === '#/users' || window.location.hash === '#/users/tree'
   );
+  const [pendingCount, setPendingCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (userRole === 'admin' || userRole === 'superadmin') {
+      apiService.getPendingApprovalRequests()
+        .then((res) => {
+          if (res.success && res.data) {
+            setPendingCount(res.data.length);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [userRole]);
 
   useEffect(() => {
     if (currentPath === '#/users' || currentPath === '#/users/tree') {
@@ -234,7 +249,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             </>
           )}
 
-          {(hasPermission('system:admin') || userRole === UserRole.ADMIN) && (
+          {hasPermission('system:admin') || userRole === UserRole.ADMIN ? (
             <NavLink
               href="#/contracts"
               label="Contratos"
@@ -246,7 +261,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               data-testid="nav-contracts"
               onClick={() => { if (opened) close(); }}
             />
-          )}
+          ) : null}
+
+          <NavLink
+            href="#/requests"
+            label="Solicitações"
+            leftSection={<IconMailForward size={20} />}
+            rightSection={pendingCount > 0 ? <Badge size="xs" circle color="red">{pendingCount}</Badge> : undefined}
+            active={isActive('#/requests')}
+            variant="filled"
+            color="red"
+            styles={navLinkStyles('#/requests')}
+            onClick={() => { if (opened) close(); }}
+          />
 
           {hasPermission('pvs:read') && (
             <NavLink

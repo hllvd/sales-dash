@@ -252,3 +252,34 @@ Users occasionally type values with two dots and no comma (e.g. `80.000.00`), in
 - `ImportPreviewResponse.cs` — added `OutlierAmounts` list with `OutlierAmountEntry` record
 - `WizardService.cs` — outlier detection + median computation + `TryParseUnambiguousCurrency` helper
 - `ImportWizardPage.tsx` — new alert UI with table and formatting guidance
+
+## Agnostic Request and Approval Pipeline
+
+This feature provides a comprehensive, domain-agnostic request and approval pipeline (`#/requests`), enabling users across roles to submit data modification requests and allowing authorized approvers (Admins and SuperAdmins) to review and act on them with one-step immediate execution.
+
+### Core Objectives
+Allow users to request operational changes (such as parent email changes or new matriculas) without giving them direct edit permissions, while consolidating all pending requests into a centralized management dashboard for approvers with "Sim" (Approved), "Não" (Rejected with reason), and "Depois" (Later / Pending retention) options.
+
+### Initial Request Types Supported
+1. **Change Parent Email (`ChangeParentEmail`)**: Standard users or managers request updating their superior (`ParentUserId`) by specifying the target email.
+2. **User Request Matricula (`RequestMatricula`)**: Standard users request assignment of a new matricula number.
+3. **Admin Request Matricula (`AdminRequestMatricula`)**: Admins request creation of a new matricula that they will own (`IsOwner = true`). Only SuperAdmins can approve this request type.
+
+### Approver Actions
+- **Sim / Aprovar (Yes)**: One-step immediate approval. Executes the underlying model update on the server (e.g. re-parenting user, creating/linking matricula) and marks status as `Approved`.
+- **Não / Rejeitar (No)**: Rejects the request, recording an optional rejection reason comment for the requester to view.
+- **Depois (Later)**: Postpones decision, leaving the request in `Pending` status to be revisited later.
+
+### Access Control and Scoping
+- **SuperAdmin**: Sees all system pending requests and can approve any request type.
+- **Admin**: Sees pending requests submitted by their own hierarchical descendants only (excluding `AdminRequestMatricula`).
+- **Left Menu Integration**: Shows a "Solicitações" item with a dynamic badge displaying the current count of pending requests for approvers.
+
+### Key Files Created / Modified
+- `ApprovalRequest.cs` — Entity model with `RequestType`, `RequesterId`, `ApproverId`, `Status`, `PayloadJson`, `ApproverComment`.
+- `ApprovalDTOs.cs` — Request/response DTOs and typed payload structures.
+- `IApprovalService.cs` & `ApprovalService.cs` — Business logic, permission checks, and entity mutators.
+- `ApprovalRequestsController.cs` — REST endpoints (`POST /api/approval-requests`, `GET /pending`, `GET /mine`, `POST /{id}/resolve`).
+- `RequestsPage.tsx` & `RequestsPage.css` — Tabbed UI for pending approval management and user request tracking.
+- `MyProfilePage.tsx` & `MatriculasPage.tsx` — Contextual shortcut buttons to open request modals.
+

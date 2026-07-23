@@ -94,3 +94,39 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Admin users should only use the seeded "contractDashboard" model and not see the selection options.
 **Fix applied:** Restricted dropdown visibility inside `BulkImportModal.tsx` when the user has `admin` role, and defaulted `selectedTemplate` specifically to the `"contractDashboard"` template's ID.
 **Result:** ✅ Green — 125/125 passed
+
+## [2026-07-22] e2e — Attempt 1
+**Failure:** `approval_requests.spec.ts` failed on `page.waitForURL` timeout during login step.
+**Root cause:** E2E test used `SuperAdmin123!` password for `superadmin@salesapp.com`, but the E2E database seeds `superadmin@salesapp.com` with `string` as password.
+**Fix applied:** Updated password in `approval_requests.spec.ts` to `string`.
+**Result:** ❌ Still failing (page.waitForURL timed out because hash URL remains `/#/login` after reload)
+
+## [2026-07-22] e2e — Attempt 2
+**Failure:** `approval_requests.spec.ts` timed out on `page.waitForURL('/#/my-contracts')`.
+**Root cause:** `LoginPage.tsx` triggers `window.location.reload()` without updating hash URL, so browser URL stays `/#/login` while `MyContractsPage` is rendered.
+**Fix applied:** Replaced `page.waitForURL('/#/my-contracts')` with heading visibility check `expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible()`.
+**Result:** ❌ Still failing (self-parent validation error "Um usuário não pode ser o seu próprio superior")
+
+## [2026-07-22] e2e — Attempt 3
+**Failure:** `approval_requests.spec.ts` submission failed with validation error inside modal.
+**Root cause:** Test tried to set `newParentEmail` to `superadmin@salesapp.com` (himself), triggering self-parent hierarchy validation error.
+**Fix applied:** Updated `newParentEmail` in `approval_requests.spec.ts` to `admin@salesapp.com`.
+**Result:** ❌ Flaky cleanup check in matricula_ownership.spec.ts
+
+## [2026-07-22] e2e — Attempt 4
+**Failure:** `matricula_ownership.spec.ts` failed on `expect(locator).not.toBeVisible()`.
+**Root cause:** `not.toBeVisible()` on empty table row locator when count is 0 causes element resolution assertion failure.
+**Fix applied:** Replaced `not.toBeVisible()` with `toHaveCount(0)` in `matricula_ownership.spec.ts` cleanup assertion.
+**Result:** ❌ Flaky dialog disappear timeout on modal submit
+
+## [2026-07-22] e2e — Attempt 5
+**Failure:** `approval_requests.spec.ts` form submission failed due to React input state timing.
+**Root cause:** React input value state update had not completed before clicking submit button.
+**Fix applied:** Added `expect(input).toHaveValue('admin@salesapp.com')` assertion before clicking submit to guarantee state synchronization.
+**Result:** ❌ Idempotency failure in Run 2 due to static testMatricula name
+
+## [2026-07-22] e2e — Attempt 6
+**Failure:** `matricula_ownership.spec.ts` failed on `expect(dialog).not.toBeVisible()` during Run 2.
+**Root cause:** Static `testMatricula` name `'OWNERSHIP-TEST-001'` collided when re-run on an un-flushed database in Run 2.
+**Fix applied:** Changed `testMatricula` in `matricula_ownership.spec.ts` to dynamic `'OWNERSHIP-TEST-' + Date.now()`.
+**Result:** ✅ Green — 131/131 passed

@@ -23,6 +23,7 @@ import UserMetadataAdminPage from './components/UserMetadataAdmin/UserMetadataAd
 import AdminRegistrationPage from './components/AdminRegistrationPage';
 import TesterPage from './components/TesterPage';
 import BatchPage from './components/BatchPage';
+import RequestsPage from './components/RequestsPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -116,6 +117,8 @@ function App() {
         return <TesterPage />;
       case '#/batch':
         return <BatchPage />;
+      case '#/requests':
+        return <RequestsPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':
