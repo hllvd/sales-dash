@@ -33,17 +33,21 @@ test.describe('Approval Requests E2E', () => {
     await page.click('text=Solicitar Alteração de Superior');
     await page.waitForSelector('text=E-mail do Novo Superior');
 
-    // Fill new parent email and submit
-    await page.fill('input[placeholder="superior@exemplo.com"]', 'admin@salesapp.com');
-    await expect(page.locator('input[placeholder="superior@exemplo.com"]')).toHaveValue('admin@salesapp.com');
+    // Fill new parent email using keyboard events to trigger React onChange
+    const emailInput = page.locator('input[placeholder="superior@exemplo.com"]');
+    await emailInput.click();
+    await emailInput.selectText();
+    await emailInput.pressSequentially('admin@salesapp.com', { delay: 30 });
+    await expect(emailInput).toHaveValue('admin@salesapp.com');
     await page.click('button:has-text("Enviar Solicitação")');
 
-    // Verify success banner or modal close
-    await expect(page.locator('text=Solicitação de alteração enviada com sucesso!')).toBeVisible();
+    // Wait for modal to close (success closes it) and verify success alert appears on the page
+    await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 15000 });
+    await expect(page.locator('.mantine-Alert-root, [role="alert"]').filter({ hasText: 'Solicitação de alteração enviada com sucesso!' })).toBeVisible({ timeout: 15000 });
 
     // Go to Requests page to verify request is listed under Minhas Solicitações
     await page.goto('/#/requests');
     await page.click('text=Minhas Solicitações');
-    await expect(page.locator('text=Alteração de Superior (ParentEmail)').first()).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Alteração de Superior (ParentEmail)' }).first()).toBeVisible({ timeout: 15000 });
   });
 });

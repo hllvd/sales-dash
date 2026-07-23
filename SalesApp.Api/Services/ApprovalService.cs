@@ -11,6 +11,7 @@ namespace SalesApp.Services
     {
         private readonly AppDbContext _context;
         private readonly IUserHierarchyService _hierarchyService;
+        private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
 
         public ApprovalService(AppDbContext context, IUserHierarchyService hierarchyService)
         {
@@ -29,7 +30,7 @@ namespace SalesApp.Services
             // Validate request type and payload
             if (dto.RequestType == "ChangeParentEmail")
             {
-                var payload = JsonSerializer.Deserialize<ChangeParentEmailPayload>(dto.PayloadJson);
+                var payload = JsonSerializer.Deserialize<ChangeParentEmailPayload>(dto.PayloadJson, _jsonOptions);
                 if (string.IsNullOrWhiteSpace(payload?.NewParentEmail))
                 {
                     throw new ArgumentException("E-mail do novo superior é obrigatório.");
@@ -49,7 +50,7 @@ namespace SalesApp.Services
             }
             else if (dto.RequestType == "RequestMatricula" || dto.RequestType == "AdminRequestMatricula")
             {
-                var payload = JsonSerializer.Deserialize<RequestMatriculaPayload>(dto.PayloadJson);
+                var payload = JsonSerializer.Deserialize<RequestMatriculaPayload>(dto.PayloadJson, _jsonOptions);
                 if (string.IsNullOrWhiteSpace(payload?.MatriculaNumber))
                 {
                     throw new ArgumentException("Número da matrícula é obrigatório.");
@@ -201,7 +202,7 @@ namespace SalesApp.Services
 
             if (request.RequestType == "ChangeParentEmail")
             {
-                var payload = JsonSerializer.Deserialize<ChangeParentEmailPayload>(request.PayloadJson);
+                var payload = JsonSerializer.Deserialize<ChangeParentEmailPayload>(request.PayloadJson, _jsonOptions);
                 if (payload == null || string.IsNullOrWhiteSpace(payload.NewParentEmail))
                 {
                     throw new InvalidOperationException("Payload de alteração de e-mail do superior inválido.");
@@ -224,7 +225,7 @@ namespace SalesApp.Services
             }
             else if (request.RequestType == "RequestMatricula" || request.RequestType == "AdminRequestMatricula")
             {
-                var payload = JsonSerializer.Deserialize<RequestMatriculaPayload>(request.PayloadJson);
+                var payload = JsonSerializer.Deserialize<RequestMatriculaPayload>(request.PayloadJson, _jsonOptions);
                 if (payload == null || string.IsNullOrWhiteSpace(payload.MatriculaNumber))
                 {
                     throw new InvalidOperationException("Payload de solicitação de matrícula inválido.");
