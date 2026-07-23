@@ -271,8 +271,10 @@ Allow users to request operational changes (such as parent email changes or new 
 - **Depois (Later)**: Postpones decision, leaving the request in `Pending` status to be revisited later.
 
 ### Access Control and Scoping
-- **SuperAdmin**: Sees all system pending requests and can approve any request type.
-- **Admin**: Sees pending requests submitted by their own hierarchical descendants only (excluding `AdminRequestMatricula`).
+- **SuperAdmin**: Sees all system pending requests and can approve/reject any request type.
+- **ChangeParentEmail**: If the target `parentEmail` is an Admin, **only** that designated `parentEmail` user and SuperAdmins can see, approve, or reject the request.
+- **RequestMatricula (Nova Matrícula)**: If the target matricula is already owned by a user (`IsOwner = true`), **only** that matricula owner user and SuperAdmins can see, approve, or reject the request.
+- **AdminRequestMatricula**: Only SuperAdmins can see, approve, or reject.
 - **Left Menu Integration**: Shows a "Solicitações" item with a dynamic badge displaying the current count of pending requests for approvers.
 
 ### Key Files Created / Modified

@@ -14,10 +14,10 @@ import {
   Alert,
   LoadingOverlay,
   Card,
-  Container,
 } from '@mantine/core';
 import { IconCheck, IconX, IconClock, IconPlus, IconAlertCircle, IconSend } from '@tabler/icons-react';
 import { apiService, ApprovalRequestItem } from '../services/apiService';
+import Menu from './Menu';
 import './RequestsPage.css';
 
 const RequestsPage: React.FC = () => {
@@ -205,24 +205,25 @@ const RequestsPage: React.FC = () => {
   const isApprover = userRole === 'admin' || userRole === 'superadmin';
 
   return (
-    <Container fluid className="requests-container">
-      <div className="requests-header">
-        <div>
-          <Title order={2} c="dark">
-            Central de Solicitações
-          </Title>
-          <Text size="sm" c="dimmed">
-            Gerencie e acompanhe solicitações de alteração de dados e matrículas.
-          </Text>
+    <Menu>
+      <div className="requests-container">
+        <div className="requests-header">
+          <div>
+            <Title order={2} size="h2">
+              Central de Solicitações
+            </Title>
+            <p className="requests-subtitle">
+              Gerencie e acompanhe solicitações de alteração de dados e matrículas.
+            </p>
+          </div>
+          <Button
+            leftSection={<IconPlus size={18} />}
+            color="red"
+            onClick={() => setCreateModalOpen(true)}
+          >
+            Nova Solicitação
+          </Button>
         </div>
-        <Button
-          leftSection={<IconPlus size={18} />}
-          color="red"
-          onClick={() => setCreateModalOpen(true)}
-        >
-          Nova Solicitação
-        </Button>
-      </div>
 
       {error && (
         <Alert icon={<IconAlertCircle size={16} />} title="Erro" color="red" mb="md" withCloseButton onClose={() => setError(null)}>
@@ -259,7 +260,7 @@ const RequestsPage: React.FC = () => {
                       <Table.Th>Tipo</Table.Th>
                       <Table.Th>Detalhes</Table.Th>
                       <Table.Th>Data</Table.Th>
-                      <Table.Th style={{ textAlign: 'right' }}>Ações</Table.Th>
+                      <Table.Th style={{ textAlign: 'right', width: '250px', minWidth: '250px' }}>Ações</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -290,11 +291,12 @@ const RequestsPage: React.FC = () => {
                             })}
                           </Text>
                         </Table.Td>
-                        <Table.Td style={{ textAlign: 'right' }}>
-                          <Group justify="flex-end" gap="xs">
+                        <Table.Td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <Group justify="flex-end" gap="xs" wrap="nowrap">
                             <Button
                               size="xs"
-                              color="green"
+                              color="teal"
+                              variant="light"
                               leftSection={<IconCheck size={14} />}
                               onClick={() => handleApprove(req.id)}
                             >
@@ -303,6 +305,7 @@ const RequestsPage: React.FC = () => {
                             <Button
                               size="xs"
                               color="red"
+                              variant="light"
                               leftSection={<IconX size={14} />}
                               onClick={() => handleOpenRejectModal(req.id)}
                             >
@@ -311,7 +314,7 @@ const RequestsPage: React.FC = () => {
                             <Button
                               size="xs"
                               color="gray"
-                              variant="outline"
+                              variant="subtle"
                               leftSection={<IconClock size={14} />}
                               onClick={() => handleLater(req.id)}
                             >
@@ -390,7 +393,7 @@ const RequestsPage: React.FC = () => {
       <Modal
         opened={rejectModalOpen}
         onClose={() => setRejectModalOpen(false)}
-        title="Rejeitar Solicitação"
+        title={<Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>Rejeitar Solicitação</Title>}
         centered
       >
         <Text size="sm" mb="md">
@@ -416,7 +419,7 @@ const RequestsPage: React.FC = () => {
       <Modal
         opened={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        title="Criar Nova Solicitação"
+        title={<Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>Criar Nova Solicitação</Title>}
         centered
       >
         {createError && (
@@ -468,7 +471,8 @@ const RequestsPage: React.FC = () => {
           </Button>
         </Group>
       </Modal>
-    </Container>
+    </div>
+    </Menu>
   );
 };
 

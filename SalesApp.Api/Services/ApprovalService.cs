@@ -90,21 +90,26 @@ namespace SalesApp.Services
 
         public async Task<List<ApprovalRequestResponse>> GetPendingAsync(Guid callerId, string callerRole)
         {
-            var isSuperAdmin = callerRole.ToLower() == "superadmin" || callerRole == "1";
+            var callerUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == callerId && u.IsActive);
+            if (callerUser == null) return new List<ApprovalRequestResponse>();
 
-            var query = _context.ApprovalRequests
+            var list = await _context.ApprovalRequests
                 .Include(r => r.Requester)
                 .Include(r => r.Approver)
-                .Where(r => r.Status == "Pending");
+                .Where(r => r.Status == "Pending")
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
 
-            if (!isSuperAdmin)
+            var allowed = new List<ApprovalRequest>();
+            foreach (var req in list)
             {
-                var descendantIds = await _hierarchyService.GetDescendantIdsAsync(callerId);
-                query = query.Where(r => r.RequestType != "AdminRequestMatricula" && descendantIds.Contains(r.RequesterId));
+                if (await CanUserApproveRequestAsync(req, callerId, callerRole, callerUser))
+                {
+                    allowed.Add(req);
+                }
             }
 
-            var list = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
-            return list.Select(MapToResponse).ToList();
+            return allowed.Select(MapToResponse).ToList();
         }
 
         public async Task<List<ApprovalRequestResponse>> GetMyRequestsAsync(Guid requesterId)
@@ -136,20 +141,15 @@ namespace SalesApp.Services
                 throw new InvalidOperationException("Esta solicitação já foi processada.");
             }
 
-            var isSuperAdmin = approverRole.ToLower() == "superadmin" || approverRole == "1";
-
-            if (request.RequestType == "AdminRequestMatricula" && !isSuperAdmin)
+            var approverUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == approverId && u.IsActive);
+            if (approverUser == null)
             {
-                throw new UnauthorizedAccessException("Apenas SuperAdmins podem aprovar solicitações de matrícula para Administradores.");
+                throw new UnauthorizedAccessException("Usuário aprovador não encontrado ou inativo.");
             }
 
-            if (!isSuperAdmin)
+            if (!await CanUserApproveRequestAsync(request, approverId, approverRole, approverUser))
             {
-                var descendantIds = await _hierarchyService.GetDescendantIdsAsync(approverId);
-                if (!descendantIds.Contains(request.RequesterId))
-                {
-                    throw new UnauthorizedAccessException("Você não possui permissão para aprovar solicitações deste usuário.");
-                }
+                throw new UnauthorizedAccessException("Você não possui permissão para aprovar ou rejeitar esta solicitação.");
             }
 
             var actionUpper = dto.Action.Trim().ToUpperInvariant();
@@ -194,6 +194,68 @@ namespace SalesApp.Services
                 .FirstAsync(r => r.Id == request.Id);
 
             return MapToResponse(updated);
+        }
+
+        private async Task<bool> CanUserApproveRequestAsync(ApprovalRequest request, Guid callerId, string callerRole, User callerUser)
+        {
+            var isSuperAdmin = callerRole.ToLower() == "superadmin" || callerRole == "1";
+            if (isSuperAdmin) return true;
+
+            // 1. ChangeParentEmail
+            if (request.RequestType == "ChangeParentEmail")
+            {
+                var payload = JsonSerializer.Deserialize<ChangeParentEmailPayload>(request.PayloadJson, _jsonOptions);
+                if (payload != null && !string.IsNullOrWhiteSpace(payload.NewParentEmail))
+                {
+                    var targetParent = await _context.Users
+                        .Include(u => u.Role)
+                        .FirstOrDefaultAsync(u => u.Email.ToLower() == payload.NewParentEmail.Trim().ToLower() && u.IsActive);
+
+                    if (targetParent != null)
+                    {
+                        var isParentAdmin = targetParent.RoleId == 2 ||
+                                            (targetParent.Role != null && targetParent.Role.Name.ToLower() == "admin");
+                        if (isParentAdmin)
+                        {
+                            // If the target parentEmail is an admin, ONLY that parentEmail user (and superadmins) can accept/deny
+                            return callerId == targetParent.Id;
+                        }
+                    }
+                }
+            }
+
+            // 2. RequestMatricula (Nova Matrícula Usuário)
+            if (request.RequestType == "RequestMatricula")
+            {
+                var payload = JsonSerializer.Deserialize<RequestMatriculaPayload>(request.PayloadJson, _jsonOptions);
+                if (payload != null && !string.IsNullOrWhiteSpace(payload.MatriculaNumber))
+                {
+                    var normNumber = NormalizationUtils.NormalizeNumber(payload.MatriculaNumber);
+                    var matricula = await _context.Matriculas.FirstOrDefaultAsync(m => m.MatriculaNumber == normNumber);
+                    if (matricula != null)
+                    {
+                        var ownerLink = await _context.UserMatriculas
+                            .Include(um => um.User)
+                            .FirstOrDefaultAsync(um => um.MatriculaId == matricula.Id && um.IsOwner && um.IsActive);
+
+                        if (ownerLink != null && ownerLink.User != null)
+                        {
+                            // Only the owner of the matrícula (and superadmins) can accept/deny it
+                            return ownerLink.User.Id == callerId;
+                        }
+                    }
+                }
+            }
+
+            // 3. AdminRequestMatricula (Only SuperAdmins)
+            if (request.RequestType == "AdminRequestMatricula")
+            {
+                return false;
+            }
+
+            // Fallback: Hierarchy check (requester is descendant of caller)
+            var descendantIds = await _hierarchyService.GetDescendantIdsAsync(callerId);
+            return descendantIds.Contains(request.RequesterId);
         }
 
         private async Task ExecuteActionAsync(ApprovalRequest request)

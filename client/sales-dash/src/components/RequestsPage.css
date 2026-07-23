@@ -1,19 +1,25 @@
 .requests-container {
-  padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 20px;
 }
 
 .requests-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  align-items: flex-start;
+  margin-bottom: 30px;
+}
+
+.requests-subtitle {
+  color: #666;
+  margin-top: 5px;
+  font-size: 14px;
 }
 
 .requests-card {
   background: white;
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 24px;
 }
