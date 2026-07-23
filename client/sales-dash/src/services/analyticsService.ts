@@ -1,8 +1,8 @@
-const GA_TRACKING_ID = 'G-MYNY6WFJ13';
+const GA_TRACKING_ID = process.env.REACT_APP_GA_TRACKING_ID;
 
 export const initGA = () => {
-  // Only initialize Google Analytics in production
-  if (process.env.NODE_ENV !== 'production') {
+  // Only initialize Google Analytics if the tracking ID environment variable is supplied
+  if (!GA_TRACKING_ID) {
     return;
   }
 

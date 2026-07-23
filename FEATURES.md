@@ -285,3 +285,19 @@ Allow users to request operational changes (such as parent email changes or new 
 - `RequestsPage.tsx` & `RequestsPage.css` — Tabbed UI for pending approval management and user request tracking.
 - `MyProfilePage.tsx` & `MatriculasPage.tsx` — Contextual shortcut buttons to open request modals.
 
+## Environment-Gated Google Analytics
+
+Provides production-only Google Analytics tracking by leveraging a build-time environment variable to prevent local development environments, local Docker instances, and E2E test suites from polluting production tracking analytics.
+
+### Key Capabilities
+- **Build-Time Variable Injection**: Utilizes `REACT_APP_GA_TRACKING_ID` to supply the Google Analytics Measurement ID.
+- **Auto-Disable on Empty Variable**: The initialization service (`analyticsService.ts`) automatically exits if the environment variable is not defined or is left empty, preventing any tracking code from running or script files from loading in local/E2E environments.
+- **Docker and CI/CD Pipeline Integration**: Configured in `docker-compose.yml`, `Dockerfile.client`, and `.github/workflows/deploy.yml` to support building the production image in Docker containers locally or through GitHub Actions.
+
+### Key Files Created / Modified
+- `analyticsService.ts` — Conditional analytics loader service.
+- `index.html` — Removed static analytics scripts.
+- `docker-compose.yml` — Added client service build-arg parameter.
+- `Dockerfile.client` — Added client container build parameter mapping.
+- `deploy.yml` — Configured GitHub Actions build pipelines.
+
