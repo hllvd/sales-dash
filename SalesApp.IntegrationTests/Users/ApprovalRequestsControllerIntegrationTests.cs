@@ -380,5 +380,66 @@ namespace SalesApp.IntegrationTests.Users
                 m.MatriculaNumber == admin1MatriculaNumber && m.IsOwner,
                 "Admin1 should still own their own matricula");
         }
+
+        [Fact]
+        public async Task ChangeParentEmail_TargetingSuperAdmin_AdminCannotSeeOrApproveOwnRequest()
+        {
+            // Setup: authenticate as superadmin and create an admin
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+
+            var tag = Guid.NewGuid().ToString()[..6];
+            var adminEmail = $"admin_sup_{tag}@test.com";
+
+            var regAdmin = await _client.PostAsJsonAsync("/api/users/admin-register", new
+            {
+                Name = "Admin Requesting Super",
+                Email = adminEmail,
+                Password = "Password123!",
+                TeamName = $"TeamSup_{tag}",
+                ClassificationLevelId = 1,
+                Role = "manager"
+            });
+            regAdmin.EnsureSuccessStatusCode();
+
+            // Admin creates a ChangeParentEmail request targeting the superadmin
+            var adminToken = await GetTokenAsync(adminEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = "ChangeParentEmail",
+                PayloadJson = JsonSerializer.Serialize(new ChangeParentEmailPayload { NewParentEmail = "superadmin@test.com" })
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            var requestId = createData!.Data!.Id;
+            createData.Data.Status.Should().Be("Pending");
+
+            // The admin (requester) should NOT see the request in pending list
+            var pendingRes = await _client.GetAsync("/api/approval-requests/pending");
+            var pendingData = await pendingRes.Content.ReadFromJsonAsync<ApiResponse<List<ApprovalRequestResponse>>>();
+            pendingData!.Data.Should().NotContain(r => r.Id == requestId,
+                "Admin should not see a request targeting a superadmin in their own pending list");
+
+            // The admin should get 403 if they try to resolve it directly
+            var resolveRes = await _client.PostAsJsonAsync($"/api/approval-requests/{requestId}/resolve",
+                new ResolveApprovalDto { Action = "Approved" });
+            resolveRes.StatusCode.Should().Be(HttpStatusCode.Forbidden,
+                "Admin must not be able to approve a request targeting a superadmin");
+
+            // Superadmin CAN see and approve it
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var pendingSuper = await _client.GetAsync("/api/approval-requests/pending");
+            var pendingSuperData = await pendingSuper.Content.ReadFromJsonAsync<ApiResponse<List<ApprovalRequestResponse>>>();
+            pendingSuperData!.Data.Should().Contain(r => r.Id == requestId,
+                "Superadmin should see the request");
+
+            var approveRes = await _client.PostAsJsonAsync($"/api/approval-requests/{requestId}/resolve",
+                new ResolveApprovalDto { Action = "Approved", Comment = "Approved by superadmin" });
+            approveRes.StatusCode.Should().Be(HttpStatusCode.OK);
+            var approveData = await approveRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            approveData!.Data!.Status.Should().Be("Approved");
+        }
     }
 }

@@ -213,6 +213,15 @@ namespace SalesApp.Services
 
                     if (targetParent != null)
                     {
+                        var isParentSuperAdmin = targetParent.RoleId == 1 ||
+                                                 (targetParent.Role != null && targetParent.Role.Name.ToLower() == "superadmin");
+                        if (isParentSuperAdmin)
+                        {
+                            // Only superadmins can approve requests targeting a superadmin as parent
+                            // (superadmin callers already returned true above)
+                            return false;
+                        }
+
                         var isParentAdmin = targetParent.RoleId == 2 ||
                                             (targetParent.Role != null && targetParent.Role.Name.ToLower() == "admin");
                         if (isParentAdmin)
@@ -223,6 +232,7 @@ namespace SalesApp.Services
                     }
                 }
             }
+
 
             // 2. RequestMatricula (Nova Matrícula Usuário)
             if (request.RequestType == "RequestMatricula")
