@@ -93,7 +93,7 @@ jobs:
           export REACT_APP_AWS_RUM_APP_ID=${{ secrets.REACT_APP_AWS_RUM_APP_ID }}
           export REACT_APP_AWS_REGION=${{ secrets.AWS_REGION }}
           export REACT_APP_AWS_RUM_IDENTITY_POOL_ID=${{ secrets.REACT_APP_AWS_RUM_IDENTITY_POOL_ID }}
-          export REACT_APP_GA_TRACKING_ID=${{ secrets.REACT_APP_GA_TRACKING_ID }}
+          export REACT_APP_GA_TRACKING_ID=${{ secrets.REACT_APP_GA_TRACKING_ID || vars.REACT_APP_GA_TRACKING_ID }}
           
           # Set CI=false so lint warnings don't crash the build
           CI=false npm run build
@@ -133,7 +133,7 @@ jobs:
             REACT_APP_AWS_RUM_APP_ID=${{ secrets.REACT_APP_AWS_RUM_APP_ID }}
             REACT_APP_AWS_REGION=${{ secrets.AWS_REGION }}
             REACT_APP_AWS_RUM_IDENTITY_POOL_ID=${{ secrets.REACT_APP_AWS_RUM_IDENTITY_POOL_ID }}
-            REACT_APP_GA_TRACKING_ID=${{ secrets.REACT_APP_GA_TRACKING_ID }}
+            REACT_APP_GA_TRACKING_ID=${{ secrets.REACT_APP_GA_TRACKING_ID || vars.REACT_APP_GA_TRACKING_ID }}
             GENERATE_SOURCEMAP=false
           cache-from: type=registry,ref=ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || 'salesapp-client' }}:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || 'salesapp-client' }}:buildcache,mode=max
