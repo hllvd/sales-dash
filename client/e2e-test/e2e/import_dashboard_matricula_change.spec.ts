@@ -181,6 +181,12 @@ test.describe.serial('[TEAR-1] Dashboard Import — Matricula Change Detection',
     // Mapping step
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 15000 });
 
+    // Check option to update matricula on existing contracts
+    const updateMatriculaCb = page.locator('#updateMatriculaOnExisting');
+    if (await updateMatriculaCb.isVisible()) {
+      await updateMatriculaCb.check();
+    }
+
     // Confirm import
     const confirmBtn = page.locator('button:has-text("Confirmar e Importar")');
     await expect(confirmBtn).toBeEnabled({ timeout: 25000 });

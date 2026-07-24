@@ -1258,7 +1258,9 @@ namespace SalesApp.Services
             Dictionary<string, string> mappings,
             bool skipMissingContractNumber = false,
             bool allowAutoCreateGroups = false,
-            bool allowAutoCreatePVs = false)
+            bool allowAutoCreatePVs = false,
+            bool updateMatriculaOnExisting = false,
+            bool updateTotalAmountOnExisting = true)
         {
             var result = new ImportResult();
             result.TotalRows = rows.Count;
@@ -1368,7 +1370,9 @@ namespace SalesApp.Services
                         groupCache, pvCache, result,
                         allowAutoCreateGroups, allowAutoCreatePVs,
                         existingContract, matriculaCache,
-                        onMatriculaChange: change => result.MatriculaChanges.Add(change));
+                        onMatriculaChange: change => result.MatriculaChanges.Add(change),
+                        updateMatriculaOnExisting: updateMatriculaOnExisting,
+                        updateTotalAmountOnExisting: updateTotalAmountOnExisting);
 
                     if (contract != null)
                     {
@@ -1503,7 +1507,9 @@ namespace SalesApp.Services
             bool allowAutoCreatePVs = false,
             Contract? existingContract = null,
             Dictionary<string, int?>? matriculaCache = null,
-            Action<MatriculaChangeRecord>? onMatriculaChange = null)
+            Action<MatriculaChangeRecord>? onMatriculaChange = null,
+            bool updateMatriculaOnExisting = false,
+            bool updateTotalAmountOnExisting = true)
         {
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
             var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
@@ -1671,11 +1677,12 @@ namespace SalesApp.Services
                 contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
                 contract.RawStatus = status == ContractStatus.NaoDefinido.ToApiString() ? statusStr : null;
                 if (userInternalId.HasValue) contract.UserInternalId = userInternalId;
+                if (updateTotalAmountOnExisting) contract.TotalAmount = totalAmount;
                 contract.IsActive = true;
                 contract.UpdatedAt = DateTime.UtcNow;
 
                 // ✅ Matricula change detection
-                if (IsMatriculaChanged(existingContract.MatriculaId, matriculaId))
+                if (updateMatriculaOnExisting && IsMatriculaChanged(existingContract.MatriculaId, matriculaId))
                 {
                     var oldMatriculaNumber = existingContract.Matricula?.MatriculaNumber
                                             ?? existingContract.MatriculaId!.Value.ToString();

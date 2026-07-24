@@ -52,7 +52,8 @@ export default defineConfig({
         'import_wizard_verification.spec.ts',
         'import_dashboard_matricula_change.spec.ts',
         'import_error_csv_download.spec.ts',
-        'contract_dashboard_bem_pend_1_atr.spec.ts'
+        'contract_dashboard_bem_pend_1_atr.spec.ts',
+        'import_dashboard_update_options.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-1-setup-and-import']

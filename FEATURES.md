@@ -172,6 +172,9 @@ Improve UI response times, eliminate redundant load on the backend, and prevent 
 - **Manual Refresh Actions**: Introduces a manual "Atualizar" (Refresh) button on the Matriculas, Teams, Classifications, and PV management pages, allowing users to explicitly bust the session cache and retrieve fresh data.
 - **Contract Form Optimization**: Overhauls `ContractForm` to read from the cache for users, groups, and PVs, completely eliminating up to 3 redundant API calls every time the "Criar/Editar Contrato" modal is opened.
 - **Admin Import Model Restriction**: Restricts `BulkImportModal` to hide the template selection dropdown for users with `admin` role, automatically enforcing the `"contractDashboard"` template model as default, while allowing `superadmin` users to still choose other models.
+- **Contract Dashboard Parameterized Import Updates**: Enables configurable update behavior when importing existing contracts via the `contractDashboard` template:
+  - **Atualizar matrícula em contratos existentes**: Checkbox (default: unchecked/off). Controls whether `MatriculaId` is updated on existing contracts.
+  - **Atualizar valor total em contratos existentes**: Checkbox (default: checked/on). Controls whether `TotalAmount` is updated on existing contracts.
 - **Waterfall Fetch Elimination**: 
   - **MyContractsPage**: Parallelizes pending claims retrieval using `Promise.all` instead of a serial `for...of` loop (one query per owned matricula). Also separates date-based filter changes from claims loading.
   - **TeamsPage**: Parallelizes member removal logic using `Promise.all` to execute all removal calls simultaneously.

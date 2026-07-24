@@ -281,7 +281,7 @@ namespace SalesApp.IntegrationTests.Imports
 
             var confirmResponse = await _client.PostAsJsonAsync(
                 $"/api/imports/{uploadId}/confirm",
-                new ConfirmImportRequest { AllowAutoCreateGroups = true });
+                new ConfirmImportRequest { AllowAutoCreateGroups = true, UpdateMatriculaOnExisting = true });
             var confirmResult = await confirmResponse.Content
                 .ReadFromJsonAsync<ApiResponse<ImportStatusResponse>>();
 
@@ -315,7 +315,7 @@ namespace SalesApp.IntegrationTests.Imports
 
             var confirmResponse = await _client.PostAsJsonAsync(
                 $"/api/imports/{uploadId}/confirm",
-                new ConfirmImportRequest { AllowAutoCreateGroups = true });
+                new ConfirmImportRequest { AllowAutoCreateGroups = true, UpdateMatriculaOnExisting = true });
             confirmResponse.EnsureSuccessStatusCode();
 
             var result = await confirmResponse.Content

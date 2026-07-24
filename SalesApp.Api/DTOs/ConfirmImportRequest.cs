@@ -7,5 +7,7 @@ namespace SalesApp.DTOs
         public bool SkipMissingContractNumber { get; set; } = false;
         public bool AllowAutoCreateGroups { get; set; } = false;
         public bool AllowAutoCreatePVs { get; set; } = false;
+        public bool UpdateMatriculaOnExisting { get; set; } = false;
+        public bool UpdateTotalAmountOnExisting { get; set; } = true;
     }
 }

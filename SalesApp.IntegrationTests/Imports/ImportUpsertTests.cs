@@ -659,6 +659,242 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01,MAT-123
             contractsResult.Data!.First().Status.Should().Be("Late1");
         }
 
+        [Fact]
+        public async Task ImportContractDashboard_WithUpdateTotalAmount_ShouldUpdateExistingTotalAmount()
+        {
+            // Arrange
+            var contractNumber = $"UPD-AMT-{Guid.NewGuid().ToString()[..8]}";
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var user = await context.Users.FirstAsync();
+                var group = await context.Groups.FirstAsync();
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = contractNumber,
+                    UserInternalId = user.InternalId,
+                    TotalAmount = 1000,
+                    GroupId = group.Id,
+                    ContractStatusId = 1,
+                    Quota = 100,
+                    IsActive = true
+                });
+                await context.SaveChangesAsync();
+            }
+
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      $"G1;100;C1;Cust1;{contractNumber},5000,2024-01-01,Active,MAT-UPD-1";
+
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var uploadId = await UploadFile(csv, "upd_amt_true.csv", templateId: 3);
+
+            var mappingRequest = new ColumnMappingRequest
+            {
+                Mappings = new Dictionary<string, string>
+                {
+                    { "Cota", "Cota" },
+                    { "Total", "TotalAmount" },
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
+                }
+            };
+            await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings?entityType=Contract", mappingRequest);
+
+            var confirmRequest = new ConfirmImportRequest { DateFormat = "YYYY-MM-DD", AllowAutoCreateGroups = true, UpdateTotalAmountOnExisting = true };
+            var confirmResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", confirmRequest);
+            confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var contract = await context.Contracts.FirstAsync(c => c.ContractNumber == contractNumber);
+                contract.TotalAmount.Should().Be(5000);
+            }
+        }
+
+        [Fact]
+        public async Task ImportContractDashboard_WithoutUpdateTotalAmount_ShouldPreserveTotalAmount()
+        {
+            // Arrange
+            var contractNumber = $"NOUPD-AMT-{Guid.NewGuid().ToString()[..8]}";
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var user = await context.Users.FirstAsync();
+                var group = await context.Groups.FirstAsync();
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = contractNumber,
+                    UserInternalId = user.InternalId,
+                    TotalAmount = 1000,
+                    GroupId = group.Id,
+                    ContractStatusId = 1,
+                    Quota = 101,
+                    IsActive = true
+                });
+                await context.SaveChangesAsync();
+            }
+
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      $"G1;101;C1;Cust1;{contractNumber},5000,2024-01-01,Active,MAT-UPD-2";
+
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var uploadId = await UploadFile(csv, "upd_amt_false.csv", templateId: 3);
+
+            var mappingRequest = new ColumnMappingRequest
+            {
+                Mappings = new Dictionary<string, string>
+                {
+                    { "Cota", "Cota" },
+                    { "Total", "TotalAmount" },
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
+                }
+            };
+            await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings?entityType=Contract", mappingRequest);
+
+            var confirmRequest = new ConfirmImportRequest { DateFormat = "YYYY-MM-DD", AllowAutoCreateGroups = true, UpdateTotalAmountOnExisting = false };
+            var confirmResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", confirmRequest);
+            confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var contract = await context.Contracts.FirstAsync(c => c.ContractNumber == contractNumber);
+                contract.TotalAmount.Should().Be(1000); // Preserved!
+            }
+        }
+
+        [Fact]
+        public async Task ImportContractDashboard_WithUpdateMatricula_ShouldUpdateExistingMatricula()
+        {
+            // Arrange
+            var contractNumber = $"UPD-MAT-{Guid.NewGuid().ToString()[..8]}";
+            int originalMatriculaId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var user = await context.Users.FirstAsync();
+                var group = await context.Groups.FirstAsync();
+                var mat1 = new Matricula { MatriculaNumber = "MAT-ORIG-1", Status = "active" };
+                context.Matriculas.Add(mat1);
+                await context.SaveChangesAsync();
+                originalMatriculaId = mat1.Id;
+
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = contractNumber,
+                    UserInternalId = user.InternalId,
+                    TotalAmount = 1000,
+                    GroupId = group.Id,
+                    ContractStatusId = 1,
+                    Quota = 102,
+                    MatriculaId = originalMatriculaId,
+                    IsActive = true
+                });
+                await context.SaveChangesAsync();
+            }
+
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      $"G1;102;C1;Cust1;{contractNumber},1000,2024-01-01,Active,MAT-NEW-1";
+
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var uploadId = await UploadFile(csv, "upd_mat_true.csv", templateId: 3);
+
+            var mappingRequest = new ColumnMappingRequest
+            {
+                Mappings = new Dictionary<string, string>
+                {
+                    { "Cota", "Cota" },
+                    { "Total", "TotalAmount" },
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
+                }
+            };
+            await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings?entityType=Contract", mappingRequest);
+
+            var confirmRequest = new ConfirmImportRequest { DateFormat = "YYYY-MM-DD", AllowAutoCreateGroups = true, UpdateMatriculaOnExisting = true };
+            var confirmResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", confirmRequest);
+            confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var contract = await context.Contracts.Include(c => c.Matricula).FirstAsync(c => c.ContractNumber == contractNumber);
+                contract.MatriculaId.Should().NotBe(originalMatriculaId);
+                contract.Matricula!.MatriculaNumber.Should().Be("MAT-NEW-1");
+            }
+        }
+
+        [Fact]
+        public async Task ImportContractDashboard_WithoutUpdateMatricula_ShouldPreserveExistingMatricula()
+        {
+            // Arrange
+            var contractNumber = $"NOUPD-MAT-{Guid.NewGuid().ToString()[..8]}";
+            int originalMatriculaId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var user = await context.Users.FirstAsync();
+                var group = await context.Groups.FirstAsync();
+                var mat1 = new Matricula { MatriculaNumber = "MAT-ORIG-2", Status = "active" };
+                context.Matriculas.Add(mat1);
+                await context.SaveChangesAsync();
+                originalMatriculaId = mat1.Id;
+
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = contractNumber,
+                    UserInternalId = user.InternalId,
+                    TotalAmount = 1000,
+                    GroupId = group.Id,
+                    ContractStatusId = 1,
+                    Quota = 103,
+                    MatriculaId = originalMatriculaId,
+                    IsActive = true
+                });
+                await context.SaveChangesAsync();
+            }
+
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      $"G1;103;C1;Cust1;{contractNumber},1000,2024-01-01,Active,MAT-NEW-2";
+
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var uploadId = await UploadFile(csv, "upd_mat_false.csv", templateId: 3);
+
+            var mappingRequest = new ColumnMappingRequest
+            {
+                Mappings = new Dictionary<string, string>
+                {
+                    { "Cota", "Cota" },
+                    { "Total", "TotalAmount" },
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
+                }
+            };
+            await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings?entityType=Contract", mappingRequest);
+
+            var confirmRequest = new ConfirmImportRequest { DateFormat = "YYYY-MM-DD", AllowAutoCreateGroups = true, UpdateMatriculaOnExisting = false };
+            var confirmResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", confirmRequest);
+            confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var contract = await context.Contracts.Include(c => c.Matricula).FirstAsync(c => c.ContractNumber == contractNumber);
+                contract.MatriculaId.Should().Be(originalMatriculaId); // Preserved!
+                contract.Matricula!.MatriculaNumber.Should().Be("MAT-ORIG-2");
+            }
+        }
+
         private async Task<string> UploadFile(string content, string fileName, int templateId = 2)
         {
             var multipartContent = new MultipartFormDataContent();

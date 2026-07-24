@@ -40,6 +40,8 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [skipMissingContractNumber, setSkipMissingContractNumber] = useState<boolean>(true)
   const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState<boolean>(true)
   const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState<boolean>(true)
+  const [updateMatriculaOnExisting, setUpdateMatriculaOnExisting] = useState<boolean>(false)
+  const [updateTotalAmountOnExisting, setUpdateTotalAmountOnExisting] = useState<boolean>(true)
 
   // Status column validation
   const [statusValidation, setStatusValidation] = useState<{
@@ -203,7 +205,9 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         allowAutoCreateGroups, 
         allowAutoCreatePVs, 
         skipMissingContractNumber,
-        selectedTemplateName
+        selectedTemplateName,
+        updateMatriculaOnExisting,
+        updateTotalAmountOnExisting
       )
       
       if (!mappingResp.success) {
@@ -224,7 +228,9 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         skipMissingContractNumber, 
         allowAutoCreateGroups, 
         allowAutoCreatePVs,
-        selectedTemplateName
+        selectedTemplateName,
+        updateMatriculaOnExisting,
+        updateTotalAmountOnExisting
       )
       
       if (confirmResp.success && confirmResp.data) {
@@ -526,17 +532,43 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                 </div>
 
                 {selectedTemplate === 3 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <input 
-                      type="checkbox" 
-                      id="allowAutoCreatePVs" 
-                      checked={allowAutoCreatePVs} 
-                      onChange={(e) => setAllowAutoCreatePVs(e.target.checked)}
-                    />
-                    <label htmlFor="allowAutoCreatePVs" style={{ fontSize: '13px', color: '#4b5563' }}>
-                      Permitir criação automática de PV
-                    </label>
-                  </div>
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="allowAutoCreatePVs" 
+                        checked={allowAutoCreatePVs} 
+                        onChange={(e) => setAllowAutoCreatePVs(e.target.checked)}
+                      />
+                      <label htmlFor="allowAutoCreatePVs" style={{ fontSize: '13px', color: '#4b5563' }}>
+                        Permitir criação automática de PV
+                      </label>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="updateMatriculaOnExisting" 
+                        checked={updateMatriculaOnExisting} 
+                        onChange={(e) => setUpdateMatriculaOnExisting(e.target.checked)}
+                      />
+                      <label htmlFor="updateMatriculaOnExisting" style={{ fontSize: '13px', color: '#4b5563' }}>
+                        Atualizar matrícula em contratos existentes
+                      </label>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="updateTotalAmountOnExisting" 
+                        checked={updateTotalAmountOnExisting} 
+                        onChange={(e) => setUpdateTotalAmountOnExisting(e.target.checked)}
+                      />
+                      <label htmlFor="updateTotalAmountOnExisting" style={{ fontSize: '13px', color: '#4b5563' }}>
+                        Atualizar valor total em contratos existentes
+                      </label>
+                    </div>
+                  </>
                 )}
               </div>
             </div>

@@ -50,7 +50,9 @@ namespace SalesApp.Services
             Dictionary<string, string> mappings,
             bool skipMissingContractNumber = false,
             bool allowAutoCreateGroups = false,
-            bool allowAutoCreatePVs = false);
+            bool allowAutoCreatePVs = false,
+            bool updateMatriculaOnExisting = false,
+            bool updateTotalAmountOnExisting = true);
 
         Task<bool> UndoImportAsync(int importSessionId);
     }
