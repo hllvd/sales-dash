@@ -19,8 +19,10 @@ interface EquipesTabProps {
 const EquipesTab: React.FC<EquipesTabProps> = ({ data }) => {
   const [search, setSearch] = useState('');
 
+  const searchLower = search.trim().toLowerCase();
   const filteredTeams = data.filter(team => 
-    team.teamName.toLowerCase().includes(search.toLowerCase())
+    !searchLower ||
+    team.teamName.toLowerCase().includes(searchLower)
   );
 
   const getStatusBadge = (status: string) => {

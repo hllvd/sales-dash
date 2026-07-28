@@ -762,8 +762,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       });
     });
 
-    if (!columnSearch) return list;
-    const cleanSearch = columnSearch.toLowerCase();
+    const cleanSearch = columnSearch.trim().toLowerCase();
+    if (!cleanSearch) return list;
     return list.filter(item => 
       item.title.toLowerCase().includes(cleanSearch) || 
       item.description.toLowerCase().includes(cleanSearch) || 

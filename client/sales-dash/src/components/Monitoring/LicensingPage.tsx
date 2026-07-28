@@ -122,10 +122,12 @@ const LicensingPage: React.FC = () => {
   });
 
   // Filter users based on search
+  const searchLower = search.trim().toLowerCase();
   const filteredUsers = report
     ? report.users.filter(u =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase())
+        !searchLower ||
+        u.name.toLowerCase().includes(searchLower) ||
+        u.email.toLowerCase().includes(searchLower)
       )
     : [];
 

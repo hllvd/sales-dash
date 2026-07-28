@@ -71,7 +71,7 @@ const UsersPage: React.FC = () => {
       const response = await apiService.getUsers(
         page,
         pageSize,
-        searchDebounce || undefined
+        searchDebounce.trim() || undefined
       )
 
       if (requestId !== requestCountRef.current) return
@@ -95,7 +95,7 @@ const UsersPage: React.FC = () => {
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      setSearchDebounce(search)
+      setSearchDebounce(search.trim())
       setPage(1) // Reset to first page on search
     }, 500)
 

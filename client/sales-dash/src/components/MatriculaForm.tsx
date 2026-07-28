@@ -38,24 +38,25 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
 
   // Debounced user search
   useEffect(() => {
-    if (isEdit || !userSearch || userSearch.length < 2) {
+    const trimmed = userSearch.trim();
+    if (isEdit || !trimmed || trimmed.length < 2) {
       setRemoteUsers([]);
       return;
     }
 
     // Check cache
-    if (userCache.current[userSearch]) {
-      setRemoteUsers(userCache.current[userSearch]);
+    if (userCache.current[trimmed]) {
+      setRemoteUsers(userCache.current[trimmed]);
       return;
     }
 
     setLoadingUsers(true);
     const handler = setTimeout(async () => {
       try {
-        const response = await apiService.getUsers(1, 20, userSearch);
+        const response = await apiService.getUsers(1, 20, trimmed);
         if (response.success && response.data) {
           const results = response.data.items;
-          userCache.current[userSearch] = results;
+          userCache.current[trimmed] = results;
           setRemoteUsers(results);
         }
       } catch (err) {

@@ -40,8 +40,8 @@ const UserMetadataAdminPage: React.FC = () => {
         let filtered = response.data;
         
         // Client-side filtering
-        if (searchDebounce) {
-          const searchLower = searchDebounce.toLowerCase();
+        const searchLower = searchDebounce.trim().toLowerCase();
+        if (searchLower) {
           filtered = filtered.filter(f => 
             f.key.toLowerCase().includes(searchLower) ||
             f.label.toLowerCase().includes(searchLower) ||
@@ -62,7 +62,7 @@ const UserMetadataAdminPage: React.FC = () => {
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      setSearchDebounce(search);
+      setSearchDebounce(search.trim());
     }, 500);
 
     return () => clearTimeout(timer);

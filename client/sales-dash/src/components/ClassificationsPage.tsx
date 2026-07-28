@@ -275,12 +275,13 @@ const ClassificationsPage: React.FC = () => {
 
   // ── Filtered users for assign panel ──────────────────────────────────────
   const memberIds = new Set(levelMembers.map(m => m.userId))
+  const trimmedUserSearch = userSearch.trim().toLowerCase()
   const filteredUsers = allUsers
     .filter(u => !memberIds.has(u.id))
     .filter(u =>
-      !userSearch ||
-      u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearch.toLowerCase())
+      !trimmedUserSearch ||
+      u.name.toLowerCase().includes(trimmedUserSearch) ||
+      u.email.toLowerCase().includes(trimmedUserSearch)
     )
 
   // ── Order levels by salesGoal ASCENDING ──────────────────────────────

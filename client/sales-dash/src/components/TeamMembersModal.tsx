@@ -407,12 +407,12 @@ const TeamMembersModal: React.FC<Props> = ({
   }, [userPool, activeMemberIds, ownerUserId]);
 
   const filteredAvailable = useMemo(() => {
-    const q = leftSearch.toLowerCase();
+    const q = leftSearch.trim().toLowerCase();
     return q ? available.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) : available;
   }, [available, leftSearch]);
 
   const filteredMembers = useMemo(() => {
-    const q = rightSearch.toLowerCase();
+    const q = rightSearch.trim().toLowerCase();
     return q ? activeMembers.filter(m => m.userName.toLowerCase().includes(q) || m.userEmail.toLowerCase().includes(q)) : activeMembers;
   }, [activeMembers, rightSearch]);
 

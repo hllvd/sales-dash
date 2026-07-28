@@ -111,7 +111,7 @@ const MyContractsPage: React.FC = () => {
   // Debounce effect for matricula filter
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedMatricula(matriculaFilter);
+      setDebouncedMatricula(matriculaFilter.trim());
     }, 500);
     return () => clearTimeout(timer);
   }, [matriculaFilter]);

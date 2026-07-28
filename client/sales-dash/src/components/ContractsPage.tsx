@@ -159,7 +159,7 @@ const ContractsPage: React.FC = () => {
         undefined, // groupId
         debouncedStartDate || undefined,
         debouncedEndDate || undefined,
-        debouncedContractNumber || undefined,
+        debouncedContractNumber.trim() || undefined,
         debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
         debouncedMatriculas.length > 0 ? debouncedMatriculas : undefined,
         undefined, // userEmail
@@ -222,7 +222,7 @@ const ContractsPage: React.FC = () => {
       setDebouncedUserIds(filterUserIds);
       setDebouncedStartDate(filterStartDate);
       setDebouncedEndDate(filterEndDate);
-      setDebouncedContractNumber(filterContractNumber);
+      setDebouncedContractNumber(filterContractNumber.trim());
       setDebouncedShowUnassigned(filterShowUnassigned);
       setDebouncedMatriculas(filterMatriculas);
       setDebouncedTeamIds(filterTeamIds);

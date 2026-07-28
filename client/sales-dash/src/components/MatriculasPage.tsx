@@ -69,7 +69,7 @@ const MatriculasPage: React.FC = () => {
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      setSearchDebounce(search)
+      setSearchDebounce(search.trim())
     }, 500)
 
     return () => clearTimeout(timer)

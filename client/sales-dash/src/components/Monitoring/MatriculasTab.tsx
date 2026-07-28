@@ -17,8 +17,10 @@ interface MatriculasTabProps {
 const MatriculasTab: React.FC<MatriculasTabProps> = ({ data }) => {
   const [search, setSearch] = useState('');
 
+  const searchLower = search.trim().toLowerCase();
   const filteredData = data.filter(item => 
-    item.matricula.toLowerCase().includes(search.toLowerCase())
+    !searchLower ||
+    item.matricula.toLowerCase().includes(searchLower)
   );
 
   const getStatusBadge = (status: string) => {

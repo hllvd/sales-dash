@@ -77,8 +77,8 @@ const UserForm: React.FC<UserFormProps> = ({
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(parentUserSearch)
-    }, 300) // 300ms delay
+      setDebouncedSearch(parentUserSearch.trim())
+    }, 300)
 
     return () => clearTimeout(timer)
   }, [parentUserSearch])
@@ -261,8 +261,8 @@ const UserForm: React.FC<UserFormProps> = ({
               new Set(
                 users
                   .filter(u => {
-                    if (!debouncedSearch) return true
-                    const searchLower = debouncedSearch.toLowerCase()
+                    const searchLower = debouncedSearch.trim().toLowerCase()
+                    if (!searchLower) return true
                     return u.name.toLowerCase().includes(searchLower) || 
                            u.email.toLowerCase().includes(searchLower)
                   })

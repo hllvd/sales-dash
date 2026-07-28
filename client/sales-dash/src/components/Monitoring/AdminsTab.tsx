@@ -18,9 +18,11 @@ interface AdminsTabProps {
 const AdminsTab: React.FC<AdminsTabProps> = ({ data }) => {
   const [search, setSearch] = useState('');
 
+  const searchLower = search.trim().toLowerCase();
   const filteredAdmins = data.filter(admin => 
-    admin.userName.toLowerCase().includes(search.toLowerCase()) ||
-    admin.userEmail.toLowerCase().includes(search.toLowerCase())
+    !searchLower ||
+    admin.userName.toLowerCase().includes(searchLower) ||
+    admin.userEmail.toLowerCase().includes(searchLower)
   );
 
   const rows = filteredAdmins.map((item) => (

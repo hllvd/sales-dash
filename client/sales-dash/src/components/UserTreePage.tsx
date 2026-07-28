@@ -167,8 +167,8 @@ const UserTreePage: React.FC = () => {
 
   // Filter tree nodes that match search criteria
   const matchesSearch = (node: UserHierarchyNode) => {
-    if (!search) return false
-    const query = search.toLowerCase()
+    const query = search.trim().toLowerCase()
+    if (!query) return false
     return (
       node.name.toLowerCase().includes(query) ||
       node.email.toLowerCase().includes(query) ||

@@ -74,9 +74,11 @@ const ViewsListPage: React.FC = () => {
   const isSuperadmin = currentUserRole === 'superadmin';
 
   const filteredViews = useMemo(() => {
+    const searchLower = search.trim().toLowerCase();
     return views.filter(v => {
-      const matchesSearch = v.name.toLowerCase().includes(search.toLowerCase()) || 
-                           (v.description || '').toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = !searchLower ||
+                           v.name.toLowerCase().includes(searchLower) || 
+                           (v.description || '').toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
 
       if (scopeFilter === 'shared') return v.scope === 'shared';

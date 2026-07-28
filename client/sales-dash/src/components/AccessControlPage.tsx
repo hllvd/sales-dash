@@ -88,10 +88,12 @@ const AccessControlPage: React.FC = () => {
     }
   };
 
+  const searchLower = searchTerm.trim().toLowerCase();
   const filteredEndpoints = data?.endpoints.filter(e => 
-    e.controller.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.route.toLowerCase().includes(searchTerm.toLowerCase())
+    !searchLower ||
+    e.controller.toLowerCase().includes(searchLower) ||
+    e.action.toLowerCase().includes(searchLower) ||
+    e.route.toLowerCase().includes(searchLower)
   ) || [];
 
   if (loading) {

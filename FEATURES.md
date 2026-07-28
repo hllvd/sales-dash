@@ -315,3 +315,13 @@ Grants users with the `User` role access to the `Solicitações` page to track t
 - **Menu NavLink Permission Guard**: Wrapped the `Solicitações` link in `Menu.tsx` with `hasPermission('requests:read')` so visibility dynamically reflects the user's role permissions.
 - **Non-Approver Default View**: In `RequestsPage.tsx`, users with non-approver roles (`user`) land directly on the "Minhas Solicitações" tab.
 
+## Frontend Search Input Whitespace Trimming
+
+Trims leading and trailing whitespace from search inputs across all frontend pages and modals (Users, Teams, Classifications, Matrículas, Contracts, Access Control, Requests, Monitoring, Reports, etc.), ensuring searches with accidental spaces match correctly while preserving internal spaces between words.
+
+### Key Capabilities
+- **Automatic Edge Trimming**: All search filter conditions and API query parameters evaluate `searchQuery.trim()`, stripping accidental leading or trailing spaces.
+- **Internal Whitespace Preservation**: Preserves spaces within multi-word search phrases (such as first and last names, e.g. `"João Silva"`).
+- **Universal Application**: Standardizes search query handling across list pages, modals, selection dropdowns, and monitoring dashboards.
+
+

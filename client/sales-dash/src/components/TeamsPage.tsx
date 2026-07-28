@@ -306,7 +306,7 @@ const TeamsPage: React.FC = () => {
 
   // Filter teams based on search input
   const filteredTeams = teams.filter((team) => {
-    const searchLower = search.toLowerCase();
+    const searchLower = search.trim().toLowerCase();
     const nameMatch = team.name.toLowerCase().includes(searchLower);
     const ownerMatch = team.owner ? team.owner.userName.toLowerCase().includes(searchLower) : false;
     const memberMatch = team.members.some((m) => m.userName.toLowerCase().includes(searchLower));

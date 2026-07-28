@@ -101,9 +101,11 @@ const ReportListPage: React.FC = () => {
   const isSuperadmin = currentUserRole === 'superadmin';
 
   const filteredReports = useMemo(() => {
+    const searchLower = search.trim().toLowerCase();
     return reports.filter(r => {
-      const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) || 
-                           (r.description || '').toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = !searchLower ||
+                           r.name.toLowerCase().includes(searchLower) || 
+                           (r.description || '').toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
 
       if (scopeFilter === 'shared') return r.scope === 'shared';
