@@ -29,7 +29,7 @@ test.describe('Contract Dashboard Import Update Options', () => {
 
     // Navigate to Contracts page
     await page.click('a[href="#/contracts"]');
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(2000);
 
     // Open import modal
