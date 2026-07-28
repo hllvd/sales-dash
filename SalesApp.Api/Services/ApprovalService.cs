@@ -62,6 +62,14 @@ namespace SalesApp.Services
                     throw new ArgumentException("Número da matrícula inválido.");
                 }
             }
+            else if (dto.RequestType == "RequestAdminRole")
+            {
+                var isAlreadyAdmin = requester.RoleId == (int)RoleId.Admin || requester.RoleId == (int)RoleId.SuperAdmin;
+                if (isAlreadyAdmin)
+                {
+                    throw new InvalidOperationException("Você já possui a função de Administrador ou SuperAdmin.");
+                }
+            }
             else
             {
                 throw new ArgumentException($"Tipo de solicitação inválido: {dto.RequestType}");
@@ -342,6 +350,11 @@ namespace SalesApp.Services
                     existingLink.IsOwner = isOwner;
                     existingLink.UpdatedAt = DateTime.UtcNow;
                 }
+            }
+            else if (request.RequestType == "RequestAdminRole")
+            {
+                requester.RoleId = (int)RoleId.Admin;
+                requester.UpdatedAt = DateTime.UtcNow;
             }
         }
 

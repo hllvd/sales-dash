@@ -263,17 +263,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           ) : null}
 
-          <NavLink
-            href="#/requests"
-            label="Solicitações"
-            leftSection={<IconMailForward size={20} />}
-            rightSection={pendingCount > 0 ? <Badge size="xs" circle color="red">{pendingCount}</Badge> : undefined}
-            active={isActive('#/requests')}
-            variant="filled"
-            color="red"
-            styles={navLinkStyles('#/requests')}
-            onClick={() => { if (opened) close(); }}
-          />
+          {hasPermission('requests:read') && (
+            <NavLink
+              href="#/requests"
+              label="Solicitações"
+              leftSection={<IconMailForward size={20} />}
+              rightSection={pendingCount > 0 ? <Badge size="xs" circle color="red">{pendingCount}</Badge> : undefined}
+              active={isActive('#/requests')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/requests')}
+              onClick={() => { if (opened) close(); }}
+            />
+          )}
 
           {hasPermission('pvs:read') && (
             <NavLink

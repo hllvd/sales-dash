@@ -441,5 +441,85 @@ namespace SalesApp.IntegrationTests.Users
             var approveData = await approveRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
             approveData!.Data!.Status.Should().Be("Approved");
         }
+
+        [Fact]
+        public async Task RequestAdminRole_ParentAdminOrSuperAdminCanApprove_PromotesUserToAdmin()
+        {
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+
+            var tag = Guid.NewGuid().ToString()[..6];
+            var parentAdminEmail = $"parentadmin_{tag}@test.com";
+            var userEmail = $"userchild_{tag}@test.com";
+
+            // Register parent admin
+            var regParent = await _client.PostAsJsonAsync("/api/users/admin-register", new
+            {
+                Name = "Parent Admin",
+                Email = parentAdminEmail,
+                Password = "Password123!",
+                TeamName = $"TeamRole_{tag}",
+                ClassificationLevelId = 1,
+                Role = "manager"
+            });
+            regParent.EnsureSuccessStatusCode();
+
+            // Get Parent Admin's user ID
+            var parentAdminToken = await GetTokenAsync(parentAdminEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", parentAdminToken);
+            var parentMeRes = await _client.GetAsync("/api/users/me");
+            var parentMeData = await parentMeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var parentId = parentMeData!.Data!.Id;
+
+            // Register user under parent admin
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var regUser = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "User Requesting Admin",
+                Email = userEmail,
+                Password = "Password123!",
+                ParentUserId = parentId
+            });
+            regUser.EnsureSuccessStatusCode();
+
+            // User submits RequestAdminRole request
+            var userToken = await GetTokenAsync(userEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = "RequestAdminRole",
+                PayloadJson = "{}"
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            var requestId = createData!.Data!.Id;
+
+            // Parent Admin sees the request in pending list
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", parentAdminToken);
+            var pendingRes = await _client.GetAsync("/api/approval-requests/pending");
+            var pendingData = await pendingRes.Content.ReadFromJsonAsync<ApiResponse<List<ApprovalRequestResponse>>>();
+            pendingData!.Data.Should().Contain(r => r.Id == requestId);
+
+            // Parent Admin approves it
+            var approveRes = await _client.PostAsJsonAsync($"/api/approval-requests/{requestId}/resolve",
+                new ResolveApprovalDto { Action = "Approved", Comment = "Promoted to admin" });
+            approveRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // Verify user's role is now admin
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+            var userMeRes = await _client.GetAsync("/api/users/me");
+            var userMeData = await userMeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            userMeData!.Data!.Role.ToLower().Should().Be("admin");
+
+            // Subsequent RequestAdminRole request should fail because user is already admin
+            var duplicateRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = "RequestAdminRole",
+                PayloadJson = "{}"
+            });
+            duplicateRes.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
     }
 }
+

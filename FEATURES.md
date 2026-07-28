@@ -267,9 +267,10 @@ Allow users to request operational changes (such as parent email changes or new 
 1. **Change Parent Email (`ChangeParentEmail`)**: Standard users or managers request updating their superior (`ParentUserId`) by specifying the target email.
 2. **User Request Matricula (`RequestMatricula`)**: Standard users request assignment of a new matricula number.
 3. **Admin Request Matricula (`AdminRequestMatricula`)**: Admins request creation of a new matricula that they will own (`IsOwner = true`). Only SuperAdmins can approve this request type.
+4. **Request Admin Role (`RequestAdminRole`)**: Non-admin users request promotion to the Admin role (`"Solicitação de Perfil Administrador (Role Admin)"`). SuperAdmins and parent Admins can approve this request.
 
 ### Approver Actions
-- **Sim / Aprovar (Yes)**: One-step immediate approval. Executes the underlying model update on the server (e.g. re-parenting user, creating/linking matricula) and marks status as `Approved`.
+- **Sim / Aprovar (Yes)**: One-step immediate approval. Executes the underlying model update on the server (e.g. re-parenting user, creating/linking matricula, updating RoleId to Admin) and marks status as `Approved`.
 - **Não / Rejeitar (No)**: Rejects the request, recording an optional rejection reason comment for the requester to view.
 - **Depois (Later)**: Postpones decision, leaving the request in `Pending` status to be revisited later.
 
@@ -278,6 +279,7 @@ Allow users to request operational changes (such as parent email changes or new 
 - **ChangeParentEmail**: If the target `parentEmail` is an Admin, **only** that designated `parentEmail` user and SuperAdmins can see, approve, or reject the request.
 - **RequestMatricula (Nova Matrícula)**: If the target matricula is already owned by a user (`IsOwner = true`), **only** that matricula owner user and SuperAdmins can see, approve, or reject the request.
 - **AdminRequestMatricula**: Only SuperAdmins can see, approve, or reject.
+- **RequestAdminRole**: SuperAdmins and the user's parent Admin(s) in the hierarchy can see, approve, or reject.
 - **Left Menu Integration**: Shows a "Solicitações" item with a dynamic badge displaying the current count of pending requests for approvers.
 
 ### Key Files Created / Modified
@@ -304,13 +306,12 @@ Provides production-only Google Analytics tracking by leveraging a build-time en
 - `Dockerfile.client` — Added client container build parameter mapping.
 - `deploy.yml` — Configured GitHub Actions build pipelines.
 
-## Contracts Filter Enhancements & Display Name Normalization
+## User Role Access to Solicitações & RBAC Integration
 
-Improves filtering flexibility in the Contracts page and standardizes display names across the UI.
+Grants users with the `User` role access to the `Solicitações` page to track their submitted requests ("Minhas Solicitações") and integrates `requests:read` into the Access Control (RBAC) matrix.
 
 ### Key Capabilities
-- **Filter Label Update**: Renamed "Time" filter label to "Equipe" in `ContractsPage.tsx`.
-- **Multi-Matrícula Filter**: Upgraded the Matrícula filter from a single text input to a Mantine `MultiSelect` component, supporting multiple values per query across frontend and backend (`List<string>`).
-- **Pascal Case Name Normalization**: On-read string transformation function `normalizeName()` in `normalization.ts` that converts names into Pascal Case while preserving Portuguese particles (`de`, `da`, `do`, `dos`, `das`, `e`) in lowercase. Applied across 30+ UI display sites (tables, dropdown labels, profile headers, notifications).
-
+- **RBAC Matrix Integration**: Registered `requests:read` permission in `DbSeeder.cs` and assigned it to `SuperAdmin`, `Admin`, and `User` roles by default. Can be enabled/disabled per role on the Access Control (`#/access-control`) page.
+- **Menu NavLink Permission Guard**: Wrapped the `Solicitações` link in `Menu.tsx` with `hasPermission('requests:read')` so visibility dynamically reflects the user's role permissions.
+- **Non-Approver Default View**: In `RequestsPage.tsx`, users with non-approver roles (`user`) land directly on the "Minhas Solicitações" tab.
 

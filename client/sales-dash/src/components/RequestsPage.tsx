@@ -47,7 +47,11 @@ const RequestsPage: React.FC = () => {
     if (userJson) {
       try {
         const user = JSON.parse(userJson);
-        setUserRole(user.role || '');
+        const role = user.role || '';
+        setUserRole(role);
+        if (role !== 'admin' && role !== 'superadmin') {
+          setActiveTab('my-requests');
+        }
       } catch (e) {
         console.error(e);
       }
@@ -136,6 +140,8 @@ const RequestsPage: React.FC = () => {
           return;
         }
         payloadJson = JSON.stringify({ newParentEmail: parentEmail.trim() });
+      } else if (requestType === 'RequestAdminRole') {
+        payloadJson = JSON.stringify({});
       } else {
         if (!matriculaNumber.trim()) {
           setCreateError('O número da matrícula é obrigatório.');
@@ -169,6 +175,8 @@ const RequestsPage: React.FC = () => {
         return 'Nova Matrícula (Usuário)';
       case 'AdminRequestMatricula':
         return 'Criação de Matrícula (Admin / Proprietário)';
+      case 'RequestAdminRole':
+        return 'Solicitação de Perfil Administrador (Role Admin)';
       default:
         return type;
     }
@@ -182,6 +190,9 @@ const RequestsPage: React.FC = () => {
       }
       if (type === 'RequestMatricula' || type === 'AdminRequestMatricula') {
         return `Matrícula: ${parsed.matriculaNumber || parsed.MatriculaNumber}`;
+      }
+      if (type === 'RequestAdminRole') {
+        return 'Solicitação de perfil Administrador';
       }
       return jsonStr;
     } catch {
@@ -433,6 +444,9 @@ const RequestsPage: React.FC = () => {
           data={[
             { value: 'ChangeParentEmail', label: 'Alteração de Superior (E-mail)' },
             { value: 'RequestMatricula', label: 'Solicitação de Nova Matrícula' },
+            ...(userRole !== 'admin' && userRole !== 'superadmin'
+              ? [{ value: 'RequestAdminRole', label: 'Solicitação de Perfil Administrador (Role Admin)' }]
+              : []),
             ...(userRole === 'admin'
               ? [{ value: 'AdminRequestMatricula', label: 'Criação de Matrícula (Admin / Proprietário)' }]
               : []),
@@ -451,6 +465,10 @@ const RequestsPage: React.FC = () => {
             onChange={(e) => setParentEmail(e.target.value)}
             mb="md"
           />
+        ) : requestType === 'RequestAdminRole' ? (
+          <Text size="sm" c="dimmed" mb="md">
+            Esta solicitação será enviada para aprovação do seu superior direto ou de um SuperAdmin.
+          </Text>
         ) : (
           <TextInput
             label="Número da Matrícula"

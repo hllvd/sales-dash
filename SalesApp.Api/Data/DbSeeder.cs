@@ -236,6 +236,7 @@ namespace SalesApp.Data
                 "matriculas:read", "matriculas:write",
                 "roles:read", "roles:create", "roles:update", "roles:delete",
                 "teams:manage",
+                "requests:read",
                 "system:admin", "system:superadmin"
             };
 
@@ -265,7 +266,8 @@ namespace SalesApp.Data
             var userPerms = allPerms.Where(p => 
                 p.Name == "contracts:read" || 
                 p.Name == "users:profile-update" || 
-                p.Name == "users:reset-password"
+                p.Name == "users:reset-password" ||
+                p.Name == "requests:read"
             ).ToList();
             await AssignPermissionsToRole(context, (int)Models.RoleId.User, userPerms);
         }

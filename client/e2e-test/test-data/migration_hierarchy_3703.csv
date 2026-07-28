@@ -1,0 +1,6 @@
+Name,Email,Role,ParentEmail,Matricula,IsMatriculaOwner,Password
+Superior E2E 3703,superior.e2e.3703@test.com,user,,MAT-SUP-3703,1,ChangeMe123!
+Subordinado E2E 3703,subordinado.e2e.3703@test.com,user,superior.e2e.3703@test.com,MAT-SUB-3703,1,ChangeMe123!
+Admin E2E 3703,admin.e2e.3703@test.com,admin,,MAT-ADM-3703,1,ChangeMe123!
+AdminChild E2E 3703,adminchild.e2e.3703@test.com,user,admin.e2e.3703@test.com,MAT-ADC-3703,1,ChangeMe123!
+Orphan E2E 3703,orphan.e2e.3703@test.com,user,,MAT-ORP-3703,1,ChangeMe123!
