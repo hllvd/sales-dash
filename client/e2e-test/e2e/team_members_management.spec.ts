@@ -263,10 +263,11 @@ test.describe('Team Members Management E2E', () => {
     // 1. Direct children: Child A, Child B (in creation order)
     // 2. Grandchildren: Grandchild C
     // 3. Unrelated / others: Unrelated D
-    const indexChildA = names.indexOf(users.childA.name);
-    const indexChildB = names.indexOf(users.childB.name);
-    const indexGrandC = names.indexOf(users.grandchildC.name);
-    const indexUnrelatedD = names.indexOf(users.unrelatedD.name);
+    const lowerNames = names.map(n => n.toLowerCase().trim());
+    const indexChildA = lowerNames.indexOf(users.childA.name.toLowerCase().trim());
+    const indexChildB = lowerNames.indexOf(users.childB.name.toLowerCase().trim());
+    const indexGrandC = lowerNames.indexOf(users.grandchildC.name.toLowerCase().trim());
+    const indexUnrelatedD = lowerNames.indexOf(users.unrelatedD.name.toLowerCase().trim());
 
     // Verify BFS sorted order is preserved perfectly
     expect(indexChildA).toBeLessThan(indexChildB);
@@ -288,23 +289,25 @@ test.describe('Team Members Management E2E', () => {
     const leftCol = page.locator('.tmc-column--left');
     const rightCol = page.locator('.tmc-column--right');
 
-    await expect(leftCol).toContainText(users.childA.name);
-    await expect(rightCol).not.toContainText(users.childA.name);
+    const childANameRegex = new RegExp(users.childA.name, 'i');
+
+    await expect(leftCol).toContainText(childANameRegex);
+    await expect(rightCol).not.toContainText(childANameRegex);
 
     // Click Child A to add them
-    await leftCol.locator('.tmc-user-card__name', { hasText: users.childA.name }).click();
+    await leftCol.locator('.tmc-user-card__name', { hasText: childANameRegex }).click();
 
     // Verify Child A is now moved to the right column
-    await expect(leftCol).not.toContainText(users.childA.name);
-    await expect(rightCol).toContainText(users.childA.name);
+    await expect(leftCol).not.toContainText(childANameRegex);
+    await expect(rightCol).toContainText(childANameRegex);
 
     // Click remove (IconUserMinus button) on Child A in the right column
-    const childACard = rightCol.locator('.tmc-user-card', { hasText: users.childA.name });
+    const childACard = rightCol.locator('.tmc-user-card', { hasText: childANameRegex });
     await childACard.locator('button[title="Remover da equipe"]').click();
 
     // Verify Child A moves back to available users
-    await expect(leftCol).toContainText(users.childA.name);
-    await expect(rightCol).not.toContainText(users.childA.name);
+    await expect(leftCol).toContainText(childANameRegex);
+    await expect(rightCol).not.toContainText(childANameRegex);
   });
 
   test('should support inline team name editing and title update', async ({ page }) => {
@@ -392,10 +395,11 @@ test.describe('Team Members Management E2E', () => {
 
     // Verify Child A is in Available Users (left column)
     const leftCol = page.locator('.tmc-column--left');
-    await expect(leftCol).toContainText(users.childA.name);
+    const childANameRegex = new RegExp(users.childA.name, 'i');
+    await expect(leftCol).toContainText(childANameRegex);
 
     // Add Child A to the second team (should trigger warning due to active membership in first team)
-    await leftCol.locator('.tmc-user-card__name', { hasText: users.childA.name }).click();
+    await leftCol.locator('.tmc-user-card__name', { hasText: childANameRegex }).click();
 
     // Assert Warning Toast is displayed using highly robust text-based selection
     const toastTitle = page.getByText('Aviso de Conflito').first();
@@ -403,7 +407,7 @@ test.describe('Team Members Management E2E', () => {
     // Use effectiveTeamName because the rename test may have updated the DB name
     // The database name is normalized to lowercase on save, so toastMsg has it in lowercase
     const currentTeamName = (effectiveTeamName ?? teamName).toLowerCase();
-    const toastMsg = page.getByText(`O usuário '${users.childA.name}' foi removido da equipe '${currentTeamName}' por conflito de data.`).first();
+    const toastMsg = page.getByText(new RegExp(`O usuário '.*' foi removido da equipe '${currentTeamName}' por conflito de data.`, 'i')).first();
     await expect(toastMsg).toBeVisible({ timeout: 10000 });
 
     // Close the modal
@@ -464,10 +468,11 @@ test.describe('Team Members Management E2E', () => {
 
     // Verify Child A is in Members (right column)
     const rightCol = page.locator('.tmc-column--right');
-    await expect(rightCol).toContainText(users.childA.name);
+    const childANameRegex = new RegExp(users.childA.name, 'i');
+    await expect(rightCol).toContainText(childANameRegex);
 
     // Click the "Editar datas de vigência" button in Child A's card
-    const memberCard = rightCol.locator('.tmc-user-card--member', { hasText: users.childA.name });
+    const memberCard = rightCol.locator('.tmc-user-card--member', { hasText: childANameRegex });
     const editDatesBtn = memberCard.locator('button[title="Editar datas de vigência"]');
     
     // --- 1. Test Validation: Start Date > End Date ---

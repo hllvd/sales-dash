@@ -68,3 +68,27 @@ export const getFriendlyFieldName = (field: string | null | undefined): string =
   return normalizedKey ? FIELD_TRANSLATIONS[normalizedKey] : field;
 };
 
+const PT_PARTICLES = new Set(['de', 'da', 'do', 'dos', 'das', 'e']);
+
+/**
+ * Normalizes a person or customer name to Pascal Case while keeping Portuguese particles in lowercase.
+ * "joão SILVA" -> "João Silva"
+ * "maria da SILVA" -> "Maria da Silva"
+ */
+export const normalizeName = (value: string | null | undefined): string => {
+  if (!value) return '';
+  const trimmed = value.trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+
+  return trimmed
+    .split(' ')
+    .map(word => {
+      const lower = word.toLowerCase();
+      return PT_PARTICLES.has(lower)
+        ? lower
+        : lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
+};
+
+

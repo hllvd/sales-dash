@@ -1,5 +1,6 @@
 import React from 'react';
 import Menu from './Menu';
+import { normalizeName } from '../utils/normalization';
 import './WelcomePage.css';
 
 interface WelcomePageProps {
@@ -12,7 +13,7 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ title = 'Home' }) => {
   return (
     <Menu>
       <div className="welcome-container">
-        <h1 className="welcome-title">Bem-vindo, {user.name || 'Usuário'}!</h1>
+        <h1 className="welcome-title">Bem-vindo, {normalizeName(user.name) || 'Usuário'}!</h1>
         <p className="welcome-subtitle">Painel de Vendas - {title}</p>
         <div className="welcome-card">
           <h2>{title}</h2>

@@ -304,3 +304,13 @@ Provides production-only Google Analytics tracking by leveraging a build-time en
 - `Dockerfile.client` — Added client container build parameter mapping.
 - `deploy.yml` — Configured GitHub Actions build pipelines.
 
+## Contracts Filter Enhancements & Display Name Normalization
+
+Improves filtering flexibility in the Contracts page and standardizes display names across the UI.
+
+### Key Capabilities
+- **Filter Label Update**: Renamed "Time" filter label to "Equipe" in `ContractsPage.tsx`.
+- **Multi-Matrícula Filter**: Upgraded the Matrícula filter from a single text input to a Mantine `MultiSelect` component, supporting multiple values per query across frontend and backend (`List<string>`).
+- **Pascal Case Name Normalization**: On-read string transformation function `normalizeName()` in `normalization.ts` that converts names into Pascal Case while preserving Portuguese particles (`de`, `da`, `do`, `dos`, `das`, `e`) in lowercase. Applied across 30+ UI display sites (tables, dropdown labels, profile headers, notifications).
+
+

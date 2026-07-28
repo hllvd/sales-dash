@@ -271,7 +271,7 @@ export const getContracts = async (
   endDate?: string,
   contractNumber?: string,
   showUnassigned?: boolean,
-  matricula?: string,
+  matricula?: string | string[],
   userEmail?: string,
   teamIds?: number[],
   userIds?: string[],
@@ -285,9 +285,15 @@ export const getContracts = async (
   if (endDate) params.append('endDate', endDate);
   if (contractNumber) params.append('contractNumber', contractNumber);
   if (showUnassigned !== undefined) params.append('showUnassigned', showUnassigned.toString());
-  if (matricula) params.append('matricula', matricula);
+  if (matricula) {
+    if (Array.isArray(matricula)) {
+      matricula.forEach(m => params.append('matricula', m));
+    } else {
+      params.append('matricula', matricula);
+    }
+  }
   if (userEmail) params.append('userEmail', userEmail);
-  // ASP.NET Core binds repeated keys as a List<int>
+  // ASP.NET Core binds repeated keys as a List<int>/List<string>
   if (teamIds && teamIds.length > 0) teamIds.forEach(id => params.append('teamIds', id.toString()));
   if (userIds && userIds.length > 0) userIds.forEach(id => params.append('userIds', id));
   if (page !== undefined) params.append('page', page.toString());

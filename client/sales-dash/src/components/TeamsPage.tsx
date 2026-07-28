@@ -7,7 +7,7 @@ import FormField from './FormField';
 import TeamMembersModal from './TeamMembersModal';
 import { apiService, Team, User } from "../services/apiService"
 import { useReferenceData } from "../contexts/ReferenceDataContext"
-import { normalizeTeamName } from "../utils/normalization"
+import { normalizeTeamName, normalizeName } from "../utils/normalization"
 import "./TeamsPage.css"
 
 const TeamsPage: React.FC = () => {
@@ -406,7 +406,7 @@ const TeamsPage: React.FC = () => {
                           {team.owner ? (
                             <Group gap="xs">
                               <Badge color="yellow" variant="light" leftSection={<IconCrown size={12} />}>
-                                {team.owner.userName}
+                                {normalizeName(team.owner.userName)}
                               </Badge>
                               <Text size="xs" c="dimmed">({team.owner.userEmail})</Text>
                             </Group>
@@ -421,7 +421,7 @@ const TeamsPage: React.FC = () => {
                             </Badge>
                             {activeMembers.length > 0 && (
                               <Text size="xs" c="dimmed" truncate style={{ maxWidth: '300px' }}>
-                                {activeMembers.map(m => m.userName).join(', ')}
+                                {activeMembers.map(m => normalizeName(m.userName)).join(', ')}
                               </Text>
                             )}
                           </Group>
@@ -605,7 +605,7 @@ const TeamsPage: React.FC = () => {
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <IconUser size={14} color={isSelectedOwner ? "#eab308" : "#9ca3af"} />
                                     <span style={{ fontWeight: 600, color: isSelectedOwner ? "#fef08a" : "#fff" }}>
-                                      {user.name}
+                                      {normalizeName(user.name)}
                                     </span>
                                     {isSelectedOwner && (
                                       <Badge color="yellow" size="xs" variant="filled" leftSection={<IconCrown size={8} />}>

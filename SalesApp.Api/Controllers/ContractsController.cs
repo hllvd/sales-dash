@@ -117,7 +117,7 @@ namespace SalesApp.Controllers
             [FromQuery] DateTime? endDate = null,
             [FromQuery] string? contractNumber = null,
             [FromQuery] bool? showUnassigned = null,
-            [FromQuery] string? matricula = null,
+            [FromQuery] List<string>? matricula = null,
             [FromQuery] string? userEmail = null,
             [FromQuery] List<int>? teamIds = null,
             [FromQuery] List<Guid>? userIds = null,

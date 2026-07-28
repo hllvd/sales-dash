@@ -29,6 +29,7 @@ import {
 import "./UserTreePage.css"
 import Menu from "./Menu"
 import { apiService, UserHierarchyNode, User } from "../services/apiService"
+import { normalizeName } from "../utils/normalization"
 import { UserProfileModal } from "./UserProfile"
 import UserForm from "./UserForm"
 
@@ -62,7 +63,7 @@ const UserTreePage: React.FC = () => {
             setAvailableUsers(
               res.data.items.map(u => ({
                 value: u.id,
-                label: `${u.name} (${u.email})`
+                label: `${normalizeName(u.name)} (${u.email})`
               }))
             )
           }
@@ -240,7 +241,7 @@ const UserTreePage: React.FC = () => {
 
         <div className="tree-node-content">
           <Group gap="xs" align="center">
-            <span className="tree-node-name">{userNode.name}</span>
+            <span className="tree-node-name">{normalizeName(userNode.name)}</span>
             {getRoleBadge(userNode.role)}
             {isInactive && <Badge size="xs" color="gray" variant="outline">Inativo</Badge>}
             {userNode.ownedTeamName && (

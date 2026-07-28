@@ -970,6 +970,7 @@ export const apiService = {
     contractNumber?: string;
     showUnassigned?: boolean;
     matricula?: string;
+    matriculas?: string[];
     userEmail?: string;
     teamIds?: number[];
     userIds?: string[];

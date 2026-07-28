@@ -16,6 +16,7 @@ import { apiService, Team } from '../services/apiService';
 import { useContractsContext } from '../contexts/ContractsContext';
 import { useReferenceData } from '../contexts/ReferenceDataContext';
 import { toast } from '../utils/toast';
+import { normalizeName } from '../utils/normalization';
 import {
   Contract,
   User,
@@ -87,8 +88,9 @@ const ContractsPage: React.FC = () => {
   const [debouncedContractNumber, setDebouncedContractNumber] = useState('');
   const [filterShowUnassigned, setFilterShowUnassigned] = useState<string>('all');
   const [debouncedShowUnassigned, setDebouncedShowUnassigned] = useState<string>('all');
-  const [filterMatricula, setFilterMatricula] = useState('');
-  const [debouncedMatricula, setDebouncedMatricula] = useState('');
+  const [filterMatriculas, setFilterMatriculas] = useState<string[]>([]);
+  const [debouncedMatriculas, setDebouncedMatriculas] = useState<string[]>([]);
+  const [matriculaSearch, setMatriculaSearch] = useState('');
   const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]); // stored as string[] for Mantine MultiSelect
   const [debouncedTeamIds, setDebouncedTeamIds] = useState<string[]>([]);
 
@@ -159,7 +161,7 @@ const ContractsPage: React.FC = () => {
         debouncedEndDate || undefined,
         debouncedContractNumber || undefined,
         debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
-        debouncedMatricula || undefined,
+        debouncedMatriculas.length > 0 ? debouncedMatriculas : undefined,
         undefined, // userEmail
         debouncedTeamIds.length > 0 ? debouncedTeamIds.map(id => parseInt(id)) : undefined,
         debouncedUserIds.length > 0 ? debouncedUserIds : undefined,
@@ -182,7 +184,7 @@ const ContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds, debouncedUserIds, currentPage, pageSize, setCachedContracts]);
+  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedUserIds, currentPage, pageSize, setCachedContracts]);
 
   // Load saved filters from localStorage
   useEffect(() => {
@@ -222,12 +224,12 @@ const ContractsPage: React.FC = () => {
       setDebouncedEndDate(filterEndDate);
       setDebouncedContractNumber(filterContractNumber);
       setDebouncedShowUnassigned(filterShowUnassigned);
-      setDebouncedMatricula(filterMatricula);
+      setDebouncedMatriculas(filterMatriculas);
       setDebouncedTeamIds(filterTeamIds);
     }, 500); // 500ms debounce for all fields
 
     return () => clearTimeout(timer);
-  }, [filterUserIds, filterStartDate, filterEndDate, filterContractNumber, filterShowUnassigned, filterMatricula, filterTeamIds]);
+  }, [filterUserIds, filterStartDate, filterEndDate, filterContractNumber, filterShowUnassigned, filterMatriculas, filterTeamIds]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -237,7 +239,7 @@ const ContractsPage: React.FC = () => {
   // Reset to page 1 when filters change (using debounced values to avoid flickering)
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedUserIds, debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatricula, debouncedTeamIds]);
+  }, [debouncedUserIds, debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds]);
 
   // Calculate pagination
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -313,7 +315,7 @@ const ContractsPage: React.FC = () => {
                       endDate: debouncedEndDate || undefined,
                       contractNumber: debouncedContractNumber || undefined,
                       showUnassigned: debouncedShowUnassigned === 'unassigned' ? true : debouncedShowUnassigned === 'assigned' ? false : undefined,
-                      matricula: debouncedMatricula || undefined,
+                      matriculas: debouncedMatriculas.length > 0 ? debouncedMatriculas : undefined,
                       teamIds: debouncedTeamIds.length > 0 ? debouncedTeamIds.map(id => parseInt(id)) : undefined,
                       userIds: debouncedUserIds.length > 0 ? debouncedUserIds : undefined,
                     });
@@ -356,7 +358,7 @@ const ContractsPage: React.FC = () => {
             placeholder={users.length === 0 ? 'Nenhum usuário disponível' : 'Selecionar usuários...'}
             value={filterUserIds}
             onChange={setFilterUserIds}
-            data={users.map(u => ({ value: u.id, label: u.email ? `${u.name} (${u.email})` : u.name }))}
+            data={users.map(u => ({ value: u.id, label: u.email ? `${normalizeName(u.name)} (${u.email})` : normalizeName(u.name) }))}
             clearable
             searchable
             styles={{ input: { minHeight: '36px' } }}
@@ -377,7 +379,7 @@ const ContractsPage: React.FC = () => {
         </div>
 
         <div className="filter-group">
-          <label htmlFor="filterTeam">Time</label>
+          <label htmlFor="filterTeam">Equipe</label>
           <MultiSelect
             id="filterTeam"
             placeholder={teams.length === 0 ? 'Nenhum time disponível' : 'Selecionar times...'}
@@ -392,12 +394,27 @@ const ContractsPage: React.FC = () => {
 
         <div className="filter-group">
           <label htmlFor="filterMatricula">Matrícula</label>
-          <input
-            type="text"
+          <MultiSelect
             id="filterMatricula"
-            value={filterMatricula}
-            onChange={(e) => setFilterMatricula(e.target.value)}
             placeholder="Filtrar por matrícula..."
+            value={filterMatriculas}
+            onChange={setFilterMatriculas}
+            searchValue={matriculaSearch}
+            onSearchChange={setMatriculaSearch}
+            data={filterMatriculas}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && matriculaSearch.trim()) {
+                e.preventDefault();
+                const val = matriculaSearch.trim();
+                if (!filterMatriculas.includes(val)) {
+                  setFilterMatriculas([...filterMatriculas, val]);
+                }
+                setMatriculaSearch('');
+              }
+            }}
+            clearable
+            searchable
+            styles={{ input: { minHeight: '36px' } }}
           />
         </div>
 
@@ -454,7 +471,7 @@ const ContractsPage: React.FC = () => {
         </div>
 
 
-        {(filterUserIds.length > 0 || filterStartDate || filterEndDate || filterContractNumber || filterMatricula || filterShowUnassigned !== 'all' || filterTeamIds.length > 0) && (
+        {(filterUserIds.length > 0 || filterStartDate || filterEndDate || filterContractNumber || filterMatriculas.length > 0 || filterShowUnassigned !== 'all' || filterTeamIds.length > 0) && (
           <button
             className="clear-filters-btn"
             onClick={() => {
@@ -466,8 +483,8 @@ const ContractsPage: React.FC = () => {
               setDebouncedEndDate('');
               setFilterContractNumber('');
               setDebouncedContractNumber('');
-              setFilterMatricula('');
-              setDebouncedMatricula('');
+              setFilterMatriculas([]);
+              setDebouncedMatriculas([]);
               setFilterShowUnassigned('all');
               setDebouncedShowUnassigned('all');
               setFilterTeamIds([]);
@@ -525,11 +542,11 @@ const ContractsPage: React.FC = () => {
               {paginatedContracts.map((contract) => (
                 <Table.Tr key={contract.id}>
                   {visibleColumns.contractNumber && <Table.Td>{contract.contractNumber}</Table.Td>}
-                  {visibleColumns.user && <Table.Td>{contract.userName}</Table.Td>}
+                  {visibleColumns.user && <Table.Td>{normalizeName(contract.userName)}</Table.Td>}
                   {visibleColumns.matricula && <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>}
                   {visibleColumns.group && <Table.Td>{contract.groupName}</Table.Td>}
                   {visibleColumns.quota && <Table.Td>{contract.quota || '-'}</Table.Td>}
-                  {visibleColumns.customer && <Table.Td>{contract.customerName || '-'}</Table.Td>}
+                  {visibleColumns.customer && <Table.Td>{normalizeName(contract.customerName) || '-'}</Table.Td>}
                   {visibleColumns.totalAmount && <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>}
                   {visibleColumns.status && (
                     <Table.Td>

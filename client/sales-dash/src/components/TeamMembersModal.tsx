@@ -9,7 +9,7 @@ import {
   IconUsers, IconUser, IconCheck, IconCalendar, IconX, IconSitemap
 } from '@tabler/icons-react';
 import { apiService, Team, TeamMember, User } from '../services/apiService';
-import { normalizeTeamName } from '../utils/normalization';
+import { normalizeTeamName, normalizeName } from '../utils/normalization';
 import { useReferenceData } from '../contexts/ReferenceDataContext';
 import './TeamMembersModal.css';
 
@@ -94,7 +94,7 @@ const AvailableUserCard: React.FC<AvailableUserCardProps> = ({ user, onAdd, addi
       <IconUser size={16} color="#495057" />
     </div>
     <div className="tmc-user-card__info">
-      <span className="tmc-user-card__name">{user.name}</span>
+      <span className="tmc-user-card__name">{normalizeName(user.name)}</span>
       <span className="tmc-user-card__email">{user.email}</span>
       {(user.currentTeamName || user.parentEmail) && (
         <div className="tmc-user-card__meta">
@@ -105,7 +105,7 @@ const AvailableUserCard: React.FC<AvailableUserCardProps> = ({ user, onAdd, addi
             </span>
           )}
           {user.parentEmail && (
-            <span className="tmc-user-card__meta-item tmc-user-card__meta-item--parent" title={`Superior: ${user.parentUserName || ''} (${user.parentEmail})`}>
+            <span className="tmc-user-card__meta-item tmc-user-card__meta-item--parent" title={`Superior: ${normalizeName(user.parentUserName) || ''} (${user.parentEmail})`}>
               <IconSitemap size={10} style={{ marginRight: 3 }} />
               {user.parentEmail}
             </span>
@@ -182,7 +182,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, allUsers, onRemove, onS
       </div>
       <div className="tmc-user-card__info">
         <Group gap={6} align="center">
-          <span className="tmc-user-card__name">{member.userName}</span>
+          <span className="tmc-user-card__name">{normalizeName(member.userName)}</span>
           {member.isOwner && (
             <Badge size="xs" color="yellow" variant="filled" leftSection={<IconCrown size={8} />}>
               Chefe
@@ -192,7 +192,7 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, allUsers, onRemove, onS
         <span className="tmc-user-card__email">{member.userEmail}</span>
         {userDetail?.parentEmail && (
           <div className="tmc-user-card__meta">
-            <span className="tmc-user-card__meta-item tmc-user-card__meta-item--parent" title={`Superior: ${userDetail.parentUserName || ''} (${userDetail.parentEmail})`}>
+            <span className="tmc-user-card__meta-item tmc-user-card__meta-item--parent" title={`Superior: ${normalizeName(userDetail.parentUserName) || ''} (${userDetail.parentEmail})`}>
               <IconSitemap size={10} style={{ marginRight: 3 }} />
               {userDetail.parentEmail}
             </span>
@@ -440,7 +440,7 @@ const TeamMembersModal: React.FC<Props> = ({
           });
         });
       } else {
-        notifications.show({ message: `${user.name} adicionado à equipe`, color: 'green', autoClose: 2000 });
+        notifications.show({ message: `${normalizeName(user.name)} adicionado à equipe`, color: 'green', autoClose: 2000 });
       }
     } catch (e: any) {
       notifications.show({ title: 'Erro', message: e.message || 'Falha ao adicionar membro', color: 'red' });

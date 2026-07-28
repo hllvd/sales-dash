@@ -9,6 +9,7 @@ namespace SalesApp.DTOs
         public string? ContractNumber { get; set; }
         public bool? ShowUnassigned { get; set; }
         public string? Matricula { get; set; }
+        public List<string>? Matriculas { get; set; }
         public string? UserEmail { get; set; }
         public List<int>? TeamIds { get; set; }
         public List<Guid>? UserIds { get; set; }

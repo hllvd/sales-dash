@@ -193,6 +193,8 @@ namespace SalesApp.Services
                 using var scope = _scopeFactory.CreateScope();
                 var contractRepo = scope.ServiceProvider.GetRequiredService<IContractRepository>();
 
+                var matriculas = job.Filters.Matriculas ?? (!string.IsNullOrEmpty(job.Filters.Matricula) ? new List<string> { job.Filters.Matricula } : null);
+
                 var contracts = await contractRepo.GetAllAsync(
                     job.Filters.UserId,
                     job.Filters.GroupId,
@@ -200,7 +202,7 @@ namespace SalesApp.Services
                     job.Filters.EndDate,
                     job.Filters.ContractNumber,
                     job.Filters.ShowUnassigned,
-                    job.Filters.Matricula,
+                    matriculas,
                     job.Filters.UserEmail,
                     job.Scope,
                     job.Filters.TeamIds,

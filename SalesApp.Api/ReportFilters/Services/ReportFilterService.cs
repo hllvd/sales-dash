@@ -446,7 +446,7 @@ namespace SalesApp.ReportFilters.Services
                 endDate: resolvedEndDate,
                 contractNumber: null,
                 showUnassigned: null,
-                matriculaNumber: matriculaFilter,
+                matriculaNumbers: !string.IsNullOrEmpty(matriculaFilter) ? new List<string> { matriculaFilter } : null,
                 userEmail: emailFilter,
                 scope: null // No scope restriction for superadmin-executed reports
             );

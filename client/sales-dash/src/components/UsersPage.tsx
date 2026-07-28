@@ -17,6 +17,8 @@ import { UserProfileModal } from "./UserProfile"
 import { DeleteUserModal } from "./DeleteUserModal"
 
 
+import { normalizeName } from "../utils/normalization"
+
 const UsersPage: React.FC = () => {
   // Track latest API request to prevent race conditions
   const requestCountRef = useRef(0);
@@ -275,11 +277,11 @@ const UsersPage: React.FC = () => {
                                 style={{ cursor: 'pointer', color: '#6366f1', fontWeight: 600 }}
                                 onClick={() => setSelectedProfileUserId(user.id)}
                               >
-                                {user.name}
+                                {normalizeName(user.name)}
                               </span>
                               {user.parentUserName && (
                                 <span className="user-parent">
-                                  Pai: {user.parentUserName}
+                                  Pai: {normalizeName(user.parentUserName)}
                                 </span>
                               )}
                             </div>

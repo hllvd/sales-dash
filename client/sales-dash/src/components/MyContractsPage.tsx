@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Title, Button, Table, TextInput, Select, Alert, Badge } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { normalizeNumber } from '../utils/normalization';
+import { normalizeNumber, normalizeName } from '../utils/normalization';
 import './MyContractsPage.css';
 import Menu from './Menu';
 import StandardModal from '../shared/StandardModal';
@@ -480,7 +480,7 @@ const MyContractsPage: React.FC = () => {
                   {contracts.map((contract) => (
                     <Table.Tr key={contract.id}>
                       <Table.Td>{contract.contractNumber}</Table.Td>
-                      <Table.Td>{contract.customerName || '-'}</Table.Td>
+                      <Table.Td>{normalizeName(contract.customerName) || '-'}</Table.Td>
                       <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
                       <Table.Td>{contract.groupName}</Table.Td>
                       <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
@@ -577,7 +577,7 @@ const MyContractsPage: React.FC = () => {
                   {matriculaPendingClaims.map(claim => (
                     <Table.Tr key={claim.id}>
                       <Table.Td>{claim.contractNumber}</Table.Td>
-                      <Table.Td>{claim.userName}</Table.Td>
+                      <Table.Td>{normalizeName(claim.userName)}</Table.Td>
                       <Table.Td>{claim.userEmail}</Table.Td>
                       <Table.Td>{claim.matriculaNumber}</Table.Td>
                       <Table.Td>{new Date(claim.claimedAt).toLocaleDateString('pt-BR')}</Table.Td>
@@ -677,7 +677,7 @@ const MyContractsPage: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
                     <span style={{ color: '#6b7280', fontSize: '13px' }}>Cliente:</span>
-                    <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{retrievedContract.customerName || '-'}</span>
+                    <span style={{ color: '#111827', fontSize: '14px', fontWeight: 500 }}>{normalizeName(retrievedContract.customerName) || '-'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
                     <span style={{ color: '#6b7280', fontSize: '13px' }}>Grupo:</span>

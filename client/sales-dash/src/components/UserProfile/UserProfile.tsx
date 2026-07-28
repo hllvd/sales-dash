@@ -6,6 +6,7 @@ import { apiService, User, UserClassification, UserStats } from '../../services/
 import { UserMetadataSection } from './UserMetadataSection';
 import { toast } from '../../utils/toast';
 import { validatePassword } from '../../utils/validators';
+import { normalizeName } from '../../utils/normalization';
 import './UserProfile.css';
 
 export interface UserProfileProps {
@@ -281,7 +282,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
           
           <div className="profile-header-info">
             <div className="profile-name-row">
-              <Title order={2} className="profile-title">{user.name}</Title>
+              <Title order={2} className="profile-title">{normalizeName(user.name)}</Title>
               <div className="profile-badges">
                 <Badge 
                   color={user.role === 'superadmin' ? 'red' : user.role === 'admin' ? 'blue' : 'gray'}
@@ -308,7 +309,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
               {user.parentUserName && (
                 <div className="profile-meta-item">
                   <span className="meta-label">Supervisor / Indicador:</span>
-                  <span className="meta-value">{user.parentUserName}</span>
+                  <span className="meta-value">{normalizeName(user.parentUserName)}</span>
                 </div>
               )}
               <div className="profile-meta-item">

@@ -131,8 +131,8 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Changed `testMatricula` in `matricula_ownership.spec.ts` to dynamic `'OWNERSHIP-TEST-' + Date.now()`.
 **Result:** ✅ Green — 131/131 passed
 
-## [2026-07-23] e2e — Attempt 7
-**Failure:** `approval_requests.spec.ts` — `toBeVisible()` for success message + `toBeVisible()` for row text.
-**Root cause:** (1) Success alert rendered outside closed modal; test was looking before modal closed. (2) Mantine `TextInput` requires `pressSequentially` (not `fill`) to update React state. (3) `text=Alteração de Superior (ParentEmail)` text locator was too broad for cell matching. Also: backend `JsonSerializer.Deserialize` needed `PropertyNameCaseInsensitive = true` (ApprovalService.cs fix).
-**Fix applied:** Replaced `toBeVisible()` with `toHaveCount(0)` on dialog + alert filter; replaced `fill()` with `pressSequentially()`; replaced `text=` locator with `getByRole('cell', ...)`. Added `PropertyNameCaseInsensitive = true` to all `Deserialize` calls in `ApprovalService.cs`.
-**Result:** ✅ Green — 130/130 passed
+## [2026-07-27] e2e — Attempt 2
+**Failure:** `team_members_management.spec.ts` failed on `expect(rightCol).toContainText(users.childA.name)` due to exact string case mismatch against normalized name (`Child A abcdefgh` vs `Child A Abcdefgh`).
+**Root cause:** Lines 471 & 474 in `team_members_management.spec.ts` used strict string comparison against un-normalized user name.
+**Fix applied:** Updated lines 471 & 474 in `team_members_management.spec.ts` to use case-insensitive regex `new RegExp(users.childA.name, 'i')`.
+**Result:** ✅ Green
