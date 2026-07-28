@@ -63,13 +63,16 @@ Examples: failing assertions, wrong selectors, bad test data, API mismatch in te
 
 ## Step 3 — Retry loop (TTL = 5 per target)
 
+> [!IMPORTANT]
+> **E2E Target Execution:** Whenever running or retrying the `e2e` target, **ALWAYS** run `./test.sh rm-db && ./test.sh e2e` instead of `./test.sh e2e` alone. Resetting the database clears stale data and prevents false test failures.
+
 ```
 ATTEMPT = 1
 
 while ATTEMPT <= 5:
   1. Check scripts/memory.md — if this exact failure was already tried, skip that fix.
   2. Apply minimal fix (see Fix Scope below).
-  3. Run ./test.sh <failing-target>   ← only the failing target, not all
+  3. Run ./test.sh <failing-target>   ← only failing target (for 'e2e', ALWAYS run `./test.sh rm-db && ./test.sh e2e`)
   4. Read artifacts/<target>-errors.log
   5. Write entry to scripts/memory.md (see format below).
   6. If 0 errors → ✅ target green. Move to next failing target.

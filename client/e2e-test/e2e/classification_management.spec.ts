@@ -155,13 +155,8 @@ test.describe('User Classification and Level Management (TEAR 3)', () => {
     const assignedUserName = await selectUserCard.locator('.cls-member-card__name').innerText();
     console.log(`>>> Assigning user to level: ${assignedUserName}`);
     
-    // Select the user
+    // Click the user card to assign immediately
     await selectUserCard.click();
-    
-    // Start Date is already default today. We click assign
-    const assignBtn = membersModal.locator('button[type="submit"]');
-    await expect(assignBtn).toContainText('Atribuir Nível a 1 usuário(s)');
-    await assignBtn.click();
 
     // Settle SQLite write delay
     await page.waitForTimeout(500);

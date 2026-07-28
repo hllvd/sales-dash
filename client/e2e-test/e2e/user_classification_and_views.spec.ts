@@ -115,11 +115,8 @@ test.describe('User Classification and Views Engine E2E Tests', () => {
     const assignedUserName = await selectUserCard.locator('.cls-member-card__name').innerText();
     console.log(`>>> Selected user for assignment: ${assignedUserName}`);
 
+    // Click user card to assign immediately
     await selectUserCard.click();
-
-    const assignBtn = membersModal.locator('button[type="submit"]');
-    await expect(assignBtn).toContainText('Atribuir Nível a 1 usuário(s)');
-    await assignBtn.click();
 
     // Wait for the server write & DOM update
     await page.waitForTimeout(800);

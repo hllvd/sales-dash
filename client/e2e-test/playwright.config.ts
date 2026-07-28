@@ -78,6 +78,7 @@ export default defineConfig({
         'team_members_management.spec.ts',
         'classification_management.spec.ts',
         'classification_next_level.spec.ts',
+        'classification_members_modal.spec.ts',
         'user_classification_and_views.spec.ts',
         'import_wizard_aliases.spec.ts',
         'pending_contract_claims.spec.ts',

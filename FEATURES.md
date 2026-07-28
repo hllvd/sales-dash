@@ -324,4 +324,22 @@ Trims leading and trailing whitespace from search inputs across all frontend pag
 - **Internal Whitespace Preservation**: Preserves spaces within multi-word search phrases (such as first and last names, e.g. `"João Silva"`).
 - **Universal Application**: Standardizes search query handling across list pages, modals, selection dropdowns, and monitoring dashboards.
 
+## User Classification Modal UX Parity & Admin Scoping (2026-07-28)
+
+Aligns the user classification level members modal with the Teams modal UX: wider modal (`size="85%"`), column order swap (Atribuir Novos Membros on the left, Membros Ativos on the right), search filter in Membros Ativos, click-to-add user assignment, and admin hierarchy scoping (BFS subordinate user pool).
+
+### Key Capabilities
+- **Column Swap & Layout**: Placed "Atribuir Novos Membros" on the left column and "Membros Ativos" on the right column.
+- **Wider Modal Window**: Increased modal dialog size to 85% width matching the Teams modal styling.
+- **Search in Active Members**: Added search input (`IconSearch`) in "Membros Ativos" to quickly filter assigned level members by name or email.
+- **Click-to-Add Flow**: Single-click user card assignment (removing checkboxes and bulk submit button) applying selected start/end dates immediately.
+- **Admin Hierarchy Scoping**: Reused BFS subordinate tree resolution from `TeamMembersModal` so `Admin` users only see their direct and indirect subordinates in the user assignment list, while `SuperAdmin` users see all active users.
+
+### Key Files Created / Modified
+- `client/sales-dash/src/components/ClassificationsPage.tsx` — Updated modal layout, user pool BFS scoping, search on active members, and click-to-add handler.
+- `client/sales-dash/src/components/ClassificationsPage.css` — Modal grid adjustments.
+- `client/e2e-test/e2e/classification_management.spec.ts` — Updated E2E tests to match click-to-add interaction.
+- `client/e2e-test/e2e/classification_members_modal.spec.ts` — Added dedicated E2E test spec for classification members modal UX.
+
+
 

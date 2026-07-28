@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Title, Button, ActionIcon, Group, Badge, Text, TextInput, Textarea,
-  Modal, Stack, ScrollArea, Tooltip, Loader, Divider, Checkbox, Select, NumberInput
+  Modal, Stack, ScrollArea, Tooltip, Loader, Divider, Select, NumberInput
 } from '@mantine/core'
 import {
   IconPlus, IconEdit, IconTrash, IconStar, IconUsers, IconTrophy,
   IconHistory, IconUserPlus, IconCheck, IconX, IconMedal,
-  IconChevronDown, IconChevronUp, IconArrowRight, IconTarget, IconLink, IconRefresh
+  IconChevronDown, IconChevronUp, IconArrowRight, IconTarget, IconLink, IconRefresh, IconSearch
 } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import Menu from './Menu'
 import { useReferenceData } from '../contexts/ReferenceDataContext'
+import { useCurrentUser } from '../contexts/CurrentUserContext'
 import {
   apiService, ClassificationLevel, UserClassification, User,
   CreateClassificationLevelRequest
@@ -35,6 +36,7 @@ const ClassificationsPage: React.FC = () => {
     invalidateClassificationLevels,
     invalidateAllUsers
   } = useReferenceData()
+  const { currentUser } = useCurrentUser()
   const [levels, setLevels] = useState<ClassificationLevel[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,12 +68,12 @@ const ClassificationsPage: React.FC = () => {
   const [inactiveCollapsed, setInactiveCollapsed] = useState(true)
   const [membersLoading, setMembersLoading] = useState(false)
 
-  // Assign multiple users states inside members modal
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+  // Assign user states inside members modal
   const [assignStart, setAssignStart] = useState(todayISO())
   const [assignEnd, setAssignEnd] = useState('')
-  const [assigning, setAssigning] = useState(false)
+  const [assigningUserId, setAssigningUserId] = useState<string | null>(null)
   const [userSearch, setUserSearch] = useState('')
+  const [activeMemberSearch, setActiveMemberSearch] = useState('')
 
   // History modal
   const [historyUser, setHistoryUser] = useState<User | null>(null)
@@ -191,8 +193,8 @@ const ClassificationsPage: React.FC = () => {
   // ── Members modal ────────────────────────────────────────────────────────
   const openMembers = async (level: ClassificationLevel) => {
     setMembersLevel(level)
-    setSelectedUserIds([])
     setUserSearch('')
+    setActiveMemberSearch('')
     setInactiveCollapsed(true)
     setMembersLoading(true)
     try {
@@ -221,43 +223,31 @@ const ClassificationsPage: React.FC = () => {
     }
   }
 
-  const handleAssignBulk = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (selectedUserIds.length === 0) return
-    setAssigning(true)
+  const handleAssignUser = async (user: User) => {
+    if (!membersLevel) return
+    setAssigningUserId(user.id)
     try {
-      await Promise.all(
-        selectedUserIds.map(userId =>
-          apiService.assignUserLevel({
-            userId,
-            levelId: membersLevel!.id,
-            startDate: new Date(assignStart).toISOString(),
-            endDate: assignEnd ? new Date(assignEnd).toISOString() : null
-          })
-        )
-      )
+      await apiService.assignUserLevel({
+        userId: user.id,
+        levelId: membersLevel.id,
+        startDate: new Date(assignStart).toISOString(),
+        endDate: assignEnd ? new Date(assignEnd).toISOString() : null
+      })
       notifications.show({
-        title: 'Níveis atribuídos!',
-        message: `${selectedUserIds.length} usuários foram classificados com sucesso.`,
+        title: 'Nível atribuído!',
+        message: `${user.name} foi classificado(a) com sucesso.`,
         color: 'green',
         icon: <IconCheck size={16} />
       })
-      setSelectedUserIds([])
       invalidateClassificationLevels()
       invalidateAllUsers()
       await fetchLevels(true)
-      openMembers(membersLevel!)
+      openMembers(membersLevel)
     } catch (e: any) {
       notifications.show({ title: 'Erro na atribuição', message: e.message, color: 'red', icon: <IconX size={16} /> })
     } finally {
-      setAssigning(false)
+      setAssigningUserId(null)
     }
-  }
-
-  const toggleUserSelection = (userId: string) => {
-    setSelectedUserIds(prev =>
-      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
-    )
   }
 
   // ── History modal ────────────────────────────────────────────────────────
@@ -273,16 +263,47 @@ const ClassificationsPage: React.FC = () => {
     }
   }
 
+  // ── Scoped user pool (admin = BFS subordinates; superadmin = all) ─────────
+  const userPool = useMemo(() => {
+    const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin'
+    if (isSuperAdmin) return allUsers
+
+    if (!currentUser?.id) return allUsers
+    const currentUserId = currentUser.id
+
+    // BFS to collect admin's children (subordinates)
+    const visited = new Set<string>([currentUserId])
+    const queue = [currentUserId]
+    while (queue.length) {
+      const id = queue.shift()!
+      for (const u of allUsers) {
+        if (u.parentUserId === id && !visited.has(u.id)) {
+          visited.add(u.id)
+          queue.push(u.id)
+        }
+      }
+    }
+    return allUsers.filter(u => visited.has(u.id) && u.id !== currentUserId)
+  }, [allUsers, currentUser])
+
   // ── Filtered users for assign panel ──────────────────────────────────────
   const memberIds = new Set(levelMembers.map(m => m.userId))
   const trimmedUserSearch = userSearch.trim().toLowerCase()
-  const filteredUsers = allUsers
+  const filteredUsers = userPool
     .filter(u => !memberIds.has(u.id))
     .filter(u =>
       !trimmedUserSearch ||
       u.name.toLowerCase().includes(trimmedUserSearch) ||
       u.email.toLowerCase().includes(trimmedUserSearch)
     )
+
+  // ── Filtered active members for right column ─────────────────────────────
+  const trimmedActiveSearch = activeMemberSearch.trim().toLowerCase()
+  const filteredActiveMembers = levelMembers.filter(m =>
+    !trimmedActiveSearch ||
+    m.userName.toLowerCase().includes(trimmedActiveSearch) ||
+    m.userEmail.toLowerCase().includes(trimmedActiveSearch)
+  )
 
   // ── Order levels by salesGoal ASCENDING ──────────────────────────────
   const sortedLevels = [...levels].sort((a, b) => {
@@ -547,11 +568,11 @@ const ClassificationsPage: React.FC = () => {
           </Modal>
         )}
 
-        {/* ── Members Modal (Two-Column Split, Always Shows User List, Multi-Select) ── */}
+        {/* ── Members Modal (Two-Column Split, Left: Available Users, Right: Members) ── */}
         {membersLevel && (
           <Modal
             opened={!!membersLevel}
-            onClose={() => { setMembersLevel(null); setLevelMembers([]); setSelectedUserIds([]) }}
+            onClose={() => { setMembersLevel(null); setLevelMembers([]) }}
             title={
               <Group gap="xs">
                 <IconTrophy size={20} color={levelColor(membersLevel.id)} />
@@ -559,7 +580,7 @@ const ClassificationsPage: React.FC = () => {
                 <Badge color="indigo" size="sm">{levelMembers.length} membros</Badge>
               </Group>
             }
-            size="xl"
+            size="85%"
             styles={{
               header: { backgroundColor: '#ffffff', borderBottom: '1px solid #e9ecef', padding: '20px 28px' },
               body: { backgroundColor: '#ffffff', padding: '24px 28px' },
@@ -568,21 +589,117 @@ const ClassificationsPage: React.FC = () => {
           >
             <div className="cls-modal-grid">
               
-              {/* Left Column: Active Members */}
+              {/* Left Column: Atribuir Novos Membros (Available Users Pool) */}
               <div className="cls-modal-col">
-                <Title order={5} style={{ color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <IconUsers size={18} color="#6366f1" /> Membros Ativos
-                </Title>
+                <Group justify="space-between" align="center">
+                  <Title order={5} style={{ color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <IconUserPlus size={18} color="#10b981" /> Atribuir Novos Membros
+                  </Title>
+                  <Badge variant="light" color="gray" size="sm">{filteredUsers.length}</Badge>
+                </Group>
                 <Divider />
                 
+                <Stack gap="sm">
+                  <Group grow>
+                    <div>
+                      <Text size="xs" fw={600} mb={4} c="dimmed">Data de Início *</Text>
+                      <input
+                        type="date"
+                        required
+                        value={assignStart}
+                        onChange={e => setAssignStart(e.target.value)}
+                        className="member-date-picker-input"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <div>
+                      <Text size="xs" fw={600} mb={4} c="dimmed">Data de Fim (opcional)</Text>
+                      <input
+                        type="date"
+                        value={assignEnd}
+                        onChange={e => setAssignEnd(e.target.value)}
+                        className="member-date-picker-input"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  </Group>
+
+                  <TextInput
+                    placeholder="Buscar usuário..."
+                    leftSection={<IconSearch size={14} />}
+                    value={userSearch}
+                    onChange={e => setUserSearch(e.target.value)}
+                    size="sm"
+                  />
+                  
+                  <ScrollArea h={320} offsetScrollbars>
+                    <Stack gap={6}>
+                      {filteredUsers.map(u => {
+                        const isAdding = assigningUserId === u.id
+                        return (
+                          <div
+                            key={u.id}
+                            className="cls-select-user-card"
+                            onClick={() => !isAdding && handleAssignUser(u)}
+                            title="Clique para atribuir ao nível"
+                          >
+                            <div className="cls-member-card__info">
+                              <div className="cls-member-card__name">{u.name}</div>
+                              <div className="cls-member-card__email">{u.email}</div>
+                              {u.currentLevelName && (
+                                <Badge size="xs" color="indigo" variant="light" mt={2}>
+                                  Nível atual: {u.currentLevelName}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="cls-user-card__action">
+                              {isAdding ? (
+                                <Loader size="xs" />
+                              ) : (
+                                <Tooltip label="Atribuir ao nível" withArrow position="left">
+                                  <ActionIcon variant="light" color="indigo" size="sm">
+                                    <IconUserPlus size={14} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {filteredUsers.length === 0 && (
+                        <Text size="sm" c="dimmed" ta="center" py="md">Nenhum usuário disponível</Text>
+                      )}
+                    </Stack>
+                  </ScrollArea>
+                </Stack>
+              </div>
+
+              {/* Right Column: Membros Ativos */}
+              <div className="cls-modal-col">
+                <Group justify="space-between" align="center">
+                  <Title order={5} style={{ color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <IconUsers size={18} color="#6366f1" /> Membros Ativos
+                  </Title>
+                  <Badge variant="light" color="indigo" size="sm">{filteredActiveMembers.length}</Badge>
+                </Group>
+                <Divider />
+                
+                <TextInput
+                  placeholder="Buscar membro..."
+                  leftSection={<IconSearch size={14} />}
+                  value={activeMemberSearch}
+                  onChange={e => setActiveMemberSearch(e.target.value)}
+                  size="sm"
+                />
+
                 {membersLoading ? (
                   <Group justify="center" p="md"><Loader size="sm" /></Group>
-                ) : levelMembers.length === 0 ? (
+                ) : filteredActiveMembers.length === 0 ? (
                   <Text size="sm" c="dimmed" ta="center" py="xl">Nenhum membro ativo neste nível</Text>
                 ) : (
                   <ScrollArea h={inactiveCollapsed ? 340 : 200}>
                     <Stack gap={8}>
-                      {levelMembers.map(m => (
+                      {filteredActiveMembers.map(m => (
                         <div key={m.id} className="cls-member-card">
                           <div className="cls-member-card__info">
                             <div className="cls-member-card__name">{m.userName}</div>
@@ -652,97 +769,6 @@ const ClassificationsPage: React.FC = () => {
                     )
                   )}
                 </Stack>
-              </div>
-
-              {/* Right Column: Multi-Select Assignment */}
-              <div className="cls-modal-col">
-                <Title order={5} style={{ color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <IconUserPlus size={18} color="#10b981" /> Atribuir Novos Membros
-                </Title>
-                <Divider />
-                
-                <form onSubmit={handleAssignBulk}>
-                  <Stack gap="sm">
-                    <TextInput
-                      placeholder="Buscar usuário..."
-                      value={userSearch}
-                      onChange={e => setUserSearch(e.target.value)}
-                      size="sm"
-                    />
-                    
-                    <ScrollArea h={320} offsetScrollbars>
-                      <Stack gap={6}>
-                        {filteredUsers.map(u => {
-                          const isSelected = selectedUserIds.includes(u.id)
-                          return (
-                            <div
-                              key={u.id}
-                              className={`cls-select-user-card ${isSelected ? 'selected' : ''}`}
-                              onClick={() => toggleUserSelection(u.id)}
-                            >
-                              <Checkbox
-                                checked={isSelected}
-                                onChange={() => {}} // toggled by outer click
-                                tabIndex={-1}
-                                color="indigo"
-                              />
-                              <div className="cls-member-card__info">
-                                <div className="cls-member-card__name">{u.name}</div>
-                                <div className="cls-member-card__email">{u.email}</div>
-                                {u.currentLevelName && (
-                                  <Badge size="xs" color="indigo" variant="light" mt={2}>
-                                    Nível atual: {u.currentLevelName}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                        {filteredUsers.length === 0 && (
-                          <Text size="sm" c="dimmed" ta="center" py="md">Nenhum usuário disponível</Text>
-                        )}
-                      </Stack>
-                    </ScrollArea>
-
-                    <Divider />
-
-                    <Group grow>
-                      <div>
-                        <Text size="xs" fw={600} mb={4} c="dimmed">Data de Início *</Text>
-                        <input
-                          type="date"
-                          required
-                          value={assignStart}
-                          onChange={e => setAssignStart(e.target.value)}
-                          className="member-date-picker-input"
-                          style={{ width: '100%' }}
-                        />
-                      </div>
-                      <div>
-                        <Text size="xs" fw={600} mb={4} c="dimmed">Data de Fim (opcional)</Text>
-                        <input
-                          type="date"
-                          value={assignEnd}
-                          onChange={e => setAssignEnd(e.target.value)}
-                          className="member-date-picker-input"
-                          style={{ width: '100%' }}
-                        />
-                      </div>
-                    </Group>
-
-                    <Button
-                      type="submit"
-                      color="indigo"
-                      loading={assigning}
-                      disabled={selectedUserIds.length === 0}
-                      fullWidth
-                    >
-                      {selectedUserIds.length === 0
-                        ? 'Selecione Usuários para Atribuir'
-                        : `Atribuir Nível a ${selectedUserIds.length} usuário(s)`}
-                    </Button>
-                  </Stack>
-                </form>
               </div>
               
             </div>
