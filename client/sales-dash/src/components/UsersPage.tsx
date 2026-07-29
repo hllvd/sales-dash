@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { Title, Button, Table, ActionIcon, Group, Badge } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Badge, Select } from '@mantine/core';
 import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload, IconMedal } from '@tabler/icons-react';
 import "./UsersPage.css"
 import Menu from "./Menu"
@@ -32,6 +32,7 @@ const UsersPage: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0)
   const [search, setSearch] = useState("")
   const [searchDebounce, setSearchDebounce] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("active")
   const [showForm, setShowForm] = useState(false)
   const [editingUser, setEditingUser] = useState<User | undefined>(undefined)
   const [showImportModal, setShowImportModal] = useState(false)
@@ -71,7 +72,11 @@ const UsersPage: React.FC = () => {
       const response = await apiService.getUsers(
         page,
         pageSize,
-        searchDebounce.trim() || undefined
+        searchDebounce.trim() || undefined,
+        undefined,
+        false,
+        false,
+        statusFilter
       )
 
       if (requestId !== requestCountRef.current) return
@@ -90,7 +95,7 @@ const UsersPage: React.FC = () => {
         setLoading(false)
       }
     }
-  }, [page, searchDebounce, setCachedUsers])
+  }, [page, searchDebounce, statusFilter, setCachedUsers])
 
   // Debounce search input
   useEffect(() => {
@@ -203,7 +208,7 @@ const UsersPage: React.FC = () => {
               <Title order={2} size="h2">Gerenciamento de Usuários</Title>
               <p className="users-subtitle">
                 {totalCount} {totalCount === 1 ? "usuário" : "usuários"}{" "}
-                cadastrado{totalCount === 1 ? "" : "s"}
+                {statusFilter === "active" ? "ativo" : statusFilter === "inactive" ? "inativo" : "cadastrado"}{totalCount === 1 ? "" : "s"}
               </p>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
@@ -222,13 +227,28 @@ const UsersPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="search-bar">
+          <div className="search-bar" style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <input
               type="text"
               placeholder="Buscar por nome ou email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="search-input"
+              style={{ flex: 1 }}
+            />
+            <Select
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value || "active")
+                setPage(1)
+              }}
+              data={[
+                { value: "active", label: "Ativos" },
+                { value: "inactive", label: "Inativos" },
+                { value: "all", label: "Todos" },
+              ]}
+              allowDeselect={false}
+              style={{ width: 140 }}
             />
           </div>
 

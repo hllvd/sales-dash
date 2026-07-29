@@ -168,7 +168,8 @@ export const apiService = {
     search?: string,
     contractNumber?: string,
     scopeToDescendants: boolean = false,
-    activeOnly: boolean = false
+    activeOnly: boolean = false,
+    status: string = "active"
   ): Promise<ApiResponse<PagedResponse<User>>> {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -189,6 +190,8 @@ export const apiService = {
 
     if (activeOnly) {
       params.append("activeOnly", "true")
+    } else if (status) {
+      params.append("status", status)
     }
 
     const response = await authenticatedFetch(`${API_BASE_URL}/users?${params}`, {

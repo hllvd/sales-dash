@@ -614,7 +614,8 @@ namespace SalesApp.Controllers
             [FromQuery] string? search = null,
             [FromQuery] string? contractNumber = null,
             [FromQuery] bool scopeToDescendants = false,
-            [FromQuery] bool activeOnly = false)
+            [FromQuery] bool activeOnly = false,
+            [FromQuery] string status = "active")
         {
             HashSet<Guid>? allowedUserIds = null;
             var roleIdClaim = User.FindFirst("role_id")?.Value;
@@ -625,7 +626,8 @@ namespace SalesApp.Controllers
                 allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);
             }
 
-            var (users, totalCount) = await _userRepository.GetAllAsync(page, pageSize, search, contractNumber, allowedUserIds, activeOnly);
+            var effectiveStatus = activeOnly ? "active" : status;
+            var (users, totalCount) = await _userRepository.GetAllAsync(page, pageSize, search, contractNumber, allowedUserIds, activeOnly, effectiveStatus);
             
             return Ok(new ApiResponse<PagedResponse<UserResponse>>
             {
@@ -902,13 +904,36 @@ namespace SalesApp.Controllers
                 });
             }
             
+            var isMatriculaOwner = await _context.UserMatriculas
+                .AnyAsync(um => um.UserInternalId == user.InternalId && um.IsOwner && um.IsActive && (um.EndDate == null || um.EndDate > DateTime.UtcNow));
+
+            // Close active team memberships
+            var activeTeams = await _context.UserTeams
+                .Where(ut => ut.UserInternalId == user.InternalId && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow))
+                .ToListAsync();
+            foreach (var ut in activeTeams)
+            {
+                ut.EndDate = DateTime.UtcNow;
+            }
+
+            // Close active classifications
+            var activeClassifications = await _context.UserClassifications
+                .Where(uc => uc.UserInternalId == user.InternalId && (uc.EndDate == null || uc.EndDate > DateTime.UtcNow))
+                .ToListAsync();
+            foreach (var uc in activeClassifications)
+            {
+                uc.EndDate = DateTime.UtcNow;
+            }
+
             user.IsActive = false;
             await _userRepository.UpdateAsync(user);
             
             return Ok(new ApiResponse<object>
             {
                 Success = true,
-                Message = _messageService.Get(AppMessage.UserDeletedSuccessfully)
+                Message = isMatriculaOwner 
+                    ? "Usuário desativado com sucesso. Por favor, defina a matrícula para outro proprietário."
+                    : _messageService.Get(AppMessage.UserDeletedSuccessfully)
             });
         }
         

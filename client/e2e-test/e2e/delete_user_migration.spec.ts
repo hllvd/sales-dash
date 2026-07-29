@@ -138,9 +138,9 @@ test.describe('Delete User with Contract Migration E2E Flow', () => {
     // Click Executar
     await deleteDialog.getByRole('button', { name: 'Executar' }).click();
 
-    // Verify success toast and check that user is inactive
+    // Verify success toast and check that user is no longer in active view
     await expect(page.getByText('1 contratos migrados e usuário')).toBeVisible({ timeout: 15000 });
-    await expect(childRow.getByText('Inativo')).toBeVisible({ timeout: 15000 });
+    await expect(childRow).not.toBeVisible({ timeout: 15000 });
   });
 
   test('admin should be able to delete direct child user and migrate their contracts', async ({ page }) => {
@@ -210,9 +210,9 @@ test.describe('Delete User with Contract Migration E2E Flow', () => {
     await expect(deleteDialog.getByText(ADMIN_MATRICULA)).toBeVisible();
     await deleteDialog.getByRole('button', { name: 'Executar' }).click();
 
-    // Verify success and inactive status
+    // Verify success and check that user is no longer in active view
     await expect(page.getByText('1 contratos migrados e usuário')).toBeVisible({ timeout: 15000 });
-    await expect(childRow.getByText('Inativo')).toBeVisible({ timeout: 15000 });
+    await expect(childRow).not.toBeVisible({ timeout: 15000 });
   });
 
   test('admin/superadmin cannot delete a user with contracts and no superior', async ({ page }) => {

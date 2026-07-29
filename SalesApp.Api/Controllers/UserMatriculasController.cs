@@ -39,7 +39,8 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<List<UserMatriculaResponse>>>> GetAll()
         {
             var matriculas = await _userMatriculaRepository.GetAllAsync();
-            var responses = matriculas.Select(MapToResponse).ToList();
+            var activeUserMatriculas = matriculas.Where(m => m.User != null && m.User.IsActive).ToList();
+            var responses = activeUserMatriculas.Select(MapToResponse).ToList();
 
             var roleIdClaim = User.FindFirst("role_id")?.Value;
             var currentUserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? UserRole.User;

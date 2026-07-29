@@ -1,5 +1,21 @@
 # Features
 
+## Inactive User Management & Status Filter
+
+This feature ensures inactive users are strictly excluded from display and counting across all application modules (Teams, Classifications, Contracts, Matriculas), manages user active state during contract lifecycle changes, and adds a status dropdown filter on the Users management page.
+
+### Core Objectives
+- Filter out inactive users (`IsActive == false`) from team members, team counts, classification levels, matriculas, and contract seller selection dropdowns.
+- Provide a status dropdown filter on the Users page (**Ativos** [Default], **Inativos**, **Todos**) with dynamic header counter updates.
+- Automatically end team and classification memberships when a user is disabled.
+- Prevent user disabling if the user is the owner of an active matricula with the notice: `"Por favor, defina a matrícula para outro proprietário."`
+
+### Key Capabilities
+- **Users Page Dropdown**: Filter users table by Active, Inactive, or All, updating the pagination and dynamic header count.
+- **Contract Lifecycle Synchronization**: Automatically manage `IsActive` state when contracts are assigned or unassigned/migrated.
+- **Matricula Ownership Protection**: Require reassigning matricula ownership before disabling a user.
+- **Automatic Membership Cleanup**: Set `EndDate = DateTime.UtcNow` on active `UserTeams` and `UserClassifications` upon user inactivation.
+
 ## PowerBI Scraping Pipeline
 
 This feature automates the extraction of data from PowerBI for users who do not have access to the ClientSecret/API directly. It provides a robust, professional-grade solution with historical tracking and manual controls.

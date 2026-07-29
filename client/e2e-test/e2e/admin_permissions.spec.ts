@@ -112,7 +112,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await page.fill('input[placeholder="Nome completo"]', `Admin EE ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', ADMIN_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
-    await page.click('input[readonly].mantine-Select-input');
+    await page.getByRole('dialog').locator('.mantine-Select-input').first().click();
     await page.click('div[role="option"]:has-text("Administrador")');
     // Set parent to SuperAdmin so they are not a root user
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
@@ -431,7 +431,8 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
 
     // 4.1 Verify Role selector is disabled and set to User (Usuário)
-    const roleSelect = page.locator('input[readonly].mantine-Select-input');
+    const dialog = page.getByRole('dialog');
+    const roleSelect = dialog.locator('.mantine-Select-input').first();
     await expect(roleSelect).toBeDisabled();
     await expect(roleSelect).toHaveValue('Usuário');
 

@@ -146,7 +146,8 @@ namespace SalesApp.Repositories
         public async Task<int> GetActiveUsersCountAsync(int levelId)
         {
             return await _context.UserClassifications
-                .CountAsync(uc => uc.LevelId == levelId && (uc.EndDate == null || uc.EndDate > DateTime.UtcNow));
+                .Include(uc => uc.User)
+                .CountAsync(uc => uc.LevelId == levelId && uc.User != null && uc.User.IsActive && (uc.EndDate == null || uc.EndDate > DateTime.UtcNow));
         }
     }
 
@@ -182,7 +183,7 @@ namespace SalesApp.Repositories
         {
             return await _context.UserClassifications
                 .Include(uc => uc.User)
-                .Where(uc => uc.LevelId == levelId)
+                .Where(uc => uc.LevelId == levelId && uc.User != null && uc.User.IsActive)
                 .OrderByDescending(uc => uc.StartDate)
                 .ToListAsync();
         }

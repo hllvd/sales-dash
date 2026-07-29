@@ -98,8 +98,14 @@ test.describe('Circular Hierarchy Prevention', () => {
       // Confirm deletion
       await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
       
-      // Verify it's now inactive
+      // Select "Inativos" filter to verify inactive status badge
+      await page.locator('.search-bar .mantine-Select-input').click();
+      await page.locator('.mantine-Select-option', { hasText: 'Inativos' }).first().click();
       await expect(userRow.getByText('Inativo')).toBeVisible();
+
+      // Reset to "Ativos" filter for next search
+      await page.locator('.search-bar .mantine-Select-input').click();
+      await page.locator('.mantine-Select-option', { hasText: 'Ativos' }).first().click();
     }
   });
 });

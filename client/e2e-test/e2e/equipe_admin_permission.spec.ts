@@ -106,7 +106,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await page.fill('input[placeholder="Nome completo"]', `Admin A ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', ADMIN_A_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
-    await page.click('input[readonly].mantine-Select-input');
+    await page.getByRole('dialog').locator('.mantine-Select-input').first().click();
     await page.click('div[role="option"]:has-text("Administrador")');
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
     const adminAParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
@@ -132,7 +132,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await page.fill('input[placeholder="Nome completo"]', `Admin B ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', ADMIN_B_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
-    await page.click('input[readonly].mantine-Select-input');
+    await page.getByRole('dialog').locator('.mantine-Select-input').first().click();
     await page.click('div[role="option"]:has-text("Administrador")');
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
     const adminBParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });

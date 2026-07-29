@@ -76,8 +76,8 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           groupsData = await getGroups();
         }
         
-        let listUsers = usersData;
-        if (contract && contract.userId && !usersData.some(u => u.id === contract.userId)) {
+        let listUsers = usersData.filter(u => u.isActive);
+        if (contract && contract.userId && !listUsers.some(u => u.id === contract.userId)) {
           listUsers = [...usersData, {
             id: contract.userId,
             name: contract.userName || 'Vendedor Atual',

@@ -142,3 +142,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** The pre-cleanup routine attempted to delete stale level cards that had assigned active members from earlier test runs, causing backend API validation to reject deletion with a 400 `ClassificationLevelHasActiveUsers` error.
 **Fix applied:** Updated pre-cleanup in `classification_next_level.spec.ts` to open the members modal and remove all active members before sending the delete level request.
 **Result:** ✅ Green — 136/136 (Run 1) and 135/135 (Run 2) passed
+
+## [2026-07-29] all — Attempt 1
+**Failure:** `GetUsers_WithoutActiveOnlyFilter_ShouldIncludeInactiveUsers` failed because default GET `/api/users` endpoint now defaults to returning active users (`status=active`).
+**Root cause:** Feature requirement changed default GET `/api/users` behavior to filter active users by default; inactive users are returned when explicitly passing `status=all`.
+**Fix applied:** Updated integration test in `TeamsControllerIntegrationTests.cs` to fetch with `status=all` when verifying inactive user retrieval.
+**Result:** ✅ In progress (re-testing)

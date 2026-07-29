@@ -44,7 +44,8 @@ test.describe('User Role Management (TEAR 2)', () => {
       await userRow.locator('button[title="Editar"]').click();
 
       // Change role to Administrador
-      await page.click('input[readonly].mantine-Select-input'); // Click select to open dropdown
+      const dialog = page.getByRole('dialog');
+      await dialog.locator('.mantine-Select-input').first().click(); // Click select to open dropdown
       await page.click('div[role="option"]:has-text("Administrador")');
 
       await page.click('button:has-text("Salvar Alterações")');

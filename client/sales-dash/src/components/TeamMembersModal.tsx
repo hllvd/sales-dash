@@ -380,22 +380,23 @@ const TeamMembersModal: React.FC<Props> = ({
 
   // visible user pool (admin = children only; superadmin = all)
   const userPool = useMemo(() => {
+    const activeUsers = allUsers.filter(u => u.isActive);
     const isSuperAdmin = currentUserRole?.toLowerCase() === 'superadmin';
-    if (isSuperAdmin) return allUsers;
+    if (isSuperAdmin) return activeUsers;
 
     // BFS to collect admin's children
     const visited = new Set<string>([currentUserId]);
     const queue = [currentUserId];
     while (queue.length) {
       const id = queue.shift()!;
-      for (const u of allUsers) {
+      for (const u of activeUsers) {
         if (u.parentUserId === id && !visited.has(u.id)) {
           visited.add(u.id);
           queue.push(u.id);
         }
       }
     }
-    return allUsers.filter(u => visited.has(u.id) && u.id !== currentUserId);
+    return activeUsers.filter(u => visited.has(u.id) && u.id !== currentUserId);
   }, [allUsers, currentUserRole, currentUserId]);
 
   // available = in pool, active, NOT already a team member

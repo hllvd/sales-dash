@@ -37,6 +37,7 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
   const hasParent = !!user?.parentUserId
   const parentName = user?.parentUserName || ""
   const hasContracts = previewItems.length > 0
+  const isMatriculaOwner = (user as any)?.userMatriculas?.some((m: any) => m.isOwner) || (user as any)?.activeMatriculas?.some((m: any) => m.isOwner) || false
 
   useEffect(() => {
     if (isOpen && user) {
@@ -230,6 +231,14 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
           {previewError && (
             <Alert color="red" title="Atenção">
               {previewError}
+            </Alert>
+          )}
+
+          {isMatriculaOwner && (
+            <Alert color="red" title="Titular de Matrícula" style={{ marginTop: "8px" }}>
+              <Text size="sm">
+                Por favor, defina a matrícula para outro proprietário.
+              </Text>
             </Alert>
           )}
 

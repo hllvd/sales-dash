@@ -603,15 +603,15 @@ namespace SalesApp.IntegrationTests.Users
                 await context.SaveChangesAsync();
             }
 
-            // Act — fetch WITHOUT activeOnly (legacy call, no filter)
-            var response = await client.GetAsync("/api/users?page=1&pageSize=1000");
+            // Act — fetch WITH status=all
+            var response = await client.GetAsync("/api/users?page=1&pageSize=1000&status=all");
 
-            // Assert — inactive users ARE returned (current behaviour that wastes slots)
+            // Assert — inactive users ARE returned when status=all
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
             result!.Success.Should().BeTrue();
             result.Data!.Items.Should().Contain(u => u.Email == inactiveEmail,
-                "without activeOnly=true the API returns inactive users, proving Bug 2");
+                "with status=all the API returns inactive users");
         }
 
         [Fact]

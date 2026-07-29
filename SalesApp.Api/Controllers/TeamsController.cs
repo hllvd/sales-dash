@@ -640,7 +640,10 @@ namespace SalesApp.Controllers
 
         private TeamResponse MapToTeamResponse(Team t)
         {
-            var members = t.UserTeams.Select(ut => MapToMemberResponse(ut, t.OwnerUserInternalId)).ToList();
+            var members = t.UserTeams
+                .Where(ut => ut.User != null && ut.User.IsActive)
+                .Select(ut => MapToMemberResponse(ut, t.OwnerUserInternalId))
+                .ToList();
             var owner = members.FirstOrDefault(m => m.UserInternalId == t.OwnerUserInternalId);
 
             return new TeamResponse
