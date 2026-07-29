@@ -60,4 +60,18 @@ test.describe('Classification Members Modal UX & Admin Scoping (TEAR 3)', () => 
     await modal.locator('button.mantine-Modal-close').click();
     await expect(modal).not.toBeVisible();
   });
+
+  test('should allow admin user to see Níveis de Classificação in left menu and navigate to page', async ({ page }) => {
+    // Log in as standard admin user
+    await page.goto('/');
+    await page.fill('input[type="email"]', 'admin@salesapp.com');
+    await page.fill('input[type="password"]', 'admin123');
+    await page.click('button.login-button');
+
+    // Verify Níveis de Classificação link is visible in left menu for Admin user
+    const classificationsLink = page.locator('a[href="#/classifications"]');
+    await expect(classificationsLink).toBeVisible({ timeout: 10000 });
+    await classificationsLink.click();
+    await expect(page.getByRole('heading', { name: 'Níveis de Classificação' })).toBeVisible({ timeout: 10000 });
+  });
 });

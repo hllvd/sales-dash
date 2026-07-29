@@ -336,10 +336,11 @@ Aligns the user classification level members modal with the Teams modal UX: wide
 - **Admin Hierarchy Scoping**: Reused BFS subordinate tree resolution from `TeamMembersModal` so `Admin` users only see their direct and indirect subordinates in the user assignment list, while `SuperAdmin` users see all active users.
 
 ### Key Files Created / Modified
+- `client/sales-dash/src/components/Menu.tsx` — Authorized `Admin` and `SuperAdmin` roles to see `Níveis de Classificação` link in the left menu.
 - `client/sales-dash/src/components/ClassificationsPage.tsx` — Updated modal layout, user pool BFS scoping, search on active members, and click-to-add handler.
 - `client/sales-dash/src/components/ClassificationsPage.css` — Modal grid adjustments.
 - `client/e2e-test/e2e/classification_management.spec.ts` — Updated E2E tests to match click-to-add interaction.
-- `client/e2e-test/e2e/classification_members_modal.spec.ts` — Added dedicated E2E test spec for classification members modal UX.
+- `client/e2e-test/e2e/classification_members_modal.spec.ts` — Added dedicated E2E test spec for classification members modal UX and Admin menu access.
 
 
 

@@ -316,7 +316,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {userRole === 'superadmin' && (
+          {(userRole === 'superadmin' || userRole === 'admin' || userRole === UserRole.SUPERADMIN || userRole === UserRole.ADMIN || hasPermission('teams:manage') || hasPermission('system:admin')) && (
             <NavLink
               href="#/classifications"
               label="Níveis de Classificação"
