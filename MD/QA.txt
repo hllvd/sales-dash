@@ -1,0 +1,39 @@
+# Q&A: Contract Dashboard Import Behavior on Differing Matricula
+
+## Question
+When a contract belongs to a different matricula in a contractDashboard file importation, what is the behavior? Will the contract be updated (status update) or not? (Considering the contract has an assigned user and a linked matricula).
+
+## Answer
+
+### 1. Will the Contract Status be updated?
+**Yes, the contract status WILL be updated.**
+
+* Regardless of whether the matricula changes or is updated, matching existing contracts (matched by ContractNumber) always have their status (ContractStatusId and RawStatus), UpdatedAt, and IsActive = true updated from the imported file row.
+* Source logic: SalesApp.Api/Services/ImportExecutionService.cs (lines 1676-1682)
+
+---
+
+### 2. Will the Matricula Link (MatriculaId) be updated?
+**It depends on the updateMatriculaOnExisting setting.**
+
+In the import confirmation screen/API payload (controlled by the UI toggle "Atualizar matrícula em contratos existentes" in client/sales-dash/src/components/BulkImportModal.tsx):
+
+#### Case A: If updateMatriculaOnExisting = true
+1. **Matricula Updated**: The contract's linked MatriculaId is updated to point to the new matricula in the file.
+2. **User Retention**: The user assigned to the contract (UserInternalId) is preserved (not overwritten).
+3. **User-Matricula Link**: If the assigned user is not yet linked to the new matricula in UserMatriculas, the system automatically creates a new UserMatricula entry linking the user to the new matricula so user access is maintained.
+4. **Change Auditing**: The system registers a change record in MatriculaChanges and includes an informational warning in the import response detailing ContractNumber, OldMatricula, and NewMatricula.
+* Source logic: SalesApp.Api/Services/ImportExecutionService.cs (lines 1685-1720) and integration test SalesApp.IntegrationTests/Imports/ImportDashboardMatriculaChangeTests.cs (lines 80-140)
+
+#### Case B: If updateMatriculaOnExisting = false (Default)
+1. **Matricula Unchanged**: The contract's MatriculaId remains pointing to its existing matricula.
+2. **Other Fields Still Update**: The contract's status, total amount, and last update date are still updated normally.
+
+---
+
+### Summary Checklist
+
+| Event | Status Updated? | Matricula Link Updated? | User Assignment |
+| :--- | :---: | :---: | :--- |
+| Import with updateMatriculaOnExisting = true | Yes | Yes (Updated to new matricula) | Retained & automatically linked to new matricula |
+| Import with updateMatriculaOnExisting = false | Yes | No (Keeps old matricula) | Unchanged |
