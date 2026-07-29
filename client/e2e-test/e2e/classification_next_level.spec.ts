@@ -38,9 +38,30 @@ test.describe('Classification Level — NextLevel Chain (TEAR 3)', () => {
         if (name.includes(searchPattern)) {
           console.log(`>>> Cleaning up stale E2E chain level: ${name}`);
           const staleCard = page.locator('.cls-level-card', { hasText: name }).first();
+
+          // Open members modal and clear active members to prevent deletion conflict
+          await staleCard.locator('button').nth(0).click();
+          const membersModal = page.locator('.mantine-Modal-content');
+          if (await membersModal.isVisible({ timeout: 3000 }).catch(() => false)) {
+            let hasActiveMembers = true;
+            while (hasActiveMembers) {
+              const firstMemberCard = membersModal.locator('.cls-member-card:not(.inactive)').first();
+              if (await firstMemberCard.isVisible({ timeout: 1500 }).catch(() => false)) {
+                await firstMemberCard.locator('button').last().click();
+                await page.waitForTimeout(400);
+              } else {
+                hasActiveMembers = false;
+              }
+            }
+            await membersModal.locator('button.mantine-Modal-close').click();
+            await expect(membersModal).not.toBeVisible();
+            await page.waitForTimeout(300);
+          }
+
           await staleCard.locator('button').nth(2).click();
-          await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
-          await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+          const dialog = page.getByRole('dialog');
+          await dialog.getByRole('button', { name: 'Excluir' }).click();
+          await expect(dialog).not.toBeVisible({ timeout: 10000 });
           keepCleaning = true;
           break;
         }

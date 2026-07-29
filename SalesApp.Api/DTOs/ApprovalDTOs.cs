@@ -52,4 +52,14 @@ namespace SalesApp.DTOs
         public string MatriculaNumber { get; set; } = string.Empty;
         public DateTime? StartDate { get; set; }
     }
+
+    public class RequestClassificationLevelPayload
+    {
+        public int LevelId { get; set; }
+        public string LevelName { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public int? PreviousLevelId { get; set; }
+        public string? PreviousLevelName { get; set; }
+        public DateTime? PreviousEndDate { get; set; }
+    }
 }

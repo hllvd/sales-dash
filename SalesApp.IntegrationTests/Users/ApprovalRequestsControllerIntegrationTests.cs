@@ -520,6 +520,90 @@ namespace SalesApp.IntegrationTests.Users
             });
             duplicateRes.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         }
+
+        [Fact]
+        public async Task RequestClassificationLevel_ParentAdminOrSuperAdminCanApprove_AssignsUserLevel()
+        {
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+
+            var tag = Guid.NewGuid().ToString()[..6];
+            var parentAdminEmail = $"parentlevel_{tag}@test.com";
+            var userEmail = $"userlevel_{tag}@test.com";
+
+            // Register parent admin
+            var regParent = await _client.PostAsJsonAsync("/api/users/admin-register", new
+            {
+                Name = "Parent Level Admin",
+                Email = parentAdminEmail,
+                Password = "Password123!",
+                TeamName = $"TeamClass_{tag}",
+                ClassificationLevelId = 1,
+                Role = "manager"
+            });
+            regParent.EnsureSuccessStatusCode();
+
+            // Get Parent Admin's user ID
+            var parentAdminToken = await GetTokenAsync(parentAdminEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", parentAdminToken);
+            var parentMeRes = await _client.GetAsync("/api/users/me");
+            var parentMeData = await parentMeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var parentId = parentMeData!.Data!.Id;
+
+            // Register user under parent admin
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var regUser = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "User Requesting Level",
+                Email = userEmail,
+                Password = "Password123!",
+                ParentUserId = parentId
+            });
+            regUser.EnsureSuccessStatusCode();
+
+            var userToken = await GetTokenAsync(userEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+            var userMeRes = await _client.GetAsync("/api/users/me");
+            var userMeData = await userMeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var userId = userMeData!.Data!.Id;
+
+            // User submits RequestClassificationLevel request
+            var payload = JsonSerializer.Serialize(new RequestClassificationLevelPayload
+            {
+                LevelId = 1,
+                LevelName = "Bronze",
+                StartDate = DateTime.UtcNow.Date
+            });
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = "RequestClassificationLevel",
+                PayloadJson = payload
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            var requestId = createData!.Data!.Id;
+
+            // Parent Admin sees the request in pending list
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", parentAdminToken);
+            var pendingRes = await _client.GetAsync("/api/approval-requests/pending");
+            var pendingData = await pendingRes.Content.ReadFromJsonAsync<ApiResponse<List<ApprovalRequestResponse>>>();
+            pendingData!.Data.Should().Contain(r => r.Id == requestId);
+
+            // Parent Admin approves it
+            var approveRes = await _client.PostAsJsonAsync($"/api/approval-requests/{requestId}/resolve",
+                new ResolveApprovalDto { Action = "Approved", Comment = "Approved classification level" });
+            approveRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // Verify user's active classification is level 1
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var activeRes = await _client.GetAsync($"/api/classifications/users/{userId}/active");
+            activeRes.StatusCode.Should().Be(HttpStatusCode.OK);
+            var activeData = await activeRes.Content.ReadFromJsonAsync<ApiResponse<UserClassificationResponse>>();
+            activeData!.Data.Should().NotBeNull();
+            activeData.Data!.LevelId.Should().Be(1);
+        }
     }
 }
+
 

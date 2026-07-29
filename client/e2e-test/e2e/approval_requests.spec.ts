@@ -135,6 +135,58 @@ test.describe('Approval Requests E2E', () => {
     await expect(page.getByText('Parent Admin Test', { exact: false })).toBeVisible({ timeout: 15000 });
   });
 
+  test('User/Admin can request classification level change and parent admin accepts it', async ({ page }) => {
+    test.setTimeout(60000);
+
+    // 1. User logs in
+    await page.goto('/#/login');
+    await page.fill('input[type="email"]', USER_EMAIL);
+    await page.fill('input[type="password"]', PASSWORD);
+    await page.click('button[type="submit"]');
+    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+
+    // 2. User goes to Requests page and creates RequestClassificationLevel
+    await page.goto('/#/requests');
+    await expect(page.getByRole('heading', { name: 'Central de Solicitações' })).toBeVisible();
+    await page.click('button:has-text("Nova Solicitação")');
+
+    await expect(page.getByRole('dialog')).toBeVisible();
+    const typeSelect = page.locator('input[readonly].mantine-Select-input').first();
+    await typeSelect.click();
+    await page.click('div[role="option"]:has-text("Solicitação de Nível de Classificação")');
+
+    // Select level (e.g. Bronze or Prata)
+    const levelSelect = page.locator('input[readonly].mantine-Select-input').nth(1);
+    await levelSelect.click();
+    await page.getByRole('option').first().click();
+
+    await page.click('button:has-text("Enviar Solicitação")');
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
+
+    // Verify request is listed under Minhas Solicitações
+    await expect(page.getByRole('cell', { name: 'Solicitação de Nível de Classificação' }).first()).toBeVisible({ timeout: 15000 });
+
+    // 3. Parent Admin logs in to accept the level request
+    await page.evaluate(() => localStorage.clear());
+    await page.goto('/#/login');
+    await page.fill('input[type="email"]', ADMIN_EMAIL);
+    await page.fill('input[type="password"]', PASSWORD);
+    await page.click('button[type="submit"]');
+    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+
+    // Go to Requests page
+    await page.goto('/#/requests');
+    await page.click('text=Solicitações Pendentes');
+
+    // Find row with user and click Sim
+    const pendingRow = page.locator('tr', { hasText: USER_EMAIL });
+    await expect(pendingRow).toBeVisible({ timeout: 15000 });
+    await expect(pendingRow.getByText('Solicitação de Nível de Classificação')).toBeVisible();
+    await pendingRow.locator('button:has-text("Sim")').click();
+
+    await expect(pendingRow).not.toBeVisible({ timeout: 15000 });
+  });
+
   test('User asks to be an admin, parent admin accepts it', async ({ page }) => {
     test.setTimeout(60000);
 

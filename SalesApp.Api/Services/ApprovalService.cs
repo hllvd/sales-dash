@@ -70,6 +70,23 @@ namespace SalesApp.Services
                     throw new InvalidOperationException("Você já possui a função de Administrador ou SuperAdmin.");
                 }
             }
+            else if (dto.RequestType == ApprovalRequestType.RequestClassificationLevel)
+            {
+                var payload = JsonSerializer.Deserialize<RequestClassificationLevelPayload>(dto.PayloadJson, _jsonOptions);
+                if (payload == null || payload.LevelId <= 0)
+                {
+                    throw new ArgumentException("O nível de classificação é obrigatório.");
+                }
+                if (payload.StartDate == default)
+                {
+                    throw new ArgumentException("A data de início é obrigatória.");
+                }
+                var level = await _context.ClassificationLevels.FirstOrDefaultAsync(l => l.Id == payload.LevelId);
+                if (level == null)
+                {
+                    throw new ArgumentException($"Nível de classificação com o ID '{payload.LevelId}' não foi encontrado.");
+                }
+            }
             else
             {
                 throw new ArgumentException($"Tipo de solicitação inválido: {dto.RequestType}");
@@ -353,6 +370,34 @@ namespace SalesApp.Services
             {
                 requester.RoleId = (int)RoleId.Admin;
                 requester.UpdatedAt = DateTime.UtcNow;
+            }
+            else if (request.RequestType == ApprovalRequestType.RequestClassificationLevel)
+            {
+                var payload = JsonSerializer.Deserialize<RequestClassificationLevelPayload>(request.PayloadJson, _jsonOptions);
+                if (payload == null || payload.LevelId <= 0 || payload.StartDate == default)
+                {
+                    throw new InvalidOperationException("Payload de solicitação de nível de classificação inválido.");
+                }
+
+                var currentActive = await _context.UserClassifications
+                    .FirstOrDefaultAsync(uc => uc.UserInternalId == requester.InternalId && uc.EndDate == null);
+
+                if (currentActive != null)
+                {
+                    currentActive.EndDate = payload.PreviousEndDate ?? payload.StartDate;
+                    currentActive.UpdatedAt = DateTime.UtcNow;
+                }
+
+                var newAssignment = new UserClassification
+                {
+                    UserInternalId = requester.InternalId,
+                    LevelId = payload.LevelId,
+                    StartDate = payload.StartDate,
+                    EndDate = null,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.UserClassifications.Add(newAssignment);
             }
         }
 

@@ -39,8 +39,42 @@ const RequestsPage: React.FC = () => {
   const [requestType, setRequestType] = useState<string>('ChangeParentEmail');
   const [parentEmail, setParentEmail] = useState('');
   const [matriculaNumber, setMatriculaNumber] = useState('');
+  const [classificationLevels, setClassificationLevels] = useState<{ id: number; name: string }[]>([]);
+  const [selectedLevelId, setSelectedLevelId] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [previousActiveLevel, setPreviousActiveLevel] = useState<{ id?: number; levelId?: number; levelName?: string } | null>(null);
+  const [previousEndDate, setPreviousEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (createModalOpen && requestType === 'RequestClassificationLevel') {
+      loadClassificationData();
+    }
+  }, [createModalOpen, requestType]);
+
+  const loadClassificationData = async () => {
+    try {
+      const res = await apiService.getClassificationLevels();
+      if (res.success && res.data) {
+        setClassificationLevels(res.data);
+      }
+      const userJson = localStorage.getItem('user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        if (user?.id) {
+          const activeRes = await apiService.getUserActiveClassification(user.id);
+          if (activeRes.success && activeRes.data) {
+            setPreviousActiveLevel(activeRes.data);
+          } else {
+            setPreviousActiveLevel(null);
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     const userJson = localStorage.getItem('user');
@@ -142,6 +176,26 @@ const RequestsPage: React.FC = () => {
         payloadJson = JSON.stringify({ newParentEmail: parentEmail.trim() });
       } else if (requestType === 'RequestAdminRole') {
         payloadJson = JSON.stringify({});
+      } else if (requestType === 'RequestClassificationLevel') {
+        if (!selectedLevelId) {
+          setCreateError('O nível de classificação é obrigatório.');
+          setSubmitting(false);
+          return;
+        }
+        if (!startDate) {
+          setCreateError('A data de início é obrigatória.');
+          setSubmitting(false);
+          return;
+        }
+        const levelObj = classificationLevels.find((l) => String(l.id) === String(selectedLevelId));
+        payloadJson = JSON.stringify({
+          levelId: Number(selectedLevelId),
+          levelName: levelObj?.name || '',
+          startDate: startDate,
+          previousLevelId: previousActiveLevel?.levelId || null,
+          previousLevelName: previousActiveLevel?.levelName || null,
+          previousEndDate: previousActiveLevel ? (previousEndDate || startDate) : null,
+        });
       } else {
         if (!matriculaNumber.trim()) {
           setCreateError('O número da matrícula é obrigatório.');
@@ -159,6 +213,7 @@ const RequestsPage: React.FC = () => {
       setCreateModalOpen(false);
       setParentEmail('');
       setMatriculaNumber('');
+      setSelectedLevelId('');
       await loadData();
     } catch (err: any) {
       setCreateError(err.message || 'Erro ao criar solicitação.');
@@ -177,6 +232,8 @@ const RequestsPage: React.FC = () => {
         return 'Criação de Matrícula (Admin / Proprietário)';
       case 'RequestAdminRole':
         return 'Solicitação de Perfil Administrador (Role Admin)';
+      case 'RequestClassificationLevel':
+        return 'Solicitação de Nível de Classificação';
       default:
         return type;
     }
@@ -193,6 +250,19 @@ const RequestsPage: React.FC = () => {
       }
       if (type === 'RequestAdminRole') {
         return 'Solicitação de perfil Administrador';
+      }
+      if (type === 'RequestClassificationLevel') {
+        const levelName = parsed.levelName || parsed.LevelName || `ID ${parsed.levelId || parsed.LevelId}`;
+        const start = parsed.startDate || parsed.StartDate;
+        const formattedStart = start ? new Date(start).toLocaleDateString('pt-BR') : '';
+        let details = `Nível: ${levelName} | Início: ${formattedStart}`;
+        if (parsed.previousLevelName || parsed.PreviousLevelName) {
+          const prevName = parsed.previousLevelName || parsed.PreviousLevelName;
+          const prevEnd = parsed.previousEndDate || parsed.PreviousEndDate;
+          const formattedEnd = prevEnd ? new Date(prevEnd).toLocaleDateString('pt-BR') : '';
+          details += ` | Nível Anterior: ${prevName} (Fim: ${formattedEnd})`;
+        }
+        return details;
       }
       return jsonStr;
     } catch {
@@ -444,6 +514,9 @@ const RequestsPage: React.FC = () => {
           data={[
             { value: 'ChangeParentEmail', label: 'Alteração de Superior (E-mail)' },
             { value: 'RequestMatricula', label: 'Solicitação de Nova Matrícula' },
+            ...((userRole === 'user' || userRole === 'admin')
+              ? [{ value: 'RequestClassificationLevel', label: 'Solicitação de Nível de Classificação' }]
+              : []),
             ...(userRole !== 'admin' && userRole !== 'superadmin'
               ? [{ value: 'RequestAdminRole', label: 'Solicitação de Perfil Administrador (Role Admin)' }]
               : []),
@@ -469,6 +542,42 @@ const RequestsPage: React.FC = () => {
           <Text size="sm" c="dimmed" mb="md">
             Esta solicitação será enviada para aprovação do seu superior direto ou de um SuperAdmin.
           </Text>
+        ) : requestType === 'RequestClassificationLevel' ? (
+          <>
+            <Select
+              label="Nível de Classificação Desejado"
+              placeholder="Selecione um nível"
+              required
+              data={classificationLevels.map((l) => ({ value: String(l.id), label: l.name }))}
+              value={selectedLevelId}
+              onChange={(val) => setSelectedLevelId(val || '')}
+              mb="md"
+            />
+            <TextInput
+              label="Data de Início"
+              type="date"
+              required
+              value={startDate}
+              onChange={(e) => {
+                const val = e.target.value;
+                setStartDate(val);
+                if (previousActiveLevel) {
+                  setPreviousEndDate(val);
+                }
+              }}
+              mb="md"
+            />
+            {previousActiveLevel && (
+              <TextInput
+                label={`Data de Término do Nível Anterior (${previousActiveLevel.levelName})`}
+                type="date"
+                required
+                value={previousEndDate}
+                onChange={(e) => setPreviousEndDate(e.target.value)}
+                mb="md"
+              />
+            )}
+          </>
         ) : (
           <TextInput
             label="Número da Matrícula"

@@ -136,3 +136,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Lines 471 & 474 in `team_members_management.spec.ts` used strict string comparison against un-normalized user name.
 **Fix applied:** Updated lines 471 & 474 in `team_members_management.spec.ts` to use case-insensitive regex `new RegExp(users.childA.name, 'i')`.
 **Result:** ✅ Green
+
+## [2026-07-29] e2e — Attempt 1
+**Failure:** `classification_next_level.spec.ts` failed in Run 2 (Idempotency Check) on `expect(dialog).not.toBeVisible()`.
+**Root cause:** The pre-cleanup routine attempted to delete stale level cards that had assigned active members from earlier test runs, causing backend API validation to reject deletion with a 400 `ClassificationLevelHasActiveUsers` error.
+**Fix applied:** Updated pre-cleanup in `classification_next_level.spec.ts` to open the members modal and remove all active members before sending the delete level request.
+**Result:** ✅ Green — 136/136 (Run 1) and 135/135 (Run 2) passed
