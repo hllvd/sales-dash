@@ -281,21 +281,20 @@ Allow users to request operational changes (such as parent email changes or new 
 
 ### Initial Request Types Supported
 1. **Change Parent Email (`ChangeParentEmail`)**: Standard users or managers request updating their superior (`ParentUserId`) by specifying the target email.
-2. **User Request Matricula (`RequestMatricula`)**: Standard users request assignment of a new matricula number.
-3. **Admin Request Matricula (`AdminRequestMatricula`)**: Admins request creation of a new matricula that they will own (`IsOwner = true`). Only SuperAdmins can approve this request type.
+2. **User Request Matricula (`RequestMatricula`)**: Standard users or managers request assignment of a new matricula number.
+3. **Admin Request Matricula (`AdminRequestMatricula`)**: Users or Admins request creation/assignment of a matricula that they will own (`IsOwner = true`). SuperAdmins, parent Admins in the user's hierarchy, and existing matricula owners can approve this request. Approving automatically transfers ownership by setting `IsOwner = false` on any previous owner.
 4. **Request Admin Role (`RequestAdminRole`)**: Non-admin users request promotion to the Admin role (`"Solicitação de Perfil Administrador (Role Admin)"`). SuperAdmins and parent Admins can approve this request.
 5. **Request Classification Level (`RequestClassificationLevel`)**: `user` and `admin` roles request assignment to a classification level (`"Solicitação de Nível de Classificação"`). Requires a mandatory start date and auto-closes any previous active level on approval.
 
 ### Approver Actions
-- **Sim / Aprovar (Yes)**: One-step immediate approval. Executes the underlying model update on the server (e.g. re-parenting user, creating/linking matricula, updating RoleId to Admin, assigning classification level) and marks status as `Approved`.
+- **Sim / Aprovar (Yes)**: One-step immediate approval. Executes the underlying model update on the server (e.g. re-parenting user, creating/linking matricula, updating RoleId to Admin, assigning classification level, transferring matricula ownership) and marks status as `Approved`.
 - **Não / Rejeitar (No)**: Rejects the request, recording an optional rejection reason comment for the requester to view.
 - **Depois (Later)**: Postpones decision, leaving the request in `Pending` status to be revisited later.
 
 ### Access Control and Scoping
 - **SuperAdmin**: Sees all system pending requests and can approve/reject any request type.
 - **ChangeParentEmail**: If the target `parentEmail` is an Admin, **only** that designated `parentEmail` user and SuperAdmins can see, approve, or reject the request.
-- **RequestMatricula (Nova Matrícula)**: If the target matricula is already owned by a user (`IsOwner = true`), **only** that matricula owner user and SuperAdmins can see, approve, or reject the request.
-- **AdminRequestMatricula**: Only SuperAdmins can see, approve, or reject.
+- **RequestMatricula & AdminRequestMatricula**: SuperAdmins, the user's parent Admin(s) in the hierarchy, and current matricula owners can see, approve, or reject the request.
 - **RequestAdminRole**: SuperAdmins and the user's parent Admin(s) in the hierarchy can see, approve, or reject.
 - **RequestClassificationLevel**: SuperAdmins and the user's parent Admin(s) in the hierarchy can see, approve, or reject.
 - **Left Menu Integration**: Shows a "Solicitações" item with a dynamic badge displaying the current count of pending requests for approvers.

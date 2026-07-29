@@ -257,8 +257,8 @@ namespace SalesApp.Services
             }
 
 
-            // 2. RequestMatricula (Nova Matrícula Usuário)
-            if (request.RequestType == ApprovalRequestType.RequestMatricula)
+            // 2. RequestMatricula & AdminRequestMatricula
+            if (request.RequestType == ApprovalRequestType.RequestMatricula || request.RequestType == ApprovalRequestType.AdminRequestMatricula)
             {
                 var payload = JsonSerializer.Deserialize<RequestMatriculaPayload>(request.PayloadJson, _jsonOptions);
                 if (payload != null && !string.IsNullOrWhiteSpace(payload.MatriculaNumber))
@@ -271,19 +271,12 @@ namespace SalesApp.Services
                             .Include(um => um.User)
                             .FirstOrDefaultAsync(um => um.MatriculaId == matricula.Id && um.IsOwner && um.IsActive);
 
-                        if (ownerLink != null && ownerLink.User != null)
+                        if (ownerLink != null && ownerLink.User != null && ownerLink.User.Id == callerId)
                         {
-                            // Only the owner of the matrícula (and superadmins) can accept/deny it
-                            return ownerLink.User.Id == callerId;
+                            return true;
                         }
                     }
                 }
-            }
-
-            // 3. AdminRequestMatricula (Only SuperAdmins)
-            if (request.RequestType == ApprovalRequestType.AdminRequestMatricula)
-            {
-                return false;
             }
 
             // Fallback: Hierarchy check (requester is descendant of caller)
@@ -345,6 +338,19 @@ namespace SalesApp.Services
 
                 var isOwner = request.RequestType == ApprovalRequestType.AdminRequestMatricula;
 
+                if (isOwner)
+                {
+                    var existingOwners = await _context.UserMatriculas
+                        .Where(um => um.MatriculaId == matricula.Id && um.IsOwner && um.UserInternalId != requester.InternalId)
+                        .ToListAsync();
+
+                    foreach (var owner in existingOwners)
+                    {
+                        owner.IsOwner = false;
+                        owner.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+
                 var existingLink = await _context.UserMatriculas
                     .FirstOrDefaultAsync(um => um.UserInternalId == requester.InternalId && um.MatriculaId == matricula.Id);
 
@@ -355,6 +361,7 @@ namespace SalesApp.Services
                         UserInternalId = requester.InternalId,
                         MatriculaId = matricula.Id,
                         IsOwner = isOwner,
+                        IsActive = true,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -363,6 +370,7 @@ namespace SalesApp.Services
                 else
                 {
                     existingLink.IsOwner = isOwner;
+                    existingLink.IsActive = true;
                     existingLink.UpdatedAt = DateTime.UtcNow;
                 }
             }

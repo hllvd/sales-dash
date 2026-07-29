@@ -515,13 +515,13 @@ const RequestsPage: React.FC = () => {
             { value: 'ChangeParentEmail', label: 'Alteração de Superior (E-mail)' },
             { value: 'RequestMatricula', label: 'Solicitação de Nova Matrícula' },
             ...((userRole === 'user' || userRole === 'admin')
-              ? [{ value: 'RequestClassificationLevel', label: 'Solicitação de Nível de Classificação' }]
+              ? [
+                  { value: 'RequestClassificationLevel', label: 'Solicitação de Nível de Classificação' },
+                  { value: 'AdminRequestMatricula', label: 'Solicitação de Matrícula (Proprietário)' }
+                ]
               : []),
             ...(userRole !== 'admin' && userRole !== 'superadmin'
               ? [{ value: 'RequestAdminRole', label: 'Solicitação de Perfil Administrador (Role Admin)' }]
-              : []),
-            ...(userRole === 'admin'
-              ? [{ value: 'AdminRequestMatricula', label: 'Criação de Matrícula (Admin / Proprietário)' }]
               : []),
           ]}
           value={requestType}

@@ -603,6 +603,105 @@ namespace SalesApp.IntegrationTests.Users
             activeData!.Data.Should().NotBeNull();
             activeData.Data!.LevelId.Should().Be(1);
         }
+
+        [Fact]
+        public async Task AdminRequestMatricula_ParentAdminCanApprove_ReplacesPreviousOwnerWithout500Error()
+        {
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+
+            var tag = Guid.NewGuid().ToString()[..6];
+            var parentAdminEmail = $"parentmat_{tag}@test.com";
+            var user1Email = $"oldowner_{tag}@test.com";
+            var user2Email = $"newowner_{tag}@test.com";
+            var matriculaNumber = $"{new Random().Next(100000, 999999)}";
+
+            // 1. Register Parent Admin
+            var regParent = await _client.PostAsJsonAsync("/api/users/admin-register", new
+            {
+                Name = "Parent Mat Admin",
+                Email = parentAdminEmail,
+                Password = "Password123!",
+                TeamName = $"TeamMat_{tag}",
+                ClassificationLevelId = 1,
+                Role = "manager"
+            });
+            regParent.EnsureSuccessStatusCode();
+
+            var parentAdminToken = await GetTokenAsync(parentAdminEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", parentAdminToken);
+            var parentMeRes = await _client.GetAsync("/api/users/me");
+            var parentMeData = await parentMeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var parentId = parentMeData!.Data!.Id;
+
+            // 2. Register User 1 (Old Owner) and User 2 (New Owner) under Parent Admin
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var regU1 = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "Old Owner",
+                Email = user1Email,
+                Password = "Password123!",
+                ParentUserId = parentId,
+                MatriculaNumber = matriculaNumber,
+                IsMatriculaOwner = true
+            });
+            regU1.EnsureSuccessStatusCode();
+            var u1Data = await regU1.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var user1Id = u1Data!.Data!.Id;
+
+            var regU2 = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "New Owner",
+                Email = user2Email,
+                Password = "Password123!",
+                ParentUserId = parentId
+            });
+            regU2.EnsureSuccessStatusCode();
+            var u2Data = await regU2.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var user2Id = u2Data!.Data!.Id;
+
+            var user1Token = await GetTokenAsync(user1Email, "Password123!");
+            var user2Token = await GetTokenAsync(user2Email, "Password123!");
+
+            // 4. User 2 submits AdminRequestMatricula (requesting ownership of the same matricula)
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user2Token);
+            var payload = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = matriculaNumber });
+            var createReqRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = "AdminRequestMatricula",
+                PayloadJson = payload
+            });
+            createReqRes.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createReqData = await createReqRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            var requestId = createReqData!.Data!.Id;
+
+            // 5. Parent Admin sees request in pending list and approves it
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", parentAdminToken);
+            var pendingRes = await _client.GetAsync("/api/approval-requests/pending");
+            var pendingData = await pendingRes.Content.ReadFromJsonAsync<ApiResponse<List<ApprovalRequestResponse>>>();
+            pendingData!.Data.Should().Contain(r => r.Id == requestId);
+
+            var approveRes = await _client.PostAsJsonAsync($"/api/approval-requests/{requestId}/resolve", new ResolveApprovalDto
+            {
+                Action = "Approved",
+                Comment = "Transferred ownership"
+            });
+            approveRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // 6. Verify User 2 is now owner and User 1 is no longer owner
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user2Token);
+            var u2MeRes = await _client.GetAsync("/api/users/me");
+            u2MeRes.EnsureSuccessStatusCode();
+            var u2MeData = await u2MeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            u2MeData!.Data!.MatriculaNumber.Should().Be(matriculaNumber);
+            u2MeData.Data.IsMatriculaOwner.Should().BeTrue();
+
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user1Token);
+            var u1MeRes = await _client.GetAsync("/api/users/me");
+            u1MeRes.EnsureSuccessStatusCode();
+            var u1MeData = await u1MeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            u1MeData!.Data!.IsMatriculaOwner.Should().BeFalse();
+        }
     }
 }
 
