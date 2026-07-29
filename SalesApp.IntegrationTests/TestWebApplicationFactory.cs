@@ -16,6 +16,7 @@ namespace SalesApp.IntegrationTests
         private readonly TestServer _server;
         private readonly string _dbFileName;
         public HttpClient Client { get; }
+        public HttpClient CreateClient() => _server.CreateClient();
         public IServiceProvider Services => _server.Services;
 
         private static bool _dbReset = false;

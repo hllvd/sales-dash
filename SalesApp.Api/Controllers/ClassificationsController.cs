@@ -75,6 +75,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpPost("levels")]
+        [Authorize(Roles = "SuperAdmin,superadmin")]
         public async Task<ActionResult<ApiResponse<ClassificationLevelResponse>>> CreateLevel(CreateClassificationLevelRequest request)
         {
             if (await _levelRepo.NameExistsAsync(request.Name))
@@ -110,6 +111,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpPut("levels/{id}")]
+        [Authorize(Roles = "SuperAdmin,superadmin")]
         public async Task<ActionResult<ApiResponse<ClassificationLevelResponse>>> UpdateLevel(int id, UpdateClassificationLevelRequest request)
         {
             var level = await _levelRepo.GetByIdAsync(id);
@@ -179,6 +181,7 @@ namespace SalesApp.Controllers
         }
 
         [HttpDelete("levels/{id}")]
+        [Authorize(Roles = "SuperAdmin,superadmin")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteLevel(int id)
         {
             var level = await _levelRepo.GetByIdAsync(id);

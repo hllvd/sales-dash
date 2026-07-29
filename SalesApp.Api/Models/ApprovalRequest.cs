@@ -18,7 +18,7 @@ namespace SalesApp.Models
 
         [Required]
         [MaxLength(20)]
-        public string Status { get; set; } = "Pending"; // "Pending", "Approved", "Rejected", "Later"
+        public string Status { get; set; } = ApprovalRequestStatus.Pending;
 
         [Required]
         public string PayloadJson { get; set; } = "{}";

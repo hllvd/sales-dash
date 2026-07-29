@@ -28,7 +28,7 @@ namespace SalesApp.IntegrationTests.Classifications
         {
             // 1. Authenticate as superadmin
             var token = await GetSuperAdminToken();
-            var clientWithToken = _factory.Client;
+            var clientWithToken = _factory.CreateClient();
             clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // 2. Create a Classification Level
@@ -121,25 +121,26 @@ namespace SalesApp.IntegrationTests.Classifications
         {
             // 1. Authenticate
             var token = await GetSuperAdminToken();
-            _client.DefaultRequestHeaders.Authorization =
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // 2. Create Level A
             var levelAName = $"Int Chain A {Guid.NewGuid().ToString()[..8]}";
-            var levelARes = await _client.PostAsJsonAsync("/api/classifications/levels",
+            var levelARes = await clientWithToken.PostAsJsonAsync("/api/classifications/levels",
                 new CreateClassificationLevelRequest { Name = levelAName });
             levelARes.StatusCode.Should().Be(HttpStatusCode.OK);
             var levelA = (await levelARes.Content.ReadFromJsonAsync<ApiResponse<ClassificationLevelResponse>>())!.Data!;
 
             // 3. Create Level B
             var levelBName = $"Int Chain B {Guid.NewGuid().ToString()[..8]}";
-            var levelBRes = await _client.PostAsJsonAsync("/api/classifications/levels",
+            var levelBRes = await clientWithToken.PostAsJsonAsync("/api/classifications/levels",
                 new CreateClassificationLevelRequest { Name = levelBName });
             levelBRes.StatusCode.Should().Be(HttpStatusCode.OK);
             var levelB = (await levelBRes.Content.ReadFromJsonAsync<ApiResponse<ClassificationLevelResponse>>())!.Data!;
 
             // 4. Update Level A → set NextLevelId = Level B
-            var updateRes = await _client.PutAsJsonAsync($"/api/classifications/levels/{levelA.Id}",
+            var updateRes = await clientWithToken.PutAsJsonAsync($"/api/classifications/levels/{levelA.Id}",
                 new UpdateClassificationLevelRequest { NextLevelId = levelB.Id });
             updateRes.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -148,13 +149,40 @@ namespace SalesApp.IntegrationTests.Classifications
             updated.NextLevelName.Should().Be(levelBName);
 
             // 5. Clear NextLevel
-            var clearRes = await _client.PutAsJsonAsync($"/api/classifications/levels/{levelA.Id}",
+            var clearRes = await clientWithToken.PutAsJsonAsync($"/api/classifications/levels/{levelA.Id}",
                 new UpdateClassificationLevelRequest { ClearNextLevel = true });
             clearRes.StatusCode.Should().Be(HttpStatusCode.OK);
 
             var cleared = (await clearRes.Content.ReadFromJsonAsync<ApiResponse<ClassificationLevelResponse>>())!.Data!;
             cleared.NextLevelId.Should().BeNull();
             cleared.NextLevelName.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task Admin_CreateEditDeleteLevel_ShouldReturnForbidden()
+        {
+            // Authenticate as standard admin
+            var adminToken = await GetAdminToken();
+            var adminClient = _factory.CreateClient();
+            adminClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", adminToken);
+
+            // 1. Try to Create a Level
+            var createRes = await adminClient.PostAsJsonAsync("/api/classifications/levels", new CreateClassificationLevelRequest
+            {
+                Name = "Forbidden Level"
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+            // 2. Try to Update a Level
+            var updateRes = await adminClient.PutAsJsonAsync("/api/classifications/levels/1", new UpdateClassificationLevelRequest
+            {
+                Name = "Updated Forbidden Name"
+            });
+            updateRes.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+            // 3. Try to Delete a Level
+            var deleteRes = await adminClient.DeleteAsync("/api/classifications/levels/1");
+            deleteRes.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         }
 
         private async Task<string> GetSuperAdminToken()
@@ -168,6 +196,19 @@ namespace SalesApp.IntegrationTests.Classifications
             var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
             return result?.Data?.Token ?? throw new Exception("Failed to get superadmin token");
+        }
+
+        private async Task<string> GetAdminToken()
+        {
+            var loginRequest = new LoginRequest
+            {
+                Email = "admin@test.com",
+                Password = "admin123"
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+            return result?.Data?.Token ?? throw new Exception("Failed to get admin token");
         }
     }
 }

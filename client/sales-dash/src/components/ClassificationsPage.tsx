@@ -12,6 +12,7 @@ import { notifications } from '@mantine/notifications'
 import Menu from './Menu'
 import { useReferenceData } from '../contexts/ReferenceDataContext'
 import { useCurrentUser } from '../contexts/CurrentUserContext'
+import { getSubordinateUsers, getSubordinateUserIdsSet } from '../utils/hierarchyUtils'
 import {
   apiService, ClassificationLevel, UserClassification, User,
   CreateClassificationLevelRequest
@@ -263,28 +264,30 @@ const ClassificationsPage: React.FC = () => {
     }
   }
 
+  const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin'
+
   // ── Scoped user pool (admin = BFS subordinates; superadmin = all) ─────────
   const userPool = useMemo(() => {
-    const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin'
     if (isSuperAdmin) return allUsers
+    return getSubordinateUsers(currentUser?.id, allUsers)
+  }, [allUsers, currentUser, isSuperAdmin])
 
-    if (!currentUser?.id) return allUsers
-    const currentUserId = currentUser.id
+  // ── Subordinate ID set for filtering members in level ────────────────────
+  const subordinateIdSet = useMemo(() => {
+    if (isSuperAdmin) return null
+    return getSubordinateUserIdsSet(currentUser?.id, allUsers)
+  }, [allUsers, currentUser, isSuperAdmin])
 
-    // BFS to collect admin's children (subordinates)
-    const visited = new Set<string>([currentUserId])
-    const queue = [currentUserId]
-    while (queue.length) {
-      const id = queue.shift()!
-      for (const u of allUsers) {
-        if (u.parentUserId === id && !visited.has(u.id)) {
-          visited.add(u.id)
-          queue.push(u.id)
-        }
-      }
-    }
-    return allUsers.filter(u => visited.has(u.id) && u.id !== currentUserId)
-  }, [allUsers, currentUser])
+  // ── Scoped active & inactive members for level modal ──────────────────────
+  const visibleActiveMembers = useMemo(() => {
+    if (!subordinateIdSet) return levelMembers
+    return levelMembers.filter(m => subordinateIdSet.has(m.userId))
+  }, [levelMembers, subordinateIdSet])
+
+  const visibleInactiveMembers = useMemo(() => {
+    if (!subordinateIdSet) return inactiveLevelMembers
+    return inactiveLevelMembers.filter(m => subordinateIdSet.has(m.userId))
+  }, [inactiveLevelMembers, subordinateIdSet])
 
   // ── Filtered users for assign panel ──────────────────────────────────────
   const memberIds = new Set(levelMembers.map(m => m.userId))
@@ -299,7 +302,7 @@ const ClassificationsPage: React.FC = () => {
 
   // ── Filtered active members for right column ─────────────────────────────
   const trimmedActiveSearch = activeMemberSearch.trim().toLowerCase()
-  const filteredActiveMembers = levelMembers.filter(m =>
+  const filteredActiveMembers = visibleActiveMembers.filter(m =>
     !trimmedActiveSearch ||
     m.userName.toLowerCase().includes(trimmedActiveSearch) ||
     m.userEmail.toLowerCase().includes(trimmedActiveSearch)
@@ -330,9 +333,11 @@ const ClassificationsPage: React.FC = () => {
             >
               Atualizar
             </Button>
-            <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
-              Novo Nível
-            </Button>
+            {isSuperAdmin && (
+              <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
+                Novo Nível
+              </Button>
+            )}
           </Group>
         </div>
 
@@ -399,16 +404,20 @@ const ClassificationsPage: React.FC = () => {
                       <IconUsers size={16} />
                     </ActionIcon>
                   </Tooltip>
-                  <Tooltip label="Editar nível" withArrow position="top">
-                    <ActionIcon variant="light" color="blue" onClick={() => openEdit(level)}>
-                      <IconEdit size={16} />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Excluir nível" withArrow position="top">
-                    <ActionIcon variant="light" color="red" onClick={() => setDeleteConfirm(level.id)}>
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </Tooltip>
+                  {isSuperAdmin && (
+                    <>
+                      <Tooltip label="Editar nível" withArrow position="top">
+                        <ActionIcon variant="light" color="blue" onClick={() => openEdit(level)}>
+                          <IconEdit size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Excluir nível" withArrow position="top">
+                        <ActionIcon variant="light" color="red" onClick={() => setDeleteConfirm(level.id)}>
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -733,7 +742,7 @@ const ClassificationsPage: React.FC = () => {
                     onClick={() => setInactiveCollapsed(!inactiveCollapsed)}
                   >
                     <Title order={5} style={{ color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <IconUsers size={18} color="#9ca3af" /> Membros Inativos ({inactiveLevelMembers.length})
+                      <IconUsers size={18} color="#9ca3af" /> Membros Inativos ({visibleInactiveMembers.length})
                     </Title>
                     {inactiveCollapsed ? <IconChevronDown size={16} color="#9ca3af" /> : <IconChevronUp size={16} color="#9ca3af" />}
                   </Group>
@@ -742,12 +751,12 @@ const ClassificationsPage: React.FC = () => {
                   {!inactiveCollapsed && (
                     membersLoading ? (
                       <Group justify="center" p="md"><Loader size="sm" /></Group>
-                    ) : inactiveLevelMembers.length === 0 ? (
+                    ) : visibleInactiveMembers.length === 0 ? (
                       <Text size="sm" c="dimmed" ta="center" py="xl">Nenhum membro inativo neste nível</Text>
                     ) : (
                       <ScrollArea h={180}>
                         <Stack gap={8}>
-                          {inactiveLevelMembers.map(m => (
+                          {visibleInactiveMembers.map(m => (
                             <div key={m.id} className="cls-member-card inactive">
                               <div className="cls-member-card__info" style={{ opacity: 0.7 }}>
                                 <div className="cls-member-card__name">{m.userName}</div>

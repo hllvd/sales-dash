@@ -28,7 +28,7 @@ namespace SalesApp.Services
             }
 
             // Validate request type and payload
-            if (dto.RequestType == "ChangeParentEmail")
+            if (dto.RequestType == ApprovalRequestType.ChangeParentEmail)
             {
                 var payload = JsonSerializer.Deserialize<ChangeParentEmailPayload>(dto.PayloadJson, _jsonOptions);
                 if (string.IsNullOrWhiteSpace(payload?.NewParentEmail))
@@ -48,7 +48,7 @@ namespace SalesApp.Services
                     throw new InvalidOperationException(validationError);
                 }
             }
-            else if (dto.RequestType == "RequestMatricula" || dto.RequestType == "AdminRequestMatricula")
+            else if (dto.RequestType == ApprovalRequestType.RequestMatricula || dto.RequestType == ApprovalRequestType.AdminRequestMatricula)
             {
                 var payload = JsonSerializer.Deserialize<RequestMatriculaPayload>(dto.PayloadJson, _jsonOptions);
                 if (string.IsNullOrWhiteSpace(payload?.MatriculaNumber))
@@ -62,7 +62,7 @@ namespace SalesApp.Services
                     throw new ArgumentException("Número da matrícula inválido.");
                 }
             }
-            else if (dto.RequestType == "RequestAdminRole")
+            else if (dto.RequestType == ApprovalRequestType.RequestAdminRole)
             {
                 var isAlreadyAdmin = requester.RoleId == (int)RoleId.Admin || requester.RoleId == (int)RoleId.SuperAdmin;
                 if (isAlreadyAdmin)
@@ -79,7 +79,7 @@ namespace SalesApp.Services
             {
                 RequestType = dto.RequestType,
                 RequesterId = requesterId,
-                Status = "Pending",
+                Status = ApprovalRequestStatus.Pending,
                 PayloadJson = dto.PayloadJson,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -104,7 +104,7 @@ namespace SalesApp.Services
             var list = await _context.ApprovalRequests
                 .Include(r => r.Requester)
                 .Include(r => r.Approver)
-                .Where(r => r.Status == "Pending")
+                .Where(r => r.Status == ApprovalRequestStatus.Pending)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
 
@@ -144,7 +144,7 @@ namespace SalesApp.Services
                 throw new KeyNotFoundException("Solicitação não encontrada.");
             }
 
-            if (request.Status != "Pending")
+            if (request.Status != ApprovalRequestStatus.Pending)
             {
                 throw new InvalidOperationException("Esta solicitação já foi processada.");
             }
@@ -160,11 +160,9 @@ namespace SalesApp.Services
                 throw new UnauthorizedAccessException("Você não possui permissão para aprovar ou rejeitar esta solicitação.");
             }
 
-            var actionUpper = dto.Action.Trim().ToUpperInvariant();
-
-            if (actionUpper == "APPROVED" || actionUpper == "YES" || actionUpper == "APROVAR")
+            if (ApprovalRequestAction.IsApprove(dto.Action))
             {
-                request.Status = "Approved";
+                request.Status = ApprovalRequestStatus.Approved;
                 request.ApproverId = approverId;
                 request.ApproverComment = dto.Comment;
                 request.UpdatedAt = DateTime.UtcNow;
@@ -174,16 +172,16 @@ namespace SalesApp.Services
 
                 // TODO: notify requester via email/in-app notification
             }
-            else if (actionUpper == "REJECTED" || actionUpper == "NO" || actionUpper == "REJEITAR")
+            else if (ApprovalRequestAction.IsReject(dto.Action))
             {
-                request.Status = "Rejected";
+                request.Status = ApprovalRequestStatus.Rejected;
                 request.ApproverId = approverId;
                 request.ApproverComment = dto.Comment;
                 request.UpdatedAt = DateTime.UtcNow;
 
                 // TODO: notify requester via email/in-app notification
             }
-            else if (actionUpper == "LATER" || actionUpper == "DEPOIS")
+            else if (ApprovalRequestAction.IsLater(dto.Action))
             {
                 // Stays Pending indefinitely as requested
                 request.ApproverComment = dto.Comment;
@@ -210,7 +208,7 @@ namespace SalesApp.Services
             if (isSuperAdmin) return true;
 
             // 1. ChangeParentEmail
-            if (request.RequestType == "ChangeParentEmail")
+            if (request.RequestType == ApprovalRequestType.ChangeParentEmail)
             {
                 var payload = JsonSerializer.Deserialize<ChangeParentEmailPayload>(request.PayloadJson, _jsonOptions);
                 if (payload != null && !string.IsNullOrWhiteSpace(payload.NewParentEmail))
@@ -243,7 +241,7 @@ namespace SalesApp.Services
 
 
             // 2. RequestMatricula (Nova Matrícula Usuário)
-            if (request.RequestType == "RequestMatricula")
+            if (request.RequestType == ApprovalRequestType.RequestMatricula)
             {
                 var payload = JsonSerializer.Deserialize<RequestMatriculaPayload>(request.PayloadJson, _jsonOptions);
                 if (payload != null && !string.IsNullOrWhiteSpace(payload.MatriculaNumber))
@@ -266,7 +264,7 @@ namespace SalesApp.Services
             }
 
             // 3. AdminRequestMatricula (Only SuperAdmins)
-            if (request.RequestType == "AdminRequestMatricula")
+            if (request.RequestType == ApprovalRequestType.AdminRequestMatricula)
             {
                 return false;
             }
@@ -280,7 +278,7 @@ namespace SalesApp.Services
         {
             var requester = await _context.Users.FirstAsync(u => u.Id == request.RequesterId);
 
-            if (request.RequestType == "ChangeParentEmail")
+            if (request.RequestType == ApprovalRequestType.ChangeParentEmail)
             {
                 var payload = JsonSerializer.Deserialize<ChangeParentEmailPayload>(request.PayloadJson, _jsonOptions);
                 if (payload == null || string.IsNullOrWhiteSpace(payload.NewParentEmail))
@@ -303,7 +301,7 @@ namespace SalesApp.Services
                 requester.ParentUserId = parentUser.Id;
                 requester.UpdatedAt = DateTime.UtcNow;
             }
-            else if (request.RequestType == "RequestMatricula" || request.RequestType == "AdminRequestMatricula")
+            else if (request.RequestType == ApprovalRequestType.RequestMatricula || request.RequestType == ApprovalRequestType.AdminRequestMatricula)
             {
                 var payload = JsonSerializer.Deserialize<RequestMatriculaPayload>(request.PayloadJson, _jsonOptions);
                 if (payload == null || string.IsNullOrWhiteSpace(payload.MatriculaNumber))
@@ -328,7 +326,7 @@ namespace SalesApp.Services
                     await _context.SaveChangesAsync();
                 }
 
-                var isOwner = request.RequestType == "AdminRequestMatricula";
+                var isOwner = request.RequestType == ApprovalRequestType.AdminRequestMatricula;
 
                 var existingLink = await _context.UserMatriculas
                     .FirstOrDefaultAsync(um => um.UserInternalId == requester.InternalId && um.MatriculaId == matricula.Id);
@@ -351,7 +349,7 @@ namespace SalesApp.Services
                     existingLink.UpdatedAt = DateTime.UtcNow;
                 }
             }
-            else if (request.RequestType == "RequestAdminRole")
+            else if (request.RequestType == ApprovalRequestType.RequestAdminRole)
             {
                 requester.RoleId = (int)RoleId.Admin;
                 requester.UpdatedAt = DateTime.UtcNow;
