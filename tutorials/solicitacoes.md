@@ -10,7 +10,7 @@ A Central de Solicitações (`#/requests`) permite que os usuários solicitem al
 2. **Criar nova solicitação**: Clique no botão **"Nova Solicitação"** no topo da página.
 3. **Escolher o tipo de solicitação**:
    - **Alteração de Superior (E-mail)**: Informe o e-mail do seu novo gestor.
-   - **Solicitação de Nova Matrícula**: Informe o número da matrícula que deseja vincular ao seu perfil.
+   - **Usar Matrícula do Gestor**: Informe o número da matrícula que deseja vincular ao seu perfil.
    - **Solicitação de Perfil Administrador (Role Admin)**: Solicite a promoção da sua conta para Administrador.
 4. **Acompanhar**: Na aba **"Minhas Solicitações"**, você pode ver o status em tempo real (*Pendente*, *Aprovado*, *Rejeitado*).
 
