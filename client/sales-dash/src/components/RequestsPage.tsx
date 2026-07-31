@@ -513,7 +513,7 @@ const RequestsPage: React.FC = () => {
           label="Tipo de Solicitação"
           data={[
             { value: 'ChangeParentEmail', label: 'Alteração de Superior (E-mail)' },
-            { value: 'RequestMatricula', label: 'Solicitação de Nova Matrícula' },
+            { value: 'RequestMatricula', label: 'Solicitar o uso da matrícula do gestor' },
             ...((userRole === 'user' || userRole === 'admin')
               ? [
                   { value: 'RequestClassificationLevel', label: 'Solicitação de Nível de Classificação' },
