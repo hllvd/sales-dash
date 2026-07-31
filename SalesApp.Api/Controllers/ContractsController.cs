@@ -527,10 +527,12 @@ namespace SalesApp.Controllers
                     });
                 }
                 contract.UserInternalId = user.InternalId;
+                contract.User = user;
             }
-            else if (request.UserId.HasValue && request.UserId.Value == Guid.Empty)
+            else
             {
                 contract.UserInternalId = null;
+                contract.User = null;
             }
             
             // Always update GroupId
@@ -646,7 +648,14 @@ namespace SalesApp.Controllers
                     {
                         contract.MatriculaId = um.MatriculaId;
                         contract.TempMatricula = um.Matricula?.MatriculaNumber;
+                        contract.Matricula = um.Matricula;
                     }
+                }
+                else if (contract.UserInternalId == null)
+                {
+                    contract.MatriculaId = null;
+                    contract.TempMatricula = null;
+                    contract.Matricula = null;
                 }
             }
             

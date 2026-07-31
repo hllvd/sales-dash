@@ -277,5 +277,49 @@ namespace SalesApp.Tests
             // Verify user repository was never called since UserId was null
             _mockUserRepository.Verify(x => x.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
         }
+
+        [Fact]
+        public async Task UpdateContract_WithNullUserId_ShouldClearUserInternalIdAndMatricula()
+        {
+            // Arrange
+            var contractId = 1;
+            var existingContract = new Contract
+            {
+                Id = contractId,
+                ContractNumber = "1100000921",
+                UserInternalId = 10,
+                MatriculaId = 5,
+                TempMatricula = "MATR-123",
+                IsActive = true
+            };
+
+            var updateRequest = new UpdateContractRequest
+            {
+                UserId = null,
+                MatriculaNumber = null
+            };
+
+            Contract? updatedModelPassedToRepo = null;
+
+            _mockContractRepository.Setup(x => x.GetByIdAsync(contractId))
+                .ReturnsAsync(existingContract);
+            _mockContractRepository.Setup(x => x.UpdateAsync(It.IsAny<Contract>()))
+                .Callback<Contract>(c => updatedModelPassedToRepo = c)
+                .ReturnsAsync(existingContract);
+
+            // Act
+            var result = await _controller.UpdateContract(contractId, updateRequest);
+
+            // Assert
+            result.Should().BeOfType<ActionResult<ApiResponse<ContractResponse>>>();
+            var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+            var response = okResult.Value.Should().BeOfType<ApiResponse<ContractResponse>>().Subject;
+            response.Success.Should().BeTrue();
+
+            updatedModelPassedToRepo.Should().NotBeNull();
+            updatedModelPassedToRepo!.UserInternalId.Should().BeNull();
+            updatedModelPassedToRepo!.MatriculaId.Should().BeNull();
+            updatedModelPassedToRepo!.TempMatricula.Should().BeNull();
+        }
     }
 }
