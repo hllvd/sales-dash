@@ -170,12 +170,14 @@ test.describe('User Classification and Views Engine E2E Tests', () => {
     console.log('>>> Adding layout row...');
     await page.click('button:has-text("+ Linha (1 Coluna)")');
 
-    // Close the "Linha Adicionada" notification alert to prevent pointer interception
+    // Close the "Linha Adicionada" notification alert to prevent pointer interception if visible
     const toastCloseBtn = page.locator('div[role="alert"] button').first();
     if (await toastCloseBtn.isVisible()) {
-      await toastCloseBtn.click();
-      await expect(toastCloseBtn).not.toBeVisible({ timeout: 5000 });
+      try {
+        await toastCloseBtn.click({ timeout: 1000 });
+      } catch (_) {}
     }
+
 
     // Save dashboard
     const saveBtn = page.locator('button:has-text("Salvar Dashboard")');

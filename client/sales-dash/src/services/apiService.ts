@@ -362,7 +362,24 @@ export const apiService = {
     return response.json()
   },
 
+  async batchMergeUsers(
+    requestData: MergeUsersRequest
+  ): Promise<ApiResponse<MergeUsersResult>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/batch/users/merge`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestData),
+    })
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to perform batch user merge"))
+    }
+
+    return response.json()
+  },
+
   async savePowerBiCredentials(username: string, password?: string): Promise<ApiResponse<User>> {
+
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/powerbi-credentials`, {
       method: "PUT",
       headers: getAuthHeaders(),
@@ -1619,7 +1636,35 @@ export interface BatchAssignTeamResult {
   skipped: SkippedUserSummary[]
 }
 
+export interface MergeUserPair {
+  mainEmail: string
+  duplicateEmail: string
+}
+
+export interface MergeUsersRequest {
+  pairs: MergeUserPair[]
+  deactivateDuplicate: boolean
+  dryRun: boolean
+}
+
+export interface MergeUserPairResult {
+  mainEmail: string
+  duplicateEmail: string
+  error?: string | null
+  contractsMigrated: number
+  matriculasMigrated: number
+  childUsersMigrated: number
+  teamMembershipsMigrated: number
+  duplicateDeactivated: boolean
+}
+
+export interface MergeUsersResult {
+  isDryRun: boolean
+  pairs: MergeUserPairResult[]
+}
+
 export interface ApprovalRequestItem {
+
   id: number
   requestType: string
   requesterId: string

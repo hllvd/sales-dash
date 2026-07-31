@@ -90,8 +90,10 @@ export default defineConfig({
         'equipe_admin_permission.spec.ts',
         'delete_user_migration.spec.ts',
         'approval_requests.spec.ts',
-        'contracts_matricula_multiselect.spec.ts'
+        'contracts_matricula_multiselect.spec.ts',
+        'batch_merge_users.spec.ts'
       ],
+
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2-roles-testing']
     },

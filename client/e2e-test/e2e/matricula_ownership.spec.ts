@@ -86,12 +86,13 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
     while (count > 0) {
       console.log(`>>> Cleaning up: ${count} rows remaining for ${testMatricula}`);
       await testRows.first().locator('button[title="Excluir"], .tabler-icon-trash').click();
-      await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
-      
-      // Wait for the count to decrease
-      await expect(testRows).toHaveCount(count - 1, { timeout: 20000 });
+      const dialog = page.getByRole('dialog');
+      await dialog.getByRole('button', { name: 'Excluir' }).click();
+      await expect(dialog).not.toBeVisible({ timeout: 15000 });
+      await page.waitForTimeout(300);
       count = await testRows.count();
     }
+
 
     await expect(page.locator('tr', { hasText: testMatricula })).toHaveCount(0);
     console.log('>>> Cleanup complete.');

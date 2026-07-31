@@ -64,4 +64,36 @@ namespace SalesApp.DTOs
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
     }
+
+    public class MergeUserPair
+    {
+        public string MainEmail { get; set; } = string.Empty;
+        public string DuplicateEmail { get; set; } = string.Empty;
+    }
+
+    public class MergeUsersRequest
+    {
+        public List<MergeUserPair> Pairs { get; set; } = new List<MergeUserPair>();
+        public bool DeactivateDuplicate { get; set; } = false;
+        public bool DryRun { get; set; } = true;
+    }
+
+    public class MergeUserPairResult
+    {
+        public string MainEmail { get; set; } = string.Empty;
+        public string DuplicateEmail { get; set; } = string.Empty;
+        public string? Error { get; set; }
+        public int ContractsMigrated { get; set; }
+        public int MatriculasMigrated { get; set; }
+        public int ChildUsersMigrated { get; set; }
+        public int TeamMembershipsMigrated { get; set; }
+        public bool DuplicateDeactivated { get; set; }
+    }
+
+    public class MergeUsersResult
+    {
+        public bool IsDryRun { get; set; }
+        public List<MergeUserPairResult> Pairs { get; set; } = new List<MergeUserPairResult>();
+    }
 }
+

@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import {
-  Title, TextInput, Button, Switch, Group, Table, Text, Select, Loader, Tabs, Badge, Card, SimpleGrid
+  Title, TextInput, Button, Switch, Group, Table, Text, Select, Loader, Tabs, Badge, Card, SimpleGrid, Textarea
 } from '@mantine/core'
 import { DatePickerInput } from '@mantine/dates'
 import {
-  IconUsers, IconWand, IconAlertTriangle, IconCheck, IconX
+  IconUsers, IconWand, IconAlertTriangle, IconCheck, IconX, IconGitMerge, IconEye
 } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import Menu from './Menu'
 import { useCurrentUser } from '../contexts/CurrentUserContext'
 import { useReferenceData } from '../contexts/ReferenceDataContext'
-import { apiService, BatchUpdateParentResult, BatchAssignTeamResult, BatchAssignTeamRequest } from '../services/apiService'
+import {
+  apiService, BatchUpdateParentResult, BatchAssignTeamResult, BatchAssignTeamRequest,
+  MergeUserPair, MergeUsersRequest, MergeUsersResult
+} from '../services/apiService'
 import './BatchPage.css'
 
 const BatchPage: React.FC = () => {
@@ -32,11 +35,17 @@ const BatchPage: React.FC = () => {
   const [overrideExistingTeam, setOverrideExistingTeam] = useState(false)
   const [assignResult, setAssignResult] = useState<BatchAssignTeamResult | null>(null)
 
+  // Tab 3: Merge Users
+  const [mergeText, setMergeText] = useState('')
+  const [deactivateDuplicate, setDeactivateDuplicate] = useState(false)
+  const [mergeResult, setMergeResult] = useState<MergeUsersResult | null>(null)
+
   const [activeTab, setActiveTab] = useState<string | null>('parent')
   const [teams, setTeams] = useState<Array<{ value: string; label: string }>>([])
   const [loadingTeams, setLoadingTeams] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
 
   useEffect(() => {
     const loadTeams = async () => {
@@ -226,6 +235,113 @@ const BatchPage: React.FC = () => {
     setAssignResult(null)
   }
 
+  const parseEmailPairs = (text: string): MergeUserPair[] => {
+    const lines = text.split('\n')
+    const pairs: MergeUserPair[] = []
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      const parts = trimmed.split(/[\s,]+/).filter(Boolean)
+      if (parts.length >= 2) {
+        pairs.push({
+          mainEmail: parts[0].trim(),
+          duplicateEmail: parts[1].trim()
+        })
+      }
+    }
+    return pairs
+  }
+
+  const handleMergePreview = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setMergeResult(null)
+
+    const pairs = parseEmailPairs(mergeText)
+    if (pairs.length === 0) {
+      setError('Insira pelo menos um par de e-mails válido (email1,email2).')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const payload: MergeUsersRequest = {
+        pairs,
+        deactivateDuplicate,
+        dryRun: true
+      }
+      const response = await apiService.batchMergeUsers(payload)
+      if (response.success && response.data) {
+        setMergeResult(response.data)
+        notifications.show({
+          title: 'Pré-visualização gerada',
+          message: response.message || 'Verifique o resumo antes de confirmar.',
+          color: 'blue',
+          icon: <IconCheck size={16} />
+        })
+      } else {
+        setError(response.message || 'Falha ao pré-visualizar consolidação.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro inesperado na pré-visualização.')
+      notifications.show({
+        title: 'Erro na operação',
+        message: err.message || 'Não foi possível concluir a pré-visualização',
+        color: 'red',
+        icon: <IconX size={16} />
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleMergeConfirm = async () => {
+    setError('')
+    const pairs = parseEmailPairs(mergeText)
+    if (pairs.length === 0) {
+      setError('Insira pelo menos um par de e-mails válido.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const payload: MergeUsersRequest = {
+        pairs,
+        deactivateDuplicate,
+        dryRun: false
+      }
+      const response = await apiService.batchMergeUsers(payload)
+      if (response.success && response.data) {
+        setMergeResult(response.data)
+        notifications.show({
+          title: 'Sucesso',
+          message: response.message || 'Consolidação de usuários realizada com sucesso.',
+          color: 'green',
+          icon: <IconCheck size={16} />
+        })
+      } else {
+        setError(response.message || 'Falha ao executar consolidação.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro inesperado ao aplicar consolidação.')
+      notifications.show({
+        title: 'Erro na operação',
+        message: err.message || 'Não foi possível concluir a ação',
+        color: 'red',
+        icon: <IconX size={16} />
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleMergeClear = () => {
+    setMergeText('')
+    setDeactivateDuplicate(false)
+    setError('')
+    setMergeResult(null)
+  }
+
   const handleTabChange = (val: string | null) => {
     setActiveTab(val)
     setError('')
@@ -237,7 +353,7 @@ const BatchPage: React.FC = () => {
         <div className="batch-header">
           <Title className="batch-title">Modificação em Lote</Title>
           <Text className="batch-subtitle">
-            Altere o supervisor de múltiplos usuários simultaneamente ou atribua usuários de um superior a uma equipe.
+            Altere o supervisor de múltiplos usuários simultaneamente, atribua usuários a equipes ou consolide contas duplicadas.
           </Text>
         </div>
 
@@ -249,8 +365,12 @@ const BatchPage: React.FC = () => {
             <Tabs.Tab value="team" leftSection={<IconUsers size={16} />}>
               Atribuir a Equipe
             </Tabs.Tab>
+            <Tabs.Tab value="merge" leftSection={<IconGitMerge size={16} />}>
+              Consolidar Usuários
+            </Tabs.Tab>
           </Tabs.List>
         </Tabs>
+
 
         {error && <div className="error-banner">{error}</div>}
 
@@ -409,9 +529,10 @@ const BatchPage: React.FC = () => {
               </div>
             )}
           </>
-        ) : (
+        ) : activeTab === 'team' ? (
           <>
             <form onSubmit={handleAssignSubmit} className="batch-card">
+
               <div className="batch-form-grid">
                 <TextInput
                   label="E-mail do Superior (pai)"
@@ -565,9 +686,141 @@ const BatchPage: React.FC = () => {
               </div>
             )}
           </>
+        ) : (
+          <>
+            <form onSubmit={handleMergePreview} className="batch-card">
+              <Text size="sm" c="dimmed" mb="md">
+                Consolide usuários duplicados em um único usuário principal. Insira um par por linha nos formatos:
+                <Text span fw={600}> email1,email2</Text>, <Text span fw={600}>email1 email2</Text> ou <Text span fw={600}>email1 [tab] email2</Text>.
+                O <Text span fw={600}>email1</Text> é o usuário principal (mantido) e <Text span fw={600}>email2</Text> é o duplicado.
+              </Text>
+
+              <Textarea
+                label="Pares de E-mails (email1, email2)"
+                placeholder={`email1@salesapp.com,email2@salesapp.com\nprincipal@test.com duplicado@test.com`}
+                value={mergeText}
+                onChange={(e) => {
+                  setMergeText(e.currentTarget.value)
+                  setMergeResult(null)
+                }}
+                rows={6}
+                required
+                disabled={submitting}
+                mb="md"
+              />
+
+              <div style={{ marginBottom: '16px' }}>
+                <Switch
+                  label="Desativar usuário duplicado (email2) ao concluir?"
+                  description="Se marcado, altera IsActive para falso no usuário duplicado após transferir os contratos e dados"
+                  checked={deactivateDuplicate}
+                  onChange={(e) => setDeactivateDuplicate(e.currentTarget.checked)}
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className="batch-action-row">
+                <Button variant="subtle" color="gray" onClick={handleMergeClear} disabled={submitting}>
+                  Limpar
+                </Button>
+                <Button
+                  type="submit"
+                  loading={submitting}
+                  leftSection={<IconEye size={16} />}
+                  color="blue"
+                >
+                  Pré-visualizar Consolidação
+                </Button>
+              </div>
+            </form>
+
+            {mergeResult && (
+              <div className="batch-card" style={{ marginTop: '24px' }}>
+                <Group justify="space-between" align="center" mb="md">
+                  <Title order={3} className="batch-results-header" style={{ margin: 0 }}>
+                    {mergeResult.isDryRun ? 'Pré-visualização da Consolidação' : 'Resultado da Consolidação'}
+                  </Title>
+                  <Badge color={mergeResult.isDryRun ? 'blue' : 'green'} size="lg">
+                    {mergeResult.isDryRun ? 'Modo Simulação (Dry-Run)' : 'Concluído'}
+                  </Badge>
+                </Group>
+
+                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" className="batch-stats-container" mb="lg">
+                  <div className="batch-stat-card">
+                    <Text className="batch-stat-title">Total de Pares</Text>
+                    <Text className="batch-stat-value total">{mergeResult.pairs.length}</Text>
+                  </div>
+                  <div className="batch-stat-card">
+                    <Text className="batch-stat-title">Válidos</Text>
+                    <Text className="batch-stat-value success">
+                      {mergeResult.pairs.filter(p => !p.error).length}
+                    </Text>
+                  </div>
+                  <div className="batch-stat-card">
+                    <Text className="batch-stat-title">Com Erros</Text>
+                    <Text className="batch-stat-value skipped">
+                      {mergeResult.pairs.filter(p => p.error).length}
+                    </Text>
+                  </div>
+                </SimpleGrid>
+
+                <div className="batch-table-wrapper">
+                  <Table className="batch-table">
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>E-mail Principal (email1)</Table.Th>
+                        <Table.Th>E-mail Duplicado (email2)</Table.Th>
+                        <Table.Th>Contratos</Table.Th>
+                        <Table.Th>Matrículas</Table.Th>
+                        <Table.Th>Subordinados</Table.Th>
+                        <Table.Th>Equipes</Table.Th>
+                        <Table.Th>Desativar email2?</Table.Th>
+                        <Table.Th>Status / Erro</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {mergeResult.pairs.map((p, idx) => (
+                        <Table.Tr key={idx}>
+                          <Table.Td>{p.mainEmail || '-'}</Table.Td>
+                          <Table.Td>{p.duplicateEmail || '-'}</Table.Td>
+                          <Table.Td>{p.contractsMigrated}</Table.Td>
+                          <Table.Td>{p.matriculasMigrated}</Table.Td>
+                          <Table.Td>{p.childUsersMigrated}</Table.Td>
+                          <Table.Td>{p.teamMembershipsMigrated}</Table.Td>
+                          <Table.Td>{p.duplicateDeactivated ? 'Sim' : 'Não'}</Table.Td>
+                          <Table.Td>
+                            {p.error ? (
+                              <Badge color="red">{p.error}</Badge>
+                            ) : (
+                              <Badge color="green">Válido</Badge>
+                            )}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </div>
+
+                {mergeResult.isDryRun && (
+                  <Group justify="flex-end" mt="xl">
+                    <Button
+                      color="green"
+                      leftSection={<IconWand size={16} />}
+                      loading={submitting}
+                      disabled={mergeResult.pairs.every(p => !!p.error)}
+                      onClick={handleMergeConfirm}
+                    >
+                      Confirmar e Executar Consolidação
+                    </Button>
+                  </Group>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </Menu>
+
   )
 }
 

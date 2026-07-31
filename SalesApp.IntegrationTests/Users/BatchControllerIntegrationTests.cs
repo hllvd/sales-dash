@@ -856,7 +856,254 @@ namespace SalesApp.IntegrationTests.Users
             }
         }
 
+        [Fact]
+        public async Task BatchMergeUsers_WithRegularUser_ShouldReturnForbidden()
+        {
+            // Arrange
+            var token = await GetRegularUserToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var request = new MergeUsersRequest
+            {
+                Pairs = new List<MergeUserPair>
+                {
+                    new MergeUserPair { MainEmail = "main@test.com", DuplicateEmail = "dup@test.com" }
+                },
+                DryRun = true
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/batch/users/merge", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        [Fact]
+        public async Task BatchMergeUsers_WithDryRun_ShouldReturnPreviewMetricsWithoutModifyingDatabase()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            User mainUser;
+            User duplicateUser;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                mainUser = new User
+                {
+                    Name = "Main User DryRun",
+                    Email = $"main_dryrun_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+
+                duplicateUser = new User
+                {
+                    Name = "Duplicate User DryRun",
+                    Email = $"dup_dryrun_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+
+                context.Users.AddRange(mainUser, duplicateUser);
+                await context.SaveChangesAsync();
+
+                // Create contract for duplicateUser
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = $"CNT-DRY-{Guid.NewGuid().ToString()[..6]}",
+                    UserInternalId = duplicateUser.InternalId,
+                    TotalAmount = 1000,
+                    ContractStatusId = 1,
+                    IsActive = true
+                });
+
+                await context.SaveChangesAsync();
+            }
+
+            var request = new MergeUsersRequest
+            {
+                Pairs = new List<MergeUserPair>
+                {
+                    new MergeUserPair { MainEmail = mainUser.Email, DuplicateEmail = duplicateUser.Email }
+                },
+                DeactivateDuplicate = true,
+                DryRun = true
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/batch/users/merge", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<MergeUsersResult>>();
+            result!.Success.Should().BeTrue();
+            result.Data!.IsDryRun.Should().BeTrue();
+            result.Data.Pairs.Should().HaveCount(1);
+            var pair = result.Data.Pairs.First();
+            pair.Error.Should().BeNull();
+            pair.ContractsMigrated.Should().Be(1);
+
+            // Verify in DB that duplicate contract was NOT changed and duplicate user is STILL ACTIVE
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var dbDupUser = await context.Users.FirstAsync(u => u.Id == duplicateUser.Id);
+                var dbContract = await context.Contracts.FirstAsync(c => c.UserInternalId == duplicateUser.InternalId);
+
+                dbDupUser.IsActive.Should().BeTrue();
+                dbContract.UserInternalId.Should().Be(duplicateUser.InternalId);
+            }
+        }
+
+        [Fact]
+        public async Task BatchMergeUsers_WithCommitAndDeactivate_ShouldMigrateContractsMatriculasChildrenTeamsAndDeactivateDuplicate()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            User mainUser;
+            User duplicateUser;
+            User childUser;
+            Matricula matricula;
+            Team team;
+            Contract contract;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                mainUser = new User
+                {
+                    Name = "Main User Commit",
+                    Email = $"main_commit_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+
+                duplicateUser = new User
+                {
+                    Name = "Duplicate User Commit",
+                    Email = $"dup_commit_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+
+                context.Users.AddRange(mainUser, duplicateUser);
+                await context.SaveChangesAsync();
+
+                childUser = new User
+                {
+                    Name = "Child User Of Duplicate",
+                    Email = $"child_dup_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    ParentUserId = duplicateUser.Id,
+                    IsActive = true
+                };
+                context.Users.Add(childUser);
+
+                matricula = new Matricula
+                {
+                    MatriculaNumber = $"MAT-MERGE-{Guid.NewGuid().ToString()[..6]}",
+                    StartDate = DateTime.UtcNow,
+                    Status = "active"
+                };
+                context.Matriculas.Add(matricula);
+
+                team = new Team { Name = $"Team Merge {Guid.NewGuid().ToString()[..6]}" };
+                context.Teams.Add(team);
+
+                await context.SaveChangesAsync();
+
+                context.UserMatriculas.Add(new UserMatricula
+                {
+                    UserInternalId = duplicateUser.InternalId,
+                    MatriculaId = matricula.Id,
+                    IsOwner = true,
+                    IsActive = true
+                });
+
+                context.UserTeams.Add(new UserTeam
+                {
+                    UserInternalId = duplicateUser.InternalId,
+                    TeamId = team.Id,
+                    StartDate = DateTime.UtcNow
+                });
+
+                contract = new Contract
+                {
+                    ContractNumber = $"CNT-MERGE-{Guid.NewGuid().ToString()[..6]}",
+                    UserInternalId = duplicateUser.InternalId,
+                    MatriculaId = matricula.Id,
+                    TotalAmount = 5000,
+                    ContractStatusId = 1,
+                    IsActive = true
+                };
+                context.Contracts.Add(contract);
+
+                await context.SaveChangesAsync();
+            }
+
+            var request = new MergeUsersRequest
+            {
+                Pairs = new List<MergeUserPair>
+                {
+                    new MergeUserPair { MainEmail = mainUser.Email, DuplicateEmail = duplicateUser.Email }
+                },
+                DeactivateDuplicate = true,
+                DryRun = false
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/batch/users/merge", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<MergeUsersResult>>();
+            result!.Success.Should().BeTrue();
+            result.Data!.IsDryRun.Should().BeFalse();
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var dbMainUser = await context.Users.FirstAsync(u => u.Id == mainUser.Id);
+                var dbDupUser = await context.Users.FirstAsync(u => u.Id == duplicateUser.Id);
+                var dbChild = await context.Users.FirstAsync(u => u.Id == childUser.Id);
+                var dbContract = await context.Contracts.FirstAsync(c => c.Id == contract.Id);
+                var dbUM = await context.UserMatriculas.FirstOrDefaultAsync(um => um.MatriculaId == matricula.Id);
+                var dbUT = await context.UserTeams.FirstOrDefaultAsync(ut => ut.TeamId == team.Id);
+
+                // Duplicate user should be deactivated
+                dbDupUser.IsActive.Should().BeFalse();
+
+                // Contract should now belong to mainUser and maintain MatriculaId
+                dbContract.UserInternalId.Should().Be(mainUser.InternalId);
+                dbContract.MatriculaId.Should().Be(matricula.Id);
+
+                // Child user parent should now be mainUser
+                dbChild.ParentUserId.Should().Be(mainUser.Id);
+
+                // UserMatricula should now belong to mainUser
+                dbUM.Should().NotBeNull();
+                dbUM!.UserInternalId.Should().Be(mainUser.InternalId);
+
+                // UserTeam should now belong to mainUser
+                dbUT.Should().NotBeNull();
+                dbUT!.UserInternalId.Should().Be(mainUser.InternalId);
+            }
+        }
+
         private async Task<string> GetSuperAdminToken()
+
         {
             var loginRequest = new LoginRequest
             {

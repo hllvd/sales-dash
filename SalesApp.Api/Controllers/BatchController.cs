@@ -366,6 +366,183 @@ namespace SalesApp.Controllers
             });
         }
 
+        [HttpPost("users/merge")]
+        public async Task<ActionResult<ApiResponse<MergeUsersResult>>> BatchMergeUsers([FromBody] MergeUsersRequest request)
+        {
+            // 1. Authorize: strictly superadmin@salesapp.com (or superadmin@test.com for integration tests)
+            var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (emailClaim != "superadmin@salesapp.com" && emailClaim != "superadmin@test.com")
+            {
+                return Forbid();
+            }
+
+            if (request == null || request.Pairs == null || request.Pairs.Count == 0)
+            {
+                return BadRequest(new ApiResponse<MergeUsersResult>
+                {
+                    Success = false,
+                    Message = "Pelo menos um par de e-mails deve ser fornecido."
+                });
+            }
+
+            var result = new MergeUsersResult
+            {
+                IsDryRun = request.DryRun
+            };
+
+            foreach (var pair in request.Pairs)
+            {
+                var mainEmailClean = pair.MainEmail?.Trim();
+                var duplicateEmailClean = pair.DuplicateEmail?.Trim();
+
+                var pairResult = new MergeUserPairResult
+                {
+                    MainEmail = mainEmailClean ?? string.Empty,
+                    DuplicateEmail = duplicateEmailClean ?? string.Empty,
+                    DuplicateDeactivated = request.DeactivateDuplicate
+                };
+
+                if (string.IsNullOrWhiteSpace(mainEmailClean) || string.IsNullOrWhiteSpace(duplicateEmailClean))
+                {
+                    pairResult.Error = "E-mail principal e e-mail duplicado são obrigatórios.";
+                    result.Pairs.Add(pairResult);
+                    continue;
+                }
+
+                if (mainEmailClean.Equals(duplicateEmailClean, StringComparison.OrdinalIgnoreCase))
+                {
+                    pairResult.Error = "O e-mail principal e o e-mail duplicado não podem ser iguais.";
+                    result.Pairs.Add(pairResult);
+                    continue;
+                }
+
+                var mainUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == mainEmailClean.ToLower());
+                var duplicateUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == duplicateEmailClean.ToLower());
+
+                if (mainUser == null)
+                {
+                    pairResult.Error = $"Usuário principal '{mainEmailClean}' não foi encontrado.";
+                    result.Pairs.Add(pairResult);
+                    continue;
+                }
+
+                if (duplicateUser == null)
+                {
+                    pairResult.Error = $"Usuário duplicado '{duplicateEmailClean}' não foi encontrado.";
+                    result.Pairs.Add(pairResult);
+                    continue;
+                }
+
+                // Fetch contracts linked to duplicateUser
+                var duplicateContracts = await _context.Contracts
+                    .Where(c => c.UserInternalId == duplicateUser.InternalId)
+                    .ToListAsync();
+
+                // Fetch UserMatriculas linked to duplicateUser and mainUser
+                var duplicateMatriculas = await _context.UserMatriculas
+                    .Where(um => um.UserInternalId == duplicateUser.InternalId)
+                    .ToListAsync();
+                var mainMatriculas = await _context.UserMatriculas
+                    .Where(um => um.UserInternalId == mainUser.InternalId)
+                    .ToListAsync();
+
+                // Fetch Child users where ParentUserId == duplicateUser.Id
+                var childUsers = await _context.Users
+                    .Where(u => u.ParentUserId == duplicateUser.Id)
+                    .ToListAsync();
+
+                // Fetch UserTeams linked to duplicateUser and mainUser
+                var duplicateTeams = await _context.UserTeams
+                    .Where(ut => ut.UserInternalId == duplicateUser.InternalId)
+                    .ToListAsync();
+                var mainTeams = await _context.UserTeams
+                    .Where(ut => ut.UserInternalId == mainUser.InternalId)
+                    .ToListAsync();
+
+                pairResult.ContractsMigrated = duplicateContracts.Count;
+                pairResult.MatriculasMigrated = duplicateMatriculas.Count;
+                pairResult.ChildUsersMigrated = childUsers.Count;
+                pairResult.TeamMembershipsMigrated = duplicateTeams.Count;
+
+                if (!request.DryRun)
+                {
+                    // 1. Migrate Contracts
+                    foreach (var contract in duplicateContracts)
+                    {
+                        contract.UserInternalId = mainUser.InternalId;
+                        contract.UpdatedAt = DateTime.UtcNow;
+                    }
+
+                    // 2. Migrate UserMatriculas
+                    foreach (var um in duplicateMatriculas)
+                    {
+                        var existingMainUM = mainMatriculas.FirstOrDefault(m => m.MatriculaId == um.MatriculaId);
+                        if (existingMainUM != null)
+                        {
+                            if (um.IsOwner)
+                            {
+                                existingMainUM.IsOwner = true;
+                                existingMainUM.UpdatedAt = DateTime.UtcNow;
+                            }
+                            _context.UserMatriculas.Remove(um);
+                        }
+                        else
+                        {
+                            um.UserInternalId = mainUser.InternalId;
+                            um.UpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+
+                    // 3. Migrate Child Users
+                    foreach (var child in childUsers)
+                    {
+                        if (!await _userRepository.WouldCreateCycleAsync(child.Id, mainUser.Id))
+                        {
+                            child.ParentUserId = mainUser.Id;
+                            child.UpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+
+                    // 4. Migrate UserTeams
+                    foreach (var ut in duplicateTeams)
+                    {
+                        var existingMainTeam = mainTeams.FirstOrDefault(t => t.TeamId == ut.TeamId && t.EndDate == null);
+                        if (existingMainTeam != null)
+                        {
+                            _context.UserTeams.Remove(ut);
+                        }
+                        else
+                        {
+                            ut.UserInternalId = mainUser.InternalId;
+                            ut.UpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+
+                    // 5. Optionally deactivate duplicate user
+                    if (request.DeactivateDuplicate)
+                    {
+                        duplicateUser.IsActive = false;
+                        duplicateUser.UpdatedAt = DateTime.UtcNow;
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+
+                result.Pairs.Add(pairResult);
+            }
+
+            return Ok(new ApiResponse<MergeUsersResult>
+            {
+                Success = true,
+                Data = result,
+                Message = request.DryRun
+                    ? $"Pré-visualização concluída para {result.Pairs.Count} par(es)."
+                    : $"Consolidação de usuários concluída com sucesso para {result.Pairs.Count} par(es)."
+            });
+        }
+
         private async Task UpdateUserHierarchyLevelsAsync(User user, int newLevel)
         {
             user.Level = newLevel;
@@ -381,3 +558,4 @@ namespace SalesApp.Controllers
         }
     }
 }
+

@@ -359,5 +359,24 @@ Aligns the user classification level members modal with the Teams modal UX: wide
 - `client/e2e-test/e2e/classification_management.spec.ts` — Updated E2E tests to match click-to-add interaction.
 - `client/e2e-test/e2e/classification_members_modal.spec.ts` — Added dedicated E2E test spec for classification members modal UX and Admin menu access.
 
+## Consolidar Usuários Duplicados (Batch User Merge) (2026-07-31)
+
+Adds a new "Consolidar Usuários" tab to the `/#/batch` page for SuperAdmin users to consolidate duplicated user accounts into a single main account.
+
+### Key Capabilities
+- **Bulk Pair Format Support**: Accepts multiple email pairs per line separated by comma (`email1,email2`), space (`email1 email2`), or tab (`email1\temail2`), where `email1` is the main/survivor user and `email2` is the duplicate user.
+- **Complete Relationship Migration**: Re-links all contracts (`UserInternalId`), matricula relationships (`UserMatriculas`), child hierarchy users (`ParentUserId`), and team memberships (`UserTeams`) from `email2` to `email1`.
+- **Matricula Ownership Preservation**: Retains contract-to-matricula references. If `email1` does not have a link to a matricula owned/used by `email2`, the link is transferred; if `email1` already links to the matricula, ownership (`IsOwner`) is transferred if applicable and duplicate links are cleaned up.
+- **Parametrized Duplicate Deactivation**: Provides a `Desativar usuário duplicado (email2) ao concluir?` toggle (disabled by default) to optionally set `IsActive = false` on `email2`.
+- **Dry-Run Preview**: Offers a "Pré-visualizar Consolidação" step before committing changes to inspect item counts and validate emails.
+
+### Key Files Created / Modified
+- `SalesApp.Api/DTOs/BatchDTOs.cs` — Added `MergeUserPair`, `MergeUsersRequest`, `MergeUserPairResult`, `MergeUsersResult`.
+- `SalesApp.Api/Controllers/BatchController.cs` — Added `POST /api/batch/users/merge` endpoint.
+- `client/sales-dash/src/services/apiService.ts` — Added `batchMergeUsers` API client method & interfaces.
+- `client/sales-dash/src/components/BatchPage.tsx` — Added third tab "Consolidar Usuários" with pair parser, toggle, preview table, and confirmation logic.
+- `client/e2e-test/e2e/batch_merge_users.spec.ts` — Added Playwright E2E test spec for batch user merge.
+
+
 
 
