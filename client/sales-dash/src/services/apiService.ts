@@ -378,6 +378,23 @@ export const apiService = {
     return response.json()
   },
 
+  async batchMergeMatriculas(
+    requestData: MergeMatriculasRequest
+  ): Promise<ApiResponse<MergeMatriculasResult>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/batch/matriculas/merge`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestData),
+    })
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to perform batch matricula merge"))
+    }
+
+    return response.json()
+  },
+
+
   async savePowerBiCredentials(username: string, password?: string): Promise<ApiResponse<User>> {
 
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/powerbi-credentials`, {
@@ -1662,6 +1679,32 @@ export interface MergeUsersResult {
   isDryRun: boolean
   pairs: MergeUserPairResult[]
 }
+
+export interface MergeMatriculaPair {
+  mainMatricula: string
+  duplicateMatricula: string
+}
+
+export interface MergeMatriculasRequest {
+  pairs: MergeMatriculaPair[]
+  deleteDuplicate: boolean
+  dryRun: boolean
+}
+
+export interface MergeMatriculaPairResult {
+  mainMatricula: string
+  duplicateMatricula: string
+  error?: string | null
+  userLinksMigrated: number
+  contractsMigrated: number
+  duplicateDeleted: boolean
+}
+
+export interface MergeMatriculasResult {
+  isDryRun: boolean
+  pairs: MergeMatriculaPairResult[]
+}
+
 
 export interface ApprovalRequestItem {
 

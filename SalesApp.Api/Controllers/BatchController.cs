@@ -543,6 +543,147 @@ namespace SalesApp.Controllers
             });
         }
 
+        [HttpPost("matriculas/merge")]
+        public async Task<ActionResult<ApiResponse<MergeMatriculasResult>>> BatchMergeMatriculas([FromBody] MergeMatriculasRequest request)
+        {
+            var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (emailClaim != "superadmin@salesapp.com" && emailClaim != "superadmin@test.com")
+            {
+                return Forbid();
+            }
+
+            if (request == null || request.Pairs == null || request.Pairs.Count == 0)
+            {
+                return BadRequest(new ApiResponse<MergeMatriculasResult>
+                {
+                    Success = false,
+                    Message = "Nenhum par de matrículas fornecido."
+                });
+            }
+
+            var result = new MergeMatriculasResult
+            {
+                IsDryRun = request.DryRun
+            };
+
+            foreach (var pair in request.Pairs)
+            {
+                var pairResult = new MergeMatriculaPairResult
+                {
+                    MainMatricula = pair.MainMatricula?.Trim() ?? string.Empty,
+                    DuplicateMatricula = pair.DuplicateMatricula?.Trim() ?? string.Empty
+                };
+
+                if (string.IsNullOrWhiteSpace(pairResult.MainMatricula) || string.IsNullOrWhiteSpace(pairResult.DuplicateMatricula))
+                {
+                    pairResult.Error = "Matrículas principal e duplicada são obrigatórias.";
+                    result.Pairs.Add(pairResult);
+                    continue;
+                }
+
+                if (string.Equals(pairResult.MainMatricula, pairResult.DuplicateMatricula, StringComparison.OrdinalIgnoreCase))
+                {
+                    pairResult.Error = "Matrícula principal e duplicada não podem ser iguais.";
+                    result.Pairs.Add(pairResult);
+                    continue;
+                }
+
+                var mainMat = await _context.Matriculas
+                    .FirstOrDefaultAsync(m => m.MatriculaNumber.ToLower() == pairResult.MainMatricula.ToLower());
+
+                var dupMat = await _context.Matriculas
+                    .FirstOrDefaultAsync(m => m.MatriculaNumber.ToLower() == pairResult.DuplicateMatricula.ToLower());
+
+                if (mainMat == null)
+                {
+                    pairResult.Error = $"Matrícula principal '{pairResult.MainMatricula}' não encontrada.";
+                    result.Pairs.Add(pairResult);
+                    continue;
+                }
+
+                if (dupMat == null)
+                {
+                    pairResult.Error = $"Matrícula duplicada '{pairResult.DuplicateMatricula}' não encontrada.";
+                    result.Pairs.Add(pairResult);
+                    continue;
+                }
+
+                var dupUserMatriculas = await _context.UserMatriculas
+                    .Where(um => um.MatriculaId == dupMat.Id)
+                    .ToListAsync();
+
+                var mainUserMatriculas = await _context.UserMatriculas
+                    .Where(um => um.MatriculaId == mainMat.Id)
+                    .ToListAsync();
+
+                var dupContracts = await _context.Contracts
+                    .Where(c => c.MatriculaId == dupMat.Id)
+                    .ToListAsync();
+
+                pairResult.UserLinksMigrated = dupUserMatriculas.Count;
+                pairResult.ContractsMigrated = dupContracts.Count;
+                pairResult.DuplicateDeleted = request.DeleteDuplicate;
+
+                if (!request.DryRun)
+                {
+                    // 1. Migrate UserMatricula links
+                    foreach (var um in dupUserMatriculas)
+                    {
+                        var existingMainLink = mainUserMatriculas.FirstOrDefault(m => m.UserInternalId == um.UserInternalId);
+                        if (existingMainLink != null)
+                        {
+                            existingMainLink.IsOwner = existingMainLink.IsOwner || um.IsOwner;
+                            existingMainLink.UpdatedAt = DateTime.UtcNow;
+                            _context.UserMatriculas.Remove(um);
+                        }
+                        else
+                        {
+                            um.MatriculaId = mainMat.Id;
+                            um.UpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+
+                    // 2. Migrate Contracts
+                    foreach (var contract in dupContracts)
+                    {
+                        contract.MatriculaId = mainMat.Id;
+                        contract.UpdatedAt = DateTime.UtcNow;
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    // 3. Optionally delete duplicate Matricula row after safety check
+                    if (request.DeleteDuplicate)
+                    {
+                        bool hasRemainingUserLinks = await _context.UserMatriculas.AnyAsync(um => um.MatriculaId == dupMat.Id);
+                        bool hasRemainingContracts = await _context.Contracts.AnyAsync(c => c.MatriculaId == dupMat.Id);
+
+                        if (!hasRemainingUserLinks && !hasRemainingContracts)
+                        {
+                            _context.Matriculas.Remove(dupMat);
+                            await _context.SaveChangesAsync();
+                            pairResult.DuplicateDeleted = true;
+                        }
+                        else
+                        {
+                            pairResult.DuplicateDeleted = false;
+                        }
+                    }
+                }
+
+                result.Pairs.Add(pairResult);
+            }
+
+            return Ok(new ApiResponse<MergeMatriculasResult>
+            {
+                Success = true,
+                Data = result,
+                Message = request.DryRun
+                    ? $"Pré-visualização concluída para {result.Pairs.Count} par(es)."
+                    : $"Consolidação de matrículas concluída com sucesso para {result.Pairs.Count} par(es)."
+            });
+        }
+
         private async Task UpdateUserHierarchyLevelsAsync(User user, int newLevel)
         {
             user.Level = newLevel;
@@ -558,4 +699,5 @@ namespace SalesApp.Controllers
         }
     }
 }
+
 

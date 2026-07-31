@@ -12,7 +12,8 @@ import { useCurrentUser } from '../contexts/CurrentUserContext'
 import { useReferenceData } from '../contexts/ReferenceDataContext'
 import {
   apiService, BatchUpdateParentResult, BatchAssignTeamResult, BatchAssignTeamRequest,
-  MergeUserPair, MergeUsersRequest, MergeUsersResult
+  MergeUserPair, MergeUsersRequest, MergeUsersResult,
+  MergeMatriculaPair, MergeMatriculasRequest, MergeMatriculasResult
 } from '../services/apiService'
 import './BatchPage.css'
 
@@ -40,11 +41,17 @@ const BatchPage: React.FC = () => {
   const [deactivateDuplicate, setDeactivateDuplicate] = useState(false)
   const [mergeResult, setMergeResult] = useState<MergeUsersResult | null>(null)
 
+  // Tab 4: Merge Matriculas
+  const [mergeMatriculaText, setMergeMatriculaText] = useState('')
+  const [deleteDuplicateMatricula, setDeleteDuplicateMatricula] = useState(false)
+  const [mergeMatriculaResult, setMergeMatriculaResult] = useState<MergeMatriculasResult | null>(null)
+
   const [activeTab, setActiveTab] = useState<string | null>('parent')
   const [teams, setTeams] = useState<Array<{ value: string; label: string }>>([])
   const [loadingTeams, setLoadingTeams] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
 
 
   useEffect(() => {
@@ -342,6 +349,113 @@ const BatchPage: React.FC = () => {
     setMergeResult(null)
   }
 
+  const parseMatriculaPairs = (text: string): MergeMatriculaPair[] => {
+    const lines = text.split('\n')
+    const pairs: MergeMatriculaPair[] = []
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      const parts = trimmed.split(/[\s,]+/).filter(Boolean)
+      if (parts.length >= 2) {
+        pairs.push({
+          mainMatricula: parts[0].trim(),
+          duplicateMatricula: parts[1].trim()
+        })
+      }
+    }
+    return pairs
+  }
+
+  const handleMergeMatriculaPreview = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setMergeMatriculaResult(null)
+
+    const pairs = parseMatriculaPairs(mergeMatriculaText)
+    if (pairs.length === 0) {
+      setError('Insira pelo menos um par de matrículas válido (mat1,mat2).')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const payload: MergeMatriculasRequest = {
+        pairs,
+        deleteDuplicate: deleteDuplicateMatricula,
+        dryRun: true
+      }
+      const response = await apiService.batchMergeMatriculas(payload)
+      if (response.success && response.data) {
+        setMergeMatriculaResult(response.data)
+        notifications.show({
+          title: 'Pré-visualização gerada',
+          message: response.message || 'Verifique o resumo antes de confirmar.',
+          color: 'blue',
+          icon: <IconCheck size={16} />
+        })
+      } else {
+        setError(response.message || 'Falha ao pré-visualizar consolidação de matrículas.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro inesperado na pré-visualização.')
+      notifications.show({
+        title: 'Erro na operação',
+        message: err.message || 'Não foi possível concluir a pré-visualização',
+        color: 'red',
+        icon: <IconX size={16} />
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleMergeMatriculaConfirm = async () => {
+    setError('')
+    const pairs = parseMatriculaPairs(mergeMatriculaText)
+    if (pairs.length === 0) {
+      setError('Insira pelo menos um par de matrículas válido.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const payload: MergeMatriculasRequest = {
+        pairs,
+        deleteDuplicate: deleteDuplicateMatricula,
+        dryRun: false
+      }
+      const response = await apiService.batchMergeMatriculas(payload)
+      if (response.success && response.data) {
+        setMergeMatriculaResult(response.data)
+        notifications.show({
+          title: 'Sucesso',
+          message: response.message || 'Consolidação de matrículas realizada com sucesso.',
+          color: 'green',
+          icon: <IconCheck size={16} />
+        })
+      } else {
+        setError(response.message || 'Falha ao executar consolidação de matrículas.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro inesperado ao aplicar consolidação de matrículas.')
+      notifications.show({
+        title: 'Erro na operação',
+        message: err.message || 'Não foi possível concluir a ação',
+        color: 'red',
+        icon: <IconX size={16} />
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleMergeMatriculaClear = () => {
+    setMergeMatriculaText('')
+    setDeleteDuplicateMatricula(false)
+    setError('')
+    setMergeMatriculaResult(null)
+  }
+
   const handleTabChange = (val: string | null) => {
     setActiveTab(val)
     setError('')
@@ -353,7 +467,7 @@ const BatchPage: React.FC = () => {
         <div className="batch-header">
           <Title className="batch-title">Modificação em Lote</Title>
           <Text className="batch-subtitle">
-            Altere o supervisor de múltiplos usuários simultaneamente, atribua usuários a equipes ou consolide contas duplicadas.
+            Altere o supervisor de múltiplos usuários simultaneamente, atribua usuários a equipes ou consolide contas/matrículas duplicadas.
           </Text>
         </div>
 
@@ -368,8 +482,12 @@ const BatchPage: React.FC = () => {
             <Tabs.Tab value="merge" leftSection={<IconGitMerge size={16} />}>
               Consolidar Usuários
             </Tabs.Tab>
+            <Tabs.Tab value="merge-matriculas" leftSection={<IconGitMerge size={16} />}>
+              Consolidar Matrículas
+            </Tabs.Tab>
           </Tabs.List>
         </Tabs>
+
 
 
         {error && <div className="error-banner">{error}</div>}
@@ -686,8 +804,9 @@ const BatchPage: React.FC = () => {
               </div>
             )}
           </>
-        ) : (
+        ) : activeTab === 'merge' ? (
           <>
+
             <form onSubmit={handleMergePreview} className="batch-card">
               <Text size="sm" c="dimmed" mb="md">
                 Consolide usuários duplicados em um único usuário principal. Insira um par por linha nos formatos:
@@ -817,9 +936,137 @@ const BatchPage: React.FC = () => {
               </div>
             )}
           </>
-        )}
+        ) : activeTab === 'merge-matriculas' ? (
+          <>
+            <form onSubmit={handleMergeMatriculaPreview} className="batch-card">
+              <Text size="sm" c="dimmed" mb="md">
+                Consolide matrículas duplicadas em uma única matrícula principal. Insira um par por linha nos formatos:
+                <Text span fw={600}> mat1,mat2</Text>, <Text span fw={600}>mat1 mat2</Text> ou <Text span fw={600}>mat1 [tab] mat2</Text>.
+                A <Text span fw={600}>mat1</Text> é a matrícula principal (mantida) e <Text span fw={600}>mat2</Text> é a duplicada.
+              </Text>
+
+              <Textarea
+                label="Pares de Matrículas (mat1, mat2)"
+                placeholder={`02123,2123\nMAT-001 MAT-002`}
+                value={mergeMatriculaText}
+                onChange={(e) => {
+                  setMergeMatriculaText(e.currentTarget.value)
+                  setMergeMatriculaResult(null)
+                }}
+                rows={6}
+                required
+                disabled={submitting}
+                mb="md"
+              />
+
+              <div style={{ marginBottom: '16px' }}>
+                <Switch
+                  label="Excluir matrícula duplicada (mat2) ao concluir?"
+                  description="Se marcado, remove o registro da matrícula duplicada do banco de dados após reassociar todos os usuários e contratos"
+                  checked={deleteDuplicateMatricula}
+                  onChange={(e) => setDeleteDuplicateMatricula(e.currentTarget.checked)}
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className="batch-action-row">
+                <Button variant="subtle" color="gray" onClick={handleMergeMatriculaClear} disabled={submitting}>
+                  Limpar
+                </Button>
+                <Button
+                  type="submit"
+                  loading={submitting}
+                  leftSection={<IconEye size={16} />}
+                  color="blue"
+                >
+                  Pré-visualizar Consolidação
+                </Button>
+              </div>
+            </form>
+
+            {mergeMatriculaResult && (
+              <div className="batch-card" style={{ marginTop: '24px' }}>
+                <Group justify="space-between" align="center" mb="md">
+                  <Title order={3} className="batch-results-header" style={{ margin: 0 }}>
+                    {mergeMatriculaResult.isDryRun ? 'Pré-visualização da Consolidação' : 'Resultado da Consolidação'}
+                  </Title>
+                  <Badge color={mergeMatriculaResult.isDryRun ? 'blue' : 'green'} size="lg">
+                    {mergeMatriculaResult.isDryRun ? 'Modo Simulação (Dry-Run)' : 'Concluído'}
+                  </Badge>
+                </Group>
+
+                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" className="batch-stats-container" mb="lg">
+                  <div className="batch-stat-card">
+                    <Text className="batch-stat-title">Total de Pares</Text>
+                    <Text className="batch-stat-value total">{mergeMatriculaResult.pairs.length}</Text>
+                  </div>
+                  <div className="batch-stat-card">
+                    <Text className="batch-stat-title">Válidos</Text>
+                    <Text className="batch-stat-value success">
+                      {mergeMatriculaResult.pairs.filter(p => !p.error).length}
+                    </Text>
+                  </div>
+                  <div className="batch-stat-card">
+                    <Text className="batch-stat-title">Com Erros</Text>
+                    <Text className="batch-stat-value skipped">
+                      {mergeMatriculaResult.pairs.filter(p => p.error).length}
+                    </Text>
+                  </div>
+                </SimpleGrid>
+
+                <div className="batch-table-wrapper">
+                  <Table className="batch-table">
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Matrícula Principal (mat1)</Table.Th>
+                        <Table.Th>Matrícula Duplicada (mat2)</Table.Th>
+                        <Table.Th>Usuários Migrados</Table.Th>
+                        <Table.Th>Contratos Migrados</Table.Th>
+                        <Table.Th>Excluir mat2?</Table.Th>
+                        <Table.Th>Status / Erro</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {mergeMatriculaResult.pairs.map((p, idx) => (
+                        <Table.Tr key={idx}>
+                          <Table.Td>{p.mainMatricula || '-'}</Table.Td>
+                          <Table.Td>{p.duplicateMatricula || '-'}</Table.Td>
+                          <Table.Td>{p.userLinksMigrated}</Table.Td>
+                          <Table.Td>{p.contractsMigrated}</Table.Td>
+                          <Table.Td>{p.duplicateDeleted ? 'Sim' : 'Não'}</Table.Td>
+                          <Table.Td>
+                            {p.error ? (
+                              <Badge color="red">{p.error}</Badge>
+                            ) : (
+                              <Badge color="green">Válido</Badge>
+                            )}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </div>
+
+                {mergeMatriculaResult.isDryRun && (
+                  <Group justify="flex-end" mt="xl">
+                    <Button
+                      color="green"
+                      leftSection={<IconWand size={16} />}
+                      loading={submitting}
+                      disabled={mergeMatriculaResult.pairs.every(p => !!p.error)}
+                      onClick={handleMergeMatriculaConfirm}
+                    >
+                      Confirmar e Executar Consolidação
+                    </Button>
+                  </Group>
+                )}
+              </div>
+            )}
+          </>
+        ) : null}
       </div>
     </Menu>
+
 
   )
 }

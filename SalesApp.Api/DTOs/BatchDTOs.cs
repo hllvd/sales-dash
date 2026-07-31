@@ -95,5 +95,35 @@ namespace SalesApp.DTOs
         public bool IsDryRun { get; set; }
         public List<MergeUserPairResult> Pairs { get; set; } = new List<MergeUserPairResult>();
     }
+
+    public class MergeMatriculaPair
+    {
+        public string MainMatricula { get; set; } = string.Empty;
+        public string DuplicateMatricula { get; set; } = string.Empty;
+    }
+
+    public class MergeMatriculasRequest
+    {
+        public List<MergeMatriculaPair> Pairs { get; set; } = new List<MergeMatriculaPair>();
+        public bool DeleteDuplicate { get; set; } = false;
+        public bool DryRun { get; set; } = true;
+    }
+
+    public class MergeMatriculaPairResult
+    {
+        public string MainMatricula { get; set; } = string.Empty;
+        public string DuplicateMatricula { get; set; } = string.Empty;
+        public string? Error { get; set; }
+        public int UserLinksMigrated { get; set; }
+        public int ContractsMigrated { get; set; }
+        public bool DuplicateDeleted { get; set; }
+    }
+
+    public class MergeMatriculasResult
+    {
+        public bool IsDryRun { get; set; }
+        public List<MergeMatriculaPairResult> Pairs { get; set; } = new List<MergeMatriculaPairResult>();
+    }
 }
+
 

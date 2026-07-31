@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -1102,6 +1104,223 @@ namespace SalesApp.IntegrationTests.Users
             }
         }
 
+        [Fact]
+        public async Task BatchMergeMatriculas_WithRegularUser_ShouldReturnForbidden()
+        {
+            // Arrange
+            var regularToken = await GetRegularUserToken();
+            var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", regularToken);
+
+            var request = new MergeMatriculasRequest
+            {
+                Pairs = new List<MergeMatriculaPair>
+                {
+                    new MergeMatriculaPair { MainMatricula = "02123", DuplicateMatricula = "2123" }
+                }
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/batch/matriculas/merge", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        [Fact]
+        public async Task BatchMergeMatriculas_WithDryRun_ShouldReturnPreviewMetricsWithoutModifyingDatabase()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            string mainMatNumber = $"MAT_MAIN_{Guid.NewGuid().ToString()[..6]}";
+            string dupMatNumber = $"MAT_DUP_{Guid.NewGuid().ToString()[..6]}";
+
+            Matricula mainMat, dupMat;
+            User testUser;
+            Contract contract;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                mainMat = new Matricula { MatriculaNumber = mainMatNumber, Status = "active" };
+                dupMat = new Matricula { MatriculaNumber = dupMatNumber, Status = "active" };
+                context.Matriculas.AddRange(mainMat, dupMat);
+                await context.SaveChangesAsync();
+
+                testUser = new User
+                {
+                    Name = "Test User",
+                    Email = $"mat_test_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+                context.Users.Add(testUser);
+                await context.SaveChangesAsync();
+
+                // UserMatricula on dupMat
+                context.UserMatriculas.Add(new UserMatricula
+                {
+                    UserInternalId = testUser.InternalId,
+                    MatriculaId = dupMat.Id,
+                    IsOwner = true,
+                    IsActive = true
+                });
+
+                // Contract on dupMat
+                contract = new Contract
+                {
+                    ContractNumber = $"CNT_{Guid.NewGuid().ToString()[..6]}",
+                    UserInternalId = testUser.InternalId,
+                    MatriculaId = dupMat.Id,
+                    TotalAmount = 100,
+                    ContractStatusId = 1
+                };
+                context.Contracts.Add(contract);
+
+                await context.SaveChangesAsync();
+            }
+
+            var request = new MergeMatriculasRequest
+            {
+                Pairs = new List<MergeMatriculaPair>
+                {
+                    new MergeMatriculaPair { MainMatricula = mainMatNumber, DuplicateMatricula = dupMatNumber }
+                },
+                DeleteDuplicate = true,
+                DryRun = true
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/batch/matriculas/merge", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<MergeMatriculasResult>>();
+            result!.Success.Should().BeTrue();
+            result.Data!.IsDryRun.Should().BeTrue();
+            result.Data.Pairs.Should().HaveCount(1);
+
+            var pairRes = result.Data.Pairs.First();
+            pairRes.Error.Should().BeNull();
+            pairRes.UserLinksMigrated.Should().Be(1);
+            pairRes.ContractsMigrated.Should().Be(1);
+
+            // Verify in DB that records were NOT modified
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var dbDupMat = await context.Matriculas.FirstOrDefaultAsync(m => m.Id == dupMat.Id);
+                dbDupMat.Should().NotBeNull();
+
+                var dbContract = await context.Contracts.FirstAsync(c => c.Id == contract.Id);
+                dbContract.MatriculaId.Should().Be(dupMat.Id);
+            }
+        }
+
+        [Fact]
+        public async Task BatchMergeMatriculas_WithCommitAndDeleteDuplicate_ShouldMigrateLinksAndDeleteDuplicateRow()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            string mainMatNumber = $"MAT_MAIN_{Guid.NewGuid().ToString()[..6]}";
+            string dupMatNumber = $"MAT_DUP_{Guid.NewGuid().ToString()[..6]}";
+
+            Matricula mainMat, dupMat;
+            User testUser;
+            Contract contract;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                mainMat = new Matricula { MatriculaNumber = mainMatNumber, Status = "active" };
+                dupMat = new Matricula { MatriculaNumber = dupMatNumber, Status = "active" };
+                context.Matriculas.AddRange(mainMat, dupMat);
+                await context.SaveChangesAsync();
+
+                testUser = new User
+                {
+                    Name = "Test User",
+                    Email = $"mat_test_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+                context.Users.Add(testUser);
+                await context.SaveChangesAsync();
+
+                // UserMatricula on dupMat (with IsOwner = true)
+                context.UserMatriculas.Add(new UserMatricula
+                {
+                    UserInternalId = testUser.InternalId,
+                    MatriculaId = dupMat.Id,
+                    IsOwner = true,
+                    IsActive = true
+                });
+
+                // Contract on dupMat
+                contract = new Contract
+                {
+                    ContractNumber = $"CNT_{Guid.NewGuid().ToString()[..6]}",
+                    UserInternalId = testUser.InternalId,
+                    MatriculaId = dupMat.Id,
+                    TotalAmount = 100,
+                    ContractStatusId = 1
+                };
+                context.Contracts.Add(contract);
+
+                await context.SaveChangesAsync();
+            }
+
+            var request = new MergeMatriculasRequest
+            {
+                Pairs = new List<MergeMatriculaPair>
+                {
+                    new MergeMatriculaPair { MainMatricula = mainMatNumber, DuplicateMatricula = dupMatNumber }
+                },
+                DeleteDuplicate = true,
+                DryRun = false
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/batch/matriculas/merge", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<MergeMatriculasResult>>();
+            result!.Success.Should().BeTrue();
+            result.Data!.IsDryRun.Should().BeFalse();
+
+            var pairRes = result.Data.Pairs.First();
+            pairRes.DuplicateDeleted.Should().BeTrue();
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                // Duplicate matricula should be deleted from DB
+                var dbDupMat = await context.Matriculas.FirstOrDefaultAsync(m => m.Id == dupMat.Id);
+                dbDupMat.Should().BeNull();
+
+                // Contract should now reference mainMat.Id
+                var dbContract = await context.Contracts.FirstAsync(c => c.Id == contract.Id);
+                dbContract.MatriculaId.Should().Be(mainMat.Id);
+
+                // UserMatricula should now reference mainMat.Id and preserve IsOwner = true
+                var dbUM = await context.UserMatriculas.FirstOrDefaultAsync(um => um.UserInternalId == testUser.InternalId);
+                dbUM.Should().NotBeNull();
+                dbUM!.MatriculaId.Should().Be(mainMat.Id);
+                dbUM.IsOwner.Should().BeTrue();
+            }
+        }
+
         private async Task<string> GetSuperAdminToken()
 
         {
@@ -1130,3 +1349,4 @@ namespace SalesApp.IntegrationTests.Users
         }
     }
 }
+

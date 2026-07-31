@@ -378,6 +378,26 @@ Adds a new "Consolidar Usuários" tab to the `/#/batch` page for SuperAdmin user
 - `client/sales-dash/src/components/BatchPage.tsx` — Added third tab "Consolidar Usuários" with pair parser, toggle, preview table, and confirmation logic.
 - `client/e2e-test/e2e/batch_merge_users.spec.ts` — Added Playwright E2E test spec for batch user merge.
 
+## Consolidar Matrículas Duplicadas (Batch Matricula Merge) (2026-07-31)
+
+Adds a new 4th tab "Consolidar Matrículas" to the `/#/batch` page for SuperAdmin users to consolidate duplicated matricula numbers (e.g. `02123` and `2123` or `MAT-001` and `MAT-002`) into a single main matricula.
+
+### Key Capabilities
+- **Bulk Pair Format Support**: Accepts multiple matricula pairs per line separated by comma (`mat1,mat2`), space (`mat1 mat2`), or tab (`mat1\tmat2`), where `mat1` is the main/survivor matricula and `mat2` is the duplicate matricula.
+- **Link & Contract Migration**: Re-links all `UserMatricula` records and `Contract.MatriculaId` foreign key references from `mat2` to `mat1`.
+- **Ownership Preservation**: Preserves `IsOwner = true` status on `UserMatriculas` links. If either `mat1` or `mat2` has ownership for a user, the merged link for `mat1` retains `IsOwner = true`.
+- **Parametrized Duplicate Row Deletion**: Provides an `Excluir matrícula duplicada (mat2) ao concluir?` toggle (disabled by default). When enabled, deletes the duplicate `Matricula` record from the database after verifying zero remaining references.
+- **Dry-Run Preview**: Offers a "Pré-visualizar Consolidação" simulation step to inspect user link and contract counts before executing changes.
+
+### Key Files Created / Modified
+- `SalesApp.Api/DTOs/BatchDTOs.cs` — Added `MergeMatriculaPair`, `MergeMatriculasRequest`, `MergeMatriculaPairResult`, `MergeMatriculasResult`.
+- `SalesApp.Api/Controllers/BatchController.cs` — Added `POST /api/batch/matriculas/merge` endpoint.
+- `client/sales-dash/src/services/apiService.ts` — Added `batchMergeMatriculas` API client method & interfaces.
+- `client/sales-dash/src/components/BatchPage.tsx` — Added 4th tab "Consolidar Matrículas" with pair parser, deletion toggle, preview table, and execution confirmation logic.
+- `SalesApp.IntegrationTests/Users/BatchControllerIntegrationTests.cs` — Added integration tests for matricula merge authorization, dry-run, execution, ownership preservation, and deletion.
+- `client/e2e-test/e2e/batch_merge_matriculas.spec.ts` — Added Playwright E2E test spec.
+
+
 
 
 
