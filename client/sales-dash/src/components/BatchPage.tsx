@@ -242,22 +242,40 @@ const BatchPage: React.FC = () => {
     setAssignResult(null)
   }
 
+  const splitLinePair = (line: string): [string, string] | null => {
+    const trimmed = line.trim()
+    if (!trimmed) return null
+
+    let parts: string[] = []
+    if (trimmed.includes(',')) {
+      parts = trimmed.split(',').map(s => s.trim()).filter(Boolean)
+    } else if (trimmed.includes('\t')) {
+      parts = trimmed.split('\t').map(s => s.trim()).filter(Boolean)
+    } else {
+      parts = trimmed.split(/\s+/).map(s => s.trim()).filter(Boolean)
+    }
+
+    if (parts.length >= 2) {
+      return [parts[0], parts[1]]
+    }
+    return null
+  }
+
   const parseEmailPairs = (text: string): MergeUserPair[] => {
     const lines = text.split('\n')
     const pairs: MergeUserPair[] = []
     for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      const parts = trimmed.split(/[\s,]+/).filter(Boolean)
-      if (parts.length >= 2) {
+      const parsed = splitLinePair(line)
+      if (parsed) {
         pairs.push({
-          mainEmail: parts[0].trim(),
-          duplicateEmail: parts[1].trim()
+          mainEmail: parsed[0],
+          duplicateEmail: parsed[1]
         })
       }
     }
     return pairs
   }
+
 
   const handleMergePreview = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -353,13 +371,11 @@ const BatchPage: React.FC = () => {
     const lines = text.split('\n')
     const pairs: MergeMatriculaPair[] = []
     for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      const parts = trimmed.split(/[\s,]+/).filter(Boolean)
-      if (parts.length >= 2) {
+      const parsed = splitLinePair(line)
+      if (parsed) {
         pairs.push({
-          mainMatricula: parts[0].trim(),
-          duplicateMatricula: parts[1].trim()
+          mainMatricula: parsed[0],
+          duplicateMatricula: parsed[1]
         })
       }
     }

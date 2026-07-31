@@ -147,4 +147,27 @@ test.describe('Batch Merge Matriculas E2E', () => {
     await expect(page.getByRole('cell', { name: 'Sim' })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Válido' })).toBeVisible();
   });
+
+  test('should correctly parse pairs with spaces after comma (e.g. 6606, Kethi - 6606)', async ({ page }) => {
+    await page.goto('/');
+    await page.fill('input[type="email"]', users.superadmin.email);
+    await page.fill('input[type="password"]', users.superadmin.password);
+    await page.click('button.login-button');
+    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+
+    await page.goto('/#/batch');
+    await page.getByRole('tab', { name: 'Consolidar Matrículas' }).click();
+
+    // Fill pair formatted with spaces after comma and inside duplicate name
+    const pairText = `6606, Kethi - 6606`;
+    await page.locator('textarea').fill(pairText);
+
+    await page.click('button:has-text("Pré-visualizar Consolidação")');
+    await expect(page.getByText('Pré-visualização da Consolidação')).toBeVisible({ timeout: 10000 });
+
+    // Assert that the parsed tokens in table are "6606" and "Kethi - 6606" (not truncated to "Kethi")
+    await expect(page.getByRole('cell', { name: '6606', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Kethi - 6606', exact: true })).toBeVisible();
+  });
 });
+
