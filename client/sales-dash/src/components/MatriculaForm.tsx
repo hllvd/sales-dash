@@ -79,11 +79,17 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    if (!/^\d+$/.test(formData.matriculaNumber.trim())) {
+      setError("A matrícula deve conter apenas números.")
+      return
+    }
+
     setLoading(true)
 
     try {
       const data: any = {
-        matriculaNumber: formData.matriculaNumber,
+        matriculaNumber: formData.matriculaNumber.trim(),
         startDate: formData.startDate, // Already in YYYY-MM-DD format
         isActive: formData.isActive,
         isOwner: formData.isOwner,
@@ -156,8 +162,8 @@ const MatriculaForm: React.FC<MatriculaFormProps> = ({
           <TextInput
             required
             value={formData.matriculaNumber}
-            onChange={(e) => handleChange('matriculaNumber', e.target.value)}
-            placeholder="Ex: MAT-001"
+            onChange={(e) => handleChange('matriculaNumber', e.target.value.replace(/\D/g, ''))}
+            placeholder="Ex: 123456"
           />
         </FormField>
 

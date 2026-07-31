@@ -168,12 +168,19 @@ const RequestsPage: React.FC = () => {
     try {
       let payloadJson = '{}';
       if (requestType === 'ChangeParentEmail') {
-        if (!parentEmail.trim()) {
+        const trimmedEmail = parentEmail.trim();
+        if (!trimmedEmail) {
           setCreateError('O e-mail do novo superior é obrigatório.');
           setSubmitting(false);
           return;
         }
-        payloadJson = JSON.stringify({ newParentEmail: parentEmail.trim() });
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedEmail)) {
+          setCreateError('Formato de e-mail inválido.');
+          setSubmitting(false);
+          return;
+        }
+        payloadJson = JSON.stringify({ newParentEmail: trimmedEmail });
       } else if (requestType === 'RequestAdminRole') {
         payloadJson = JSON.stringify({});
       } else if (requestType === 'RequestClassificationLevel') {
@@ -197,12 +204,18 @@ const RequestsPage: React.FC = () => {
           previousEndDate: previousActiveLevel ? (previousEndDate || startDate) : null,
         });
       } else {
-        if (!matriculaNumber.trim()) {
+        const trimmedMatricula = matriculaNumber.trim();
+        if (!trimmedMatricula) {
           setCreateError('O número da matrícula é obrigatório.');
           setSubmitting(false);
           return;
         }
-        payloadJson = JSON.stringify({ matriculaNumber: matriculaNumber.trim() });
+        if (!/^\d+$/.test(trimmedMatricula)) {
+          setCreateError('A matrícula deve conter apenas números.');
+          setSubmitting(false);
+          return;
+        }
+        payloadJson = JSON.stringify({ matriculaNumber: trimmedMatricula });
       }
 
       await apiService.createApprovalRequest({
@@ -584,7 +597,7 @@ const RequestsPage: React.FC = () => {
             placeholder="Ex: 123456"
             required
             value={matriculaNumber}
-            onChange={(e) => setMatriculaNumber(e.target.value)}
+            onChange={(e) => setMatriculaNumber(e.target.value.replace(/\D/g, ''))}
             mb="md"
           />
         )}

@@ -15,8 +15,14 @@ const MyProfilePage: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   const handleSubmitRequest = async () => {
-    if (!newParentEmail.trim()) {
+    const trimmedEmail = newParentEmail.trim();
+    if (!trimmedEmail) {
       setError('Por favor, informe o e-mail do novo superior.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setError('Por favor, informe um e-mail com formato válido.');
       return;
     }
     setError(null);
@@ -24,7 +30,7 @@ const MyProfilePage: React.FC = () => {
     try {
       await apiService.createApprovalRequest({
         requestType: 'ChangeParentEmail',
-        payloadJson: JSON.stringify({ newParentEmail: newParentEmail.trim() }),
+        payloadJson: JSON.stringify({ newParentEmail: trimmedEmail }),
       });
       setSuccess('Solicitação de alteração enviada com sucesso!');
       setModalOpen(false);

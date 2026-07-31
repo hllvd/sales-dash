@@ -1258,6 +1258,14 @@ namespace SalesApp.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<UserMatriculaInfo>>> RequestMatricula([FromBody] RequestMatriculaRequest request)
         {
+            if (string.IsNullOrWhiteSpace(request.MatriculaNumber) || !System.Text.RegularExpressions.Regex.IsMatch(request.MatriculaNumber.Trim(), @"^\d+$"))
+            {
+                return BadRequest(new ApiResponse<UserMatriculaInfo>
+                {
+                    Success = false,
+                    Message = "A matrícula deve conter apenas números."
+                });
+            }
             request.MatriculaNumber = NormalizationUtils.NormalizeNumber(request.MatriculaNumber);
             var currentUserId = GetCurrentUserId();
             var currentUser = await _userRepository.GetByIdAsync(currentUserId);

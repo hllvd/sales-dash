@@ -153,8 +153,13 @@ const MatriculasPage: React.FC = () => {
   }
 
   const handleSendRequestMatricula = async () => {
-    if (!requestMatriculaNumber.trim()) {
+    const trimmed = requestMatriculaNumber.trim();
+    if (!trimmed) {
       setRequestError('O número da matrícula é obrigatório.');
+      return;
+    }
+    if (!/^\d+$/.test(trimmed)) {
+      setRequestError('A matrícula deve conter apenas números.');
       return;
     }
     setRequestError(null);
@@ -163,7 +168,7 @@ const MatriculasPage: React.FC = () => {
       const type = currentUser?.role === 'admin' ? 'AdminRequestMatricula' : 'RequestMatricula';
       await apiService.createApprovalRequest({
         requestType: type,
-        payloadJson: JSON.stringify({ matriculaNumber: requestMatriculaNumber.trim() }),
+        payloadJson: JSON.stringify({ matriculaNumber: trimmed }),
       });
       setRequestSuccess('Solicitação de matrícula enviada com sucesso!');
       setShowRequestModal(false);
@@ -398,7 +403,7 @@ const MatriculasPage: React.FC = () => {
             placeholder="Ex: 123456"
             required
             value={requestMatriculaNumber}
-            onChange={(e) => setRequestMatriculaNumber(e.target.value)}
+            onChange={(e) => setRequestMatriculaNumber(e.target.value.replace(/\D/g, ''))}
             mb="md"
           />
 

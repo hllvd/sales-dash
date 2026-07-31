@@ -210,14 +210,19 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
   };
 
   const handleRequestMatricula = async () => {
-    if (!newMatriculaNumber.trim()) {
+    const trimmed = newMatriculaNumber.trim();
+    if (!trimmed) {
       toast.error('Número da matrícula é obrigatório');
+      return;
+    }
+    if (!/^\d+$/.test(trimmed)) {
+      toast.error('A matrícula deve conter apenas números');
       return;
     }
 
     setSubmittingMatricula(true);
     try {
-      await apiService.requestMatricula(newMatriculaNumber);
+      await apiService.requestMatricula(trimmed);
       toast.success('Matrícula solicitada com sucesso! Aguardando aprovação.');
       setShowAddMatriculaModal(false);
       setNewMatriculaNumber('');
@@ -708,7 +713,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ userId, mode, onClose 
           label="Número da Matrícula"
           placeholder="Digite o número da matrícula"
           value={newMatriculaNumber}
-          onChange={(e) => setNewMatriculaNumber(e.target.value)}
+          onChange={(e) => setNewMatriculaNumber(e.target.value.replace(/\D/g, ''))}
           mb="md"
           required
         />

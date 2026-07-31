@@ -36,7 +36,13 @@ namespace SalesApp.Services
                     throw new ArgumentException("E-mail do novo superior é obrigatório.");
                 }
 
-                var parentUser = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == payload.NewParentEmail.Trim().ToLower() && u.IsActive);
+                var email = payload.NewParentEmail.Trim();
+                if (!System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                {
+                    throw new ArgumentException("Formato de e-mail inválido.");
+                }
+
+                var parentUser = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower() && u.IsActive);
                 if (parentUser == null)
                 {
                     throw new ArgumentException($"Usuário com o e-mail '{payload.NewParentEmail}' não foi encontrado ou está inativo.");
@@ -54,6 +60,11 @@ namespace SalesApp.Services
                 if (string.IsNullOrWhiteSpace(payload?.MatriculaNumber))
                 {
                     throw new ArgumentException("Número da matrícula é obrigatório.");
+                }
+
+                if (!System.Text.RegularExpressions.Regex.IsMatch(payload.MatriculaNumber.Trim(), @"^\d+$"))
+                {
+                    throw new ArgumentException("A matrícula deve conter apenas números.");
                 }
 
                 var normalizedNumber = NormalizationUtils.NormalizeNumber(payload.MatriculaNumber);
