@@ -5,7 +5,7 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
   const adminPassword = 'string';
   const targetUserEmail = 'carlosmendes@example.com';
   const targetUserName = 'Carlos Mendes';
-  const initialMatricula = 'EDIT-TEST-' + Date.now();
+  const initialMatricula = '77' + Date.now().toString().slice(-6);
   const normalizedValue = '99999';
   const inputWithZeros = '000' + normalizedValue;
 
@@ -33,7 +33,7 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
     await expect(option).toBeVisible({ timeout: 15000 });
     await option.click();
 
-    await page.fill('input[placeholder="Ex: MAT-001"]', initialMatricula);
+    await page.fill('input[placeholder="Ex: 123456"]', initialMatricula);
     await page.click('button:has-text("Criar Matrícula")');
 
     // Wait for modal to disappear
@@ -53,7 +53,7 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
 
     console.log('>>> Step 3: Change number to one with leading zeros and change status');
     // Change number to '00099999'
-    const numberInput = page.locator('input[placeholder="Ex: MAT-001"]');
+    const numberInput = page.locator('input[placeholder="Ex: 123456"]');
     await numberInput.fill(inputWithZeros);
 
     // Change status to Pending (or Active if it was something else)

@@ -115,6 +115,7 @@ namespace SalesApp.IntegrationTests.Contracts
             // Try to assign user 2's matricula to user 1's contract
             var updateRequest = new
             {
+                userId = user1Id,
                 matriculaNumber = matriculaNumber
             };
 

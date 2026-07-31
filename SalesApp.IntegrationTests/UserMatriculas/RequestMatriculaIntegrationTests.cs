@@ -57,7 +57,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
 
             var request = new RequestMatriculaRequest
             {
-                MatriculaNumber = "TEST-MAT-001"
+                MatriculaNumber = "100001"
             };
 
             // Act
@@ -70,7 +70,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
             result.Data.Should().NotBeNull();
-            result.Data!.MatriculaNumber.Should().Be("TEST-MAT-001");
+            result.Data!.MatriculaNumber.Should().Be("100001");
             result.Data.Status.Should().Be("pending");
             result.Data.IsOwner.Should().BeFalse();
             result.Message.Should().Contain("enviada com sucesso");
@@ -86,7 +86,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
 
             var request = new RequestMatriculaRequest
             {
-                MatriculaNumber = "TEST-MAT-DUP-002"
+                MatriculaNumber = "100002"
             };
 
             // First request
@@ -111,7 +111,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
             _client.DefaultRequestHeaders.Authorization = null;
             var request = new RequestMatriculaRequest
             {
-                MatriculaNumber = "TEST-MAT-UNAUTH"
+                MatriculaNumber = "100003"
             };
 
             // Act - No authentication header
@@ -130,7 +130,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
 
             var request = new RequestMatriculaRequest
             {
-                MatriculaNumber = "SHARED-MAT-003"
+                MatriculaNumber = "100004"
             };
 
             // Act - User requests matricula
@@ -152,8 +152,8 @@ namespace SalesApp.IntegrationTests.UserMatriculas
 
             result1!.Success.Should().BeTrue();
             result2!.Success.Should().BeTrue();
-            result1.Data!.MatriculaNumber.Should().Be("SHARED-MAT-003");
-            result2.Data!.MatriculaNumber.Should().Be("SHARED-MAT-003");
+            result1.Data!.MatriculaNumber.Should().Be("100004");
+            result2.Data!.MatriculaNumber.Should().Be("100004");
         }
 
         [Fact]
@@ -166,7 +166,7 @@ namespace SalesApp.IntegrationTests.UserMatriculas
 
             var request = new RequestMatriculaRequest
             {
-                MatriculaNumber = "STATUS-TEST-004"
+                MatriculaNumber = "100005"
             };
 
             // Act

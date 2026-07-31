@@ -5,7 +5,7 @@ test.describe('Matrícula Request and Approval Flow (TEAR 3)', () => {
 
   const RUN_ID = Date.now().toString().slice(-4);
   const USER_EMAIL = `req.approve.${RUN_ID}@test.com`;
-  const REQ_MATR = `REQ-APP-${RUN_ID}`;
+  const REQ_MATR = `55${RUN_ID}`;
 
   let testUserId = '';
   let superadminId = '';

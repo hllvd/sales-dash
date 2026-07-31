@@ -64,7 +64,7 @@ namespace SalesApp.IntegrationTests.Users
             var createReq = new CreateApprovalRequestDto
             {
                 RequestType = "RequestMatricula",
-                PayloadJson = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = $"MAT_{Guid.NewGuid().ToString()[..6]}" })
+                PayloadJson = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = $"{Random.Shared.Next(100000, 999999)}" })
             };
 
             var createRes = await _client.PostAsJsonAsync("/api/approval-requests", createReq);
@@ -105,7 +105,7 @@ namespace SalesApp.IntegrationTests.Users
             var createReq = new CreateApprovalRequestDto
             {
                 RequestType = "RequestMatricula",
-                PayloadJson = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = $"REJ_{Guid.NewGuid().ToString()[..6]}" })
+                PayloadJson = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = $"{Random.Shared.Next(100000, 999999)}" })
             };
 
             var createRes = await _client.PostAsJsonAsync("/api/approval-requests", createReq);
@@ -134,7 +134,7 @@ namespace SalesApp.IntegrationTests.Users
             var createReq = new CreateApprovalRequestDto
             {
                 RequestType = "RequestMatricula",
-                PayloadJson = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = $"LAT_{Guid.NewGuid().ToString()[..6]}" })
+                PayloadJson = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = $"{Random.Shared.Next(100000, 999999)}" })
             };
 
             var createRes = await _client.PostAsJsonAsync("/api/approval-requests", createReq);
@@ -223,8 +223,8 @@ namespace SalesApp.IntegrationTests.Users
             var tag = Guid.NewGuid().ToString()[..6];
             var admin1Email = $"admin1_{tag}@test.com";
             var admin2Email = $"admin2_{tag}@test.com";
-            var admin1MatriculaNumber = $"ADM1MAT{tag}".ToUpper();
-            var admin2MatriculaNumber = $"ADM2MAT{tag}".ToUpper();
+            var admin1MatriculaNumber = $"{Random.Shared.Next(100000, 999999)}";
+            var admin2MatriculaNumber = $"{Random.Shared.Next(100000, 999999)}";
 
             // Register Admin1 and Admin2 as top-level admins
             var regAdmin1 = await _client.PostAsJsonAsync("/api/users/admin-register", new

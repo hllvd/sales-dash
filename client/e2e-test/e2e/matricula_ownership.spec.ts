@@ -7,7 +7,7 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
   const user1Name = 'Carlos Mendes';
   const user2 = 'mariaeduarda@example.com';
   const user2Name = 'Maria Eduarda';
-  const testMatricula = 'OWNERSHIP-TEST-' + Date.now();
+  const testMatricula = '88' + Date.now().toString().slice(-6);
 
   test.beforeEach(async ({ page }) => {
     // Login as Admin
@@ -32,7 +32,7 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
     await expect(option1).toBeVisible({ timeout: 10000 });
     await option1.click();
 
-    await page.fill('input[placeholder="Ex: MAT-001"]', testMatricula);
+    await page.fill('input[placeholder="Ex: 123456"]', testMatricula);
 
     // Mark as Owner
     const ownerCheckbox = page.locator('label:has-text("Proprietário da Matrícula")').locator('..').locator('input[type="checkbox"]');
@@ -57,7 +57,7 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
     const option2 = page.locator('[role="option"]').filter({ hasText: user2 });
     await expect(option2).toBeVisible({ timeout: 10000 });
     await option2.click();
-    await page.fill('input[placeholder="Ex: MAT-001"]', testMatricula);
+    await page.fill('input[placeholder="Ex: 123456"]', testMatricula);
 
     // Try to mark as Owner again
     await ownerCheckbox.check();
