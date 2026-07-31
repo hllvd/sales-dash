@@ -119,10 +119,11 @@ This feature controls deactivation and ensures that user contracts are never lef
 
 ## Contract Assignment Scoping and Matricula Guards
 
-This feature enforces user scoping and active matricula checks during contract assignment in the contract creation and editing form.
+This feature enforces user scoping, seller unassignment, and active matricula checks during contract creation and editing.
 
 ### Key Capabilities
 - **Hierarchical Vendor Scoping**: When an Admin accesses the contract form, the "Vendedor" (Seller) dropdown is restricted to only their descendant users.
+- **Seller Unassignment / Clearing**: When editing a contract in `/#/contracts` and selecting "Sem vendedor atribuído" (or clearing the Vendedor field), `PUT /api/contracts/{id}` receives `userId: null` and `matriculaNumber: null`. The backend explicitly clears the seller (`UserInternalId`, `User`) and its associated matricula (`MatriculaId`, `TempMatricula`, `Matricula`), successfully leaving the contract unassigned.
 - **Active Matricula Verification**: Displays a prominent Portuguese warning message if the selected seller has no active matriculas: `"Este usuário não possui matrícula, por favor vá em matrícula e atribua uma a ele antes de atribuir este contrato"`. Disables the submit button to block the assignment.
 - **Auto-Selection Rules**:
   - If the selected seller has exactly one owner matricula (`isOwner === true`), it is automatically selected in the "Número da Matrícula" dropdown by default.
@@ -281,7 +282,7 @@ Allow users to request operational changes (such as parent email changes or new 
 
 ### Initial Request Types Supported
 1. **Change Parent Email (`ChangeParentEmail`)**: Standard users or managers request updating their superior (`ParentUserId`) by specifying the target email.
-2. **User Request Matricula (`RequestMatricula`)**: Standard users or managers request assignment of a new matricula number.
+2. **User Request Matricula (`RequestMatricula`)**: Standard users or managers request using their manager's matricula number (`"Solicitar o uso da matrícula do gestor"`).
 3. **Admin Request Matricula (`AdminRequestMatricula`)**: Users or Admins request creation/assignment of a matricula that they will own (`IsOwner = true`). SuperAdmins, parent Admins in the user's hierarchy, and existing matricula owners can approve this request. Approving automatically transfers ownership by setting `IsOwner = false` on any previous owner.
 4. **Request Admin Role (`RequestAdminRole`)**: Non-admin users request promotion to the Admin role (`"Solicitação de Perfil Administrador (Role Admin)"`). SuperAdmins and parent Admins can approve this request.
 5. **Request Classification Level (`RequestClassificationLevel`)**: `user` and `admin` roles request assignment to a classification level (`"Solicitação de Nível de Classificação"`). Requires a mandatory start date and auto-closes any previous active level on approval.
