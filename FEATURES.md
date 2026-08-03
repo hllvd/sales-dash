@@ -413,7 +413,20 @@ Adds a new 4th tab "Consolidar Matrículas" to the `/#/batch` page for SuperAdmi
 - `SalesApp.IntegrationTests/Users/BatchControllerIntegrationTests.cs` — Added integration tests for matricula merge authorization, dry-run, execution, ownership preservation, and deletion.
 - `client/e2e-test/e2e/batch_merge_matriculas.spec.ts` — Added Playwright E2E test spec.
 
+## Coluna de Última Atualização na Página de Matrículas (2026-08-03)
 
+Exibe a informação da última atualização da matrícula (data/hora e tempo relativo) em uma nova coluna na tabela da página de Matrículas (`/#/matriculas`), com tooltip explicativo visível para todos os usuários.
 
+### Key Capabilities
+- **Última Atualização Embutida no Backend**: O DTO `UserMatriculaResponse` inclui o campo `LastUpdate`, calculado via consulta agregada `MAX(Contract.UpdatedAt)` sobre contratos ativos (excluindo o status "desistente"), reutilizando a mesma lógica da tela de Monitoramento.
+- **Visualização Completa para Todos os Usuários**: A coluna é exibida para todos os papéis de usuário (`User`, `Admin`, `SuperAdmin`).
+- **Tooltip Informativo no Cabeçalho**: Apresenta o texto de auxílio ao passar o cursor sobre o cabeçalho da coluna: *"Esta é a última vez que esta matrícula foi atualizada"*.
+- **Formatação Dupla e Fallback**: Mostra a data/hora exata (`DD/MM/YYYY HH:mm`) na primeira linha e a idade relativa (ex.: *"há 2 horas"*) na segunda linha em português (`pt-br`). Exibe `"Nunca"` para matrículas sem histórico de contratos.
 
-
+### Key Files Created / Modified
+- `SalesApp.Api/DTOs/UserMatriculaResponse.cs` — Adicionado o campo `public DateTime? LastUpdate`.
+- `SalesApp.Api/Repositories/IUserMatriculaRepository.cs` — Declarado o método `GetLastUpdateByMatriculaNumberAsync()`.
+- `SalesApp.Api/Repositories/UserMatriculaRepository.cs` — Implementada a busca agregada de `MAX(UpdatedAt)` por número de matrícula em `Contracts`.
+- `SalesApp.Api/Controllers/UserMatriculasController.cs` — Atualizados os endpoints GET (`GetAll`, `GetById`, `GetByUserId`) para preencher `LastUpdate` na resposta.
+- `client/sales-dash/src/services/apiService.ts` — Adicionada a propriedade `lastUpdate?: string` na interface `UserMatricula`.
+- `client/sales-dash/src/components/MatriculasPage.tsx` — Adicionada a coluna "Última Atualização" com Tooltip Mantine, formatação `dayjs` (`pt-br`) e tratamento do estado vazio `"Nunca"`.

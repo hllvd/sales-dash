@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, Table, ActionIcon, Group, Badge, TextInput, Text, Select, Modal, Alert } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Badge, TextInput, Text, Select, Modal, Alert, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash, IconRefresh, IconPlus, IconUpload, IconSend, IconAlertCircle } from '@tabler/icons-react';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/pt-br';
 import "./MatriculasPage.css"
 import Menu from "./Menu"
 import MatriculaForm from "./MatriculaForm"
@@ -15,6 +18,9 @@ import {
   CreateMatriculaRequest,
   UpdateMatriculaRequest,
 } from "../services/apiService"
+
+dayjs.extend(relativeTime);
+dayjs.locale('pt-br');
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString("pt-BR", {
@@ -276,13 +282,18 @@ const MatriculasPage: React.FC = () => {
                     <Table.Th>Ativo</Table.Th>
                     <Table.Th>Status</Table.Th>
                     <Table.Th>Proprietário</Table.Th>
+                    <Table.Th>
+                      <Tooltip label="Esta é a última vez que esta matrícula foi atualizada">
+                        <span>Última Atualização</span>
+                      </Tooltip>
+                    </Table.Th>
                     {isSuperAdmin && <Table.Th>Ações</Table.Th>}
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
                   {matriculas.length === 0 ? (
                     <Table.Tr>
-                      <Table.Td colSpan={isSuperAdmin ? 8 : 7} style={{ textAlign: "center" }}>
+                      <Table.Td colSpan={isSuperAdmin ? 9 : 8} style={{ textAlign: "center" }}>
                         Nenhuma matrícula encontrada
                       </Table.Td>
                     </Table.Tr>
@@ -312,6 +323,16 @@ const MatriculasPage: React.FC = () => {
                             <Badge color="blue" variant="light">
                               Proprietário
                             </Badge>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {matricula.lastUpdate ? (
+                            <>
+                              <Text size="sm">{dayjs(matricula.lastUpdate).format('DD/MM/YYYY HH:mm')}</Text>
+                              <Text size="xs" c="dimmed">{dayjs(matricula.lastUpdate).fromNow()}</Text>
+                            </>
+                          ) : (
+                            <Text size="sm">Nunca</Text>
                           )}
                         </Table.Td>
                         {isSuperAdmin && (

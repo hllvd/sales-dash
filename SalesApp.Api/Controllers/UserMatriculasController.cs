@@ -39,8 +39,9 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<List<UserMatriculaResponse>>>> GetAll()
         {
             var matriculas = await _userMatriculaRepository.GetAllAsync();
+            var lastUpdates = await _userMatriculaRepository.GetLastUpdateByMatriculaNumberAsync();
             var activeUserMatriculas = matriculas.Where(m => m.User != null && m.User.IsActive).ToList();
-            var responses = activeUserMatriculas.Select(MapToResponse).ToList();
+            var responses = activeUserMatriculas.Select(m => MapToResponse(m, lastUpdates)).ToList();
 
             var roleIdClaim = User.FindFirst("role_id")?.Value;
             var currentUserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? UserRole.User;
@@ -97,10 +98,11 @@ namespace SalesApp.Controllers
                 }
             }
 
+            var lastUpdates = await _userMatriculaRepository.GetLastUpdateByMatriculaNumberAsync();
             return Ok(new ApiResponse<UserMatriculaResponse>
             {
                 Success = true,
-                Data = MapToResponse(matricula),
+                Data = MapToResponse(matricula, lastUpdates),
                 Message = _messageService.Get(AppMessage.MatriculaRetrievedSuccessfully)
             });
         }
@@ -111,7 +113,8 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<List<UserMatriculaResponse>>>> GetByUserId(Guid userId)
         {
             var matriculas = await _userMatriculaRepository.GetByUserIdAsync(userId);
-            var responses = matriculas.Select(MapToResponse).ToList();
+            var lastUpdates = await _userMatriculaRepository.GetLastUpdateByMatriculaNumberAsync();
+            var responses = matriculas.Select(m => MapToResponse(m, lastUpdates)).ToList();
 
             var roleIdClaim = User.FindFirst("role_id")?.Value;
             var currentUserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? UserRole.User;
@@ -639,20 +642,28 @@ namespace SalesApp.Controllers
             });
         }
 
-        private UserMatriculaResponse MapToResponse(UserMatricula matricula)
+        private UserMatriculaResponse MapToResponse(UserMatricula matricula, Dictionary<string, DateTime>? lastUpdates = null)
         {
+            var matriculaNum = matricula.Matricula?.MatriculaNumber ?? "";
+            DateTime? lastUpdate = null;
+            if (lastUpdates != null && !string.IsNullOrEmpty(matriculaNum) && lastUpdates.TryGetValue(matriculaNum, out var dt))
+            {
+                lastUpdate = dt;
+            }
+
             return new UserMatriculaResponse
             {
                 Id = matricula.Id,
                 UserId = matricula.User?.Id ?? Guid.Empty,
                 UserName = matricula.User?.Name ?? "",
-                MatriculaNumber = matricula.Matricula?.MatriculaNumber ?? "",
+                MatriculaNumber = matriculaNum,
                 StartDate = matricula.Matricula?.StartDate ?? DateTime.MinValue,
                 EndDate = matricula.EndDate,
                 IsActive = matricula.IsActive,
                 IsOwner = matricula.IsOwner,
                 Status = matricula.Matricula?.Status ?? "",
-                CreatedAt = matricula.CreatedAt
+                CreatedAt = matricula.CreatedAt,
+                LastUpdate = lastUpdate
             };
         }
     }

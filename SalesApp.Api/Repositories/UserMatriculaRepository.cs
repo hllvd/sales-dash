@@ -202,5 +202,27 @@ namespace SalesApp.Repositories
                 .Include(m => m.Matricula)
                 .FirstOrDefaultAsync(m => m.Matricula.MatriculaNumber == matriculaNumber && m.User.Id == userId);
         }
+
+        public async Task<Dictionary<string, DateTime>> GetLastUpdateByMatriculaNumberAsync()
+        {
+            var data = await _context.Contracts
+                .AsNoTracking()
+                .Where(c => c.IsActive && c.ContractStatus.Name.ToLower() != "desistente")
+                .Select(c => new
+                {
+                    Matricula = c.Matricula != null ? c.Matricula.MatriculaNumber : c.TempMatricula,
+                    c.UpdatedAt
+                })
+                .Where(x => !string.IsNullOrEmpty(x.Matricula))
+                .GroupBy(x => x.Matricula)
+                .Select(g => new
+                {
+                    Matricula = g.Key!,
+                    LastUpdate = g.Max(x => x.UpdatedAt)
+                })
+                .ToListAsync();
+
+            return data.ToDictionary(x => x.Matricula, x => DateTime.SpecifyKind(x.LastUpdate, DateTimeKind.Utc));
+        }
     }
 }

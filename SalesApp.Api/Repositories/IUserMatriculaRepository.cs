@@ -17,5 +17,6 @@ namespace SalesApp.Repositories
         Task<bool> IsMatriculaValidForUser(Guid userId, int matriculaId);
         Task<UserMatricula?> GetOwnerByMatriculaIdAsync(int matriculaId);
         Task SetOwnerAsync(int matriculaId, Guid newOwnerId);
+        Task<Dictionary<string, DateTime>> GetLastUpdateByMatriculaNumberAsync();
     }
 }

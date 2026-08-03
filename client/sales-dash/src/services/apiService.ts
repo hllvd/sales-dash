@@ -1451,6 +1451,7 @@ export interface UserMatricula {
   isOwner: boolean
   status: string
   createdAt: string
+  lastUpdate?: string
 }
 
 export interface CreateMatriculaRequest {
