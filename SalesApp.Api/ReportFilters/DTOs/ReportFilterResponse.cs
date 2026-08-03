@@ -28,6 +28,13 @@ namespace SalesApp.ReportFilters.DTOs
         public string ChartType { get; set; } = "bar";
         public string? SummaryRetentionType { get; set; }
         public string? ChartMetric { get; set; }
+        public List<ExportedFieldResponse> ExportedFields { get; set; } = new();
+    }
+
+    public class ExportedFieldResponse
+    {
+        public string FieldType { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
     }
 
     public class FilterConfigResponse

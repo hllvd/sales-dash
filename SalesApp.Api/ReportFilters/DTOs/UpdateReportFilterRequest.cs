@@ -24,5 +24,6 @@ namespace SalesApp.ReportFilters.DTOs
         public string ChartType { get; set; } = "bar";
         public string? SummaryRetentionType { get; set; } = "standard";
         public string? ChartMetric { get; set; }
+        public List<ExportedFieldRequest> ExportedFields { get; set; } = new();
     }
 }

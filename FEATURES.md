@@ -1,5 +1,21 @@
 # Features
 
+## Exported Fields in Reports (Interactive Viewer Filters)
+
+This feature allows report administrators to "export" filter fields (`Teams` and `Emails`) on saved reports, making them interactive for any viewer on the report results page without requiring multiple separate reports.
+
+### Core Objectives
+- Allow admins to mark `Teams` and/or `Emails` as exported fields when configuring a report filter, with optional custom labels (e.g. "Selecione a Equipe").
+- Enable any user with view access to dynamically select different teams or sellers directly at the top of the report results view.
+- Support local storage persistence of viewer filter choices so user selections remain intact across page refreshes.
+
+### Key Capabilities
+- **Admin Configuration**: Toggle exported status for `Teams` and `Emails` inside `ReportFormPage`, defining custom display header labels.
+- **On-The-Fly Overrides**: Interactively override filter values via inline `MultiSelect` components on `ReportResultsPage`.
+- **In-Memory Query Execution**: Server-side filter overrides replace the base filter at query time without altering the saved report definition in DynamoDB.
+- **State Persistence**: Viewer selection choices are stored in `localStorage` under `report-exports-{filterId}`.
+- **Loading & Refetch Experience**: Skeleton loading states while option lists fetch, and overlay spinners over report tables/charts when applying updated filters.
+
 ## Inactive User Management & Status Filter
 
 This feature ensures inactive users are strictly excluded from display and counting across all application modules (Teams, Classifications, Contracts, Matriculas), manages user active state during contract lifecycle changes, and adds a status dropdown filter on the Users management page.

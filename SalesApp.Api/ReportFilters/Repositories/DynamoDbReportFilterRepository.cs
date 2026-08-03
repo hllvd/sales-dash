@@ -252,7 +252,8 @@ namespace SalesApp.ReportFilters.Repositories
                 { "outputType",    new AttributeValue { S = f.OutputType ?? "table" } },
                 { "chartType",     new AttributeValue { S = f.ChartType ?? "bar" } },
                 { "summaryRetentionType", new AttributeValue { S = f.SummaryRetentionType ?? "standard" } },
-                { "chartMetric",   new AttributeValue { S = f.ChartMetric ?? "" } }
+                { "chartMetric",   new AttributeValue { S = f.ChartMetric ?? "" } },
+                { "exportedFields", new AttributeValue { S = JsonConvert.SerializeObject(f.ExportedFields) } }
             };
 
             if (f.AllowedTeamIds != null)
@@ -270,6 +271,7 @@ namespace SalesApp.ReportFilters.Repositories
         {
             var filterConfigJson = item.GetValueOrDefault("filterConfig")?.S ?? "{}";
             var outputColumnsJson = item.GetValueOrDefault("outputColumns")?.S ?? "[]";
+            var exportedFieldsJson = item.GetValueOrDefault("exportedFields")?.S ?? "[]";
 
             return new ReportFilter
             {
@@ -282,6 +284,7 @@ namespace SalesApp.ReportFilters.Repositories
                 Scope     = item.GetValueOrDefault("scope")?.S ?? string.Empty,
                 FilterConfig  = JsonConvert.DeserializeObject<FilterConfig>(filterConfigJson) ?? new FilterConfig(),
                 OutputColumns = JsonConvert.DeserializeObject<List<OutputColumn>>(outputColumnsJson) ?? new List<OutputColumn>(),
+                ExportedFields = JsonConvert.DeserializeObject<List<ExportedField>>(exportedFieldsJson) ?? new List<ExportedField>(),
                 GroupByEmail  = item.GetValueOrDefault("groupByEmail")?.BOOL ?? false,
                 GroupByTeam   = item.GetValueOrDefault("groupByTeam")?.BOOL ?? false,
                 GroupByClassification = item.GetValueOrDefault("groupByClassification")?.BOOL ?? false,

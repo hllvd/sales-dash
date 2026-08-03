@@ -384,7 +384,7 @@ namespace SalesApp.Tests.Services
             _mockUserRepository.Setup(u => u.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(mockUser);
 
             // Act
-            var result = await _service.AnalyzeFileAsync(mockFile.Object, Guid.NewGuid());
+            var result = await _service.ProcessStep1UploadAsync(mockFile.Object, Guid.NewGuid());
 
             // Assert
             result.Should().NotBeNull();
@@ -425,7 +425,7 @@ namespace SalesApp.Tests.Services
             _mockUserRepository.Setup(u => u.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(mockUser);
 
             // Act
-            var result = await _service.AnalyzeFileAsync(mockFile.Object, Guid.NewGuid());
+            var result = await _service.ProcessStep1UploadAsync(mockFile.Object, Guid.NewGuid());
 
             // Assert
             result.Should().NotBeNull();

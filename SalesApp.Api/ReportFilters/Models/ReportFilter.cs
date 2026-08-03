@@ -64,5 +64,6 @@ namespace SalesApp.ReportFilters.Models
         public string ChartType { get; set; } = "bar";
         public string? SummaryRetentionType { get; set; } = "standard";
         public string? ChartMetric { get; set; }
+        public List<ExportedField> ExportedFields { get; set; } = new();
     }
 }

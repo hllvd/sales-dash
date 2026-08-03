@@ -30,6 +30,11 @@ export interface FilterConfig {
   maxProduction?: number;
 }
 
+export interface ExportedField {
+  fieldType: 'teams' | 'emails';
+  label: string;
+}
+
 export interface OutputColumn {
   source: string;
   field: string;
@@ -46,6 +51,7 @@ export interface ReportFilter {
   scope: 'private' | 'shared';
   filterConfig: FilterConfig;
   outputColumns: OutputColumn[];
+  exportedFields?: ExportedField[];
   groupByEmail: boolean;
   groupByTeam: boolean;
   groupByClassification: boolean;
@@ -69,6 +75,7 @@ export interface CreateReportFilterRequest {
   scope: 'private' | 'shared';
   filterConfig: FilterConfig;
   outputColumns: OutputColumn[];
+  exportedFields?: ExportedField[];
   groupByEmail: boolean;
   groupByTeam: boolean;
   groupByClassification: boolean;
@@ -90,6 +97,7 @@ export interface UpdateReportFilterRequest {
   scope: 'private' | 'shared';
   filterConfig: FilterConfig;
   outputColumns: OutputColumn[];
+  exportedFields?: ExportedField[];
   groupByEmail: boolean;
   groupByTeam: boolean;
   groupByClassification: boolean;
@@ -222,12 +230,20 @@ export const deleteReportFilter = async (id: string): Promise<void> => {
 export const getReportResults = async (
   id: string,
   page: number = 1,
-  pageSize: number = 25
+  pageSize: number = 25,
+  overrides?: { teamIds?: number[]; emails?: string[] }
 ): Promise<ReportResultsResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
     pageSize: pageSize.toString()
   });
+
+  if (overrides?.teamIds !== undefined) {
+    params.set('teamIds', overrides.teamIds.join(','));
+  }
+  if (overrides?.emails !== undefined) {
+    params.set('emails', overrides.emails.join(','));
+  }
 
   const response = await authenticatedFetch(`${API_BASE_URL}/report-filters/${id}/results?${params.toString()}`, {
     method: 'GET',

@@ -152,6 +152,11 @@ namespace SalesApp.IntegrationTests.ReportFilters
                 {
                     new OutputColumnRequest { Source = "Contracts", Field = "contractNumber", Label = "Contract #", Order = 1 },
                     new OutputColumnRequest { Source = "Contracts", Field = "totalAmount", Label = "Amount", Order = 2 }
+                },
+                ExportedFields = new List<ExportedFieldRequest>
+                {
+                    new ExportedFieldRequest { FieldType = "teams", Label = "Selecione a Equipe" },
+                    new ExportedFieldRequest { FieldType = "emails", Label = "Selecione o Vendedor" }
                 }
             };
 
@@ -166,6 +171,9 @@ namespace SalesApp.IntegrationTests.ReportFilters
             createResult.Data.Name.Should().Be("Integration Test Report");
             createResult.Data.Scope.Should().Be("private");
             createResult.Data.FilterConfig.Teams.Should().ContainInOrder(1, 2);
+            createResult.Data.ExportedFields.Should().HaveCount(2);
+            createResult.Data.ExportedFields[0].FieldType.Should().Be("teams");
+            createResult.Data.ExportedFields[0].Label.Should().Be("Selecione a Equipe");
 
             // 3. GET SINGLE
             var getResponse = await _client.GetAsync($"/api/report-filters/{filterId}");
@@ -176,6 +184,7 @@ namespace SalesApp.IntegrationTests.ReportFilters
             getResult.Data!.FilterId.Should().Be(filterId);
             getResult.Data.OutputColumns.Should().HaveCount(2);
             getResult.Data.FilterConfig.Teams.Should().ContainInOrder(1, 2);
+            getResult.Data.ExportedFields.Should().HaveCount(2);
 
             // 4. LIST (Should contain at least our newly created report)
             var listResponse = await _client.GetAsync("/api/report-filters");
@@ -193,7 +202,7 @@ namespace SalesApp.IntegrationTests.ReportFilters
             columnsResult!.Success.Should().BeTrue();
             columnsResult.Data!.Sources.Should().NotBeEmpty();
 
-            // 6. GET RESULTS (Contracts Projection)
+            // 6. GET RESULTS (Standard & with Viewer Overrides)
             var resultsResponse = await _client.GetAsync($"/api/report-filters/{filterId}/results");
             resultsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -201,6 +210,14 @@ namespace SalesApp.IntegrationTests.ReportFilters
             resultsResult!.Success.Should().BeTrue();
             resultsResult.Data!.Page.Should().BeGreaterThan(0);
             resultsResult.Data.Columns.Should().HaveCount(2);
+
+            // 6b. GET RESULTS WITH OVERRIDES (testing exported fields on-the-fly override)
+            var overrideResponse = await _client.GetAsync($"/api/report-filters/{filterId}/results?teamIds=1,2&emails=seller@test.com");
+            overrideResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var overrideResult = await overrideResponse.Content.ReadFromJsonAsync<CustomApiResponse<ReportResultsResponse>>();
+            overrideResult!.Success.Should().BeTrue();
+            overrideResult.Data!.Page.Should().BeGreaterThan(0);
 
             // 7. UPDATE
             var updateRequest = new UpdateReportFilterRequest

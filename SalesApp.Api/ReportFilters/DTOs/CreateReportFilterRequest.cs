@@ -44,6 +44,15 @@ namespace SalesApp.ReportFilters.DTOs
     }
 
     /// <summary>
+    /// Exported field definition inside a create/update request.
+    /// </summary>
+    public class ExportedFieldRequest
+    {
+        public string FieldType { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+    }
+
+    /// <summary>
     /// Request body for POST /api/report-filters.
     /// </summary>
     public class CreateReportFilterRequest
@@ -66,5 +75,6 @@ namespace SalesApp.ReportFilters.DTOs
         public string ChartType { get; set; } = "bar";
         public string? SummaryRetentionType { get; set; } = "standard";
         public string? ChartMetric { get; set; }
+        public List<ExportedFieldRequest> ExportedFields { get; set; } = new();
     }
 }

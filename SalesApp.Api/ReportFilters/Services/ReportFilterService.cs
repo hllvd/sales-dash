@@ -215,6 +215,7 @@ namespace SalesApp.ReportFilters.Services
                 ChartType = request.ChartType ?? "bar",
                 SummaryRetentionType = request.SummaryRetentionType ?? "standard",
                 ChartMetric = request.ChartMetric,
+                ExportedFields = MapExportedFields(request.ExportedFields),
                 CreatedAt   = now,
                 UpdatedAt   = now
             };
@@ -260,6 +261,7 @@ namespace SalesApp.ReportFilters.Services
             filter.ChartType = request.ChartType ?? "bar";
             filter.SummaryRetentionType = request.SummaryRetentionType ?? "standard";
             filter.ChartMetric = request.ChartMetric;
+            filter.ExportedFields = MapExportedFields(request.ExportedFields);
             filter.UpdatedAt     = DateTime.UtcNow;
 
             await _repository.UpdateAsync(filter);
@@ -288,7 +290,9 @@ namespace SalesApp.ReportFilters.Services
             string filterId,
             Guid? currentUserId,
             int page,
-            int pageSize)
+            int pageSize,
+            List<int>? overrideTeamIds = null,
+            List<string>? overrideEmails = null)
         {
             // Resolve report (same visibility rules as GetAsync)
             var getResult = await GetAsync(callerId, filterId);
@@ -297,6 +301,16 @@ namespace SalesApp.ReportFilters.Services
 
             var report = getResult.Data!;
             var fc = report.FilterConfig;
+
+            // Apply viewer overrides (replace the filter entirely if supplied)
+            if (overrideTeamIds != null)
+            {
+                fc.Teams = overrideTeamIds.Count > 0 ? overrideTeamIds : new List<int>();
+            }
+            if (overrideEmails != null)
+            {
+                fc.Emails = overrideEmails.Count > 0 ? overrideEmails : new List<string>();
+            }
 
             var resolvedStartDate = ResolveDate(fc.StartDate, fc.RelativeStartDate);
             var resolvedEndDate = ResolveDate(fc.EndDate, fc.RelativeEndDate);
@@ -1290,6 +1304,11 @@ namespace SalesApp.ReportFilters.Services
                 ChartType = f.ChartType ?? "bar",
                 SummaryRetentionType = f.SummaryRetentionType ?? "standard",
                 ChartMetric = f.ChartMetric,
+                ExportedFields = f.ExportedFields.Select(e => new ExportedFieldResponse
+                {
+                    FieldType = e.FieldType,
+                    Label = e.Label
+                }).ToList(),
                 FilterConfig = new FilterConfigResponse
                 {
                     Matriculas          = f.FilterConfig.Matriculas,
@@ -1326,6 +1345,16 @@ namespace SalesApp.ReportFilters.Services
                         Format = c.Format
                     }).ToList()
             };
+
+        private static List<ExportedField> MapExportedFields(List<ExportedFieldRequest>? req)
+        {
+            if (req == null) return new List<ExportedField>();
+            return req.Select(e => new ExportedField
+            {
+                FieldType = e.FieldType,
+                Label = e.Label
+            }).ToList();
+        }
 
         private static FilterConfig MapFilterConfig(FilterConfigRequest req) =>
             new()

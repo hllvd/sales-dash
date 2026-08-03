@@ -138,14 +138,36 @@ namespace SalesApp.ReportFilters.Controllers
         public async Task<IActionResult> GetResults(
             string filterId,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 25)
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? teamIds = null,
+            [FromQuery] string? emails = null)
         {
             var callerId = GetCallerId();
             if (callerId == null) return Unauthorized();
 
             var currentUserId = GetCurrentUserId();
 
-            var result = await _service.ExecuteAsync(callerId, filterId, currentUserId, page, pageSize);
+            List<int>? overrideTeamIds = teamIds != null
+                ? teamIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                         .Select(s => int.TryParse(s, out var v) ? (int?)v : null)
+                         .Where(v => v.HasValue)
+                         .Select(v => v!.Value)
+                         .ToList()
+                : null;
+
+            List<string>? overrideEmails = emails != null
+                ? emails.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
+                : null;
+
+            var result = await _service.ExecuteAsync(
+                callerId,
+                filterId,
+                currentUserId,
+                page,
+                pageSize,
+                overrideTeamIds,
+                overrideEmails);
+
             return MapResult(result);
         }
 

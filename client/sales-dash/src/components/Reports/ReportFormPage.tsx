@@ -52,6 +52,7 @@ import {
   ReportFilter,
   OutputColumn,
   FilterConfig,
+  ExportedField,
   SourceColumns,
   ReportResultsResponse
 } from '../../services/reportFilterService';
@@ -232,6 +233,13 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [maxProduction, setMaxProduction] = useState<number | ''>('');
   const [performanceFiltersOpen, setPerformanceFiltersOpen] = useState(false);
 
+  // Exported Fields (Fields exposed to viewer for on-the-fly filtering)
+  const [exportedFieldsOpen, setExportedFieldsOpen] = useState(false);
+  const [exportTeams, setExportTeams] = useState(false);
+  const [exportTeamsLabel, setExportTeamsLabel] = useState('Equipe');
+  const [exportEmails, setExportEmails] = useState(false);
+  const [exportEmailsLabel, setExportEmailsLabel] = useState('Vendedor(a)');
+
   // Grouping
   const [groupingType, setGroupingType] = useState<'none' | 'team' | 'email' | 'classification'>('none');
   const [groupByEmail, setGroupByEmail] = useState(false);
@@ -363,7 +371,31 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         ) {
           setPerformanceFiltersOpen(true);
         }
-        
+
+        // Restore Exported Fields
+        const ef = report.exportedFields || [];
+        const teamsEf = ef.find(e => e.fieldType === 'teams');
+        if (teamsEf) {
+          setExportTeams(true);
+          setExportTeamsLabel(teamsEf.label || 'Equipe');
+        } else {
+          setExportTeams(false);
+          setExportTeamsLabel('Equipe');
+        }
+
+        const emailsEf = ef.find(e => e.fieldType === 'emails');
+        if (emailsEf) {
+          setExportEmails(true);
+          setExportEmailsLabel(emailsEf.label || 'Vendedor(a)');
+        } else {
+          setExportEmails(false);
+          setExportEmailsLabel('Vendedor(a)');
+        }
+
+        if (teamsEf || emailsEf) {
+          setExportedFieldsOpen(true);
+        }
+
         setOutputColumns(report.outputColumns || []);
         setGroupByEmail(report.groupByEmail || false);
         setGroupByTeam(report.groupByTeam || false);
@@ -578,6 +610,14 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       maxProduction: maxProduction !== '' ? maxProduction : undefined,
     };
 
+    const exportedFieldsList: ExportedField[] = [];
+    if (exportTeams) {
+      exportedFieldsList.push({ fieldType: 'teams', label: exportTeamsLabel.trim() || 'Equipe' });
+    }
+    if (exportEmails) {
+      exportedFieldsList.push({ fieldType: 'emails', label: exportEmailsLabel.trim() || 'Vendedor(a)' });
+    }
+
     return {
       name,
       description,
@@ -591,6 +631,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       chartType,
       filterConfig,
       outputColumns,
+      exportedFields: exportedFieldsList,
       groupByEmail,
       groupByTeam,
       groupByClassification,
@@ -1223,6 +1264,74 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                         </Group>
                       </Grid.Col>
                     </Grid>
+                  </Paper>
+                </Collapse>
+              </div>
+
+              {/* Campos Exportados Collapse */}
+              <div>
+                <Button 
+                  variant="subtle" 
+                  color="gray" 
+                  onClick={() => setExportedFieldsOpen(!exportedFieldsOpen)}
+                  rightSection={exportedFieldsOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+                  size="xs"
+                  p={0}
+                  mt="xs"
+                >
+                  Campos Exportados (Filtros Selecionáveis no Relatório)
+                </Button>
+                
+                <Collapse in={exportedFieldsOpen}>
+                  <Paper withBorder p="sm" mt="xs" style={{ backgroundColor: '#fafafa' }}>
+                    <Text size="xs" c="dimmed" mb="xs">
+                      Permite que os usuários que visualizarem o relatório alterem interativamente estes filtros na tela de resultados.
+                    </Text>
+                    <Stack gap="sm">
+                      <Paper withBorder p="xs" radius="xs" style={{ backgroundColor: '#ffffff' }}>
+                        <Group justify="space-between" align="center" mb={exportTeams ? 'xs' : 0}>
+                          <div>
+                            <Text size="xs" fw={600}>Exportar campo "Equipes"</Text>
+                            <Text size="xs" c="dimmed">Permite ao leitor selecionar diferentes equipes ao visualizar o resultado</Text>
+                          </div>
+                          <Switch
+                            checked={exportTeams}
+                            onChange={(e) => setExportTeams(e.currentTarget.checked)}
+                          />
+                        </Group>
+                        {exportTeams && (
+                          <TextInput
+                            label="Rótulo no relatório"
+                            placeholder="ex: Selecione a Equipe"
+                            value={exportTeamsLabel}
+                            onChange={(e) => setExportTeamsLabel(e.currentTarget.value)}
+                            size="xs"
+                          />
+                        )}
+                      </Paper>
+
+                      <Paper withBorder p="xs" radius="xs" style={{ backgroundColor: '#ffffff' }}>
+                        <Group justify="space-between" align="center" mb={exportEmails ? 'xs' : 0}>
+                          <div>
+                            <Text size="xs" fw={600}>Exportar campo "Vendedores / Emails"</Text>
+                            <Text size="xs" c="dimmed">Permite ao leitor selecionar diferentes vendedores ao visualizar o resultado</Text>
+                          </div>
+                          <Switch
+                            checked={exportEmails}
+                            onChange={(e) => setExportEmails(e.currentTarget.checked)}
+                          />
+                        </Group>
+                        {exportEmails && (
+                          <TextInput
+                            label="Rótulo no relatório"
+                            placeholder="ex: Selecione o Vendedor"
+                            value={exportEmailsLabel}
+                            onChange={(e) => setExportEmailsLabel(e.currentTarget.value)}
+                            size="xs"
+                          />
+                        )}
+                      </Paper>
+                    </Stack>
                   </Paper>
                 </Collapse>
               </div>
