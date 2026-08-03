@@ -52,5 +52,6 @@ namespace SalesApp.Models
         public const string AdminRequestMatricula = "AdminRequestMatricula";
         public const string RequestAdminRole = "RequestAdminRole";
         public const string RequestClassificationLevel = "RequestClassificationLevel";
+        public const string CreateTeam = "CreateTeam";
     }
 }

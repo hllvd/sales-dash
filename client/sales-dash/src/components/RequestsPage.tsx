@@ -39,6 +39,7 @@ const RequestsPage: React.FC = () => {
   const [requestType, setRequestType] = useState<string>('ChangeParentEmail');
   const [parentEmail, setParentEmail] = useState('');
   const [matriculaNumber, setMatriculaNumber] = useState('');
+  const [teamName, setTeamName] = useState('');
   const [classificationLevels, setClassificationLevels] = useState<{ id: number; name: string }[]>([]);
   const [selectedLevelId, setSelectedLevelId] = useState<string>('');
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -183,6 +184,14 @@ const RequestsPage: React.FC = () => {
         payloadJson = JSON.stringify({ newParentEmail: trimmedEmail });
       } else if (requestType === 'RequestAdminRole') {
         payloadJson = JSON.stringify({});
+      } else if (requestType === 'CreateTeam') {
+        const trimmedName = teamName.trim();
+        if (!trimmedName) {
+          setCreateError('O nome da equipe é obrigatório.');
+          setSubmitting(false);
+          return;
+        }
+        payloadJson = JSON.stringify({ teamName: trimmedName });
       } else if (requestType === 'RequestClassificationLevel') {
         if (!selectedLevelId) {
           setCreateError('O nível de classificação é obrigatório.');
@@ -226,6 +235,7 @@ const RequestsPage: React.FC = () => {
       setCreateModalOpen(false);
       setParentEmail('');
       setMatriculaNumber('');
+      setTeamName('');
       setSelectedLevelId('');
       await loadData();
     } catch (err: any) {
@@ -245,6 +255,8 @@ const RequestsPage: React.FC = () => {
         return 'Criação de Matrícula (Admin / Proprietário)';
       case 'RequestAdminRole':
         return 'Solicitação de Perfil Administrador (Role Admin)';
+      case 'CreateTeam':
+        return 'Criar Equipe (Guimel)';
       case 'RequestClassificationLevel':
         return 'Solicitação de Nível de Classificação';
       default:
@@ -263,6 +275,9 @@ const RequestsPage: React.FC = () => {
       }
       if (type === 'RequestAdminRole') {
         return 'Solicitação de perfil Administrador';
+      }
+      if (type === 'CreateTeam') {
+        return `Nome da Equipe: ${parsed.teamName || parsed.TeamName}`;
       }
       if (type === 'RequestClassificationLevel') {
         const levelName = parsed.levelName || parsed.LevelName || `ID ${parsed.levelId || parsed.LevelId}`;
@@ -527,6 +542,7 @@ const RequestsPage: React.FC = () => {
           data={[
             { value: 'ChangeParentEmail', label: 'Alteração de Superior (E-mail)' },
             { value: 'RequestMatricula', label: 'Solicitar o uso da matrícula do gestor' },
+            { value: 'CreateTeam', label: 'Eu sou Guimel agora, quero criar minha equipe' },
             ...((userRole === 'user' || userRole === 'admin')
               ? [
                   { value: 'RequestClassificationLevel', label: 'Solicitação de Nível de Classificação' },
@@ -555,6 +571,20 @@ const RequestsPage: React.FC = () => {
           <Text size="sm" c="dimmed" mb="md">
             Esta solicitação será enviada para aprovação do seu superior direto ou de um SuperAdmin.
           </Text>
+        ) : requestType === 'CreateTeam' ? (
+          <>
+            <TextInput
+              label="Nome da Equipe"
+              placeholder="Ex: Equipe Comercial SP"
+              required
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              mb="md"
+            />
+            <Text size="sm" c="dimmed" mb="md">
+              Ao ser aprovado, a equipe será criada, você se tornará proprietário dela e seu perfil será alterado para Administrador.
+            </Text>
+          </>
         ) : requestType === 'RequestClassificationLevel' ? (
           <>
             <Select

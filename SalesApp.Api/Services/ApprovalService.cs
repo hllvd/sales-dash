@@ -98,6 +98,20 @@ namespace SalesApp.Services
                     throw new ArgumentException($"Nível de classificação com o ID '{payload.LevelId}' não foi encontrado.");
                 }
             }
+            else if (dto.RequestType == ApprovalRequestType.CreateTeam)
+            {
+                var payload = JsonSerializer.Deserialize<CreateTeamPayload>(dto.PayloadJson, _jsonOptions);
+                if (string.IsNullOrWhiteSpace(payload?.TeamName))
+                {
+                    throw new ArgumentException("O nome da equipe é obrigatório.");
+                }
+
+                var trimmedName = payload.TeamName.Trim();
+                if (await _context.Teams.AnyAsync(t => t.Name.ToLower() == trimmedName.ToLower()))
+                {
+                    throw new InvalidOperationException("Nome da equipe já existe.");
+                }
+            }
             else
             {
                 throw new ArgumentException($"Tipo de solicitação inválido: {dto.RequestType}");
@@ -417,6 +431,46 @@ namespace SalesApp.Services
                     UpdatedAt = DateTime.UtcNow
                 };
                 _context.UserClassifications.Add(newAssignment);
+            }
+            else if (request.RequestType == ApprovalRequestType.CreateTeam)
+            {
+                var payload = JsonSerializer.Deserialize<CreateTeamPayload>(request.PayloadJson, _jsonOptions);
+                if (payload == null || string.IsNullOrWhiteSpace(payload.TeamName))
+                {
+                    throw new InvalidOperationException("Payload de criação de equipe inválido.");
+                }
+
+                var trimmedName = payload.TeamName.Trim();
+                if (await _context.Teams.AnyAsync(t => t.Name.ToLower() == trimmedName.ToLower()))
+                {
+                    throw new InvalidOperationException("Nome da equipe já existe.");
+                }
+
+                var team = new Team
+                {
+                    Name = trimmedName,
+                    OwnerUserInternalId = requester.InternalId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.Teams.Add(team);
+                await _context.SaveChangesAsync();
+
+                var userTeam = new UserTeam
+                {
+                    TeamId = team.Id,
+                    UserInternalId = requester.InternalId,
+                    StartDate = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.UserTeams.Add(userTeam);
+
+                if (requester.RoleId == (int)RoleId.User)
+                {
+                    requester.RoleId = (int)RoleId.Admin;
+                }
+                requester.UpdatedAt = DateTime.UtcNow;
             }
         }
 

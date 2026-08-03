@@ -62,4 +62,9 @@ namespace SalesApp.DTOs
         public string? PreviousLevelName { get; set; }
         public DateTime? PreviousEndDate { get; set; }
     }
+
+    public class CreateTeamPayload
+    {
+        public string TeamName { get; set; } = string.Empty;
+    }
 }

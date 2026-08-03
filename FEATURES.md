@@ -1,5 +1,21 @@
 # Features
 
+## Team Creation & Admin Promotion via Requests (Solicitações)
+
+This feature enables users to request team creation directly through the unified **Solicitações** system. Upon approval by a superadmin or parent admin (superior in hierarchy), the system automatically creates the new team, sets the requester as its owner (admin), and promotes the requester's role to `admin`.
+
+### Core Objectives
+- Allow users of any role to submit a team creation request using the prompt: `"Eu sou Guimel agora, quero criar minha equipe"`.
+- Enforce team name uniqueness validation in Portuguese (`"Nome da equipe já existe"`) both at request submission and at approval execution.
+- Enable superadmins and superior admins (parentAdmin in hierarchy) to approve or reject the request.
+- Automatically execute team creation, owner assignment, team membership creation, and user role promotion to `Admin` (roleId = 2) upon approval.
+
+### Key Capabilities
+- **Request Type**: `CreateTeam` in `ApprovalRequestType`.
+- **UI Option**: Select dropdown option labelled `"Eu sou Guimel agora, quero criar minha equipe"` visible across user roles.
+- **Immediate Validation**: Checks for existing team names in Portuguese during submission to prevent duplicate requests.
+- **One-Step Execution**: On approval by superadmin or parent admin, creates `Team`, links `UserTeam`, and updates user's `RoleId` to `Admin`.
+
 ## Exported Fields in Reports (Interactive Viewer Filters)
 
 This feature allows report administrators to "export" filter fields (`Teams` and `Emails`) on saved reports, making them interactive for any viewer on the report results page without requiring multiple separate reports.
