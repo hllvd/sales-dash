@@ -121,21 +121,23 @@ namespace SalesApp.Controllers
             [FromQuery] string? userEmail = null,
             [FromQuery] List<int>? teamIds = null,
             [FromQuery] List<Guid>? userIds = null,
+            [FromQuery] List<string>? statuses = null,
             [FromQuery] int? page = null,
             [FromQuery] int? pageSize = null)
         {
             var scope = await _userScopeService.GetContractScopeAsync(User);
+            var isSuperAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("superadmin") || User.HasClaim("perm", "system:superadmin") || scope.IsGlobal;
 
             if (page.HasValue && pageSize.HasValue)
             {
                 var (contracts, totalCount) = await _contractRepository.GetPagedAsync(
                     page.Value, pageSize.Value, userId, groupId, startDate, endDate,
-                    contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds);
+                    contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
 
                 var contractResponses = contracts.Select(MapToContractResponse).ToList();
                 var aggregation = await _contractRepository.GetAggregationAsync(
                     userId, groupId, startDate, endDate, contractNumber, showUnassigned,
-                    matricula, userEmail, scope, teamIds, userIds);
+                    matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
 
                 return Ok(new ApiResponse<PagedContractResponse>
                 {
@@ -154,7 +156,7 @@ namespace SalesApp.Controllers
             }
             else
             {
-                var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds);
+                var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
                 var contractResponses = contracts.Select(MapToContractResponse).ToList();
                 var aggregation = _aggregationService.CalculateAggregation(contracts);
 

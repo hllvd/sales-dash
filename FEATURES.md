@@ -446,3 +446,25 @@ Exibe a informação da última atualização da matrícula (data/hora e tempo r
 - `SalesApp.Api/Controllers/UserMatriculasController.cs` — Atualizados os endpoints GET (`GetAll`, `GetById`, `GetByUserId`) para preencher `LastUpdate` na resposta.
 - `client/sales-dash/src/services/apiService.ts` — Adicionada a propriedade `lastUpdate?: string` na interface `UserMatricula`.
 - `client/sales-dash/src/components/MatriculasPage.tsx` — Adicionada a coluna "Última Atualização" com Tooltip Mantine, formatação `dayjs` (`pt-br`) e tratamento do estado vazio `"Nunca"`.
+
+## Importação de Contratos DESISTENTE no Template ContractDashboard (2026-08-03)
+
+Permite a importação de contratos com status "DESISTENTE" quando utilizado o template de importação `contractDashboard`, mantendo esses contratos ocultos por padrão em todas as listas/consultas do sistema, permitindo que SuperAdmins os visualizem através do filtro de status de contratos.
+
+### Key Capabilities
+- **Enum Status `Desistente`**: Adicionado o valor `Desistente` ao enum `ContractStatus` e atualizado o mapeamento canônico no `appsettings.json`.
+- **Importação Direta sem Warning**: Removida a trava/descarte de linhas com status "DESISTENTE" no loop de importação do `contractDashboard` (`ImportExecutionService.cs` e `WizardService.cs`). O alerta de contratos descartados é ocultado ao utilizar o template.
+- **Ocultação Padrão e Filtro de SuperAdmin**: Contratos desistentes continuam ocultos em todas as consultas, estatísticas e listagens gerais do sistema. SuperAdmins têm permissão para selecionar o status "Desistente" no filtro de contratos da página `/#/contracts` para visualizá-los.
+- **Badge de Status**: Componente `ContractStatusBadge.tsx` atualizado com o rótulo e estilo visual para o status `Desistente`.
+
+### Key Files Created / Modified
+- `SalesApp.Api/Models/ContractStatus.cs` — Adicionado o valor `Desistente` ao enum `ContractStatus` e ao parser `FromApiString`.
+- `SalesApp.Api/Attributes/ValidContractStatusAttribute.cs` — Incluído `Desistente` nos status válidos da API.
+- `SalesApp.Api/appsettings.json` — Criado mapeamento canônico `"Desistente": ["Desistente", "DESISTENTE"]`.
+- `SalesApp.Api/Services/ImportExecutionService.cs` — Removido o skip block de DESISTENTE no loop do `contractDashboard`.
+- `SalesApp.Api/Services/WizardService.cs` — Mapeado "DESISTENTE" para "Desistente" e removida sinalização de warning no pré-validador.
+- `SalesApp.Api/Repositories/IContractRepository.cs` e `ContractRepository.cs` — Adicionados parâmetros `statuses` e `isSuperAdmin` permitindo a SuperAdmin consultar desistentes ao filtrar explicitamente.
+- `SalesApp.Api/Controllers/ContractsController.cs` — Adicionado suporte ao parâmetro de consulta `statuses` e verificação de permissão de SuperAdmin.
+- `client/sales-dash/src/shared/ContractStatusBadge.tsx` — Adicionada cor, rótulo e opção de status para `Desistente`.
+- `client/sales-dash/src/services/contractService.ts` — Adicionado o parâmetro `statuses` na função `getContracts`.
+- `client/sales-dash/src/components/ContractsPage.tsx` — Adicionado filtro de status na barra de filtros da página de contratos, restringindo a opção "Desistente" para SuperAdmins.

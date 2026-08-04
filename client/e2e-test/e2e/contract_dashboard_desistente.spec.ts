@@ -60,10 +60,9 @@ test.describe('Contracts Dashboard — Desistente Status Handling', () => {
     // 5. Result Step
     await expect(page.getByText(/Importados:/)).toBeVisible({ timeout: 30_000 });
 
-    // Verify desistente skipped warning shows in results modal
+    // Verify desistente skipped warning does NOT show in results modal
     const skippedAlert = page.locator('[data-testid="desistente-skipped-warning"]');
-    await expect(skippedAlert).toBeVisible({ timeout: 10_000 });
-    await expect(skippedAlert).toContainText('TEST-DES-001');
+    await expect(skippedAlert).not.toBeVisible({ timeout: 5_000 });
 
     // Close Modal
     await page.click('button:has-text("Fechar")');
@@ -76,10 +75,18 @@ test.describe('Contracts Dashboard — Desistente Status Handling', () => {
       await page.waitForTimeout(1000);
     }
 
-    // Search for TEST-DES-001 (should NOT exist in the list)
+    // Search for TEST-DES-001 without status filter (should NOT exist in default list)
     await page.fill('input#filterContractNumber', 'TEST-DES-001');
     const rowDesistente = page.locator('table tbody tr', { hasText: 'TEST-DES-001' });
     await expect(rowDesistente).not.toBeVisible({ timeout: 5000 });
+
+    // Select Desistente status filter for SuperAdmin
+    const statusSelect = page.locator('input#filterStatus');
+    await statusSelect.click();
+    await page.click('.mantine-MultiSelect-option:has-text("Desistente"), .mantine-Select-option:has-text("Desistente")');
+
+    // Now TEST-DES-001 should be visible
+    await expect(rowDesistente).toBeVisible({ timeout: 10_000 });
 
     // Clear filters and search for TEST-OK-002 (should exist in the list)
     await page.click('button.clear-filters-btn');

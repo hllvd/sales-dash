@@ -118,7 +118,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(existingReport);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync())
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -135,7 +135,9 @@ namespace SalesApp.Tests.Services
                 It.IsAny<string?>(),
                 It.IsAny<UserScopeContext?>(),
                 It.IsAny<List<int>?>(),
-                It.IsAny<List<Guid>?>()))
+                It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<bool>()))
                 .ReturnsAsync(new List<Contract>());
 
             var overrideTeams = new List<int> { 99 };
@@ -159,7 +161,9 @@ namespace SalesApp.Tests.Services
                 "override@test.com",
                 It.IsAny<UserScopeContext?>(),
                 It.IsAny<List<int>?>(),
-                It.IsAny<List<Guid>?>()), Times.Once);
+                It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<bool>()), Times.Once);
         }
     }
 }

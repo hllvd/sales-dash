@@ -9,7 +9,7 @@ import StandardModal from '../shared/StandardModal';
 import AggregationSummary from '../shared/AggregationSummary';
 import HistoricProduction from '../shared/HistoricProduction';
 import Pagination from './Pagination';
-import ContractStatusBadge from '../shared/ContractStatusBadge';
+import ContractStatusBadge, { CONTRACT_STATUS_OPTIONS } from '../shared/ContractStatusBadge';
 import ExportButton from '../shared/ExportButton';
 import ExportProgressIndicator from '../shared/ExportProgressIndicator';
 import { apiService, Team } from '../services/apiService';
@@ -93,6 +93,8 @@ const ContractsPage: React.FC = () => {
   const [matriculaSearch, setMatriculaSearch] = useState('');
   const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]); // stored as string[] for Mantine MultiSelect
   const [debouncedTeamIds, setDebouncedTeamIds] = useState<string[]>([]);
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [debouncedStatuses, setDebouncedStatuses] = useState<string[]>([]);
 
   // Columns visibility state
   const [showColumnsModal, setShowColumnsModal] = useState(false);
@@ -166,7 +168,8 @@ const ContractsPage: React.FC = () => {
         debouncedTeamIds.length > 0 ? debouncedTeamIds.map(id => parseInt(id)) : undefined,
         debouncedUserIds.length > 0 ? debouncedUserIds : undefined,
         currentPage,
-        pageSize
+        pageSize,
+        debouncedStatuses.length > 0 ? debouncedStatuses : undefined
       );
       if (requestId !== requestCountRef.current) return;
       setContracts(data);
@@ -184,7 +187,7 @@ const ContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedUserIds, currentPage, pageSize, setCachedContracts]);
+  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedUserIds, debouncedStatuses, currentPage, pageSize, setCachedContracts]);
 
   // Load saved filters from localStorage
   useEffect(() => {
@@ -226,10 +229,11 @@ const ContractsPage: React.FC = () => {
       setDebouncedShowUnassigned(filterShowUnassigned);
       setDebouncedMatriculas(filterMatriculas);
       setDebouncedTeamIds(filterTeamIds);
+      setDebouncedStatuses(filterStatuses);
     }, 500); // 500ms debounce for all fields
 
     return () => clearTimeout(timer);
-  }, [filterUserIds, filterStartDate, filterEndDate, filterContractNumber, filterShowUnassigned, filterMatriculas, filterTeamIds]);
+  }, [filterUserIds, filterStartDate, filterEndDate, filterContractNumber, filterShowUnassigned, filterMatriculas, filterTeamIds, filterStatuses]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -239,7 +243,7 @@ const ContractsPage: React.FC = () => {
   // Reset to page 1 when filters change (using debounced values to avoid flickering)
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedUserIds, debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds]);
+  }, [debouncedUserIds, debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedStatuses]);
 
   // Calculate pagination
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -471,7 +475,25 @@ const ContractsPage: React.FC = () => {
         </div>
 
 
-        {(filterUserIds.length > 0 || filterStartDate || filterEndDate || filterContractNumber || filterMatriculas.length > 0 || filterShowUnassigned !== 'all' || filterTeamIds.length > 0) && (
+        <div className="filter-group">
+          <label htmlFor="filterStatus">Status do Contrato</label>
+          <MultiSelect
+            id="filterStatus"
+            placeholder="Filtrar por status..."
+            value={filterStatuses}
+            onChange={setFilterStatuses}
+            data={(() => {
+              const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+              const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin' || currentUser?.roleName?.toLowerCase() === 'superadmin' || (currentUser?.permissions && currentUser.permissions.includes('system:superadmin'));
+              return CONTRACT_STATUS_OPTIONS.filter(opt => isSuperAdmin || opt.value.toLowerCase() !== 'desistente');
+            })()}
+            clearable
+            searchable
+            styles={{ input: { minHeight: '36px' } }}
+          />
+        </div>
+
+        {(filterUserIds.length > 0 || filterStartDate || filterEndDate || filterContractNumber || filterMatriculas.length > 0 || filterShowUnassigned !== 'all' || filterTeamIds.length > 0 || filterStatuses.length > 0) && (
           <button
             className="clear-filters-btn"
             onClick={() => {
@@ -489,6 +511,8 @@ const ContractsPage: React.FC = () => {
               setDebouncedShowUnassigned('all');
               setFilterTeamIds([]);
               setDebouncedTeamIds([]);
+              setFilterStatuses([]);
+              setDebouncedStatuses([]);
               localStorage.removeItem('contracts_filterStartDate');
               localStorage.removeItem('contracts_filterEndDate');
             }}

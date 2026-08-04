@@ -83,6 +83,7 @@ Each entry records a fix attempt — past entries must be consulted before retry
 2. Exported `getFriendlyFieldName` helper to map technical fields to labels case-insensitively.
 3. Updated `BulkImportModal.tsx` to use the helper in mapping selection dropdowns and the missing required fields error alert.
 **Result:** ✅ Green — 125/125 passed
+
 ## [2026-07-14] all — Attempt 3
 **Failure:** strict mode violation: locator('label:has-text("Status")').locator('..').locator('.mantine-Select-input') resolved to 2 elements:
 **Root cause:** Adding a new "Status da Matrícula" dropdown on the matriculas page caused a label collision in E2E tests searching for dialog's "Status" label.
@@ -148,3 +149,15 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Feature requirement changed default GET `/api/users` behavior to filter active users by default; inactive users are returned when explicitly passing `status=all`.
 **Fix applied:** Updated integration test in `TeamsControllerIntegrationTests.cs` to fetch with `status=all` when verifying inactive user retrieval.
 **Result:** ✅ In progress (re-testing)
+
+## [2026-08-04] e2e — Attempt 1
+**Failure:** `import_wizard_desistente_contracts.spec.ts` and `contract_dashboard_desistente.spec.ts` failed on locator visibility assertion / timeout.
+**Root cause:** Under new requirement, DESISTENTE contracts are imported cleanly by `contractDashboard` template (warnings removed). Step 1 warning is no longer generated, warning alert is gone, and Mantine MultiSelect dropdown selector requires `.mantine-MultiSelect-option`.
+**Fix applied:** Updated `import_wizard_desistente_contracts.spec.ts` and `contract_dashboard_desistente.spec.ts` to assert that warnings are absent, DESISTENTE contracts are imported, hidden by default in lists, and visible when SuperAdmin filters by "Desistente" using `.mantine-MultiSelect-option`.
+**Result:** ✅ Green (after spec update)
+
+## [2026-08-04] e2e — Attempt 2
+**Failure:** Step 1 advance button mismatch in `import_wizard_desistente_contracts.spec.ts` and missing status filter selection for DESISTENTE contract 821590 in `import_wizard_status_update.spec.ts`.
+**Root cause:** When no warnings exist on Step 1, "Próximo Passo" directly advances to Step 2 without rendering "Avançar para Passo 2". In `import_wizard_status_update.spec.ts`, contract 821590 has status DESISTENTE, which is hidden by default and requires selecting "Desistente" in status filter to display with "Desistente" badge label.
+**Fix applied:** Updated `import_wizard_desistente_contracts.spec.ts` to assert direct Step 2 transition, and updated `import_wizard_status_update.spec.ts` to select "Desistente" status filter before asserting row 821590 and "Desistente" badge label.
+**Result:** ✅ Green — 145/145 passed

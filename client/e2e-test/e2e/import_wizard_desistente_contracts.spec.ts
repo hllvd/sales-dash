@@ -42,25 +42,9 @@ test.describe('Import Wizard — Desistente Status Handling', () => {
     await expect(nextBtn).toBeEnabled({ timeout: 5_000 });
     await nextBtn.click();
 
-    // ── Assert warning is visible on Step 1 and blocks advancement ───────────────
+    // ── Assert warning is NOT visible on Step 1 and user advances directly to Step 2 ───────────────
     const desistenteAlert = page.locator('[data-testid="desistente-warning"]');
-    await expect(desistenteAlert).toBeVisible({ timeout: 20_000 });
-    await expect(desistenteAlert).toContainText('We\'ve detected some contract with status "desistente", we won\'t import it');
-    await expect(desistenteAlert).toContainText('TEST-DES-001');
-
-    // "Avançar para Passo 2" should not be visible until checkbox is checked
-    const advanceBtn = page.locator('button:has-text("Avançar para Passo 2")');
-    await expect(advanceBtn).not.toBeVisible();
-
-    // Check the box
-    const allowCheckbox = page.locator('#wiz-allow-desistentes');
-    await expect(allowCheckbox).toBeVisible();
-    await allowCheckbox.check();
-    await expect(allowCheckbox).toBeChecked();
-
-    // Now advance should be visible
-    await expect(advanceBtn).toBeVisible();
-    await advanceBtn.click();
+    await expect(desistenteAlert).not.toBeVisible({ timeout: 5_000 });
 
     // ── Step 2: Upload users file ────────────────────────────────────────────────
     await expect(page.getByText('Preenchimento de Usuários')).toBeVisible({ timeout: 10_000 });
@@ -78,10 +62,9 @@ test.describe('Import Wizard — Desistente Status Handling', () => {
       page.locator('.mantine-Alert-root').filter({ hasText: /Contratos importados|Importação com erros/ })
     ).toBeVisible({ timeout: 60_000 });
 
-    // Verify desistente skipped alert shows
+    // Verify desistente skipped alert does NOT show
     const skippedAlert = page.locator('[data-testid="desistente-skipped-warning"]');
-    await expect(skippedAlert).toBeVisible({ timeout: 10_000 });
-    await expect(skippedAlert).toContainText('TEST-DES-001');
+    await expect(skippedAlert).not.toBeVisible({ timeout: 5_000 });
 
     // ── Verification: Contracts list ────────────────────────────────────────────
     await page.click('button:has-text("Ir para Lista de Contratos")');
@@ -96,11 +79,11 @@ test.describe('Import Wizard — Desistente Status Handling', () => {
 
     // Search for TEST-OK-002 (should exist)
     await page.fill('input#filterContractNumber', 'TEST-OK-002');
-    await page.waitForTimeout(6000); // safety buffer for search debounce
+    await page.waitForTimeout(1000);
     const rowOk = page.locator('table tbody tr', { hasText: 'TEST-OK-002' });
     await expect(rowOk).toBeVisible({ timeout: 10_000 });
 
-    // Clear filters and search for TEST-DES-001 (should NOT exist)
+    // Clear filters and search for TEST-DES-001 without status filter (should NOT exist in default list)
     const clearBtn = page.locator('button.clear-filters-btn');
     if (await clearBtn.isVisible()) {
       await clearBtn.click();
@@ -108,8 +91,16 @@ test.describe('Import Wizard — Desistente Status Handling', () => {
     }
     
     await page.fill('input#filterContractNumber', 'TEST-DES-001');
-    await page.waitForTimeout(6000); // debounce wait
+    await page.waitForTimeout(1000);
     const rowDesistente = page.locator('table tbody tr', { hasText: 'TEST-DES-001' });
     await expect(rowDesistente).not.toBeVisible();
+
+    // Select Desistente status filter for SuperAdmin
+    const statusSelect = page.locator('input#filterStatus');
+    await statusSelect.click();
+    await page.click('.mantine-MultiSelect-option:has-text("Desistente"), .mantine-Select-option:has-text("Desistente")');
+
+    // Now TEST-DES-001 should be visible
+    await expect(rowDesistente).toBeVisible({ timeout: 10_000 });
   });
 });

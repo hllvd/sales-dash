@@ -140,15 +140,7 @@ namespace SalesApp.Services
                     contractNumberSeen[contractNumberVal] = count + 1;
                 }
 
-                // Track desistente contract numbers
-                var statusVal = GetColumnValue(row, "Status", "Conferência", "conferencia", "Situação Cobrança", "Situação", "Situacao");
-                if (!string.IsNullOrWhiteSpace(statusVal) && statusVal.Trim().Equals("DESISTENTE", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!string.IsNullOrWhiteSpace(contractNumberVal))
-                    {
-                        desistenteContracts.Add(contractNumberVal);
-                    }
-                }
+
 
                 // pre-validate Contrato field specifically (blank or short <= 3 length)
                 var contratoKey = row.Keys.FirstOrDefault(k => k.Equals("Contrato", StringComparison.OrdinalIgnoreCase));
@@ -1023,7 +1015,7 @@ namespace SalesApp.Services
             var normalized = conferencia.Trim().ToUpper();
             if (normalized == "DESISTENTE")
             {
-                return "DESISTENTE";
+                return "Desistente";
             }
             return normalized switch
             {

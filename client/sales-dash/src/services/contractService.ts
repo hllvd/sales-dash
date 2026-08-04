@@ -276,7 +276,8 @@ export const getContracts = async (
   teamIds?: number[],
   userIds?: string[],
   page?: number,
-  pageSize?: number
+  pageSize?: number,
+  statuses?: string[]
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation; totalCount: number }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
@@ -296,6 +297,7 @@ export const getContracts = async (
   // ASP.NET Core binds repeated keys as a List<int>/List<string>
   if (teamIds && teamIds.length > 0) teamIds.forEach(id => params.append('teamIds', id.toString()));
   if (userIds && userIds.length > 0) userIds.forEach(id => params.append('userIds', id));
+  if (statuses && statuses.length > 0) statuses.forEach(s => params.append('statuses', s));
   if (page !== undefined) params.append('page', page.toString());
   if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
 

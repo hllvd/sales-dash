@@ -43,7 +43,12 @@ namespace SalesApp.Models
         /// <summary>
         /// Undefined/unmapped status (purely visual)
         /// </summary>
-        NaoDefinido
+        NaoDefinido,
+
+        /// <summary>
+        /// Cancelled/Withdrawn contract
+        /// </summary>
+        Desistente
     }
 
     /// <summary>
@@ -77,7 +82,8 @@ namespace SalesApp.Models
                 "Transferred" or "transferred" => ContractStatus.Transferred,
                 "AwaitingPayment" or "awaitingpayment" => ContractStatus.AwaitingPayment,
                 "NaoDefinido" or "naodefinido" => ContractStatus.NaoDefinido,
-                _ => throw new ArgumentException($"Invalid contract status: {value}. Valid values are: Active, Late1, Late2, Late3, Defaulted, Transferred, AwaitingPayment, NaoDefinido")
+                "Desistente" or "desistente" => ContractStatus.Desistente,
+                _ => throw new ArgumentException($"Invalid contract status: {value}. Valid values are: Active, Late1, Late2, Late3, Defaulted, Transferred, AwaitingPayment, NaoDefinido, Desistente")
             };
         }
 

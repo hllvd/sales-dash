@@ -28,6 +28,8 @@ export const getStatusLabel = (status: string): string => {
       return 'Aguardando Pagamento';
     case 'naodefinido':
       return 'Não Definido';
+    case 'desistente':
+      return 'Desistente';
     default:
       return status;
   }
@@ -56,6 +58,8 @@ export const getStatusColor = (status: string): string => {
       return 'orange';
     case 'naodefinido':
       return 'gray';
+    case 'desistente':
+      return 'pink';
     default:
       return 'gray';
   }
@@ -72,6 +76,7 @@ export const CONTRACT_STATUS_OPTIONS = [
   { value: 'PaidOff', label: 'Quitado' },
   { value: 'AwaitingPayment', label: 'Aguardando Pagamento' },
   { value: 'NaoDefinido', label: 'Não Definido' },
+  { value: 'Desistente', label: 'Desistente' },
 ];
 
 const ContractStatusBadge: React.FC<ContractStatusBadgeProps> = ({ status, rawStatus }) => {
