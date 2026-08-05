@@ -1,8 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
-  const adminEmail = 'superadmin@salesapp.com';
-  const adminPassword = 'string';
   const targetUserEmail = 'carlosmendes@example.com';
   const targetUserName = 'Carlos Mendes';
   const initialMatricula = '77' + Date.now().toString().slice(-6);
@@ -10,16 +9,11 @@ test.describe('Matricula Edit and Normalization (TEAR 2)', () => {
   const inputWithZeros = '000' + normalizedValue;
 
   test.beforeEach(async ({ page }) => {
-    // Login as Admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', adminEmail);
-    await page.fill('input[type="password"]', adminPassword);
-    await page.click('button.login-button');
-
-    // Go to Matriculas page
-    await page.click('a[href="#/matriculas"]', { timeout: 15000 });
+    await loginAs(page);
+    await page.goto('/#/matriculas', { timeout: 15000 });
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Matrículas' })).toBeVisible({ timeout: 15000 });
   });
+
 
   test('should normalize matricula number and persist changes when editing', async ({ page }) => {
     console.log('>>> Step 1: Create initial matricula');

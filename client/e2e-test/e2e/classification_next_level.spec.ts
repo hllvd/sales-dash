@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
+
 
 test.describe('Classification Level — NextLevel Chain (TEAR 3)', () => {
   test.describe.configure({ mode: 'serial' });
@@ -12,21 +14,13 @@ test.describe('Classification Level — NextLevel Chain (TEAR 3)', () => {
   const searchPattern = 'E2E Chain Level';
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
+    await loginAs(page, adminEmail, adminPassword);
   });
 
   test('should create a NextLevel chain, persist it, and clear it', async ({ page }) => {
-    // ── 1. Login ────────────────────────────────────────────────────────────
-    await page.goto('/');
-    await page.fill('input[type="email"]', adminEmail);
-    await page.fill('input[type="password"]', adminPassword);
-    await page.click('button.login-button');
-
-    const classificationsLink = page.locator('a[href="#/classifications"]');
-    await expect(classificationsLink).toBeVisible({ timeout: 10000 });
-    await classificationsLink.click();
+    await page.goto('/#/classifications');
     await expect(page.getByRole('heading', { name: 'Níveis de Classificação' })).toBeVisible({ timeout: 10000 });
+
 
     // ── 2. Pre-cleanup (Clean-Up First pattern) ─────────────────────────────
     console.log('>>> Running E2E Chain Level pre-cleanup...');

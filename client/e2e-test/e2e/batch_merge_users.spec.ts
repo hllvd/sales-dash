@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Batch Merge Users E2E', () => {
+
   test.describe.configure({ mode: 'serial' });
 
   const RUN_ID = Array.from({ length: 6 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
@@ -74,13 +76,7 @@ test.describe('Batch Merge Users E2E', () => {
   });
 
   test('should deny access to non-superadmin users', async ({ page }) => {
-    await page.goto('/');
-    await page.fill('input[type="email"]', users.admin.email);
-    await page.fill('input[type="password"]', users.admin.password);
-    await page.click('button.login-button');
-
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
-
+    await loginAs(page, users.admin.email, users.admin.password);
     await page.goto('/#/batch');
     await expect(page.getByText('Acesso Negado')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Apenas o superadmin principal')).toBeVisible();
@@ -88,11 +84,7 @@ test.describe('Batch Merge Users E2E', () => {
 
   test('should show dry-run preview with correct stats before confirming', async ({ page }) => {
     // 1. Login as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', users.superadmin.email);
-    await page.fill('input[type="password"]', users.superadmin.password);
-    await page.click('button.login-button');
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+    await loginAs(page, users.superadmin.email, users.superadmin.password);
 
     // 2. Navigate to batch page → Consolidar Usuários tab
     await page.goto('/#/batch');
@@ -129,15 +121,12 @@ test.describe('Batch Merge Users E2E', () => {
 
   test('should consolidate duplicate user into main user and show Concluído', async ({ page }) => {
     // 1. Login as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', users.superadmin.email);
-    await page.fill('input[type="password"]', users.superadmin.password);
-    await page.click('button.login-button');
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+    await loginAs(page, users.superadmin.email, users.superadmin.password);
 
     // 2. Navigate to Consolidar Usuários tab
     await page.goto('/#/batch');
     await page.getByRole('tab', { name: 'Consolidar Usuários' }).click();
+
 
     // 3. Fill pair and enable deactivate toggle
     const pairText = `${users.main.email},${users.duplicate.email}`;

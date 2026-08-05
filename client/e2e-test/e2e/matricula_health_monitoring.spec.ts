@@ -1,20 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Matricula Health Monitoring', () => {
   test('should show correct contract count and last update time for matriculas 9999 and 11177', async ({ page }) => {
     test.setTimeout(30_000);
 
-    // 1. Login as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // Wait for the main page to load
-    await expect(page.locator('.mantine-AppShell-navbar')).toBeVisible({ timeout: 15000 });
-
-    // 2. Navigate directly to the Matricula Health Monitoring page
+    // 1. Login as superadmin and navigate directly to Matricula Health Monitoring
+    await loginAs(page);
     await page.goto('/#/monitoring/matricula-health');
+
 
     // 3. Verify page title is loaded
     await expect(page.getByRole('heading', { name: 'Saúde das Matrículas' })).toBeVisible({ timeout: 10000 });

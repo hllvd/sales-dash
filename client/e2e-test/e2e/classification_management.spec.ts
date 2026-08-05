@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
-test.describe('User Classification and Level Management (TEAR 3)', () => {
+test.describe('Classification Management & History E2E Tests', () => {
   // Use serial mode to keep mutable actions ordered
   test.describe.configure({ mode: 'serial' });
 
@@ -23,10 +24,8 @@ test.describe('User Classification and Level Management (TEAR 3)', () => {
 
   test('should manage classification levels and member assignments including collapsed history', async ({ page }) => {
     // 1. Log in as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', adminEmail);
-    await page.fill('input[type="password"]', adminPassword);
-    await page.click('button.login-button');
+    await loginAs(page, adminEmail, adminPassword);
+
 
     // Wait for landing nav to load and navigate to Classifications Page
     const classificationsLink = page.locator('a[href="#/classifications"]');

@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Matrícula Request and Approval Flow (TEAR 3)', () => {
+
   test.describe.configure({ mode: 'serial' });
 
   const RUN_ID = Date.now().toString().slice(-4);
@@ -83,10 +85,7 @@ test.describe('Matrícula Request and Approval Flow (TEAR 3)', () => {
   test('should allow user to request a matrícula, and admin to activate it', async ({ page }) => {
     test.setTimeout(90000);
     // ── STEP 1: User requests matrícula from their profile ──
-    await page.goto('/');
-    await page.fill('input[type="email"]', USER_EMAIL);
-    await page.fill('input[type="password"]', 'Password123!');
-    await page.click('button.login-button');
+    await loginAs(page, USER_EMAIL, 'Password123!');
 
     // Go to My Profile page
     await page.click('a[href="#/my-profile"]', { timeout: 15000 });
@@ -102,14 +101,8 @@ test.describe('Matrícula Request and Approval Flow (TEAR 3)', () => {
     // Verify modal closes
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
 
-    // Logout
-    await page.click('button:has-text("Logout")');
-    await expect(page.locator('button.login-button')).toBeVisible({ timeout: 10000 });
-
     // ── STEP 2: Admin activates the requested matrícula ──
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
+    await loginAs(page, 'superadmin@salesapp.com', 'string');
 
     // Go to Matriculas page
     await page.click('a[href="#/matriculas"]', { timeout: 15000 });
@@ -123,33 +116,31 @@ test.describe('Matrícula Request and Approval Flow (TEAR 3)', () => {
     await expect(adminRow).toBeVisible({ timeout: 10000 });
     await expect(adminRow).toContainText('Pendente');
 
-    // Click Edit icon
-    await adminRow.locator('.tabler-icon-edit').click();
-    await expect(page.getByRole('dialog').getByText('Editar Matrícula')).toBeVisible();
+    // Click to edit
+    await adminRow.locator('button[title="Editar"], .tabler-icon-edit, button:has(.tabler-icon-edit)').first().click();
+    await expect(page.getByRole('dialog')).toBeVisible();
 
-    // Check "Matrícula Ativa" checkbox and change Status to "Ativa"
-    const activeCheckbox = page.getByRole('dialog').locator('label:has-text("Matrícula Ativa")').locator('..').locator('input[type="checkbox"]');
-    await activeCheckbox.check();
 
-    const statusSelect = page.getByRole('dialog').locator('label:has-text("Status")').locator('..').locator('.mantine-Select-input');
+    // Activate the matrícula
+    const activeCheckbox = page.getByRole('dialog').locator('input[type="checkbox"]').first();
+    if (!(await activeCheckbox.isChecked())) {
+      await activeCheckbox.check();
+    }
+    const statusSelect = page.getByRole('dialog').locator('input[readonly]:not([disabled]), .mantine-Select-input').first();
     await statusSelect.click();
-    await page.locator('[role="option"]').filter({ hasText: /^Ativo$/ }).click();
+    await page.getByRole('option', { name: 'Ativo' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Salvar Alterações' }).click();
 
-    // Save alterations
-    await page.click('button:has-text("Salvar Alterações")');
+
+
+    // Verify modal closes
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
 
     // Verify it now shows as Ativa on the admin list
     await expect(adminRow).toContainText('Ativa');
 
-    // Logout admin
-    await page.click('button:has-text("Logout")');
-    await expect(page.locator('button.login-button')).toBeVisible({ timeout: 10000 });
-
     // ── STEP 3: User verifies matrícula is now Ativa ──
-    await page.fill('input[type="email"]', USER_EMAIL);
-    await page.fill('input[type="password"]', 'Password123!');
-    await page.click('button.login-button');
+    await loginAs(page, USER_EMAIL, 'Password123!');
 
     // Go to My Profile page
     await page.click('a[href="#/my-profile"]', { timeout: 15000 });

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 /**
  * [TEAR 3] Deep Hierarchy Contract Visibility Test
@@ -41,16 +42,10 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     password: string,
     isAdmin = true,
   ) {
-    await page.goto('/');
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', password);
-    await page.click('button.login-button');
+    await loginAs(page, email, password);
 
     if (isAdmin) {
-      // In mobile/small screens it might be inside a menu, but for Desktop:
-      const navLink = page.getByTestId('nav-contracts');
-      await expect(navLink).toBeVisible({ timeout: 10_000 });
-      await navLink.click();
+      await page.goto('/#/contracts');
       await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
       // Clear filters if any are active (clearing default 15-month date filter)

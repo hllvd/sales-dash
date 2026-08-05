@@ -1,19 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('[TEAR 2] Import Wizard Data Integrity', () => {
   const targetUser = 'carlosmendes@example.com';
   const targetPassword = '123456';
-  const adminEmail = 'superadmin@salesapp.com';
-  const adminPassword = 'string';
 
   test.beforeEach(async ({ page }) => {
-    // Login as Super Admin before each test (required for #/matriculas access)
-    await page.goto('/');
-    await page.fill('input[type="email"]', adminEmail);
-    await page.fill('input[type="password"]', adminPassword);
-    await page.click('button.login-button');
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+    await loginAs(page);
   });
+
 
   test('should verify user-parent hierarchy was imported correctly', async ({ page }) => {
     console.log('>>> Checking Julio Mota parent info');
@@ -61,11 +56,8 @@ test.describe('[TEAR 2] Import Wizard Data Integrity', () => {
     console.log('>>> Checking Carlos Mendes personal profile view');
     
     // 1. Logout Admin and Login as Carlos
-    await page.evaluate(() => localStorage.clear());
-    await page.goto('/');
-    await page.fill('input[type="email"]', targetUser);
-    await page.fill('input[type="password"]', targetPassword);
-    await page.click('button.login-button');
+    await loginAs(page, targetUser, targetPassword);
+
     
     // 2. Navigate to "Meu Perfil"
     await page.click('a[href="#/my-profile"]');

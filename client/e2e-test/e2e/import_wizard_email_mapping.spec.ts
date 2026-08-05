@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
 import * as XLSX from 'xlsx';
+import { loginAs } from './helpers/auth';
 
 const getTestDataPath = (filename: string) =>
   path.resolve(process.cwd(), 'test-data', filename);
@@ -11,19 +12,13 @@ test.describe('Email Mapping to contracts.xlsx', () => {
   test('should accurately map Emails from users.csv into the final contracts.xlsx', async ({ page }) => {
     test.setTimeout(90_000);
 
-    // 1. Login as superadmin
-    await page.goto('/');
-    await expect(page.locator('button.login-button')).toBeVisible();
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // 2. Go to Import Wizard
-    await expect(page.locator('a[href="#/import-wizard"]')).toBeVisible({ timeout: 15_000 });
-    await page.click('a[href="#/import-wizard"]');
+    // 1. Login as superadmin and navigate to Import Wizard
+    await loginAs(page);
+    await page.goto('/#/import-wizard');
     await expect(
       page.getByRole('heading', { name: 'Assistente de Importação Completa' })
     ).toBeVisible({ timeout: 10_000 });
+
 
     // 3. Step 1: Upload historical contracts
     const step1Input = page.locator('#wizard-step1-input');

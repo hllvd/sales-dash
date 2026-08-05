@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import path from 'path';
+import { loginAs } from './helpers/auth';
 
 const getTestDataPath = (filename: string) =>
   path.resolve(process.cwd(), 'test-data', filename);
@@ -10,13 +11,10 @@ test.describe('Import Wizard Validation', () => {
    * Helper: log in as superadmin and navigate to the Import Wizard.
    */
   async function loginAndGoToWizard(page: Page) {
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-    await expect(page.locator('a[href="#/import-wizard"]')).toBeVisible({ timeout: 15_000 });
-    await page.click('a[href="#/import-wizard"]');
+    await loginAs(page);
+    await page.goto('/#/import-wizard');
   }
+
 
   /**
    * Helper: step 1 — upload the contracts xlsx.

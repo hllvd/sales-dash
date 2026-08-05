@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
+  globalSetup: './global-setup.ts',
   testDir: './e2e',
   // Enable parallel execution
   fullyParallel: true,
@@ -13,9 +14,11 @@ export default defineConfig({
   reporter: 'html',
   use: {
     baseURL: 'http://localhost',
+    storageState: '.auth/superadmin.json',
     trace: 'on-first-retry',
     viewport: { width: 1280, height: 720 },
   },
+
   projects: [
     {
       name: 'tear-1-setup-and-import',

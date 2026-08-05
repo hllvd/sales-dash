@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Admin Matrícula Scoping and Access (TEAR 3)', () => {
+
   // Use serial mode to maintain DB state cleanly across sequential verification steps
   test.describe.configure({ mode: 'serial' });
 
@@ -121,10 +123,8 @@ test.describe('Admin Matrícula Scoping and Access (TEAR 3)', () => {
 
   test('should restrict Admin to see only their owned matriculas and hide write controls', async ({ page }) => {
     // Login as Admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', ADMIN_EMAIL);
-    await page.fill('input[type="password"]', 'Password123!');
-    await page.click('button.login-button');
+    await loginAs(page, ADMIN_EMAIL, 'Password123!');
+
 
     // Verify left menu shows "Matrículas" (since they have the permission by default via Access Control seeder)
     const matriculasMenuLink = page.locator('a[href="#/matriculas"]');

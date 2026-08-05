@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Teams Setup for Reports E2E', () => {
+
   const users = {
     superadmin: { email: 'superadmin@salesapp.com', password: 'string' }
   };
@@ -117,13 +119,11 @@ test.describe('Teams Setup for Reports E2E', () => {
 
     // 6. Navigate to UI and verify both Teams exist visually
     console.log('>>> Logging into UI to verify teams...');
-    await page.goto('/');
-    await page.fill('input[type="email"]', users.superadmin.email);
-    await page.fill('input[type="password"]', users.superadmin.password);
-    await page.click('button.login-button');
+    await loginAs(page, users.superadmin.email, users.superadmin.password);
 
     // Go to Teams page
     await page.goto('/#/teams');
+
     await page.waitForTimeout(2000); // Allow list to load
 
     const container = page.locator('.teams-container');

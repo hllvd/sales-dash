@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+// login.spec.ts tests the unauthenticated login UI form explicitly
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test.describe('Login Flow', () => {
+
   test('should login successfully with admin credentials', async ({ page }) => {
     // 1. Navigate to the login page
     await page.goto('/');

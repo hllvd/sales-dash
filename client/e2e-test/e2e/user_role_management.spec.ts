@@ -1,19 +1,16 @@
 import { test, expect } from '@playwright/test';
+import { loginAs, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD } from './helpers/auth';
 
 test.describe('User Role Management (TEAR 2)', () => {
   const targetUser = 'carlosmendes@example.com';
   const targetPassword = '123456';
-  const adminEmail = 'superadmin@salesapp.com';
-  const adminPassword = 'string';
 
   test('should verify and promote carlosmendes to admin role', async ({ page }) => {
     test.setTimeout(60000);
     // 1. Initial Check: Login as Carlos to see current state
     console.log(`>>> Checking initial role for ${targetUser}`);
-    await page.goto('/');
-    await page.fill('input[type="email"]', targetUser);
-    await page.fill('input[type="password"]', targetPassword);
-    await page.click('button.login-button');
+    await loginAs(page, targetUser, targetPassword);
+
 
     // If he's a user, he shouldn't see the "Contratos" (admin) nav link
     const contractsLink = page.locator('a[href="#/contracts"]');
@@ -25,11 +22,7 @@ test.describe('User Role Management (TEAR 2)', () => {
       console.log(`>>> ${targetUser} is currently a regular User. Proceeding to promotion.`);
 
       // 2. Promotion: Login as Admin to change role
-      await page.evaluate(() => localStorage.clear());
-      await page.goto('/');
-      await page.fill('input[type="email"]', adminEmail);
-      await page.fill('input[type="password"]', adminPassword);
-      await page.click('button.login-button');
+      await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 
       // Go to Users page
       await page.click('a[href="#/users"]');
@@ -60,16 +53,12 @@ test.describe('User Role Management (TEAR 2)', () => {
       
       // Wait for SQLite database to commit and settle
       await page.waitForTimeout(1500);
-      
-      await page.evaluate(() => localStorage.clear());
     }
 
     // 3. Verification: Login as Carlos and verify Admin access
     console.log(`>>> Verifying Admin access for ${targetUser}`);
-    await page.goto('/');
-    await page.fill('input[type="email"]', targetUser);
-    await page.fill('input[type="password"]', targetPassword);
-    await page.click('button.login-button');
+    await loginAs(page, targetUser, targetPassword);
+
 
     // Now he SHOULD see the "Contratos" link
     await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15000 });

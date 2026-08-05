@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('User Metadata Fields E2E Tests', () => {
   // Run tests in serial mode because they modify database state sequentially
@@ -16,17 +17,7 @@ test.describe('User Metadata Fields E2E Tests', () => {
   const groupLabel = `E2E Metadata Group ${RUN_ID}`;
 
   async function login(page: any, email: string, pass: string) {
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
-    await page.reload();
-    await expect(page.locator('button.login-button')).toBeVisible({ timeout: 35000 });
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', pass);
-    await page.click('button.login-button');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 35000 });
+    await loginAs(page, email, pass);
   }
 
   test('Superadmin can create text and dropdown metadata fields', async ({ page }) => {

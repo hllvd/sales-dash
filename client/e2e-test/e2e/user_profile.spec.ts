@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('User Profile E2E Tests (TEAR 5)', () => {
   const user = {
@@ -9,20 +10,9 @@ test.describe('User Profile E2E Tests (TEAR 5)', () => {
   };
 
   test.beforeEach(async ({ page }) => {
-    // 1. Go to Login page
-    await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
-    await page.goto('/');
-
-    // 2. Fill login form
-    await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15000 });
-    await page.fill('input[type="email"]', user.email);
-    await page.fill('input[type="password"]', user.password);
-    await page.click('button.login-button');
-
-    // 3. Confirm login success by looking for 'Meus Contratos'
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 15000 });
+    await loginAs(page, user.email, user.password);
   });
+
 
   test('should navigate to profile, assert user details, edit profile, and restore state', async ({ page }) => {
     console.log('>>> Step 1: Navigate to "Meu Usuário" page');

@@ -1,18 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Contracts Matrícula MultiSelect & Label', () => {
   test('should display Equipe label and allow MultiSelect filtering for Matrícula', async ({ page }) => {
     test.setTimeout(30_000);
 
-    // 1. Login as admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // 2. Go to Contracts page
-    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    // 1. Login as admin and navigate to Contracts
+    await loginAs(page);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
+
 
     // 3. Verify "Equipe" label is displayed instead of "Time"
     await expect(page.locator('label[for="filterTeam"]')).toHaveText('Equipe');

@@ -1,20 +1,16 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Import Wizard Record Verification', () => {
   // Use parallel mode for these independent verification tests
   test.describe.configure({ mode: 'parallel' });
 
   test.beforeEach(async ({ page }) => {
-    // Login as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-    
-    // Go to Contracts page
-    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    await loginAs(page);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15000 });
   });
+
 
   const getFormField = (page, label: string) => page.locator('div').filter({ has: page.locator('label', { hasText: label, exact: true }) }).last();
 

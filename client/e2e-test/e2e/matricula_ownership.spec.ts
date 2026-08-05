@@ -1,8 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
-  const adminEmail = 'superadmin@salesapp.com';
-  const adminPassword = 'string';
   const user1 = 'carlosmendes@example.com';
   const user1Name = 'Carlos Mendes';
   const user2 = 'mariaeduarda@example.com';
@@ -10,16 +9,11 @@ test.describe('Matricula Ownership Enforcement (TEAR 2)', () => {
   const testMatricula = '88' + Date.now().toString().slice(-6);
 
   test.beforeEach(async ({ page }) => {
-    // Login as Admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', adminEmail);
-    await page.fill('input[type="password"]', adminPassword);
-    await page.click('button.login-button');
-
-    // Go to Matriculas page
-    await page.click('a[href="#/matriculas"]', { timeout: 15000 });
+    await loginAs(page);
+    await page.goto('/#/matriculas', { timeout: 15000 });
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Matrículas' })).toBeVisible({ timeout: 15000 });
   });
+
 
   test('should enforce that only one user can be owner of a matricula', async ({ page }) => {
     console.log('>>> Step 1: Create matricula with first owner');

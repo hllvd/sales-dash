@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
+
 
 test.describe('Teams Hierarchical Visibility E2E', () => {
   // Generate a mathematically collision-free 8-letter unique RUN_ID to satisfy strict backend ValidUserName validation
@@ -267,24 +269,11 @@ test.describe('Teams Hierarchical Visibility E2E', () => {
 
   // Helper to log in to UI
   async function loginAndGoToTeams(page: any, email: string, password: string) {
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
-    await page.reload();
-    await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15_000 });
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', password);
-    await page.click('button.login-button');
-
-    // Wait for landing page layout to mount (Meus Contratos link is visible for all roles)
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15_000 });
-
-    // Navigate to #/teams directly
+    await loginAs(page, email, password);
     await page.goto('/#/teams');
     await expect(page.locator('.teams-container')).toBeVisible({ timeout: 15_000 });
   }
+
 
   test('Superadmin should see all seeded teams', async ({ page }) => {
     test.setTimeout(45_000);

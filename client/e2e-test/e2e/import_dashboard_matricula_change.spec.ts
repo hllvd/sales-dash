@@ -2,25 +2,8 @@
 import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { loginAs } from './helpers/auth';
 
-/**
- * [TEAR-1] Dashboard Matricula Change Detection
- *
- * Imports a 2-row contractDashboard CSV from the Contracts page bulk-import modal.
- *
- * Record 1 (MC-MATCHANGE-E2E-1):
- *   - Pre-seeded with matricula 6111 (existing, Carlos Mendes is linked to it)
- *   - CSV sends matricula 11177 (also existing in system)
- *   - Assert: contract.matricula = 11177, contract.userId unchanged (Carlos Mendes)
- *
- * Record 2 (MC-MATCHANGE-E2E-2):
- *   - Pre-seeded with matricula 6111
- *   - CSV sends a brand-new timestamped matricula (auto-created by import)
- *   - Assert: contract.matricula = newMat, contract.userId unchanged (Carlos Mendes)
- *   - Cleanup: delete both contracts + delete the new matricula from the system
- */
-
-// ── Constants ─────────────────────────────────────────────────────────────────
 const ADMIN = { email: 'superadmin@salesapp.com', password: 'string' };
 const CARLOS = 'carlosmendes@example.com';
 const CONTRACT_1 = 'MC-MATCHANGE-E2E-1';
@@ -28,17 +11,11 @@ const CONTRACT_2 = 'MC-MATCHANGE-E2E-2';
 const MAT_EXISTING_A = '6111';   // seeded by tear-1 import_wizard — Carlos Mendes linked
 const MAT_EXISTING_B = '11177';  // seeded by tear-1 — Contract 1 will move here
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+
 async function login(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
-  await page.goto('/');
-  await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15000 });
-  await page.fill('input[type="email"]', ADMIN.email);
-  await page.fill('input[type="password"]', ADMIN.password);
-  await page.click('button.login-button');
-  await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 15000 });
+  await loginAs(page, ADMIN.email, ADMIN.password);
 }
+
 
 async function getToken(page: Page): Promise<string> {
   return page.evaluate(() => localStorage.getItem('token') ?? '');

@@ -7,3 +7,5 @@ playwright/.cache/
 .env
 .env.*
 .DS_Store
+.auth/
+

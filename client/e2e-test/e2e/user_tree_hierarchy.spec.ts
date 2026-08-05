@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD } from './helpers/auth';
 
 test.describe('User Tree Hierarchy & Submenu Navigation', () => {
+
   const superadminEmail = 'superadmin@salesapp.com';
   const superadminPassword = 'string';
   const adminEmail = 'admin@salesapp.com';
@@ -68,10 +70,7 @@ test.describe('User Tree Hierarchy & Submenu Navigation', () => {
 
     // 1. Login as standard Admin first (to verify Select is not visible)
     console.log('>>> Logging in as standard Admin...');
-    await page.goto('/');
-    await page.fill('input[type="email"]', adminEmail);
-    await page.fill('input[type="password"]', adminPassword);
-    await page.click('button.login-button');
+    await loginAs(page, adminEmail, adminPassword);
 
     // 2. Locate and check the navigation sidebar
     console.log('>>> Checking navigation submenu...');
@@ -97,11 +96,8 @@ test.describe('User Tree Hierarchy & Submenu Navigation', () => {
 
     // 3. Clear storage and login as Superadmin
     console.log('>>> Logging in as Superadmin...');
-    await page.evaluate(() => localStorage.clear());
-    await page.goto('/');
-    await page.fill('input[type="email"]', superadminEmail);
-    await page.fill('input[type="password"]', superadminPassword);
-    await page.click('button.login-button');
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
+
 
     // Navigate directly to Tree page
     await page.goto('#/users/tree');

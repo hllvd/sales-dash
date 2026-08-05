@@ -3,8 +3,10 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
 import * as XLSX from 'xlsx';
+import { loginAs } from './helpers/auth';
 
 test.describe('Import Wizard Aliases Flow', () => {
+
   test.afterAll(async () => {
     // Cleanup generated files in temp
     const tempDir = path.resolve(process.cwd(), 'client/e2e-test/temp');
@@ -23,14 +25,11 @@ test.describe('Import Wizard Aliases Flow', () => {
     const getTestDataPath = (filename: string) => path.resolve(process.cwd(), 'test-data', filename);
     const getTempPath = (filename: string) => path.resolve(process.cwd(), 'client/e2e-test/temp', filename);
 
-    // 1. Login as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
+    // 1. Login as superadmin and navigate to Import Wizard
+    await loginAs(page);
+    await page.goto('/#/import-wizard');
+    await expect(page.getByRole('heading', { name: 'Assistente de Importação Completa' })).toBeVisible({ timeout: 15000 });
 
-    // Wait for login to complete
-    await expect(page.getByRole('heading', { name: 'Contratos' })).toBeVisible({ timeout: 15000 });
 
     // 3. Go to Import Wizard
     await page.goto('/#/import-wizard');

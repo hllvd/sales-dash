@@ -1,31 +1,20 @@
 /// <reference types="node" />
 import { test, expect, type Page } from '@playwright/test';
 import path from 'path';
+import { loginAs } from './helpers/auth';
 
 const getTestDataPath = (filename: string) =>
   path.resolve(process.cwd(), 'test-data', filename);
 
 test.describe('CSV Delimiter Auto-Detection', () => {
-  // Run tests one at a time — they all upload the same large xlsx and share
-  // the superadmin account, so running in parallel causes race conditions.
   test.describe.configure({ mode: 'serial' });
 
-  /**
-   * Helper: log in as superadmin and navigate to the Import Wizard.
-   */
   async function loginAndGoToWizard(page: Page) {
-    await page.goto('/');
-    await expect(page.locator('button.login-button')).toBeVisible();
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-    // Wait for post-login navigation before clicking the wizard link
-    await expect(page.locator('a[href="#/import-wizard"]')).toBeVisible({ timeout: 15_000 });
-    await page.click('a[href="#/import-wizard"]');
-    await expect(
-      page.getByRole('heading', { name: 'Assistente de Importação Completa' })
-    ).toBeVisible({ timeout: 10_000 });
+    await loginAs(page);
+    await page.goto('/#/import-wizard');
+    await expect(page.getByRole('heading', { name: 'Assistente de Importação Completa' })).toBeVisible({ timeout: 15_000 });
   }
+
 
   /**
    * Helper: step 1 — upload the contracts xlsx and wait for "Próximo Passo" to be ready.

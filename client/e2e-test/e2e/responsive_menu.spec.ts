@@ -2,13 +2,10 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Responsive Menu', () => {
   test.beforeEach(async ({ page }) => {
-    // Login as admin
     await page.goto('/');
-    await page.fill('input[type="email"]', 'admin@salesapp.com');
-    await page.fill('input[type="password"]', 'admin123');
-    await page.click('button.login-button');
     await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
   });
+
 
   test('should show expanded sidebar and hide header on desktop', async ({ page }) => {
     // Desktop viewport (stored in playwright.config.ts but we can force it)

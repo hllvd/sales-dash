@@ -1,30 +1,19 @@
 /// <reference types="node" />
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import { loginAs } from './helpers/auth';
 
-test.describe('Contract Status Update Flow', () => {
-  test('should update contract statuses via CSV import', async ({ page }) => {
+test.describe('Import Wizard Status Update Test', () => {
+  test('should update existing contract status during import wizard flow', async ({ page }) => {
     test.setTimeout(90000);
-
-    // Clear potentially stale filters from localStorage
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
 
     const getTestDataPath = (filename: string) => path.resolve(process.cwd(), 'test-data', filename);
 
-    // 1. Login
-    await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15000 });
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // 2. Navigate to Contracts page
-    await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15000 });
-    await page.click('a[href="#/contracts"]');
+    // 1. Login and Navigate to Contracts page
+    await loginAs(page);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
+
     await page.waitForTimeout(2000);
 
     // 3. Open Bulk Import Modal

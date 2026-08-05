@@ -8,15 +8,10 @@ test.describe('Import Wizard Flow', () => {
 
     const getTestDataPath = (filename: string) => path.resolve(process.cwd(), 'test-data', filename);
 
-    // ── 1. Login as superadmin ────────────────────────────────────────────────
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // ── 2. Go to Import Wizard ────────────────────────────────────────────────
-    await page.click('a[href="#/import-wizard"]');
+    // ── 1. Navigate directly to Import Wizard (pre-authenticated) ───────────
+    await page.goto('/#/import-wizard');
     await expect(page.getByRole('heading', { name: 'Assistente de Importação Completa' })).toBeVisible();
+
 
     // ── 3. Step 1: Upload historical contracts file ───────────────────────────
     const historicalFile = getTestDataPath('historical_contracts.xlsx');

@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('[TEAR 3] Admin Assign Contract and Matricula Guards', () => {
+
   test.describe.configure({ mode: 'serial' });
 
   const RUN_ID = Array.from({ length: 8 }, () =>
@@ -130,13 +132,11 @@ test.describe('[TEAR 3] Admin Assign Contract and Matricula Guards', () => {
 
   // ── Helper: Login + Go to Contracts ────────────────────────────────────────
   async function loginAndGoToContracts(page: any, email: string, password: string) {
-    await page.goto('/');
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', password);
-    await page.click('button.login-button');
-    await page.getByTestId('nav-contracts').click();
+    await loginAs(page, email, password);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15000 });
   }
+
 
   test('should restrict user list to descendants for Admin A and enforce matricula validations', async ({ page }) => {
     test.setTimeout(60000);

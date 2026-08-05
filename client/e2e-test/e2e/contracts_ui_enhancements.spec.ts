@@ -1,24 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Contracts UI Enhancements', () => {
-  test.beforeEach(async ({ page }) => {
-    // Clear localStorage to ensure clean state
-    await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
-  });
-
   test('should have end date filter default to today and validate against start date', async ({ page }) => {
     test.setTimeout(30_000);
 
-    // 1. Login as admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // 2. Navigate to /#/contracts
-    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    // 1. Login as admin and navigate to Contracts
+    await loginAs(page);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
+
 
     // 3. Verify End Date input exists and defaults to today's date
     const endDateInput = page.locator('input#filterEndDate');
@@ -62,14 +53,9 @@ test.describe('Contracts UI Enhancements', () => {
   test('should toggle column visibility via Column Modal', async ({ page }) => {
     test.setTimeout(30_000);
 
-    // 1. Login as admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // 2. Navigate to /#/contracts
-    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    // 1. Login as admin and navigate to Contracts
+    await loginAs(page);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
 
     // 3. Verify 'Colunas' button is present and click it
@@ -133,14 +119,12 @@ test.describe('Contracts UI Enhancements', () => {
     test.setTimeout(30_000);
 
     // 1. Login as standard user (carlosmendes@example.com is a matricula owner/user)
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'carlosmendes@example.com');
-    await page.fill('input[type="password"]', '123456');
-    await page.click('button.login-button');
+    await loginAs(page, 'carlosmendes@example.com', '123456');
 
     // 2. Navigate to Meus Contratos
-    await page.getByRole('link', { name: 'Meus Contratos', exact: true }).click();
+    await page.goto('/#/my-contracts');
     await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+
 
     // 3. Set a filter that returns no results (e.g. matricula filter to '9999999999999')
     const matriculaFilterInput = page.locator('input#matriculaFilter');

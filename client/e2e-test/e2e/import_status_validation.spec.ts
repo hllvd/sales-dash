@@ -16,15 +16,13 @@ const VALID_STATUS_CSV = `Obs Cota,Cota,Versao,Dt Venda,Dt Produção,Dt Cancela
 ,6111;301;X;Arthur;821590,1,2026-04-30,,,,,AS,,,,,,100000,,EXCLUIDO,,,,6111
 `;
 
+import { loginAs } from './helpers/auth';
+
+
 async function login(page: any) {
-  await page.goto('/');
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
-  await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15000 });
-  await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-  await page.fill('input[type="password"]', 'string');
-  await page.click('button.login-button');
-  await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15000 });
+  await loginAs(page);
 }
+
 
 async function openImportModal(page: any) {
   await page.click('a[href="#/contracts"]');

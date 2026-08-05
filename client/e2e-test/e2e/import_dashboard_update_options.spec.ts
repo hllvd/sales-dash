@@ -2,24 +2,14 @@
 import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
-
-/**
- * [TEAR-2] Contract Dashboard Import Parameterized Update Options
- * Tests the updateMatriculaOnExisting and updateTotalAmountOnExisting checkboxes.
- */
+import { loginAs } from './helpers/auth';
 
 const ADMIN = { email: 'superadmin@salesapp.com', password: 'string' };
 
 async function login(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
-  await page.goto('/');
-  await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15000 });
-  await page.fill('input[type="email"]', ADMIN.email);
-  await page.fill('input[type="password"]', ADMIN.password);
-  await page.click('button.login-button');
-  await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 15000 });
+  await loginAs(page, ADMIN.email, ADMIN.password);
 }
+
 
 test.describe('Contract Dashboard Import Update Options', () => {
   test.describe.configure({ mode: 'serial' });

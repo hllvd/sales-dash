@@ -1,5 +1,6 @@
 /// <reference types="node" />
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 import path from 'path';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -19,14 +20,7 @@ const CLM3 = '999903';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 async function login(page: Page, email: string, password: string) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.goto('/');
-  await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15000 });
-  await page.fill('input[type="email"]', email);
-  await page.fill('input[type="password"]', password);
-  await page.click('button.login-button');
-  await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 15000 });
+  await loginAs(page, email, password);
 }
 
 /**

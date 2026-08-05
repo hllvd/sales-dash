@@ -1,19 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Contracts Filtering', () => {
   test('should filter contracts by user email and sale start date', async ({ page }) => {
     test.setTimeout(30_000);
 
-    // 1. Login as admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // 2. Go specifically to Contracts page (not My Contracts)
-    // Using a very strict locator to avoid selecting "Meus Contratos"
-    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    // 1. Login as superadmin and go to Contracts
+    await loginAs(page);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
+
 
     // Wait for the initial users and contracts load
     //await page.waitForResponse(response => response.url().includes('/users?page=1') && response.status() === 200);
@@ -56,14 +52,8 @@ test.describe('Contracts Filtering', () => {
   test('should filter by carlosmendes@example.com and return 14 results', async ({ page }) => {
     test.setTimeout(30_000);
 
-    // 1. Login as admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // 2. Go specifically to Contracts page (not My Contracts)
-    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    await loginAs(page);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
 
     // 3. Filter by User
@@ -91,14 +81,8 @@ test.describe('Contracts Filtering', () => {
   test('should filter by start date and return 12 results for 2025-10-15', async ({ page }) => {
     test.setTimeout(30_000);
 
-    // 1. Login as admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // 2. Go specifically to Contracts page
-    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    await loginAs(page);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
 
     // 3. Filter by Start Date
@@ -124,21 +108,18 @@ test.describe('Contracts Filtering', () => {
     test.setTimeout(45_000);
 
     // 1. Login as Admin Carlos Mendes (updated in users-demo.csv)
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'carlosmendes@example.com');
-    await page.fill('input[type="password"]', '123456');
-    await page.click('button.login-button');
+    await loginAs(page, 'carlosmendes@example.com', '123456');
 
     // Wait for the menu/app to load properly
     await expect(page.locator('.mantine-AppShell-navbar')).toBeVisible({ timeout: 15000 });
 
     // 2. Go to Contracts page (available to admin role)
-    // Using test-id to avoid confusion with "Meus Contratos"
-    await page.getByTestId('nav-contracts').click();
+    await page.goto('/#/contracts');
     
     // Ensure we are on the right page
     await expect(page).toHaveURL(/.*#\/contracts/);
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15000 });
+
 
     // 3. Filter by child's email (juliomota@example.com)
     const userFilterInput = page.locator('input[placeholder="Selecionar usuários..."], input[placeholder="Nenhum usuário disponível"]').first();

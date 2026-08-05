@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Admin Scoped Permissions (TEAR 3)', () => {
+
   // Use serial mode to maintain DB state cleanly across sequential verification steps
   test.describe.configure({ mode: 'serial' });
 
@@ -27,33 +29,29 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
 
   // Cleanup helper to run at start and end
   async function cleanupUsers(page: any) {
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // Wait for the login and page navigation to complete
+    await loginAs(page);
     await expect(page.locator('a[href="#/users"]')).toBeVisible({ timeout: 10000 });
 
     await page.evaluate(async (emails) => {
       const token = localStorage.getItem("token");
       
-      // Get all users
       const res = await fetch('/api/users?page=1&pageSize=1000', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      if (!data.success || !data.data) return;
+      const usersList = Array.isArray(data) ? data : (data.items || (data.data && data.data.items) || data.data || []);
 
-      for (const u of data.data.items) {
-        if (emails.some(email => u.email.includes(email))) {
-          // Delete/deactivate user
-          await fetch(`/api/users/${u.id}`, {
+      for (const email of emails) {
+        if (!Array.isArray(usersList)) continue;
+        const user = usersList.find((u: any) => u.email === email);
+        if (user) {
+          await fetch(`/api/users/${user.id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
           });
         }
       }
+
 
       // Cleanup teams owned by Admin EE
       const teamsRes = await fetch('/api/teams', {
@@ -76,12 +74,10 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
   }
 
   async function loginAsAdmin(page: any) {
-    await page.goto('/');
-    await page.fill('input[type="email"]', ADMIN_EMAIL);
-    await page.fill('input[type="password"]', 'password123');
-    await page.click('button.login-button');
+    await loginAs(page, ADMIN_EMAIL, 'password123');
     await expect(page.locator('a[href="#/users"]')).toBeVisible({ timeout: 10000 });
   }
+
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
@@ -98,14 +94,12 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
   test('1. Setup: SuperAdmin creates Admin, Child, and other test users', async ({ page }) => {
     test.setTimeout(60000);
     // Login as SuperAdmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
+    await loginAs(page);
 
     // Go to Users page
-    await page.click('a[href="#/users"]');
+    await page.goto('/#/users');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Usuários' })).toBeVisible();
+
 
     // 1.1 Create Admin User
     await page.click('button:has-text("Criar")');

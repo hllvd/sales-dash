@@ -468,3 +468,15 @@ Permite a importação de contratos com status "DESISTENTE" quando utilizado o t
 - `client/sales-dash/src/shared/ContractStatusBadge.tsx` — Adicionada cor, rótulo e opção de status para `Desistente`.
 - `client/sales-dash/src/services/contractService.ts` — Adicionado o parâmetro `statuses` na função `getContracts`.
 - `client/sales-dash/src/components/ContractsPage.tsx` — Adicionado filtro de status na barra de filtros da página de contratos, restringindo a opção "Desistente" para SuperAdmins.
+
+## Playwright Shared Authentication (storageState) (2026-08-05)
+
+Acelera a execução dos testes E2E Playwright via reutilização de sessões autenticadas (`storageState`), eliminando o login repetitivo via formulário UI em cada spec.
+
+### Key Capabilities
+- **Global Setup (`global-setup.ts`)**: Executa uma única vez antes de toda a suíte E2E, realizando o login dos usuários padrão (`superadmin@salesapp.com` e `admin@salesapp.com`) e armazenando os tokens/cookies em arquivos de estado JSON (`.auth/superadmin.json`, `.auth/admin.json`).
+- **Playwright Config (`playwright.config.ts`)**: Configura `globalSetup` e aplica `storageState: '.auth/superadmin.json'` padrão para os projetos (`tear-1`, `tear-2`, `tear-3`).
+- **Helper Reutilizável (`auth.ts`)**: Centraliza rotinas de login e credenciais padrão para testes com logins dinâmicos.
+- **Spec Direct Navigation**: Permite que as specs naveguem diretamente para suas telas alvo (`await page.goto('/#/import-wizard')`) sem preencher o formulário de login repetidamente.
+- **Exceção para `login.spec.ts`**: Mantém o contexto limpo sem `storageState` para validar explicitamente a interface e o fluxo do formulário de login.
+

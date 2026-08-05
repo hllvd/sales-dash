@@ -57,37 +57,21 @@ function parseCsv(content: string): ParsedCsv {
 }
 
 // ── Login and Wizard Helpers ──────────────────────────────────────────────────
+import { loginAs } from './helpers/auth';
+
+
 async function loginAndGoToWizard(page: Page): Promise<void> {
-  await page.goto('/');
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
-  await page.reload();
-  await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15_000 });
-  await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-  await page.fill('input[type="password"]', 'string');
-  await page.click('button.login-button');
-  await expect(page.locator('a[href="#/import-wizard"]')).toBeVisible({ timeout: 15_000 });
-  await page.click('a[href="#/import-wizard"]');
+  await loginAs(page);
+  await page.goto('/#/import-wizard');
   await expect(page.getByRole('heading', { name: 'Assistente de Importação Completa' })).toBeVisible();
 }
 
 async function loginAndGoToContracts(page: Page): Promise<void> {
-  await page.goto('/');
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
-  await page.reload();
-  await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15_000 });
-  await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-  await page.fill('input[type="password"]', 'string');
-  await page.click('button.login-button');
-  await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15_000 });
-  await page.click('a[href="#/contracts"]');
+  await loginAs(page);
+  await page.goto('/#/contracts');
   await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 }
+
 
 async function getToken(page: Page): Promise<string> {
   return page.evaluate(() => localStorage.getItem('token') ?? '');

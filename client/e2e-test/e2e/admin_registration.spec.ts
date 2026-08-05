@@ -7,7 +7,9 @@ const randomLetters = (length: number) => {
 };
 
 test.describe('Admin Wizard Registration E2E Tests', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
   test.describe.configure({ mode: 'serial' });
+
   
   test.beforeEach(async ({ page }) => {
     // Navigate first to have a valid domain context, then clear localStorage

@@ -28,15 +28,10 @@ test.describe('Circular Hierarchy Prevention', () => {
   test('should detect and warn about circular references during user import', async ({ page }) => {
     test.setTimeout(60_000);
 
-    // 1. Login as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    // 2. Navigate to Users page
-    await page.getByRole('link', { name: 'Usuários', exact: true }).click();
+    // 1. Navigate directly to Users page (pre-authenticated)
+    await page.goto('/#/users');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Usuários' })).toBeVisible();
+
 
     // 3. Open Import Modal
     await page.click('button:has-text("Importar")');

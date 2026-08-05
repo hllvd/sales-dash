@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
-test.describe('User Classification and Views Engine E2E Tests', () => {
+test.describe('User Classification Levels & Custom Views E2E Tests', () => {
+
   // Serial mode to keep mutable actions ordered
   test.describe.configure({ mode: 'serial' });
 
@@ -24,10 +26,8 @@ test.describe('User Classification and Views Engine E2E Tests', () => {
     test.setTimeout(100000);
 
     // 1. Log in as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', adminEmail);
-    await page.fill('input[type="password"]', adminPassword);
-    await page.click('button.login-button');
+    await loginAs(page, adminEmail, adminPassword);
+
 
     // ────────────────────────────────────────────────────────────────────────
     // Part A: User Classification Levels & Member Assignment

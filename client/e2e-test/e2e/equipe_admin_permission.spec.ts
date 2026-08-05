@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
+
   // Use serial mode to maintain DB state cleanly across sequential verification steps
   test.describe.configure({ mode: 'serial' });
 
@@ -23,59 +25,58 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
 
   // Cleanup helper to run at start and end
   async function cleanup(page: any) {
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
+    await loginAs(page);
+    await expect(page.locator('a[href="#/users"]').first()).toBeVisible({ timeout: 10000 });
 
-    // Wait for the login and page navigation to complete
-    await expect(page.locator('a[href="#/users"]')).toBeVisible({ timeout: 10000 });
 
-    await page.evaluate(async (emails) => {
+    await page.evaluate(async ({ emails, runLetters }) => {
       const token = localStorage.getItem("token");
       
+      // Delete teams if they match names
+      const teamsRes = await fetch('/api/teams', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (teamsRes.ok) {
+        const teamsData = await teamsRes.json();
+        const teamsList = Array.isArray(teamsData) ? teamsData : (teamsData.items || (teamsData.data && teamsData.data.items) || teamsData.data || []);
+        if (Array.isArray(teamsList)) {
+          for (const t of teamsList) {
+            if (t.name && t.name.includes(runLetters)) {
+              await fetch(`/api/teams/${t.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+            }
+          }
+        }
+      }
+
       // Get all users
       const res = await fetch('/api/users?page=1&pageSize=1000', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await res.json();
-      if (!data.success || !data.data) return;
-
-      for (const u of data.data.items) {
-        if (emails.some(email => u.email.includes(email))) {
-          // Delete/deactivate user
-          await fetch(`/api/users/${u.id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-        }
-      }
-
-      // Cleanup teams owned by Admin A and B
-      const teamsRes = await fetch('/api/teams', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const teamsData = await teamsRes.json();
-      if (teamsData.success && teamsData.data) {
-        for (const t of teamsData.data) {
-          if (t.name.includes('Equipe Admin A') || t.name.includes('Equipe Admin B') || t.name.includes('admin a') || t.name.includes('admin b')) {
-            await fetch(`/api/teams/${t.id}`, {
-              method: 'DELETE',
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
+      if (res.ok) {
+        const data = await res.json();
+        const usersList = Array.isArray(data) ? data : (data.items || (data.data && data.data.items) || data.data || []);
+        if (Array.isArray(usersList)) {
+          for (const u of usersList) {
+            if (u.email && emails.some(email => u.email.includes(email))) {
+              await fetch(`/api/users/${u.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+            }
           }
         }
       }
-    }, [ADMIN_A_EMAIL, ADMIN_B_EMAIL, CHILD_A_EMAIL, CHILD_B_EMAIL]);
+    }, { emails: [ADMIN_A_EMAIL, ADMIN_B_EMAIL, CHILD_A_EMAIL, CHILD_B_EMAIL], runLetters: RUN_LETTERS });
+
     
     await page.evaluate(() => localStorage.clear());
   }
 
   async function loginAsAdminA(page: any) {
-    await page.goto('/');
-    await page.fill('input[type="email"]', ADMIN_A_EMAIL);
-    await page.fill('input[type="password"]', 'password123');
-    await page.click('button.login-button');
+    await loginAs(page, ADMIN_A_EMAIL, 'password123');
     await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 10000 });
   }
 
@@ -94,15 +95,16 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
   test('1. Setup users, teams and RBAC matrix', async ({ page }) => {
     test.setTimeout(60000);
     // Login as SuperAdmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-    await expect(page.locator('a[href="#/users"]')).toBeVisible({ timeout: 10000 });
+    await loginAs(page);
+
+    // Go to Users page
+    await page.goto('/#/users');
+    await expect(page.getByRole('heading', { name: 'Gerenciamento de Usuários' })).toBeVisible();
+    await expect(page.locator('a[href="#/users"]').first()).toBeVisible({ timeout: 10000 });
 
     // 1.1 Create Admin A
-    await page.click('a[href="#/users"]');
     await page.click('button:has-text("Criar")');
+
     await page.fill('input[placeholder="Nome completo"]', `Admin A ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', ADMIN_A_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');

@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
+
 
 test.describe('Approval Requests E2E', () => {
   test.describe.configure({ mode: 'serial' });
@@ -60,12 +62,7 @@ test.describe('Approval Requests E2E', () => {
   });
 
   test('Superadmin can view requests page and tabs', async ({ page }) => {
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button[type="submit"]');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
-
+    await loginAs(page);
     await page.goto('/#/requests');
     await page.waitForSelector('text=Central de Solicitações');
 
@@ -77,11 +74,7 @@ test.describe('Approval Requests E2E', () => {
     test.setTimeout(60000);
 
     // 1. User logs in
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', USER_EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button[type="submit"]');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+    await loginAs(page, USER_EMAIL, PASSWORD);
 
     // 2. User goes to Requests page to request superior
     await page.goto('/#/requests');
@@ -104,12 +97,8 @@ test.describe('Approval Requests E2E', () => {
     await expect(page.getByRole('cell', { name: 'Alteração de Superior (ParentEmail)' }).first()).toBeVisible({ timeout: 15000 });
 
     // 3. Target Admin logs in to accept the request
-    await page.evaluate(() => localStorage.clear());
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', ADMIN_EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button[type="submit"]');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+    await loginAs(page, ADMIN_EMAIL, PASSWORD);
+
 
     // Go to Requests page
     await page.goto('/#/requests');
@@ -124,12 +113,8 @@ test.describe('Approval Requests E2E', () => {
     await expect(pendingRow).not.toBeVisible({ timeout: 15000 });
 
     // 4. Verify user now has target Admin as superior via My Profile page (displays parent Name)
-    await page.evaluate(() => localStorage.clear());
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', USER_EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button[type="submit"]');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+    await loginAs(page, USER_EMAIL, PASSWORD);
+
 
     await page.goto('/#/my-profile');
     await expect(page.getByText('Parent Admin Test', { exact: false })).toBeVisible({ timeout: 15000 });
@@ -139,11 +124,7 @@ test.describe('Approval Requests E2E', () => {
     test.setTimeout(60000);
 
     // 1. User logs in
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', USER_EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button[type="submit"]');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+    await loginAs(page, USER_EMAIL, PASSWORD);
 
     // 2. User goes to Requests page and creates RequestClassificationLevel
     await page.goto('/#/requests');
@@ -167,12 +148,7 @@ test.describe('Approval Requests E2E', () => {
     await expect(page.getByRole('cell', { name: 'Solicitação de Nível de Classificação' }).first()).toBeVisible({ timeout: 15000 });
 
     // 3. Parent Admin logs in to accept the level request
-    await page.evaluate(() => localStorage.clear());
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', ADMIN_EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button[type="submit"]');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+    await loginAs(page, ADMIN_EMAIL, PASSWORD);
 
     // Go to Requests page
     await page.goto('/#/requests');
@@ -191,11 +167,7 @@ test.describe('Approval Requests E2E', () => {
     test.setTimeout(60000);
 
     // 1. User logs in
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', USER_EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button[type="submit"]');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+    await loginAs(page, USER_EMAIL, PASSWORD);
 
     // 2. User goes to Requests page and creates RequestAdminRole
     await page.goto('/#/requests');
@@ -214,12 +186,7 @@ test.describe('Approval Requests E2E', () => {
     await expect(page.getByRole('cell', { name: 'Solicitação de Perfil Administrador (Role Admin)' }).first()).toBeVisible({ timeout: 15000 });
 
     // 3. Parent Admin logs in to accept the role request
-    await page.evaluate(() => localStorage.clear());
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', ADMIN_EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button[type="submit"]');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+    await loginAs(page, ADMIN_EMAIL, PASSWORD);
 
     // Go to Requests page
     await page.goto('/#/requests');
@@ -233,13 +200,9 @@ test.describe('Approval Requests E2E', () => {
     await expect(pendingRow).not.toBeVisible({ timeout: 15000 });
 
     // 4. Verify user is now an Admin (can see Contratos admin link)
-    await page.evaluate(() => localStorage.clear());
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', USER_EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button[type="submit"]');
-    await expect(page.locator('a[href="#/my-contracts"]')).toBeVisible({ timeout: 15000 });
+    await loginAs(page, USER_EMAIL, PASSWORD);
 
     await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15000 });
   });
 });
+

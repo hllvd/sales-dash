@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Batch Merge Matriculas E2E', () => {
+
   test.describe.configure({ mode: 'serial' });
 
   const RUN_ID = Array.from({ length: 6 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
@@ -64,13 +66,7 @@ test.describe('Batch Merge Matriculas E2E', () => {
   });
 
   test('should deny access to non-superadmin users', async ({ page }) => {
-    await page.goto('/');
-    await page.fill('input[type="email"]', users.admin.email);
-    await page.fill('input[type="password"]', users.admin.password);
-    await page.click('button.login-button');
-
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
-
+    await loginAs(page, users.admin.email, users.admin.password);
     await page.goto('/#/batch');
     await expect(page.getByText('Acesso Negado')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Apenas o superadmin principal')).toBeVisible();
@@ -78,11 +74,7 @@ test.describe('Batch Merge Matriculas E2E', () => {
 
   test('should show dry-run preview for matricula consolidation', async ({ page }) => {
     // 1. Login as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', users.superadmin.email);
-    await page.fill('input[type="password"]', users.superadmin.password);
-    await page.click('button.login-button');
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+    await loginAs(page, users.superadmin.email, users.superadmin.password);
 
     // 2. Navigate to batch page → Consolidar Matrículas tab
     await page.goto('/#/batch');
@@ -111,11 +103,7 @@ test.describe('Batch Merge Matriculas E2E', () => {
 
   test('should consolidate duplicate matricula into main matricula and show Concluído', async ({ page }) => {
     // 1. Login as superadmin
-    await page.goto('/');
-    await page.fill('input[type="email"]', users.superadmin.email);
-    await page.fill('input[type="password"]', users.superadmin.password);
-    await page.click('button.login-button');
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+    await loginAs(page, users.superadmin.email, users.superadmin.password);
 
     // 2. Navigate to Consolidar Matrículas tab
     await page.goto('/#/batch');
@@ -149,14 +137,11 @@ test.describe('Batch Merge Matriculas E2E', () => {
   });
 
   test('should correctly parse pairs with spaces after comma (e.g. 6606, Kethi - 6606)', async ({ page }) => {
-    await page.goto('/');
-    await page.fill('input[type="email"]', users.superadmin.email);
-    await page.fill('input[type="password"]', users.superadmin.password);
-    await page.click('button.login-button');
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+    await loginAs(page, users.superadmin.email, users.superadmin.password);
 
     await page.goto('/#/batch');
     await page.getByRole('tab', { name: 'Consolidar Matrículas' }).click();
+
 
     // Fill pair formatted with spaces after comma and inside duplicate name
     const pairText = `6606, Kethi - 6606`;

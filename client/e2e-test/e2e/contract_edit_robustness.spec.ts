@@ -1,15 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Contract Edit Robustness', () => {
   test.beforeEach(async ({ page }) => {
-    // Login as Superadmin for full access
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-    // Wait for initial load
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 15000 });
+    await loginAs(page);
   });
+
 
   test('should open edit contract modal without crashing even if duplicate users/matriculas exist', async ({ page }) => {
     // Catch console errors

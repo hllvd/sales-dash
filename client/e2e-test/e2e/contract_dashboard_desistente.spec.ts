@@ -1,24 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
 import path from 'path';
+import { loginAs } from './helpers/auth';
 
 const getTestDataPath = (filename: string) =>
   path.resolve(process.cwd(), 'test-data', filename);
 
 async function loginAndGoToContracts(page: Page): Promise<void> {
-  await page.goto('/');
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
-  await page.reload();
-  await expect(page.locator('button.login-button')).toBeVisible({ timeout: 15_000 });
-  await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-  await page.fill('input[type="password"]', 'string');
-  await page.click('button.login-button');
-  await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15_000 });
-  await page.click('a[href="#/contracts"]');
+  await loginAs(page);
+  await page.goto('/#/contracts');
   await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible();
 }
+
 
 test.describe('Contracts Dashboard — Desistente Status Handling', () => {
   test('should detect, warn, skip desistente status contracts and show correct records in dashboard', async ({ page }) => {

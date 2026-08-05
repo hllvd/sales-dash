@@ -1,8 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { loginAs, ADMIN_EMAIL, ADMIN_PASSWORD } from './helpers/auth';
 
 test.describe('Scrape Credentials Management (TEAR 2)', () => {
-  const adminEmail = 'admin@salesapp.com';
-  const adminPassword = 'admin123';
   const testStore = 'AHU - PR';
   const testMatricula = '123456';
   const testPassword = 'testpassword';
@@ -11,10 +10,8 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     // This test has many sequential steps; increase timeout to be safe
     test.setTimeout(60000);
     console.log(`>>> [Tear 2] Logging in as Admin to test Scrape Credentials`);
-    await page.goto('/');
-    await page.fill('input[type="email"]', adminEmail);
-    await page.fill('input[type="password"]', adminPassword);
-    await page.click('button.login-button');
+    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
 
     // Go to Scrapes dashboard
     await page.click('a[href="#/scrapes"]');

@@ -2,21 +2,16 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
+import { loginAs } from './helpers/auth';
 
 test.describe('[TEAR 3] Contract Export Verification', () => {
   const adminEmail = 'superadmin@salesapp.com';
   const adminPassword = 'string';
 
   test.beforeEach(async ({ page }) => {
-    // Login as Admin
-    await page.goto('/');
-    await page.fill('input[type="email"]', adminEmail);
-    await page.fill('input[type="password"]', adminPassword);
-    await page.click('button.login-button');
-
-    // Verify successful login
-    await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
+    await loginAs(page, adminEmail, adminPassword);
   });
+
 
   test('should filter by Rodrigo Rosin and verify export sum', async ({ page }) => {
     console.log('>>> Navigating to Contracts page');

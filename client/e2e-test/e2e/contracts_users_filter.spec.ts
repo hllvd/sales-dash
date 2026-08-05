@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 /**
  * E2E: Users Multiselect Filter on Contracts Page
@@ -126,13 +127,11 @@ test.describe('Contracts Users Filter', () => {
 
   // ── Helper: login + navigate to Contracts ──────────────────────────────────
   async function loginAndGoToContracts(page: any, email: string, password: string) {
-    await page.goto('/');
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', password);
-    await page.click('button.login-button');
-    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    await loginAs(page, email, password);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
   }
+
 
   function userFilterInput(page: any) {
     return page.locator('input[placeholder="Selecionar usuários..."], input[placeholder="Nenhum usuário disponível"]').first();

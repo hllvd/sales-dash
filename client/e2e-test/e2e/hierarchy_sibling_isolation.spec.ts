@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD } from './helpers/auth';
 
 /**
  * [TEAR 3] Sibling Isolation Test
@@ -70,13 +71,8 @@ test.describe('[TEAR 3] Sibling Isolation', () => {
 
   test('superadmin can see the isolation probe contract', async ({ page }) => {
     test.setTimeout(45_000);
-    await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
-    await page.fill('input[type="email"]', 'superadmin@salesapp.com');
-    await page.fill('input[type="password"]', 'string');
-    await page.click('button.login-button');
-
-    await page.getByRole('link', { name: 'Contratos', exact: true }).click();
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
     await page.fill('input#filterStartDate', '');
@@ -95,14 +91,10 @@ test.describe('[TEAR 3] Sibling Isolation', () => {
 
   test('Carlos Mendes cannot see contracts belonging to unrelated matricula 10134', async ({ page }) => {
     test.setTimeout(45_000);
-    await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
-    await page.fill('input[type="email"]', 'carlosmendes@example.com');
-    await page.fill('input[type="password"]', '123456');
-    await page.click('button.login-button');
-
-    await page.getByTestId('nav-contracts').click();
+    await loginAs(page, 'carlosmendes@example.com', '123456');
+    await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
+
 
     await page.fill('input#filterStartDate', '');
 
