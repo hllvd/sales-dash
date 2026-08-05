@@ -243,7 +243,7 @@ parse_playwright_stats() {
 }
 
 # run_e2e <run_label> <log_suffix>
-# Runs Playwright, writes artifacts/full-e2e-<log_suffix>.log, prints stats.
+# Runs Playwright, writes artifacts/full-e2e-<log_suffix>.log, prints stats and time spent.
 # Returns the Playwright exit code (does NOT call exit).
 run_e2e() {
   local LABEL=$1    # e.g. "Run 1 (Initial)" or "Run 2 (Idempotency Check)"
@@ -252,23 +252,31 @@ run_e2e() {
   local LOG_FILE="artifacts/full-e2e-${SUFFIX}.log"
   local ERR_FILE="artifacts/e2e-errors-${SUFFIX}.log"
   local CLEAN_FILE="artifacts/clean-e2e-${SUFFIX}.log"
+  local TIME_FILE="artifacts/e2e-time-${SUFFIX}.txt"
 
   echo ""
   echo "▶  E2E $LABEL"
   echo "------------------------------------------------------------------"
 
   local EXIT_CODE=0
+  local START_TIME=$SECONDS
   pushd client/e2e-test > /dev/null
   set +e
   environment=e2e PLAYWRIGHT_HTML_OPEN=never npx playwright test > "../../$LOG_FILE" 2>&1
   EXIT_CODE=$?
   set -e
   popd > /dev/null
+  local DURATION=$(( SECONDS - START_TIME ))
+  local MINS=$(( DURATION / 60 ))
+  local SECS=$(( DURATION % 60 ))
+  local TIME_STR="${MINS}m ${SECS}s (${DURATION}s)"
+  echo "$TIME_STR" > "$TIME_FILE"
 
   sed 's/\x1b\[[0-9;]*[A-Za-z]//g' "$LOG_FILE" > "$CLEAN_FILE"
 
   # Print test stats
   parse_playwright_stats "$CLEAN_FILE"
+  echo "⏱️  Time spent: $TIME_STR"
   echo "📄 Full log: $LOG_FILE"
 
   if [ "$EXIT_CODE" -ne 0 ]; then
@@ -304,6 +312,7 @@ e2e() {
   # Keep backwards-compatible symlinks for single-run mode
   cp artifacts/full-e2e-1.log artifacts/full-e2e.log 2>/dev/null || true
   cp artifacts/e2e-errors-1.log artifacts/e2e-errors.log 2>/dev/null || true
+  cp artifacts/e2e-time-1.txt artifacts/e2e-time.txt 2>/dev/null || true
 
   [ "$EXIT_CODE" -ne 0 ] && exit $EXIT_CODE
   return 0
@@ -369,10 +378,13 @@ all() {
   print_header "E2E SUMMARY"
   echo "Run 1 (Initial):"
   parse_playwright_stats artifacts/clean-e2e-1.log
+  echo "⏱️  Time spent: $(cat artifacts/e2e-time-1.txt 2>/dev/null || echo 'N/A')"
   echo ""
   echo "Run 2 (Idempotency Check):"
   parse_playwright_stats artifacts/clean-e2e-2.log
+  echo "⏱️  Time spent: $(cat artifacts/e2e-time-2.txt 2>/dev/null || echo 'N/A')"
   echo ""
+
 
   if [ "$E2E1_CODE" -ne 0 ]; then
     echo "❌ Run 1 failed — see artifacts/e2e-errors-1.log"
