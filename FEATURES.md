@@ -517,5 +517,15 @@ Otimização de paralelismo horizontal para a suíte de testes de integração .
   - Removido `DisableTestParallelization = true` e ativado `[assembly: CollectionBehavior(MaxParallelThreads = 4)]`.
 - **Isolation Guarantee**: Cada collection possui uma instância isolada de `TestWebApplicationFactory` com seu próprio arquivo de banco SQLite, prevenindo conflitos de escrita e travamento de DB.
 
+## Contracts Page - Data da Última Atualização Column (2026-08-06)
+
+Adicionada a coluna "Data da última atualização" na página de gerenciamento de contratos (`ContractsPage`), permitindo aos usuários visualizar quando um contrato foi atualizado.
+
+### Key Capabilities
+- **Togglable Column**: Oculta por padrão (`lastUpdated: false`), podendo ser ativada/desativada no modal "Colunas".
+- **Data Source**: Utiliza o campo `updatedAt` retornado pela API na resposta de contratos.
+- **Persistence**: Estado da visibilidade salvo no `localStorage` sob a chave `contracts_visibleColumns`.
+
+
 
 

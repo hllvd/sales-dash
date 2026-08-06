@@ -37,6 +37,7 @@ interface VisibleColumns {
   status: boolean;
   startDate: boolean;
   quota: boolean;
+  lastUpdated: boolean;
 }
 
 const DEFAULT_COLUMNS: VisibleColumns = {
@@ -49,6 +50,7 @@ const DEFAULT_COLUMNS: VisibleColumns = {
   status: true,
   startDate: true,
   quota: false,
+  lastUpdated: false,
 };
 
 const ContractsPage: React.FC = () => {
@@ -300,6 +302,78 @@ const ContractsPage: React.FC = () => {
     if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR');
+  };
+
+  const renderLastUpdated = (dateString: string | null) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    // Color indicator:
+    // red: more than 1 month (> 30 days)
+    // orange: more than 2 weeks (> 14 days and <= 30 days)
+    // green: less than 2 weeks (<= 14 days)
+    let dotColor = '#10b981'; // green
+    if (diffDays > 30) {
+      dotColor = '#ef4444'; // red
+    } else if (diffDays > 14) {
+      dotColor = '#f59e0b'; // orange
+    }
+
+    let relativeText = 'há instantes';
+    if (diffDays > 365) {
+      const years = Math.floor(diffDays / 365);
+      relativeText = years === 1 ? 'há 1 ano' : `há ${years} anos`;
+    } else if (diffDays >= 30) {
+      const months = Math.floor(diffDays / 30);
+      relativeText = months === 1 ? 'há 1 mês' : `há ${months} meses`;
+    } else if (diffDays >= 7) {
+      const weeks = Math.floor(diffDays / 7);
+      relativeText = weeks === 1 ? 'há 1 semana' : `há ${weeks} semanas`;
+    } else if (diffDays >= 1) {
+      relativeText = diffDays === 1 ? 'há 1 dia' : `há ${diffDays} dias`;
+    } else {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      if (diffHours >= 1) {
+        relativeText = diffHours === 1 ? 'há 1 hora' : `há ${diffHours} horas`;
+      } else {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        if (diffMins >= 1) {
+          relativeText = diffMins === 1 ? 'há 1 min' : `há ${diffMins} min`;
+        }
+      }
+    }
+
+    const fullDateStr = date.toLocaleString('pt-BR');
+
+    return (
+      <span
+        title={fullDateStr}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          cursor: 'help',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <span
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: dotColor,
+            display: 'inline-block',
+            flexShrink: 0,
+          }}
+        />
+        <span>{relativeText}</span>
+      </span>
+    );
   };
 
 
@@ -559,6 +633,7 @@ const ContractsPage: React.FC = () => {
                 {visibleColumns.totalAmount && <Table.Th>Valor Total</Table.Th>}
                 {visibleColumns.status && <Table.Th>Status</Table.Th>}
                 {visibleColumns.startDate && <Table.Th>Data Início</Table.Th>}
+                {visibleColumns.lastUpdated && <Table.Th>Data da Última Atualização</Table.Th>}
                 <Table.Th>Ações</Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -578,6 +653,7 @@ const ContractsPage: React.FC = () => {
                     </Table.Td>
                   )}
                   {visibleColumns.startDate && <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>}
+                  {visibleColumns.lastUpdated && <Table.Td>{renderLastUpdated(contract.updatedAt)}</Table.Td>}
                   <Table.Td>
                     <Group gap="xs">
                       <ActionIcon
@@ -702,6 +778,11 @@ const ContractsPage: React.FC = () => {
             label="Cota"
             checked={visibleColumns.quota}
             onChange={(e) => handleColumnToggle('quota', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Data da Última Atualização"
+            checked={visibleColumns.lastUpdated}
+            onChange={(e) => handleColumnToggle('lastUpdated', e.currentTarget.checked)}
           />
         </div>
       </StandardModal>
