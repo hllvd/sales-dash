@@ -8,15 +8,15 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Scraping
 {
-    [Collection("Integration Tests")]
+    [Collection("Misc Tests")]
     public class ScrapeDynamoDbIntegrationTests : IAsyncLifetime
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly MiscTestFactory _factory;
         private IAmazonDynamoDB? _dynamoDb;
         private readonly string _tableName = "pbi_scrape_logs";
         private bool _isDynamoAvailable = false;
 
-        public ScrapeDynamoDbIntegrationTests(TestWebApplicationFactory factory)
+        public ScrapeDynamoDbIntegrationTests(MiscTestFactory factory)
         {
             _factory = factory;
         }

@@ -12,12 +12,12 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Imports
 {
-        [Collection("Integration Tests")]
+    [Collection("Imports Tests")]
     public class WizardEmailEnrichmentTests 
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ImportsTestFactory _factory;
 
-        public WizardEmailEnrichmentTests(TestWebApplicationFactory factory)
+        public WizardEmailEnrichmentTests(ImportsTestFactory factory)
         {
             _factory = factory;
         }

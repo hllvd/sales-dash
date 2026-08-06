@@ -11,13 +11,13 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Classifications
 {
-    [Collection("Integration Tests")]
+    [Collection("Misc Tests")]
     public class ClassificationsControllerTests
     {
         private readonly HttpClient _client;
-        private readonly TestWebApplicationFactory _factory;
+        private readonly MiscTestFactory _factory;
 
-        public ClassificationsControllerTests(TestWebApplicationFactory factory)
+        public ClassificationsControllerTests(MiscTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

@@ -9,12 +9,12 @@ using System.Text.Json;
 
 namespace SalesApp.IntegrationTests.Imports
 {
-    [Collection("Integration Tests")]
+    [Collection("Imports Tests")]
     public class WizardExcelGenerationTests 
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ImportsTestFactory _factory;
 
-        public WizardExcelGenerationTests(TestWebApplicationFactory factory)
+        public WizardExcelGenerationTests(ImportsTestFactory factory)
         {
             _factory = factory;
         }

@@ -6,13 +6,13 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Users
 {
-    [Collection("Integration Tests")]
+    [Collection("Users Tests")]
     public class UserApiContractTests
     {
         private readonly HttpClient _client;
-        private readonly TestWebApplicationFactory _factory;
+        private readonly UsersTestFactory _factory;
 
-        public UserApiContractTests(TestWebApplicationFactory factory)
+        public UserApiContractTests(UsersTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

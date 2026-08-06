@@ -6,12 +6,12 @@ using SalesApp.Data;
 
 namespace SalesApp.IntegrationTests
 {
-    [Collection("Integration Tests")]
+    [Collection("Contracts Tests")]
     public class DatabaseSeedingTests
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ContractsTestFactory _factory;
 
-        public DatabaseSeedingTests(TestWebApplicationFactory factory)
+        public DatabaseSeedingTests(ContractsTestFactory factory)
         {
             _factory = factory;
         }

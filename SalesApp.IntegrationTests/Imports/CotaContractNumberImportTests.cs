@@ -23,12 +23,12 @@ namespace SalesApp.IntegrationTests.Imports
     /// Each test generates a unique suffix so that the normalized contract numbers never
     /// collide in the shared integration test database.
     /// </summary>
-    [Collection("Integration Tests")]
+    [Collection("Imports Tests")]
     public class CotaContractNumberImportTests
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ImportsTestFactory _factory;
 
-        public CotaContractNumberImportTests(TestWebApplicationFactory factory)
+        public CotaContractNumberImportTests(ImportsTestFactory factory)
         {
             _factory = factory;
         }

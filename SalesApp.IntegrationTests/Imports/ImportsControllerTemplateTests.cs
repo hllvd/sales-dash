@@ -7,13 +7,13 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Imports
 {
-    [Collection("Integration Tests")]
+    [Collection("Imports Tests")]
     public class ImportsControllerTemplateTests
     {
         private readonly HttpClient _client;
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ImportsTestFactory _factory;
 
-        public ImportsControllerTemplateTests(TestWebApplicationFactory factory)
+        public ImportsControllerTemplateTests(ImportsTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

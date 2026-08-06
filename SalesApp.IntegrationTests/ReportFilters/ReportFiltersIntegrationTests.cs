@@ -12,16 +12,16 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.ReportFilters
 {
-    [Collection("Integration Tests")]
+    [Collection("Misc Tests")]
     public class ReportFiltersIntegrationTests : IAsyncLifetime
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly MiscTestFactory _factory;
         private HttpClient _client;
         private IAmazonDynamoDB? _dynamoDb;
         private readonly string _tableName = "ReportFilters";
         private bool _isDynamoAvailable = false;
 
-        public ReportFiltersIntegrationTests(TestWebApplicationFactory factory)
+        public ReportFiltersIntegrationTests(MiscTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client; // Default client

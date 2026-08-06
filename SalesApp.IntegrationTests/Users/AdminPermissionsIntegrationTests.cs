@@ -14,13 +14,13 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Users
 {
-    [Collection("Integration Tests")]
+    [Collection("Users Tests")]
     public class AdminPermissionsIntegrationTests
     {
         private readonly HttpClient _client;
-        private readonly TestWebApplicationFactory _factory;
+        private readonly UsersTestFactory _factory;
 
-        public AdminPermissionsIntegrationTests(TestWebApplicationFactory factory)
+        public AdminPermissionsIntegrationTests(UsersTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

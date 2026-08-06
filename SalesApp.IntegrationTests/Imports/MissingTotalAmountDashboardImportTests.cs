@@ -9,12 +9,12 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Imports
 {
-    [Collection("Integration Tests")]
+    [Collection("Imports Tests")]
     public class MissingTotalAmountDashboardImportTests
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ImportsTestFactory _factory;
 
-        public MissingTotalAmountDashboardImportTests(TestWebApplicationFactory factory)
+        public MissingTotalAmountDashboardImportTests(ImportsTestFactory factory)
         {
             _factory = factory;
         }

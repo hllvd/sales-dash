@@ -14,13 +14,13 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Contracts
 {
-    [Collection("Integration Tests")]
+    [Collection("Contracts Tests")]
     public class ContractMigrationTests
     {
-        private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;
+        private readonly ContractsTestFactory _factory;
 
-        public ContractMigrationTests(TestWebApplicationFactory factory)
+        public ContractMigrationTests(ContractsTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

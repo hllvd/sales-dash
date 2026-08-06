@@ -19,13 +19,13 @@ namespace SalesApp.IntegrationTests
         public HttpClient CreateClient() => _server.CreateClient();
         public IServiceProvider Services => _server.Services;
 
-        private static bool _dbReset = false;
-        private static bool _dbSchemaCreated = false;
-        private static readonly object _dbLock = new object();
-        
-        public TestWebApplicationFactory()
+        private bool _dbReset = false;
+        private bool _dbSchemaCreated = false;
+        private readonly object _dbLock = new object();
+
+        public TestWebApplicationFactory(string dbFileName = "SalesApp.IntegrationTests.db")
         {
-            _dbFileName = "SalesApp.IntegrationTests.db";
+            _dbFileName = dbFileName;
 
             lock (_dbLock)
             {
@@ -38,6 +38,7 @@ namespace SalesApp.IntegrationTests
                     _dbReset = true;
                 }
             }
+
 
             var hostBuilder = new WebHostBuilder()
                 .UseTestServer()

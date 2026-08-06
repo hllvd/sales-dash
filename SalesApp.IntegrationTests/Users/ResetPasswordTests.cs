@@ -10,13 +10,13 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Users
 {
-    [Collection("Integration Tests")]
+    [Collection("Users Tests")]
     public class ResetPasswordTests
     {
         private readonly HttpClient _client;
-        private readonly TestWebApplicationFactory _factory;
+        private readonly UsersTestFactory _factory;
 
-        public ResetPasswordTests(TestWebApplicationFactory factory)
+        public ResetPasswordTests(UsersTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

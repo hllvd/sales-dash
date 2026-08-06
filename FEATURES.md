@@ -503,4 +503,19 @@ Otimização de paralelismo horizontal para a suíte E2E do Playwright, dividind
 - **Worker Allocation**: Aumentado o número de workers simultâneos de 2 para 4.
 - **Data Isolation**: Specs agrupadas por afinidade de dados para prevenir colisões de chaves de banco ou usuários concorrentes.
 
+## Integration Tests Parallel Collections (2026-08-06)
+
+Otimização de paralelismo horizontal para a suíte de testes de integração .NET, dividindo a collection única sequencial `Integration Tests` em 4 collections isoladas por domínio com bancos SQLite dedicados.
+
+### Key Capabilities
+- **Collection Splitting (`IntegrationTestsCollection.cs`)**:
+  - `Contracts Tests`: Testes da pasta `Contracts/` e `DatabaseSeedingTests.cs` (banco `SalesApp.Contracts.Tests.db`).
+  - `Imports Tests`: Testes da pasta `Imports/` (banco `SalesApp.Imports.Tests.db`).
+  - `Users Tests`: Testes da pasta `Users/` (banco `SalesApp.Users.Tests.db`).
+  - `Misc Tests`: Testes de `Classifications`, `UserMatriculas`, `Roles`, `PointOfSale`, `ReportFilters`, etc. (banco `SalesApp.Misc.Tests.db`).
+- **Parallel Assembly Execution (`AssemblyInfo.cs`)**:
+  - Removido `DisableTestParallelization = true` e ativado `[assembly: CollectionBehavior(MaxParallelThreads = 4)]`.
+- **Isolation Guarantee**: Cada collection possui uma instância isolada de `TestWebApplicationFactory` com seu próprio arquivo de banco SQLite, prevenindo conflitos de escrita e travamento de DB.
+
+
 

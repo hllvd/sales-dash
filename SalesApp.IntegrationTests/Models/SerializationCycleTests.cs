@@ -9,12 +9,12 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests
 {
-    [Collection("Integration Tests")]
+    [Collection("Misc Tests")]
     public class SerializationCycleTests
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly MiscTestFactory _factory;
 
-        public SerializationCycleTests(TestWebApplicationFactory factory)
+        public SerializationCycleTests(MiscTestFactory factory)
         {
             _factory = factory;
         }

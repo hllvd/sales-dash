@@ -9,12 +9,12 @@ using FluentAssertions;
 
 namespace SalesApp.IntegrationTests.Imports
 {
-    [Collection("Integration Tests")]
+    [Collection("Imports Tests")]
     public class ImportAutoPvCreationTests
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ImportsTestFactory _factory;
 
-        public ImportAutoPvCreationTests(TestWebApplicationFactory factory)
+        public ImportAutoPvCreationTests(ImportsTestFactory factory)
         {
             _factory = factory;
         }

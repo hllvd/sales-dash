@@ -11,13 +11,13 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Roles
 {
-    [Collection("Integration Tests")]
+    [Collection("Misc Tests")]
     public class RolesControllerFunciotanlityTests
     {
         private readonly HttpClient _client;
-        private readonly TestWebApplicationFactory _factory;
+        private readonly MiscTestFactory _factory;
 
-        public RolesControllerFunciotanlityTests(TestWebApplicationFactory factory)
+        public RolesControllerFunciotanlityTests(MiscTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

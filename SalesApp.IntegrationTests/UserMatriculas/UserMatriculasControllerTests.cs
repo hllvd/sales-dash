@@ -9,13 +9,13 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.UserMatriculas
 {
-        [Collection("Integration Tests")]
+    [Collection("Misc Tests")]
     public class UserMatriculasControllerTests 
     {
-        private readonly TestWebApplicationFactory _factory;
+        private readonly MiscTestFactory _factory;
         private readonly HttpClient _client;
 
-        public UserMatriculasControllerTests(TestWebApplicationFactory factory)
+        public UserMatriculasControllerTests(MiscTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

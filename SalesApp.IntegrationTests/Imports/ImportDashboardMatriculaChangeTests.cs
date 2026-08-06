@@ -19,13 +19,13 @@ namespace SalesApp.IntegrationTests.Imports
     /// which provides GroupId and Quota required by BuildContractDashboardFromRowAsync.
     /// Template ID 3 = contractDashboard.
     /// </summary>
-    [Collection("Integration Tests")]
+    [Collection("Imports Tests")]
     public class ImportDashboardMatriculaChangeTests
     {
         private readonly HttpClient _client;
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ImportsTestFactory _factory;
 
-        public ImportDashboardMatriculaChangeTests(TestWebApplicationFactory factory)
+        public ImportDashboardMatriculaChangeTests(ImportsTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

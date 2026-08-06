@@ -12,13 +12,13 @@ using Xunit;
 
 namespace SalesApp.IntegrationTests.Imports
 {
-    [Collection("Integration Tests")]
+    [Collection("Imports Tests")]
     public class UserImportWithEmailTests
     {
         private readonly HttpClient _client;
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ImportsTestFactory _factory;
 
-        public UserImportWithEmailTests(TestWebApplicationFactory factory)
+        public UserImportWithEmailTests(ImportsTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;

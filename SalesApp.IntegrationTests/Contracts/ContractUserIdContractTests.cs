@@ -8,13 +8,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace SalesApp.IntegrationTests.Contracts
 {
-    [Collection("Integration Tests")]
+    [Collection("Contracts Tests")]
     public class ContractUserIdContractTests
     {
         private readonly HttpClient _client;
-        private readonly TestWebApplicationFactory _factory;
+        private readonly ContractsTestFactory _factory;
 
-        public ContractUserIdContractTests(TestWebApplicationFactory factory)
+        public ContractUserIdContractTests(ContractsTestFactory factory)
         {
             _factory = factory;
             _client = factory.Client;
