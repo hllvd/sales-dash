@@ -492,3 +492,15 @@ Acelera a execução dos testes E2E Playwright via reutilização de sessões au
 - **Spec Direct Navigation**: Permite que as specs naveguem diretamente para suas telas alvo (`await page.goto('/#/import-wizard')`) sem preencher o formulário de login repetidamente.
 - **Exceção para `login.spec.ts`**: Mantém o contexto limpo sem `storageState` para validar explicitamente a interface e o fluxo do formulário de login.
 
+## Playwright Sub-Tear Parallel Architecture (2026-08-06)
+
+Otimização de paralelismo horizontal para a suíte E2E do Playwright, dividindo os gargalos `tear-2` (20 specs) e `tear-3` (31 specs) em sub-tears paralelos (`tear-2a-import`, `tear-2b-roles`, `tear-3a-hierarchy`, `tear-3b-admin`) executadas simultaneamente.
+
+### Key Capabilities
+- **Sub-Tear Splitting (`playwright.config.ts`)**:
+  - `tear-2a-import` & `tear-2b-roles` dependem unicamente de `tear-1-setup-and-import` e executam em paralelo.
+  - `tear-3a-hierarchy` & `tear-3b-admin` dependem dos dois sub-tears do tear-2 e executam em paralelo após a conclusão do tear-2.
+- **Worker Allocation**: Aumentado o número de workers simultâneos de 2 para 4.
+- **Data Isolation**: Specs agrupadas por afinidade de dados para prevenir colisões de chaves de banco ou usuários concorrentes.
+
+

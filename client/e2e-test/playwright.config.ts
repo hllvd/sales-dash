@@ -8,7 +8,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
   // Use multiple workers to speed up independent tests
-  workers: 2,
+  workers: 4,
   // Increase default test timeout - many tests have login + multi-step flows
   timeout: 60000,
   reporter: 'html',
@@ -32,12 +32,10 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      name: 'tear-2-roles-testing',
+      name: 'tear-2a-import',
       testMatch: [
         'import_wizard_status_update.spec.ts',
         'import_status_validation.spec.ts',
-        'user_role_management.spec.ts',
-        //'import_wizard_csv_delimiter.spec.ts',
         'import_wizard_email_mapping.spec.ts',
         'import_wizard_data_integrity.spec.ts',
         'import_wizard_validation.spec.ts',
@@ -45,7 +43,15 @@ export default defineConfig({
         'import_wizard_duplicate_contracts.spec.ts',
         'import_wizard_desistente_contracts.spec.ts',
         'import_wizard_blank_contracts.spec.ts',
-        'import_wizard_outliers.spec.ts',
+        'import_wizard_outliers.spec.ts'
+      ],
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['tear-1-setup-and-import']
+    },
+    {
+      name: 'tear-2b-roles',
+      testMatch: [
+        'user_role_management.spec.ts',
         'contract_dashboard_desistente.spec.ts',
         'scrape_credentials.spec.ts',
         'matricula_ownership.spec.ts',
@@ -64,7 +70,7 @@ export default defineConfig({
       dependencies: ['tear-1-setup-and-import']
     },
     {
-      name: 'tear-3',
+      name: 'tear-3a-hierarchy',
       testMatch: [
         'admin_assign_contract_matricula.spec.ts',
         'batch_parent_update.spec.ts',
@@ -81,6 +87,14 @@ export default defineConfig({
         'teams_hierarchy_visibility.spec.ts',
         'team_report_setup.spec.ts',
         'team_members_management.spec.ts',
+        'contracts_matricula_multiselect.spec.ts'
+      ],
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['tear-2a-import', 'tear-2b-roles']
+    },
+    {
+      name: 'tear-3b-admin',
+      testMatch: [
         'classification_management.spec.ts',
         'classification_next_level.spec.ts',
         'classification_members_modal.spec.ts',
@@ -95,29 +109,11 @@ export default defineConfig({
         'equipe_admin_permission.spec.ts',
         'delete_user_migration.spec.ts',
         'approval_requests.spec.ts',
-        'contracts_matricula_multiselect.spec.ts',
         'batch_merge_users.spec.ts',
         'batch_merge_matriculas.spec.ts'
       ],
-
-
       use: { ...devices['Desktop Chrome'] },
-      dependencies: ['tear-2-roles-testing']
-    },
-    // {
-    //   name: 'tear-4-aliases-testing',
-    //   testMatch: [
-    //     'import_wizard_aliases.spec.ts',
-    //     'pending_contract_claims.spec.ts'],
-    //   use: { ...devices['Desktop Chrome'] },
-    //   dependencies: ['tear-3']
-    // },
-    // {
-    //   name: 'tear-5-pending-claims',
-    //   testMatch: ['pending_contract_claims.spec.ts'],
-    //   use: { ...devices['Desktop Chrome'] },
-    //   dependencies: ['tear-4-aliases-testing']
-    // },
-
+      dependencies: ['tear-2a-import', 'tear-2b-roles']
+    }
   ],
 });
