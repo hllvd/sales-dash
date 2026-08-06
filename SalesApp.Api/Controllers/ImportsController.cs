@@ -517,7 +517,13 @@ namespace SalesApp.Controllers
                 }
 
                 var entityType = session.Template?.EntityType ?? "Contract";
+                var templateName = session.Template?.Name ?? "";
                 var requiredFields = session.Template?.RequiredFields != null ? JsonSerializer.Deserialize<List<string>>(session.Template.RequiredFields) : new List<string>();
+                if (templateName == "contractDashboard")
+                {
+                    requiredFields.RemoveAll(rf => rf.Equals("TotalAmount", StringComparison.OrdinalIgnoreCase));
+                }
+
                 var allowAutoCreateGroups = request?.AllowAutoCreateGroups ?? false;
                 var allowAutoCreatePVs = request?.AllowAutoCreatePVs ?? false;
                 var skipMissingContractNumber = request?.SkipMissingContractNumber ?? false;

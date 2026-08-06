@@ -1305,6 +1305,9 @@ namespace SalesApp.Services
             var existingContracts = await _contractRepository.GetByContractNumbersAsync(allContractNumbers.Distinct().ToList());
             var existingMap = existingContracts.ToDictionary(c => c.ContractNumber);
 
+            var skippedNewContracts = new List<string>();
+            var failedTotalAmountUpdateContracts = new List<string>();
+
             for (int i = 0; i < rows.Count; i++)
             {
                 try
@@ -1353,7 +1356,9 @@ namespace SalesApp.Services
                         existingContract, matriculaCache,
                         onMatriculaChange: change => result.MatriculaChanges.Add(change),
                         updateMatriculaOnExisting: updateMatriculaOnExisting,
-                        updateTotalAmountOnExisting: updateTotalAmountOnExisting);
+                        updateTotalAmountOnExisting: updateTotalAmountOnExisting,
+                        onSkippedNewContract: cn => skippedNewContracts.Add(cn),
+                        onFailedTotalAmountUpdate: cn => failedTotalAmountUpdateContracts.Add(cn));
 
                     if (contract != null)
                     {
@@ -1365,6 +1370,11 @@ namespace SalesApp.Services
                         // If it's existing, it's already updated and tracked by the context
 
                         result.ProcessedRows++;
+                    }
+                    else if (skippedNewContracts.Contains(contractNumber))
+                    {
+                        // Silent skip for new contracts missing TotalAmount - do NOT count as failure
+                        continue;
                     }
                     else
                     {
@@ -1472,6 +1482,18 @@ namespace SalesApp.Services
                 result.Errors.Add($"Failed to save updates to existing contracts: {ex.Message}");
             }
 
+            if (skippedNewContracts.Any())
+            {
+                var contractList = string.Join(", ", skippedNewContracts.Distinct());
+                result.Warnings.Add($"Não criaremos estes contratos porque a Ava Pro não nos fornece o valor de `Crédito Venda`: {contractList}");
+            }
+
+            if (failedTotalAmountUpdateContracts.Any())
+            {
+                var contractList = string.Join(", ", failedTotalAmountUpdateContracts.Distinct());
+                result.Warnings.Add($"Não foi possível atualizar a coluna de Valor Total para estes contratos porque a Ava Pro não nos fornece o valor de `Crédito Venda`: {contractList}");
+            }
+
             result.Warnings = result.Warnings.Distinct().ToList();
             return result;
         }
@@ -1490,7 +1512,9 @@ namespace SalesApp.Services
             Dictionary<string, int?>? matriculaCache = null,
             Action<MatriculaChangeRecord>? onMatriculaChange = null,
             bool updateMatriculaOnExisting = false,
-            bool updateTotalAmountOnExisting = true)
+            bool updateTotalAmountOnExisting = true,
+            Action<string>? onSkippedNewContract = null,
+            Action<string>? onFailedTotalAmountUpdate = null)
         {
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
             var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
@@ -1539,9 +1563,13 @@ namespace SalesApp.Services
             
             // Parse TotalAmount
             var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
-            if (!TryParseBrazilianCurrency(totalAmountStr, out var totalAmount))
+            bool hasTotalAmount = TryParseBrazilianCurrency(totalAmountStr, out var totalAmount);
+
+            if (!hasTotalAmount && existingContract == null)
             {
-                throw new ArgumentException($"Invalid Total Amount: '{totalAmountStr}' (empty or invalid format)");
+                // New contract missing TotalAmount -> silent skip, notify callback
+                onSkippedNewContract?.Invoke(contractNumber);
+                return null;
             }
             
             // Parse SaleStartDate - supports both Excel serial numbers and formatted dates
@@ -1658,7 +1686,17 @@ namespace SalesApp.Services
                 contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
                 contract.RawStatus = status == ContractStatus.NaoDefinido.ToApiString() ? statusStr : null;
                 if (userInternalId.HasValue) contract.UserInternalId = userInternalId;
-                if (updateTotalAmountOnExisting) contract.TotalAmount = totalAmount;
+                if (updateTotalAmountOnExisting)
+                {
+                    if (hasTotalAmount)
+                    {
+                        contract.TotalAmount = totalAmount;
+                    }
+                    else
+                    {
+                        onFailedTotalAmountUpdate?.Invoke(contractNumber);
+                    }
+                }
                 contract.IsActive = true;
                 contract.UpdatedAt = DateTime.UtcNow;
 
