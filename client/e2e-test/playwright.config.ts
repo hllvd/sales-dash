@@ -57,7 +57,8 @@ export default defineConfig({
         'import_error_csv_download.spec.ts',
         'contract_dashboard_bem_pend_1_atr.spec.ts',
         'import_dashboard_update_options.spec.ts',
-        'import_dashboard_missing_total_amount.spec.ts'
+        'import_dashboard_missing_total_amount.spec.ts',
+        'import_dashboard_cota_field.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-1-setup-and-import']

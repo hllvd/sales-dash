@@ -48,6 +48,18 @@ This feature ensures inactive users are strictly excluded from display and count
 - **Matricula Ownership Protection**: Require reassigning matricula ownership before disabling a user.
 - **Automatic Membership Cleanup**: Set `EndDate = DateTime.UtcNow` on active `UserTeams` and `UserClassifications` upon user inactivation.
 
+## Contract Dashboard Cota Field Extraction & Upsert
+
+This feature ensures that compound semicolon-separated `Cota` strings (e.g. `G1;300;X;Customer;1100826650`) imported via the `contractDashboard` template are accurately parsed and preserved across both initial contract creation and subsequent contract updates (upserts).
+
+### Core Objectives
+- Automatically decompose compound `Cota` strings into virtual fields (`cota.group`, `cota.cota`, `cota.customer`, `cota.contract`).
+- Populate the `Quota` (`Cota`) integer field on new and existing contracts when re-imported via `contractDashboard`.
+
+### Key Capabilities
+- **Decomposition**: Parses `parts[1]` from the compound `Cota` column as the numerical quota value.
+- **Upsert Persistence**: Ensures `contract.Quota` is updated when existing contracts receive recurring dashboard updates.
+
 ## PowerBI Scraping Pipeline
 
 This feature automates the extraction of data from PowerBI for users who do not have access to the ClientSecret/API directly. It provides a robust, professional-grade solution with historical tracking and manual controls.

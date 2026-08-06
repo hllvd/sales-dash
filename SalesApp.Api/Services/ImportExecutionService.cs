@@ -1738,6 +1738,8 @@ namespace SalesApp.Services
                     ));
                 }
 
+                if (quota.HasValue) contract.Quota = quota;
+
                 return contract;
             }
 
