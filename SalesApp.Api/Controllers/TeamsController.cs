@@ -116,7 +116,8 @@ namespace SalesApp.Controllers
 
             var team = new Team
             {
-                Name = request.Name.Trim()
+                Name = request.Name.Trim(),
+                StoreId = request.StoreId
             };
 
             var createdTeam = await _teamRepository.CreateAsync(team);
@@ -242,6 +243,41 @@ namespace SalesApp.Controllers
                 }
 
                 team.OwnerUserInternalId = ownerUser.InternalId;
+            }
+
+            // Check Store editing permission: SuperAdmin or Admin owner of the team ONLY
+            bool isAttemptingStoreEdit = request.StoreId.HasValue || request.ClearStore;
+            if (isAttemptingStoreEdit)
+            {
+                bool isSuperAdmin = roleIdClaim == "1";
+                bool isAdminOwner = false;
+
+                if (Guid.TryParse(userIdClaim, out var callerUserId))
+                {
+                    var callerUser = await _userRepository.GetByIdAsync(callerUserId);
+                    if (callerUser != null && team.OwnerUserInternalId.HasValue && team.OwnerUserInternalId.Value == callerUser.InternalId)
+                    {
+                        isAdminOwner = true;
+                    }
+                }
+
+                if (!isSuperAdmin && !isAdminOwner)
+                {
+                    return StatusCode(403, new ApiResponse<TeamResponse>
+                    {
+                        Success = false,
+                        Message = "Apenas o Superadmin ou o proprietário da equipe pode alterar a loja da equipe."
+                    });
+                }
+
+                if (request.ClearStore)
+                {
+                    team.StoreId = null;
+                }
+                else if (request.StoreId.HasValue)
+                {
+                    team.StoreId = request.StoreId.Value;
+                }
             }
 
             await _teamRepository.UpdateAsync(team);
@@ -650,6 +686,9 @@ namespace SalesApp.Controllers
             {
                 Id = t.Id,
                 Name = t.Name,
+                StoreId = t.StoreId,
+                StoreName = t.Store?.Name,
+                StoreState = t.Store?.State,
                 Owner = owner,
                 Members = members,
                 CreatedAt = t.CreatedAt,

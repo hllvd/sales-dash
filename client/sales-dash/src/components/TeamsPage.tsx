@@ -202,7 +202,7 @@ const TeamsPage: React.FC = () => {
 
       if (editingTeam) {
         // 1. Update team basic info
-        await apiService.updateTeam(editingTeam.id, normalizedName)
+        await apiService.updateTeam(editingTeam.id, { name: normalizedName })
 
         // 2. Refresh members list using set-members/add-members endpoint
         // To update completely, let's remove any members who are no longer selected
@@ -222,7 +222,7 @@ const TeamsPage: React.FC = () => {
           await apiService.setTeamOwner(editingTeam.id, ownerUserId)
         } else {
           // If owner cleared, unset it
-          await apiService.updateTeam(editingTeam.id, undefined, undefined)
+          await apiService.updateTeam(editingTeam.id, {})
         }
 
         if (addResponse.success && addResponse.data) {
@@ -391,6 +391,7 @@ const TeamsPage: React.FC = () => {
                   <Table.Tr>
                     <Table.Th>Nome da Equipe</Table.Th>
                     <Table.Th>Proprietário (Owner)</Table.Th>
+                    <Table.Th>Loja</Table.Th>
                     <Table.Th>Membros</Table.Th>
                     <Table.Th>Criado em</Table.Th>
                     <Table.Th>Ações</Table.Th>
@@ -401,7 +402,14 @@ const TeamsPage: React.FC = () => {
                     const activeMembers = team.members.filter(m => m.isActive)
                     return (
                       <Table.Tr key={team.id}>
-                        <Table.Td style={{ fontWeight: 600, fontSize: '15px' }}>{team.name.toUpperCase()}</Table.Td>
+                        <Table.Td style={{ fontWeight: 600, fontSize: '15px' }}>
+                          <div>{team.name.toUpperCase()}</div>
+                          {team.storeName && (
+                            <div style={{ fontWeight: 400, fontSize: '12px', color: '#868e96', marginTop: '2px' }}>
+                              {team.storeName}{team.storeState ? ` (${team.storeState})` : ''}
+                            </div>
+                          )}
+                        </Table.Td>
                         <Table.Td>
                           {team.owner ? (
                             <Group gap="xs">
@@ -412,6 +420,15 @@ const TeamsPage: React.FC = () => {
                             </Group>
                           ) : (
                             <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>Sem Proprietário</Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {team.storeName ? (
+                            <Badge color="cyan" variant="light">
+                              {team.storeName} {team.storeState ? `(${team.storeState})` : ''}
+                            </Badge>
+                          ) : (
+                            <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>Sem Loja</Text>
                           )}
                         </Table.Td>
                         <Table.Td>

@@ -69,6 +69,7 @@ namespace SalesApp
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();
             services.AddScoped<IUserScopeService, UserScopeService>();
             services.AddScoped<IMatriculaRepository, MatriculaRepository>();
+            services.AddScoped<IStoreRepository, StoreRepository>();
             services.AddScoped<IPendingContractClaimRepository, PendingContractClaimRepository>();
             
             // Production-Grade RBAC

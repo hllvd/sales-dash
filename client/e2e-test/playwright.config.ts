@@ -52,6 +52,7 @@ export default defineConfig({
       name: 'tear-2b-roles',
       testMatch: [
         'user_role_management.spec.ts',
+        'stores_crud.spec.ts',
         'contract_dashboard_desistente.spec.ts',
         'scrape_credentials.spec.ts',
         'matricula_ownership.spec.ts',

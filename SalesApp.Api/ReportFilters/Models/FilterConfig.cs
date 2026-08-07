@@ -48,6 +48,9 @@ namespace SalesApp.ReportFilters.Models
         /// <summary>Team identifiers to filter by.</summary>
         public List<int>? Teams { get; set; }
 
+        /// <summary>Store identifiers to filter by (matches contracts of sellers whose active team belongs to the selected stores).</summary>
+        public List<int>? Stores { get; set; }
+
         /// <summary>
         /// Controls how the Teams filter resolves membership:
         /// - "current" (default): include only contracts whose seller is CURRENTLY an active member

@@ -133,6 +133,10 @@ const COLUMN_METADATA_DICT: Record<string, ColumnMetadata> = {
     title: 'Nível de Classificação',
     description: 'Nível de classificação ativo (ex: Nível I, Nível II) do vendedor.'
   },
+  'Users_Contract|store': {
+    title: 'Loja do Vendedor',
+    description: 'Nome da loja à qual a equipe do vendedor pertence no período da venda.'
+  },
   'Users_Matricula|name': {
     title: 'Nome do Titular da Matrícula',
     description: 'Nome do usuário que possui a titularidade oficial da matrícula vinculada.'
@@ -219,6 +223,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [groups, setGroups] = useState<string[]>([]); 
   const [teams, setTeams] = useState<string[]>([]);
   const [teamMembershipMode, setTeamMembershipMode] = useState<'current' | 'historical'>('current');
+  const [stores, setStores] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
 
@@ -239,6 +244,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [exportTeamsLabel, setExportTeamsLabel] = useState('Equipe');
   const [exportEmails, setExportEmails] = useState(false);
   const [exportEmailsLabel, setExportEmailsLabel] = useState('Vendedor(a)');
+  const [exportStores, setExportStores] = useState(false);
+  const [exportStoresLabel, setExportStoresLabel] = useState('Loja');
 
   // Grouping
   const [groupingType, setGroupingType] = useState<'none' | 'team' | 'email' | 'classification'>('none');
@@ -270,6 +277,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [groupOptions, setGroupOptions] = useState<{value: string, label: string}[]>([]);
   const [teamOptions, setTeamOptions] = useState<{value: string, label: string}[]>([]);
   const [pvOptions, setPvOptions] = useState<{value: string, label: string}[]>([]);
+  const [storeOptions, setStoreOptions] = useState<{value: string, label: string}[]>([]);
   
   // Preview
   const [previewData, setPreviewData] = useState<ReportResultsResponse | null>(null);
@@ -288,12 +296,13 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       setAvailableColumns(colsRes.sources);
 
       // Fetch users, groups, PVs, teams, classification levels for multiselects
-      const [usersRes, groupsData, pvsRes, teamsRes, classRes] = await Promise.all([
+      const [usersRes, groupsData, pvsRes, teamsRes, classRes, storesRes] = await Promise.all([
         apiService.getUsers(1, 1000),
         getGroups(),
         apiService.getPVs(),
         apiService.getTeams(),
-        apiService.getClassificationLevels()
+        apiService.getClassificationLevels(),
+        apiService.getAllActiveStores()
       ]);
       
       setUserOptions((usersRes.data?.items || []).map((u: User) => ({ value: u.email, label: u.name })));
@@ -301,6 +310,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       setTeamOptions((teamsRes.data || []).map((t: any) => ({ value: t.id.toString(), label: t.name })));
       setPvOptions((pvsRes.data || []).map((p: any) => ({ value: p.id.toString(), label: p.name })));
       setClassificationOptions((classRes.data || []).map((c: ClassificationLevel) => ({ value: c.id.toString(), label: c.name })));
+      setStoreOptions((storesRes.data || []).map((s: any) => ({ value: s.id.toString(), label: s.name })));
 
       // If edit mode, fetch the report filter
       if (localFilterId) {
@@ -347,6 +357,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         if (fc.currentUserTeam) restoredTeams.unshift(CURRENT_USER_TEAM_SENTINEL);
         setTeams(restoredTeams);
         setTeamMembershipMode(fc.teamMembershipMode || 'current');
+        setStores((fc.stores || []).map(s => s.toString()));
         setPvs((fc.pvs || []).map(p => p.toString()));
         setStatuses(fc.statuses || []);
         setStatusOperator(fc.statusOperator || 'or');
@@ -392,7 +403,16 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
           setExportEmailsLabel('Vendedor(a)');
         }
 
-        if (teamsEf || emailsEf) {
+        const storesEf = ef.find(e => e.fieldType === 'stores');
+        if (storesEf) {
+          setExportStores(true);
+          setExportStoresLabel(storesEf.label || 'Loja');
+        } else {
+          setExportStores(false);
+          setExportStoresLabel('Loja');
+        }
+
+        if (teamsEf || emailsEf || storesEf) {
           setExportedFieldsOpen(true);
         }
 
@@ -597,7 +617,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       groups: groups.length > 0 ? groups.map(Number) : undefined,
       teams: cleanTeams.length > 0 ? cleanTeams.map(Number) : undefined,
       currentUserTeam: hasCurrentUserTeam || undefined,
-      teamMembershipMode: cleanTeams.length > 0 ? teamMembershipMode : undefined,
+      teamMembershipMode: cleanTeams.length > 0 || stores.length > 0 ? teamMembershipMode : undefined,
+      stores: stores.length > 0 ? stores.map(Number) : undefined,
       pvs: pvs.length > 0 ? pvs.map(Number) : undefined,
       statuses: statuses.length > 0 ? statuses : undefined,
       statusOperator: statuses.length > 1 ? statusOperator : undefined,
@@ -616,6 +637,9 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
     }
     if (exportEmails) {
       exportedFieldsList.push({ fieldType: 'emails', label: exportEmailsLabel.trim() || 'Vendedor(a)' });
+    }
+    if (exportStores) {
+      exportedFieldsList.push({ fieldType: 'stores', label: exportStoresLabel.trim() || 'Loja' });
     }
 
     return {
@@ -1079,6 +1103,37 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                   )}
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 6 }}>
+                  <MultiSelect
+                    label="Lojas"
+                    placeholder="Filtrar por lojas"
+                    data={storeOptions}
+                    value={stores}
+                    onChange={setStores}
+                    searchable
+                    size="sm"
+                  />
+                  {stores.length > 0 && (
+                    <div style={{ marginTop: 6 }}>
+                      <Text size="xs" fw={500} c="dimmed" mb={4}>Modo de vínculo com loja</Text>
+                      <SegmentedControl
+                        size="xs"
+                        fullWidth
+                        value={teamMembershipMode}
+                        onChange={(val: any) => setTeamMembershipMode(val)}
+                        data={[
+                          { label: '👤 Membros atuais', value: 'current' },
+                          { label: '📅 Histórico do período', value: 'historical' },
+                        ]}
+                      />
+                      <Text size="xs" c="dimmed" mt={4}>
+                        {teamMembershipMode === 'current'
+                          ? 'Exibe contratos de quem está em uma equipe da loja hoje.'
+                          : 'Exibe contratos de quem estava em equipe da loja durante o período.'}
+                      </Text>
+                    </div>
+                  )}
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
                   <TagsInput
                     label="Matrícula"
                     placeholder="Digite um número e pressione Enter"
@@ -1327,6 +1382,28 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                             placeholder="ex: Selecione o Vendedor"
                             value={exportEmailsLabel}
                             onChange={(e) => setExportEmailsLabel(e.currentTarget.value)}
+                            size="xs"
+                          />
+                        )}
+                      </Paper>
+
+                      <Paper withBorder p="xs" radius="xs" style={{ backgroundColor: '#ffffff' }}>
+                        <Group justify="space-between" align="center" mb={exportStores ? 'xs' : 0}>
+                          <div>
+                            <Text size="xs" fw={600}>Exportar campo "Lojas"</Text>
+                            <Text size="xs" c="dimmed">Permite ao leitor selecionar diferentes lojas ao visualizar o resultado</Text>
+                          </div>
+                          <Switch
+                            checked={exportStores}
+                            onChange={(e) => setExportStores(e.currentTarget.checked)}
+                          />
+                        </Group>
+                        {exportStores && (
+                          <TextInput
+                            label="Rótulo no relatório"
+                            placeholder="ex: Selecione a Loja"
+                            value={exportStoresLabel}
+                            onChange={(e) => setExportStoresLabel(e.currentTarget.value)}
                             size="xs"
                           />
                         )}

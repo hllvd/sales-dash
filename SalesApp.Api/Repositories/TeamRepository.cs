@@ -21,6 +21,7 @@ namespace SalesApp.Repositories
         {
             return await _context.Teams
                 .Include(t => t.Owner)
+                .Include(t => t.Store)
                 .Include(t => t.UserTeams)
                     .ThenInclude(ut => ut.User)
                 .FirstOrDefaultAsync(t => t.Id == id);
@@ -31,6 +32,7 @@ namespace SalesApp.Repositories
             if (string.IsNullOrWhiteSpace(name)) return null;
             return await _context.Teams
                 .Include(t => t.Owner)
+                .Include(t => t.Store)
                 .Include(t => t.UserTeams)
                     .ThenInclude(ut => ut.User)
                 .FirstOrDefaultAsync(t => t.Name.ToLower() == name.Trim().ToLower());
@@ -40,6 +42,7 @@ namespace SalesApp.Repositories
         {
             var query = _context.Teams
                 .Include(t => t.Owner)
+                .Include(t => t.Store)
                 .Include(t => t.UserTeams)
                     .ThenInclude(ut => ut.User)
                 .AsQueryable();

@@ -15,6 +15,8 @@ namespace SalesApp.Models
 
         public int? OwnerUserInternalId { get; set; }
 
+        public int? StoreId { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -22,6 +24,8 @@ namespace SalesApp.Models
         // Navigation properties
         [JsonIgnore]
         public virtual User? Owner { get; set; }
+
+        public virtual Store? Store { get; set; }
 
         public virtual ICollection<UserTeam> UserTeams { get; set; } = new List<UserTeam>();
     }

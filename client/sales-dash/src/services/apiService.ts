@@ -1078,11 +1078,11 @@ export const apiService = {
     return response.json()
   },
 
-  async createTeam(name: string, members: Array<{ userId: string; startDate?: string }>): Promise<ApiResponse<Team>> {
+  async createTeam(name: string, members: Array<{ userId: string; startDate?: string }>, storeId?: number): Promise<ApiResponse<Team>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ name, members }),
+      body: JSON.stringify({ name, members, storeId }),
     })
     if (!response.ok) {
       throw new Error(await extractErrorMessage(response, "Failed to create team"))
@@ -1090,11 +1090,11 @@ export const apiService = {
     return response.json()
   },
 
-  async updateTeam(id: number, name?: string, ownerUserId?: string): Promise<ApiResponse<Team>> {
+  async updateTeam(id: number, data: { name?: string; ownerUserId?: string; storeId?: number; clearStore?: boolean }): Promise<ApiResponse<Team>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}`, {
       method: "PUT",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ name, ownerUserId }),
+      body: JSON.stringify(data),
     })
     if (!response.ok) {
       throw new Error(await extractErrorMessage(response, "Failed to update team"))
@@ -1108,6 +1108,64 @@ export const apiService = {
       headers: getAuthHeaders(),
     })
     if (!response.ok) throw new Error("Failed to delete team")
+    return response.json()
+  },
+
+  // Stores Management methods
+  async getStores(): Promise<ApiResponse<Store[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/stores`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error("Failed to fetch stores")
+    return response.json()
+  },
+
+  async getAllActiveStores(): Promise<ApiResponse<Store[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/stores/all`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error("Failed to fetch active stores")
+    return response.json()
+  },
+
+  async getStore(id: number): Promise<ApiResponse<Store>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/stores/${id}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error("Failed to fetch store")
+    return response.json()
+  },
+
+  async createStore(data: CreateStoreRequest): Promise<ApiResponse<Store>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/stores`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to create store"))
+    }
+    return response.json()
+  },
+
+  async updateStore(id: number, data: UpdateStoreRequest): Promise<ApiResponse<Store>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/stores/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to update store"))
+    }
+    return response.json()
+  },
+
+  async deleteStore(id: number): Promise<ApiResponse<any>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/stores/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error("Failed to delete store")
     return response.json()
   },
 
@@ -1500,6 +1558,26 @@ export interface ImportSession {
   completedAt?: string;
 }
 
+export interface Store {
+  id: number
+  name: string
+  state: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateStoreRequest {
+  name: string
+  state: string
+}
+
+export interface UpdateStoreRequest {
+  name?: string
+  state?: string
+  isActive?: boolean
+}
+
 export interface TeamMember {
   userId: string
   userInternalId: number
@@ -1514,6 +1592,9 @@ export interface TeamMember {
 export interface Team {
   id: number
   name: string
+  storeId?: number
+  storeName?: string
+  storeState?: string
   owner: TeamMember | null
   members: TeamMember[]
   warnings?: string[]

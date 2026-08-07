@@ -37,7 +37,7 @@ namespace SalesApp.ReportFilters.Services
 
         /// <summary>
         /// Executes the saved report and returns paginated, projected contract results.
-        /// Optional overrides replace configured Teams/Emails filter fields at query time without saving to DB.
+        /// Optional overrides replace configured Teams/Emails/Stores filter fields at query time without saving to DB.
         /// </summary>
         Task<ServiceResult<ReportResultsResponse>> ExecuteAsync(
             string callerId,
@@ -46,7 +46,8 @@ namespace SalesApp.ReportFilters.Services
             int page,
             int pageSize,
             List<int>? overrideTeamIds = null,
-            List<string>? overrideEmails = null);
+            List<string>? overrideEmails = null,
+            List<int>? overrideStoreIds = null);
 
         /// <summary>
         /// Returns the full list of available columns grouped by source entity.

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Modal, Title, Text, Group, Badge, ActionIcon, TextInput,
-  Loader, Stack, Divider, Tooltip, ScrollArea, Popover
+  Loader, Stack, Divider, Tooltip, ScrollArea, Popover, Select
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconSearch, IconCrown, IconUserPlus, IconUserMinus,
-  IconUsers, IconUser, IconCheck, IconCalendar, IconX, IconSitemap
+  IconUsers, IconUser, IconCheck, IconCalendar, IconX, IconSitemap, IconBuildingStore
 } from '@tabler/icons-react';
-import { apiService, Team, TeamMember, User } from '../services/apiService';
+import { apiService, Team, TeamMember, User, Store } from '../services/apiService';
 import { normalizeTeamName, normalizeName } from '../utils/normalization';
 import { useReferenceData } from '../contexts/ReferenceDataContext';
 import './TeamMembersModal.css';
@@ -350,6 +350,36 @@ const TeamMembersModal: React.FC<Props> = ({
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState('');
 
+  const [stores, setStores] = useState<Store[]>([]);
+  const [savingStore, setSavingStore] = useState(false);
+
+  useEffect(() => {
+    apiService.getAllActiveStores().then(res => {
+      if (res.success && res.data) {
+        setStores(res.data);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const isSuperAdmin = currentUserRole?.toLowerCase() === 'superadmin';
+  const isOwner = team.owner ? team.owner.userId === currentUserId : false;
+  const canEditStore = isSuperAdmin || isOwner;
+
+  const handleStoreChange = async (val: string | null) => {
+    const newStoreId = val ? Number(val) : undefined;
+    const clearStore = !val;
+    setSavingStore(true);
+    try {
+      const res = await apiService.updateTeam(team.id, { storeId: newStoreId, clearStore });
+      applyTeamUpdate(res);
+      notifications.show({ message: 'Loja da equipe atualizada com sucesso', color: 'green', autoClose: 2000 });
+    } catch (e: any) {
+      notifications.show({ title: 'Erro', message: e.message || 'Falha ao atualizar loja', color: 'red' });
+    } finally {
+      setSavingStore(false);
+    }
+  };
+
   useEffect(() => {
     setTempName(team.name);
   }, [team.name]);
@@ -363,7 +393,7 @@ const TeamMembersModal: React.FC<Props> = ({
     setSavingName(true);
     setNameError('');
     try {
-      const res = await apiService.updateTeam(team.id, normalizedName);
+      const res = await apiService.updateTeam(team.id, { name: normalizedName });
       applyTeamUpdate(res);
       notifications.show({ message: 'Nome da equipe atualizado com sucesso', color: 'green', autoClose: 2000 });
     } catch (e: any) {
@@ -535,43 +565,65 @@ const TeamMembersModal: React.FC<Props> = ({
         border: '1px solid #e9ecef',
         boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
       }}>
-        <TextInput
-          label="Nome da Equipe"
-          placeholder="Digite o nome da equipe..."
-          value={tempName}
-          onChange={(e) => setTempName(e.target.value)}
-          size="sm"
-          error={nameError}
-          rightSection={
-            tempName.trim().toLowerCase() !== team.name.toLowerCase() && tempName.trim() !== "" ? (
-              <Tooltip label="Salvar novo nome" withArrow>
-                <ActionIcon
-                  variant="filled"
-                  color="blue"
-                  size="sm"
-                  onClick={handleSaveName}
-                  loading={savingName}
-                  title="Salvar novo nome"
-                >
-                  <IconCheck size={14} />
-                </ActionIcon>
-              </Tooltip>
-            ) : null
-          }
-          styles={{
-            input: {
-              fontWeight: 600,
-              color: '#212529',
-              fontSize: '14px',
-              textTransform: 'uppercase',
-            },
-            label: {
-              fontWeight: 700,
-              color: '#495057',
-              marginBottom: '6px',
+        <Group grow align="flex-start">
+          <TextInput
+            label="Nome da Equipe"
+            placeholder="Digite o nome da equipe..."
+            value={tempName}
+            onChange={(e) => setTempName(e.target.value)}
+            size="sm"
+            error={nameError}
+            rightSection={
+              tempName.trim().toLowerCase() !== team.name.toLowerCase() && tempName.trim() !== "" ? (
+                <Tooltip label="Salvar novo nome" withArrow>
+                  <ActionIcon
+                    variant="filled"
+                    color="blue"
+                    size="sm"
+                    onClick={handleSaveName}
+                    loading={savingName}
+                    title="Salvar novo nome"
+                  >
+                    <IconCheck size={14} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : null
             }
-          }}
-        />
+            styles={{
+              input: {
+                fontWeight: 600,
+                color: '#212529',
+                fontSize: '14px',
+                textTransform: 'uppercase',
+              },
+              label: {
+                fontWeight: 700,
+                color: '#495057',
+                marginBottom: '6px',
+              }
+            }}
+          />
+
+          <Select
+            label="Loja Pertencente"
+            placeholder="Selecione a loja da equipe"
+            data={[
+              { value: '', label: 'Sem loja' },
+              ...stores.map(s => ({ value: String(s.id), label: `${s.name} (${s.state})` }))
+            ]}
+            value={team.storeId ? String(team.storeId) : ''}
+            onChange={handleStoreChange}
+            disabled={!canEditStore || savingStore}
+            size="sm"
+            styles={{
+              label: {
+                fontWeight: 700,
+                color: '#495057',
+                marginBottom: '6px',
+              }
+            }}
+          />
+        </Group>
       </div>
 
       <div className="tmc-layout">

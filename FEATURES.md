@@ -533,5 +533,38 @@ Adicionada a coluna "Data da última atualização" na página de gerenciamento 
 - **Togglable Column**: Oculta por padrão (`lastUpdated: false`), podendo ser ativada/desativada no modal "Colunas".
 - **Data Source**: Utiliza o campo `updatedAt` retornado pela API na resposta de contratos.
 
+## Store Entity & Team-Store Relationship (2026-08-07)
+
+Criação da entidade **Store** (Loja) com CRUD completo, tela de gerenciamento (`/#/stores`) nos moldes da página de Matrículas, e associação de cada Equipe a uma Loja com restrição de permissão de edição por perfil.
+
+### Key Capabilities
+- **Entidade Store**: Atributos `Name` (único, max 200), `State` (sigla de 2 caracteres dos estados do Brasil, ex.: `PR`, `SC`, `SP`), `IsActive` (padrão true), `CreatedAt` e `UpdatedAt`.
+- **Relacionamento Team-Store**: Cada equipe possui o campo opcional `StoreId`. Exclusão de uma loja desvincula (limpa `StoreId = null`) as equipes associadas sem excluí-las (`DeleteBehavior.SetNull`).
+- **Controle de Acesso à Tela de Lojas**: A navegação e o gerenciamento da tela de Lojas (`/#/stores`) são restritos ao perfil `SuperAdmin` (permissão `system:superadmin`).
+- **Endpoint Público de Seleção de Lojas**: Endpoint `GET /api/stores/all` acessível para todos os usuários autenticados para popular dropdowns de seleção de loja.
+- **Permissão de Edição da Loja na Equipe**: A alteração do campo de Loja de uma Equipe na API (`PUT /api/teams/{id}`) e na interface é permitida **exclusivamente** para o perfil `SuperAdmin` ou para o **Admin proprietário (Owner)** daquela equipe. Para os demais usuários, o campo é exibido em modo leitura sem permissão de alteração.
+- **Interface Visual**:
+  - Tela `/#/stores` com busca em tempo real por nome/estado, filtro de status ativo/inativo, tabela informativa de criação/atualização e modal para criação/edição com seletor dos 27 estados do Brasil.
+  - Coluna "Loja" na página de Equipes (`/#/teams`) e seletor no modal de gerenciamento de membros da equipe.
+
+### Key Files Created / Modified
+- `SalesApp.Api/Models/Store.cs` — Classe do modelo de entidade de banco de dados `Store`.
+- `SalesApp.Api/Models/StoreConstants.cs` — Renomeada a classe estática legada para `StoreConstants`.
+- `SalesApp.Api/Models/Team.cs` — Adicionado `StoreId` e a propriedade de navegação `Store`.
+- `SalesApp.Api/Data/AppDbContext.cs` — Configurado o `DbSet<Store>`, a chave única de nome e o relacionamento `Team -> Store`.
+- `SalesApp.Api/Migrations/20260807170000_AddStoresTable.cs` — Migração para criação da tabela `Stores` e chave estrangeira em `Teams`.
+- `SalesApp.Api/DTOs/StoreDTOs.cs` — DTOs de criação, atualização e resposta de loja.
+- `SalesApp.Api/Repositories/IStoreRepository.cs` e `StoreRepository.cs` — Repositório de dados para a entidade `Store`.
+- `SalesApp.Api/Controllers/StoresController.cs` — Endpoints REST CRUD de lojas e endpoint público `/api/stores/all`.
+- `SalesApp.Api/Controllers/TeamsController.cs` — Atualizado `UpdateTeam` e `MapToTeamResponse` para gerenciar permissões de edição da loja por perfil.
+- `client/sales-dash/src/services/apiService.ts` — Métodos cliente e interfaces de API para `Store` e `Team`.
+- `client/sales-dash/src/components/StoresPage.tsx` — Interface React completa para gerenciamento de lojas.
+- `client/sales-dash/src/components/TeamsPage.tsx` — Exibição da coluna "Loja" na tabela de equipes.
+- `client/sales-dash/src/components/TeamMembersModal.tsx` — Dropdown de seleção de loja na equipe com validação de perfil.
+- `client/sales-dash/src/App.tsx` e `Menu.tsx` — Rota `/#/stores` e item no menu lateral para SuperAdmin.
+- `SalesApp.IntegrationTests/Stores/StoresControllerIntegrationTests.cs` — Suíte de testes de integração backend.
+- `client/e2e-test/e2e/stores_crud.spec.ts` — Especificação de testes E2E com Playwright.
+
+
 
 

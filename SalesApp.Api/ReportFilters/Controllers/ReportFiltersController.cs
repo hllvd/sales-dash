@@ -140,7 +140,8 @@ namespace SalesApp.ReportFilters.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 25,
             [FromQuery] string? teamIds = null,
-            [FromQuery] string? emails = null)
+            [FromQuery] string? emails = null,
+            [FromQuery] string? storeIds = null)
         {
             var callerId = GetCallerId();
             if (callerId == null) return Unauthorized();
@@ -159,6 +160,14 @@ namespace SalesApp.ReportFilters.Controllers
                 ? emails.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
                 : null;
 
+            List<int>? overrideStoreIds = storeIds != null
+                ? storeIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                          .Select(s => int.TryParse(s, out var v) ? (int?)v : null)
+                          .Where(v => v.HasValue)
+                          .Select(v => v!.Value)
+                          .ToList()
+                : null;
+
             var result = await _service.ExecuteAsync(
                 callerId,
                 filterId,
@@ -166,7 +175,8 @@ namespace SalesApp.ReportFilters.Controllers
                 page,
                 pageSize,
                 overrideTeamIds,
-                overrideEmails);
+                overrideEmails,
+                overrideStoreIds);
 
             return MapResult(result);
         }

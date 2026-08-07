@@ -292,7 +292,8 @@ namespace SalesApp.ReportFilters.Services
             int page,
             int pageSize,
             List<int>? overrideTeamIds = null,
-            List<string>? overrideEmails = null)
+            List<string>? overrideEmails = null,
+            List<int>? overrideStoreIds = null)
         {
             // Resolve report (same visibility rules as GetAsync)
             var getResult = await GetAsync(callerId, filterId);
@@ -311,6 +312,10 @@ namespace SalesApp.ReportFilters.Services
             {
                 fc.Emails = overrideEmails.Count > 0 ? overrideEmails : new List<string>();
             }
+            if (overrideStoreIds != null)
+            {
+                fc.Stores = overrideStoreIds.Count > 0 ? overrideStoreIds : new List<int>();
+            }
 
             var resolvedStartDate = ResolveDate(fc.StartDate, fc.RelativeStartDate);
             var resolvedEndDate = ResolveDate(fc.EndDate, fc.RelativeEndDate);
@@ -324,8 +329,27 @@ namespace SalesApp.ReportFilters.Services
             // Load all teams and memberships in memory once for fast lookup
             var teamsList = await _teamRepository.GetAllAsync();
             var memberTeamMapping = teamsList
-                .SelectMany(t => t.UserTeams.Select(ut => new { ut.UserInternalId, ut.StartDate, ut.EndDate, TeamId = t.Id, TeamName = t.Name, TeamOwnerName = t.Owner?.Name ?? "(Sem chefe)" }))
+                .SelectMany(t => t.UserTeams.Select(ut => new
+                {
+                    ut.UserInternalId,
+                    ut.StartDate,
+                    ut.EndDate,
+                    TeamId = t.Id,
+                    TeamName = t.Name,
+                    TeamOwnerName = t.Owner?.Name ?? "(Sem chefe)",
+                    StoreId = t.StoreId,
+                    StoreName = t.Store?.Name ?? "(Sem loja)"
+                }))
                 .ToList();
+
+            Func<SalesApp.Models.Contract, string> getStoreName = c =>
+            {
+                if (c.UserInternalId == null) return "(Sem loja)";
+                var match = memberTeamMapping.FirstOrDefault(x =>
+                    x.UserInternalId == c.UserInternalId.Value &&
+                    TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
+                return match?.StoreName ?? "(Sem loja)";
+            };
 
             Func<SalesApp.Models.Contract, string> getTeamName = c =>
             {
@@ -509,6 +533,43 @@ namespace SalesApp.ReportFilters.Services
                         if (c.UserInternalId == null) return false;
                         return currentTeamByUser.TryGetValue(c.UserInternalId.Value, out var userTeams)
                                && userTeams.Any(tid => fc.Teams.Contains(tid));
+                    }).ToList();
+                }
+            }
+
+            // Filter by selected Store IDs.
+            // Resolves which teams belong to the selected stores, then filters contracts using the same
+            // TeamMembershipMode logic as the Teams filter (current or historical).
+            if (fc.Stores?.Count > 0)
+            {
+                var isHistorical = string.Equals(
+                    fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+
+                if (isHistorical)
+                {
+                    contracts = contracts.Where(c =>
+                    {
+                        if (c.UserInternalId == null) return false;
+                        var match = memberTeamMapping.FirstOrDefault(x =>
+                            x.UserInternalId == c.UserInternalId.Value &&
+                            TeamMembershipResolver.IsMembershipActiveForSale(x.StartDate, x.EndDate, c.SaleStartDate, resolvedStartDate, resolvedEndDate));
+                        return match != null && match.StoreId.HasValue && fc.Stores.Contains(match.StoreId.Value);
+                    }).ToList();
+                }
+                else
+                {
+                    // Current: user must currently be in a team that belongs to the selected store(s).
+                    var now = DateTime.UtcNow;
+                    var currentStoreByUser = memberTeamMapping
+                        .Where(x => x.StartDate <= now && (x.EndDate == null || x.EndDate > now) && x.StoreId.HasValue)
+                        .GroupBy(x => x.UserInternalId)
+                        .ToDictionary(g => g.Key, g => g.Select(x => x.StoreId!.Value).ToHashSet());
+
+                    contracts = contracts.Where(c =>
+                    {
+                        if (c.UserInternalId == null) return false;
+                        return currentStoreByUser.TryGetValue(c.UserInternalId.Value, out var userStores)
+                               && userStores.Any(sid => fc.Stores.Contains(sid));
                     }).ToList();
                 }
             }
@@ -878,7 +939,7 @@ namespace SalesApp.ReportFilters.Services
 
             // Project each contract to only the outputColumns fields
             var columns = report.OutputColumns.OrderBy(c => c.Order).ToList();
-            var allRows = contracts.Select(c => ProjectContract(c, columns, getTeamName, getTeamOwnerName, getClassification)).ToList();
+            var allRows = contracts.Select(c => ProjectContract(c, columns, getTeamName, getTeamOwnerName, getClassification, getStoreName)).ToList();
 
             // Apply ordering if specified
             if (!string.IsNullOrWhiteSpace(report.OrderByField))
@@ -1009,7 +1070,8 @@ namespace SalesApp.ReportFilters.Services
                             "email",
                             "team",
                             "teamOwner",
-                            "classification"
+                            "classification",
+                            "store"
                         }
                     },
                     new SourceColumns
@@ -1073,13 +1135,14 @@ namespace SalesApp.ReportFilters.Services
             List<OutputColumnResponse> columns,
             Func<SalesApp.Models.Contract, string> getTeamName,
             Func<SalesApp.Models.Contract, string> getTeamOwnerName,
-            Func<SalesApp.Models.Contract, string> getClassification)
+            Func<SalesApp.Models.Contract, string> getClassification,
+            Func<SalesApp.Models.Contract, string> getStoreName)
         {
             var row = new Dictionary<string, object?>();
 
             foreach (var col in columns)
             {
-                row[col.Label] = ResolveField(contract, col.Source, col.Field, getTeamName, getTeamOwnerName, getClassification);
+                row[col.Label] = ResolveField(contract, col.Source, col.Field, getTeamName, getTeamOwnerName, getClassification, getStoreName);
             }
 
             // Synthetic Email column is still injected if not present, to ensure Group By works visually
@@ -1099,6 +1162,12 @@ namespace SalesApp.ReportFilters.Services
                 row["Classificação"] = getClassification(contract);
             }
 
+            // Synthetic Store column — always injected so grouping/filtering works consistently
+            if (!row.ContainsKey("Loja"))
+            {
+                row["Loja"] = getStoreName(contract);
+            }
+
             return row;
         }
 
@@ -1108,7 +1177,8 @@ namespace SalesApp.ReportFilters.Services
             string field,
             Func<SalesApp.Models.Contract, string> getTeamName,
             Func<SalesApp.Models.Contract, string> getTeamOwnerName,
-            Func<SalesApp.Models.Contract, string> getClassification)
+            Func<SalesApp.Models.Contract, string> getClassification,
+            Func<SalesApp.Models.Contract, string> getStoreName)
         {
             return source switch
             {
@@ -1134,6 +1204,7 @@ namespace SalesApp.ReportFilters.Services
                     "team"      => getTeamName(c),
                     "teamOwner" => getTeamOwnerName(c),
                     "classification" => getClassification(c),
+                    "store"     => getStoreName(c),
                     _           => null
                 },
                 "Users_Matricula" => c.Matricula?.UserMatriculas
@@ -1322,6 +1393,7 @@ namespace SalesApp.ReportFilters.Services
                     Emails              = f.FilterConfig.Emails,
                     Groups              = f.FilterConfig.Groups,
                     Teams               = f.FilterConfig.Teams,
+                    Stores              = f.FilterConfig.Stores,
                     TeamMembershipMode  = f.FilterConfig.TeamMembershipMode,
                     Pvs                 = f.FilterConfig.Pvs,
                     Statuses            = f.FilterConfig.Statuses,
@@ -1370,6 +1442,7 @@ namespace SalesApp.ReportFilters.Services
                 Emails              = req.Emails,
                 Groups              = req.Groups,
                 Teams               = req.Teams,
+                Stores              = req.Stores,
                 TeamMembershipMode  = req.TeamMembershipMode,
                 Pvs                 = req.Pvs,
                 Statuses            = req.Statuses,

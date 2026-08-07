@@ -17,6 +17,8 @@ namespace SalesApp.ReportFilters.DTOs
         public List<string>? Emails { get; set; }
         public List<int>? Groups { get; set; }
         public List<int>? Teams { get; set; }
+        /// <summary>Store identifiers to filter contracts by sellers whose active team belongs to these stores.</summary>
+        public List<int>? Stores { get; set; }
         /// <summary>"current" (default) or "historical" — controls how team membership is resolved for filtering.</summary>
         public string? TeamMembershipMode { get; set; }
         public List<int>? Pvs { get; set; }

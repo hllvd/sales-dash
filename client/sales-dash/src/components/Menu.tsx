@@ -26,6 +26,7 @@ import {
   IconTools,
   IconReceipt2,
   IconMailForward,
+  IconBuildingStore,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -312,6 +313,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/teams')}
+              onClick={() => { if (opened) close(); }}
+            />
+          )}
+
+          {hasPermission('system:superadmin') && (
+            <NavLink
+              href="#/stores"
+              label="Lojas"
+              leftSection={<IconBuildingStore size={20} />}
+              active={isActive('#/stores')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/stores')}
               onClick={() => { if (opened) close(); }}
             />
           )}

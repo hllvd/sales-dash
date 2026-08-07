@@ -18,6 +18,7 @@ export interface FilterConfig {
   teams?: number[];
   /** "current" (default) or "historical" — controls how team membership is resolved when filtering by team */
   teamMembershipMode?: 'current' | 'historical';
+  stores?: number[];
   pvs?: number[];
   statuses?: string[];
   statusOperator?: 'or' | 'and';
@@ -31,7 +32,7 @@ export interface FilterConfig {
 }
 
 export interface ExportedField {
-  fieldType: 'teams' | 'emails';
+  fieldType: 'teams' | 'emails' | 'stores';
   label: string;
 }
 
@@ -231,7 +232,7 @@ export const getReportResults = async (
   id: string,
   page: number = 1,
   pageSize: number = 25,
-  overrides?: { teamIds?: number[]; emails?: string[] }
+  overrides?: { teamIds?: number[]; emails?: string[]; storeIds?: number[] }
 ): Promise<ReportResultsResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -243,6 +244,9 @@ export const getReportResults = async (
   }
   if (overrides?.emails !== undefined) {
     params.set('emails', overrides.emails.join(','));
+  }
+  if (overrides?.storeIds !== undefined) {
+    params.set('storeIds', overrides.storeIds.join(','));
   }
 
   const response = await authenticatedFetch(`${API_BASE_URL}/report-filters/${id}/results?${params.toString()}`, {

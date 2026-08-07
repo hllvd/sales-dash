@@ -44,17 +44,19 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
   // Exported Field Interactivity State
   const [teamOptions, setTeamOptions] = useState<{ value: string; label: string }[]>([]);
   const [userOptions, setUserOptions] = useState<{ value: string; label: string }[]>([]);
+  const [storeOptions, setStoreOptions] = useState<{ value: string; label: string }[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(false);
 
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [selectedStores, setSelectedStores] = useState<string[]>([]);
 
   // Export state
   const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const exportToken = localStorage.getItem('token') || '';
 
-  const fetchResults = useCallback(async (overrides?: { teamIds?: number[]; emails?: string[] }) => {
+  const fetchResults = useCallback(async (overrides?: { teamIds?: number[]; emails?: string[]; storeIds?: number[] }) => {
     try {
       if (report) {
         setIsRefetching(true);
@@ -71,6 +73,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
         const saved = localStorage.getItem(getStorageKey(filterId));
         let activeTeamIds: number[] | undefined;
         let activeEmails: string[] | undefined;
+        let activeStoreIds: number[] | undefined;
 
         if (saved) {
           try {
@@ -83,6 +86,10 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
               setSelectedEmails(parsed.emails);
               activeEmails = parsed.emails;
             }
+            if (Array.isArray(parsed.stores)) {
+              setSelectedStores(parsed.stores);
+              activeStoreIds = parsed.stores.map(Number);
+            }
           } catch (e) {
             // Ignore bad localStorage content
           }
@@ -90,14 +97,17 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
           // Initialize from report's default filter config
           const defaultTeams = (filterData.filterConfig.teams || []).map(String);
           const defaultEmails = filterData.filterConfig.emails || [];
+          const defaultStores = (filterData.filterConfig.stores || []).map(String);
           setSelectedTeams(defaultTeams);
           setSelectedEmails(defaultEmails);
+          setSelectedStores(defaultStores);
         }
 
-        if (!overrides && (activeTeamIds !== undefined || activeEmails !== undefined)) {
+        if (!overrides && (activeTeamIds !== undefined || activeEmails !== undefined || activeStoreIds !== undefined)) {
           overrides = {
             teamIds: activeTeamIds,
-            emails: activeEmails
+            emails: activeEmails,
+            storeIds: activeStoreIds
           };
         }
       }
@@ -133,10 +143,12 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
         setOptionsLoading(true);
         const hasTeams = report.exportedFields.some(ef => ef.fieldType === 'teams');
         const hasEmails = report.exportedFields.some(ef => ef.fieldType === 'emails');
+        const hasStores = report.exportedFields.some(ef => ef.fieldType === 'stores');
 
         const promises: Promise<any>[] = [];
         if (hasTeams) promises.push(apiService.getTeams());
         if (hasEmails) promises.push(apiService.getUsers(1, 1000));
+        if (hasStores) promises.push(apiService.getAllActiveStores());
 
         const res = await Promise.all(promises);
         let idx = 0;
@@ -147,6 +159,10 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
         if (hasEmails) {
           const usersRes = res[idx++];
           setUserOptions((usersRes.data?.items || []).map((u: User) => ({ value: u.email, label: u.name || u.email })));
+        }
+        if (hasStores) {
+          const storesRes = res[idx++];
+          setStoreOptions((storesRes.data || []).map((s: any) => ({ value: s.id.toString(), label: s.name })));
         }
       } catch (err) {
         console.error('Failed to load exported field options', err);
@@ -164,11 +180,12 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
   const handleApplyFilters = () => {
     const overrides = {
       teamIds: selectedTeams.map(Number),
-      emails: selectedEmails
+      emails: selectedEmails,
+      storeIds: selectedStores.map(Number)
     };
     localStorage.setItem(
       getStorageKey(filterId),
-      JSON.stringify({ teams: selectedTeams, emails: selectedEmails })
+      JSON.stringify({ teams: selectedTeams, emails: selectedEmails, stores: selectedStores })
     );
     setPage(1);
     fetchResults(overrides);
@@ -178,10 +195,12 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
     localStorage.removeItem(getStorageKey(filterId));
     const defaultTeams = (report?.filterConfig.teams || []).map(String);
     const defaultEmails = report?.filterConfig.emails || [];
+    const defaultStores = (report?.filterConfig.stores || []).map(String);
     setSelectedTeams(defaultTeams);
     setSelectedEmails(defaultEmails);
+    setSelectedStores(defaultStores);
     setPage(1);
-    fetchResults({ teamIds: defaultTeams.map(Number), emails: defaultEmails });
+    fetchResults({ teamIds: defaultTeams.map(Number), emails: defaultEmails, storeIds: defaultStores.map(Number) });
   };
 
   const handleExport = async () => {
@@ -347,6 +366,30 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                             data={userOptions}
                             value={selectedEmails}
                             onChange={setSelectedEmails}
+                            searchable
+                            clearable
+                            size="xs"
+                          />
+                        )}
+                      </div>
+                    );
+                  }
+
+                  if (ef.fieldType === 'stores') {
+                    return (
+                      <div key="stores" style={{ minWidth: 260, flex: 1, maxWidth: 400 }}>
+                        {optionsLoading ? (
+                          <Stack gap={4}>
+                            <Text size="xs" fw={500}>{ef.label || 'Loja'}</Text>
+                            <Skeleton height={36} radius="sm" />
+                          </Stack>
+                        ) : (
+                          <MultiSelect
+                            label={ef.label || 'Loja'}
+                            placeholder="Selecionar lojas..."
+                            data={storeOptions}
+                            value={selectedStores}
+                            onChange={setSelectedStores}
                             searchable
                             clearable
                             size="xs"

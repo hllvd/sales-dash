@@ -42,7 +42,8 @@ namespace SalesApp.Data
         public DbSet<UserMetadataField> UserMetadataFields { get; set; }
         public DbSet<UserMetadataValue> UserMetadataValues { get; set; }
         public DbSet<ApprovalRequest> ApprovalRequests { get; set; }
-        
+        public DbSet<Store> Stores { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -412,6 +413,17 @@ namespace SalesApp.Data
                 entity.HasIndex(e => e.Name).IsUnique();
             });
 
+            // Store entity configuration
+            modelBuilder.Entity<Store>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.HasIndex(e => e.Name).IsUnique();
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.State).IsRequired().HasMaxLength(2);
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
+            });
+
             // Team entity configuration
             modelBuilder.Entity<Team>(entity =>
             {
@@ -425,6 +437,11 @@ namespace SalesApp.Data
                     .HasForeignKey(e => e.OwnerUserInternalId)
                     .HasPrincipalKey(u => u.InternalId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Store)
+                    .WithMany(s => s.Teams)
+                    .HasForeignKey(e => e.StoreId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             // UserTeam entity configuration

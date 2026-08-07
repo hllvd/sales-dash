@@ -57,6 +57,7 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IContractMetadataRepository, ContractMetadataRepository>();
             services.AddScoped<IUserMetadataRepository, UserMetadataRepository>();
             services.AddScoped<IMatriculaRepository, MatriculaRepository>();
+            services.AddScoped<IStoreRepository, StoreRepository>();
             services.AddScoped<IPendingContractClaimRepository, PendingContractClaimRepository>();
 
             services.AddScoped<IUserHierarchyService, UserHierarchyService>();

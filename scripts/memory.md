@@ -161,3 +161,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** When no warnings exist on Step 1, "Próximo Passo" directly advances to Step 2 without rendering "Avançar para Passo 2". In `import_wizard_status_update.spec.ts`, contract 821590 has status DESISTENTE, which is hidden by default and requires selecting "Desistente" in status filter to display with "Desistente" badge label.
 **Fix applied:** Updated `import_wizard_desistente_contracts.spec.ts` to assert direct Step 2 transition, and updated `import_wizard_status_update.spec.ts` to select "Desistente" status filter before asserting row 821590 and "Desistente" badge label.
 **Result:** ✅ Green — 145/145 passed
+
+## [2026-08-07] all — Attempt 1
+**Failure:** permission denied while trying to connect to the docker API at unix:///Users/hudson/.docker/run/docker.sock
+**Root cause:** Sandbox environment restricts access to Docker daemon socket on macOS host.
+**Fix applied:** None — blocker
+**Result:** 🚫 Blocked

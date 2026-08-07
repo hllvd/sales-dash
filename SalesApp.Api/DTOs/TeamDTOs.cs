@@ -18,6 +18,8 @@ namespace SalesApp.DTOs
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
 
+        public int? StoreId { get; set; }
+
         public List<TeamMemberRequest> Members { get; set; } = new List<TeamMemberRequest>();
     }
 
@@ -27,6 +29,10 @@ namespace SalesApp.DTOs
         public string? Name { get; set; }
 
         public Guid? OwnerUserId { get; set; }
+
+        public int? StoreId { get; set; }
+
+        public bool ClearStore { get; set; }
     }
 
     public class TeamMemberResponse
@@ -45,6 +51,9 @@ namespace SalesApp.DTOs
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
+        public int? StoreId { get; set; }
+        public string? StoreName { get; set; }
+        public string? StoreState { get; set; }
         public TeamMemberResponse? Owner { get; set; }
         public List<TeamMemberResponse> Members { get; set; } = new List<TeamMemberResponse>();
         public List<string> Warnings { get; set; } = new List<string>();

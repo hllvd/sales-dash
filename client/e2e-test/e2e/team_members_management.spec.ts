@@ -468,7 +468,7 @@ test.describe('Team Members Management E2E', () => {
     
     // --- 1. Test Validation: Start Date > End Date ---
     await editDatesBtn.click();
-    const popover = page.locator('.mantine-Popover-dropdown');
+    const popover = page.locator('.mantine-Popover-dropdown', { hasText: 'Editar Período na Equipe' });
     await expect(popover).toBeVisible();
 
     // Fill Start Date to 2022-01-01
