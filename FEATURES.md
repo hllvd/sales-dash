@@ -517,6 +517,14 @@ Otimização de paralelismo horizontal para a suíte de testes de integração .
   - Removido `DisableTestParallelization = true` e ativado `[assembly: CollectionBehavior(MaxParallelThreads = 4)]`.
 - **Isolation Guarantee**: Cada collection possui uma instância isolada de `TestWebApplicationFactory` com seu próprio arquivo de banco SQLite, prevenindo conflitos de escrita e travamento de DB.
 
+## Contract Dashboard Import - Unmapped Columns Warning Suppression (2026-08-07)
+
+Remoção do aviso `"Colunas não mapeadas detectadas na origem: ..."` especificamente durante a importação em lote do Dashboard de Contratos (`contractDashboard`).
+
+### Key Capabilities
+- **Selective Suppression (`ImportExecutionService.cs`)**: O aviso de colunas não mapeadas é omitido de `result.Warnings` apenas no fluxo do `ExecuteContractDashboardImportAsync`.
+- **Warning Retention**: Outros avisos durante a importação do dashboard (ex: mapeamento de status, matrículas e valor total ausente) permanecem ativos, assim como os avisos de colunas não mapeadas em importações padrão de contratos (`ExecuteContractImportAsync`) e usuários (`ExecuteUserImportAsync`).
+
 ## Contracts Page - Data da Última Atualização Column (2026-08-06)
 
 Adicionada a coluna "Data da última atualização" na página de gerenciamento de contratos (`ContractsPage`), permitindo aos usuários visualizar quando um contrato foi atualizado.
@@ -524,8 +532,6 @@ Adicionada a coluna "Data da última atualização" na página de gerenciamento 
 ### Key Capabilities
 - **Togglable Column**: Oculta por padrão (`lastUpdated: false`), podendo ser ativada/desativada no modal "Colunas".
 - **Data Source**: Utiliza o campo `updatedAt` retornado pela API na resposta de contratos.
-- **Persistence**: Estado da visibilidade salvo no `localStorage` sob a chave `contracts_visibleColumns`.
-
 
 
 

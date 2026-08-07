@@ -1270,7 +1270,7 @@ namespace SalesApp.Services
                 var unmappedColumns = keys.Where(k => !mappedColumns.Contains(k)).ToList();
                 if (unmappedColumns.Any())
                 {
-                    result.Warnings.Add($"Colunas não mapeadas detectadas na origem: {string.Join(", ", unmappedColumns)}. Estas colunas estão sendo ignoradas.");
+                    // result.Warnings.Add($"Colunas não mapeadas detectadas na origem: {string.Join(", ", unmappedColumns)}. Estas colunas estão sendo ignoradas.");
                 }
             }
 
