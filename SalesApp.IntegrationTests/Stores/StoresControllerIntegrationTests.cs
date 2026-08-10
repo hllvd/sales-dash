@@ -87,13 +87,14 @@ namespace SalesApp.IntegrationTests.Stores
             var superadminClient = await GetAuthenticatedClient("superadmin@test.com", "superadmin123");
 
             var storeName = $"DupStore {Guid.NewGuid().ToString()[..8]}";
-            var createReq = new CreateStoreRequest { Name = storeName, State = "SP" };
+            var createReq = new CreateStoreRequest { Name = $"  {storeName.ToUpperInvariant()}  ", State = "SP" };
 
             var firstRes = await superadminClient.PostAsJsonAsync("/api/stores", createReq);
             firstRes.StatusCode.Should().Be(HttpStatusCode.Created);
 
-            // Try creating with duplicate name
-            var secondRes = await superadminClient.PostAsJsonAsync("/api/stores", createReq);
+            // Try creating with duplicate name in different casing and with whitespace
+            var duplicateReq = new CreateStoreRequest { Name = $" {storeName.ToLowerInvariant()} ", State = "SP" };
+            var secondRes = await superadminClient.PostAsJsonAsync("/api/stores", duplicateReq);
             secondRes.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         }
 
