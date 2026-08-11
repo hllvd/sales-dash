@@ -1,5 +1,22 @@
 # Features
 
+## Teams Page State & Store Filters (Superadmin Only)
+
+This feature adds **Estado** (State) and **Loja** (Store) `MultiSelect` filters on the `/#/teams` page, exclusively visible to **superadmins**.
+
+### Core Objectives
+- Allow superadmins to filter the Teams list by state and/or store.
+- Apply **AND** logical combination when both State and Store filters are selected.
+- Hide teams that have no store assigned whenever any State or Store filter is active.
+- Restrict filter controls so they are visible strictly to superadmins (`currentUserRole === 'superadmin'`).
+
+### Key Capabilities
+- **State Filter**: Multi-select dropdown listing states associated with active stores.
+- **Store Filter**: Multi-select dropdown listing all active stores.
+- **AND Filter Combination**: Teams must match all active filter criteria.
+- **Role-Based Visibility**: Only rendered for superadmins; standard admins and regular users see the normal search input.
+- **Session Memory**: In-memory filter state (not persisted across page navigation).
+
 ## Team Creation & Admin Promotion via Requests (Solicitações)
 
 This feature enables users to request team creation directly through the unified **Solicitações** system. Upon approval by a superadmin or parent admin (superior in hierarchy), the system automatically creates the new team, sets the requester as its owner (admin), and promotes the requester's role to `admin`.

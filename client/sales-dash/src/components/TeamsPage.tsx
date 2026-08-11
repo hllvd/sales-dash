@@ -5,7 +5,7 @@ import Menu from "./Menu"
 import StyledModal from './StyledModal';
 import FormField from './FormField';
 import TeamMembersModal from './TeamMembersModal';
-import { apiService, Team, User } from "../services/apiService"
+import { apiService, Team, User, Store } from "../services/apiService"
 import { useReferenceData } from "../contexts/ReferenceDataContext"
 import { normalizeTeamName, normalizeName } from "../utils/normalization"
 import "./TeamsPage.css"
@@ -51,6 +51,11 @@ const TeamsPage: React.FC = () => {
     return "";
   })
 
+  // Store & State filters
+  const [activeStores, setActiveStores] = useState<Store[]>([])
+  const [filterState, setFilterState] = useState<string[]>([])
+  const [filterStore, setFilterStore] = useState<string[]>([])
+
   // Fetch teams
   const fetchTeams = useCallback(async (forceRefresh?: boolean) => {
     try {
@@ -76,10 +81,24 @@ const TeamsPage: React.FC = () => {
     }
   }, [getCachedAllUsers])
 
+  // Fetch active stores for superadmin filtering
+  const fetchStores = useCallback(async () => {
+    if (currentUserRole !== 'superadmin') return
+    try {
+      const res = await apiService.getAllActiveStores()
+      if (res.success && res.data) {
+        setActiveStores(res.data)
+      }
+    } catch (err) {
+      console.error("Falha ao carregar lojas ativas", err)
+    }
+  }, [currentUserRole])
+
   useEffect(() => {
     fetchTeams()
     fetchUsers()
-  }, [fetchTeams, fetchUsers])
+    fetchStores()
+  }, [fetchTeams, fetchUsers, fetchStores])
 
   // Get 8 years ago today in YYYY-MM-DD
   const getEightYearsAgoDateString = () => {
@@ -304,13 +323,49 @@ const TeamsPage: React.FC = () => {
     })
   }
 
-  // Filter teams based on search input
+  // State and Store options for superadmin filter
+  const isSuperAdmin = currentUserRole === 'superadmin'
+  const stateOptions = Array.from(
+    new Set(activeStores.map(s => s.state?.trim()).filter((st): st is string => Boolean(st)))
+  ).sort().map(st => ({ value: st, label: st }))
+
+  const storeOptions = activeStores.map(s => ({
+    value: s.id.toString(),
+    label: `${s.name}${s.state ? ` (${s.state})` : ''}`
+  }))
+
+  const hasStoreFilter = isSuperAdmin && (filterState.length > 0 || filterStore.length > 0)
+
+  // Filter teams based on search input and superadmin filters (State & Store using AND logic)
   const filteredTeams = teams.filter((team) => {
+    // 1. Text search filter
     const searchLower = search.trim().toLowerCase();
     const nameMatch = team.name.toLowerCase().includes(searchLower);
     const ownerMatch = team.owner ? team.owner.userName.toLowerCase().includes(searchLower) : false;
     const memberMatch = team.members.some((m) => m.userName.toLowerCase().includes(searchLower));
-    return nameMatch || ownerMatch || memberMatch;
+    if (!(nameMatch || ownerMatch || memberMatch)) return false;
+
+    // 2. Superadmin State & Store filters (AND logic)
+    if (hasStoreFilter) {
+      // Requirement 4: Teams without a store are hidden when any filter is active
+      if (!team.storeId) return false;
+
+      // Requirement 1 & 3: Filter by State
+      if (filterState.length > 0) {
+        if (!team.storeState || !filterState.includes(team.storeState)) {
+          return false;
+        }
+      }
+
+      // Requirement 2 & 3: Filter by Store
+      if (filterStore.length > 0) {
+        if (!filterStore.includes(team.storeId.toString())) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   });
 
   return (
@@ -326,7 +381,7 @@ const TeamsPage: React.FC = () => {
           <Group gap="sm">
             <Button 
               variant="default" 
-              onClick={() => { fetchTeams(true); fetchUsers(true); }} 
+              onClick={() => { fetchTeams(true); fetchUsers(true); fetchStores(); }} 
               leftSection={<IconRefresh size={16} />}
             >
               Atualizar
@@ -366,12 +421,40 @@ const TeamsPage: React.FC = () => {
         )}
 
         <div className="search-container" style={{ marginBottom: '20px' }}>
-          <TextInput
-            placeholder="Buscar por equipe, proprietário ou membro..."
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-            style={{ maxWidth: 400 }}
-          />
+          <Group gap="md" align="flex-end" style={{ flexWrap: 'wrap' }}>
+            <TextInput
+              placeholder="Buscar por equipe, proprietário ou membro..."
+              value={search}
+              onChange={(e) => setSearch(e.currentTarget.value)}
+              style={{ minWidth: 280, flex: 1, maxWidth: 400 }}
+            />
+            {isSuperAdmin && (
+              <>
+                <MultiSelect
+                  label="Estado"
+                  placeholder="Filtrar por estado"
+                  data={stateOptions}
+                  value={filterState}
+                  onChange={setFilterState}
+                  clearable
+                  searchable
+                  size="sm"
+                  style={{ minWidth: 180 }}
+                />
+                <MultiSelect
+                  label="Loja"
+                  placeholder="Filtrar por loja"
+                  data={storeOptions}
+                  value={filterStore}
+                  onChange={setFilterStore}
+                  clearable
+                  searchable
+                  size="sm"
+                  style={{ minWidth: 220 }}
+                />
+              </>
+            )}
+          </Group>
         </div>
 
         {loading ? (
