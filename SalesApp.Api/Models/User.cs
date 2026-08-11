@@ -37,6 +37,8 @@ namespace SalesApp.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? LastAccessedAt { get; set; }
         
         public int? ImportSessionId { get; set; } // Tracks if this user was created via import
         

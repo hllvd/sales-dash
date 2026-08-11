@@ -217,6 +217,7 @@ namespace SalesApp.Tests
             };
 
             _mockUserRepository.Setup(x => x.GetByEmailAsync(request.Email)).ReturnsAsync(user);
+            _mockUserRepository.Setup(x => x.GetByEmailForAuthAsync(request.Email)).ReturnsAsync(user);
             _mockJwtService.Setup(x => x.GenerateToken(user)).ReturnsAsync("test_token");
             _mockJwtService.Setup(x => x.GenerateRefreshToken()).Returns("test_refresh_token");
             _mockConfiguration.Setup(x => x["Jwt:RefreshTokenExpirationDays"]).Returns("7");

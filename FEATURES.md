@@ -1,5 +1,21 @@
 # Features
 
+## User Last Access Tracking (`LastAccessedAt`)
+
+This feature tracks when users last accessed the system (`LastAccessedAt`), throttled to once per 24 hours per user to prevent unnecessary database writes on every API request. The last access timestamp is exposed in API endpoints and displayed in the Users table.
+
+### Core Objectives
+- Track the exact date and time when a user accesses the application or API.
+- Eliminate database write overhead on standard API requests by implementing a 24-hour in-memory sliding cache throttle (`ConcurrentDictionary<Guid, DateTime>`).
+- Update `LastAccessedAt` immediately upon explicit login (`/api/auth/token`).
+- Display user last access timestamps on the Users table (`/#/users`), with `"Never"` as the fallback for users who have not yet accessed the system.
+
+### Key Capabilities
+- **24-Hour Database Throttle**: Middleware checks in-memory timestamp cache on authenticated requests. If the user's last DB update was < 24 hours ago, DB writes are skipped entirely.
+- **Background Asynchronous Updates**: When the 24-hour threshold is exceeded, the update runs asynchronously in a non-blocking background scope.
+- **Login Instant Update**: Explicit user login via `/api/auth/token` updates `LastAccessedAt` instantly and updates the in-memory cache.
+- **Users Table Display**: Adds an **"Último Acesso"** column to the Users page table, displaying formatted dates (`DD/MM/YYYY`) or `"Never"` if null.
+
 ## Reconciliação de Contratos (Ferramentas Admin)
 
 This feature introduces a contract reconciliation audit tool under **"Ferramentas Admin"** (`/#/contract-reconciliation`), allowing administrators to upload an XLSX file of expected customer contracts and cross-reference them against system contracts for a selected date range and user.

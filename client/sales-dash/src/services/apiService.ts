@@ -68,6 +68,7 @@ export interface User {
   isMatriculaOwner: boolean
   createdAt: string
   updatedAt: string
+  lastAccessedAt?: string
   activeMatriculas?: UserMatriculaInfo[]
   powerBiUsername?: string
   hasPowerBiCredentials?: boolean

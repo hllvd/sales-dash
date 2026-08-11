@@ -39,6 +39,11 @@ namespace SalesApp.Controllers
                 return Unauthorized(new { error = "invalid_grant", error_description = "User account is inactive" });
             }
             
+            var now = DateTime.UtcNow;
+            user.LastAccessedAt = now;
+            await _userRepository.UpdateAsync(user);
+            SalesApp.Middleware.UserAccessTrackingMiddleware.RecordAccess(user.Id, now);
+
             var token = await _jwtService.GenerateToken(user);
             
             return Ok(new

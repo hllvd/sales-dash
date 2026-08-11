@@ -93,13 +93,29 @@ namespace SalesApp.Repositories
             // that would violate the filtered UNIQUE index WHERE [IsOwner] = 1.
             if (matricula.IsOwner)
             {
-                await _context.UserMatriculas
-                    .Where(m => m.MatriculaId == matricula.MatriculaId
-                             && m.IsOwner
-                             && m.UserInternalId != matricula.UserInternalId)
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(m => m.IsOwner, false)
-                        .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
+                if (_context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+                {
+                    var existingOwners = await _context.UserMatriculas
+                        .Where(m => m.MatriculaId == matricula.MatriculaId
+                                 && m.IsOwner
+                                 && m.UserInternalId != matricula.UserInternalId)
+                        .ToListAsync();
+                    foreach (var owner in existingOwners)
+                    {
+                        owner.IsOwner = false;
+                        owner.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+                else
+                {
+                    await _context.UserMatriculas
+                        .Where(m => m.MatriculaId == matricula.MatriculaId
+                                 && m.IsOwner
+                                 && m.UserInternalId != matricula.UserInternalId)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(m => m.IsOwner, false)
+                            .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
+                }
             }
             
             _context.UserMatriculas.Add(matricula);
@@ -126,13 +142,29 @@ namespace SalesApp.Repositories
             // violating the filtered UNIQUE index WHERE [IsOwner] = 1.
             if (matricula.IsOwner)
             {
-                await _context.UserMatriculas
-                    .Where(m => m.MatriculaId == matricula.MatriculaId
-                             && m.IsOwner
-                             && m.UserInternalId != matricula.UserInternalId)
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(m => m.IsOwner, false)
-                        .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
+                if (_context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+                {
+                    var existingOwners = await _context.UserMatriculas
+                        .Where(m => m.MatriculaId == matricula.MatriculaId
+                                 && m.IsOwner
+                                 && m.UserInternalId != matricula.UserInternalId)
+                        .ToListAsync();
+                    foreach (var owner in existingOwners)
+                    {
+                        owner.IsOwner = false;
+                        owner.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+                else
+                {
+                    await _context.UserMatriculas
+                        .Where(m => m.MatriculaId == matricula.MatriculaId
+                                 && m.IsOwner
+                                 && m.UserInternalId != matricula.UserInternalId)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(m => m.IsOwner, false)
+                            .SetProperty(m => m.UpdatedAt, DateTime.UtcNow));
+                }
             }
             
             var existingEntry = _context.ChangeTracker.Entries<UserMatricula>()

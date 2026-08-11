@@ -274,7 +274,7 @@ const UsersPage: React.FC = () => {
           ) : (
             <>
               <div className="table-container">
-                <Table.ScrollContainer minWidth={800}>
+                <Table.ScrollContainer minWidth={900}>
                   <Table striped highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
@@ -284,6 +284,7 @@ const UsersPage: React.FC = () => {
                         <Table.Th>Nível</Table.Th>
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Criado em</Table.Th>
+                        <Table.Th>Último Acesso</Table.Th>
                         <Table.Th>Ações</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -338,6 +339,13 @@ const UsersPage: React.FC = () => {
                             </Badge>
                           </Table.Td>
                           <Table.Td>{formatDate(user.createdAt)}</Table.Td>
+                          <Table.Td>
+                            {user.lastAccessedAt ? (
+                              formatDate(user.lastAccessedAt)
+                            ) : (
+                              <span style={{ color: '#9ca3af', fontSize: 12, fontStyle: 'italic' }}>Never</span>
+                            )}
+                          </Table.Td>
                           <Table.Td>
                             {currentUserRole === "superadmin" || (currentUserRole === "admin" && allowedUserIds.has(user.id)) ? (
                               <Group gap="xs">

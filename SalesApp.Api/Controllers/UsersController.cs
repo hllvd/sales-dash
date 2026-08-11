@@ -533,6 +533,11 @@ namespace SalesApp.Controllers
                 });
             }
             
+            var now = DateTime.UtcNow;
+            user.LastAccessedAt = now;
+            await _userRepository.UpdateAsync(user);
+            SalesApp.Middleware.UserAccessTrackingMiddleware.RecordAccess(user.Id, now);
+
             var token = await _jwtService.GenerateToken(user);
             var refreshToken = _jwtService.GenerateRefreshToken();
             
@@ -1065,6 +1070,7 @@ namespace SalesApp.Controllers
 
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt,
+                LastAccessedAt = user.LastAccessedAt,
                 
                 // Matricula information
                 MatriculaId = primaryMatricula?.MatriculaId,

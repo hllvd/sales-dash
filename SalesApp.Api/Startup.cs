@@ -12,6 +12,7 @@ using SalesApp.Data;
 using SalesApp.Repositories;
 using SalesApp.Services;
 using SalesApp.Authorization;
+using SalesApp.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
@@ -306,6 +307,7 @@ namespace SalesApp
 
             app.UseAuthentication();
             app.UseAuthorization();
+            app.UseUserAccessTracking();
 
             app.UseEndpoints(endpoints =>
             {
