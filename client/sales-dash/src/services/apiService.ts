@@ -1446,6 +1446,43 @@ export const apiService = {
     if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to resolve approval request"))
     return response.json()
   },
+
+  async reconcileContracts(
+    file: File,
+    startDate: string,
+    endDate: string,
+    userId?: string
+  ): Promise<ContractReconciliationResult> {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("startDate", startDate)
+    formData.append("endDate", endDate)
+    if (userId) {
+      formData.append("userId", userId)
+    }
+
+    const token = localStorage.getItem("token")
+    const response = await authenticatedFetch(`${API_BASE_URL}/contractreconciliation/reconcile`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorText = typeof response === "string" ? response : await response.text().catch(() => "Erro na requisição")
+      let errorObj
+      try {
+        errorObj = JSON.parse(errorText)
+      } catch {
+        errorObj = null
+      }
+      throw new Error(errorObj?.message || errorText || "Erro ao realizar a reconciliação")
+    }
+
+    return response.json()
+  },
 }
 
 export interface UserHierarchyNode {
@@ -1813,3 +1850,43 @@ export interface ResolveApprovalPayload {
   action: string
   comment?: string
 }
+
+export interface ReconciledContractItem {
+  contractNumber: string
+  totalAmount: number
+  userIdentifier?: string
+  systemUserName?: string
+  date?: string
+  source: 'XLSX' | 'System'
+}
+
+export interface AmountMismatchItem {
+  contractNumber: string
+  systemAmount: number
+  xlsxAmount: number
+  difference: number
+  userIdentifier?: string
+  systemUserName?: string
+  saleStartDate?: string
+}
+
+export interface ReconciliationCategorySummary {
+  count: number
+  totalAmount: number
+}
+
+export interface ContractReconciliationResult {
+  startDate: string
+  endDate: string
+  targetUserId?: string
+  targetUserName?: string
+  missingInSystemSummary: ReconciliationCategorySummary
+  missingInImportSummary: ReconciliationCategorySummary
+  amountMismatchSummary: ReconciliationCategorySummary
+  unassignedUserSummary: ReconciliationCategorySummary
+  missingInSystem: ReconciledContractItem[]
+  missingInImport: ReconciledContractItem[]
+  amountMismatches: AmountMismatchItem[]
+  unassignedUserContracts: ReconciledContractItem[]
+}
+

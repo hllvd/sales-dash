@@ -1,5 +1,25 @@
 # Features
 
+## Reconciliação de Contratos (Ferramentas Admin)
+
+This feature introduces a contract reconciliation audit tool under **"Ferramentas Admin"** (`/#/contract-reconciliation`), allowing administrators to upload an XLSX file of expected customer contracts and cross-reference them against system contracts for a selected date range and user.
+
+### Core Objectives
+- Resolve contract count and total amount discrepancies reported by users/customers.
+- Allow admins to select a `startDate`, `endDate`, and optional target `userId`.
+- Parse uploaded `.xlsx` or `.csv` files on-the-fly in memory without writing temp records to the database.
+- Categorize contract mismatches into 4 distinct breakdown metrics with detailed expandable tables and CSV export.
+
+### Key Capabilities
+- **Cross-Reference Breakdown Categories**:
+  1. **Ausentes no Sistema**: Contracts present in XLSX (for user) that do not exist in the database within the date range.
+  2. **Ausentes no XLSX**: System contracts for user within the date range that are missing in the XLSX file.
+  3. **Divergência de Valor**: Contracts present in both sources for user where `|SystemAmount - XlsxAmount| > 0.01`.
+  4. **Sem Usuário Atribuído**: Contracts in XLSX where user identifier (email, matricula, CPF, or user ID) is missing or cannot be matched to any system user.
+- **KPI Summary Cards**: 4 visual status cards with totals and amounts.
+- **Interactive Data Table**: Search bar filter by contract number or user name + instant CSV export for each category.
+- **Role-Based Access**: Restricted to superadmin access under **"Ferramentas Admin" -> "Reconciliação de Contratos"**.
+
 ## Teams Page State & Store Filters (Superadmin Only)
 
 This feature adds **Estado** (State) and **Loja** (Store) `MultiSelect` filters on the `/#/teams` page, exclusively visible to **superadmins**.
