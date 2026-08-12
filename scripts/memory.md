@@ -162,8 +162,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated `import_wizard_desistente_contracts.spec.ts` to assert direct Step 2 transition, and updated `import_wizard_status_update.spec.ts` to select "Desistente" status filter before asserting row 821590 and "Desistente" badge label.
 **Result:** ✅ Green — 145/145 passed
 
-## [2026-08-07] all — Attempt 1
-**Failure:** permission denied while trying to connect to the docker API at unix:///Users/hudson/.docker/run/docker.sock
-**Root cause:** Sandbox environment restricts access to Docker daemon socket on macOS host.
-**Fix applied:** None — blocker
-**Result:** 🚫 Blocked
+## [2026-08-12] integration — Attempt 1
+**Failure:** `ScrapeDynamoDbIntegrationTests.cs(129,112): error CS1503: Argument 6: cannot convert from '<anonymous type: int RowCount, string FileRelativePath>' to 'string?'`
+**Root cause:** `WriteJobStatusAsync` signature was updated to include optional `runId` and `userEmail` parameters before `additionalData`. Position 6 changed from `object? additionalData` to `string? runId`.
+**Fix applied:** Updated line 129 in `ScrapeDynamoDbIntegrationTests.cs` to pass `additionalData: new { RowCount = 42, FileRelativePath = "data.csv" }` as a named argument.
+**Result:** ✅ Green
+

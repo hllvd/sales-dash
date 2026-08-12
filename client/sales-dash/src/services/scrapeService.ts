@@ -21,7 +21,9 @@ export interface ScrapeConfigRequest {
 
 export interface ScrapeJob {
     jobId: string;
+    runId?: string;
     userId: string;
+    userEmail?: string;
     status: string;
     store: string;
     matricula: string;
@@ -30,6 +32,29 @@ export interface ScrapeJob {
     fileRelativePath?: string;
     createdAt: string;
     completedAt?: string;
+}
+
+export interface ScrapeRunSummary {
+    runId: string;
+    userId: string;
+    userEmail: string;
+    finalStatus: string;
+    createdAt: string;
+    totalJobs: number;
+    succeededJobs: number;
+    failedJobs: number;
+    totalRowCount: number;
+    stores: string[];
+    matriculas: string[];
+}
+
+export interface ScrapeRunDetail {
+    runId: string;
+    userId: string;
+    userEmail: string;
+    finalStatus: string;
+    createdAt: string;
+    jobs: ScrapeJob[];
 }
 
 const ENDPOINT_PREFIX = '/scrape';
@@ -55,7 +80,15 @@ export const scrapeService = {
         return apiService.get(`${ENDPOINT_PREFIX}/jobs/me`);
     },
 
-    triggerScrape: async (configId: number): Promise<{ jobId: string }> => {
+    getRuns: async (): Promise<ScrapeRunSummary[]> => {
+        return apiService.get(`${ENDPOINT_PREFIX}/runs/me`);
+    },
+
+    getRunDetail: async (runId: string): Promise<ScrapeRunDetail> => {
+        return apiService.get(`${ENDPOINT_PREFIX}/runs/${encodeURIComponent(runId)}`);
+    },
+
+    triggerScrape: async (configId: number): Promise<{ jobId: string; runId: string }> => {
         return apiService.post(`${ENDPOINT_PREFIX}/jobs/${configId}`, {});
     }
 };

@@ -7,7 +7,7 @@ namespace SalesApp.Services
 {
     public interface IScrapeOrchestrator
     {
-        Task<string> TriggerScrapeAsync(int configId, bool isManual = true);
+        Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null);
         Task HandleCallbackAsync(ScrapeResult result);
     }
 
@@ -36,7 +36,7 @@ namespace SalesApp.Services
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
         }
 
-        public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true)
+        public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null)
         {
             var config = await _context.ScrapeConfigs
                 .Include(c => c.User)
@@ -45,6 +45,8 @@ namespace SalesApp.Services
             if (config == null) throw new ArgumentException($"Config {configId} not found");
 
             var jobId = Guid.NewGuid().ToString();
+            var effectiveRunId = string.IsNullOrEmpty(runId) ? Guid.NewGuid().ToString() : runId;
+            var effectiveUserEmail = string.IsNullOrEmpty(userEmail) ? (config.User?.Email ?? string.Empty) : userEmail;
             
             // 1. Log start in DynamoDB
             await _logService.WriteJobStatusAsync(
@@ -53,6 +55,8 @@ namespace SalesApp.Services
                 status: "Pending",
                 store: config.Store,
                 matricula: config.Matricula,
+                runId: effectiveRunId,
+                userEmail: effectiveUserEmail,
                 additionalData: new { IsManual = isManual }
             );
 
@@ -81,7 +85,9 @@ namespace SalesApp.Services
                     userId: config.UserId?.ToString() ?? string.Empty,
                     status: "Running",
                     store: config.Store,
-                    matricula: config.Matricula
+                    matricula: config.Matricula,
+                    runId: effectiveRunId,
+                    userEmail: effectiveUserEmail
                 );
             }
             catch (Exception ex)
@@ -92,6 +98,8 @@ namespace SalesApp.Services
                     status: "Failed",
                     store: config.Store,
                     matricula: config.Matricula,
+                    runId: effectiveRunId,
+                    userEmail: effectiveUserEmail,
                     additionalData: new { ErrorMessage = ex.Message }
                 );
                 throw;
@@ -109,6 +117,7 @@ namespace SalesApp.Services
                 status: result.Status,
                 store: result.Store ?? "Unknown",
                 matricula: result.Matricula ?? "Unknown",
+                runId: result.RunId,
                 additionalData: new
                 {
                     RowCount = result.RowCount,
@@ -138,6 +147,7 @@ namespace SalesApp.Services
                             status: statusStr,
                             store: result.Store ?? "Unknown",
                             matricula: result.Matricula ?? "Unknown",
+                            runId: result.RunId,
                             additionalData: new 
                             { 
                                 ErrorMessage = errorMsg,
@@ -155,6 +165,7 @@ namespace SalesApp.Services
                         status: "Failed",
                         store: result.Store ?? "Unknown",
                         matricula: result.Matricula ?? "Unknown",
+                        runId: result.RunId,
                         additionalData: new { ErrorMessage = $"Erro no sistema de importação: {ex.Message}" }
                     );
                 }

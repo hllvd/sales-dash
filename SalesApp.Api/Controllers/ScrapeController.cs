@@ -181,6 +181,7 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> TriggerScrape(int configId)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
             var config = await _context.ScrapeConfigs
                 .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.Id == configId);
@@ -188,8 +189,9 @@ namespace SalesApp.Controllers
             if (config == null) return NotFound();
             if (!User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
 
-            var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true);
-            return Accepted(new { jobId });
+            var runId = Guid.NewGuid().ToString();
+            var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail);
+            return Accepted(new { jobId, runId });
         }
 
         [Authorize(Roles = "admin,superadmin")]
@@ -207,6 +209,43 @@ namespace SalesApp.Controllers
         {
             var jobs = await _logService.GetAllJobsAsync();
             return Ok(jobs);
+        }
+
+        [Authorize(Roles = "admin,superadmin")]
+        [HttpGet("runs/me")]
+        public async Task<IActionResult> GetMyRuns()
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var runs = await _logService.GetRunsByUserAsync(userId);
+            return Ok(runs);
+        }
+
+        [Authorize(Roles = "superadmin")]
+        [HttpGet("runs/all")]
+        public async Task<IActionResult> GetAllRuns()
+        {
+            var runs = await _logService.GetAllRunsAsync();
+            return Ok(runs);
+        }
+
+        [Authorize(Roles = "admin,superadmin")]
+        [HttpGet("runs/{runId}")]
+        public async Task<IActionResult> GetRunDetail(string runId)
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var detail = await _logService.GetRunDetailAsync(runId, userId);
+            if (detail == null && User.IsInRole("superadmin"))
+            {
+                detail = await _logService.GetRunDetailAsync(runId, null);
+            }
+            if (detail == null) return NotFound();
+
+            if (!User.IsInRole("superadmin") && detail.UserId != userId.ToString())
+            {
+                return Forbid();
+            }
+
+            return Ok(detail);
         }
 
         [HttpPut("callback")]

@@ -126,7 +126,7 @@ namespace SalesApp.IntegrationTests.Scraping
             var myInitialJobs = await dynamoDbService.GetJobsByUserAsync(userId);
             
             // Act - Log Completed with RowCount
-            await dynamoDbService.WriteJobStatusAsync(jobId, userId.ToString(), "Succeeded", store, matricula, new { RowCount = 42, FileRelativePath = "data.csv" });
+            await dynamoDbService.WriteJobStatusAsync(jobId, userId.ToString(), "Succeeded", store, matricula, additionalData: new { RowCount = 42, FileRelativePath = "data.csv" });
 
             // Fetch after Completed
             var finalJobs = await dynamoDbService.GetAllJobsAsync();

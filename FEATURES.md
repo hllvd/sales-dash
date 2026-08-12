@@ -133,6 +133,7 @@ The primary goal is to stabilize the data scraping pipeline by dynamically handl
 - **Historical Tracking**: Detailed logs of every scrape execution, accessible via the dashboard.
 - **Retry Mechanism**: Ability to manually retry failed scraping jobs.
 - **Auto-Import**: Scraped data is automatically imported into the central contracts database after each successful run.
+- **Grouped Extraction History by Run**: Extractions are grouped by unique `RunId` execution GUIDs. The history UI presents a summarized list of runs ordered newest-first, showing executor email, matricula, final status summary, and total records. Clicking a run opens a dedicated detail page with filtering capabilities (user, matricula, store, final status). Legacy un-grouped records without a `RunId` are filtered out of the view.
 - **Role-Based Access**:
   - **SuperAdmin**: Can view all history, manage configs for any user, and retry any job.
   - **Admin**: Can view their own history and trigger scrapes for their assigned units.

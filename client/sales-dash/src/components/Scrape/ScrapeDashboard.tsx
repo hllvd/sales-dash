@@ -19,7 +19,6 @@ import {
   Stack,
   PasswordInput,
   Checkbox,
-  Stack as MantineStack,
   Tabs,
   Divider,
 } from '@mantine/core';
@@ -36,7 +35,7 @@ import {
   IconUserCheck
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { scrapeService, ScrapeConfig, ScrapeJob } from '../../services/scrapeService';
+import { scrapeService, ScrapeConfig, ScrapeRunSummary } from '../../services/scrapeService';
 import Menu from '../Menu';
 import './ScrapeDashboard.css';
 
@@ -89,14 +88,19 @@ const STORES = [
 
 const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'links' }) => {
   const [configs, setConfigs] = useState<ScrapeConfig[]>([]);
-  const [jobs, setJobs] = useState<ScrapeJob[]>([]);
+  const [runs, setRuns] = useState<ScrapeRunSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<Partial<ScrapeConfig> | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>(initialTab);
 
+  // History Filter state
+  const [filterUser, setFilterUser] = useState('');
+  const [filterMatricula, setFilterMatricula] = useState('');
+  const [filterStore, setFilterStore] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+
   // Form state
-  // ...
   const [store, setStore] = useState<string | null>(null);
   const [matricula, setMatricula] = useState('');
   const [password, setPassword] = useState('');
@@ -113,12 +117,12 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [configsRes, jobsRes] = await Promise.all([
+      const [configsRes, runsRes] = await Promise.all([
         scrapeService.getConfigs(),
-        scrapeService.getJobs()
+        scrapeService.getRuns()
       ]);
       setConfigs(configsRes || []);
-      setJobs(jobsRes || []);
+      setRuns(runsRes || []);
     } catch (error) {
       notifications.show({
         title: 'Erro',
@@ -260,12 +264,12 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getFinalStatusBadge = (status: string) => {
     switch (status) {
-      case 'Pending': return <Badge color="gray" variant="light">Pendente</Badge>;
+      case 'Succeeded': return <Badge color="green" variant="filled">Sucesso Total</Badge>;
+      case 'Failed': return <Badge color="red" variant="filled">Falha</Badge>;
       case 'Running': return <Badge color="blue" variant="filled">Executando...</Badge>;
-      case 'Succeeded': return <Badge color="green" variant="light">Sucesso</Badge>;
-      case 'Failed': return <Badge color="red" variant="light">Falha</Badge>;
+      case 'Pending': return <Badge color="gray" variant="filled">Pendente</Badge>;
       default: return <Badge color="gray">{status}</Badge>;
     }
   };
@@ -326,21 +330,39 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
     </Table.Tr>
   ));
 
-  const jobRows = (jobs || []).map((job) => (
-    <Table.Tr key={job.jobId}>
-      <Table.Td>{new Date(job.createdAt).toLocaleString('pt-BR')}</Table.Td>
-      <Table.Td>{job.store}</Table.Td>
-      <Table.Td>{job.matricula}</Table.Td>
-      <Table.Td>{getStatusBadge(job.status)}</Table.Td>
-      <Table.Td>{job.rowCount || 0}</Table.Td>
+  // Filtered runs
+  const filteredRuns = (runs || []).filter((run) => {
+    if (filterUser && !run.userEmail.toLowerCase().includes(filterUser.toLowerCase())) {
+      return false;
+    }
+    if (filterMatricula && !run.matriculas.some((m) => m.toLowerCase().includes(filterMatricula.toLowerCase()))) {
+      return false;
+    }
+    if (filterStore && !run.stores.some((s) => s === filterStore)) {
+      return false;
+    }
+    if (filterStatus && filterStatus !== 'all' && run.finalStatus !== filterStatus) {
+      return false;
+    }
+    return true;
+  });
+
+  const runRows = filteredRuns.map((run) => (
+    <Table.Tr 
+      key={run.runId} 
+      style={{ cursor: 'pointer' }}
+      onClick={() => { window.location.hash = `#/scrapes/runs/${run.runId}`; }}
+    >
+      <Table.Td>{new Date(run.createdAt).toLocaleString('pt-BR')}</Table.Td>
+      <Table.Td><Text size="sm" fw={500}>{run.userEmail || 'Desconhecido'}</Text></Table.Td>
+      <Table.Td><Text size="sm">{run.matriculas.join(', ') || '-'}</Text></Table.Td>
+      <Table.Td><Text size="sm">{run.stores.join(', ') || '-'}</Text></Table.Td>
+      <Table.Td>{getFinalStatusBadge(run.finalStatus)}</Table.Td>
+      <Table.Td><Text fw={600} size="sm">{run.totalRowCount}</Text></Table.Td>
       <Table.Td>
-        {job.status === 'Failed' ? (
-          <Text c="red" size="xs" lineClamp={2} title={job.errorMessage || 'Erro na importação'}>
-            {job.errorMessage || 'Erro na importação'}
-          </Text>
-        ) : (
-          job.status === 'Succeeded' && <IconCheck size={18} color="green" />
-        )}
+        <Button size="compact-xs" variant="light" color="indigo">
+          Ver Detalhes
+        </Button>
       </Table.Td>
     </Table.Tr>
   ));
@@ -434,21 +456,59 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
 
           <Tabs.Panel value="history" pt="xl">
             <Paper withBorder radius="md" p="md">
-              {!jobs || jobs.length === 0 ? (
-                <Text ta="center" c="dimmed" p="xl">Nenhuma extração realizada ainda.</Text>
+              <Stack gap="md" mb="md">
+                <Text fw={600} size="lg">Filtros de Histórico</Text>
+                <Group grow gap="md">
+                  <TextInput
+                    placeholder="Filtrar por Usuário (Email)"
+                    value={filterUser}
+                    onChange={(e) => setFilterUser(e.currentTarget.value)}
+                  />
+                  <TextInput
+                    placeholder="Filtrar por Matrícula"
+                    value={filterMatricula}
+                    onChange={(e) => setFilterMatricula(e.currentTarget.value)}
+                  />
+                  <Select
+                    placeholder="Filtrar por Unidade"
+                    data={STORES}
+                    value={filterStore}
+                    onChange={setFilterStore}
+                    searchable
+                    clearable
+                  />
+                  <Select
+                    placeholder="Filtrar por Status"
+                    data={[
+                      { value: 'all', label: 'Todos os Status' },
+                      { value: 'Succeeded', label: 'Sucesso Total' },
+                      { value: 'Failed', label: 'Falha' },
+                      { value: 'Running', label: 'Executando' },
+                      { value: 'Pending', label: 'Pendente' },
+                    ]}
+                    value={filterStatus}
+                    onChange={setFilterStatus}
+                    clearable
+                  />
+                </Group>
+              </Stack>
+
+              {runRows.length === 0 ? (
+                <Text ta="center" c="dimmed" p="xl">Nenhuma extração encontrada com os filtros selecionados.</Text>
               ) : (
                 <Table striped highlightOnHover verticalSpacing="sm">
                   <Table.Thead>
                     <Table.Tr>
-                      <Table.Th>Data</Table.Th>
-                      <Table.Th>Unidade</Table.Th>
-                      <Table.Th>Matrícula</Table.Th>
-                      <Table.Th>Status</Table.Th>
-                      <Table.Th>Registros</Table.Th>
-                      <Table.Th>Obs</Table.Th>
+                      <Table.Th>Data da Execução</Table.Th>
+                      <Table.Th>Executado Por (Email)</Table.Th>
+                      <Table.Th>Matrícula(s)</Table.Th>
+                      <Table.Th>Unidade(s)</Table.Th>
+                      <Table.Th>Status Final</Table.Th>
+                      <Table.Th>Registros Totais</Table.Th>
+                      <Table.Th>Ação</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
-                  <Table.Tbody>{jobRows}</Table.Tbody>
+                  <Table.Tbody>{runRows}</Table.Tbody>
                 </Table>
               )}
             </Paper>

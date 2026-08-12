@@ -3,6 +3,7 @@ namespace SalesApp.Models
     public class ScrapeResult
     {
         public string JobId { get; set; } = string.Empty;
+        public string? RunId { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string? Store { get; set; }

@@ -16,6 +16,7 @@ import ImportHistoryPage from './components/ImportHistoryPage';
 import ImportWizardPage from './components/ImportWizardPage';
 import AccessControlPage from './components/AccessControlPage';
 import ScrapeDashboard from './components/Scrape/ScrapeDashboard';
+import ScrapeRunDetailPage from './components/Scrape/ScrapeRunDetailPage';
 import ReportsRouter from './components/Reports/ReportsRouter';
 import ViewsRouter from './components/Reports/ViewsRouter';
 import MatriculaHealthPage from './components/Monitoring/MatriculaHealthPage';
@@ -77,6 +78,11 @@ function App() {
 
     if (routePath.startsWith('#/views')) {
       return <ViewsRouter currentRoute={currentRoute} />;
+    }
+
+    if (routePath.startsWith('#/scrapes/runs/')) {
+      const runId = routePath.replace('#/scrapes/runs/', '');
+      return <ScrapeRunDetailPage runId={runId} />;
     }
 
     switch (routePath) {
