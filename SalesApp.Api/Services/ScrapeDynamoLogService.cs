@@ -288,6 +288,16 @@ namespace SalesApp.Services
             }
         }
 
+        private static List<ScrapeLogEntry> DeduplicateJobs(List<ScrapeLogEntry> jobs)
+        {
+            return jobs
+                .GroupBy(j => j.JobId)
+                .Select(g => g.OrderByDescending(j => j.RowCount > 0 ? 1 : 0)
+                             .ThenByDescending(j => j.CompletedAt ?? j.CreatedAt)
+                             .First())
+                .ToList();
+        }
+
         private List<ScrapeRunSummary> AggregateRuns(List<ScrapeLogEntry> jobs)
         {
             // Filter out entries without a RunId per user preference
@@ -297,22 +307,23 @@ namespace SalesApp.Services
                 .GroupBy(j => j.RunId)
                 .Select(g =>
                 {
-                    var jobList = g.OrderByDescending(j => j.CreatedAt).ToList();
-                    var first = jobList.First();
+                    var jobList = g.ToList();
+                    var deduplicated = DeduplicateJobs(jobList);
+                    var first = deduplicated.First();
 
                     return new ScrapeRunSummary
                     {
                         RunId = g.Key,
                         UserId = first.UserId,
                         UserEmail = first.UserEmail,
-                        FinalStatus = ComputeFinalStatus(jobList),
-                        CreatedAt = jobList.Min(j => j.CreatedAt),
-                        TotalJobs = jobList.Count,
-                        SucceededJobs = jobList.Count(j => j.Status == "Succeeded"),
-                        FailedJobs = jobList.Count(j => j.Status == "Failed"),
-                        TotalRowCount = jobList.Sum(j => j.RowCount),
-                        Stores = jobList.Select(j => j.Store).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList(),
-                        Matriculas = jobList.Select(j => j.Matricula).Where(m => !string.IsNullOrEmpty(m)).Distinct().ToList()
+                        FinalStatus = ComputeFinalStatus(deduplicated),
+                        CreatedAt = deduplicated.Min(j => j.CreatedAt),
+                        TotalJobs = deduplicated.Count,
+                        SucceededJobs = deduplicated.Count(j => j.Status == "Succeeded"),
+                        FailedJobs = deduplicated.Count(j => j.Status == "Failed"),
+                        TotalRowCount = deduplicated.Sum(j => j.RowCount),
+                        Stores = deduplicated.Select(j => j.Store).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList(),
+                        Matriculas = deduplicated.Select(j => j.Matricula).Where(m => !string.IsNullOrEmpty(m)).Distinct().ToList()
                     };
                 })
                 .OrderByDescending(r => r.CreatedAt)
@@ -336,6 +347,11 @@ namespace SalesApp.Services
             var runId = item.GetValueOrDefault("RunId")?.S ?? item.GetValueOrDefault("runId")?.S ?? "";
             if (string.IsNullOrEmpty(runId)) runId = jobId;
 
+            var rowCountStr = item.GetValueOrDefault("RowCount")?.N
+                           ?? item.GetValueOrDefault("RowCount")?.S
+                           ?? item.GetValueOrDefault("rowCount")?.N
+                           ?? item.GetValueOrDefault("rowCount")?.S;
+
             return new ScrapeLogEntry
             {
                 JobId = jobId,
@@ -345,7 +361,7 @@ namespace SalesApp.Services
                 Status = item.GetValueOrDefault("Status")?.S ?? item.GetValueOrDefault("status")?.S ?? "",
                 Store = item.GetValueOrDefault("Store")?.S ?? item.GetValueOrDefault("store")?.S ?? "",
                 Matricula = item.GetValueOrDefault("Matricula")?.S ?? item.GetValueOrDefault("matricula")?.S ?? "",
-                RowCount = int.TryParse(item.GetValueOrDefault("RowCount")?.S ?? item.GetValueOrDefault("rowCount")?.S, out var rc) ? rc : 0,
+                RowCount = int.TryParse(rowCountStr, out var rc) ? rc : 0,
                 ErrorMessage = item.GetValueOrDefault("error")?.S ?? item.GetValueOrDefault("ErrorMessage")?.S ?? item.GetValueOrDefault("errorMessage")?.S,
                 FileRelativePath = item.GetValueOrDefault("fileRelativePath")?.S ?? item.GetValueOrDefault("FileRelativePath")?.S,
                 CreatedAt = DateTime.TryParse(item.GetValueOrDefault("CreatedAt")?.S ?? item.GetValueOrDefault("createdAt")?.S, out var d) ? d : DateTime.MinValue,
