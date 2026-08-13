@@ -62,7 +62,7 @@ namespace SalesApp.Services
             return result?.jobId?.ToString() ?? jobId;
         }
 
-        public async Task<(bool success, string message, List<string>? steps)> TestAuthAsync(string matricula, string password)
+        public async Task<(bool success, bool loginSuccess, string message, List<string>? steps)> TestAuthAsync(string matricula, string password)
         {
             var request = new
             {
@@ -77,6 +77,7 @@ namespace SalesApp.Services
             var result = JsonConvert.DeserializeObject<dynamic>(resultJson);
 
             bool isSuccess = result?.success != null ? (bool)result.success : response.IsSuccessStatusCode;
+            bool loginSuccess = result?.loginSuccess != null ? (bool)result.loginSuccess : isSuccess;
             string msg = result?.message?.ToString() ?? (isSuccess ? "Autenticação bem-sucedida" : "Falha na autenticação");
             
             List<string>? steps = null;
@@ -86,7 +87,7 @@ namespace SalesApp.Services
                 catch { }
             }
 
-            return (isSuccess, msg, steps);
+            return (isSuccess, loginSuccess, msg, steps);
         }
     }
 }

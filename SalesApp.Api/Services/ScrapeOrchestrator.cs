@@ -73,12 +73,7 @@ namespace SalesApp.Services
             // 2. Call Node.js service
             try
             {
-                string? decryptedPassword = null;
-                if (!string.IsNullOrEmpty(config.PowerBiPassword))
-                {
-                    try { decryptedPassword = _protector.Unprotect(config.PowerBiPassword); }
-                    catch { /* Fallback or log error */ }
-                }
+                string? decryptedPassword = config.PowerBiPassword;
 
                 await _scraperClient.EnqueueJobAsync(
                     jobId: jobId,

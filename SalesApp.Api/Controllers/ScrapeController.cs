@@ -95,15 +95,15 @@ namespace SalesApp.Controllers
 
             if (!string.IsNullOrEmpty(request.PowerBiPassword))
             {
-                config.PowerBiPassword = _protector.Protect(request.PowerBiPassword);
+                config.PowerBiPassword = request.PowerBiPassword;
                 config.CredentialStatus = null; // Reset status on password change
 
                 // Test authentication if requested and not in E2E
                 if (request.TestOnSave && !_isE2E)
                 {
-                    var (success, message, steps) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword);
-                    config.CredentialStatus = success ? "ok" : "wrong-password";
-                    if (!success)
+                    var (success, loginSuccess, message, steps) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword);
+                    config.CredentialStatus = (loginSuccess || success) ? "ok" : "wrong-password";
+                    if (!loginSuccess && !success)
                     {
                         return BadRequest(new { message = $"Falha na autenticação: {message}", steps });
                     }
@@ -149,7 +149,7 @@ namespace SalesApp.Controllers
 
         [Authorize(Roles = "admin,superadmin")]
         [HttpPost("configs/{id}/test-auth")]
-        public async Task<IActionResult> TestAuth(int id)
+        public async Task<IActionResult> TestAuth(int id, [FromQuery] bool force = false)
         {
             if (_isE2E) return Ok(new { success = true, message = "Autenticação ignorada em modo E2E", steps = new string[0] });
 
@@ -166,23 +166,27 @@ namespace SalesApp.Controllers
                 return BadRequest(new { message = "Senha não configurada" });
             }
 
-            string password;
-            try
+            if (config.CredentialStatus == "wrong-password" && !force)
             {
-                password = _protector.Unprotect(config.PowerBiPassword);
-            }
-            catch
-            {
-                password = config.PowerBiPassword;
+                var warnMessage = "Já testamos essas credenciais recentemente e ocorreu um erro de senha. Tem certeza que deseja testar novamente?";
+                return Ok(new { 
+                    success = false, 
+                    requiresConfirmation = true,
+                    message = warnMessage, 
+                    steps = new[] { $"[Aviso] Teste prevenido para evitar bloqueio de conta: {warnMessage}" } 
+                });
             }
 
-            var (success, message, steps) = await _scraperClient.TestAuthAsync(config.Matricula, password);
+            string password = config.PowerBiPassword;
 
-            config.CredentialStatus = success ? "ok" : "wrong-password";
+            var (success, loginSuccess, message, steps) = await _scraperClient.TestAuthAsync(config.Matricula, password);
+
+            bool effectiveSuccess = loginSuccess || success;
+            config.CredentialStatus = effectiveSuccess ? "ok" : "wrong-password";
             config.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return Ok(new { success, message, steps });
+            return Ok(new { success = effectiveSuccess, loginSuccess, message, steps, credentialStatus = config.CredentialStatus });
         }
 
         [Authorize(Roles = "admin,superadmin")]

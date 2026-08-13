@@ -58,7 +58,9 @@ const STORES = [
     'CURITIBA ALTO DA XV - PR', 'CURITIBA BIGORRILHO - PR', 'CURITIBA BOA VISTA - PR', 'CURITIBA CABRAL - PR',
     'CURITIBA CENTRO - PR', 'CURITIBA CIDADE INDUSTRIAL - PR', 'CURITIBA FAZENDINHA - PR', 'CURITIBA MERCES - PR',
     'CURITIBA NOVO MUNDO - PR', 'CURITIBA PAROLIN - PR', 'CURITIBA PORTAO - PR', 'CURITIBA SANTA FELICIDADE - PR',
-    'CURITIBA SEMINARIO - PR', 'CURITIBA TARUMA - PR', 'CURITIBA XAXIM - PR', 'DIADEMA - SP',
+    'CURITIBA SEMINARIO - PR', 'CURITIBA TARUMA - PR', 'CURITIBA XAXIM - PR',
+    'CWB - AGUA VERDE - PR', 'CWB - CENTRO - PR', 'CWB - ESTACAO - PR', 'CWB - FAZENDINHA - PR',
+    'CWB - PINHEIRINHO - PR', 'CWB - UBERABA - PR', 'CWB - XAXIM - PR', 'DIADEMA - SP',
     'DIVINOPOLIS - MG', 'DOURADOS - MS', 'ERECHIM - RS', 'ESTRONDO - RS',
     'FAZENDINHA - PR', 'FEIRA DE SANTANA - BA', 'FLORIANOPOLIS CENTRO - SC', 'FLORIANOPOLIS TRINDADE - SC',
     'FORTALEZA - CE', 'FOZ DO IGUACU - PR', 'FRANCISCO BELTRAO - PR', 'GAMA - DF',
@@ -233,10 +235,29 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
     }
   };
 
-  const handleTestAuth = async (id: number) => {
+  const handleTestAuth = async (id: number, force: boolean = false): Promise<void> => {
+    const targetConfig = configs.find(c => c.id === id);
+    if (!force && targetConfig?.credentialStatus === 'wrong-password') {
+      const confirmRetry = window.confirm(
+        'Já testamos essas credenciais recentemente e ocorreu um erro de senha. Tem certeza que deseja testar novamente?'
+      );
+      if (!confirmRetry) return;
+      force = true;
+    }
+
     try {
       setTestingAuth(id);
-      const result = await scrapeService.testAuth(id);
+      const result = await scrapeService.testAuth(id, force);
+      
+      if (result.requiresConfirmation && !force) {
+        const confirmRetry = window.confirm(result.message);
+        if (confirmRetry) {
+          return handleTestAuth(id, true);
+        } else {
+          return;
+        }
+      }
+
       if (result.success) {
         notifications.show({
           title: 'Autenticação OK',

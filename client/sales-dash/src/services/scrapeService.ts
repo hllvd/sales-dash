@@ -76,8 +76,8 @@ export const scrapeService = {
         return apiService.delete(`${ENDPOINT_PREFIX}/configs/${id}`);
     },
 
-    testAuth: async (id: number): Promise<{ success: boolean; message: string; steps?: string[] }> => {
-        return apiService.post(`${ENDPOINT_PREFIX}/configs/${id}/test-auth`, {});
+    testAuth: async (id: number, force: boolean = false): Promise<{ success: boolean; message: string; steps?: string[]; requiresConfirmation?: boolean }> => {
+        return apiService.post(`${ENDPOINT_PREFIX}/configs/${id}/test-auth?force=${force}`, {});
     },
 
     getJobs: async (): Promise<ScrapeJob[]> => {

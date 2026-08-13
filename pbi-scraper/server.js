@@ -115,6 +115,7 @@ app.post('/jobs', (req, res) => {
         result.authStatus = err.authStatus;
         result.authMessage = err.authMessage;
         result.powerbiLoaded = err.powerbiLoaded;
+        result.loginSuccess = err.loginSuccess || false;
         result.authSteps = err.steps;
       } else if (err.steps) {
         result.authSteps = err.steps;
@@ -153,6 +154,7 @@ app.post('/test-auth', async (req, res) => {
   if (!matricula || !password) {
     return res.status(400).json({ 
       success: false, 
+      loginSuccess: false,
       message: 'Matrícula e Senha são obrigatórias para testar a autenticação.',
       steps: ['[Server] Matrícula ou Senha ausentes.']
     });
@@ -163,6 +165,7 @@ app.post('/test-auth', async (req, res) => {
     const authInfo = await getTokenFromLogin(matricula, password);
     res.json({ 
       success: true, 
+      loginSuccess: true,
       message: authInfo.authMessage || 'Autenticação bem-sucedida.',
       authStatus: authInfo.authStatus,
       powerbiLoaded: authInfo.powerbiLoaded,
@@ -172,6 +175,7 @@ app.post('/test-auth', async (req, res) => {
     console.error(`[Test Auth] Failed for ${matricula}:`, err.message);
     res.json({ 
       success: false, 
+      loginSuccess: err.loginSuccess || false,
       message: err.authMessage || err.message,
       authStatus: err.authStatus || 'error',
       powerbiLoaded: err.powerbiLoaded || false,
