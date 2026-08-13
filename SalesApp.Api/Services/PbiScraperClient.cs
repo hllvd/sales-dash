@@ -35,6 +35,7 @@ namespace SalesApp.Services
         public PbiScraperClient(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
+            _httpClient.Timeout = TimeSpan.FromSeconds(300);
             _callbackBaseUrl = configuration["PbiScraper:CallbackBaseUrl"] ?? "http://salesapp-api:5000";
         }
 
