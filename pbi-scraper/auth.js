@@ -58,8 +58,8 @@ async function getTokenFromLogin(matricula, password) {
 
   try {
     const page = await browser.newPage();
-    page.setDefaultNavigationTimeout(180000);
-    page.setDefaultTimeout(180000);
+    page.setDefaultNavigationTimeout(30000);
+    page.setDefaultTimeout(30000);
 
     await page.setRequestInterception(true);
 
@@ -109,22 +109,22 @@ async function getTokenFromLogin(matricula, password) {
 
     // Step 1: Navigate to login page
     addStep(steps, `Navegando para a página de login (${AVA_URL})...`);
-    await page.goto(AVA_URL, { waitUntil: 'networkidle2', timeout: 180000 });
+    await page.goto(AVA_URL, { waitUntil: 'networkidle2', timeout: 30000 });
     addStep(steps, 'Página de login carregada com sucesso.');
 
     // Step 2: Fill in credentials
     addStep(steps, `Preenchendo credenciais (Matrícula: ${matricula})...`);
-    await page.waitForSelector('input[type="text"]', { timeout: 30000 });
+    await page.waitForSelector('input[type="text"]', { timeout: 15000 });
     await page.type('input[type="text"]', matricula, { delay: 50 });
 
-    await page.waitForSelector('input[type="password"]', { timeout: 30000 });
+    await page.waitForSelector('input[type="password"]', { timeout: 15000 });
     await page.type('input[type="password"]', password, { delay: 50 });
     addStep(steps, 'Credenciais preenchidas no formulário.');
 
     // Step 3: Click login button
     addStep(steps, 'Submetendo formulário de login...');
     try {
-      await page.waitForSelector('button', { timeout: 30000 });
+      await page.waitForSelector('button', { timeout: 15000 });
       const [button] = await page.$x("//button[contains(., 'Entrar') or contains(., 'entrar')]");
       if (button) {
         await button.click();
@@ -176,7 +176,7 @@ async function getTokenFromLogin(matricula, password) {
 
     if (!currentUrl.includes('/dashboard')) {
       addStep(steps, `Navegando explicitamente para o dashboard (${DASHBOARD_URL})...`);
-      await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 180000 });
+      await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 30000 });
     }
     addStep(steps, 'Dashboard do Avapro acessado.');
 
@@ -200,7 +200,7 @@ async function getTokenFromLogin(matricula, password) {
     // Step 6: Wait for PowerBI container
     addStep(steps, 'Verificando se o relatório PowerBI foi carregado na página...');
     try {
-      await page.waitForSelector('iframe, .powerbi-container, .report-container', { timeout: 30000 });
+      await page.waitForSelector('iframe, .powerbi-container, .report-container', { timeout: 15000 });
       powerbiLoaded = true;
       addStep(steps, 'Relatório PowerBI detectado na estrutura da página.');
     } catch (e) {
@@ -213,8 +213,8 @@ async function getTokenFromLogin(matricula, password) {
       addStep(steps, 'Aguardando requisição interna do PowerBI para capturar o token de acesso...');
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new AuthError('timeout', 'Tempo limite excedido aguardando token do PowerBI', steps, powerbiLoaded));
-        }, 120000);
+          reject(new AuthError('timeout', 'Tempo limite de 30s excedido aguardando token do PowerBI', steps, powerbiLoaded));
+        }, 30000);
         
         const interval = setInterval(() => {
           if (capturedToken) {

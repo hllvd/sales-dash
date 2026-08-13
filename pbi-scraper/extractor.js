@@ -340,7 +340,7 @@ function toCsv(rows) {
 
 async function postWithRetry(url, payload, headers, label) {
   const maxRetries = parseInt(process.env.SCRAPE_MAX_RETRIES || '2', 10);
-  const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '90000', 10);
+  const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '240000', 10);
   let lastError;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
