@@ -20,6 +20,11 @@ namespace SalesApp.Services
         public string? FileRelativePath { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
+
+        public string? AuthStatus { get; set; }
+        public string? AuthMessage { get; set; }
+        public bool PowerBiLoaded { get; set; }
+        public List<string> AuthSteps { get; set; } = new List<string>();
     }
 
     public class ScrapeRunSummary
@@ -373,6 +378,19 @@ namespace SalesApp.Services
                 errorMsg = string.IsNullOrEmpty(errorMsg) ? "Tempo limite excedido (Timeout)" : errorMsg;
             }
 
+            var authStatus = item.GetValueOrDefault("AuthStatus")?.S ?? item.GetValueOrDefault("authStatus")?.S;
+            var authMessage = item.GetValueOrDefault("AuthMessage")?.S ?? item.GetValueOrDefault("authMessage")?.S;
+            var pbiLoadedStr = item.GetValueOrDefault("PowerBiLoaded")?.S ?? item.GetValueOrDefault("powerbiLoaded")?.S;
+            var pbiLoaded = bool.TryParse(pbiLoadedStr, out var pbl) ? pbl : false;
+            
+            var authStepsRaw = item.GetValueOrDefault("AuthSteps")?.S ?? item.GetValueOrDefault("authSteps")?.S;
+            List<string> authSteps = new List<string>();
+            if (!string.IsNullOrEmpty(authStepsRaw))
+            {
+                try { authSteps = JsonConvert.DeserializeObject<List<string>>(authStepsRaw) ?? new List<string>(); }
+                catch { }
+            }
+
             return new ScrapeLogEntry
             {
                 JobId = jobId,
@@ -386,7 +404,11 @@ namespace SalesApp.Services
                 ErrorMessage = errorMsg,
                 FileRelativePath = item.GetValueOrDefault("fileRelativePath")?.S ?? item.GetValueOrDefault("FileRelativePath")?.S,
                 CreatedAt = createdAt,
-                CompletedAt = completedAt
+                CompletedAt = completedAt,
+                AuthStatus = authStatus,
+                AuthMessage = authMessage,
+                PowerBiLoaded = pbiLoaded,
+                AuthSteps = authSteps
             };
         }
     }

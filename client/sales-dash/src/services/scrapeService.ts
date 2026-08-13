@@ -32,6 +32,10 @@ export interface ScrapeJob {
     fileRelativePath?: string;
     createdAt: string;
     completedAt?: string;
+    authStatus?: 'success' | 'invalid-credentials' | 'timeout' | 'error' | string;
+    authMessage?: string;
+    powerBiLoaded?: boolean;
+    authSteps?: string[];
 }
 
 export interface ScrapeRunSummary {
@@ -72,7 +76,7 @@ export const scrapeService = {
         return apiService.delete(`${ENDPOINT_PREFIX}/configs/${id}`);
     },
 
-    testAuth: async (id: number): Promise<{ success: boolean; message: string }> => {
+    testAuth: async (id: number): Promise<{ success: boolean; message: string; steps?: string[] }> => {
         return apiService.post(`${ENDPOINT_PREFIX}/configs/${id}/test-auth`, {});
     },
 

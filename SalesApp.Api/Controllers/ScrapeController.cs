@@ -101,11 +101,11 @@ namespace SalesApp.Controllers
                 // Test authentication if requested and not in E2E
                 if (request.TestOnSave && !_isE2E)
                 {
-                    var (success, message) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword);
+                    var (success, message, steps) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword);
                     config.CredentialStatus = success ? "ok" : "wrong-password";
                     if (!success)
                     {
-                        return BadRequest(new { message = $"Falha na autenticação: {message}" });
+                        return BadRequest(new { message = $"Falha na autenticação: {message}", steps });
                     }
                 }
             }
@@ -151,7 +151,7 @@ namespace SalesApp.Controllers
         [HttpPost("configs/{id}/test-auth")]
         public async Task<IActionResult> TestAuth(int id)
         {
-            if (_isE2E) return Ok(new { success = true, message = "Autenticação ignorada em modo E2E" });
+            if (_isE2E) return Ok(new { success = true, message = "Autenticação ignorada em modo E2E", steps = new string[0] });
 
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             var config = await _context.ScrapeConfigs
@@ -176,13 +176,13 @@ namespace SalesApp.Controllers
                 password = config.PowerBiPassword;
             }
 
-            var (success, message) = await _scraperClient.TestAuthAsync(config.Matricula, password);
+            var (success, message, steps) = await _scraperClient.TestAuthAsync(config.Matricula, password);
 
             config.CredentialStatus = success ? "ok" : "wrong-password";
             config.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return Ok(new { success, message });
+            return Ok(new { success, message, steps });
         }
 
         [Authorize(Roles = "admin,superadmin")]

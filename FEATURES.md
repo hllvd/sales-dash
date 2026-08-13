@@ -1,5 +1,17 @@
 # Features
 
+## Scrape Diagnostics & Auth Step Logging (PowerBI Extrações)
+
+This feature provides step-by-step diagnostic logging and immediate authentication failure detection for PowerBI extractions, capturing detailed status reports and remaining attempt warnings.
+
+### Core Objectives
+- Detect authentication errors (`"Usuário ou senha inválida"`) and 403 Forbidden attempts warnings (`"Você ainda possui mais X tentativas..."`) immediately upon login form submission.
+- Prevent waiting for full navigation timeouts when credentials are wrong.
+- Record step-by-step diagnostic logs (`AuthSteps`), authentication status (`AuthStatus`), error messages (`AuthMessage`), and PowerBI report loading indicators (`PowerBiLoaded`) in DynamoDB per scrape job.
+- Display diagnostic badges, PowerBI report indicators, and interactive step log modals in both the **Histórico de Extrações** detail view (`/#/scrapes/runs/:runId`) and the **Testar Autenticação** modal.
+
+---
+
 ## User Last Access Tracking (`LastAccessedAt`)
 
 This feature tracks when users last accessed the system (`LastAccessedAt`), throttled to once per 24 hours per user to prevent unnecessary database writes on every API request. The last access timestamp is exposed in API endpoints and displayed in the Users table.

@@ -133,7 +133,11 @@ namespace SalesApp.Services
                     RowCount = result.RowCount,
                     FileRelativePath = result.FileRelativePath,
                     ErrorMessage = result.Error,
-                    CompletedAt = DateTime.UtcNow.ToString("O")
+                    CompletedAt = DateTime.UtcNow.ToString("O"),
+                    AuthStatus = result.AuthStatus,
+                    AuthMessage = result.AuthMessage,
+                    PowerBiLoaded = result.PowerBiLoaded,
+                    AuthSteps = result.AuthSteps != null ? Newtonsoft.Json.JsonConvert.SerializeObject(result.AuthSteps) : null
                 }
             );
 

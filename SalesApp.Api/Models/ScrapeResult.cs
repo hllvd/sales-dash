@@ -11,5 +11,10 @@ namespace SalesApp.Models
         public int RowCount { get; set; }
         public string? FileRelativePath { get; set; }
         public string? Error { get; set; }
+
+        public string? AuthStatus { get; set; }
+        public string? AuthMessage { get; set; }
+        public bool PowerBiLoaded { get; set; }
+        public List<string>? AuthSteps { get; set; }
     }
 }

@@ -6,38 +6,42 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { scrape } = require('./extractor');
-const { getTokenFromLogin } = require('./auth');
+const { getTokenFromLogin, AuthError } = require('./auth');
 
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3001;
-const PBI_TOKEN        = process.env.PBI_TOKEN;
-const AVAPRO_MATRICULA = process.env.AVAPRO_MATRICULA;
-const AVAPRO_PASSWORD  = process.env.AVAPRO_PASSWORD;
-const OUTPUT_DIR       = process.env.OUTPUT_DIR || './outputs';
+const PORT       = process.env.PORT || 3001;
+const PBI_TOKEN  = process.env.PBI_TOKEN;
+const OUTPUT_DIR = process.env.OUTPUT_DIR || './outputs';
 
 // Cached resolved token (refreshed per request if empty)
 let resolvedToken = PBI_TOKEN || null;
 
 /**
- * Returns a valid PowerBI token.
- * If PBI_TOKEN is set, it's used directly.
- * Otherwise it authenticates via Puppeteer using provided or environment credentials.
+ * Returns a valid PowerBI token and diagnostic details.
  */
 async function getToken(username, password) {
-  if (resolvedToken) return resolvedToken;
-
-  const finalUsername = username || AVAPRO_MATRICULA;
-  const finalPassword = password || AVAPRO_PASSWORD;
-
-  if (!finalUsername || !finalPassword) {
-    throw new Error('No PBI_TOKEN set and AVAPRO_MATRICULA/AVAPRO_PASSWORD are missing. Cannot authenticate.');
+  if (resolvedToken) {
+    return {
+      token: resolvedToken,
+      authStatus: 'success',
+      authMessage: 'PBI_TOKEN reutilizado',
+      powerbiLoaded: true,
+      steps: ['[Server] PBI_TOKEN estático de ambiente utilizado.']
+    };
   }
 
-  console.log(`[Server] PBI_TOKEN not set — authenticating via ${username ? 'provided user' : 'environment'} credentials...`);
-  resolvedToken = await getTokenFromLogin(finalUsername, finalPassword);
-  return resolvedToken;
+  if (!username || !password) {
+    throw new AuthError(
+      'invalid-credentials',
+      'Matrícula e Senha são obrigatórias na configuração de extração.',
+      ['[Server] Erro: Matrícula ou Senha não fornecidas na configuração de extração.']
+    );
+  }
+
+  console.log(`[Server] Autenticando para matrícula ${username}...`);
+  return await getTokenFromLogin(username, password);
 }
 
 // Ensure output directory exists
@@ -53,7 +57,7 @@ app.post('/jobs', (req, res) => {
 
   let scrapeDate = reqScrapeDate;
   if (!scrapeDate) {
-    // Default to the previous month's data (last one month)
+    // Default to the previous month's data
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
     const yyyy = d.getFullYear();
@@ -75,12 +79,21 @@ app.post('/jobs', (req, res) => {
       status: 'Succeeded',
       rowCount: 0,
       fileRelativePath: null,
-      error: null
+      error: null,
+      authStatus: 'success',
+      authMessage: 'Autenticação bem-sucedida',
+      powerbiLoaded: true,
+      authSteps: []
     };
 
     try {
-      const token = await getToken(avaproUsername, avaproPassword);
-      const { rows, csv } = await scrape(store, matricula, token, scrapeDate);
+      const authInfo = await getToken(avaproUsername || matricula, avaproPassword);
+      result.authStatus = authInfo.authStatus;
+      result.authMessage = authInfo.authMessage;
+      result.powerbiLoaded = authInfo.powerbiLoaded;
+      result.authSteps = authInfo.steps;
+
+      const { rows, csv } = await scrape(store, matricula, authInfo.token, scrapeDate);
       
       if (rows.length > 0) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -93,26 +106,38 @@ app.post('/jobs', (req, res) => {
         result.fileRelativePath = filename;
       } else {
         result.status = 'Failed';
-        result.error = 'No rows returned from PowerBI';
+        result.error = 'Nenhum registro retornado pelo relatório PowerBI';
       }
     } catch (err) {
       console.error(`[Job ${jobId}] Failed:`, err.message);
-      // If token may have expired, clear it so next request re-authenticates
+      
+      if (err instanceof AuthError) {
+        result.authStatus = err.authStatus;
+        result.authMessage = err.authMessage;
+        result.powerbiLoaded = err.powerbiLoaded;
+        result.authSteps = err.steps;
+      } else if (err.steps) {
+        result.authSteps = err.steps;
+      }
+
       if (err.message && (err.message.includes('401') || err.message.includes('403') || err.message.includes('Unauthorized'))) {
-        console.warn('[Server] Token may be expired. Clearing cached token for next request.');
+        console.warn('[Server] Token expirado ou inválido. Limpando token em cache.');
         resolvedToken = PBI_TOKEN || null;
       }
+      
       result.status = 'Failed';
-      result.error = err.message;
+      result.error = err.authMessage || err.message;
     }
 
     // Call back to C# API
     try {
       console.log(`[Job ${jobId}] Sending callback to ${callbackUrl}`);
-      // Include UserId if provided in the original request (needed for C# callback routing)
-      // Actually, C# Orchestrator should probably include UserId in the callbackUrl or the scraper should return everything it received.
-      // Let's have the scraper return the userId if it was passed.
-      const callbackResult = { ...result, userId: req.body.userId, store, matricula };
+      const callbackResult = { 
+        ...result, 
+        userId: req.body.userId, 
+        store, 
+        matricula 
+      };
       await axios.put(callbackUrl, callbackResult);
     } catch (callbackErr) {
       console.error(`[Job ${jobId}] Callback failed:`, callbackErr.message);
@@ -126,16 +151,32 @@ app.post('/test-auth', async (req, res) => {
   const { matricula, password } = req.body;
 
   if (!matricula || !password) {
-    return res.status(400).json({ success: false, message: 'Missing matricula or password' });
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Matrícula e Senha são obrigatórias para testar a autenticação.',
+      steps: ['[Server] Matrícula ou Senha ausentes.']
+    });
   }
 
   console.log(`[Test Auth] Testing credentials for ${matricula}...`);
   try {
-    await getTokenFromLogin(matricula, password);
-    res.json({ success: true, message: 'Autenticação bem-sucedida.' });
+    const authInfo = await getTokenFromLogin(matricula, password);
+    res.json({ 
+      success: true, 
+      message: authInfo.authMessage || 'Autenticação bem-sucedida.',
+      authStatus: authInfo.authStatus,
+      powerbiLoaded: authInfo.powerbiLoaded,
+      steps: authInfo.steps
+    });
   } catch (err) {
     console.error(`[Test Auth] Failed for ${matricula}:`, err.message);
-    res.json({ success: false, message: err.message });
+    res.json({ 
+      success: false, 
+      message: err.authMessage || err.message,
+      authStatus: err.authStatus || 'error',
+      powerbiLoaded: err.powerbiLoaded || false,
+      steps: err.steps || [`[Test Auth] Erro: ${err.message}`]
+    });
   }
 });
 
@@ -144,10 +185,6 @@ app.get('/health', (req, res) => res.send('OK'));
 app.listen(PORT, () => {
   console.log(`PBI Scraper Service running on port ${PORT}`);
   if (!PBI_TOKEN) {
-    if (AVAPRO_MATRICULA && AVAPRO_PASSWORD) {
-      console.log('PBI_TOKEN not set. Will authenticate via AVAPRO credentials on first job.');
-    } else {
-      console.warn('WARNING: PBI_TOKEN is not set and AVAPRO_MATRICULA/AVAPRO_PASSWORD are also missing!');
-    }
+    console.log('PBI_TOKEN não configurado. Autenticação será realizada por requisição utilizando credenciais da configuração.');
   }
 });

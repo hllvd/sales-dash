@@ -21,6 +21,8 @@ import {
   Checkbox,
   Tabs,
   Divider,
+  Code,
+  Box,
 } from '@mantine/core';
 import { 
   IconRefresh, 
@@ -32,7 +34,8 @@ import {
   IconTrash, 
   IconFingerprint,
   IconHistory,
-  IconUserCheck
+  IconUserCheck,
+  IconListDetails
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { scrapeService, ScrapeConfig, ScrapeRunSummary } from '../../services/scrapeService';
@@ -108,6 +111,12 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
   const [testingAuth, setTestingAuth] = useState<number | null>(null);
+  const [testAuthModalData, setTestAuthModalData] = useState<{ open: boolean; success: boolean; message: string; steps: string[] }>({
+    open: false,
+    success: false,
+    message: '',
+    steps: []
+  });
 
   // Update active tab when initialTab prop changes
   useEffect(() => {
@@ -182,11 +191,23 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       setModalOpen(false);
       fetchData();
     } catch (error: any) {
-        notifications.show({
-            title: 'Erro',
-            message: error.response?.data?.message || 'Falha ao salvar configuração',
-            color: 'red',
+      const errMsg = error.response?.data?.message || 'Falha ao salvar configuração';
+      const steps = error.response?.data?.steps || [];
+      notifications.show({
+        title: 'Erro de Salvamento / Autenticação',
+        message: errMsg,
+        color: 'red',
+        autoClose: 10000,
+      });
+
+      if (steps && steps.length > 0) {
+        setTestAuthModalData({
+          open: true,
+          success: false,
+          message: errMsg,
+          steps
         });
+      }
     } finally {
       setSaving(false);
     }
@@ -219,25 +240,46 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       if (result.success) {
         notifications.show({
           title: 'Autenticação OK',
-          message: 'As credenciais são válidas',
+          message: result.message || 'As credenciais são válidas',
           color: 'green',
           icon: <IconCheck size={16} />
         });
       } else {
         notifications.show({
           title: 'Falha na Autenticação',
-          message: result.message,
+          message: result.message || 'Credenciais inválidas ou erro ao autenticar',
           color: 'red',
+          autoClose: 10000,
           icon: <IconAlertCircle size={16} />
+        });
+      }
+
+      if (result.steps && result.steps.length > 0) {
+        setTestAuthModalData({
+          open: true,
+          success: result.success,
+          message: result.message,
+          steps: result.steps
         });
       }
       fetchData();
     } catch (error: any) {
+      const errMsg = error.response?.data?.message || 'Falha ao testar autenticação';
+      const steps = error.response?.data?.steps || [];
       notifications.show({
         title: 'Erro',
-        message: error.response?.data?.message || 'Falha ao testar autenticação',
+        message: errMsg,
         color: 'red',
+        autoClose: 10000,
       });
+      if (steps && steps.length > 0) {
+        setTestAuthModalData({
+          open: true,
+          success: false,
+          message: errMsg,
+          steps
+        });
+      }
     } finally {
       setTestingAuth(null);
     }
@@ -579,6 +621,47 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
                 color="blue"
               >
                 Salvar Configuração
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
+
+        {/* Test Auth Diagnostic Modal */}
+        <Modal
+          opened={testAuthModalData.open}
+          onClose={() => setTestAuthModalData(prev => ({ ...prev, open: false }))}
+          title={
+            <Group gap="xs">
+              <IconFingerprint size={20} />
+              <Text fw={600}>Resultado do Teste de Autenticação</Text>
+            </Group>
+          }
+          centered
+          size="lg"
+        >
+          <Stack gap="md">
+            <Alert 
+              color={testAuthModalData.success ? "green" : "red"}
+              title={testAuthModalData.success ? "Autenticação OK" : "Falha na Autenticação"}
+              icon={testAuthModalData.success ? <IconCheck size={18} /> : <IconAlertCircle size={18} />}
+            >
+              <Text size="sm">{testAuthModalData.message}</Text>
+            </Alert>
+
+            {testAuthModalData.steps && testAuthModalData.steps.length > 0 && (
+              <>
+                <Text size="xs" fw={600} c="dimmed">Passos executados pelo robô:</Text>
+                <Box style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                  <Code block style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px' }}>
+                    {testAuthModalData.steps.join('\n')}
+                  </Code>
+                </Box>
+              </>
+            )}
+
+            <Group justify="flex-end">
+              <Button variant="light" onClick={() => setTestAuthModalData(prev => ({ ...prev, open: false }))}>
+                Fechar
               </Button>
             </Group>
           </Stack>
