@@ -65,41 +65,44 @@ async function getTokenFromLogin(matricula, password) {
 
     await page.setRequestInterception(true);
 
-    // Known PowerBI/Azure API URL patterns that carry bearer tokens
+    // Known PowerBI/Azure/Ademicon API URL patterns that carry bearer tokens
     const PBI_HOSTS = [
       'pbidedicated.windows.net',
       'analysis.windows.net',
       'api.powerbi.com',
       'powerbi.com',
       'msit.pbidedicated.windows.net',
+      'dashboardbi.ademicon.com.br',
+      'ademicon.com.br',
     ];
 
     // Intercept requests for token capture
     page.on('request', (req) => {
       const url = req.url();
       const headers = req.headers();
-      const authHeader = headers['authorization'] || headers['Authorization'] || headers['x-powerbi-token'];
+      const authHeader = headers['authorization'] || headers['Authorization'] || headers['x-powerbi-token'] || headers['x-access-token'];
       const postData = req.postData() || '';
 
-      const isPbiUrl = PBI_HOSTS.some(h => url.includes(h));
+      const isPbiUrl = PBI_HOSTS.some(h => url.includes(h)) || url.includes('/api/') || url.includes('query');
 
       if (isPbiUrl) {
-        // Log every PowerBI-related request to help debug which one carries the token
         console.log(`[PBI Request] ${req.method()} ${url.substring(0, 120)} | auth=${authHeader ? authHeader.substring(0, 40) + '...' : 'none'}`);
-        
-        if (authHeader && !capturedToken) {
-          capturedToken = authHeader;
-          addStep(steps, `Token PowerBI capturado via requisição: ${url.substring(0, 80)}...`);
-        }
       }
 
-      // Also capture token embedded in POST body (some PBI tenants use body tokens)
-      if (!capturedToken && isPbiUrl && postData.includes('"AccessToken"')) {
+      // Capture ANY Bearer or JWT authorization token on target domains or API routes
+      if (!capturedToken && authHeader && (authHeader.startsWith('Bearer ') || authHeader.length > 20)) {
+        capturedToken = authHeader;
+        addStep(steps, `Token de autorização capturado via requisição [${req.method()}]: ${url.substring(0, 80)}...`);
+      }
+
+      // Also capture token embedded in POST body if present
+      if (!capturedToken && postData && (postData.includes('"AccessToken"') || postData.includes('"token"'))) {
         try {
           const body = JSON.parse(postData);
-          if (body.AccessToken) {
-            capturedToken = `Bearer ${body.AccessToken}`;
-            addStep(steps, `Token PowerBI capturado via corpo da requisição POST.`);
+          const t = body.AccessToken || body.accessToken || body.token;
+          if (t && typeof t === 'string' && t.length > 20) {
+            capturedToken = t.startsWith('Bearer ') ? t : `Bearer ${t}`;
+            addStep(steps, `Token capturado via corpo da requisição POST (${url.substring(0, 60)}...).`);
           }
         } catch (e) {}
       }
@@ -231,78 +234,42 @@ async function getTokenFromLogin(matricula, password) {
     loginSuccess = true;
     addStep(steps, `Login bem-sucedido. Rota atual: ${currentUrl}`);
 
-    // Navigate explicitly to dashboard if not already there
+    // Step 5: Navigate directly to Dashboard URL (https://avapro.ademicon.com.br/dashboard)
     if (!currentUrl.includes('/dashboard')) {
-      addStep(steps, `Navegando explicitamente para o dashboard (${DASHBOARD_URL})...`);
+      addStep(steps, `Navegando diretamente para o dashboard (${DASHBOARD_URL})...`);
       try {
         await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 30000 });
       } catch (e) {
         addStep(steps, `Aviso ao navegar para dashboard: ${e.message}`);
       }
     }
-    addStep(steps, 'Dashboard do Avapro acessado. Aguardando renderização completa da SPA...');
-    // Wait for SPA to finish rendering (React/Vue apps need a moment after route change)
+    addStep(steps, 'Dashboard do Avapro acessado. Aguardando renderização do relatório PowerBI...');
     await new Promise(r => setTimeout(r, 3000));
 
-    // Step 5: Log iframe src URLs to understand what PowerBI endpoint is being loaded
-    try {
-      const iframeSrcs = await page.$$eval('iframe', frames => frames.map(f => f.src).filter(Boolean));
-      if (iframeSrcs.length > 0) {
-        iframeSrcs.forEach((src, i) => addStep(steps, `iframe[${i}] src: ${src.substring(0, 120)}`));
-      } else {
-        addStep(steps, 'Nenhum iframe encontrado na página ainda.');
-      }
-    } catch (e) {}
-
-    // Step 6: Look for "Geral" link and click it to trigger PowerBI report load
-    try {
-      const links = await page.$$eval('a, button, [role="menuitem"], [role="link"], nav *', els =>
-        els.map(el => ({ text: (el.innerText || el.textContent || '').trim(), href: el.getAttribute('href') || '' }))
-           .filter(l => l.text.length > 0 && l.text.length < 100)
-      );
-      const allLinkTexts = links.slice(0, 10).map(l => l.text).join(' | ');
-      addStep(steps, `Links/menus na página: ${allLinkTexts || 'Nenhum encontrado'}`);
-
-      const geralLink = links.find(l => l.text.toLowerCase().includes('geral'));
-      if (geralLink) {
-        addStep(steps, `Link "Geral" encontrado: "${geralLink.text}". Clicando para carregar relatório PowerBI...`);
-        const geralEl = await page.evaluateHandle(() => {
-          const els = Array.from(document.querySelectorAll('a, button, [role="menuitem"], [role="link"]'));
-          return els.find(el => (el.innerText || el.textContent || '').toLowerCase().includes('geral')) || null;
-        });
-        if (geralEl && geralEl.asElement()) {
-          await geralEl.asElement().click();
-          addStep(steps, 'Clicou em "Geral". Aguardando carregamento do relatório...');
-          await new Promise(r => setTimeout(r, 3000));
-        }
-      } else {
-        addStep(steps, 'Link "Geral" não encontrado. O PowerBI pode já estar carregando automaticamente.');
-      }
-    } catch (e) {
-      addStep(steps, `Erro ao buscar links: ${e.message}`);
-    }
-
-    // Step 7: Wait for PowerBI container
-    addStep(steps, 'Verificando se o relatório PowerBI foi carregado na página...');
+    // Step 6: Verify PowerBI report container / iframe presence
     try {
       await page.waitForSelector('iframe, .powerbi-container, .report-container, [class*="powerbi"], [class*="report"]', { timeout: 15000 });
       powerbiLoaded = true;
       addStep(steps, 'Relatório PowerBI detectado na estrutura da página.');
-      // Re-log iframe src URLs after Geral click
-      const iframeSrcs2 = await page.$$eval('iframe', frames => frames.map(f => f.src).filter(Boolean));
-      iframeSrcs2.forEach((src, i) => addStep(steps, `iframe[${i}] pós-clique: ${src.substring(0, 120)}`));
+      
+      const iframeSrcs = await page.$$eval('iframe', frames => frames.map(f => f.src).filter(Boolean));
+      if (iframeSrcs.length > 0) {
+        iframeSrcs.forEach((src, i) => addStep(steps, `iframe[${i}] src: ${src.substring(0, 120)}`));
+      } else {
+        addStep(steps, 'Nenhum iframe com atributo src detectado.');
+      }
     } catch (e) {
       powerbiLoaded = false;
       addStep(steps, 'Aviso: Contêiner explícito do PowerBI não foi detectado dentro do tempo estipulado.');
     }
 
-    // Step 8: Wait for query token
+    // Step 8: Wait for query token (60s timeout)
     if (!capturedToken) {
-      addStep(steps, 'Aguardando requisição interna do PowerBI para capturar o token de acesso...');
+      addStep(steps, 'Aguardando requisição interna do PowerBI para capturar o token de acesso (tempo limite: 60s)...');
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new AuthError('timeout', 'Tempo limite de 30s excedido aguardando token do PowerBI. Verifique os logs do servidor para "[PBI Request]" e informe qual URL está sendo usada.', steps, powerbiLoaded, loginSuccess));
-        }, 30000);
+          reject(new AuthError('timeout', 'Tempo limite de 60s excedido aguardando token do PowerBI.', steps, powerbiLoaded, loginSuccess));
+        }, 60000);
         
         const interval = setInterval(() => {
           if (capturedToken) {
