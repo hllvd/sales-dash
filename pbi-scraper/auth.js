@@ -31,6 +31,8 @@ async function getTokenFromLogin(matricula, password) {
   });
 
   const page = await browser.newPage();
+  page.setDefaultNavigationTimeout(180000);
+  page.setDefaultTimeout(180000);
 
   // Intercept all requests so we can capture the PowerBI query token
   let capturedToken = null;
@@ -66,15 +68,15 @@ async function getTokenFromLogin(matricula, password) {
   try {
     // Step 1: Navigate to login page
     console.log('[Auth] Navigating to login page...');
-    await page.goto(AVA_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto(AVA_URL, { waitUntil: 'networkidle2', timeout: 180000 });
 
     // Step 2: Fill in credentials
     // The login form has a text input for 'Matricula' and a password input for 'Senha'
     console.log('[Auth] Filling in credentials...');
-    await page.waitForSelector('input[type="text"]', { timeout: 10000 });
+    await page.waitForSelector('input[type="text"]', { timeout: 30000 });
     await page.type('input[type="text"]', matricula, { delay: 50 });
 
-    await page.waitForSelector('input[type="password"]', { timeout: 10000 });
+    await page.waitForSelector('input[type="password"]', { timeout: 30000 });
     await page.type('input[type="password"]', password, { delay: 50 });
 
     // Step 3: Click the login button
@@ -82,7 +84,7 @@ async function getTokenFromLogin(matricula, password) {
     
     // Attempt to click the button by selector provided by user, or fallback to finding by text
     try {
-      await page.waitForSelector('button', { timeout: 10000 });
+      await page.waitForSelector('button', { timeout: 30000 });
       const [button] = await page.$x("//button[contains(., 'Entrar') or contains(., 'entrar')]");
       if (button) {
         await button.click();
@@ -97,13 +99,13 @@ async function getTokenFromLogin(matricula, password) {
 
     // Step 4: Wait for navigation to dashboard
     console.log('[Auth] Waiting for post-login navigation...');
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 180000 });
 
     // Step 5: Navigate to the dashboard if not already there
     const currentUrl = page.url();
     if (!currentUrl.includes('/dashboard')) {
       console.log(`[Auth] Current URL is ${currentUrl}, navigating to ${DASHBOARD_URL}...`);
-      await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+      await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 180000 });
     } else {
       console.log('[Auth] Already on dashboard page.');
     }
@@ -111,7 +113,7 @@ async function getTokenFromLogin(matricula, password) {
     // Wait for the PowerBI iframe to start appearing, which usually triggers the query
     console.log('[Auth] Waiting for potential report indicators...');
     try {
-      await page.waitForSelector('iframe, .powerbi-container, .report-container', { timeout: 15000 });
+      await page.waitForSelector('iframe, .powerbi-container, .report-container', { timeout: 30000 });
       console.log('[Auth] Report container detected.');
     } catch (e) {
       console.log('[Auth] No specific report container found, continuing to wait for network...');
@@ -121,7 +123,7 @@ async function getTokenFromLogin(matricula, password) {
     if (!capturedToken) {
       console.log('[Auth] Waiting for PowerBI query request...');
       await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Timed out waiting for PowerBI query request')), 60000);
+        const timeout = setTimeout(() => reject(new Error('Timed out waiting for PowerBI query request')), 180000);
         const interval = setInterval(() => {
           if (capturedToken) {
             clearTimeout(timeout);
