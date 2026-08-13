@@ -166,7 +166,16 @@ namespace SalesApp.Controllers
                 return BadRequest(new { message = "Senha não configurada" });
             }
 
-            string password = _protector.Unprotect(config.PowerBiPassword);
+            string password;
+            try
+            {
+                password = _protector.Unprotect(config.PowerBiPassword);
+            }
+            catch
+            {
+                password = config.PowerBiPassword;
+            }
+
             var (success, message) = await _scraperClient.TestAuthAsync(config.Matricula, password);
 
             config.CredentialStatus = success ? "ok" : "wrong-password";
@@ -181,7 +190,16 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> TriggerScrape(int configId)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value 
+                         ?? User.FindFirst("email")?.Value 
+                         ?? User.FindFirst(ClaimTypes.Name)?.Value;
+
+            if (string.IsNullOrEmpty(userEmail))
+            {
+                var dbUser = await _context.Users.FindAsync(userId);
+                userEmail = dbUser?.Email ?? string.Empty;
+            }
+
             var config = await _context.ScrapeConfigs
                 .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.Id == configId);

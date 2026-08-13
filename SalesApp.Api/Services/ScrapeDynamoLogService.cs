@@ -2,6 +2,7 @@ using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Globalization;
 
 namespace SalesApp.Services
 {
@@ -251,17 +252,19 @@ namespace SalesApp.Services
 
             if (!runJobs.Any()) return null;
 
-            var first = runJobs.First();
-            var finalStatus = ComputeFinalStatus(runJobs);
+            var deduplicatedJobs = DeduplicateJobs(runJobs);
+            var first = deduplicatedJobs.First();
+            var finalStatus = ComputeFinalStatus(deduplicatedJobs);
+            var userEmail = deduplicatedJobs.Select(j => j.UserEmail).FirstOrDefault(e => !string.IsNullOrEmpty(e)) ?? first.UserEmail;
 
             return new ScrapeRunDetail
             {
                 RunId = runId,
                 UserId = first.UserId,
-                UserEmail = first.UserEmail,
+                UserEmail = userEmail,
                 FinalStatus = finalStatus,
-                CreatedAt = runJobs.Min(j => j.CreatedAt),
-                Jobs = runJobs
+                CreatedAt = deduplicatedJobs.Min(j => j.CreatedAt),
+                Jobs = deduplicatedJobs
             };
         }
 
@@ -310,12 +313,13 @@ namespace SalesApp.Services
                     var jobList = g.ToList();
                     var deduplicated = DeduplicateJobs(jobList);
                     var first = deduplicated.First();
+                    var userEmail = deduplicated.Select(j => j.UserEmail).FirstOrDefault(e => !string.IsNullOrEmpty(e)) ?? first.UserEmail;
 
                     return new ScrapeRunSummary
                     {
                         RunId = g.Key,
                         UserId = first.UserId,
-                        UserEmail = first.UserEmail,
+                        UserEmail = userEmail,
                         FinalStatus = ComputeFinalStatus(deduplicated),
                         CreatedAt = deduplicated.Min(j => j.CreatedAt),
                         TotalJobs = deduplicated.Count,
@@ -352,20 +356,37 @@ namespace SalesApp.Services
                            ?? item.GetValueOrDefault("rowCount")?.N
                            ?? item.GetValueOrDefault("rowCount")?.S;
 
+            var rawStatus = item.GetValueOrDefault("Status")?.S ?? item.GetValueOrDefault("status")?.S ?? "";
+            
+            var createdAtRaw = item.GetValueOrDefault("CreatedAt")?.S ?? item.GetValueOrDefault("createdAt")?.S;
+            var createdAt = DateTime.TryParse(createdAtRaw, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var d) ? d : DateTime.MinValue;
+
+            var completedAtRaw = item.GetValueOrDefault("CompletedAt")?.S ?? item.GetValueOrDefault("completedAt")?.S;
+            var completedAt = DateTime.TryParse(completedAtRaw, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var cd) ? cd : (DateTime?)null;
+
+            var errorMsg = item.GetValueOrDefault("error")?.S ?? item.GetValueOrDefault("ErrorMessage")?.S ?? item.GetValueOrDefault("errorMessage")?.S;
+
+            // Self-healing timeout for transitory states (Pending/Running) created > 5 minutes ago (UTC adjusted)
+            if ((rawStatus == "Pending" || rawStatus == "Running") && createdAt != DateTime.MinValue && (DateTime.UtcNow - createdAt > TimeSpan.FromMinutes(5)))
+            {
+                rawStatus = "Failed";
+                errorMsg = string.IsNullOrEmpty(errorMsg) ? "Tempo limite excedido (Timeout)" : errorMsg;
+            }
+
             return new ScrapeLogEntry
             {
                 JobId = jobId,
                 RunId = runId,
                 UserId = item.GetValueOrDefault("UserId")?.S ?? item.GetValueOrDefault("userId")?.S ?? "",
                 UserEmail = item.GetValueOrDefault("UserEmail")?.S ?? item.GetValueOrDefault("userEmail")?.S ?? "",
-                Status = item.GetValueOrDefault("Status")?.S ?? item.GetValueOrDefault("status")?.S ?? "",
+                Status = rawStatus,
                 Store = item.GetValueOrDefault("Store")?.S ?? item.GetValueOrDefault("store")?.S ?? "",
                 Matricula = item.GetValueOrDefault("Matricula")?.S ?? item.GetValueOrDefault("matricula")?.S ?? "",
                 RowCount = int.TryParse(rowCountStr, out var rc) ? rc : 0,
-                ErrorMessage = item.GetValueOrDefault("error")?.S ?? item.GetValueOrDefault("ErrorMessage")?.S ?? item.GetValueOrDefault("errorMessage")?.S,
+                ErrorMessage = errorMsg,
                 FileRelativePath = item.GetValueOrDefault("fileRelativePath")?.S ?? item.GetValueOrDefault("FileRelativePath")?.S,
-                CreatedAt = DateTime.TryParse(item.GetValueOrDefault("CreatedAt")?.S ?? item.GetValueOrDefault("createdAt")?.S, out var d) ? d : DateTime.MinValue,
-                CompletedAt = DateTime.TryParse(item.GetValueOrDefault("CompletedAt")?.S ?? item.GetValueOrDefault("completedAt")?.S, out var cd) ? cd : (DateTime?)null
+                CreatedAt = createdAt,
+                CompletedAt = completedAt
             };
         }
     }

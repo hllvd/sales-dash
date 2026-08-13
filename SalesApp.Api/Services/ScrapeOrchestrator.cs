@@ -46,7 +46,17 @@ namespace SalesApp.Services
 
             var jobId = Guid.NewGuid().ToString();
             var effectiveRunId = string.IsNullOrEmpty(runId) ? Guid.NewGuid().ToString() : runId;
-            var effectiveUserEmail = string.IsNullOrEmpty(userEmail) ? (config.User?.Email ?? string.Empty) : userEmail;
+            var effectiveUserEmail = userEmail;
+
+            if (string.IsNullOrEmpty(effectiveUserEmail))
+            {
+                effectiveUserEmail = config.User?.Email ?? string.Empty;
+                if (string.IsNullOrEmpty(effectiveUserEmail) && config.UserId.HasValue)
+                {
+                    var u = await _context.Users.FindAsync(config.UserId.Value);
+                    effectiveUserEmail = u?.Email ?? string.Empty;
+                }
+            }
             
             // 1. Log start in DynamoDB
             await _logService.WriteJobStatusAsync(
