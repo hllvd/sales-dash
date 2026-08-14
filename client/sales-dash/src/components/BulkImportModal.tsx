@@ -42,6 +42,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState<boolean>(true)
   const [updateMatriculaOnExisting, setUpdateMatriculaOnExisting] = useState<boolean>(false)
   const [updateTotalAmountOnExisting, setUpdateTotalAmountOnExisting] = useState<boolean>(true)
+  const [updateStartDateOnExisting, setUpdateStartDateOnExisting] = useState<boolean>(false)
 
   // Status column validation
   const [statusValidation, setStatusValidation] = useState<{
@@ -207,7 +208,8 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         skipMissingContractNumber,
         selectedTemplateName,
         updateMatriculaOnExisting,
-        updateTotalAmountOnExisting
+        updateTotalAmountOnExisting,
+        updateStartDateOnExisting
       )
       
       if (!mappingResp.success) {
@@ -230,7 +232,8 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
         allowAutoCreatePVs,
         selectedTemplateName,
         updateMatriculaOnExisting,
-        updateTotalAmountOnExisting
+        updateTotalAmountOnExisting,
+        updateStartDateOnExisting
       )
       
       if (confirmResp.success && confirmResp.data) {
@@ -566,6 +569,18 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                       />
                       <label htmlFor="updateTotalAmountOnExisting" style={{ fontSize: '13px', color: '#4b5563' }}>
                         Atualizar valor total em contratos existentes
+                      </label>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="updateStartDateOnExisting" 
+                        checked={updateStartDateOnExisting} 
+                        onChange={(e) => setUpdateStartDateOnExisting(e.target.checked)}
+                      />
+                      <label htmlFor="updateStartDateOnExisting" style={{ fontSize: '13px', color: '#4b5563' }}>
+                        Atualizar data do contrato
                       </label>
                     </div>
                   </>

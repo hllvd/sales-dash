@@ -511,7 +511,8 @@ export const apiService = {
     skipMissingContractNumber: boolean = false,
     templateName?: string,
     updateMatriculaOnExisting: boolean = false,
-    updateTotalAmountOnExisting: boolean = true
+    updateTotalAmountOnExisting: boolean = true,
+    updateStartDateOnExisting: boolean = false
   ): Promise<ApiResponse<ImportStatusResponse>> {
     let prefix = "imports"
     if (templateName === "Contracts") prefix = "imports/contracts"
@@ -527,7 +528,8 @@ export const apiService = {
         allowAutoCreatePVs,
         skipMissingContractNumber,
         updateMatriculaOnExisting,
-        updateTotalAmountOnExisting
+        updateTotalAmountOnExisting,
+        updateStartDateOnExisting
       }),
     })
 
@@ -549,7 +551,8 @@ export const apiService = {
     allowAutoCreatePVs: boolean = false,
     templateName?: string,
     updateMatriculaOnExisting: boolean = false,
-    updateTotalAmountOnExisting: boolean = true
+    updateTotalAmountOnExisting: boolean = true,
+    updateStartDateOnExisting: boolean = false
   ): Promise<ApiResponse<ImportStatusResponse>> {
     let prefix = "imports"
     if (templateName === "Contracts") prefix = "imports/contracts"
@@ -565,7 +568,8 @@ export const apiService = {
         allowAutoCreateGroups,
         allowAutoCreatePVs,
         updateMatriculaOnExisting,
-        updateTotalAmountOnExisting
+        updateTotalAmountOnExisting,
+        updateStartDateOnExisting
       }),
     })
 

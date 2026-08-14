@@ -52,7 +52,8 @@ namespace SalesApp.Services
             bool allowAutoCreateGroups = false,
             bool allowAutoCreatePVs = false,
             bool updateMatriculaOnExisting = false,
-            bool updateTotalAmountOnExisting = true);
+            bool updateTotalAmountOnExisting = true,
+            bool updateStartDateOnExisting = false);
 
         Task<bool> UndoImportAsync(int importSessionId);
     }

@@ -604,6 +604,7 @@ namespace SalesApp.Controllers
                 var allowAutoCreatePVs = request?.AllowAutoCreatePVs ?? false;
                 var updateMatriculaOnExisting = request?.UpdateMatriculaOnExisting ?? false;
                 var updateTotalAmountOnExisting = request?.UpdateTotalAmountOnExisting ?? true;
+                var updateStartDateOnExisting = request?.UpdateStartDateOnExisting ?? false;
 
                 int skipRows = 0;
                 int maxChunks = (session.TotalRows / 500) + 2;
@@ -630,7 +631,7 @@ namespace SalesApp.Controllers
                     }
                     else if (templateName == "contractDashboard")
                     {
-                        result = await _importExecution.ExecuteContractDashboardImportAsync(uploadId, session.Id, rows, mappings, skipMissingContractNumber, allowAutoCreateGroups, allowAutoCreatePVs, updateMatriculaOnExisting, updateTotalAmountOnExisting);
+                        result = await _importExecution.ExecuteContractDashboardImportAsync(uploadId, session.Id, rows, mappings, skipMissingContractNumber, allowAutoCreateGroups, allowAutoCreatePVs, updateMatriculaOnExisting, updateTotalAmountOnExisting, updateStartDateOnExisting);
                     }
                     else
                     {

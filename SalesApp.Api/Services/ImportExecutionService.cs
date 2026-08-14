@@ -1250,7 +1250,8 @@ namespace SalesApp.Services
             bool allowAutoCreateGroups = false,
             bool allowAutoCreatePVs = false,
             bool updateMatriculaOnExisting = false,
-            bool updateTotalAmountOnExisting = true)
+            bool updateTotalAmountOnExisting = true,
+            bool updateStartDateOnExisting = false)
         {
             var result = new ImportResult();
             result.TotalRows = rows.Count;
@@ -1357,6 +1358,7 @@ namespace SalesApp.Services
                         onMatriculaChange: change => result.MatriculaChanges.Add(change),
                         updateMatriculaOnExisting: updateMatriculaOnExisting,
                         updateTotalAmountOnExisting: updateTotalAmountOnExisting,
+                        updateStartDateOnExisting: updateStartDateOnExisting,
                         onSkippedNewContract: cn => skippedNewContracts.Add(cn),
                         onFailedTotalAmountUpdate: cn => failedTotalAmountUpdateContracts.Add(cn));
 
@@ -1513,6 +1515,7 @@ namespace SalesApp.Services
             Action<MatriculaChangeRecord>? onMatriculaChange = null,
             bool updateMatriculaOnExisting = false,
             bool updateTotalAmountOnExisting = true,
+            bool updateStartDateOnExisting = false,
             Action<string>? onSkippedNewContract = null,
             Action<string>? onFailedTotalAmountUpdate = null)
         {
@@ -1696,6 +1699,10 @@ namespace SalesApp.Services
                     {
                         onFailedTotalAmountUpdate?.Invoke(contractNumber);
                     }
+                }
+                if (updateStartDateOnExisting && saleStartDate.HasValue)
+                {
+                    contract.SaleStartDate = saleStartDate.Value;
                 }
                 contract.IsActive = true;
                 contract.UpdatedAt = DateTime.UtcNow;

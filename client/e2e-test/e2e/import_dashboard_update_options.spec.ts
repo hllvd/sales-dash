@@ -53,13 +53,25 @@ test.describe('Contract Dashboard Import Update Options', () => {
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('#updateMatriculaOnExisting')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('#updateTotalAmountOnExisting')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#updateStartDateOnExisting')).toBeVisible({ timeout: 15000 });
 
     // Assert default states
     const updateMatriculaCb = page.locator('#updateMatriculaOnExisting');
     const updateTotalAmountCb = page.locator('#updateTotalAmountOnExisting');
+    const updateStartDateCb = page.locator('#updateStartDateOnExisting');
 
     await expect(updateMatriculaCb).not.toBeChecked(); // Default OFF
     await expect(updateTotalAmountCb).toBeChecked();    // Default ON
+    await expect(updateStartDateCb).not.toBeChecked(); // Default OFF
+
+    // Assert label text
+    await expect(page.locator('label[for="updateStartDateOnExisting"]')).toHaveText('Atualizar data do contrato');
+
+    // Verify it can be toggled
+    await updateStartDateCb.check();
+    await expect(updateStartDateCb).toBeChecked();
+    await updateStartDateCb.uncheck();
+    await expect(updateStartDateCb).not.toBeChecked();
 
     // Clean up temporary file
     if (fs.existsSync(tempCsvPath)) {

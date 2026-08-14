@@ -1,5 +1,17 @@
 # Features
 
+## Atualizar Data do Contrato (`SaleStartDate`) no Import Upload (contractDashboard)
+
+This feature introduces an **"Atualizar data do contrato"** option when importing sales via `contractDashboard` upload. Turned off by default (`false`), when enabled it allows existing contracts in the system to have their `SaleStartDate` updated to the value specified in the uploaded file.
+
+### Core Objectives
+- Provide an option `"Atualizar data do contrato"` (checkbox, default `false`) on the `contractDashboard` import modal.
+- Allow updating `SaleStartDate` on existing contracts when turned on and a valid date is present in the row.
+- Keep existing contract start dates untouched when the toggle is turned off (default behavior).
+- Thread the option through DTOs (`ColumnMappingRequest`, `ConfirmImportRequest`), controller endpoints, service layer (`IImportExecutionService`, `ImportExecutionService`), and frontend UI (`BulkImportModal.tsx`, `apiService.ts`).
+
+---
+
 ## Scrape Diagnostics & Auth Step Logging (PowerBI Extrações)
 
 This feature provides step-by-step diagnostic logging and immediate authentication failure detection for PowerBI extractions, capturing detailed status reports and remaining attempt warnings.
