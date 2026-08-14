@@ -50,6 +50,9 @@ async function getTokenFromLogin(matricula, password) {
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--allow-running-insecure-content',
     ],
   });
 
@@ -65,7 +68,7 @@ async function getTokenFromLogin(matricula, password) {
 
     await page.setRequestInterception(true);
 
-    // Known PowerBI/Azure/Ademicon API URL patterns that carry bearer tokens
+    // Known PowerBI/Azure API URL patterns
     const PBI_HOSTS = [
       'pbidedicated.windows.net',
       'analysis.windows.net',
@@ -73,38 +76,47 @@ async function getTokenFromLogin(matricula, password) {
       'powerbi.com',
       'msit.pbidedicated.windows.net',
       'dashboardbi.ademicon.com.br',
-      'ademicon.com.br',
     ];
 
-    // Intercept requests for token capture
+    // Function to set captured token if valid PowerBI token from dedicated API or JS runtime
+    function checkAndSetToken(candidate, source) {
+      if (capturedToken || !candidate || typeof candidate !== 'string') return false;
+      
+      const cleanCandidate = candidate.trim();
+      if (cleanCandidate.length < 30) return false;
+
+      // Reject HTML/JS code snippets
+      if (cleanCandidate.includes('<') || cleanCandidate.includes('function') || cleanCandidate.includes('var ')) return false;
+
+      let formattedToken = null;
+      if (cleanCandidate.startsWith('EmbedToken ') || cleanCandidate.startsWith('MWCToken ') || cleanCandidate.startsWith('Bearer ')) {
+        formattedToken = cleanCandidate;
+      } else if (cleanCandidate.startsWith('H4sI') || cleanCandidate.startsWith('ey')) {
+        formattedToken = `EmbedToken ${cleanCandidate}`;
+      }
+
+      if (formattedToken) {
+        capturedToken = formattedToken;
+        addStep(steps, `Token PowerBI (${capturedToken.substring(0, 20)}...) capturado via ${source}!`);
+        return true;
+      }
+      return false;
+    }
+
+    // Intercept requests for token capture — strictly from PowerBI query endpoints
     page.on('request', (req) => {
       const url = req.url();
       const headers = req.headers();
       const authHeader = headers['authorization'] || headers['Authorization'] || headers['x-powerbi-token'] || headers['x-access-token'];
       const postData = req.postData() || '';
 
-      const isPbiUrl = PBI_HOSTS.some(h => url.includes(h)) || url.includes('/api/') || url.includes('query');
+      const isDedicatedPbiHost = url.includes('pbidedicated.windows.net') || url.includes('analysis.windows.net') || url.includes('api.powerbi.com');
 
-      if (isPbiUrl) {
-        console.log(`[PBI Request] ${req.method()} ${url.substring(0, 120)} | auth=${authHeader ? authHeader.substring(0, 40) + '...' : 'none'}`);
-      }
-
-      // Capture ANY Bearer or JWT authorization token on target domains or API routes
-      if (!capturedToken && authHeader && (authHeader.startsWith('Bearer ') || authHeader.length > 20)) {
-        capturedToken = authHeader;
-        addStep(steps, `Token de autorização capturado via requisição [${req.method()}]: ${url.substring(0, 80)}...`);
-      }
-
-      // Also capture token embedded in POST body if present
-      if (!capturedToken && postData && (postData.includes('"AccessToken"') || postData.includes('"token"'))) {
-        try {
-          const body = JSON.parse(postData);
-          const t = body.AccessToken || body.accessToken || body.token;
-          if (t && typeof t === 'string' && t.length > 20) {
-            capturedToken = t.startsWith('Bearer ') ? t : `Bearer ${t}`;
-            addStep(steps, `Token capturado via corpo da requisição POST (${url.substring(0, 60)}...).`);
-          }
-        } catch (e) {}
+      if (isDedicatedPbiHost) {
+        console.log(`[PBI Dedicated Request] ${req.method()} ${url.substring(0, 120)} | auth=${authHeader ? authHeader.substring(0, 40) + '...' : 'none'}`);
+        if (!capturedToken && authHeader && authHeader.length > 20) {
+          checkAndSetToken(authHeader, `cabeçalho de requisição PBI [${req.method()}] em ${url.substring(0, 60)}`);
+        }
       }
 
       req.continue();
@@ -115,6 +127,7 @@ async function getTokenFromLogin(matricula, password) {
       try {
         const status = res.status();
         const url = res.url();
+
         if (status === 401 || status === 403 || url.includes('/login') || url.includes('/api/auth')) {
           if (status === 403 || status === 401) {
             const bodyText = await res.text().catch(() => '');
@@ -244,7 +257,8 @@ async function getTokenFromLogin(matricula, password) {
       }
     }
     addStep(steps, 'Dashboard do Avapro acessado. Aguardando renderização do relatório PowerBI...');
-    await new Promise(r => setTimeout(r, 3000));
+    // Give the PBI embed iframe time to load and fire its first authenticated request
+    await new Promise(r => setTimeout(r, 5000));
 
     // Step 6: Verify PowerBI report container / iframe presence
     try {
@@ -263,12 +277,93 @@ async function getTokenFromLogin(matricula, password) {
       addStep(steps, 'Aviso: Contêiner explícito do PowerBI não foi detectado dentro do tempo estipulado.');
     }
 
-    // Step 8: Wait for query token (60s timeout)
+    if (!capturedToken) {
+      addStep(steps, 'Token não capturado via requisições/respostas — buscando H4sI EmbedToken no DOM e runtime JS...');
+
+      // Wait a bit for the dashboard JS to fully initialize and fetch its token
+      await new Promise(r => setTimeout(r, 4000));
+
+      try {
+        const tokenFromJs = await page.evaluate(() => {
+          // Approach 1: Check window.powerbi
+          if (window.powerbi && window.powerbi.embeds && window.powerbi.embeds.length > 0) {
+            const embed = window.powerbi.embeds[0];
+            if (embed && embed.config && embed.config.accessToken) return embed.config.accessToken;
+          }
+          // Approach 2: Check __NEXT_DATA__
+          if (window.__NEXT_DATA__) {
+            const str = JSON.stringify(window.__NEXT_DATA__);
+            const match = str.match(/(H4sI[A-Za-z0-9+/=_%-]{30,})/);
+            if (match) return match[1];
+          }
+          // Approach 3: Scan all script tags for H4sI tokens
+          const scripts = Array.from(document.querySelectorAll('script'));
+          for (const script of scripts) {
+            const match = script.textContent.match(/(H4sI[A-Za-z0-9+/=_%-]{30,})/);
+            if (match) return match[1];
+          }
+          // Approach 4: Scan entire document body HTML
+          if (document.body) {
+            const match = document.body.innerHTML.match(/(H4sI[A-Za-z0-9+/=_%-]{30,})/);
+            if (match) return match[1];
+          }
+          return null;
+        });
+
+        if (tokenFromJs) {
+          checkAndSetToken(tokenFromJs, 'runtime JavaScript da página principal');
+        }
+      } catch (evalErr) {
+        addStep(steps, `Aviso ao tentar extrair token do JS principal: ${evalErr.message}`);
+      }
+
+      // Also search inside iframe contexts
+      if (!capturedToken) {
+        try {
+          const frames = page.frames();
+          addStep(steps, `Inspecionando ${frames.length} frame(s) em busca do EmbedToken (H4sI)...`);
+          for (const frame of frames) {
+            if (capturedToken) break;
+            try {
+              const frameUrl = frame.url();
+              if (!frameUrl || frameUrl === 'about:blank') continue;
+              const tokenFromFrame = await frame.evaluate(() => {
+                if (window.powerbi && window.powerbi.embeds && window.powerbi.embeds.length > 0) {
+                  const embed = window.powerbi.embeds[0];
+                  if (embed && embed.config && embed.config.accessToken) return embed.config.accessToken;
+                }
+                const scripts = Array.from(document.querySelectorAll('script'));
+                for (const script of scripts) {
+                  const match = script.textContent.match(/(H4sI[A-Za-z0-9+/=_%-]{30,})/);
+                  if (match) return match[1];
+                }
+                if (document.body) {
+                  const match = document.body.innerHTML.match(/(H4sI[A-Za-z0-9+/=_%-]{30,})/);
+                  if (match) return match[1];
+                }
+                return null;
+              });
+
+              if (tokenFromFrame) {
+                checkAndSetToken(tokenFromFrame, `frame "${frameUrl.substring(0, 60)}"`);
+                break;
+              }
+            } catch (frameErr) {
+              // Cross-origin frame access may throw — not fatal
+            }
+          }
+        } catch (framesErr) {
+          addStep(steps, `Aviso ao inspecionar frames: ${framesErr.message}`);
+        }
+      }
+    }
+
+    // Step 8: Wait for PowerBI query token (60s timeout)
     if (!capturedToken) {
       addStep(steps, 'Aguardando requisição interna do PowerBI para capturar o token de acesso (tempo limite: 60s)...');
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new AuthError('timeout', 'Tempo limite de 60s excedido aguardando token do PowerBI.', steps, powerbiLoaded, loginSuccess));
+          reject(new AuthError('timeout', 'Tempo limite de 60s excedido aguardando token do PowerBI. O iframe do dashboard pode não ter carregado ou não fez requisição autenticada.', steps, powerbiLoaded, loginSuccess));
         }, 60000);
         
         const interval = setInterval(() => {
@@ -279,6 +374,8 @@ async function getTokenFromLogin(matricula, password) {
           }
         }, 500);
       });
+    } else {
+      addStep(steps, 'Token PowerBI já capturado durante o carregamento do dashboard.');
     }
 
     addStep(steps, 'Autenticação e obtenção de token concluídas com sucesso.');

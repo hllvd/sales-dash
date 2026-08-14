@@ -81,7 +81,8 @@ namespace SalesApp.Services
                     store: config.Store,
                     matricula: config.Matricula,
                     avaproUsername: config.Matricula, // Using Matricula as username for PBI login
-                    avaproPassword: decryptedPassword
+                    avaproPassword: decryptedPassword,
+                    runId: effectiveRunId
                 );
                 
                 // Update status to Running

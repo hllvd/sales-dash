@@ -93,16 +93,25 @@ app.post('/jobs', (req, res) => {
       result.powerbiLoaded = authInfo.powerbiLoaded;
       result.authSteps = authInfo.steps;
 
-      const { rows, csv } = await scrape(store, matricula, authInfo.token, scrapeDate);
-      
-      if (rows.length > 0) {
+      const { rows, csv, steps: extractorSteps } = await scrape(store, matricula, authInfo.token, scrapeDate);
+
+      // Append extractor steps (Query results, contract count) to the auth steps log
+      if (extractorSteps && extractorSteps.length > 0) {
+        result.authSteps = [...(result.authSteps || []), ...extractorSteps];
+      }
+
+      // rowCount = only the CSV/contract detail rows (Query 2), not the combined total
+      const csvRowCount = csv ? csv.split('\n').filter(Boolean).length - 1 : 0;
+      const effectiveCount = csvRowCount > 0 ? csvRowCount : rows.length;
+
+      if (effectiveCount > 0) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `scrape_${jobId}_${timestamp}.csv`;
         const filePath = path.join(OUTPUT_DIR, filename);
         
         fs.writeFileSync(filePath, csv, 'utf8');
         
-        result.rowCount = rows.length;
+        result.rowCount = effectiveCount;
         result.fileRelativePath = filename;
       } else {
         result.status = 'Failed';
@@ -118,7 +127,7 @@ app.post('/jobs', (req, res) => {
         result.loginSuccess = err.loginSuccess || false;
         result.authSteps = err.steps;
       } else if (err.steps) {
-        result.authSteps = err.steps;
+        result.authSteps = [...(result.authSteps || []), ...err.steps];
       }
 
       if (err.message && (err.message.includes('401') || err.message.includes('403') || err.message.includes('Unauthorized'))) {
@@ -136,6 +145,7 @@ app.post('/jobs', (req, res) => {
       const callbackResult = { 
         ...result, 
         userId: req.body.userId, 
+        runId: req.body.runId,
         store, 
         matricula 
       };

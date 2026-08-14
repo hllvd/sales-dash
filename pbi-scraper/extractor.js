@@ -149,7 +149,6 @@ function buildPayload2(store, matricula, scrapeDate) {
                 {"Name": "t", "Entity": "tbl_cotas", "Type": 0},
                 {"Name": "m", "Entity": "1_Medidas", "Type": 0},
                 {"Name": "c", "Entity": "Calendario", "Type": 0},
-                {"Name": "p", "Entity": "Parâmetro_Senhas", "Type": 0},
                 {"Name": "a", "Entity": "acessos", "Type": 0}
               ],
               "Select": [
@@ -204,7 +203,6 @@ function buildPayload2(store, matricula, scrapeDate) {
                 },
                 ...calendarFilters,
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store}'` }}]]}}},
-                {"Condition": {"And": {"Left": {"Comparison": {"ComparisonKind": 2, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal": {"Value": "929009D"}}}}, "Right": {"Comparison": {"ComparisonKind": 4, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal":{"Value": "929009D"}}}}}}},
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "a"}}, "Property": "matricula"}}], "Values": [[{"Literal": {"Value": `'${paddedMatricula}'` }}]]}}}
               ],
               "OrderBy": [{"Direction": 2, "Expression": {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}}}]
@@ -378,7 +376,11 @@ async function scrape(store, matricula, token, scrapeDate) {
     'Referer':        'https://dashboardbi.ademicon.com.br/'
   };
 
+  const steps = [];
+  const ts = () => new Date().toLocaleTimeString('pt-BR');
+
   console.log(`[Extractor] Querying for Store: "${store}", Matricula: "${matricula}", Date: "${scrapeDate || 'Default'}"`);
+  steps.push(`[${ts()}] Consultando PowerBI — Unidade: "${store}", Matrícula: "${matricula}", Data: "${scrapeDate || 'Padrão (mês atual)'}"`);
 
   const payload1 = buildPayload1(store, matricula, scrapeDate);
   const payload2 = buildPayload2(store, matricula, scrapeDate);
@@ -400,36 +402,50 @@ async function scrape(store, matricula, token, scrapeDate) {
     }
   } catch (e) {}
 
-  console.log('[Extractor] Sending Query 1 and Query 2 via Promise.all with retries...');
+  steps.push(`[${ts()}] Enviando consultas (Query 1: resumo de produção, Query 2: contratos detalhados)...`);
 
+  // Query 1 (summary) is best-effort — failure must not abort the extraction
+  let rows1 = [];
   try {
-    const [res1, res2] = await Promise.all([
-      postWithRetry(URL, payload1, headers, 'Query 1'),
-      postWithRetry(URL, payload2, headers, 'Query 2')
-    ]);
-
+    const res1 = await postWithRetry(URL, payload1, headers, 'Query 1');
     console.log(`[Extractor] Query 1 Response Status: ${res1.status}`);
+    rows1 = parseDSR(res1.data);
+    console.log(`[Extractor] Query 1 returned ${rows1.length} rows`);
+    steps.push(`[${ts()}] Query 1 (resumo): ${rows1.length} registros retornados.`);
+  } catch (err) {
+    const msg = `Query 1 (resumo) falhou — continuando com Query 2. Detalhe: ${err.message}`;
+    console.warn(`[Extractor] ${msg}`);
+    steps.push(`[${ts()}] ⚠️ ${msg}`);
+    // Non-fatal: Query 1 is summary-only; Query 2 has the actual contract data
+  }
+
+  // Query 2 (contract detail) is mandatory — failure aborts the extraction
+  let rows2 = [];
+  let csv = '';
+  try {
+    const res2 = await postWithRetry(URL, payload2, headers, 'Query 2');
     console.log(`[Extractor] Query 2 Response Status: ${res2.status}`);
 
-    const rows1 = parseDSR(res1.data);
-    const rows2 = parseDSR(res2.data);
-
-    console.log(`[Extractor] Query 1 returned ${rows1.length} rows`);
-    console.log(`[Extractor] Query 2 returned ${rows2.length} rows`);
-
-    // Debug: Log raw response if no detail rows
     if (!res2.data || !res2.data.results) {
       console.log('[Extractor] Query 2 Raw Response Data (First 200 chars):', JSON.stringify(res2.data).substring(0, 200));
     }
 
-    return {
-      rows: [...rows1, ...rows2],
-      csv: toCsv(rows2) // We prioritize the detailed rows for CSV export
-    };
+    rows2 = parseDSR(res2.data);
+    console.log(`[Extractor] Query 2 returned ${rows2.length} rows`);
+    steps.push(`[${ts()}] ✅ Query 2 (contratos): ${rows2.length} contratos extraídos com sucesso.`);
+    csv = toCsv(rows2);
   } catch (err) {
-    console.error('[Extractor] Extraction failed after retries:', err.message);
-    throw err;
+    const msg = `Query 2 (contratos) falhou após tentativas. Detalhe: ${err.message}`;
+    console.error(`[Extractor] ${msg}`);
+    steps.push(`[${ts()}] ❌ ${msg}`);
+    throw Object.assign(err, { steps });
   }
+
+  return {
+    rows: [...rows1, ...rows2],
+    csv,   // Only the contract detail rows are exported
+    steps
+  };
 }
 
 module.exports = { scrape };

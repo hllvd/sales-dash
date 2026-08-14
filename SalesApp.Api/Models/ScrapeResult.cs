@@ -4,7 +4,7 @@ namespace SalesApp.Models
     {
         public string JobId { get; set; } = string.Empty;
         public string? RunId { get; set; }
-        public string UserId { get; set; } = string.Empty;
+        public string? UserId { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Store { get; set; }
         public string? Matricula { get; set; }
