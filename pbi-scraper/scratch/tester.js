@@ -6,8 +6,8 @@ const { getTokenFromLogin } = require('../auth');
 const { scrape } = require('../extractor');
 
 // HARDCODED CREDENTIALS FOR TESTING
-const MATRICULA = 'YOUR_MATRICULA' // Replace with real matricula
-const PASSWORD = 'YOUR_PASSWORD' // Replace with real password
+const MATRICULA = '11177' // Replace with real matricula
+const PASSWORD = 'Alexi@t&26' // Replace with real password
 const STORE = 'BALNEARIO CAMBORIU - SC';     //replace with a real store name
 const DATE = process.env.SCRAPE_DATE || '2026-04'; // Use YYYY, YYYY-MM, or YYYY-MM-DD
 const SAVE_OUTPUT = process.env.SAVE_OUTPUT === 'true';
@@ -26,8 +26,9 @@ async function runTest() {
   try {
     // 1. Get Token
     console.log('\n[1/2] Authenticating via Puppeteer...');
-    const token = await getTokenFromLogin(MATRICULA, PASSWORD);
-    console.log('Token successfully captured.');
+    const authResult = await getTokenFromLogin(MATRICULA, PASSWORD, STORE);
+    const token = typeof authResult === 'string' ? authResult : authResult.token;
+    console.log(`Token successfully captured: ${token ? token.substring(0, 30) + '...' : 'NULL'}`);
 
     // 2. Run Scraper
     console.log('\n[2/2] Running extractor with captured token...');
