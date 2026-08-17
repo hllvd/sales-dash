@@ -6,6 +6,7 @@ export interface ScrapeConfig {
     store: string;
     matricula: string;
     credentialStatus?: 'ok' | 'wrong-password' | null;
+    defaultStartMonth?: string;
     isEnabled: boolean;
     createdAt: string;
     updatedAt: string;
@@ -16,6 +17,7 @@ export interface ScrapeConfigRequest {
     store: string;
     matricula: string;
     powerBiPassword?: string;
+    defaultStartMonth?: string;
     testOnSave?: boolean;
 }
 
@@ -36,6 +38,8 @@ export interface ScrapeJob {
     authMessage?: string;
     powerBiLoaded?: boolean;
     authSteps?: string[];
+    retryCount?: number;
+    scrapeDate?: string;
 }
 
 export interface ScrapeRunSummary {
@@ -92,7 +96,7 @@ export const scrapeService = {
         return apiService.get(`${ENDPOINT_PREFIX}/runs/${encodeURIComponent(runId)}`);
     },
 
-    triggerScrape: async (configId: number): Promise<{ jobId: string; runId: string }> => {
-        return apiService.post(`${ENDPOINT_PREFIX}/jobs/${configId}`, {});
+    triggerScrape: async (configId: number, startMonth?: string, monthsCount: number = 3): Promise<{ jobId: string; runId: string; jobIds?: string[] }> => {
+        return apiService.post(`${ENDPOINT_PREFIX}/jobs/${configId}`, { startMonth, monthsCount });
     }
 };

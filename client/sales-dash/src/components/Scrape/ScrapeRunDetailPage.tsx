@@ -118,12 +118,35 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
   const totalRowCount = detail?.jobs.reduce((acc, job) => acc + (job.rowCount || 0), 0) || 0;
   const uniqueMatriculas = Array.from(new Set(detail?.jobs.map((j) => j.matricula) || [])).filter(Boolean);
 
+  const formatMonthYear = (dateStr?: string) => {
+    if (!dateStr || dateStr === 'Padrão') return 'Mês Atual';
+    if (dateStr.includes('-')) {
+      const parts = dateStr.split('-');
+      if (parts.length >= 2) {
+        return `${parts[1]}/${parts[0]}`;
+      }
+    }
+    return dateStr;
+  };
+
   const jobRows = (detail?.jobs || []).map((job) => (
     <Table.Tr key={job.jobId}>
       <Table.Td>{new Date(job.createdAt).toLocaleString('pt-BR')}</Table.Td>
+      <Table.Td>
+        <Badge color="violet" variant="light" size="sm">
+          {formatMonthYear(job.scrapeDate)}
+        </Badge>
+      </Table.Td>
       <Table.Td><Text fw={500} size="sm">{job.store}</Text></Table.Td>
       <Table.Td><Text size="sm">{job.matricula}</Text></Table.Td>
       <Table.Td>{getStatusBadge(job.status)}</Table.Td>
+      <Table.Td>
+        {job.retryCount && job.retryCount > 0 ? (
+          <Badge color="orange" variant="filled" size="xs">Retry {job.retryCount}</Badge>
+        ) : (
+          <Text size="xs" c="dimmed">0</Text>
+        )}
+      </Table.Td>
       <Table.Td>{getAuthStatusBadge(job.authStatus)}</Table.Td>
       <Table.Td>
         {job.powerBiLoaded ? (
@@ -265,12 +288,14 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Data/Hora</Table.Th>
+                    <Table.Th>Mês (MM/YYYY)</Table.Th>
                     <Table.Th>Unidade</Table.Th>
                     <Table.Th>Matrícula</Table.Th>
                     <Table.Th>Status</Table.Th>
+                    <Table.Th>Retentativas</Table.Th>
                     <Table.Th>Autenticação</Table.Th>
                     <Table.Th>PowerBI</Table.Th>
-                    <Table.Th>Registros</Table.Th>
+                    <Table.Th>Contratos</Table.Th>
                     <Table.Th>Observações / Passos</Table.Th>
                   </Table.Tr>
                 </Table.Thead>

@@ -16,6 +16,7 @@ namespace SalesApp.Controllers
         public string Store { get; set; } = string.Empty;
         public string Matricula { get; set; } = string.Empty;
         public string? CredentialStatus { get; set; }
+        public string? DefaultStartMonth { get; set; }
         public bool IsEnabled { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
@@ -27,7 +28,14 @@ namespace SalesApp.Controllers
         public string Store { get; set; } = string.Empty;
         public string Matricula { get; set; } = string.Empty;
         public string? PowerBiPassword { get; set; }
+        public string? DefaultStartMonth { get; set; }
         public bool TestOnSave { get; set; } = true;
+    }
+
+    public class TriggerScrapeJobRequest
+    {
+        public string? StartMonth { get; set; }
+        public int MonthsCount { get; set; } = 3;
     }
 
     [ApiController]
@@ -91,6 +99,7 @@ namespace SalesApp.Controllers
 
             config.Store = request.Store;
             config.Matricula = request.Matricula;
+            config.DefaultStartMonth = request.DefaultStartMonth;
             config.UpdatedAt = DateTime.UtcNow;
 
             if (!string.IsNullOrEmpty(request.PowerBiPassword))
@@ -191,7 +200,7 @@ namespace SalesApp.Controllers
 
         [Authorize(Roles = "admin,superadmin")]
         [HttpPost("jobs/{configId}")]
-        public async Task<IActionResult> TriggerScrape(int configId)
+        public async Task<IActionResult> TriggerScrape(int configId, [FromBody] TriggerScrapeJobRequest? request = null)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value 
@@ -212,8 +221,54 @@ namespace SalesApp.Controllers
             if (!User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
 
             var runId = Guid.NewGuid().ToString();
-            var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail);
-            return Accepted(new { jobId, runId });
+            var monthsCount = request?.MonthsCount > 0 ? request.MonthsCount : 3;
+            var effectiveStartMonth = !string.IsNullOrWhiteSpace(request?.StartMonth) ? request.StartMonth : config.DefaultStartMonth;
+            var scrapeDates = CalculateScrapeDates(effectiveStartMonth, monthsCount);
+
+            var jobIds = new List<string>();
+            foreach (var date in scrapeDates)
+            {
+                var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail, scrapeDate: date);
+                jobIds.Add(jobId);
+            }
+
+            return Accepted(new { jobId = jobIds.FirstOrDefault(), jobIds, runId, scrapeDates });
+        }
+
+        private static List<string> CalculateScrapeDates(string? startMonth, int defaultCount = 3)
+        {
+            var dates = new List<string>();
+            var now = DateTime.UtcNow;
+            var currentYearMonth = new DateTime(now.Year, now.Month, 1);
+
+            if (!string.IsNullOrWhiteSpace(startMonth) && DateTime.TryParseExact(startMonth.Trim(), "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var startParsed))
+            {
+                var cursor = new DateTime(startParsed.Year, startParsed.Month, 1);
+
+                if (cursor > currentYearMonth)
+                {
+                    dates.Add(currentYearMonth.ToString("yyyy-MM"));
+                }
+                else
+                {
+                    while (cursor <= currentYearMonth)
+                    {
+                        dates.Add(cursor.ToString("yyyy-MM"));
+                        cursor = cursor.AddMonths(1);
+                    }
+                }
+            }
+            else
+            {
+                var count = defaultCount > 0 ? defaultCount : 3;
+                var start = currentYearMonth.AddMonths(-(count - 1));
+                for (int i = 0; i < count; i++)
+                {
+                    dates.Add(start.AddMonths(i).ToString("yyyy-MM"));
+                }
+            }
+
+            return dates;
         }
 
         [Authorize(Roles = "admin,superadmin")]
@@ -286,6 +341,7 @@ namespace SalesApp.Controllers
                 Store = config.Store,
                 Matricula = config.Matricula,
                 CredentialStatus = config.CredentialStatus,
+                DefaultStartMonth = config.DefaultStartMonth,
                 IsEnabled = config.IsEnabled,
                 CreatedAt = config.CreatedAt,
                 UpdatedAt = config.UpdatedAt

@@ -7,7 +7,7 @@ namespace SalesApp.Services
 {
     public interface IScrapeOrchestrator
     {
-        Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null);
+        Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null);
         Task HandleCallbackAsync(ScrapeResult result);
     }
 
@@ -36,7 +36,7 @@ namespace SalesApp.Services
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
         }
 
-        public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null)
+        public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null)
         {
             var config = await _context.ScrapeConfigs
                 .Include(c => c.User)
@@ -67,7 +67,7 @@ namespace SalesApp.Services
                 matricula: config.Matricula,
                 runId: effectiveRunId,
                 userEmail: effectiveUserEmail,
-                additionalData: new { IsManual = isManual }
+                additionalData: new { IsManual = isManual, ScrapeDate = scrapeDate }
             );
 
             // 2. Call Node.js service
@@ -82,7 +82,8 @@ namespace SalesApp.Services
                     matricula: config.Matricula,
                     avaproUsername: config.Matricula, // Using Matricula as username for PBI login
                     avaproPassword: decryptedPassword,
-                    runId: effectiveRunId
+                    runId: effectiveRunId,
+                    scrapeDate: scrapeDate
                 );
                 
                 // Update status to Running
@@ -93,7 +94,8 @@ namespace SalesApp.Services
                     store: config.Store,
                     matricula: config.Matricula,
                     runId: effectiveRunId,
-                    userEmail: effectiveUserEmail
+                    userEmail: effectiveUserEmail,
+                    additionalData: new { ScrapeDate = scrapeDate }
                 );
             }
             catch (Exception ex)
@@ -106,7 +108,7 @@ namespace SalesApp.Services
                     matricula: config.Matricula,
                     runId: effectiveRunId,
                     userEmail: effectiveUserEmail,
-                    additionalData: new { ErrorMessage = ex.Message }
+                    additionalData: new { ErrorMessage = ex.Message, ScrapeDate = scrapeDate }
                 );
                 throw;
             }
@@ -133,7 +135,9 @@ namespace SalesApp.Services
                     AuthStatus = result.AuthStatus,
                     AuthMessage = result.AuthMessage,
                     PowerBiLoaded = result.PowerBiLoaded,
-                    AuthSteps = result.AuthSteps != null ? Newtonsoft.Json.JsonConvert.SerializeObject(result.AuthSteps) : null
+                    AuthSteps = result.AuthSteps != null ? Newtonsoft.Json.JsonConvert.SerializeObject(result.AuthSteps) : null,
+                    RetryCount = result.RetryCount,
+                    ScrapeDate = result.ScrapeDate
                 }
             );
 

@@ -25,6 +25,8 @@ namespace SalesApp.Services
         public string? AuthMessage { get; set; }
         public bool PowerBiLoaded { get; set; }
         public List<string> AuthSteps { get; set; } = new List<string>();
+        public string? ScrapeDate { get; set; }
+        public int RetryCount { get; set; }
     }
 
     public class ScrapeRunSummary
@@ -391,6 +393,13 @@ namespace SalesApp.Services
                 catch { }
             }
 
+            var scrapeDate = item.GetValueOrDefault("ScrapeDate")?.S ?? item.GetValueOrDefault("scrapeDate")?.S;
+            var retryCountStr = item.GetValueOrDefault("RetryCount")?.N
+                            ?? item.GetValueOrDefault("RetryCount")?.S
+                            ?? item.GetValueOrDefault("retryCount")?.N
+                            ?? item.GetValueOrDefault("retryCount")?.S;
+            var retryCount = int.TryParse(retryCountStr, out var r) ? r : 0;
+
             return new ScrapeLogEntry
             {
                 JobId = jobId,
@@ -408,7 +417,9 @@ namespace SalesApp.Services
                 AuthStatus = authStatus,
                 AuthMessage = authMessage,
                 PowerBiLoaded = pbiLoaded,
-                AuthSteps = authSteps
+                AuthSteps = authSteps,
+                ScrapeDate = scrapeDate,
+                RetryCount = retryCount
             };
         }
     }

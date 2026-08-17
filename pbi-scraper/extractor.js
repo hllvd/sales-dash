@@ -463,6 +463,7 @@ async function scrapeWithReauth(store, matricula, password, scrapeDate, getToken
       // Run scrape query
       const result = await scrape(store, matricula, activeToken, scrapeDate);
       result.authSteps = authInfo.steps || [];
+      result.retryCount = attempt;
       return result;
 
     } catch (err) {

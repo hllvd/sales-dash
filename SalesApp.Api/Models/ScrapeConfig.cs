@@ -33,6 +33,9 @@ namespace SalesApp.Models
         [MaxLength(50)]
         public string? CredentialStatus { get; set; } // "ok", "wrong-password", or null
 
+        [MaxLength(20)]
+        public string? DefaultStartMonth { get; set; }
+
         public bool IsEnabled { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

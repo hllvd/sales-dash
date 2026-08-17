@@ -648,6 +648,27 @@ Provides in-memory token caching per matrícula, automatic re-authentication upo
 - `pbi-scraper/server.js` — Added multi-month date range parser (`normalizeScrapeDates`), updating `/jobs` to process batch ranges reusing cached tokens.
 - `pbi-scraper/scratch/test-range.js` — CLI test script for verifying multi-month extraction speed and auto-reauth behavior (`SCRAPE_DATES="2026-02,2026-03,2026-04"`).
 
+## PowerBI Scraper - Start Month Selection & Per-Month Breakdown UI (2026-08-17)
+
+Adds UI controls for triggering multi-month extractions starting from a specific month, alongside detailed per-month status, retry count tracking, and contract count breakdowns in the execution details page.
+
+### Key Capabilities
+- **Direct Extrair Trigger & Configurable Default Month (`ScrapeDashboard.tsx`)**: Clicking "Extrair" directly triggers the extraction without any popup prompt, using the account's configured `DefaultStartMonth` (or falling back to the 3-month rolling range).
+- **Date Range Dynamic Generation (`ScrapeController.cs`)**: When `startMonth` is specified (e.g. `2026-02`), the backend generates jobs for every consecutive month from `startMonth` up to the current month inclusive (e.g. `02/2026`, `03/2026`, ..., `08/2026`).
+- **Per-Month Job Orchestration (`ScrapeController.cs` & `ScrapeOrchestrator.cs`)**: Multi-month requests generate individual jobs under a unified `RunId`, persisting `ScrapeDate` and `RetryCount` into DynamoDB logs.
+- **DynamoDB & SQLite Persistence (`ScrapeDynamoLogService.cs` & `ScrapeConfig.cs`)**: Job target months (`ScrapeDate`) and retry counts are permanently stored in DynamoDB attributes and retrieved cleanly upon loading run details.
+- **Formatted MM/YYYY Display (`ScrapeRunDetailPage.tsx`)**: Formats the extracted month as `MM/YYYY` (e.g. `02/2026`, `03/2026`, `04/2026`) in a dedicated column, displaying the exact contract count per month.
+
+### Key Files Modified
+- `client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx` — Trigger modal and account configuration modal for `DefaultStartMonth`.
+- `client/sales-dash/src/components/Scrape/ScrapeRunDetailPage.tsx` — `MM/YYYY` formatted column (`Mês (MM/YYYY)`), Retentativas count, and contract totals per month.
+- `client/sales-dash/src/services/scrapeService.ts` — Updated API service interfaces including `defaultStartMonth`.
+- `SalesApp.Api/Models/ScrapeConfig.cs` — Added `DefaultStartMonth` column to SQLite entity.
+- `SalesApp.Api/Controllers/ScrapeController.cs` — Added `DefaultStartMonth` to DTOs, `SaveConfig`, and `TriggerScrape` fallback logic.
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs` — Added `ScrapeDate` and `RetryCount` mapping to/from DynamoDB items (`MapToEntry`).
+- `pbi-scraper/extractor.js` & `pbi-scraper/server.js` — Returned `retryCount` and `scrapeDate` in job callback payloads.
+
+
 
 
 

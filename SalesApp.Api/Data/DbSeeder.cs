@@ -8,6 +8,16 @@ namespace SalesApp.Data
         public static async Task SeedAsync(AppDbContext context)
         {
             await context.Database.MigrateAsync();
+
+            // Self-healing migration guard: ensure DefaultStartMonth column exists in SQLite ScrapeConfigs table
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"ScrapeConfigs\" ADD COLUMN \"DefaultStartMonth\" TEXT;");
+            }
+            catch
+            {
+                // Column already exists or table handles it
+            }
             
             // Check if admin user exists by email
             var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Email == "admin@salesapp.com");

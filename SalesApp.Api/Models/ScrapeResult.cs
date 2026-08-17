@@ -16,5 +16,7 @@ namespace SalesApp.Models
         public string? AuthMessage { get; set; }
         public bool PowerBiLoaded { get; set; }
         public List<string>? AuthSteps { get; set; }
+        public int RetryCount { get; set; }
+        public string? ScrapeDate { get; set; }
     }
 }

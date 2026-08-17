@@ -109,6 +109,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const [store, setStore] = useState<string | null>(null);
   const [matricula, setMatricula] = useState('');
   const [password, setPassword] = useState('');
+  const [configDefaultStartMonth, setConfigDefaultStartMonth] = useState('');
   const [validateOnSave, setValidateOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
@@ -155,11 +156,13 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       setStore(config.store);
       setMatricula(config.matricula);
       setPassword(''); // Don't show existing password
+      setConfigDefaultStartMonth(config.defaultStartMonth || '');
     } else {
       setEditingConfig(null);
       setStore(null);
       setMatricula('');
       setPassword('');
+      setConfigDefaultStartMonth('');
     }
     setModalOpen(true);
   };
@@ -181,6 +184,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
         store,
         matricula,
         powerBiPassword: password || undefined,
+        defaultStartMonth: configDefaultStartMonth || undefined,
         testOnSave: validateOnSave
       });
       
@@ -307,12 +311,16 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   };
 
   const handleTrigger = async (configId: number) => {
+    const targetConfig = configs.find(c => c.id === configId);
+    const startM = targetConfig?.defaultStartMonth;
     try {
       setTriggering(configId);
-      await scrapeService.triggerScrape(configId);
+      await scrapeService.triggerScrape(configId, startM, 3);
       notifications.show({
         title: 'Extração Iniciada',
-        message: 'O robô foi notificado. Acompanhe o progresso no histórico.',
+        message: startM 
+          ? `Robô iniciado a partir de ${startM}. Acompanhe o progresso no histórico.`
+          : 'Robô iniciado. Acompanhe o progresso no histórico.',
         color: 'green',
       });
       fetchData();
@@ -623,6 +631,14 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
               onChange={(e) => setPassword(e.currentTarget.value)}
               description={editingConfig ? "Deixe em branco para manter a senha atual" : undefined}
               required={!editingConfig}
+            />
+
+            <TextInput
+              label="Mês Inicial Padrão (Opcional)"
+              type="month"
+              value={configDefaultStartMonth}
+              onChange={(e) => setConfigDefaultStartMonth(e.currentTarget.value)}
+              description="Define o mês inicial padrão pré-selecionado ao solicitar extração desta conta."
             />
             
             <Divider mt="xs" label="Segurança" labelPosition="center" />

@@ -95,6 +95,8 @@ app.post('/jobs', (req, res) => {
     const passwordToUse = avaproPassword;
     const matriculaToUse = avaproUsername || matricula;
 
+    let totalRetryCount = 0;
+
     try {
       for (const targetDate of scrapeDates) {
         console.log(`[Job ${jobId}] Scraping date ${targetDate}...`);
@@ -108,6 +110,10 @@ app.post('/jobs', (req, res) => {
           3 // max 3 automatic re-auth retries
         );
 
+        if (scrapeRes.retryCount) {
+          totalRetryCount += scrapeRes.retryCount;
+        }
+
         if (scrapeRes.authSteps && scrapeRes.authSteps.length > 0) {
           result.authSteps = [...(result.authSteps || []), ...scrapeRes.authSteps];
         }
@@ -115,6 +121,9 @@ app.post('/jobs', (req, res) => {
         if (scrapeRes.rows) combinedRows.push(...scrapeRes.rows);
         if (scrapeRes.csv) csvParts.push(scrapeRes.csv);
       }
+
+      result.retryCount = totalRetryCount;
+      result.scrapeDate = scrapeDates.join(',');
 
       // Merge CSV outputs from multiple dates if applicable
       let mergedCsv = '';
