@@ -429,6 +429,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       <Table.Td><Text size="sm">{run.matriculas.join(', ') || '-'}</Text></Table.Td>
       <Table.Td><Text size="sm">{run.stores.join(', ') || '-'}</Text></Table.Td>
       <Table.Td>{getFinalStatusBadge(run.finalStatus)}</Table.Td>
+      <Table.Td><Badge variant="light" color="blue" size="sm">{run.durationFormatted || '0s'}</Badge></Table.Td>
       <Table.Td><Text fw={600} size="sm">{run.totalRowCount}</Text></Table.Td>
       <Table.Td>
         <Button size="compact-xs" variant="light" color="indigo">
@@ -575,6 +576,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
                       <Table.Th>Matrícula(s)</Table.Th>
                       <Table.Th>Unidade(s)</Table.Th>
                       <Table.Th>Status Final</Table.Th>
+                      <Table.Th>Tempo Total</Table.Th>
                       <Table.Th>Registros Totais</Table.Th>
                       <Table.Th>Ação</Table.Th>
                     </Table.Tr>

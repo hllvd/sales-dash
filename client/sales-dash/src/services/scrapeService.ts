@@ -40,6 +40,8 @@ export interface ScrapeJob {
     authSteps?: string[];
     retryCount?: number;
     scrapeDate?: string;
+    durationSeconds?: number;
+    durationFormatted?: string;
 }
 
 export interface ScrapeRunSummary {
@@ -54,6 +56,8 @@ export interface ScrapeRunSummary {
     totalRowCount: number;
     stores: string[];
     matriculas: string[];
+    durationSeconds?: number;
+    durationFormatted?: string;
 }
 
 export interface ScrapeRunDetail {
@@ -62,6 +66,8 @@ export interface ScrapeRunDetail {
     userEmail: string;
     finalStatus: string;
     createdAt: string;
+    durationSeconds?: number;
+    durationFormatted?: string;
     jobs: ScrapeJob[];
 }
 

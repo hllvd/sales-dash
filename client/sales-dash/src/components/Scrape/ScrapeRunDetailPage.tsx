@@ -133,6 +133,11 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
     <Table.Tr key={job.jobId}>
       <Table.Td>{new Date(job.createdAt).toLocaleString('pt-BR')}</Table.Td>
       <Table.Td>
+        <Badge variant="outline" color="blue" size="xs">
+          {job.durationFormatted || '0s'}
+        </Badge>
+      </Table.Td>
+      <Table.Td>
         <Badge color="violet" variant="light" size="sm">
           {formatMonthYear(job.scrapeDate)}
         </Badge>
@@ -231,7 +236,7 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
                 </Stack>
               </Group>
 
-              <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
+              <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} spacing="md">
                 <Paper withBorder p="sm" radius="md">
                   <Group gap="xs">
                     <ThemeIcon variant="light" color="blue" size="md">
@@ -252,6 +257,18 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
                     <div>
                       <Text size="xs" c="dimmed">Data da Execução</Text>
                       <Text fw={600} size="sm">{new Date(detail.createdAt).toLocaleString('pt-BR')}</Text>
+                    </div>
+                  </Group>
+                </Paper>
+
+                <Paper withBorder p="sm" radius="md">
+                  <Group gap="xs">
+                    <ThemeIcon variant="light" color="orange" size="md">
+                      <IconClock size={18} />
+                    </ThemeIcon>
+                    <div>
+                      <Text size="xs" c="dimmed">Tempo Total Gasto</Text>
+                      <Text fw={600} size="sm">{detail.durationFormatted || '0s'}</Text>
                     </div>
                   </Group>
                 </Paper>
@@ -288,6 +305,7 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Data/Hora</Table.Th>
+                    <Table.Th>Duração</Table.Th>
                     <Table.Th>Mês (MM/YYYY)</Table.Th>
                     <Table.Th>Unidade</Table.Th>
                     <Table.Th>Matrícula</Table.Th>

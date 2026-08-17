@@ -235,9 +235,9 @@ namespace SalesApp.Controllers
             return Accepted(new { jobId = jobIds.FirstOrDefault(), jobIds, runId, scrapeDates });
         }
 
-        private static List<string> CalculateScrapeDates(string? startMonth, int defaultCount = 3)
+        private static List<string?> CalculateScrapeDates(string? startMonth, int defaultCount = 3)
         {
-            var dates = new List<string>();
+            var dates = new List<string?>();
             var now = DateTime.UtcNow;
             var currentYearMonth = new DateTime(now.Year, now.Month, 1);
 
@@ -260,12 +260,8 @@ namespace SalesApp.Controllers
             }
             else
             {
-                var count = defaultCount > 0 ? defaultCount : 3;
-                var start = currentYearMonth.AddMonths(-(count - 1));
-                for (int i = 0; i < count; i++)
-                {
-                    dates.Add(start.AddMonths(i).ToString("yyyy-MM"));
-                }
+                // If user does not set a start month, do not apply any date filter in PowerBI
+                dates.Add(null);
             }
 
             return dates;

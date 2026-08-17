@@ -39,12 +39,7 @@ function normalizeScrapeDates(reqScrapeDate, reqScrapeDates) {
     return [datesRaw.trim()];
   }
 
-  // Default to previous month's date
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return [`${yyyy}-${mm}`];
+  return [null];
 }
 
 // Ensure output directory exists

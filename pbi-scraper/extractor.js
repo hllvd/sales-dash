@@ -8,15 +8,7 @@ const URL      = `https://${ENDPOINT}${PATH}`;
 
 function getCalendarFilters(dateString) {
   if (!dateString) {
-    const currentYear = new Date().getFullYear();
-    return [{
-      "Condition": {
-        "In": {
-          "Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "c"}}, "Property": "Ano"}}],
-          "Values": [[{"Literal": {"Value": `${currentYear}L` }}]]
-        }
-      }
-    }];
+    return [];
   }
 
   const parts = dateString.split('-');

@@ -653,8 +653,10 @@ Provides in-memory token caching per matrícula, automatic re-authentication upo
 Adds UI controls for triggering multi-month extractions starting from a specific month, alongside detailed per-month status, retry count tracking, and contract count breakdowns in the execution details page.
 
 ### Key Capabilities
-- **Direct Extrair Trigger & Configurable Default Month (`ScrapeDashboard.tsx`)**: Clicking "Extrair" directly triggers the extraction without any popup prompt, using the account's configured `DefaultStartMonth` (or falling back to the 3-month rolling range).
-- **Date Range Dynamic Generation (`ScrapeController.cs`)**: When `startMonth` is specified (e.g. `2026-02`), the backend generates jobs for every consecutive month from `startMonth` up to the current month inclusive (e.g. `02/2026`, `03/2026`, ..., `08/2026`).
+- **Direct Extrair Trigger & Configurable Default Month (`ScrapeDashboard.tsx`)**: Clicking "Extrair" directly triggers the extraction without any popup prompt, using the account's configured `DefaultStartMonth`.
+- **Execution Duration Calculation (`ScrapeDynamoLogService.cs`)**: Calculates total time spent per complete run (`min(CreatedAt)` to `max(CompletedAt)`), formatted as human-readable durations (e.g. `24s`, `1m 15s`, `3m 02s`). Also tracks duration for individual jobs.
+- **Duration UI Badges & Summary Cards (`ScrapeDashboard.tsx` & `ScrapeRunDetailPage.tsx`)**: Displays "Tempo Total" column in the history table, a dedicated "Tempo Total Gasto" summary card in the run details view, and a "Duração" column for each process.
+- **Date Range & Unspecified Date Handling (`ScrapeController.cs` & `extractor.js`)**: When `startMonth` is specified (e.g. `2026-02`), the backend generates jobs for every consecutive month from `startMonth` up to the current month inclusive. If no `startMonth` is set, the scraper runs without any date filter.
 - **Per-Month Job Orchestration (`ScrapeController.cs` & `ScrapeOrchestrator.cs`)**: Multi-month requests generate individual jobs under a unified `RunId`, persisting `ScrapeDate` and `RetryCount` into DynamoDB logs.
 - **DynamoDB & SQLite Persistence (`ScrapeDynamoLogService.cs` & `ScrapeConfig.cs`)**: Job target months (`ScrapeDate`) and retry counts are permanently stored in DynamoDB attributes and retrieved cleanly upon loading run details.
 - **Formatted MM/YYYY Display (`ScrapeRunDetailPage.tsx`)**: Formats the extracted month as `MM/YYYY` (e.g. `02/2026`, `03/2026`, `04/2026`) in a dedicated column, displaying the exact contract count per month.
