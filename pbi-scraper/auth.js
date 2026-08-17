@@ -3,9 +3,11 @@
 // Sends postMessage({ token: avaJwt }) into dashboardbi iframe.
 // Captures the MWCToken (RSA encrypted JWT starting with MWCToken / ey...)
 // used for PowerBI DAX queries.
+// Integrates with tokenManager for in-memory token caching per matricula.
 
 const puppeteer = require('puppeteer');
 const axios     = require('axios');
+const tokenManager = require('./tokenManager');
 
 const AVA_URL       = 'https://avapro.ademicon.com.br/';
 const DASHBOARD_URL = 'https://avapro.ademicon.com.br/dashboard';
@@ -115,7 +117,11 @@ async function attachInterceptionToTarget(pageObj, tokenRef, steps, avaJwt, requ
 }
 
 /**
- * Main entry point.
+ * Executes login via Puppeteer, obtains fresh tokens, and saves them to tokenManager.
+ *
+ * @param {string} matricula
+ * @param {string} password
+ * @param {string} store
  */
 async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORIU - SC') {
   const steps = [];
@@ -301,8 +307,14 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
     }
 
     addStep(steps, 'Autenticação e obtenção de MWCToken concluídas com sucesso.');
+
+    // Save tokens in tokenManager cache
+    tokenManager.setTokens(matricula, { avaJwt, pbiToken: tokenRef.value });
+
     return {
       token: tokenRef.value,
+      pbiToken: tokenRef.value,
+      avaJwt,
       authStatus:  'success',
       authMessage: 'Autenticação bem-sucedida',
       powerbiLoaded,
@@ -321,4 +333,40 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
   }
 }
 
-module.exports = { getTokenFromLogin, AuthError };
+/**
+ * Returns valid tokens for a given matricula.
+ * If forceRefresh is false and cached tokens exist, returns cached tokens immediately.
+ * Otherwise, launches Puppeteer to fetch fresh tokens.
+ *
+ * @param {string} matricula
+ * @param {string} password
+ * @param {string} store
+ * @param {boolean} forceRefresh
+ */
+async function getOrFetchTokens(matricula, password, store = 'BALNEARIO CAMBORIU - SC', forceRefresh = false) {
+  if (!forceRefresh) {
+    const cached = tokenManager.getTokens(matricula);
+    if (cached && cached.pbiToken) {
+      console.log(`[Auth] Reutilizando token PowerBI em cache para matrícula ${matricula}`);
+      return {
+        token: cached.pbiToken,
+        pbiToken: cached.pbiToken,
+        avaJwt: cached.avaJwt,
+        authStatus: 'success',
+        authMessage: 'Token reutilizado do cache em memória',
+        powerbiLoaded: true,
+        loginSuccess: true,
+        steps: [`[Auth] Token reutilizado do cache em memória para matrícula ${matricula}.`],
+      };
+    }
+  }
+
+  if (forceRefresh) {
+    console.log(`[Auth] Forçando nova autenticação (cache ignorado/inválido) para matrícula ${matricula}...`);
+    tokenManager.invalidateTokens(matricula);
+  }
+
+  return await getTokenFromLogin(matricula, password, store);
+}
+
+module.exports = { getTokenFromLogin, getOrFetchTokens, AuthError };

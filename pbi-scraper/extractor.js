@@ -1,5 +1,6 @@
 // extractor.js
 const axios = require('axios');
+const tokenManager = require('./tokenManager');
 
 const ENDPOINT = '7a8110990e16404daec259c355434bc6.pbidedicated.windows.net';
 const PATH     = '/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query';
@@ -222,7 +223,6 @@ function buildPayload2(store, matricula, scrapeDate) {
   };
 }
 
-
 function parseDSR(data) {
   const result = data?.results?.[0]?.result?.data;
   if (!result) return [];
@@ -336,6 +336,15 @@ function toCsv(rows) {
   ].join('\n');
 }
 
+/** Check if error status represents token expiration / authorization error */
+function isAuthErrorStatus(err) {
+  if (!err) return false;
+  const status = err.response?.status;
+  if (status === 401 || status === 402 || status === 403) return true;
+  const msg = (err.message || '').toLowerCase();
+  return msg.includes('401') || msg.includes('402') || msg.includes('403') || msg.includes('unauthorized');
+}
+
 async function postWithRetry(url, payload, headers, label) {
   const maxRetries = parseInt(process.env.SCRAPE_MAX_RETRIES || '2', 10);
   const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '240000', 10);
@@ -357,9 +366,12 @@ async function postWithRetry(url, payload, headers, label) {
       const isTimeout = err.code === 'ECONNABORTED' || err.message.includes('timeout');
       console.warn(`[Extractor] ${label} - Attempt ${attempt + 1} failed: ${err.message}${isTimeout ? ' (Timeout)' : ''}`);
       
+      // If error is 401/402/403 (expired token), throw immediately so auto-reauth can catch it
+      if (isAuthErrorStatus(err)) {
+        throw err;
+      }
+
       if (attempt === maxRetries) break;
-      
-      // Wait a bit before retrying (exponential backoff could be added here, but simple delay for now)
       await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
     }
   }
@@ -367,6 +379,9 @@ async function postWithRetry(url, payload, headers, label) {
   throw new Error(`${label} failed after ${maxRetries + 1} attempts. Last error: ${lastError.message}`);
 }
 
+/**
+ * Basic scrape query using provided token.
+ */
 async function scrape(store, matricula, token, scrapeDate) {
   const headers = {
     'Authorization':  token,
@@ -385,26 +400,8 @@ async function scrape(store, matricula, token, scrapeDate) {
   const payload1 = buildPayload1(store, matricula, scrapeDate);
   const payload2 = buildPayload2(store, matricula, scrapeDate);
 
-  // DEBUG: Write payloads to temp files so they can be inspected manually
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const debugDir = path.join(__dirname, 'scratch', 'debug');
-    if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
-    fs.writeFileSync(path.join(debugDir, 'payload1.json'), JSON.stringify(payload1, null, 2));
-    fs.writeFileSync(path.join(debugDir, 'payload2.json'), JSON.stringify(payload2, null, 2));
-    console.log(`[Extractor] Payloads saved to ${debugDir} for debugging.`);
-    
-    // Log the date filter being sent specifically
-    const q1Filter = payload1.queries[0].Query.Where.find(w => w.Condition?.In?.Expressions?.[0]?.Column?.Property === 'Ano');
-    if (q1Filter) {
-      console.log(`[Extractor] Year Filter being sent: ${q1Filter.Condition.In.Values[0][0].Literal.Value}`);
-    }
-  } catch (e) {}
-
   steps.push(`[${ts()}] Enviando consultas (Query 1: resumo de produção, Query 2: contratos detalhados)...`);
 
-  // Query 1 (summary) is best-effort — failure must not abort the extraction
   let rows1 = [];
   try {
     const res1 = await postWithRetry(URL, payload1, headers, 'Query 1');
@@ -413,23 +410,17 @@ async function scrape(store, matricula, token, scrapeDate) {
     console.log(`[Extractor] Query 1 returned ${rows1.length} rows`);
     steps.push(`[${ts()}] Query 1 (resumo): ${rows1.length} registros retornados.`);
   } catch (err) {
+    if (isAuthErrorStatus(err)) throw err;
     const msg = `Query 1 (resumo) falhou — continuando com Query 2. Detalhe: ${err.message}`;
     console.warn(`[Extractor] ${msg}`);
     steps.push(`[${ts()}] ⚠️ ${msg}`);
-    // Non-fatal: Query 1 is summary-only; Query 2 has the actual contract data
   }
 
-  // Query 2 (contract detail) is mandatory — failure aborts the extraction
   let rows2 = [];
   let csv = '';
   try {
     const res2 = await postWithRetry(URL, payload2, headers, 'Query 2');
     console.log(`[Extractor] Query 2 Response Status: ${res2.status}`);
-
-    if (!res2.data || !res2.data.results) {
-      console.log('[Extractor] Query 2 Raw Response Data (First 200 chars):', JSON.stringify(res2.data).substring(0, 200));
-    }
-
     rows2 = parseDSR(res2.data);
     console.log(`[Extractor] Query 2 returned ${rows2.length} rows`);
     steps.push(`[${ts()}] ✅ Query 2 (contratos): ${rows2.length} contratos extraídos com sucesso.`);
@@ -438,14 +429,63 @@ async function scrape(store, matricula, token, scrapeDate) {
     const msg = `Query 2 (contratos) falhou após tentativas. Detalhe: ${err.message}`;
     console.error(`[Extractor] ${msg}`);
     steps.push(`[${ts()}] ❌ ${msg}`);
-    throw Object.assign(err, { steps });
+    throw Object.assign(err, { steps, isAuthExpired: isAuthErrorStatus(err) });
   }
 
   return {
     rows: [...rows1, ...rows2],
-    csv,   // Only the contract detail rows are exported
+    csv,
     steps
   };
 }
 
-module.exports = { scrape };
+/**
+ * Scrapes PowerBI with automatic token caching and automatic re-authentication
+ * upon 401/402/403 authorization failures (up to maxReauthRetries = 3).
+ *
+ * @param {string} store
+ * @param {string} matricula
+ * @param {string} password
+ * @param {string} scrapeDate
+ * @param {Function} getTokensFn - Function (matricula, password, store, forceRefresh) => Promise<{ token }>
+ * @param {number} maxReauthRetries - Max automatic re-auth retries (default: 3)
+ */
+async function scrapeWithReauth(store, matricula, password, scrapeDate, getTokensFn, maxReauthRetries = 3) {
+  let attempt = 0;
+
+  while (attempt <= maxReauthRetries) {
+    try {
+      // Get cached token or fetch new token on forceRefresh (attempt > 0)
+      const forceRefresh = attempt > 0;
+      const authInfo = await getTokensFn(matricula, password, store, forceRefresh);
+      const activeToken = authInfo.token;
+
+      // Run scrape query
+      const result = await scrape(store, matricula, activeToken, scrapeDate);
+      result.authSteps = authInfo.steps || [];
+      return result;
+
+    } catch (err) {
+      // Check if credentials are dead (wrong password) -> fail immediately
+      if (err.authStatus === 'wrong-password' || (err.message && err.message.toLowerCase().includes('senha'))) {
+        console.error(`[Extractor] Autenticação falhou com credenciais inválidas para ${matricula}. Abortando retentativas.`);
+        throw err;
+      }
+
+      // Check if error is 401/402/403 token expiration
+      const isAuthFailure = isAuthErrorStatus(err) || err.isAuthExpired;
+
+      if (isAuthFailure && attempt < maxReauthRetries) {
+        attempt++;
+        console.warn(`[Extractor] Token expirado ou inválido (401/402/403) para matrícula ${matricula}. Re-autenticando via Puppeteer (Tentativa ${attempt}/${maxReauthRetries})...`);
+        tokenManager.invalidateTokens(matricula);
+        continue;
+      }
+
+      // Other error or exceeded max re-auth retries
+      throw err;
+    }
+  }
+}
+
+module.exports = { scrape, scrapeWithReauth, isAuthErrorStatus };

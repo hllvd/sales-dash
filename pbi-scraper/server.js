@@ -5,8 +5,9 @@ const PQueue = require('p-queue').default;
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const { scrape } = require('./extractor');
-const { getTokenFromLogin, AuthError } = require('./auth');
+const { scrapeWithReauth } = require('./extractor');
+const { getOrFetchTokens, AuthError } = require('./auth');
+const tokenManager = require('./tokenManager');
 
 const app = express();
 app.use(express.json());
@@ -15,33 +16,35 @@ const PORT       = process.env.PORT || 3001;
 const PBI_TOKEN  = process.env.PBI_TOKEN;
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './outputs';
 
-// Cached resolved token (refreshed per request if empty)
-let resolvedToken = PBI_TOKEN || null;
+// If PBI_TOKEN env var is set statically, pre-populate tokenManager
+if (PBI_TOKEN) {
+  console.log('[Server] Pre-populando tokenManager com PBI_TOKEN estático de ambiente.');
+}
 
 /**
- * Returns a valid PowerBI token and diagnostic details.
+ * Normalizes input date parameter into an array of date strings (YYYY-MM or YYYY-MM-DD).
  */
-async function getToken(username, password) {
-  if (resolvedToken) {
-    return {
-      token: resolvedToken,
-      authStatus: 'success',
-      authMessage: 'PBI_TOKEN reutilizado',
-      powerbiLoaded: true,
-      steps: ['[Server] PBI_TOKEN estático de ambiente utilizado.']
-    };
+function normalizeScrapeDates(reqScrapeDate, reqScrapeDates) {
+  let datesRaw = reqScrapeDates || reqScrapeDate;
+
+  if (Array.isArray(datesRaw)) {
+    return datesRaw.map(d => String(d).trim()).filter(Boolean);
   }
 
-  if (!username || !password) {
-    throw new AuthError(
-      'invalid-credentials',
-      'Matrícula e Senha são obrigatórias na configuração de extração.',
-      ['[Server] Erro: Matrícula ou Senha não fornecidas na configuração de extração.']
-    );
+  if (typeof datesRaw === 'string' && datesRaw.includes(',')) {
+    return datesRaw.split(',').map(d => d.trim()).filter(Boolean);
   }
 
-  console.log(`[Server] Autenticando para matrícula ${username}...`);
-  return await getTokenFromLogin(username, password);
+  if (typeof datesRaw === 'string' && datesRaw.trim()) {
+    return [datesRaw.trim()];
+  }
+
+  // Default to previous month's date
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return [`${yyyy}-${mm}`];
 }
 
 // Ensure output directory exists
@@ -53,27 +56,28 @@ if (!fs.existsSync(OUTPUT_DIR)) {
 const queue = new PQueue({ concurrency: 3 });
 
 app.post('/jobs', (req, res) => {
-  const { store, matricula, callbackUrl, jobId: externalJobId, avaproUsername, avaproPassword, scrapeDate: reqScrapeDate } = req.body;
-
-  let scrapeDate = reqScrapeDate;
-  if (!scrapeDate) {
-    // Default to the previous month's data
-    const d = new Date();
-    d.setMonth(d.getMonth() - 1);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    scrapeDate = `${yyyy}-${mm}`;
-  }
+  const {
+    store,
+    matricula,
+    callbackUrl,
+    jobId: externalJobId,
+    avaproUsername,
+    avaproPassword,
+    scrapeDate: reqScrapeDate,
+    scrapeDates: reqScrapeDates
+  } = req.body;
 
   if (!store || !matricula || !callbackUrl) {
     return res.status(400).json({ error: 'Missing store, matricula, or callbackUrl' });
   }
 
+  const scrapeDates = normalizeScrapeDates(reqScrapeDate, reqScrapeDates);
   const jobId = externalJobId || uuidv4();
 
   // Enqueue the work but respond immediately
   queue.add(async () => {
-    console.log(`[Job ${jobId}] Starting scrape for ${store} - ${matricula}`);
+    console.log(`[Job ${jobId}] Starting batch scrape for ${store} - ${matricula} (Dates: ${scrapeDates.join(', ')})`);
+    
     let result = {
       jobId, 
       status: 'Succeeded',
@@ -86,30 +90,57 @@ app.post('/jobs', (req, res) => {
       authSteps: []
     };
 
+    const combinedRows = [];
+    const csvParts = [];
+    const passwordToUse = avaproPassword;
+    const matriculaToUse = avaproUsername || matricula;
+
     try {
-      const authInfo = await getToken(avaproUsername || matricula, avaproPassword);
-      result.authStatus = authInfo.authStatus;
-      result.authMessage = authInfo.authMessage;
-      result.powerbiLoaded = authInfo.powerbiLoaded;
-      result.authSteps = authInfo.steps;
+      for (const targetDate of scrapeDates) {
+        console.log(`[Job ${jobId}] Scraping date ${targetDate}...`);
 
-      const { rows, csv, steps: extractorSteps } = await scrape(store, matricula, authInfo.token, scrapeDate);
+        const scrapeRes = await scrapeWithReauth(
+          store,
+          matriculaToUse,
+          passwordToUse,
+          targetDate,
+          getOrFetchTokens,
+          3 // max 3 automatic re-auth retries
+        );
 
-      // Append extractor steps (Query results, contract count) to the auth steps log
-      if (extractorSteps && extractorSteps.length > 0) {
-        result.authSteps = [...(result.authSteps || []), ...extractorSteps];
+        if (scrapeRes.authSteps && scrapeRes.authSteps.length > 0) {
+          result.authSteps = [...(result.authSteps || []), ...scrapeRes.authSteps];
+        }
+
+        if (scrapeRes.rows) combinedRows.push(...scrapeRes.rows);
+        if (scrapeRes.csv) csvParts.push(scrapeRes.csv);
       }
 
-      // rowCount = only the CSV/contract detail rows (Query 2), not the combined total
-      const csvRowCount = csv ? csv.split('\n').filter(Boolean).length - 1 : 0;
-      const effectiveCount = csvRowCount > 0 ? csvRowCount : rows.length;
+      // Merge CSV outputs from multiple dates if applicable
+      let mergedCsv = '';
+      if (csvParts.length > 0) {
+        const lines = csvParts[0].split('\n').filter(Boolean);
+        const header = lines[0];
+        const dataRows = [lines.slice(1).join('\n')];
+
+        for (let i = 1; i < csvParts.length; i++) {
+          const pLines = csvParts[i].split('\n').filter(Boolean);
+          if (pLines.length > 1) {
+            dataRows.push(pLines.slice(1).join('\n'));
+          }
+        }
+        mergedCsv = [header, ...dataRows].filter(Boolean).join('\n');
+      }
+
+      const csvRowCount = mergedCsv ? mergedCsv.split('\n').filter(Boolean).length - 1 : 0;
+      const effectiveCount = csvRowCount > 0 ? csvRowCount : combinedRows.length;
 
       if (effectiveCount > 0) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `scrape_${jobId}_${timestamp}.csv`;
         const filePath = path.join(OUTPUT_DIR, filename);
         
-        fs.writeFileSync(filePath, csv, 'utf8');
+        fs.writeFileSync(filePath, mergedCsv, 'utf8');
         
         result.rowCount = effectiveCount;
         result.fileRelativePath = filename;
@@ -130,11 +161,6 @@ app.post('/jobs', (req, res) => {
         result.authSteps = [...(result.authSteps || []), ...err.steps];
       }
 
-      if (err.message && (err.message.includes('401') || err.message.includes('403') || err.message.includes('Unauthorized'))) {
-        console.warn('[Server] Token expirado ou inválido. Limpando token em cache.');
-        resolvedToken = PBI_TOKEN || null;
-      }
-      
       result.status = 'Failed';
       result.error = err.authMessage || err.message;
     }
@@ -172,7 +198,7 @@ app.post('/test-auth', async (req, res) => {
 
   console.log(`[Test Auth] Testing credentials for ${matricula}...`);
   try {
-    const authInfo = await getTokenFromLogin(matricula, password);
+    const authInfo = await getOrFetchTokens(matricula, password, 'BALNEARIO CAMBORIU - SC', true);
     res.json({ 
       success: true, 
       loginSuccess: true,
@@ -199,6 +225,6 @@ app.get('/health', (req, res) => res.send('OK'));
 app.listen(PORT, () => {
   console.log(`PBI Scraper Service running on port ${PORT}`);
   if (!PBI_TOKEN) {
-    console.log('PBI_TOKEN não configurado. Autenticação será realizada por requisição utilizando credenciais da configuração.');
+    console.log('PBI_TOKEN não configurado. Autenticação automatizada utilizará tokenManager cache.');
   }
 });
