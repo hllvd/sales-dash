@@ -643,6 +643,44 @@ Criação da entidade **Store** (Loja) com CRUD completo, tela de gerenciamento 
 - `SalesApp.IntegrationTests/Stores/StoresControllerIntegrationTests.cs` — Suíte de testes de integração backend.
 - `client/e2e-test/e2e/stores_crud.spec.ts` — Especificação de testes E2E com Playwright.
 
+## PowerBI Scraper - In-Memory Token Caching, Auto Re-Auth & Multi-Month Date Range Scraping (2026-08-17)
+
+Provides in-memory token caching per matrícula, automatic re-authentication upon encountering HTTP 401/402/403 token expiration (with up to 3 retries), and support for multi-month date range extractions (`SCRAPE_DATES="2026-02,2026-03,2026-04"`).
+
+### Key Capabilities
+- **In-Memory Token Cache (`tokenManager.js`)**: Caches Avapro Bearer JWT (`avaJwt`) and PowerBI query tokens (`MWCToken`) in memory per matrícula. Subsequent extractions for the same matrícula reuse the cached token, eliminating Puppeteer browser launch overhead (~0s auth time, ~4s query execution).
+- **Automatic Re-Authentication on Expiration (`extractor.js`)**: If PowerBI returns HTTP 401, 402, or 403 (token expired/invalid) during query execution, the system automatically invalidates the cached token, launches Puppeteer once to obtain fresh tokens, updates the cache, and seamlessly retries the query (up to 3 max retries).
+- **Immediate Failure on Bad Credentials**: Clear authentication failures (`wrong-password` or invalid credentials) bypass retry loops and fail immediately to prevent account lockouts.
+- **Multi-Month Date Range Scraping**: Supports array or comma-separated date range inputs (`SCRAPE_DATES="2026-02,2026-03,2026-04"`). Month 1 authenticates and caches tokens; Month 2 and Month 3 reuse the cached token in sequence, returning combined results and CSVs.
+
+### Key Files Created / Modified
+- `pbi-scraper/tokenManager.js` — In-memory token cache store (`Map<matricula, { avaJwt, pbiToken }>` with get/set/invalidate/clear helpers).
+- `pbi-scraper/auth.js` — Integrated `tokenManager` and added `getOrFetchTokens` wrapper to return cached tokens or perform Puppeteer login on cache miss/force refresh.
+- `pbi-scraper/extractor.js` — Implemented `isAuthErrorStatus` detection and `scrapeWithReauth` retry loop (up to 3 retries on 401/402/403).
+- `pbi-scraper/server.js` — Added multi-month date range parser (`normalizeScrapeDates`), updating `/jobs` to process batch ranges reusing cached tokens.
+- `pbi-scraper/scratch/test-range.js` — CLI test script for verifying multi-month extraction speed and auto-reauth behavior (`SCRAPE_DATES="2026-02,2026-03,2026-04"`).
+
+## PowerBI Scraper - Auto-Detect Store (Loja) from AVA PRO (2026-08-17)
+
+Automates store (Unidade / Loja) detection directly from the AVA PRO portal header after login, eliminating store filter mismatch errors in PowerBI DAX queries.
+
+### Key Capabilities
+- **Configurable Max Months Ago (`appsettings.json` & `ScrapeController.cs`)**: Added `PbiScraper:MaxMonthsAgo` setting (default `15`). Clamps historical scrape start dates to a maximum of 15 months ago (e.g., 20 months ago clamps to 15 months ago, while 4 months ago stays 4 months ago).
+- **Automated Store DOM Extraction (`auth.js`)**: Upon login, Puppeteer inspects `[data-testid="select_loja"] [data-slot="value"]` (or header fallbacks) to capture the exact store name string (e.g. `BALNEARIO CAMBORIU - SC`).
+- **DAX Query Filter Override (`extractor.js`)**: Automatically overrides DAX query filters (`nm_unidade_bi_original`) with the captured store name to guarantee 100% query execution accuracy.
+- **Conditional SQLite Auto-Update (`ScrapeController.cs` & `ScrapeOrchestrator.cs`)**: Auto-populates `ScrapeConfig.Store` in SQLite only when the database field is currently null or empty.
+- **Optional Store Selection UI (`ScrapeDashboard.tsx`)**: Unidade (Store) field in account setup is optional and defaults to `"Tentar selecionar automaticamente"`.
+
+### Key Files Modified
+- `pbi-scraper/auth.js` — Added DOM extraction for store from `[data-testid="select_loja"] [data-slot="value"]` after login.
+- `pbi-scraper/tokenManager.js` — Cached `detectedStore` along with JWT & PBI tokens per matricula.
+- `pbi-scraper/extractor.js` & `pbi-scraper/server.js` — Overrode DAX queries with `detectedStore` and returned it in callbacks and test-auth APIs.
+- `SalesApp.Api/Models/ScrapeConfig.cs` — Made `Store` property nullable.
+- `SalesApp.Api/Controllers/ScrapeController.cs` & `ScrapeOrchestrator.cs` — Handled optional store requests and persisted `detectedStore` to DB when current `Store` is null.
+- `client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx` — Added `"Tentar selecionar automaticamente"` as default store option.
+
+
+
 
 
 

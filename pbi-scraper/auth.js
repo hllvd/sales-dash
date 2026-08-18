@@ -1,46 +1,129 @@
 // auth.js
 // Authenticates to avapro.ademicon.com.br using Puppeteer.
-// Navigates to the dashboard, intercepts the first PowerBI "query" request
-// and returns the Authorization token from that request and diagnostic steps.
+// Sends postMessage({ token: avaJwt }) into dashboardbi iframe.
+// Captures the MWCToken (RSA encrypted JWT starting with MWCToken / ey...)
+// used for PowerBI DAX queries.
+// Integrates with tokenManager for in-memory token caching per matricula.
 
 const puppeteer = require('puppeteer');
+const axios     = require('axios');
+const tokenManager = require('./tokenManager');
 
 const AVA_URL       = 'https://avapro.ademicon.com.br/';
 const DASHBOARD_URL = 'https://avapro.ademicon.com.br/dashboard';
-const QUERY_HOST    = 'pbidedicated.windows.net';
 
 class AuthError extends Error {
   constructor(authStatus, message, steps, powerbiLoaded = false, loginSuccess = false) {
     super(message);
-    this.name = 'AuthError';
-    this.authStatus = authStatus; // 'invalid-credentials' | 'timeout' | 'error'
+    this.name        = 'AuthError';
+    this.authStatus  = authStatus;
     this.authMessage = message;
-    this.steps = steps || [];
+    this.steps       = steps || [];
     this.powerbiLoaded = powerbiLoaded;
-    this.loginSuccess = loginSuccess;
+    this.loginSuccess  = loginSuccess;
   }
 }
 
-/**
- * Helper to push timestamped entries into steps log
- */
 function addStep(steps, message) {
-  const time = new Date().toLocaleTimeString('pt-BR');
+  const time  = new Date().toLocaleTimeString('pt-BR');
   const entry = `[${time}] ${message}`;
   steps.push(entry);
   console.log(`[AuthStep] ${entry}`);
 }
 
+/** True when the URL is the PowerBI dedicated query endpoint */
+function isPbiQueryUrl(url) {
+  const lower = url.toLowerCase();
+  return (lower.includes('windows.net') || lower.includes('pbidedicated')) && lower.includes('query');
+}
+
 /**
- * Launches a browser, logs in with the given credentials,
- * waits for the dashboard to fire a PowerBI "query" request,
- * and returns token + diagnostic steps.
- *
- * @param {string} matricula - The user's matricula (username)
- * @param {string} password  - The user's password
- * @returns {Promise<{token: string, authStatus: string, authMessage: string, powerbiLoaded: boolean, steps: string[]}>}
+ * Validates and normalises an MWCToken candidate string.
+ * Specifically returns MWCToken formatted strings for DAX query execution.
  */
-async function getTokenFromLogin(matricula, password) {
+function parseMwcToken(candidate) {
+  if (!candidate || typeof candidate !== 'string') return null;
+  const s = candidate.trim();
+  if (s.length < 100) return null;
+  if (s.includes('<') || s.includes('function') || s.includes('var ')) return null;
+
+  if (s.startsWith('MWCToken ')) return s;
+  // Raw RSA-OAEP encrypted JWT
+  if (s.startsWith('ey') && s.length > 300) return `MWCToken ${s}`;
+  return null;
+}
+
+/**
+ * Attaches request interception & proxying to a page/target.
+ */
+async function attachInterceptionToTarget(pageObj, tokenRef, steps, avaJwt, requestCountRef) {
+  try {
+    await pageObj.setRequestInterception(true);
+  } catch (e) {
+    return; // Already intercepted or closed
+  }
+
+  pageObj.on('request', async (req) => {
+    if (requestCountRef) requestCountRef.count++;
+    const url     = req.url();
+    const method  = req.method();
+    const headers = req.headers();
+    const auth    = headers['authorization'] || headers['Authorization'] || (avaJwt ? `Bearer ${avaJwt}` : '');
+
+    try {
+      if (url.includes('windows.net') || url.includes('powerbi') || url.includes('pbidedicated')) {
+        console.log(`[PBI Req] ${method} ${url.substring(0, 140)} | auth=${auth ? auth.substring(0, 30) + '...' : 'none'}`);
+      }
+
+      // Proxy apiv2 GET calls
+      if (url.startsWith('https://apiv2.ademitech.com.br/') && method === 'GET') {
+        const res = await axios.get(url, {
+          headers: {
+            'Authorization': auth,
+            'Accept': headers['accept'] || 'application/json, text/plain, */*',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+          },
+          timeout: 15000,
+          validateStatus: () => true,
+        });
+        const body = typeof res.data === 'object' ? JSON.stringify(res.data) : String(res.data);
+        req.respond({
+          status: res.status,
+          contentType: res.headers['content-type'] || 'application/json',
+          body,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+          },
+        });
+        return;
+      }
+
+      // Capture MWCToken specifically (from /query endpoint or any request with MWCToken/ey...)
+      const pbiAuth = headers['authorization'] || headers['Authorization'];
+      if (pbiAuth && !tokenRef.value) {
+        const formatted = parseMwcToken(pbiAuth);
+        if (formatted) {
+          tokenRef.value = formatted;
+          addStep(steps, `[Intercept] Token PowerBI MWCToken (${formatted.substring(0, 25)}...) capturado de ${url.substring(0, 100)}`);
+        }
+      }
+
+      req.continue();
+    } catch (e) {
+      try { req.continue(); } catch (_) {}
+    }
+  });
+}
+
+/**
+ * Executes login via Puppeteer, obtains fresh tokens, and saves them to tokenManager.
+ *
+ * @param {string} matricula
+ * @param {string} password
+ * @param {string} store
+ */
+async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORIU - SC') {
   const steps = [];
   addStep(steps, 'Iniciando navegador em modo automatizado...');
 
@@ -50,102 +133,79 @@ async function getTokenFromLogin(matricula, password) {
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--allow-running-insecure-content',
     ],
   });
 
-  let capturedToken = null;
-  let powerbiLoaded = false;
+  const tokenRef        = { value: null };
+  const requestCountRef = { count: 0 };
+  let powerbiLoaded     = false;
   let interceptedAuthError = null;
-  let loginSuccess = false;
+  let loginSuccess      = false;
+  let avaJwt            = null;
 
   try {
     const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1366, height: 768 });
     page.setDefaultNavigationTimeout(30000);
     page.setDefaultTimeout(30000);
 
-    await page.setRequestInterception(true);
-
-    // Known PowerBI/Azure/Ademicon API URL patterns that carry bearer tokens
-    const PBI_HOSTS = [
-      'pbidedicated.windows.net',
-      'analysis.windows.net',
-      'api.powerbi.com',
-      'powerbi.com',
-      'msit.pbidedicated.windows.net',
-      'dashboardbi.ademicon.com.br',
-      'ademicon.com.br',
-    ];
-
-    // Intercept requests for token capture
-    page.on('request', (req) => {
-      const url = req.url();
-      const headers = req.headers();
-      const authHeader = headers['authorization'] || headers['Authorization'] || headers['x-powerbi-token'] || headers['x-access-token'];
-      const postData = req.postData() || '';
-
-      const isPbiUrl = PBI_HOSTS.some(h => url.includes(h)) || url.includes('/api/') || url.includes('query');
-
-      if (isPbiUrl) {
-        console.log(`[PBI Request] ${req.method()} ${url.substring(0, 120)} | auth=${authHeader ? authHeader.substring(0, 40) + '...' : 'none'}`);
-      }
-
-      // Capture ANY Bearer or JWT authorization token on target domains or API routes
-      if (!capturedToken && authHeader && (authHeader.startsWith('Bearer ') || authHeader.length > 20)) {
-        capturedToken = authHeader;
-        addStep(steps, `Token de autorização capturado via requisição [${req.method()}]: ${url.substring(0, 80)}...`);
-      }
-
-      // Also capture token embedded in POST body if present
-      if (!capturedToken && postData && (postData.includes('"AccessToken"') || postData.includes('"token"'))) {
-        try {
-          const body = JSON.parse(postData);
-          const t = body.AccessToken || body.accessToken || body.token;
-          if (t && typeof t === 'string' && t.length > 20) {
-            capturedToken = t.startsWith('Bearer ') ? t : `Bearer ${t}`;
-            addStep(steps, `Token capturado via corpo da requisição POST (${url.substring(0, 60)}...).`);
-          }
-        } catch (e) {}
-      }
-
-      req.continue();
+    browser.on('targetcreated', async (target) => {
+      try {
+        const targetPage = await target.page();
+        if (targetPage && targetPage !== page) {
+          addStep(steps, `Novo target detectado: ${target.url().substring(0, 80) || '(blank)'}`);
+          await attachInterceptionToTarget(targetPage, tokenRef, steps, avaJwt, requestCountRef);
+        }
+      } catch (e) { /* ignore */ }
     });
 
-    // Intercept response to catch 403 or authentication API errors
+    let apiDetectedStore = null;
     page.on('response', async (res) => {
       try {
         const status = res.status();
-        const url = res.url();
-        if (status === 401 || status === 403 || url.includes('/login') || url.includes('/api/auth')) {
-          if (status === 403 || status === 401) {
-            const bodyText = await res.text().catch(() => '');
-            let message = 'Usuário ou senha inválida';
-            try {
-              const json = JSON.parse(bodyText);
-              if (json.message) {
-                message = json.message.replace(/\s+/g, ' ').trim();
-              }
-            } catch (e) {
-              if (bodyText && bodyText.includes('tentativas')) {
-                message = bodyText.replace(/\s+/g, ' ').trim();
-              }
-            }
-            interceptedAuthError = message;
-            addStep(steps, `Erro de autenticação HTTP ${status}: ${message}`);
+        const url    = res.url();
+
+        if (url.includes('bifrost') && url.includes('/login') && status === 200) {
+          const body = await res.json().catch(() => null);
+          if (body && body.token) {
+            avaJwt = body.token;
+            addStep(steps, `JWT Avapro capturado (${avaJwt.substring(0, 20)}...)`);
           }
         }
-      } catch (err) {
-        // Ignore response reading exceptions
-      }
+
+        if (url.includes('users/me') && status === 200) {
+          const body = await res.json().catch(() => null);
+          if (body && typeof body === 'object') {
+            const possible = body.unidade || body.loja || body.store || body.unidade_bi || body.unidadeNome || body.nm_unidade || body.unidadeOriginal;
+            if (possible && typeof possible === 'string') {
+              apiDetectedStore = possible.trim();
+              addStep(steps, `Loja capturada via API users/me: "${apiDetectedStore}"`);
+            }
+          }
+        }
+
+        if ((status === 401 || status === 403) && url.includes('bifrost')) {
+          let message = 'Usuário ou senha inválida';
+          try {
+            const json = await res.json().catch(() => null);
+            if (json && json.message) message = json.message.replace(/\s+/g, ' ').trim();
+          } catch (e) {}
+          interceptedAuthError = message;
+          addStep(steps, `Erro HTTP ${status}: ${message}`);
+        }
+      } catch (err) { /* ignore */ }
     });
 
-    // Step 1: Navigate to login page
-    addStep(steps, `Navegando para a página de login (${AVA_URL})...`);
+    // ── Step 1: Login ──────────────────────────────────────────────────────────
+    addStep(steps, `Navegando para ${AVA_URL}...`);
     await page.goto(AVA_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-    addStep(steps, 'Página de login carregada com sucesso.');
+    addStep(steps, 'Página de login carregada.');
 
-    // Step 2: Fill in credentials
-    addStep(steps, `Preenchendo credenciais — Matrícula: "${matricula}", Senha recebida no teste: "${password}" (tamanho: ${password ? password.length : 0})...`);
-    
+    addStep(steps, `Preenchendo credenciais — Matrícula: "${matricula}"...`);
     await page.waitForSelector('input[type="text"]', { timeout: 15000 });
     await page.$eval('input[type="text"]', el => el.value = '');
     await page.click('input[type="text"]');
@@ -155,146 +215,189 @@ async function getTokenFromLogin(matricula, password) {
     await page.$eval('input[type="password"]', el => el.value = '');
     await page.click('input[type="password"]');
     await page.type('input[type="password"]', password, { delay: 30 });
-    addStep(steps, 'Credenciais preenchidas nos campos de texto.');
+    addStep(steps, 'Credenciais preenchidas.');
 
-    // Step 3: Click login button
     addStep(steps, 'Submetendo formulário de login...');
-    let buttonClicked = false;
-    try {
-      const buttonHandle = await page.evaluateHandle(() => {
-        const buttons = Array.from(document.querySelectorAll('button'));
-        return buttons.find(b => {
-          const txt = (b.innerText || b.textContent || '').toLowerCase().trim();
-          return txt.includes('entrar') || b.type === 'submit';
-        }) || buttons[0] || null;
-      });
-
-      if (buttonHandle && buttonHandle.asElement()) {
-        addStep(steps, 'Botão "Entrar" localizado no formulário DOM. Executando clique...');
-        await buttonHandle.asElement().click();
-        buttonClicked = true;
-      }
-    } catch (err) {
-      addStep(steps, `Localização avançada de botão retornou erro: ${err.message}`);
+    const submitBtn = await page.evaluateHandle(() => {
+      const btns = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+      return btns.find(b => {
+        const txt = (b.textContent || b.innerText || b.value || '').toLowerCase().trim();
+        return (txt.includes('entrar') || b.type === 'submit') && !txt.includes('esqueceu');
+      }) || btns[0] || null;
+    });
+    if (submitBtn && submitBtn.asElement()) {
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
+        submitBtn.asElement().click(),
+      ]);
+    } else {
+      await page.keyboard.press('Enter');
     }
 
-    if (!buttonClicked) {
-      try {
-        addStep(steps, 'Tentando clique alternativo no seletor button.inline-flex...');
-        await page.click('button.inline-flex');
-        buttonClicked = true;
-      } catch (err) {
-        addStep(steps, 'Pressionando tecla Enter no campo de senha...');
-        await page.focus('input[type="password"]');
-        await page.keyboard.press('Enter');
-      }
-    }
-
-    // Wait short time to allow potential error messages or 403 API response to trigger
-    await page.waitForTimeout ? page.waitForTimeout(2000) : new Promise(r => setTimeout(r, 2000));
-
-    // Check for credential error on page DOM or intercepted response
-    const pageContent = await page.content();
-    if (interceptedAuthError || pageContent.includes('Usuário ou senha inválida') || pageContent.includes('tentativas')) {
-      let errMsg = interceptedAuthError || 'Usuário ou senha inválida';
-      
-      // Try to extract exact attempts message from page DOM if present
-      const attemptsMatch = pageContent.match(/Você ainda possui mais \d+ tentativas[^\n<"]*/i);
-      if (attemptsMatch) {
-        const attemptsText = attemptsMatch[0].trim();
-        if (!errMsg.includes(attemptsText)) {
-          errMsg = `${errMsg} — ${attemptsText}`;
-        }
-      }
-      addStep(steps, `FALHA DE AUTENTICAÇÃO DETECTADA: ${errMsg}`);
-      throw new AuthError('invalid-credentials', errMsg, steps, false, false);
-    }
-
-    // Step 4: Wait for navigation to dashboard (SPA will update URL via history API)
-    addStep(steps, 'Aguardando navegação pós-login para o dashboard...');
-    try {
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
-    } catch (navErr) {
-      addStep(steps, 'Aviso: Navegação direta pós-login excedeu o tempo limítrofe, verificando URL atual...');
-    }
-
-    // Re-read URL and live page content AFTER navigation (SPA may have updated both)
     const currentUrl = page.url();
-    const livePageContent = await page.content();
-    addStep(steps, `URL atual após login: ${currentUrl}`);
-
-    // Only treat an explicit /login URL as failure.
-    // SPAs typically redirect to root "/" or another route on success — NOT back to /login.
-    if (currentUrl.includes('/login')) {
-      const errMsg = interceptedAuthError || 'Usuário ou senha inválida';
-      addStep(steps, `Permaneceu na página de login. Autenticação rejeitada: ${errMsg}`);
-      throw new AuthError('invalid-credentials', errMsg, steps, false, false);
-    }
-
+    addStep(steps, `URL após login: ${currentUrl}`);
+    if (interceptedAuthError) throw new AuthError('wrong-password', interceptedAuthError, steps, false, false);
+    if (currentUrl.includes('/login')) throw new AuthError('wrong-password', 'Permaneceu na página de login.', steps, false, false);
     loginSuccess = true;
-    addStep(steps, `Login bem-sucedido. Rota atual: ${currentUrl}`);
+    addStep(steps, 'Login bem-sucedido.');
 
-    // Step 5: Navigate directly to Dashboard URL (https://avapro.ademicon.com.br/dashboard)
-    if (!currentUrl.includes('/dashboard')) {
-      addStep(steps, `Navegando diretamente para o dashboard (${DASHBOARD_URL})...`);
-      try {
-        await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-      } catch (e) {
-        addStep(steps, `Aviso ao navegar para dashboard: ${e.message}`);
-      }
-    }
-    addStep(steps, 'Dashboard do Avapro acessado. Aguardando renderização do relatório PowerBI...');
-    await new Promise(r => setTimeout(r, 3000));
-
-    // Step 6: Verify PowerBI report container / iframe presence
+    // ── Step 2: Wait for users/me ──────────────────────────────────────────────
+    addStep(steps, 'Aguardando sessão (bifrost/users/me)...');
     try {
-      await page.waitForSelector('iframe, .powerbi-container, .report-container, [class*="powerbi"], [class*="report"]', { timeout: 15000 });
-      powerbiLoaded = true;
-      addStep(steps, 'Relatório PowerBI detectado na estrutura da página.');
-      
-      const iframeSrcs = await page.$$eval('iframe', frames => frames.map(f => f.src).filter(Boolean));
-      if (iframeSrcs.length > 0) {
-        iframeSrcs.forEach((src, i) => addStep(steps, `iframe[${i}] src: ${src.substring(0, 120)}`));
-      } else {
-        addStep(steps, 'Nenhum iframe com atributo src detectado.');
-      }
+      await page.waitForResponse(
+        res => res.url().includes('users/me') && res.status() === 200,
+        { timeout: 15000 }
+      );
+      addStep(steps, 'Sessão validada.');
     } catch (e) {
-      powerbiLoaded = false;
-      addStep(steps, 'Aviso: Contêiner explícito do PowerBI não foi detectado dentro do tempo estipulado.');
+      addStep(steps, 'Aviso: users/me não respondeu. Continuando...');
     }
 
-    // Step 8: Wait for query token (60s timeout)
-    if (!capturedToken) {
-      addStep(steps, 'Aguardando requisição interna do PowerBI para capturar o token de acesso (tempo limite: 60s)...');
+    // Helper to extract store from DOM
+    const tryExtractStoreFromDom = async () => {
+      try {
+        return await page.evaluate(() => {
+          // 1. Target data-testid="select_loja"
+          const selectLojaVal = document.querySelector('[data-testid="select_loja"] [data-slot="value"]')
+                             || document.querySelector('[data-testid="select_loja"]');
+          if (selectLojaVal && selectLojaVal.textContent) {
+            const t = selectLojaVal.textContent.replace(/^Loja\s*/i, '').trim();
+            if (t && t.length > 2 && !t.toLowerCase().includes('selecionar')) return t;
+          }
+
+          // 2. Target any data-slot="value"
+          const dataSlotVals = Array.from(document.querySelectorAll('[data-slot="value"]'));
+          for (const el of dataSlotVals) {
+            const t = (el.textContent || '').replace(/^Loja\s*/i, '').trim();
+            if (t && t.length > 2 && !t.toLowerCase().includes('selecionar') && (t.includes('-') || t.toUpperCase() === t)) {
+              return t;
+            }
+          }
+
+          // 3. Search header elements with text starting with "Loja"
+          const elements = Array.from(document.querySelectorAll('span, div, header, p'));
+          for (const el of elements) {
+            const text = (el.textContent || '').trim();
+            if (text.startsWith('Loja') && text.includes('-')) {
+              return text.replace(/^Loja\s*/i, '').trim();
+            }
+          }
+
+          return null;
+        });
+      } catch (e) {
+        return null;
+      }
+    };
+
+    // Attempt DOM store extraction right after home load with retry polling (up to 6s)
+    let detectedStore = apiDetectedStore;
+    if (!detectedStore) {
+      addStep(steps, 'Aguardando renderização do cabeçalho da loja no DOM...');
+      await page.waitForSelector('[data-testid="select_loja"], [data-slot="value"], header', { timeout: 8000 }).catch(() => {});
+      for (let i = 0; i < 6; i++) {
+        detectedStore = await tryExtractStoreFromDom();
+        if (detectedStore) break;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    if (detectedStore) {
+      addStep(steps, `Loja auto-detectada no AVA PRO: "${detectedStore}"`);
+    }
+
+    // ── Step 3: Enable API proxying ───────────────────────────────────────────
+    addStep(steps, 'Ativando proxy apiv2 no Puppeteer...');
+    await attachInterceptionToTarget(page, tokenRef, steps, avaJwt, requestCountRef);
+
+    // ── Step 4: Navigate to /dashboard ─────────────────────────────────────────
+    addStep(steps, `Navegando para ${DASHBOARD_URL}...`);
+    await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+    addStep(steps, `URL atual: ${page.url()}`);
+
+    if (!detectedStore) {
+      detectedStore = await tryExtractStoreFromDom();
+      if (detectedStore) {
+        addStep(steps, `Loja auto-detectada no dashboard AVA PRO: "${detectedStore}"`);
+      }
+    }
+
+    // ── Step 5: Wait for SPA to render iframe and postMessage JWT into it ──────
+    addStep(steps, 'Aguardando iframe no dashboard...');
+    try {
+      await page.waitForSelector('iframe', { timeout: 15000 });
+      powerbiLoaded = true;
+
+      // Continuously dispatch postMessage({ token: avaJwt }) into iframe every 1s
+      addStep(steps, 'Enviando postMessage com JWT para o iframe do dashboardbi...');
+      const interval = setInterval(async () => {
+        if (!avaJwt) return;
+        try {
+          await page.evaluate((jwt) => {
+            const iframes = Array.from(document.querySelectorAll('iframe'));
+            for (const iframe of iframes) {
+              if (iframe.contentWindow) {
+                iframe.contentWindow.postMessage({ token: jwt }, '*');
+              }
+            }
+          }, avaJwt);
+        } catch (_) {}
+      }, 1000);
+
+      page.once('close', () => clearInterval(interval));
+
+    } catch (e) {
+      addStep(steps, 'Aviso: SPA não rendeu o iframe no tempo esperado.');
+    }
+
+    // ── Step 6: Wait up to 120s for MWCToken ─────────────────────────────────
+    if (!tokenRef.value) {
+      addStep(steps, 'Aguardando requisição PowerBI MWCToken /query (tempo limite: 120s)...');
+      let elapsed = 0;
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new AuthError('timeout', 'Tempo limite de 60s excedido aguardando token do PowerBI.', steps, powerbiLoaded, loginSuccess));
-        }, 60000);
-        
-        const interval = setInterval(() => {
-          if (capturedToken) {
+          reject(new AuthError(
+            'timeout',
+            `Tempo limite de 120s excedido aguardando MWCToken. (${requestCountRef.count} requisições, ${page.frames().length} frames).`,
+            steps, powerbiLoaded, loginSuccess
+          ));
+        }, 120000);
+
+        const checkInterval = setInterval(() => {
+          elapsed++;
+          if (tokenRef.value) {
             clearTimeout(timeout);
-            clearInterval(interval);
+            clearInterval(checkInterval);
             resolve();
+          } else if (elapsed % 10 === 0) {
+            addStep(steps, `[${elapsed}s] Aguardando MWCToken... Req: ${requestCountRef.count}, Frames: ${page.frames().length}`);
           }
-        }, 500);
+        }, 1000);
       });
+    } else {
+      addStep(steps, 'Token MWCToken já capturado.');
     }
 
-    addStep(steps, 'Autenticação e obtenção de token concluídas com sucesso.');
+    addStep(steps, 'Autenticação e obtenção de MWCToken concluídas com sucesso.');
+
+    // Save tokens in tokenManager cache
+    tokenManager.setTokens(matricula, { avaJwt, pbiToken: tokenRef.value, detectedStore });
+
     return {
-      token: capturedToken,
-      authStatus: 'success',
+      token: tokenRef.value,
+      pbiToken: tokenRef.value,
+      avaJwt,
+      detectedStore,
+      authStatus:  'success',
       authMessage: 'Autenticação bem-sucedida',
       powerbiLoaded,
       loginSuccess,
-      steps
+      steps,
     };
+
   } catch (err) {
-    if (err instanceof AuthError) {
-      throw err;
-    }
-    const errMsg = err.message || 'Erro desconhecido durante autenticação';
+    if (err instanceof AuthError) throw err;
+    const errMsg = err.message || 'Erro desconhecido';
     addStep(steps, `ERRO: ${errMsg}`);
     throw new AuthError('error', errMsg, steps, powerbiLoaded, loginSuccess);
   } finally {
@@ -303,4 +406,41 @@ async function getTokenFromLogin(matricula, password) {
   }
 }
 
-module.exports = { getTokenFromLogin, AuthError };
+/**
+ * Returns valid tokens for a given matricula.
+ * If forceRefresh is false and cached tokens exist, returns cached tokens immediately.
+ * Otherwise, launches Puppeteer to fetch fresh tokens.
+ *
+ * @param {string} matricula
+ * @param {string} password
+ * @param {string} store
+ * @param {boolean} forceRefresh
+ */
+async function getOrFetchTokens(matricula, password, store = 'BALNEARIO CAMBORIU - SC', forceRefresh = false) {
+  if (!forceRefresh) {
+    const cached = tokenManager.getTokens(matricula);
+    if (cached && cached.pbiToken) {
+      console.log(`[Auth] Reutilizando token PowerBI em cache para matrícula ${matricula}`);
+      return {
+        token: cached.pbiToken,
+        pbiToken: cached.pbiToken,
+        avaJwt: cached.avaJwt,
+        detectedStore: cached.store || null,
+        authStatus: 'success',
+        authMessage: 'Token reutilizado do cache em memória',
+        powerbiLoaded: true,
+        loginSuccess: true,
+        steps: [`[Auth] Token reutilizado do cache em memória para matrícula ${matricula}.`],
+      };
+    }
+  }
+
+  if (forceRefresh) {
+    console.log(`[Auth] Forçando nova autenticação (cache ignorado/inválido) para matrícula ${matricula}...`);
+    tokenManager.invalidateTokens(matricula);
+  }
+
+  return await getTokenFromLogin(matricula, password, store);
+}
+
+module.exports = { getTokenFromLogin, getOrFetchTokens, AuthError };

@@ -7,7 +7,7 @@ namespace SalesApp.Services
 {
     public interface IScrapeOrchestrator
     {
-        Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null);
+        Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null);
         Task HandleCallbackAsync(ScrapeResult result);
     }
 
@@ -36,7 +36,7 @@ namespace SalesApp.Services
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
         }
 
-        public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null)
+        public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null)
         {
             var config = await _context.ScrapeConfigs
                 .Include(c => c.User)
@@ -63,25 +63,24 @@ namespace SalesApp.Services
                 jobId: jobId,
                 userId: config.UserId?.ToString() ?? string.Empty,
                 status: "Pending",
-                store: config.Store,
+                store: config.Store ?? string.Empty,
                 matricula: config.Matricula,
                 runId: effectiveRunId,
                 userEmail: effectiveUserEmail,
-                additionalData: new { IsManual = isManual }
+                additionalData: new { ScrapeDate = scrapeDate }
             );
 
-            // 2. Call Node.js service
             try
             {
-                string? decryptedPassword = config.PowerBiPassword;
-
                 await _scraperClient.EnqueueJobAsync(
                     jobId: jobId,
+                    runId: effectiveRunId,
                     userId: config.UserId?.ToString() ?? string.Empty,
-                    store: config.Store,
+                    store: config.Store ?? string.Empty,
                     matricula: config.Matricula,
-                    avaproUsername: config.Matricula, // Using Matricula as username for PBI login
-                    avaproPassword: decryptedPassword
+                    avaproUsername: config.Matricula,
+                    avaproPassword: config.PowerBiPassword,
+                    scrapeDate: scrapeDate
                 );
                 
                 // Update status to Running
@@ -89,10 +88,11 @@ namespace SalesApp.Services
                     jobId: jobId,
                     userId: config.UserId?.ToString() ?? string.Empty,
                     status: "Running",
-                    store: config.Store,
+                    store: config.Store ?? string.Empty,
                     matricula: config.Matricula,
                     runId: effectiveRunId,
-                    userEmail: effectiveUserEmail
+                    userEmail: effectiveUserEmail,
+                    additionalData: new { ScrapeDate = scrapeDate }
                 );
             }
             catch (Exception ex)
@@ -101,11 +101,11 @@ namespace SalesApp.Services
                     jobId: jobId,
                     userId: config.UserId?.ToString() ?? string.Empty,
                     status: "Failed",
-                    store: config.Store,
+                    store: config.Store ?? string.Empty,
                     matricula: config.Matricula,
                     runId: effectiveRunId,
                     userEmail: effectiveUserEmail,
-                    additionalData: new { ErrorMessage = ex.Message }
+                    additionalData: new { ErrorMessage = ex.Message, ScrapeDate = scrapeDate }
                 );
                 throw;
             }
@@ -115,12 +115,26 @@ namespace SalesApp.Services
 
         public async Task HandleCallbackAsync(ScrapeResult result)
         {
+            var effectiveStore = result.DetectedStore ?? result.Store ?? "Unknown";
+
+            // If store in DB is currently null/empty, auto-populate with detected store
+            if (!string.IsNullOrEmpty(effectiveStore) && effectiveStore != "Unknown" && !string.IsNullOrEmpty(result.Matricula))
+            {
+                var configToUpdate = await _context.ScrapeConfigs.FirstOrDefaultAsync(c => c.Matricula == result.Matricula);
+                if (configToUpdate != null && string.IsNullOrEmpty(configToUpdate.Store))
+                {
+                    configToUpdate.Store = effectiveStore;
+                    configToUpdate.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             // 1. Update DynamoDB status
             await _logService.WriteJobStatusAsync(
                 jobId: result.JobId,
                 userId: result.UserId,
                 status: result.Status,
-                store: result.Store ?? "Unknown",
+                store: effectiveStore,
                 matricula: result.Matricula ?? "Unknown",
                 runId: result.RunId,
                 additionalData: new
@@ -132,7 +146,9 @@ namespace SalesApp.Services
                     AuthStatus = result.AuthStatus,
                     AuthMessage = result.AuthMessage,
                     PowerBiLoaded = result.PowerBiLoaded,
-                    AuthSteps = result.AuthSteps != null ? Newtonsoft.Json.JsonConvert.SerializeObject(result.AuthSteps) : null
+                    AuthSteps = result.AuthSteps != null ? Newtonsoft.Json.JsonConvert.SerializeObject(result.AuthSteps) : null,
+                    RetryCount = result.RetryCount,
+                    ScrapeDate = result.ScrapeDate
                 }
             );
 

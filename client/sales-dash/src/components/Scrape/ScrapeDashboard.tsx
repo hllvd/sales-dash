@@ -109,6 +109,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const [store, setStore] = useState<string | null>(null);
   const [matricula, setMatricula] = useState('');
   const [password, setPassword] = useState('');
+  const [configDefaultStartMonth, setConfigDefaultStartMonth] = useState('');
   const [validateOnSave, setValidateOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
@@ -152,23 +153,25 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const handleOpenModal = (config?: ScrapeConfig) => {
     if (config) {
       setEditingConfig(config);
-      setStore(config.store);
+      setStore(config.store || '');
       setMatricula(config.matricula);
       setPassword(''); // Don't show existing password
+      setConfigDefaultStartMonth(config.defaultStartMonth || '');
     } else {
       setEditingConfig(null);
-      setStore(null);
+      setStore('');
       setMatricula('');
       setPassword('');
+      setConfigDefaultStartMonth('');
     }
     setModalOpen(true);
   };
 
   const handleSaveConfig = async () => {
-    if (!store || !matricula || (!editingConfig && !password)) {
+    if (!matricula || (!editingConfig && !password)) {
       notifications.show({
         title: 'Aviso',
-        message: 'Preencha todos os campos obrigatórios',
+        message: 'Preencha todos os campos obrigatórios (Matrícula e Senha)',
         color: 'orange',
       });
       return;
@@ -178,9 +181,10 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       setSaving(true);
       await scrapeService.saveConfig({
         id: editingConfig?.id,
-        store,
+        store: store || undefined,
         matricula,
         powerBiPassword: password || undefined,
+        defaultStartMonth: configDefaultStartMonth || undefined,
         testOnSave: validateOnSave
       });
       
@@ -307,12 +311,16 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   };
 
   const handleTrigger = async (configId: number) => {
+    const targetConfig = configs.find(c => c.id === configId);
+    const startM = targetConfig?.defaultStartMonth;
     try {
       setTriggering(configId);
-      await scrapeService.triggerScrape(configId);
+      await scrapeService.triggerScrape(configId, startM, 3);
       notifications.show({
         title: 'Extração Iniciada',
-        message: 'O robô foi notificado. Acompanhe o progresso no histórico.',
+        message: startM 
+          ? `Robô iniciado a partir de ${startM}. Acompanhe o progresso no histórico.`
+          : 'Robô iniciado. Acompanhe o progresso no histórico.',
         color: 'green',
       });
       fetchData();
@@ -348,7 +356,11 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const configRows = configs.map((config) => (
     <Table.Tr key={config.id}>
       <Table.Td>
-        <Text size="sm" fw={500}>{config.store}</Text>
+        {config.store ? (
+          <Text size="sm" fw={500}>{config.store}</Text>
+        ) : (
+          <Text size="sm" c="dimmed" fs="italic">Tentar selecionar automaticamente</Text>
+        )}
       </Table.Td>
       <Table.Td>
         <Text size="sm">{config.matricula}</Text>
@@ -421,6 +433,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       <Table.Td><Text size="sm">{run.matriculas.join(', ') || '-'}</Text></Table.Td>
       <Table.Td><Text size="sm">{run.stores.join(', ') || '-'}</Text></Table.Td>
       <Table.Td>{getFinalStatusBadge(run.finalStatus)}</Table.Td>
+      <Table.Td><Badge variant="light" color="blue" size="sm">{run.durationFormatted || '0s'}</Badge></Table.Td>
       <Table.Td><Text fw={600} size="sm">{run.totalRowCount}</Text></Table.Td>
       <Table.Td>
         <Button size="compact-xs" variant="light" color="indigo">
@@ -567,6 +580,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
                       <Table.Th>Matrícula(s)</Table.Th>
                       <Table.Th>Unidade(s)</Table.Th>
                       <Table.Th>Status Final</Table.Th>
+                      <Table.Th>Tempo Total</Table.Th>
                       <Table.Th>Registros Totais</Table.Th>
                       <Table.Th>Ação</Table.Th>
                     </Table.Tr>
@@ -602,12 +616,16 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
           <Stack gap="md" pt="xs">
             <Select
               label="Unidade (Store)"
-              placeholder="Selecione a unidade"
-              data={STORES}
-              value={store}
-              onChange={setStore}
+              placeholder="Tentar selecionar automaticamente"
+              data={[
+                { value: '', label: 'Tentar selecionar automaticamente' },
+                ...STORES
+              ]}
+              value={store || ''}
+              onChange={(val) => setStore(val || '')}
               searchable
-              required
+              clearable
+              description="Opcional. Caso vazia, o robô identificará a unidade automaticamente no portal."
             />
             <TextInput
               label="Matrícula"
@@ -623,6 +641,14 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
               onChange={(e) => setPassword(e.currentTarget.value)}
               description={editingConfig ? "Deixe em branco para manter a senha atual" : undefined}
               required={!editingConfig}
+            />
+
+            <TextInput
+              label="Mês Inicial Padrão (Opcional)"
+              type="month"
+              value={configDefaultStartMonth}
+              onChange={(e) => setConfigDefaultStartMonth(e.currentTarget.value)}
+              description="Define o mês inicial padrão pré-selecionado ao solicitar extração desta conta."
             />
             
             <Divider mt="xs" label="Segurança" labelPosition="center" />

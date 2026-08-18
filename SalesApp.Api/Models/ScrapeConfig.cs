@@ -19,9 +19,8 @@ namespace SalesApp.Models
 
         public virtual User? User { get; set; }
 
-        [Required]
         [MaxLength(200)]
-        public string Store { get; set; } = string.Empty;
+        public string? Store { get; set; }
 
         [Required]
         [MaxLength(100)]
@@ -32,6 +31,9 @@ namespace SalesApp.Models
 
         [MaxLength(50)]
         public string? CredentialStatus { get; set; } // "ok", "wrong-password", or null
+
+        [MaxLength(20)]
+        public string? DefaultStartMonth { get; set; }
 
         public bool IsEnabled { get; set; } = true;
 

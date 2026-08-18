@@ -13,9 +13,10 @@ namespace SalesApp.Controllers
     {
         public int Id { get; set; }
         public Guid? UserId { get; set; }
-        public string Store { get; set; } = string.Empty;
+        public string? Store { get; set; }
         public string Matricula { get; set; } = string.Empty;
         public string? CredentialStatus { get; set; }
+        public string? DefaultStartMonth { get; set; }
         public bool IsEnabled { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
@@ -24,10 +25,17 @@ namespace SalesApp.Controllers
     public class ScrapeConfigRequest
     {
         public int? Id { get; set; }
-        public string Store { get; set; } = string.Empty;
+        public string? Store { get; set; }
         public string Matricula { get; set; } = string.Empty;
         public string? PowerBiPassword { get; set; }
+        public string? DefaultStartMonth { get; set; }
         public bool TestOnSave { get; set; } = true;
+    }
+
+    public class TriggerScrapeJobRequest
+    {
+        public string? StartMonth { get; set; }
+        public int MonthsCount { get; set; } = 3;
     }
 
     [ApiController]
@@ -40,6 +48,7 @@ namespace SalesApp.Controllers
         private readonly IScrapeImportService _importService;
         private readonly PbiScraperClient _scraperClient;
         private readonly IDataProtector _protector;
+        private readonly IConfiguration _configuration;
         private readonly string _outputDir;
         private readonly bool _isE2E;
 
@@ -58,6 +67,7 @@ namespace SalesApp.Controllers
             _importService = importService;
             _scraperClient = scraperClient;
             _protector = dataProtectionProvider.CreateProtector("ScrapeConfig.PowerBiPassword");
+            _configuration = configuration;
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
             _isE2E = configuration["ASPNETCORE_ENVIRONMENT"] == "E2E";
         }
@@ -89,8 +99,20 @@ namespace SalesApp.Controllers
                 isNew = true;
             }
 
-            config.Store = request.Store;
+            var cleanStore = request.Store?.Trim();
+            if (string.Equals(cleanStore, "AUTO", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(cleanStore, "Tentar selecionar automaticamente", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(cleanStore))
+            {
+                config.Store = null;
+            }
+            else
+            {
+                config.Store = cleanStore;
+            }
+
             config.Matricula = request.Matricula;
+            config.DefaultStartMonth = request.DefaultStartMonth;
             config.UpdatedAt = DateTime.UtcNow;
 
             if (!string.IsNullOrEmpty(request.PowerBiPassword))
@@ -101,8 +123,13 @@ namespace SalesApp.Controllers
                 // Test authentication if requested and not in E2E
                 if (request.TestOnSave && !_isE2E)
                 {
-                    var (success, loginSuccess, message, steps) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword);
+                    var (success, loginSuccess, message, steps, detectedStore) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword, config.Store);
                     config.CredentialStatus = (loginSuccess || success) ? "ok" : "wrong-password";
+                    if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+                    {
+                        config.Store = detectedStore;
+                    }
+
                     if (!loginSuccess && !success)
                     {
                         return BadRequest(new { message = $"Falha na autenticação: {message}", steps });
@@ -179,19 +206,23 @@ namespace SalesApp.Controllers
 
             string password = config.PowerBiPassword;
 
-            var (success, loginSuccess, message, steps) = await _scraperClient.TestAuthAsync(config.Matricula, password);
+            var (success, loginSuccess, message, steps, detectedStore) = await _scraperClient.TestAuthAsync(config.Matricula, password, config.Store);
 
             bool effectiveSuccess = loginSuccess || success;
             config.CredentialStatus = effectiveSuccess ? "ok" : "wrong-password";
+            if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+            {
+                config.Store = detectedStore;
+            }
             config.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return Ok(new { success = effectiveSuccess, loginSuccess, message, steps, credentialStatus = config.CredentialStatus });
+            return Ok(new { success = effectiveSuccess, loginSuccess, message, steps, credentialStatus = config.CredentialStatus, detectedStore });
         }
 
         [Authorize(Roles = "admin,superadmin")]
         [HttpPost("jobs/{configId}")]
-        public async Task<IActionResult> TriggerScrape(int configId)
+        public async Task<IActionResult> TriggerScrape(int configId, [FromBody] TriggerScrapeJobRequest? request = null)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value 
@@ -212,8 +243,58 @@ namespace SalesApp.Controllers
             if (!User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
 
             var runId = Guid.NewGuid().ToString();
-            var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail);
-            return Accepted(new { jobId, runId });
+            var monthsCount = request?.MonthsCount > 0 ? request.MonthsCount : 3;
+            var effectiveStartMonth = !string.IsNullOrWhiteSpace(request?.StartMonth) ? request.StartMonth : config.DefaultStartMonth;
+            var maxMonthsAgo = _configuration.GetValue<int>("PbiScraper:MaxMonthsAgo", 15);
+            var scrapeDates = CalculateScrapeDates(effectiveStartMonth, monthsCount, maxMonthsAgo);
+
+            var jobIds = new List<string>();
+            foreach (var date in scrapeDates)
+            {
+                var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail, scrapeDate: date);
+                jobIds.Add(jobId);
+            }
+
+            return Accepted(new { jobId = jobIds.FirstOrDefault(), jobIds, runId, scrapeDates });
+        }
+
+        private static List<string?> CalculateScrapeDates(string? startMonth, int defaultCount = 3, int maxMonthsAgo = 15)
+        {
+            var dates = new List<string?>();
+            var now = DateTime.UtcNow;
+            var currentYearMonth = new DateTime(now.Year, now.Month, 1);
+            var effectiveMaxMonthsAgo = maxMonthsAgo > 0 ? maxMonthsAgo : 15;
+            var earliestAllowedMonth = currentYearMonth.AddMonths(-effectiveMaxMonthsAgo);
+
+            if (!string.IsNullOrWhiteSpace(startMonth) && DateTime.TryParseExact(startMonth.Trim(), "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var startParsed))
+            {
+                var cursor = new DateTime(startParsed.Year, startParsed.Month, 1);
+
+                if (cursor < earliestAllowedMonth)
+                {
+                    cursor = earliestAllowedMonth;
+                }
+
+                if (cursor > currentYearMonth)
+                {
+                    dates.Add(currentYearMonth.ToString("yyyy-MM"));
+                }
+                else
+                {
+                    while (cursor <= currentYearMonth)
+                    {
+                        dates.Add(cursor.ToString("yyyy-MM"));
+                        cursor = cursor.AddMonths(1);
+                    }
+                }
+            }
+            else
+            {
+                // If user does not set a start month, do not apply any date filter in PowerBI
+                dates.Add(null);
+            }
+
+            return dates;
         }
 
         [Authorize(Roles = "admin,superadmin")]
@@ -286,6 +367,7 @@ namespace SalesApp.Controllers
                 Store = config.Store,
                 Matricula = config.Matricula,
                 CredentialStatus = config.CredentialStatus,
+                DefaultStartMonth = config.DefaultStartMonth,
                 IsEnabled = config.IsEnabled,
                 CreatedAt = config.CreatedAt,
                 UpdatedAt = config.UpdatedAt

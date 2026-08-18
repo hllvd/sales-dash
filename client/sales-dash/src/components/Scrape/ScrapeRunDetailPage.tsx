@@ -118,12 +118,40 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
   const totalRowCount = detail?.jobs.reduce((acc, job) => acc + (job.rowCount || 0), 0) || 0;
   const uniqueMatriculas = Array.from(new Set(detail?.jobs.map((j) => j.matricula) || [])).filter(Boolean);
 
+  const formatMonthYear = (dateStr?: string) => {
+    if (!dateStr || dateStr === 'Padrão') return 'Mês Atual';
+    if (dateStr.includes('-')) {
+      const parts = dateStr.split('-');
+      if (parts.length >= 2) {
+        return `${parts[1]}/${parts[0]}`;
+      }
+    }
+    return dateStr;
+  };
+
   const jobRows = (detail?.jobs || []).map((job) => (
     <Table.Tr key={job.jobId}>
       <Table.Td>{new Date(job.createdAt).toLocaleString('pt-BR')}</Table.Td>
+      <Table.Td>
+        <Badge variant="outline" color="blue" size="xs">
+          {job.durationFormatted || '0s'}
+        </Badge>
+      </Table.Td>
+      <Table.Td>
+        <Badge color="violet" variant="light" size="sm">
+          {formatMonthYear(job.scrapeDate)}
+        </Badge>
+      </Table.Td>
       <Table.Td><Text fw={500} size="sm">{job.store}</Text></Table.Td>
       <Table.Td><Text size="sm">{job.matricula}</Text></Table.Td>
       <Table.Td>{getStatusBadge(job.status)}</Table.Td>
+      <Table.Td>
+        {job.retryCount && job.retryCount > 0 ? (
+          <Badge color="orange" variant="filled" size="xs">Retry {job.retryCount}</Badge>
+        ) : (
+          <Text size="xs" c="dimmed">0</Text>
+        )}
+      </Table.Td>
       <Table.Td>{getAuthStatusBadge(job.authStatus)}</Table.Td>
       <Table.Td>
         {job.powerBiLoaded ? (
@@ -208,7 +236,7 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
                 </Stack>
               </Group>
 
-              <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
+              <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} spacing="md">
                 <Paper withBorder p="sm" radius="md">
                   <Group gap="xs">
                     <ThemeIcon variant="light" color="blue" size="md">
@@ -229,6 +257,18 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
                     <div>
                       <Text size="xs" c="dimmed">Data da Execução</Text>
                       <Text fw={600} size="sm">{new Date(detail.createdAt).toLocaleString('pt-BR')}</Text>
+                    </div>
+                  </Group>
+                </Paper>
+
+                <Paper withBorder p="sm" radius="md">
+                  <Group gap="xs">
+                    <ThemeIcon variant="light" color="orange" size="md">
+                      <IconClock size={18} />
+                    </ThemeIcon>
+                    <div>
+                      <Text size="xs" c="dimmed">Tempo Total Gasto</Text>
+                      <Text fw={600} size="sm">{detail.durationFormatted || '0s'}</Text>
                     </div>
                   </Group>
                 </Paper>
@@ -265,12 +305,15 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Data/Hora</Table.Th>
+                    <Table.Th>Duração</Table.Th>
+                    <Table.Th>Mês (MM/YYYY)</Table.Th>
                     <Table.Th>Unidade</Table.Th>
                     <Table.Th>Matrícula</Table.Th>
                     <Table.Th>Status</Table.Th>
+                    <Table.Th>Retentativas</Table.Th>
                     <Table.Th>Autenticação</Table.Th>
                     <Table.Th>PowerBI</Table.Th>
-                    <Table.Th>Registros</Table.Th>
+                    <Table.Th>Contratos</Table.Th>
                     <Table.Th>Observações / Passos</Table.Th>
                   </Table.Tr>
                 </Table.Thead>

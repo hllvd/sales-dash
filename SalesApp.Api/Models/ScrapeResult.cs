@@ -4,7 +4,7 @@ namespace SalesApp.Models
     {
         public string JobId { get; set; } = string.Empty;
         public string? RunId { get; set; }
-        public string UserId { get; set; } = string.Empty;
+        public string? UserId { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Store { get; set; }
         public string? Matricula { get; set; }
@@ -16,5 +16,8 @@ namespace SalesApp.Models
         public string? AuthMessage { get; set; }
         public bool PowerBiLoaded { get; set; }
         public List<string>? AuthSteps { get; set; }
+        public int RetryCount { get; set; }
+        public string? ScrapeDate { get; set; }
+        public string? DetectedStore { get; set; }
     }
 }

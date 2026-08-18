@@ -25,6 +25,23 @@ namespace SalesApp.Services
         public string? AuthMessage { get; set; }
         public bool PowerBiLoaded { get; set; }
         public List<string> AuthSteps { get; set; } = new List<string>();
+        public string? ScrapeDate { get; set; }
+        public int RetryCount { get; set; }
+        public int DurationSeconds { get; set; }
+        public string? DurationFormatted { get; set; }
+    }
+
+    public static class ScrapeDurationFormatter
+    {
+        public static string FormatDuration(TimeSpan duration)
+        {
+            if (duration.TotalSeconds < 1) return "0s";
+            int totalSecs = (int)Math.Round(duration.TotalSeconds);
+            if (totalSecs < 60) return $"{totalSecs}s";
+            int minutes = totalSecs / 60;
+            int seconds = totalSecs % 60;
+            return seconds > 0 ? $"{minutes}m {seconds}s" : $"{minutes}m";
+        }
     }
 
     public class ScrapeRunSummary
@@ -40,6 +57,8 @@ namespace SalesApp.Services
         public int TotalRowCount { get; set; }
         public List<string> Stores { get; set; } = new List<string>();
         public List<string> Matriculas { get; set; } = new List<string>();
+        public int DurationSeconds { get; set; }
+        public string? DurationFormatted { get; set; }
     }
 
     public class ScrapeRunDetail
@@ -49,6 +68,8 @@ namespace SalesApp.Services
         public string UserEmail { get; set; } = string.Empty;
         public string FinalStatus { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+        public int DurationSeconds { get; set; }
+        public string? DurationFormatted { get; set; }
         public List<ScrapeLogEntry> Jobs { get; set; } = new List<ScrapeLogEntry>();
     }
 
@@ -262,13 +283,20 @@ namespace SalesApp.Services
             var finalStatus = ComputeFinalStatus(deduplicatedJobs);
             var userEmail = deduplicatedJobs.Select(j => j.UserEmail).FirstOrDefault(e => !string.IsNullOrEmpty(e)) ?? first.UserEmail;
 
+            var minStart = deduplicatedJobs.Min(j => j.CreatedAt);
+            var maxEnd = deduplicatedJobs.Max(j => j.CompletedAt ?? j.CreatedAt);
+            var durationSpan = (maxEnd > minStart) ? (maxEnd - minStart) : TimeSpan.Zero;
+            var durationSecs = (int)Math.Round(durationSpan.TotalSeconds);
+
             return new ScrapeRunDetail
             {
                 RunId = runId,
                 UserId = first.UserId,
                 UserEmail = userEmail,
                 FinalStatus = finalStatus,
-                CreatedAt = deduplicatedJobs.Min(j => j.CreatedAt),
+                CreatedAt = minStart,
+                DurationSeconds = durationSecs,
+                DurationFormatted = ScrapeDurationFormatter.FormatDuration(durationSpan),
                 Jobs = deduplicatedJobs
             };
         }
@@ -320,19 +348,26 @@ namespace SalesApp.Services
                     var first = deduplicated.First();
                     var userEmail = deduplicated.Select(j => j.UserEmail).FirstOrDefault(e => !string.IsNullOrEmpty(e)) ?? first.UserEmail;
 
+                    var minStart = deduplicated.Min(j => j.CreatedAt);
+                    var maxEnd = deduplicated.Max(j => j.CompletedAt ?? j.CreatedAt);
+                    var durationSpan = (maxEnd > minStart) ? (maxEnd - minStart) : TimeSpan.Zero;
+                    var durationSecs = (int)Math.Round(durationSpan.TotalSeconds);
+
                     return new ScrapeRunSummary
                     {
                         RunId = g.Key,
                         UserId = first.UserId,
                         UserEmail = userEmail,
                         FinalStatus = ComputeFinalStatus(deduplicated),
-                        CreatedAt = deduplicated.Min(j => j.CreatedAt),
+                        CreatedAt = minStart,
                         TotalJobs = deduplicated.Count,
                         SucceededJobs = deduplicated.Count(j => j.Status == "Succeeded"),
                         FailedJobs = deduplicated.Count(j => j.Status == "Failed"),
                         TotalRowCount = deduplicated.Sum(j => j.RowCount),
                         Stores = deduplicated.Select(j => j.Store).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList(),
-                        Matriculas = deduplicated.Select(j => j.Matricula).Where(m => !string.IsNullOrEmpty(m)).Distinct().ToList()
+                        Matriculas = deduplicated.Select(j => j.Matricula).Where(m => !string.IsNullOrEmpty(m)).Distinct().ToList(),
+                        DurationSeconds = durationSecs,
+                        DurationFormatted = ScrapeDurationFormatter.FormatDuration(durationSpan)
                     };
                 })
                 .OrderByDescending(r => r.CreatedAt)
@@ -391,6 +426,16 @@ namespace SalesApp.Services
                 catch { }
             }
 
+            var scrapeDate = item.GetValueOrDefault("ScrapeDate")?.S ?? item.GetValueOrDefault("scrapeDate")?.S;
+            var retryCountStr = item.GetValueOrDefault("RetryCount")?.N
+                            ?? item.GetValueOrDefault("RetryCount")?.S
+                            ?? item.GetValueOrDefault("retryCount")?.N
+                            ?? item.GetValueOrDefault("retryCount")?.S;
+            var retryCount = int.TryParse(retryCountStr, out var r) ? r : 0;
+
+            var jobDurationSpan = (completedAt.HasValue && completedAt.Value > createdAt) ? (completedAt.Value - createdAt) : TimeSpan.Zero;
+            var jobDurationSecs = (int)Math.Round(jobDurationSpan.TotalSeconds);
+
             return new ScrapeLogEntry
             {
                 JobId = jobId,
@@ -408,7 +453,11 @@ namespace SalesApp.Services
                 AuthStatus = authStatus,
                 AuthMessage = authMessage,
                 PowerBiLoaded = pbiLoaded,
-                AuthSteps = authSteps
+                AuthSteps = authSteps,
+                ScrapeDate = scrapeDate,
+                RetryCount = retryCount,
+                DurationSeconds = jobDurationSecs,
+                DurationFormatted = ScrapeDurationFormatter.FormatDuration(jobDurationSpan)
             };
         }
     }

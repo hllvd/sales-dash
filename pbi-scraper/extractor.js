@@ -1,5 +1,6 @@
 // extractor.js
 const axios = require('axios');
+const tokenManager = require('./tokenManager');
 
 const ENDPOINT = '7a8110990e16404daec259c355434bc6.pbidedicated.windows.net';
 const PATH     = '/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query';
@@ -7,15 +8,7 @@ const URL      = `https://${ENDPOINT}${PATH}`;
 
 function getCalendarFilters(dateString) {
   if (!dateString) {
-    const currentYear = new Date().getFullYear();
-    return [{
-      "Condition": {
-        "In": {
-          "Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "c"}}, "Property": "Ano"}}],
-          "Values": [[{"Literal": {"Value": `${currentYear}L` }}]]
-        }
-      }
-    }];
+    return [];
   }
 
   const parts = dateString.split('-');
@@ -149,7 +142,6 @@ function buildPayload2(store, matricula, scrapeDate) {
                 {"Name": "t", "Entity": "tbl_cotas", "Type": 0},
                 {"Name": "m", "Entity": "1_Medidas", "Type": 0},
                 {"Name": "c", "Entity": "Calendario", "Type": 0},
-                {"Name": "p", "Entity": "Parâmetro_Senhas", "Type": 0},
                 {"Name": "a", "Entity": "acessos", "Type": 0}
               ],
               "Select": [
@@ -204,7 +196,6 @@ function buildPayload2(store, matricula, scrapeDate) {
                 },
                 ...calendarFilters,
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store}'` }}]]}}},
-                {"Condition": {"And": {"Left": {"Comparison": {"ComparisonKind": 2, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal": {"Value": "929009D"}}}}, "Right": {"Comparison": {"ComparisonKind": 4, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal":{"Value": "929009D"}}}}}}},
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "a"}}, "Property": "matricula"}}], "Values": [[{"Literal": {"Value": `'${paddedMatricula}'` }}]]}}}
               ],
               "OrderBy": [{"Direction": 2, "Expression": {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}}}]
@@ -223,7 +214,6 @@ function buildPayload2(store, matricula, scrapeDate) {
     "allowLongRunningQueries": true
   };
 }
-
 
 function parseDSR(data) {
   const result = data?.results?.[0]?.result?.data;
@@ -338,6 +328,15 @@ function toCsv(rows) {
   ].join('\n');
 }
 
+/** Check if error status represents token expiration / authorization error */
+function isAuthErrorStatus(err) {
+  if (!err) return false;
+  const status = err.response?.status;
+  if (status === 401 || status === 402 || status === 403) return true;
+  const msg = (err.message || '').toLowerCase();
+  return msg.includes('401') || msg.includes('402') || msg.includes('403') || msg.includes('unauthorized');
+}
+
 async function postWithRetry(url, payload, headers, label) {
   const maxRetries = parseInt(process.env.SCRAPE_MAX_RETRIES || '2', 10);
   const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '240000', 10);
@@ -359,9 +358,12 @@ async function postWithRetry(url, payload, headers, label) {
       const isTimeout = err.code === 'ECONNABORTED' || err.message.includes('timeout');
       console.warn(`[Extractor] ${label} - Attempt ${attempt + 1} failed: ${err.message}${isTimeout ? ' (Timeout)' : ''}`);
       
+      // If error is 401/402/403 (expired token), throw immediately so auto-reauth can catch it
+      if (isAuthErrorStatus(err)) {
+        throw err;
+      }
+
       if (attempt === maxRetries) break;
-      
-      // Wait a bit before retrying (exponential backoff could be added here, but simple delay for now)
       await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
     }
   }
@@ -369,6 +371,9 @@ async function postWithRetry(url, payload, headers, label) {
   throw new Error(`${label} failed after ${maxRetries + 1} attempts. Last error: ${lastError.message}`);
 }
 
+/**
+ * Basic scrape query using provided token.
+ */
 async function scrape(store, matricula, token, scrapeDate) {
   const headers = {
     'Authorization':  token,
@@ -378,58 +383,104 @@ async function scrape(store, matricula, token, scrapeDate) {
     'Referer':        'https://dashboardbi.ademicon.com.br/'
   };
 
+  const steps = [];
+  const ts = () => new Date().toLocaleTimeString('pt-BR');
+
   console.log(`[Extractor] Querying for Store: "${store}", Matricula: "${matricula}", Date: "${scrapeDate || 'Default'}"`);
+  steps.push(`[${ts()}] Consultando PowerBI — Unidade: "${store}", Matrícula: "${matricula}", Data: "${scrapeDate || 'Padrão (mês atual)'}"`);
 
   const payload1 = buildPayload1(store, matricula, scrapeDate);
   const payload2 = buildPayload2(store, matricula, scrapeDate);
 
-  // DEBUG: Write payloads to temp files so they can be inspected manually
+  steps.push(`[${ts()}] Enviando consultas (Query 1: resumo de produção, Query 2: contratos detalhados)...`);
+
+  let rows1 = [];
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const debugDir = path.join(__dirname, 'scratch', 'debug');
-    if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
-    fs.writeFileSync(path.join(debugDir, 'payload1.json'), JSON.stringify(payload1, null, 2));
-    fs.writeFileSync(path.join(debugDir, 'payload2.json'), JSON.stringify(payload2, null, 2));
-    console.log(`[Extractor] Payloads saved to ${debugDir} for debugging.`);
-    
-    // Log the date filter being sent specifically
-    const q1Filter = payload1.queries[0].Query.Where.find(w => w.Condition?.In?.Expressions?.[0]?.Column?.Property === 'Ano');
-    if (q1Filter) {
-      console.log(`[Extractor] Year Filter being sent: ${q1Filter.Condition.In.Values[0][0].Literal.Value}`);
-    }
-  } catch (e) {}
-
-  console.log('[Extractor] Sending Query 1 and Query 2 via Promise.all with retries...');
-
-  try {
-    const [res1, res2] = await Promise.all([
-      postWithRetry(URL, payload1, headers, 'Query 1'),
-      postWithRetry(URL, payload2, headers, 'Query 2')
-    ]);
-
+    const res1 = await postWithRetry(URL, payload1, headers, 'Query 1');
     console.log(`[Extractor] Query 1 Response Status: ${res1.status}`);
-    console.log(`[Extractor] Query 2 Response Status: ${res2.status}`);
-
-    const rows1 = parseDSR(res1.data);
-    const rows2 = parseDSR(res2.data);
-
+    rows1 = parseDSR(res1.data);
     console.log(`[Extractor] Query 1 returned ${rows1.length} rows`);
-    console.log(`[Extractor] Query 2 returned ${rows2.length} rows`);
-
-    // Debug: Log raw response if no detail rows
-    if (!res2.data || !res2.data.results) {
-      console.log('[Extractor] Query 2 Raw Response Data (First 200 chars):', JSON.stringify(res2.data).substring(0, 200));
-    }
-
-    return {
-      rows: [...rows1, ...rows2],
-      csv: toCsv(rows2) // We prioritize the detailed rows for CSV export
-    };
+    steps.push(`[${ts()}] Query 1 (resumo): ${rows1.length} registros retornados.`);
   } catch (err) {
-    console.error('[Extractor] Extraction failed after retries:', err.message);
-    throw err;
+    if (isAuthErrorStatus(err)) throw err;
+    const msg = `Query 1 (resumo) falhou — continuando com Query 2. Detalhe: ${err.message}`;
+    console.warn(`[Extractor] ${msg}`);
+    steps.push(`[${ts()}] ⚠️ ${msg}`);
+  }
+
+  let rows2 = [];
+  let csv = '';
+  try {
+    const res2 = await postWithRetry(URL, payload2, headers, 'Query 2');
+    console.log(`[Extractor] Query 2 Response Status: ${res2.status}`);
+    rows2 = parseDSR(res2.data);
+    console.log(`[Extractor] Query 2 returned ${rows2.length} rows`);
+    steps.push(`[${ts()}] ✅ Query 2 (contratos): ${rows2.length} contratos extraídos com sucesso.`);
+    csv = toCsv(rows2);
+  } catch (err) {
+    const msg = `Query 2 (contratos) falhou após tentativas. Detalhe: ${err.message}`;
+    console.error(`[Extractor] ${msg}`);
+    steps.push(`[${ts()}] ❌ ${msg}`);
+    throw Object.assign(err, { steps, isAuthExpired: isAuthErrorStatus(err) });
+  }
+
+  return {
+    rows: [...rows1, ...rows2],
+    csv,
+    steps
+  };
+}
+
+/**
+ * Scrapes PowerBI with automatic token caching and automatic re-authentication
+ * upon 401/402/403 authorization failures (up to maxReauthRetries = 3).
+ *
+ * @param {string} store
+ * @param {string} matricula
+ * @param {string} password
+ * @param {string} scrapeDate
+ * @param {Function} getTokensFn - Function (matricula, password, store, forceRefresh) => Promise<{ token }>
+ * @param {number} maxReauthRetries - Max automatic re-auth retries (default: 3)
+ */
+async function scrapeWithReauth(store, matricula, password, scrapeDate, getTokensFn, maxReauthRetries = 3) {
+  let attempt = 0;
+
+  while (attempt <= maxReauthRetries) {
+    try {
+      // Get cached token or fetch new token on forceRefresh (attempt > 0)
+      const forceRefresh = attempt > 0;
+      const authInfo = await getTokensFn(matricula, password, store, forceRefresh);
+      const activeToken = authInfo.token;
+      const effectiveStore = authInfo.detectedStore || store;
+
+      // Run scrape query
+      const result = await scrape(effectiveStore, matricula, activeToken, scrapeDate);
+      result.authSteps = authInfo.steps || [];
+      result.retryCount = attempt;
+      result.detectedStore = authInfo.detectedStore || null;
+      return result;
+
+    } catch (err) {
+      // Check if credentials are dead (wrong password) -> fail immediately
+      if (err.authStatus === 'wrong-password' || (err.message && err.message.toLowerCase().includes('senha'))) {
+        console.error(`[Extractor] Autenticação falhou com credenciais inválidas para ${matricula}. Abortando retentativas.`);
+        throw err;
+      }
+
+      // Check if error is 401/402/403 token expiration
+      const isAuthFailure = isAuthErrorStatus(err) || err.isAuthExpired;
+
+      if (isAuthFailure && attempt < maxReauthRetries) {
+        attempt++;
+        console.warn(`[Extractor] Token expirado ou inválido (401/402/403) para matrícula ${matricula}. Re-autenticando via Puppeteer (Tentativa ${attempt}/${maxReauthRetries})...`);
+        tokenManager.invalidateTokens(matricula);
+        continue;
+      }
+
+      // Other error or exceeded max re-auth retries
+      throw err;
+    }
   }
 }
 
-module.exports = { scrape };
+module.exports = { scrape, scrapeWithReauth, isAuthErrorStatus };

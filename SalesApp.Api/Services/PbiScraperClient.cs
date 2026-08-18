@@ -20,11 +20,17 @@ namespace SalesApp.Services
         [JsonProperty("userId")]
         public string? UserId { get; set; }
 
+        [JsonProperty("runId")]
+        public string? RunId { get; set; }
+
         [JsonProperty("avaproUsername")]
         public string? AvaproUsername { get; set; }
 
         [JsonProperty("avaproPassword")]
         public string? AvaproPassword { get; set; }
+
+        [JsonProperty("scrapeDate")]
+        public string? ScrapeDate { get; set; }
     }
 
     public class PbiScraperClient
@@ -39,17 +45,19 @@ namespace SalesApp.Services
             _callbackBaseUrl = configuration["PbiScraper:CallbackBaseUrl"] ?? "http://salesapp-api:5000";
         }
 
-        public async Task<string> EnqueueJobAsync(string jobId, string userId, string store, string matricula, string? avaproUsername = null, string? avaproPassword = null)
+        public async Task<string> EnqueueJobAsync(string jobId, string userId, string store, string matricula, string? avaproUsername = null, string? avaproPassword = null, string? runId = null, string? scrapeDate = null)
         {
             var request = new ScrapeJobRequest
             {
                 JobId = jobId,
+                RunId = runId,
                 UserId = userId,
                 Store = store,
                 Matricula = matricula,
                 CallbackUrl = $"{_callbackBaseUrl}/api/scrape/callback",
                 AvaproUsername = avaproUsername,
-                AvaproPassword = avaproPassword
+                AvaproPassword = avaproPassword,
+                ScrapeDate = scrapeDate
             };
 
             var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
@@ -62,12 +70,13 @@ namespace SalesApp.Services
             return result?.jobId?.ToString() ?? jobId;
         }
 
-        public async Task<(bool success, bool loginSuccess, string message, List<string>? steps)> TestAuthAsync(string matricula, string password)
+        public async Task<(bool success, bool loginSuccess, string message, List<string>? steps, string? detectedStore)> TestAuthAsync(string matricula, string password, string? store = null)
         {
             var request = new
             {
                 matricula = matricula,
-                password = password
+                password = password,
+                store = store
             };
 
             var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
@@ -79,6 +88,7 @@ namespace SalesApp.Services
             bool isSuccess = result?.success != null ? (bool)result.success : response.IsSuccessStatusCode;
             bool loginSuccess = result?.loginSuccess != null ? (bool)result.loginSuccess : isSuccess;
             string msg = result?.message?.ToString() ?? (isSuccess ? "Autenticação bem-sucedida" : "Falha na autenticação");
+            string? detectedStore = result?.detectedStore?.ToString();
             
             List<string>? steps = null;
             if (result?.steps != null)
@@ -87,7 +97,7 @@ namespace SalesApp.Services
                 catch { }
             }
 
-            return (isSuccess, loginSuccess, msg, steps);
+            return (isSuccess, loginSuccess, msg, steps, detectedStore);
         }
     }
 }
