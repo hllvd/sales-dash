@@ -229,6 +229,50 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
     loginSuccess = true;
     addStep(steps, 'Login bem-sucedido.');
 
+    // Attempt to auto-detect Store (Loja) from AVA PRO header
+    let detectedStore = null;
+    try {
+      detectedStore = await page.evaluate(() => {
+        // 1. Target data-testid="select_loja" or inner data-slot="value"
+        const selectLojaVal = document.querySelector('[data-testid="select_loja"] [data-slot="value"]');
+        if (selectLojaVal && selectLojaVal.textContent) {
+          const t = selectLojaVal.textContent.trim();
+          if (t && t.length > 2 && !t.toLowerCase().includes('selecionar')) return t;
+        }
+
+        const selectLojaRoot = document.querySelector('[data-testid="select_loja"]');
+        if (selectLojaRoot && selectLojaRoot.textContent) {
+          const t = selectLojaRoot.textContent.trim();
+          if (t && t.length > 2 && !t.toLowerCase().includes('selecionar')) return t;
+        }
+
+        // 2. Search data-slot="value" elements
+        const dataSlotVals = Array.from(document.querySelectorAll('[data-slot="value"]'));
+        for (const el of dataSlotVals) {
+          const t = (el.textContent || '').trim();
+          if (t && t.length > 2 && !t.toLowerCase().includes('selecionar') && (t.includes('-') || t.toUpperCase() === t)) {
+            return t;
+          }
+        }
+
+        // 3. Fallback text search in elements starting with "Loja"
+        const elements = Array.from(document.querySelectorAll('span, div, header, p'));
+        for (const el of elements) {
+          const text = (el.textContent || '').trim();
+          if (text.startsWith('Loja') && text.includes('-')) {
+            return text.replace(/^Loja\s*/i, '').trim();
+          }
+        }
+        return null;
+      });
+
+      if (detectedStore) {
+        addStep(steps, `Loja auto-detectada no AVA PRO: "${detectedStore}"`);
+      }
+    } catch (e) {
+      addStep(steps, `Aviso: Não foi possível auto-detectar a loja no DOM: ${e.message}`);
+    }
+
     // ── Step 2: Wait for users/me ──────────────────────────────────────────────
     addStep(steps, 'Aguardando sessão (bifrost/users/me)...');
     try {
@@ -309,12 +353,13 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
     addStep(steps, 'Autenticação e obtenção de MWCToken concluídas com sucesso.');
 
     // Save tokens in tokenManager cache
-    tokenManager.setTokens(matricula, { avaJwt, pbiToken: tokenRef.value });
+    tokenManager.setTokens(matricula, { avaJwt, pbiToken: tokenRef.value, detectedStore });
 
     return {
       token: tokenRef.value,
       pbiToken: tokenRef.value,
       avaJwt,
+      detectedStore,
       authStatus:  'success',
       authMessage: 'Autenticação bem-sucedida',
       powerbiLoaded,
@@ -352,6 +397,7 @@ async function getOrFetchTokens(matricula, password, store = 'BALNEARIO CAMBORIU
         token: cached.pbiToken,
         pbiToken: cached.pbiToken,
         avaJwt: cached.avaJwt,
+        detectedStore: cached.store || null,
         authStatus: 'success',
         authMessage: 'Token reutilizado do cache em memória',
         powerbiLoaded: true,

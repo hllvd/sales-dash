@@ -451,11 +451,13 @@ async function scrapeWithReauth(store, matricula, password, scrapeDate, getToken
       const forceRefresh = attempt > 0;
       const authInfo = await getTokensFn(matricula, password, store, forceRefresh);
       const activeToken = authInfo.token;
+      const effectiveStore = authInfo.detectedStore || store;
 
       // Run scrape query
-      const result = await scrape(store, matricula, activeToken, scrapeDate);
+      const result = await scrape(effectiveStore, matricula, activeToken, scrapeDate);
       result.authSteps = authInfo.steps || [];
       result.retryCount = attempt;
+      result.detectedStore = authInfo.detectedStore || null;
       return result;
 
     } catch (err) {

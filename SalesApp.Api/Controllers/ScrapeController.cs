@@ -13,7 +13,7 @@ namespace SalesApp.Controllers
     {
         public int Id { get; set; }
         public Guid? UserId { get; set; }
-        public string Store { get; set; } = string.Empty;
+        public string? Store { get; set; }
         public string Matricula { get; set; } = string.Empty;
         public string? CredentialStatus { get; set; }
         public string? DefaultStartMonth { get; set; }
@@ -25,7 +25,7 @@ namespace SalesApp.Controllers
     public class ScrapeConfigRequest
     {
         public int? Id { get; set; }
-        public string Store { get; set; } = string.Empty;
+        public string? Store { get; set; }
         public string Matricula { get; set; } = string.Empty;
         public string? PowerBiPassword { get; set; }
         public string? DefaultStartMonth { get; set; }
@@ -48,6 +48,7 @@ namespace SalesApp.Controllers
         private readonly IScrapeImportService _importService;
         private readonly PbiScraperClient _scraperClient;
         private readonly IDataProtector _protector;
+        private readonly IConfiguration _configuration;
         private readonly string _outputDir;
         private readonly bool _isE2E;
 
@@ -66,6 +67,7 @@ namespace SalesApp.Controllers
             _importService = importService;
             _scraperClient = scraperClient;
             _protector = dataProtectionProvider.CreateProtector("ScrapeConfig.PowerBiPassword");
+            _configuration = configuration;
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
             _isE2E = configuration["ASPNETCORE_ENVIRONMENT"] == "E2E";
         }
@@ -97,7 +99,18 @@ namespace SalesApp.Controllers
                 isNew = true;
             }
 
-            config.Store = request.Store;
+            var cleanStore = request.Store?.Trim();
+            if (string.Equals(cleanStore, "AUTO", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(cleanStore, "Tentar selecionar automaticamente", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(cleanStore))
+            {
+                config.Store = null;
+            }
+            else
+            {
+                config.Store = cleanStore;
+            }
+
             config.Matricula = request.Matricula;
             config.DefaultStartMonth = request.DefaultStartMonth;
             config.UpdatedAt = DateTime.UtcNow;
@@ -110,8 +123,13 @@ namespace SalesApp.Controllers
                 // Test authentication if requested and not in E2E
                 if (request.TestOnSave && !_isE2E)
                 {
-                    var (success, loginSuccess, message, steps) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword);
+                    var (success, loginSuccess, message, steps, detectedStore) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword, config.Store);
                     config.CredentialStatus = (loginSuccess || success) ? "ok" : "wrong-password";
+                    if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+                    {
+                        config.Store = detectedStore;
+                    }
+
                     if (!loginSuccess && !success)
                     {
                         return BadRequest(new { message = $"Falha na autenticação: {message}", steps });
@@ -188,14 +206,18 @@ namespace SalesApp.Controllers
 
             string password = config.PowerBiPassword;
 
-            var (success, loginSuccess, message, steps) = await _scraperClient.TestAuthAsync(config.Matricula, password);
+            var (success, loginSuccess, message, steps, detectedStore) = await _scraperClient.TestAuthAsync(config.Matricula, password, config.Store);
 
             bool effectiveSuccess = loginSuccess || success;
             config.CredentialStatus = effectiveSuccess ? "ok" : "wrong-password";
+            if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+            {
+                config.Store = detectedStore;
+            }
             config.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return Ok(new { success = effectiveSuccess, loginSuccess, message, steps, credentialStatus = config.CredentialStatus });
+            return Ok(new { success = effectiveSuccess, loginSuccess, message, steps, credentialStatus = config.CredentialStatus, detectedStore });
         }
 
         [Authorize(Roles = "admin,superadmin")]
@@ -223,7 +245,8 @@ namespace SalesApp.Controllers
             var runId = Guid.NewGuid().ToString();
             var monthsCount = request?.MonthsCount > 0 ? request.MonthsCount : 3;
             var effectiveStartMonth = !string.IsNullOrWhiteSpace(request?.StartMonth) ? request.StartMonth : config.DefaultStartMonth;
-            var scrapeDates = CalculateScrapeDates(effectiveStartMonth, monthsCount);
+            var maxMonthsAgo = _configuration.GetValue<int>("PbiScraper:MaxMonthsAgo", 15);
+            var scrapeDates = CalculateScrapeDates(effectiveStartMonth, monthsCount, maxMonthsAgo);
 
             var jobIds = new List<string>();
             foreach (var date in scrapeDates)
@@ -235,15 +258,22 @@ namespace SalesApp.Controllers
             return Accepted(new { jobId = jobIds.FirstOrDefault(), jobIds, runId, scrapeDates });
         }
 
-        private static List<string?> CalculateScrapeDates(string? startMonth, int defaultCount = 3)
+        private static List<string?> CalculateScrapeDates(string? startMonth, int defaultCount = 3, int maxMonthsAgo = 15)
         {
             var dates = new List<string?>();
             var now = DateTime.UtcNow;
             var currentYearMonth = new DateTime(now.Year, now.Month, 1);
+            var effectiveMaxMonthsAgo = maxMonthsAgo > 0 ? maxMonthsAgo : 15;
+            var earliestAllowedMonth = currentYearMonth.AddMonths(-effectiveMaxMonthsAgo);
 
             if (!string.IsNullOrWhiteSpace(startMonth) && DateTime.TryParseExact(startMonth.Trim(), "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var startParsed))
             {
                 var cursor = new DateTime(startParsed.Year, startParsed.Month, 1);
+
+                if (cursor < earliestAllowedMonth)
+                {
+                    cursor = earliestAllowedMonth;
+                }
 
                 if (cursor > currentYearMonth)
                 {

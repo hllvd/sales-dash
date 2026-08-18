@@ -21,17 +21,19 @@ function getTokens(matricula) {
  * @param {string} matricula
  * @param {{ avaJwt?: string, pbiToken?: string, token?: string }} tokens
  */
-function setTokens(matricula, { avaJwt = null, pbiToken = null, token = null }) {
+function setTokens(matricula, { avaJwt = null, pbiToken = null, token = null, store = null, detectedStore = null }) {
   if (!matricula) return;
   const key = String(matricula).trim();
   const resolvedPbiToken = pbiToken || token || null;
+  const resolvedStore = detectedStore || store || null;
 
   tokenCache.set(key, {
     avaJwt: avaJwt || null,
     pbiToken: resolvedPbiToken,
+    store: resolvedStore,
     createdAt: Date.now(),
   });
-  console.log(`[TokenManager] Cached tokens for matricula "${key}".`);
+  console.log(`[TokenManager] Cached tokens for matricula "${key}" (Store: "${resolvedStore || 'N/A'}").`);
 }
 
 /**

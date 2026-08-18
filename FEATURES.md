@@ -648,27 +648,24 @@ Provides in-memory token caching per matrícula, automatic re-authentication upo
 - `pbi-scraper/server.js` — Added multi-month date range parser (`normalizeScrapeDates`), updating `/jobs` to process batch ranges reusing cached tokens.
 - `pbi-scraper/scratch/test-range.js` — CLI test script for verifying multi-month extraction speed and auto-reauth behavior (`SCRAPE_DATES="2026-02,2026-03,2026-04"`).
 
-## PowerBI Scraper - Start Month Selection & Per-Month Breakdown UI (2026-08-17)
+## PowerBI Scraper - Auto-Detect Store (Loja) from AVA PRO (2026-08-17)
 
-Adds UI controls for triggering multi-month extractions starting from a specific month, alongside detailed per-month status, retry count tracking, and contract count breakdowns in the execution details page.
+Automates store (Unidade / Loja) detection directly from the AVA PRO portal header after login, eliminating store filter mismatch errors in PowerBI DAX queries.
 
 ### Key Capabilities
-- **Direct Extrair Trigger & Configurable Default Month (`ScrapeDashboard.tsx`)**: Clicking "Extrair" directly triggers the extraction without any popup prompt, using the account's configured `DefaultStartMonth`.
-- **Execution Duration Calculation (`ScrapeDynamoLogService.cs`)**: Calculates total time spent per complete run (`min(CreatedAt)` to `max(CompletedAt)`), formatted as human-readable durations (e.g. `24s`, `1m 15s`, `3m 02s`). Also tracks duration for individual jobs.
-- **Duration UI Badges & Summary Cards (`ScrapeDashboard.tsx` & `ScrapeRunDetailPage.tsx`)**: Displays "Tempo Total" column in the history table, a dedicated "Tempo Total Gasto" summary card in the run details view, and a "Duração" column for each process.
-- **Date Range & Unspecified Date Handling (`ScrapeController.cs` & `extractor.js`)**: When `startMonth` is specified (e.g. `2026-02`), the backend generates jobs for every consecutive month from `startMonth` up to the current month inclusive. If no `startMonth` is set, the scraper runs without any date filter.
-- **Per-Month Job Orchestration (`ScrapeController.cs` & `ScrapeOrchestrator.cs`)**: Multi-month requests generate individual jobs under a unified `RunId`, persisting `ScrapeDate` and `RetryCount` into DynamoDB logs.
-- **DynamoDB & SQLite Persistence (`ScrapeDynamoLogService.cs` & `ScrapeConfig.cs`)**: Job target months (`ScrapeDate`) and retry counts are permanently stored in DynamoDB attributes and retrieved cleanly upon loading run details.
-- **Formatted MM/YYYY Display (`ScrapeRunDetailPage.tsx`)**: Formats the extracted month as `MM/YYYY` (e.g. `02/2026`, `03/2026`, `04/2026`) in a dedicated column, displaying the exact contract count per month.
+- **Configurable Max Months Ago (`appsettings.json` & `ScrapeController.cs`)**: Added `PbiScraper:MaxMonthsAgo` setting (default `15`). Clamps historical scrape start dates to a maximum of 15 months ago (e.g., 20 months ago clamps to 15 months ago, while 4 months ago stays 4 months ago).
+- **Automated Store DOM Extraction (`auth.js`)**: Upon login, Puppeteer inspects `[data-testid="select_loja"] [data-slot="value"]` (or header fallbacks) to capture the exact store name string (e.g. `BALNEARIO CAMBORIU - SC`).
+- **DAX Query Filter Override (`extractor.js`)**: Automatically overrides DAX query filters (`nm_unidade_bi_original`) with the captured store name to guarantee 100% query execution accuracy.
+- **Conditional SQLite Auto-Update (`ScrapeController.cs` & `ScrapeOrchestrator.cs`)**: Auto-populates `ScrapeConfig.Store` in SQLite only when the database field is currently null or empty.
+- **Optional Store Selection UI (`ScrapeDashboard.tsx`)**: Unidade (Store) field in account setup is optional and defaults to `"Tentar selecionar automaticamente"`.
 
 ### Key Files Modified
-- `client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx` — Trigger modal and account configuration modal for `DefaultStartMonth`.
-- `client/sales-dash/src/components/Scrape/ScrapeRunDetailPage.tsx` — `MM/YYYY` formatted column (`Mês (MM/YYYY)`), Retentativas count, and contract totals per month.
-- `client/sales-dash/src/services/scrapeService.ts` — Updated API service interfaces including `defaultStartMonth`.
-- `SalesApp.Api/Models/ScrapeConfig.cs` — Added `DefaultStartMonth` column to SQLite entity.
-- `SalesApp.Api/Controllers/ScrapeController.cs` — Added `DefaultStartMonth` to DTOs, `SaveConfig`, and `TriggerScrape` fallback logic.
-- `SalesApp.Api/Services/ScrapeDynamoLogService.cs` — Added `ScrapeDate` and `RetryCount` mapping to/from DynamoDB items (`MapToEntry`).
-- `pbi-scraper/extractor.js` & `pbi-scraper/server.js` — Returned `retryCount` and `scrapeDate` in job callback payloads.
+- `pbi-scraper/auth.js` — Added DOM extraction for store from `[data-testid="select_loja"] [data-slot="value"]` after login.
+- `pbi-scraper/tokenManager.js` — Cached `detectedStore` along with JWT & PBI tokens per matricula.
+- `pbi-scraper/extractor.js` & `pbi-scraper/server.js` — Overrode DAX queries with `detectedStore` and returned it in callbacks and test-auth APIs.
+- `SalesApp.Api/Models/ScrapeConfig.cs` — Made `Store` property nullable.
+- `SalesApp.Api/Controllers/ScrapeController.cs` & `ScrapeOrchestrator.cs` — Handled optional store requests and persisted `detectedStore` to DB when current `Store` is null.
+- `client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx` — Added `"Tentar selecionar automaticamente"` as default store option.
 
 
 

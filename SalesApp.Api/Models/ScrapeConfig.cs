@@ -19,9 +19,8 @@ namespace SalesApp.Models
 
         public virtual User? User { get; set; }
 
-        [Required]
         [MaxLength(200)]
-        public string Store { get; set; } = string.Empty;
+        public string? Store { get; set; }
 
         [Required]
         [MaxLength(100)]

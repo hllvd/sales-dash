@@ -3,7 +3,7 @@ import { apiService } from './apiService';
 export interface ScrapeConfig {
     id: number;
     userId: string;
-    store: string;
+    store?: string | null;
     matricula: string;
     credentialStatus?: 'ok' | 'wrong-password' | null;
     defaultStartMonth?: string;
@@ -14,7 +14,7 @@ export interface ScrapeConfig {
 
 export interface ScrapeConfigRequest {
     id?: number;
-    store: string;
+    store?: string | null;
     matricula: string;
     powerBiPassword?: string;
     defaultStartMonth?: string;

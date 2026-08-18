@@ -153,13 +153,13 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const handleOpenModal = (config?: ScrapeConfig) => {
     if (config) {
       setEditingConfig(config);
-      setStore(config.store);
+      setStore(config.store || '');
       setMatricula(config.matricula);
       setPassword(''); // Don't show existing password
       setConfigDefaultStartMonth(config.defaultStartMonth || '');
     } else {
       setEditingConfig(null);
-      setStore(null);
+      setStore('');
       setMatricula('');
       setPassword('');
       setConfigDefaultStartMonth('');
@@ -168,10 +168,10 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   };
 
   const handleSaveConfig = async () => {
-    if (!store || !matricula || (!editingConfig && !password)) {
+    if (!matricula || (!editingConfig && !password)) {
       notifications.show({
         title: 'Aviso',
-        message: 'Preencha todos os campos obrigatórios',
+        message: 'Preencha todos os campos obrigatórios (Matrícula e Senha)',
         color: 'orange',
       });
       return;
@@ -181,7 +181,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       setSaving(true);
       await scrapeService.saveConfig({
         id: editingConfig?.id,
-        store,
+        store: store || undefined,
         matricula,
         powerBiPassword: password || undefined,
         defaultStartMonth: configDefaultStartMonth || undefined,
@@ -356,7 +356,11 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const configRows = configs.map((config) => (
     <Table.Tr key={config.id}>
       <Table.Td>
-        <Text size="sm" fw={500}>{config.store}</Text>
+        {config.store ? (
+          <Text size="sm" fw={500}>{config.store}</Text>
+        ) : (
+          <Text size="sm" c="dimmed" fs="italic">Tentar selecionar automaticamente</Text>
+        )}
       </Table.Td>
       <Table.Td>
         <Text size="sm">{config.matricula}</Text>
@@ -612,12 +616,16 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
           <Stack gap="md" pt="xs">
             <Select
               label="Unidade (Store)"
-              placeholder="Selecione a unidade"
-              data={STORES}
-              value={store}
-              onChange={setStore}
+              placeholder="Tentar selecionar automaticamente"
+              data={[
+                { value: '', label: 'Tentar selecionar automaticamente' },
+                ...STORES
+              ]}
+              value={store || ''}
+              onChange={(val) => setStore(val || '')}
               searchable
-              required
+              clearable
+              description="Opcional. Caso vazia, o robô identificará a unidade automaticamente no portal."
             />
             <TextInput
               label="Matrícula"

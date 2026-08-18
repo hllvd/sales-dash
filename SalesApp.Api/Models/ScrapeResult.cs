@@ -18,5 +18,6 @@ namespace SalesApp.Models
         public List<string>? AuthSteps { get; set; }
         public int RetryCount { get; set; }
         public string? ScrapeDate { get; set; }
+        public string? DetectedStore { get; set; }
     }
 }

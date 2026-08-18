@@ -105,6 +105,10 @@ app.post('/jobs', (req, res) => {
           3 // max 3 automatic re-auth retries
         );
 
+        if (scrapeRes.detectedStore) {
+          result.detectedStore = scrapeRes.detectedStore;
+        }
+
         if (scrapeRes.retryCount) {
           totalRetryCount += scrapeRes.retryCount;
         }
@@ -176,7 +180,7 @@ app.post('/jobs', (req, res) => {
         ...result, 
         userId: req.body.userId, 
         runId: req.body.runId,
-        store, 
+        store: result.detectedStore || store, 
         matricula 
       };
       await axios.put(callbackUrl, callbackResult);
@@ -189,7 +193,7 @@ app.post('/jobs', (req, res) => {
 });
 
 app.post('/test-auth', async (req, res) => {
-  const { matricula, password } = req.body;
+  const { matricula, password, store } = req.body;
 
   if (!matricula || !password) {
     return res.status(400).json({ 
@@ -202,13 +206,14 @@ app.post('/test-auth', async (req, res) => {
 
   console.log(`[Test Auth] Testing credentials for ${matricula}...`);
   try {
-    const authInfo = await getOrFetchTokens(matricula, password, 'BALNEARIO CAMBORIU - SC', true);
+    const authInfo = await getOrFetchTokens(matricula, password, store || 'BALNEARIO CAMBORIU - SC', true);
     res.json({ 
       success: true, 
       loginSuccess: true,
       message: authInfo.authMessage || 'Autenticação bem-sucedida.',
       authStatus: authInfo.authStatus,
       powerbiLoaded: authInfo.powerbiLoaded,
+      detectedStore: authInfo.detectedStore || null,
       steps: authInfo.steps
     });
   } catch (err) {
