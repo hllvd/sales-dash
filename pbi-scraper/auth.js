@@ -163,6 +163,7 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
       } catch (e) { /* ignore */ }
     });
 
+    let apiDetectedStore = null;
     page.on('response', async (res) => {
       try {
         const status = res.status();
@@ -173,6 +174,17 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
           if (body && body.token) {
             avaJwt = body.token;
             addStep(steps, `JWT Avapro capturado (${avaJwt.substring(0, 20)}...)`);
+          }
+        }
+
+        if (url.includes('users/me') && status === 200) {
+          const body = await res.json().catch(() => null);
+          if (body && typeof body === 'object') {
+            const possible = body.unidade || body.loja || body.store || body.unidade_bi || body.unidadeNome || body.nm_unidade || body.unidadeOriginal;
+            if (possible && typeof possible === 'string') {
+              apiDetectedStore = possible.trim();
+              addStep(steps, `Loja capturada via API users/me: "${apiDetectedStore}"`);
+            }
           }
         }
 
@@ -229,50 +241,6 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
     loginSuccess = true;
     addStep(steps, 'Login bem-sucedido.');
 
-    // Attempt to auto-detect Store (Loja) from AVA PRO header
-    let detectedStore = null;
-    try {
-      detectedStore = await page.evaluate(() => {
-        // 1. Target data-testid="select_loja" or inner data-slot="value"
-        const selectLojaVal = document.querySelector('[data-testid="select_loja"] [data-slot="value"]');
-        if (selectLojaVal && selectLojaVal.textContent) {
-          const t = selectLojaVal.textContent.trim();
-          if (t && t.length > 2 && !t.toLowerCase().includes('selecionar')) return t;
-        }
-
-        const selectLojaRoot = document.querySelector('[data-testid="select_loja"]');
-        if (selectLojaRoot && selectLojaRoot.textContent) {
-          const t = selectLojaRoot.textContent.trim();
-          if (t && t.length > 2 && !t.toLowerCase().includes('selecionar')) return t;
-        }
-
-        // 2. Search data-slot="value" elements
-        const dataSlotVals = Array.from(document.querySelectorAll('[data-slot="value"]'));
-        for (const el of dataSlotVals) {
-          const t = (el.textContent || '').trim();
-          if (t && t.length > 2 && !t.toLowerCase().includes('selecionar') && (t.includes('-') || t.toUpperCase() === t)) {
-            return t;
-          }
-        }
-
-        // 3. Fallback text search in elements starting with "Loja"
-        const elements = Array.from(document.querySelectorAll('span, div, header, p'));
-        for (const el of elements) {
-          const text = (el.textContent || '').trim();
-          if (text.startsWith('Loja') && text.includes('-')) {
-            return text.replace(/^Loja\s*/i, '').trim();
-          }
-        }
-        return null;
-      });
-
-      if (detectedStore) {
-        addStep(steps, `Loja auto-detectada no AVA PRO: "${detectedStore}"`);
-      }
-    } catch (e) {
-      addStep(steps, `Aviso: Não foi possível auto-detectar a loja no DOM: ${e.message}`);
-    }
-
     // ── Step 2: Wait for users/me ──────────────────────────────────────────────
     addStep(steps, 'Aguardando sessão (bifrost/users/me)...');
     try {
@@ -285,6 +253,59 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
       addStep(steps, 'Aviso: users/me não respondeu. Continuando...');
     }
 
+    // Helper to extract store from DOM
+    const tryExtractStoreFromDom = async () => {
+      try {
+        return await page.evaluate(() => {
+          // 1. Target data-testid="select_loja"
+          const selectLojaVal = document.querySelector('[data-testid="select_loja"] [data-slot="value"]')
+                             || document.querySelector('[data-testid="select_loja"]');
+          if (selectLojaVal && selectLojaVal.textContent) {
+            const t = selectLojaVal.textContent.replace(/^Loja\s*/i, '').trim();
+            if (t && t.length > 2 && !t.toLowerCase().includes('selecionar')) return t;
+          }
+
+          // 2. Target any data-slot="value"
+          const dataSlotVals = Array.from(document.querySelectorAll('[data-slot="value"]'));
+          for (const el of dataSlotVals) {
+            const t = (el.textContent || '').replace(/^Loja\s*/i, '').trim();
+            if (t && t.length > 2 && !t.toLowerCase().includes('selecionar') && (t.includes('-') || t.toUpperCase() === t)) {
+              return t;
+            }
+          }
+
+          // 3. Search header elements with text starting with "Loja"
+          const elements = Array.from(document.querySelectorAll('span, div, header, p'));
+          for (const el of elements) {
+            const text = (el.textContent || '').trim();
+            if (text.startsWith('Loja') && text.includes('-')) {
+              return text.replace(/^Loja\s*/i, '').trim();
+            }
+          }
+
+          return null;
+        });
+      } catch (e) {
+        return null;
+      }
+    };
+
+    // Attempt DOM store extraction right after home load with retry polling (up to 6s)
+    let detectedStore = apiDetectedStore;
+    if (!detectedStore) {
+      addStep(steps, 'Aguardando renderização do cabeçalho da loja no DOM...');
+      await page.waitForSelector('[data-testid="select_loja"], [data-slot="value"], header', { timeout: 8000 }).catch(() => {});
+      for (let i = 0; i < 6; i++) {
+        detectedStore = await tryExtractStoreFromDom();
+        if (detectedStore) break;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    if (detectedStore) {
+      addStep(steps, `Loja auto-detectada no AVA PRO: "${detectedStore}"`);
+    }
+
     // ── Step 3: Enable API proxying ───────────────────────────────────────────
     addStep(steps, 'Ativando proxy apiv2 no Puppeteer...');
     await attachInterceptionToTarget(page, tokenRef, steps, avaJwt, requestCountRef);
@@ -293,6 +314,13 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
     addStep(steps, `Navegando para ${DASHBOARD_URL}...`);
     await page.goto(DASHBOARD_URL, { waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
     addStep(steps, `URL atual: ${page.url()}`);
+
+    if (!detectedStore) {
+      detectedStore = await tryExtractStoreFromDom();
+      if (detectedStore) {
+        addStep(steps, `Loja auto-detectada no dashboard AVA PRO: "${detectedStore}"`);
+      }
+    }
 
     // ── Step 5: Wait for SPA to render iframe and postMessage JWT into it ──────
     addStep(steps, 'Aguardando iframe no dashboard...');
