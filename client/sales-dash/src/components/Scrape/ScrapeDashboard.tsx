@@ -353,57 +353,103 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
     return <Badge color="gray" variant="dot">Não Testada</Badge>;
   };
 
-  const configRows = configs.map((config) => (
-    <Table.Tr key={config.id}>
-      <Table.Td>
-        {config.store ? (
-          <Text size="sm" fw={500}>{config.store}</Text>
-        ) : (
-          <Text size="sm" c="dimmed" fs="italic">Tentar selecionar automaticamente</Text>
-        )}
-      </Table.Td>
-      <Table.Td>
-        <Text size="sm">{config.matricula}</Text>
-      </Table.Td>
-      <Table.Td>
-        {getCredentialStatusBadge(config.credentialStatus)}
-      </Table.Td>
-      <Table.Td>
-        <Group gap="xs">
-          <Tooltip label="Testar Autenticação">
-            <ActionIcon 
-                variant="light" 
-                color="blue" 
-                onClick={() => handleTestAuth(config.id)}
-                loading={testingAuth === config.id}
+  const formatStartMonth = (startMonthStr?: string | null) => {
+    if (!startMonthStr) {
+      return { relative: 'Todas as datas', dateFormatted: 'Sem filtro' };
+    }
+
+    const parts = startMonthStr.trim().split('-');
+    if (parts.length < 2) {
+      return { relative: 'Todas as datas', dateFormatted: 'Sem filtro' };
+    }
+
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+
+    if (isNaN(year) || isNaN(month)) {
+      return { relative: 'Todas as datas', dateFormatted: 'Sem filtro' };
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-indexed
+
+    const totalMonthsDiff = (currentYear - year) * 12 + (currentMonth - month);
+
+    let relative = '';
+    if (totalMonthsDiff <= 0) {
+      relative = 'Mês atual';
+    } else if (totalMonthsDiff === 1) {
+      relative = '1 mês atrás';
+    } else {
+      relative = `${totalMonthsDiff} meses atrás`;
+    }
+
+    const dateFormatted = `01/${String(month).padStart(2, '0')}/${year}`;
+
+    return { relative, dateFormatted };
+  };
+
+  const configRows = configs.map((config) => {
+    const startInfo = formatStartMonth(config.defaultStartMonth);
+    return (
+      <Table.Tr key={config.id}>
+        <Table.Td>
+          {config.store ? (
+            <Text size="sm" fw={500}>{config.store}</Text>
+          ) : (
+            <Text size="sm" c="dimmed" fs="italic">Tentar selecionar automaticamente</Text>
+          )}
+        </Table.Td>
+        <Table.Td>
+          <Text size="sm">{config.matricula}</Text>
+        </Table.Td>
+        <Table.Td>
+          <Stack gap={0}>
+            <Text size="sm" fw={500}>{startInfo.relative}</Text>
+            <Text size="xs" c="dimmed">{startInfo.dateFormatted}</Text>
+          </Stack>
+        </Table.Td>
+        <Table.Td>
+          {getCredentialStatusBadge(config.credentialStatus)}
+        </Table.Td>
+        <Table.Td>
+          <Group gap="xs">
+            <Tooltip label="Testar Autenticação">
+              <ActionIcon 
+                  variant="light" 
+                  color="blue" 
+                  onClick={() => handleTestAuth(config.id)}
+                  loading={testingAuth === config.id}
+              >
+                <IconUserCheck size={18} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Editar">
+              <ActionIcon variant="light" color="gray" onClick={() => handleOpenModal(config)}>
+                <IconSettings size={18} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Remover">
+              <ActionIcon variant="light" color="red" onClick={() => handleDeleteConfig(config.id)}>
+                <IconTrash size={18} />
+              </ActionIcon>
+            </Tooltip>
+            <Button 
+              size="compact-xs" 
+              variant="filled" 
+              color="indigo"
+              leftSection={<IconPlayerPlay size={12}/>}
+              onClick={() => handleTrigger(config.id)}
+              loading={triggering === config.id}
             >
-              <IconUserCheck size={18} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Editar">
-            <ActionIcon variant="light" color="gray" onClick={() => handleOpenModal(config)}>
-              <IconSettings size={18} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Remover">
-            <ActionIcon variant="light" color="red" onClick={() => handleDeleteConfig(config.id)}>
-              <IconTrash size={18} />
-            </ActionIcon>
-          </Tooltip>
-          <Button 
-            size="compact-xs" 
-            variant="filled" 
-            color="indigo"
-            leftSection={<IconPlayerPlay size={12}/>}
-            onClick={() => handleTrigger(config.id)}
-            loading={triggering === config.id}
-          >
-            Extrair
-          </Button>
-        </Group>
-      </Table.Td>
-    </Table.Tr>
-  ));
+              Extrair
+            </Button>
+          </Group>
+        </Table.Td>
+      </Table.Tr>
+    );
+  });
 
   // Filtered runs
   const filteredRuns = (runs || []).filter((run) => {
@@ -422,26 +468,37 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
     return true;
   });
 
-  const runRows = filteredRuns.map((run) => (
-    <Table.Tr 
-      key={run.runId} 
-      style={{ cursor: 'pointer' }}
-      onClick={() => { window.location.hash = `#/scrapes/runs/${run.runId}`; }}
-    >
-      <Table.Td>{new Date(run.createdAt).toLocaleString('pt-BR')}</Table.Td>
-      <Table.Td><Text size="sm" fw={500}>{run.userEmail || 'Desconhecido'}</Text></Table.Td>
-      <Table.Td><Text size="sm">{run.matriculas.join(', ') || '-'}</Text></Table.Td>
-      <Table.Td><Text size="sm">{run.stores.join(', ') || '-'}</Text></Table.Td>
-      <Table.Td>{getFinalStatusBadge(run.finalStatus)}</Table.Td>
-      <Table.Td><Badge variant="light" color="blue" size="sm">{run.durationFormatted || '0s'}</Badge></Table.Td>
-      <Table.Td><Text fw={600} size="sm">{run.totalRowCount}</Text></Table.Td>
-      <Table.Td>
-        <Button size="compact-xs" variant="light" color="indigo">
-          Ver Detalhes
-        </Button>
-      </Table.Td>
-    </Table.Tr>
-  ));
+  const runRows = filteredRuns.map((run) => {
+    const firstDate = run.scrapeDates && run.scrapeDates.length > 0 ? run.scrapeDates[0] : null;
+    const startInfo = formatStartMonth(firstDate);
+
+    return (
+      <Table.Tr 
+        key={run.runId} 
+        style={{ cursor: 'pointer' }}
+        onClick={() => { window.location.hash = `#/scrapes/runs/${run.runId}`; }}
+      >
+        <Table.Td>{new Date(run.createdAt).toLocaleString('pt-BR')}</Table.Td>
+        <Table.Td><Text size="sm" fw={500}>{run.userEmail || 'Desconhecido'}</Text></Table.Td>
+        <Table.Td><Text size="sm">{run.matriculas.join(', ') || '-'}</Text></Table.Td>
+        <Table.Td><Text size="sm">{run.stores.join(', ') || '-'}</Text></Table.Td>
+        <Table.Td>
+          <Stack gap={0}>
+            <Text size="sm" fw={500}>{startInfo.relative}</Text>
+            <Text size="xs" c="dimmed">{startInfo.dateFormatted}</Text>
+          </Stack>
+        </Table.Td>
+        <Table.Td>{getFinalStatusBadge(run.finalStatus)}</Table.Td>
+        <Table.Td><Badge variant="light" color="blue" size="sm">{run.durationFormatted || '0s'}</Badge></Table.Td>
+        <Table.Td><Text fw={600} size="sm">{run.totalRowCount}</Text></Table.Td>
+        <Table.Td>
+          <Button size="compact-xs" variant="light" color="indigo">
+            Ver Detalhes
+          </Button>
+        </Table.Td>
+      </Table.Tr>
+    );
+  });
 
   return (
     <Menu>
@@ -520,6 +577,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
                     <Table.Tr>
                       <Table.Th>Unidade</Table.Th>
                       <Table.Th>Matrícula (Username)</Table.Th>
+                      <Table.Th>Início da Extração</Table.Th>
                       <Table.Th>Status Credencial</Table.Th>
                       <Table.Th>Ações</Table.Th>
                     </Table.Tr>
@@ -579,6 +637,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
                       <Table.Th>Executado Por (Email)</Table.Th>
                       <Table.Th>Matrícula(s)</Table.Th>
                       <Table.Th>Unidade(s)</Table.Th>
+                      <Table.Th>Início da Extração</Table.Th>
                       <Table.Th>Status Final</Table.Th>
                       <Table.Th>Tempo Total</Table.Th>
                       <Table.Th>Registros Totais</Table.Th>

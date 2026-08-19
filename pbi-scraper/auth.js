@@ -73,6 +73,20 @@ async function attachInterceptionToTarget(pageObj, tokenRef, steps, avaJwt, requ
     try {
       if (url.includes('windows.net') || url.includes('powerbi') || url.includes('pbidedicated')) {
         console.log(`[PBI Req] ${method} ${url.substring(0, 140)} | auth=${auth ? auth.substring(0, 30) + '...' : 'none'}`);
+        if (method === 'POST' && url.includes('QES/Query')) {
+          try {
+            const postData = req.postData();
+            if (postData) {
+              const fs = require('fs');
+              const file = 'scratch/debug/all_qes_queries.json';
+              let list = [];
+              try { if (fs.existsSync(file)) list = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) {}
+              list.push(JSON.parse(postData));
+              fs.writeFileSync(file, JSON.stringify(list, null, 2));
+              console.log(`[Auth] Saved QES query #${list.length} to ${file}`);
+            }
+          } catch (_) {}
+        }
       }
 
       // Proxy apiv2 GET calls
@@ -174,6 +188,16 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
           if (body && body.token) {
             avaJwt = body.token;
             addStep(steps, `JWT Avapro capturado (${avaJwt.substring(0, 20)}...)`);
+          }
+        }
+
+        if (url.includes('modelsAndExploration') && status === 200) {
+          const body = await res.json().catch(() => null);
+          if (body) {
+            try {
+              require('fs').writeFileSync('scratch/debug/models.json', JSON.stringify(body, null, 2));
+              console.log('[Auth] Saved PowerBI modelsAndExploration schema to scratch/debug/models.json');
+            } catch (_) {}
           }
         }
 

@@ -57,6 +57,7 @@ namespace SalesApp.Services
         public int TotalRowCount { get; set; }
         public List<string> Stores { get; set; } = new List<string>();
         public List<string> Matriculas { get; set; } = new List<string>();
+        public List<string> ScrapeDates { get; set; } = new List<string>();
         public int DurationSeconds { get; set; }
         public string? DurationFormatted { get; set; }
     }
@@ -366,6 +367,7 @@ namespace SalesApp.Services
                         TotalRowCount = deduplicated.Sum(j => j.RowCount),
                         Stores = deduplicated.Select(j => j.Store).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList(),
                         Matriculas = deduplicated.Select(j => j.Matricula).Where(m => !string.IsNullOrEmpty(m)).Distinct().ToList(),
+                        ScrapeDates = deduplicated.Select(j => j.ScrapeDate).Where(d => !string.IsNullOrEmpty(d)).Select(d => d!).Distinct().OrderBy(d => d).ToList(),
                         DurationSeconds = durationSecs,
                         DurationFormatted = ScrapeDurationFormatter.FormatDuration(durationSpan)
                     };

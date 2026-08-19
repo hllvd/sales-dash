@@ -56,6 +56,7 @@ export interface ScrapeRunSummary {
     totalRowCount: number;
     stores: string[];
     matriculas: string[];
+    scrapeDates?: string[];
     durationSeconds?: number;
     durationFormatted?: string;
 }

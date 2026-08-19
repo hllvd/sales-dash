@@ -145,21 +145,18 @@ function buildPayload2(store, matricula, scrapeDate) {
                 {"Name": "a", "Entity": "acessos", "Type": 0}
               ],
               "Select": [
+                // Groupings (Columns G0 .. G18)
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "versao"}, "Name": "Sum(tbl_cotas.versao)", "NativeReferenceName": "Versao"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_consultor"}, "Name": "tbl_cotas.nm_consultor", "NativeReferenceName": "Consultor"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "id_matricula"}, "Name": "tbl_cotas.id_matricula", "NativeReferenceName": "Matricula"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_pv"}, "Name": "tbl_cotas.nm_pv", "NativeReferenceName": "PV"},
-                {"Aggregation": {"Expression": {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "vl_credito_venda"}}, "Function": 0}, "Name": "Sum(tbl_cotas.vl_credito_venda)", "NativeReferenceName": "Crédito Venda"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}, "Name": "tbl_cotas.dt_producao", "NativeReferenceName": "Dt Produção"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_venda"}, "Name": "tbl_cotas.dt_venda", "NativeReferenceName": "Dt Venda"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "categoria_consultor"}, "Name": "tbl_cotas.categoria_consultor", "NativeReferenceName": "Categoria"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "cd_ponto_venda"}, "Name": "tbl_cotas.cd_ponto_venda", "NativeReferenceName": "Cód. PV"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_cancelamento"}, "Name": "tbl_cotas.dt_cancelamento", "NativeReferenceName": "Dt Cancelamento"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_atual"}, "Name": "tbl_cotas.nm_unidade_bi_atual", "NativeReferenceName": "Unidade Atual"},
-                {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Obs Cota"}, "Name": "1_Medidas.Obs Restrições Cota", "NativeReferenceName": "Obs Cota"},
-                {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Produção Analitica"}, "Name": "1_Medidas.Produção Analitica", "NativeReferenceName": "Produção Analitica"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "rn"}, "Name": "Sum(tbl_cotas.rn)", "NativeReferenceName": "id_bi"},
-                {"Measure": {"Expression": {"SourceRef": {"Source": "2"}}, "Property": "Cota"}, "Name": "2_Medidas_Tabela.id_cota", "NativeReferenceName": "Cota"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "pz_cota"}, "Name": "Sum(tbl_cotas.pz_cota)", "NativeReferenceName": "Prazo Cota"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "pz_comercializacao"}, "Name": "Sum(tbl_cotas.pz_comercializacao)", "NativeReferenceName": "Prazo Grupo"},
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "tem_pagamento"}, "Name": "tbl_cotas.tem_pagamento", "NativeReferenceName": "Tem Pagamento?"},
@@ -167,31 +164,36 @@ function buildPayload2(store, matricula, scrapeDate) {
                 {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property":"nm_unidade_bi_original"}, "Name": "tbl_cotas.nm_unidade_bi_original", "NativeReferenceName": "Unidade Original"},
                 {"Column": {"Expression": {"SourceRef": {"Source":"t"}}, "Property": "qtd_pc_atraso"}, "Name": "Sum(tbl_cotas.qtd_pc_atraso)", "NativeReferenceName": "Qtd Parcelas Atraso"},
                 {"Column": {"Expression": {"SourceRef": {"Source":"t"}}, "Property": "nm_plano_venda"}, "Name": "tbl_cotas.nm_plano_venda", "NativeReferenceName": "Plano Venda"},
-                {"Column": {"Expression": {"SourceRef": {"Source":"t"}}, "Property": "nm_situacao_cobranca"}, "Name": "tbl_cotas.nm_situacao_cobranca", "NativeReferenceName": "Situação Cobrança"}
+                {"Column": {"Expression": {"SourceRef": {"Source":"t"}}, "Property": "status_cota"}, "Name": "tbl_cotas.status_cota", "NativeReferenceName": "Situação Cobrança"},
+                // Measures (M0 .. M3)
+                {"Aggregation": {"Expression": {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "vl_credito_venda"}}, "Function": 0}, "Name": "Sum(tbl_cotas.vl_credito_venda)", "NativeReferenceName": "Crédito Venda"},
+                {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Obs Cota"}, "Name": "1_Medidas.Obs Restrições Cota", "NativeReferenceName": "Obs Cota"},
+                {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Produção Analitica"}, "Name": "1_Medidas.Produção Analitica", "NativeReferenceName": "Produção Analitica"},
+                {"Measure": {"Expression": {"SourceRef": {"Source": "2"}}, "Property": "Cota"}, "Name": "2_Medidas_Tabela.id_cota", "NativeReferenceName": "Cota"}
               ],
               "Where": [
                 {
                   "Condition": {"Comparison": {"ComparisonKind": 0, "Left": {"Measure": {"Expression": {"SourceRef": {"Source": "m"}}, "Property": "Filtro de Cotas"}}, "Right": {"Literal": {"Value": "1L"}}}},
                   "Target": [
                     {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "versao"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_venda"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_cancelamento"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_contemplacao"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "id_matricula"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "categoria_consultor"}},
                     {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_consultor"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "cd_ponto_venda"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "id_matricula"}},
                     {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_pv"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_venda"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "categoria_consultor"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "cd_ponto_venda"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_cancelamento"}},
                     {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_atual"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "tem_pagamento"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "rn"}},
                     {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "pz_cota"}},
                     {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "pz_comercializacao"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "tem_pagamento"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_contemplacao"}},
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}},
                     {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "qtd_pc_atraso"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_situacao_cobranca"}},
                     {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_plano_venda"}},
-                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "rn"}}
+                    {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "status_cota"}}
                   ]
                 },
                 ...calendarFilters,
@@ -225,8 +227,11 @@ function parseDSR(data) {
 
   const selectItems  = descriptor?.Select || [];
   const friendlyName = {};
-  selectItems.forEach(item => {
+  const selectIndexMap = {};
+
+  selectItems.forEach((item, idx) => {
     friendlyName[item.Value] = item.NativeReferenceName || item.Name;
+    selectIndexMap[item.Value] = idx;
   });
 
   const dicts = ds.ValueDicts || {};
@@ -310,6 +315,47 @@ function parseDSR(data) {
       }
     }
   }
+
+  // Post-process rows: sanitize dates and status
+  const MIN_VALID_TIMESTAMP = 1262304000000; // 2010-01-01
+  const MAX_VALID_TIMESTAMP = 2051222400000; // 2035-01-01
+
+  allRows.forEach(row => {
+    // Sanitize dt_cancelamento and dt_contemplacao
+    ['Dt Cancelamento', 'tbl_cotas.dt_cancelamento', 'dt_cancelamento'].forEach(k => {
+      if (row[k] !== undefined && row[k] !== null) {
+        const num = Number(row[k]);
+        if (isNaN(num) || num < MIN_VALID_TIMESTAMP || num > MAX_VALID_TIMESTAMP) {
+          row[k] = null;
+        }
+      }
+    });
+
+    ['Dt Contemplacao', 'tbl_cotas.dt_contemplacao', 'dt_contemplacao'].forEach(k => {
+      if (row[k] !== undefined && row[k] !== null) {
+        const num = Number(row[k]);
+        if (isNaN(num) || num < MIN_VALID_TIMESTAMP || num > MAX_VALID_TIMESTAMP) {
+          row[k] = null;
+        }
+      }
+    });
+
+    // Fix status fallback if numeric, boolean, missing, or invalid
+    const statusKey = Object.keys(row).find(k => k.includes('Situação Cobrança') || k.includes('status_cota') || k.includes('Status'));
+    if (statusKey) {
+      const rawVal = row[statusKey];
+      const dtCancel = row['Dt Cancelamento'] || row['tbl_cotas.dt_cancelamento'];
+      const dtContemp = row['Dt Contemplacao'] || row['tbl_cotas.dt_contemplacao'];
+
+      if (dtCancel) {
+        row[statusKey] = 'EXCLUIDO';
+      } else if (dtContemp) {
+        row[statusKey] = 'CONTEMPLADO';
+      } else if (rawVal === null || rawVal === undefined || typeof rawVal === 'number' || !isNaN(Number(rawVal)) || rawVal === 'EXCLUIDO') {
+        row[statusKey] = 'Normal';
+      }
+    }
+  });
 
   return allRows;
 }

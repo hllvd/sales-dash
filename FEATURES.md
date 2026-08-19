@@ -668,6 +668,7 @@ Automates store (Unidade / Loja) detection directly from the AVA PRO portal head
 - **Configurable Max Months Ago (`appsettings.json` & `ScrapeController.cs`)**: Added `PbiScraper:MaxMonthsAgo` setting (default `15`). Clamps historical scrape start dates to a maximum of 15 months ago (e.g., 20 months ago clamps to 15 months ago, while 4 months ago stays 4 months ago).
 - **Automated Store DOM Extraction (`auth.js`)**: Upon login, Puppeteer inspects `[data-testid="select_loja"] [data-slot="value"]` (or header fallbacks) to capture the exact store name string (e.g. `BALNEARIO CAMBORIU - SC`).
 - **DAX Query Filter Override (`extractor.js`)**: Automatically overrides DAX query filters (`nm_unidade_bi_original`) with the captured store name to guarantee 100% query execution accuracy.
+- **Contract Status Column Fix (`extractor.js` & `appsettings.json`)**: Replaced non-existent `nm_situacao_cobranca` property with the dataset property `status_cota` in DAX payload generation (`buildPayload2`), mapping `Status Cota` / `status_cota` / `Situação cobrança` aliases to `Status` in `ScrapeImportMappings`.
 - **Conditional SQLite Auto-Update (`ScrapeController.cs` & `ScrapeOrchestrator.cs`)**: Auto-populates `ScrapeConfig.Store` in SQLite only when the database field is currently null or empty.
 - **Optional Store Selection UI (`ScrapeDashboard.tsx`)**: Unidade (Store) field in account setup is optional and defaults to `"Tentar selecionar automaticamente"`.
 
