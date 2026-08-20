@@ -83,7 +83,23 @@ namespace SalesApp.Services
 
             // 1. Pre-identify potential contract numbers for bulk fetch
             var allContractNumbers = rows
-                .Select(r => ParseContractNumber(GetFieldValue(r, reverseMappings, "ContractNumber")))
+                .Select(r => {
+                    var cn = ParseContractNumber(GetFieldValue(r, reverseMappings, "ContractNumber"));
+                    if (string.IsNullOrWhiteSpace(cn))
+                    {
+                        var rawCota = GetFieldValue(r, reverseMappings, "Cota");
+                        if (string.IsNullOrWhiteSpace(rawCota))
+                        {
+                            var cotaKey = r.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("id_cota", StringComparison.OrdinalIgnoreCase));
+                            if (cotaKey != null) rawCota = r[cotaKey];
+                        }
+                        if (!string.IsNullOrWhiteSpace(rawCota))
+                        {
+                            cn = CotaDecomposer.Decompose(rawCota).Contract;
+                        }
+                    }
+                    return cn;
+                })
                 .Where(n => !string.IsNullOrWhiteSpace(n))
                 .Distinct()
                 .Select(n => n!) 
@@ -122,6 +138,19 @@ namespace SalesApp.Services
                 {
                     var row = rows[i];
                     var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
+                    if (string.IsNullOrWhiteSpace(contractNumber))
+                    {
+                        var rawCota = GetFieldValue(row, reverseMappings, "Cota");
+                        if (string.IsNullOrWhiteSpace(rawCota))
+                        {
+                            var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("id_cota", StringComparison.OrdinalIgnoreCase));
+                            if (cotaKey != null) rawCota = row[cotaKey];
+                        }
+                        if (!string.IsNullOrWhiteSpace(rawCota))
+                        {
+                            contractNumber = CotaDecomposer.Decompose(rawCota).Contract;
+                        }
+                    }
 
                     // Skip row if contract number is missing and skip option is enabled
                     if (skipMissingContractNumber)
@@ -944,6 +973,7 @@ namespace SalesApp.Services
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
             };
+            user.IsActive = true;
 
             // If existing user and custom password provided, update it under safe conditions
             if (existingUser != null && !string.IsNullOrWhiteSpace(customPassword))

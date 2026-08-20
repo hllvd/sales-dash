@@ -431,7 +431,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
               </ActionIcon>
             </Tooltip>
             <Tooltip label="Remover">
-              <ActionIcon variant="light" color="red" onClick={() => handleDeleteConfig(config.id)}>
+              <ActionIcon data-testid="delete-scrape-config-btn" variant="light" color="red" onClick={() => handleDeleteConfig(config.id)} aria-label="Remover">
                 <IconTrash size={18} />
               </ActionIcon>
             </Tooltip>
