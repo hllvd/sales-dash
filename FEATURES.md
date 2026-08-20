@@ -12,6 +12,18 @@ This feature introduces an **"Atualizar data do contrato"** option when importin
 
 ---
 
+## Idempotent User Re-Import (`users.xlsx`) in Import Wizard
+
+This feature ensures that re-importing `users.xlsx` via Step 2 of the Import Wizard (`/api/wizard/step2-import`) is fully idempotent and succeeds cleanly when executed multiple times.
+
+### Core Objectives
+- Prevent `UNIQUE constraint failed: Users.Email` database errors when re-importing existing users in `users.xlsx`.
+- Safely update `ImportSession` records without re-marking attached EF Core navigation entity graphs (such as `UploadedBy`) as `Added`.
+- Enable `UserRepository.GetByEmailAsync` to look up existing user records regardless of their `IsActive` state, preventing duplicate insert attempts.
+- Automatically reactivate (`IsActive = true`) and update details when an inactive user is re-imported.
+
+---
+
 ## Scrape Diagnostics & Auth Step Logging (PowerBI Extrações)
 
 This feature provides step-by-step diagnostic logging and immediate authentication failure detection for PowerBI extractions, capturing detailed status reports and remaining attempt warnings.

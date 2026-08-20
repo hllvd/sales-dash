@@ -77,23 +77,24 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> SaveConfig([FromBody] ScrapeConfigRequest request)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-            
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return Unauthorized();
+
             ScrapeConfig? config;
             bool isNew = false;
 
             if (request.Id.HasValue && request.Id > 0)
             {
                 config = await _context.ScrapeConfigs
-                    .Include(c => c.User)
                     .FirstOrDefaultAsync(c => c.Id == request.Id.Value);
                 if (config == null) return NotFound();
-                if (!User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
+                if (!User.IsInRole("superadmin") && config.UserInternalId != user.InternalId) return Forbid();
             }
             else
             {
                 config = new ScrapeConfig
                 {
-                    UserId = userId,
+                    UserInternalId = user.InternalId,
                     CreatedAt = DateTime.UtcNow
                 };
                 isNew = true;
@@ -148,8 +149,11 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> GetMyConfigs()
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return Unauthorized();
+
             var configs = await _context.ScrapeConfigs
-                .Where(c => c.User.Id == userId)
+                .Where(c => c.UserInternalId == user.InternalId)
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
             
@@ -161,12 +165,14 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> DeleteConfig(int id)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return Unauthorized();
+
             var config = await _context.ScrapeConfigs
-                .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (config == null) return NotFound();
-            if (!User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
+            if (!User.IsInRole("superadmin") && config.UserInternalId != user.InternalId) return Forbid();
 
             _context.ScrapeConfigs.Remove(config);
             await _context.SaveChangesAsync();

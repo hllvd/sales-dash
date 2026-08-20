@@ -57,7 +57,18 @@ namespace SalesApp.Repositories
 
         public async Task UpdateAsync(ImportSession session)
         {
-            _context.ImportSessions.Update(session);
+            var existingEntry = _context.ChangeTracker.Entries<ImportSession>()
+                .FirstOrDefault(e => e.Entity.Id == session.Id);
+
+            if (existingEntry == null)
+            {
+                _context.ImportSessions.Update(session);
+            }
+            else if (existingEntry.Entity != session)
+            {
+                _context.Entry(existingEntry.Entity).CurrentValues.SetValues(session);
+            }
+
             await _context.SaveChangesAsync();
         }
     }

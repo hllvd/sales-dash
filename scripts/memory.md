@@ -162,9 +162,18 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated `import_wizard_desistente_contracts.spec.ts` to assert direct Step 2 transition, and updated `import_wizard_status_update.spec.ts` to select "Desistente" status filter before asserting row 821590 and "Desistente" badge label.
 **Result:** ✅ Green — 145/145 passed
 
-## [2026-08-12] integration — Attempt 1
-**Failure:** `ScrapeDynamoDbIntegrationTests.cs(129,112): error CS1503: Argument 6: cannot convert from '<anonymous type: int RowCount, string FileRelativePath>' to 'string?'`
-**Root cause:** `WriteJobStatusAsync` signature was updated to include optional `runId` and `userEmail` parameters before `additionalData`. Position 6 changed from `object? additionalData` to `string? runId`.
-**Fix applied:** Updated line 129 in `ScrapeDynamoDbIntegrationTests.cs` to pass `additionalData: new { RowCount = 42, FileRelativePath = "data.csv" }` as a named argument.
+
+
+## [2026-08-20] e2e — Attempt 2
+**Failure:** `scrape_credentials.spec.ts` timed out (60000ms) on `locator.click`.
+**Root cause:** Trash button locator `.locator('button', { has: page.locator('.tabler-icon-trash') })` failed to find the ActionIcon because `@tabler/icons-react` SVG elements do not carry the `.tabler-icon-trash` class.
+**Fix applied:** Replaced invalid CSS class locator in `client/e2e-test/e2e/scrape_credentials.spec.ts` with a robust multi-fallback locator (`row.getByRole('button', { name: 'Remover' }).or(row.locator('button[data-color="red"]'))`).
 **Result:** ✅ Green
+
+## [2026-08-20] e2e — Attempt 5
+**Failure:** `scrape_credentials.spec.ts` timed out on deletion.
+**Root cause:** Conflicting `waitForEvent('dialog')` and `page.on('dialog')` handlers caused promise rejection microtask races, and pre-built client container image lacked new test IDs.
+**Fix applied:** Updated `ScrapeController.cs` to check `UserInternalId` directly, added `data-testid="delete-scrape-config-btn"` to `ScrapeDashboard.tsx`, rebuilt client container image via `./test.sh build`, and simplified `scrape_credentials.spec.ts` dialog handling.
+**Result:** ✅ Green
+
 

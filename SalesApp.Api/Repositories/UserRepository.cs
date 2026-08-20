@@ -27,13 +27,13 @@ namespace SalesApp.Repositories
         public async Task<User?> GetByEmailAsync(string email)
         {
             if (string.IsNullOrWhiteSpace(email)) return null;
-            var normalizedEmail = email.ToLowerInvariant();
+            var normalizedEmail = email.Trim().ToLowerInvariant();
 
             // NOTE: Tracking needed for import upserts
             return await _context.Users
                 .Include(u => u.Role)
                 .Include(u => u.UserMatriculas).ThenInclude(um => um.Matricula)
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail && u.IsActive);
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
         }
 
         public async Task<User?> GetByEmailForAuthAsync(string email)
