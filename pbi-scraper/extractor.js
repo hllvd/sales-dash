@@ -542,4 +542,51 @@ async function scrapeWithReauth(store, matricula, password, scrapeDate, getToken
   }
 }
 
-module.exports = { scrape, scrapeWithReauth, isAuthErrorStatus };
+/**
+ * Generates an array of the last 15 months formatted as 'YYYY-MM' from current month backwards.
+ */
+function getLast15Months() {
+  const months = [];
+  const now = new Date();
+  for (let i = 0; i < 15; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    months.push(`${year}-${month}`);
+  }
+  return months;
+}
+
+/**
+ * Probes the last 15 months from newest to oldest for contract data,
+ * then iterates from oldest to newest (left to right) to find the first month with data.
+ * Falls back to current month if all 15 months return no data.
+ *
+ * @param {string} store
+ * @param {string} matricula
+ * @param {string} token
+ */
+async function probeStartDate(store, matricula, token) {
+  const monthsNewestToOldest = getLast15Months();
+  const currentMonthStr = monthsNewestToOldest[0];
+
+  const results = [];
+  for (const monthStr of monthsNewestToOldest) {
+    try {
+      const res = await scrape(store, matricula, token, monthStr);
+      const hasData = res.rows && res.rows.length > 0;
+      results.push({ month: monthStr, hasData });
+    } catch (err) {
+      if (isAuthErrorStatus(err)) throw err;
+      results.push({ month: monthStr, hasData: false });
+    }
+  }
+
+  // Iterate from oldest to newest (left to right)
+  const chronological = [...results].reverse();
+  const firstActive = chronological.find(r => r.hasData);
+
+  return firstActive ? firstActive.month : currentMonthStr;
+}
+
+module.exports = { scrape, scrapeWithReauth, isAuthErrorStatus, probeStartDate };

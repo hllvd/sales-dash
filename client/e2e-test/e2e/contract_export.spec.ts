@@ -14,8 +14,15 @@ test.describe('[TEAR 3] Contract Export Verification', () => {
 
 
   test('should filter by Rodrigo Rosin and verify export sum', async ({ page }) => {
-    console.log('>>> Navigating to Contracts page');
-    await page.click('a[href="#/contracts"]');
+    await page.goto('/#/contracts');
+    await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15000 });
+
+    // Clear start date filter so historical contracts from 2023 are included
+    const startDateInput = page.locator('input#filterStartDate, input[type="date"]').first();
+    if (await startDateInput.isVisible().catch(() => false)) {
+      await startDateInput.fill('2020-01-01');
+      await page.waitForTimeout(500);
+    }
 
     // 1. Filter by user Rodrigo Rosin
     console.log('>>> Filtering by Rodrigo Rosin');

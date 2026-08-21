@@ -170,10 +170,13 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Replaced invalid CSS class locator in `client/e2e-test/e2e/scrape_credentials.spec.ts` with a robust multi-fallback locator (`row.getByRole('button', { name: 'Remover' }).or(row.locator('button[data-color="red"]'))`).
 **Result:** ✅ Green
 
-## [2026-08-20] e2e — Attempt 5
-**Failure:** `scrape_credentials.spec.ts` timed out on deletion.
-**Root cause:** Conflicting `waitForEvent('dialog')` and `page.on('dialog')` handlers caused promise rejection microtask races, and pre-built client container image lacked new test IDs.
-**Fix applied:** Updated `ScrapeController.cs` to check `UserInternalId` directly, added `data-testid="delete-scrape-config-btn"` to `ScrapeDashboard.tsx`, rebuilt client container image via `./test.sh build`, and simplified `scrape_credentials.spec.ts` dialog handling.
+
+
+
+## [2026-08-21] e2e — Attempt 5
+**Failure:** Failures in `import_wizard_verification.spec.ts` and `import_wizard_desistente_contracts.spec.ts`.
+**Root cause:** In `ImportExecutionService.cs`, line 392 unconditionally set `var contractNumber = cotaInfo.Contract`, overwriting `ContractNumber` (`90001305` & `868498`) with simple `Cota` numbers (`563` & `4311`) when importing contracts from Excel. Header `' Valor '` in `historical_contracts.xlsx` had surrounding spaces causing mapping failure until trimmed header matching was added to `WizardService.cs`. In `ImportWizardPage.tsx`, `handleImportContracts` called `downloadWizardContracts` which triggered DOM `a.click()`, aborting subsequent `runWizardStep3Import` POST request. `TEST-OK-002` in `import_wizard_desistente_contracts.spec.ts` was hidden by default 15-month cutoff.
+**Fix applied:** Updated `ImportExecutionService.cs` to preserve `rawContractNumber` when available and deduplicate new contracts in memory, added trimmed header matching to `WizardService.cs` active mappings and null safety to Excel generation, added `prepareWizardContracts` to `apiService.ts` and consumed blob body to prevent DOM download abort, added `waitForResponse` in `import_wizard.spec.ts`, updated `WizardService.cs` to map `Cota` to `Quota` when `Contrato` exists, used `addInitScript` to pre-set `contracts_filterStartDate = '2020-01-01'` in `localStorage` in `import_wizard_verification.spec.ts`, updated contract 868498 assertions (including `Cancelado` status) to match `historical_contracts.xlsx`, and set `filterStartDate` to `'2020-01-01'` in `import_wizard_desistente_contracts.spec.ts`.
 **Result:** ✅ Green
 
 

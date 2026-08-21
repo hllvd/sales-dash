@@ -5,7 +5,7 @@ const PQueue = require('p-queue').default;
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const { scrapeWithReauth } = require('./extractor');
+const { scrapeWithReauth, probeStartDate } = require('./extractor');
 const { getOrFetchTokens, AuthError } = require('./auth');
 const tokenManager = require('./tokenManager');
 
@@ -207,6 +207,15 @@ app.post('/test-auth', async (req, res) => {
   console.log(`[Test Auth] Testing credentials for ${matricula}...`);
   try {
     const authInfo = await getOrFetchTokens(matricula, password, store || 'BALNEARIO CAMBORIU - SC', true);
+    let detectedStartDate = null;
+    if (authInfo.token) {
+      try {
+        const effectiveStore = authInfo.detectedStore || store || 'BALNEARIO CAMBORIU - SC';
+        detectedStartDate = await probeStartDate(effectiveStore, matricula, authInfo.token);
+      } catch (probeErr) {
+        console.warn(`[Test Auth] StartDate probing skipped/failed: ${probeErr.message}`);
+      }
+    }
     res.json({ 
       success: true, 
       loginSuccess: true,
@@ -214,6 +223,7 @@ app.post('/test-auth', async (req, res) => {
       authStatus: authInfo.authStatus,
       powerbiLoaded: authInfo.powerbiLoaded,
       detectedStore: authInfo.detectedStore || null,
+      detectedStartDate: detectedStartDate,
       steps: authInfo.steps
     });
   } catch (err) {

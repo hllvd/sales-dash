@@ -389,7 +389,10 @@ namespace SalesApp.Services
 
             var cotaInfo = CotaDecomposer.Decompose(rawCota);
             
-            var contractNumber = cotaInfo.Contract;
+            var rawContractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
+            var contractNumber = !string.IsNullOrWhiteSpace(rawContractNumber) 
+                ? rawContractNumber 
+                : cotaInfo.Contract;
             var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
             var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
 
@@ -1442,6 +1445,7 @@ namespace SalesApp.Services
 
             var skippedNewContracts = new List<string>();
             var failedTotalAmountUpdateContracts = new List<string>();
+            var newContractsMap = new Dictionary<string, Contract>();
 
             for (int i = 0; i < rows.Count; i++)
             {
@@ -1496,7 +1500,22 @@ namespace SalesApp.Services
                         // If it's a new contract (not tracked), we add to list
                         if (existingContract == null)
                         {
-                            contractsToAdd.Add(contract);
+                            if (!string.IsNullOrEmpty(contract.ContractNumber) && newContractsMap.TryGetValue(contract.ContractNumber, out var pendingContract))
+                            {
+                                pendingContract.TotalAmount = contract.TotalAmount;
+                                pendingContract.ContractStatusId = contract.ContractStatusId;
+                                pendingContract.RawStatus = contract.RawStatus;
+                                pendingContract.SaleStartDate = contract.SaleStartDate;
+                                pendingContract.CustomerName = contract.CustomerName;
+                            }
+                            else
+                            {
+                                contractsToAdd.Add(contract);
+                                if (!string.IsNullOrEmpty(contract.ContractNumber))
+                                {
+                                    newContractsMap[contract.ContractNumber] = contract;
+                                }
+                            }
                         }
                         // If it's existing, it's already updated and tracked by the context
 

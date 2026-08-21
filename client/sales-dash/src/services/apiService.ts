@@ -899,6 +899,16 @@ export const apiService = {
     return response.json()
   },
 
+  async prepareWizardContracts(uploadId: string): Promise<void> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/wizard/step3-contracts/${uploadId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) throw new Error('Failed to prepare contracts');
+    await response.blob();
+  },
+
   async downloadWizardContracts(uploadId: string): Promise<void> {
     const response = await authenticatedFetch(`${API_BASE_URL}/wizard/step3-contracts/${uploadId}`, {
       method: 'GET',

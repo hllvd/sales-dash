@@ -43,7 +43,8 @@ export default defineConfig({
         'import_wizard_duplicate_contracts.spec.ts',
         'import_wizard_desistente_contracts.spec.ts',
         'import_wizard_blank_contracts.spec.ts',
-        'import_wizard_outliers.spec.ts'
+        'import_wizard_outliers.spec.ts',
+        'import_wizard_verification.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-1-setup-and-import']
@@ -59,7 +60,6 @@ export default defineConfig({
         'matricula_edit_normalization.spec.ts',
         'powerbi_credentials.spec.ts',
         'contract_edit_robustness.spec.ts',
-        'import_wizard_verification.spec.ts',
         'import_dashboard_matricula_change.spec.ts',
         'import_error_csv_download.spec.ts',
         'contract_dashboard_bem_pend_1_atr.spec.ts',

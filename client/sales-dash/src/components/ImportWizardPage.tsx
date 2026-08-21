@@ -197,7 +197,7 @@ const ImportWizardPage: React.FC = () => {
       setLoadingMessage('Gerando arquivo temporário…');
       setLoading(true);
       try {
-        await apiService.downloadWizardContracts(uploadData.uploadId);
+        await apiService.prepareWizardContracts(uploadData.uploadId);
         setTempFileReady(true);
       } catch (err: any) {
         toast.error('Falha ao preparar arquivo de contratos');

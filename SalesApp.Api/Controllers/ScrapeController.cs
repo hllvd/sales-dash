@@ -124,11 +124,15 @@ namespace SalesApp.Controllers
                 // Test authentication if requested and not in E2E
                 if (request.TestOnSave && !_isE2E)
                 {
-                    var (success, loginSuccess, message, steps, detectedStore) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword, config.Store);
+                    var (success, loginSuccess, message, steps, detectedStore, detectedStartDate) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword, config.Store);
                     config.CredentialStatus = (loginSuccess || success) ? "ok" : "wrong-password";
                     if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
                     {
                         config.Store = detectedStore;
+                    }
+                    if (string.IsNullOrWhiteSpace(config.DefaultStartMonth) && !string.IsNullOrWhiteSpace(detectedStartDate))
+                    {
+                        config.DefaultStartMonth = detectedStartDate;
                     }
 
                     if (!loginSuccess && !success)
@@ -212,7 +216,7 @@ namespace SalesApp.Controllers
 
             string password = config.PowerBiPassword;
 
-            var (success, loginSuccess, message, steps, detectedStore) = await _scraperClient.TestAuthAsync(config.Matricula, password, config.Store);
+            var (success, loginSuccess, message, steps, detectedStore, detectedStartDate) = await _scraperClient.TestAuthAsync(config.Matricula, password, config.Store);
 
             bool effectiveSuccess = loginSuccess || success;
             config.CredentialStatus = effectiveSuccess ? "ok" : "wrong-password";
@@ -220,10 +224,14 @@ namespace SalesApp.Controllers
             {
                 config.Store = detectedStore;
             }
+            if (string.IsNullOrWhiteSpace(config.DefaultStartMonth) && !string.IsNullOrWhiteSpace(detectedStartDate))
+            {
+                config.DefaultStartMonth = detectedStartDate;
+            }
             config.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return Ok(new { success = effectiveSuccess, loginSuccess, message, steps, credentialStatus = config.CredentialStatus, detectedStore });
+            return Ok(new { success = effectiveSuccess, loginSuccess, message, steps, credentialStatus = config.CredentialStatus, detectedStore, detectedStartDate });
         }
 
         [Authorize(Roles = "admin,superadmin")]

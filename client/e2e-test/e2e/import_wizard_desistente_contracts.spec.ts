@@ -60,11 +60,11 @@ test.describe('Import Wizard — Desistente Status Handling', () => {
     await page.click('button:has-text("Ir para Lista de Contratos")');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
-    // Clear filters if any are active
-    const clearFiltersBtn = page.locator('button.clear-filters-btn');
-    if (await clearFiltersBtn.isVisible()) {
-      await clearFiltersBtn.click();
-      await page.waitForTimeout(1000);
+    // Clear date filter so 2024 test data contract TEST-OK-002 is displayed
+    const startDateInput = page.locator('input#filterStartDate, input[type="date"]').first();
+    if (await startDateInput.isVisible().catch(() => false)) {
+      await startDateInput.fill('2020-01-01');
+      await page.waitForTimeout(500);
     }
 
     // Search for TEST-OK-002 (should exist)

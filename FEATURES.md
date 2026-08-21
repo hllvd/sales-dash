@@ -1,5 +1,19 @@
 # Features
 
+## Automatic Start Date Discovery via 15-Month Scraper Probe
+
+This feature automatically detects and populates `ScrapeConfig.DefaultStartMonth` when a user validates credentials (`Validar credenciais ao salvar` is on during `SaveConfig` or `TestAuth`) without specifying an explicit start month.
+
+### Core Objectives
+- Scrapes the last 15 months month-by-month (from newest to oldest) against PowerBI.
+- Iterates chronologically (oldest to newest, left-to-right) across the 15-month series.
+- Filters out leading left-side nulls (`N`) to identify the first active month containing contracts (`Y`).
+- Ignores 1 or 2 isolated null months in the middle of an active series.
+- Falls back to the current month (`YYYY-MM`) if all 15 months return no contracts.
+- Automatically saves the detected `DefaultStartMonth` to `ScrapeConfig` when `DefaultStartMonth` was previously blank.
+
+---
+
 ## Atualizar Data do Contrato (`SaleStartDate`) no Import Upload (contractDashboard)
 
 This feature introduces an **"Atualizar data do contrato"** option when importing sales via `contractDashboard` upload. Turned off by default (`false`), when enabled it allows existing contracts in the system to have their `SaleStartDate` updated to the value specified in the uploaded file.

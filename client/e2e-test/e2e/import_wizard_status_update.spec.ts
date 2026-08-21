@@ -91,7 +91,7 @@ test.describe('Import Wizard Status Update Test', () => {
     // Filter for contract 826650 (CSV status: "Ativa" → should map to "Active" → display "Ativo")
     await page.fill('input#filterContractNumber', '826650');
 
-    const row826650 = page.locator('table tbody tr', { hasText: '826650' });
+    const row826650 = page.locator('table tbody tr').filter({ has: page.getByText('826650', { exact: true }) }).first();
     await expect(row826650).toBeVisible({ timeout: 25_000 });
     await expect(row826650.locator('.mantine-Badge-label')).toHaveText('Ativo', { timeout: 15_000 });
 

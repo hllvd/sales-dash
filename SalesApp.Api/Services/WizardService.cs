@@ -682,8 +682,8 @@ namespace SalesApp.Services
                     var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "name", "Nome", "Usuário");
                     var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
 
-                    var nameNorm = nameVal.ToLower().Trim();
-                    var matNorm = matVal.ToLower().Trim();
+                    var nameNorm = nameVal?.Trim().ToLower() ?? string.Empty;
+                    var matNorm = matVal?.Trim().ToLower() ?? string.Empty;
 
                     string? email = null;
                     if (!string.IsNullOrEmpty(matNorm) && !string.IsNullOrEmpty(nameNorm) && exactMatchLookup.TryGetValue((matNorm, nameNorm), out var exactEmail))
@@ -808,13 +808,14 @@ namespace SalesApp.Services
 
             // ── Build Contracts template mappings (templateId=2) ─────────────────
             // Column names come from the actual enriched xlsx headers (Portuguese).
+            var firstRow = rows[0];
             var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["Email"]            = "UserEmail",
                 ["Matrícula"]        = "MatriculaNumber",
                 ["Matricula"]        = "MatriculaNumber",
                 ["Contrato"]         = "ContractNumber",
-                ["Cota"]             = "ContractNumber",
+                ["Cota"]             = firstRow.ContainsKey("Contrato") ? "Quota" : "ContractNumber",
                 ["Valor"]            = "TotalAmount",
                 ["Crédito Venda"]    = "TotalAmount",
                 ["Grupo"]            = "GroupId",
@@ -835,11 +836,11 @@ namespace SalesApp.Services
                 ["Versão"]           = "Version",
             };
 
-            // Intersect with actual headers so we only pass valid mappings
-            var firstRow = rows[0];
+            // Intersect with actual headers (trimming whitespace) so we only pass valid mappings
             var activeMappings = mappings
-                .Where(kv => firstRow.ContainsKey(kv.Key))
-                .ToDictionary(kv => kv.Key, kv => kv.Value);
+                .Where(kv => firstRow.Keys.Any(k => k.Trim().Equals(kv.Key, StringComparison.OrdinalIgnoreCase)))
+                .GroupBy(kv => firstRow.Keys.First(k => k.Trim().Equals(kv.Key, StringComparison.OrdinalIgnoreCase)), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
 
             Console.WriteLine($"[Wizard] Step3 Import: {rows.Count} rows. Active mappings: {string.Join(", ", activeMappings.Select(kv => $"{kv.Key}->{kv.Value}"))}");
 
