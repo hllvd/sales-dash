@@ -206,12 +206,19 @@ app.post('/test-auth', async (req, res) => {
 
   console.log(`[Test Auth] Testing credentials for ${matricula}...`);
   try {
-    const authInfo = await getOrFetchTokens(matricula, password, store || 'BALNEARIO CAMBORIU - SC', true);
+    const authInfo = await getOrFetchTokens(matricula, password, store || null, true);
     let detectedStartDate = null;
+    let detectedStore = authInfo.detectedStore || (store && typeof store === 'string' && store.trim() ? store.trim() : null);
+
     if (authInfo.token) {
       try {
-        const effectiveStore = authInfo.detectedStore || store || 'BALNEARIO CAMBORIU - SC';
-        detectedStartDate = await probeStartDate(effectiveStore, matricula, authInfo.token);
+        const probeRes = await probeStartDate(detectedStore || '', matricula, authInfo.token);
+        if (probeRes) {
+          detectedStartDate = typeof probeRes === 'object' ? probeRes.detectedStartDate : probeRes;
+          if (!detectedStore && probeRes.detectedStore) {
+            detectedStore = probeRes.detectedStore;
+          }
+        }
       } catch (probeErr) {
         console.warn(`[Test Auth] StartDate probing skipped/failed: ${probeErr.message}`);
       }
@@ -222,7 +229,7 @@ app.post('/test-auth', async (req, res) => {
       message: authInfo.authMessage || 'Autenticação bem-sucedida.',
       authStatus: authInfo.authStatus,
       powerbiLoaded: authInfo.powerbiLoaded,
-      detectedStore: authInfo.detectedStore || null,
+      detectedStore: detectedStore || null,
       detectedStartDate: detectedStartDate,
       steps: authInfo.steps
     });

@@ -80,6 +80,11 @@ namespace SalesApp.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return Unauthorized();
 
+            if (string.IsNullOrWhiteSpace(request.Matricula))
+            {
+                return BadRequest(new { message = "Matrícula é obrigatória." });
+            }
+
             ScrapeConfig? config;
             bool isNew = false;
 
@@ -92,6 +97,11 @@ namespace SalesApp.Controllers
             }
             else
             {
+                if (string.IsNullOrWhiteSpace(request.PowerBiPassword))
+                {
+                    return BadRequest(new { message = "Senha é obrigatória para novas credenciais." });
+                }
+
                 config = new ScrapeConfig
                 {
                     UserInternalId = user.InternalId,
@@ -112,32 +122,54 @@ namespace SalesApp.Controllers
                 config.Store = cleanStore;
             }
 
-            config.Matricula = request.Matricula;
-            config.DefaultStartMonth = request.DefaultStartMonth;
+            config.Matricula = request.Matricula.Trim();
+            config.DefaultStartMonth = string.IsNullOrWhiteSpace(request.DefaultStartMonth) ? null : request.DefaultStartMonth.Trim();
             config.UpdatedAt = DateTime.UtcNow;
 
             if (!string.IsNullOrEmpty(request.PowerBiPassword))
             {
                 config.PowerBiPassword = request.PowerBiPassword;
                 config.CredentialStatus = null; // Reset status on password change
+            }
 
-                // Test authentication if requested and not in E2E
-                if (request.TestOnSave && !_isE2E)
+            // Test authentication if requested
+            if (request.TestOnSave)
+            {
+                var passwordToTest = !string.IsNullOrEmpty(request.PowerBiPassword)
+                    ? request.PowerBiPassword
+                    : config.PowerBiPassword;
+
+                if (!string.IsNullOrEmpty(passwordToTest))
                 {
-                    var (success, loginSuccess, message, steps, detectedStore, detectedStartDate) = await _scraperClient.TestAuthAsync(request.Matricula, request.PowerBiPassword, config.Store);
-                    config.CredentialStatus = (loginSuccess || success) ? "ok" : "wrong-password";
-                    if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+                    if (_isE2E)
                     {
-                        config.Store = detectedStore;
+                        config.CredentialStatus = "ok";
+                        if (string.IsNullOrEmpty(config.Store))
+                        {
+                            config.Store = "AHU - PR";
+                        }
+                        if (string.IsNullOrWhiteSpace(config.DefaultStartMonth))
+                        {
+                            config.DefaultStartMonth = DateTime.UtcNow.ToString("yyyy-MM");
+                        }
                     }
-                    if (string.IsNullOrWhiteSpace(config.DefaultStartMonth) && !string.IsNullOrWhiteSpace(detectedStartDate))
+                    else
                     {
-                        config.DefaultStartMonth = detectedStartDate;
-                    }
+                        var (success, loginSuccess, message, steps, detectedStore, detectedStartDate) = await _scraperClient.TestAuthAsync(config.Matricula, passwordToTest, config.Store);
+                        config.CredentialStatus = (loginSuccess || success) ? "ok" : "wrong-password";
+                        if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+                        {
+                            config.Store = detectedStore;
+                        }
+                        if (string.IsNullOrWhiteSpace(config.DefaultStartMonth) && !string.IsNullOrWhiteSpace(detectedStartDate))
+                        {
+                            config.DefaultStartMonth = detectedStartDate;
+                        }
 
-                    if (!loginSuccess && !success)
-                    {
-                        return BadRequest(new { message = $"Falha na autenticação: {message}", steps });
+                        if (!loginSuccess && !success)
+                        {
+                            return BadRequest(new { message = $"Falha na autenticação: {message}", steps });
+                        }
                     }
                 }
             }
@@ -188,8 +220,6 @@ namespace SalesApp.Controllers
         [HttpPost("configs/{id}/test-auth")]
         public async Task<IActionResult> TestAuth(int id, [FromQuery] bool force = false)
         {
-            if (_isE2E) return Ok(new { success = true, message = "Autenticação ignorada em modo E2E", steps = new string[0] });
-
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             var config = await _context.ScrapeConfigs
                 .Include(c => c.User)
@@ -201,6 +231,15 @@ namespace SalesApp.Controllers
             if (string.IsNullOrEmpty(config.PowerBiPassword))
             {
                 return BadRequest(new { message = "Senha não configurada" });
+            }
+
+            if (_isE2E)
+            {
+                config.CredentialStatus = "ok";
+                if (string.IsNullOrEmpty(config.Store)) config.Store = "AHU - PR";
+                if (string.IsNullOrWhiteSpace(config.DefaultStartMonth)) config.DefaultStartMonth = DateTime.UtcNow.ToString("yyyy-MM");
+                await _context.SaveChangesAsync();
+                return Ok(new { success = true, loginSuccess = true, message = "Autenticação em modo E2E", steps = new string[0], detectedStore = config.Store, detectedStartDate = config.DefaultStartMonth });
             }
 
             if (config.CredentialStatus == "wrong-password" && !force)

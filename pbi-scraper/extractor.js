@@ -104,7 +104,7 @@ function buildPayload1(store, matricula, scrapeDate) {
                 },
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "Grupo Ativo"}}], "Values": [[{"Literal": {"Value": "'Sim'"}}]]}}},
                 ...calendarFilters,
-                {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property":"nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store}'` }}]]}}},
+                ...(store && typeof store === 'string' && store.trim() ? [{"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property":"nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store.trim()}'` }}]]}}}] : []),
                 {"Condition": {"And": {"Left": {"Comparison": {"ComparisonKind": 2, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal": {"Value": "929009D"}}}}, "Right": {"Comparison": {"ComparisonKind": 4, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal": {"Value": "929009D"}}}}}}},
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "a"}}, "Property": "matricula"}}], "Values": [[{"Literal": {"Value": `'${paddedMatricula}'` }}]]}}}
               ],
@@ -197,7 +197,7 @@ function buildPayload2(store, matricula, scrapeDate) {
                   ]
                 },
                 ...calendarFilters,
-                {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store}'` }}]]}}},
+                ...(store && typeof store === 'string' && store.trim() ? [{"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store.trim()}'` }}]]}}}] : []),
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "a"}}, "Property": "matricula"}}], "Values": [[{"Literal": {"Value": `'${paddedMatricula}'` }}]]}}}
               ],
               "OrderBy": [{"Direction": 2, "Expression": {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}}}]
@@ -483,10 +483,21 @@ async function scrape(store, matricula, token, scrapeDate) {
     throw Object.assign(err, { steps, isAuthExpired: isAuthErrorStatus(err) });
   }
 
+  const allRows = [...rows1, ...rows2];
+  let detectedStore = null;
+  for (const r of allRows) {
+    const s = r['Unidade Original'] || r['nm_unidade_bi_original'] || r['Unidade Atual'] || r['nm_unidade_bi_atual'];
+    if (s && typeof s === 'string' && s.trim()) {
+      detectedStore = s.trim();
+      break;
+    }
+  }
+
   return {
-    rows: [...rows1, ...rows2],
+    rows: allRows,
     csv,
-    steps
+    steps,
+    detectedStore
   };
 }
 
@@ -510,13 +521,13 @@ async function scrapeWithReauth(store, matricula, password, scrapeDate, getToken
       const forceRefresh = attempt > 0;
       const authInfo = await getTokensFn(matricula, password, store, forceRefresh);
       const activeToken = authInfo.token;
-      const effectiveStore = authInfo.detectedStore || store;
+      const effectiveStore = authInfo.detectedStore || store || '';
 
       // Run scrape query
       const result = await scrape(effectiveStore, matricula, activeToken, scrapeDate);
       result.authSteps = authInfo.steps || [];
       result.retryCount = attempt;
-      result.detectedStore = authInfo.detectedStore || null;
+      result.detectedStore = authInfo.detectedStore || result.detectedStore || null;
       return result;
 
     } catch (err) {
@@ -570,11 +581,16 @@ async function probeStartDate(store, matricula, token) {
   const monthsNewestToOldest = getLast15Months();
   const currentMonthStr = monthsNewestToOldest[0];
 
+  let detectedStore = store && typeof store === 'string' && store.trim() ? store.trim() : null;
   const results = [];
+
   for (const monthStr of monthsNewestToOldest) {
     try {
-      const res = await scrape(store, matricula, token, monthStr);
+      const res = await scrape(detectedStore || '', matricula, token, monthStr);
       const hasData = res.rows && res.rows.length > 0;
+      if (hasData && !detectedStore && res.detectedStore) {
+        detectedStore = res.detectedStore;
+      }
       results.push({ month: monthStr, hasData });
     } catch (err) {
       if (isAuthErrorStatus(err)) throw err;
@@ -586,7 +602,10 @@ async function probeStartDate(store, matricula, token) {
   const chronological = [...results].reverse();
   const firstActive = chronological.find(r => r.hasData);
 
-  return firstActive ? firstActive.month : currentMonthStr;
+  return {
+    detectedStartDate: firstActive ? firstActive.month : currentMonthStr,
+    detectedStore: detectedStore || null
+  };
 }
 
 module.exports = { scrape, scrapeWithReauth, isAuthErrorStatus, probeStartDate };

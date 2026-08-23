@@ -137,7 +137,7 @@ async function attachInterceptionToTarget(pageObj, tokenRef, steps, avaJwt, requ
  * @param {string} password
  * @param {string} store
  */
-async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORIU - SC') {
+async function getTokenFromLogin(matricula, password, store = null) {
   const steps = [];
   addStep(steps, 'Iniciando navegador em modo automatizado...');
 
@@ -440,7 +440,7 @@ async function getTokenFromLogin(matricula, password, store = 'BALNEARIO CAMBORI
  * @param {string} store
  * @param {boolean} forceRefresh
  */
-async function getOrFetchTokens(matricula, password, store = 'BALNEARIO CAMBORIU - SC', forceRefresh = false) {
+async function getOrFetchTokens(matricula, password, store = null, forceRefresh = false) {
   if (!forceRefresh) {
     const cached = tokenManager.getTokens(matricula);
     if (cached && cached.pbiToken) {

@@ -371,7 +371,8 @@ namespace SalesApp.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Ignore(e => e.UserId);
-                entity.Property(e => e.Store).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Store).HasMaxLength(200);
+                entity.Property(e => e.DefaultStartMonth).HasMaxLength(20);
                 entity.Property(e => e.Matricula).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.PowerBiPassword).HasMaxLength(500);
                 entity.Property(e => e.CredentialStatus).HasMaxLength(50);

@@ -77,4 +77,93 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
 
     console.log(`>>> [Tear 2] Scrape credentials test completed successfully.`);
   });
+
+  test('should allow saving credentials without store (optional store, only matricula and password mandatory)', async ({ page }) => {
+    test.setTimeout(60000);
+    console.log(`>>> [Tear 2] Testing saving credentials without store`);
+    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    page.on('dialog', dialog => {
+      dialog.accept().catch(() => {});
+    });
+
+    await page.goto('/#/scrapes');
+    await expect(page.getByRole('heading', { name: 'Extração PowerBI' })).toBeVisible({ timeout: 15000 });
+
+    // Click Nova Conta
+    await page.getByRole('button', { name: 'Nova Conta' }).click();
+
+    // Fill only matricula and password (store left empty)
+    const optionalMatricula = '654321';
+    await page.getByPlaceholder('Ex: 99999').fill(optionalMatricula);
+    await page.getByPlaceholder('Digite sua senha').fill('anysecretpass');
+
+    // Uncheck "Validar credenciais ao salvar"
+    await page.getByLabel('Validar credenciais ao salvar').uncheck();
+
+    // Save
+    await page.getByRole('button', { name: 'Salvar Configuração' }).click();
+
+    // Verify success notification and modal closure
+    await expect(page.getByText('Configuração salva com sucesso')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+
+    // Find row with this matricula
+    const autoRow = page.locator('tr').filter({ has: page.getByText(optionalMatricula, { exact: true }) }).first();
+    await expect(autoRow).toBeVisible({ timeout: 20000 });
+    await expect(autoRow).toContainText('Tentar selecionar automaticamente');
+    await expect(autoRow).toContainText('Não Testada');
+
+    // Clean up: delete config
+    const trashBtn = autoRow.getByTestId('delete-scrape-config-btn').first();
+    await expect(trashBtn).toBeVisible({ timeout: 10000 });
+    await trashBtn.click();
+    await expect(autoRow).not.toBeVisible({ timeout: 15000 });
+  });
+
+  test('should auto-fill store and/or startDate when validating credentials on save', async ({ page }) => {
+    test.setTimeout(60000);
+    console.log(`>>> [Tear 2] Testing auto-fill of store/startDate on save with validation`);
+    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    page.on('dialog', dialog => {
+      dialog.accept().catch(() => {});
+    });
+
+    await page.goto('/#/scrapes');
+    await expect(page.getByRole('heading', { name: 'Extração PowerBI' })).toBeVisible({ timeout: 15000 });
+
+    // Click Nova Conta
+    await page.getByRole('button', { name: 'Nova Conta' }).click();
+
+    // Fill only matricula and password, keep "Validar credenciais ao salvar" checked
+    const autoDetectMatricula = '789012';
+    await page.getByPlaceholder('Ex: 99999').fill(autoDetectMatricula);
+    await page.getByPlaceholder('Digite sua senha').fill('validsecretpass');
+
+    // Ensure "Validar credenciais ao salvar" is checked
+    const validateCheck = page.getByLabel('Validar credenciais ao salvar');
+    if (!(await validateCheck.isChecked())) {
+      await validateCheck.check();
+    }
+
+    // Save
+    await page.getByRole('button', { name: 'Salvar Configuração' }).click();
+
+    // Verify success notification and modal closure
+    await expect(page.getByText('Configuração salva com sucesso')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+
+    // In E2E mode, validation auto-populates Store to 'AHU - PR' and DefaultStartMonth to current month
+    const validatedRow = page.locator('tr').filter({ has: page.getByText(autoDetectMatricula, { exact: true }) }).first();
+    await expect(validatedRow).toBeVisible({ timeout: 20000 });
+    await expect(validatedRow).toContainText('AHU - PR');
+    await expect(validatedRow).toContainText('Válida');
+
+    // Clean up: delete config
+    const trashBtn = validatedRow.getByTestId('delete-scrape-config-btn').first();
+    await expect(trashBtn).toBeVisible({ timeout: 10000 });
+    await trashBtn.click();
+    await expect(validatedRow).not.toBeVisible({ timeout: 15000 });
+  });
 });
