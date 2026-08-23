@@ -176,7 +176,25 @@ Each entry records a fix attempt — past entries must be consulted before retry
 ## [2026-08-21] e2e — Attempt 5
 **Failure:** Failures in `import_wizard_verification.spec.ts` and `import_wizard_desistente_contracts.spec.ts`.
 **Root cause:** In `ImportExecutionService.cs`, line 392 unconditionally set `var contractNumber = cotaInfo.Contract`, overwriting `ContractNumber` (`90001305` & `868498`) with simple `Cota` numbers (`563` & `4311`) when importing contracts from Excel. Header `' Valor '` in `historical_contracts.xlsx` had surrounding spaces causing mapping failure until trimmed header matching was added to `WizardService.cs`. In `ImportWizardPage.tsx`, `handleImportContracts` called `downloadWizardContracts` which triggered DOM `a.click()`, aborting subsequent `runWizardStep3Import` POST request. `TEST-OK-002` in `import_wizard_desistente_contracts.spec.ts` was hidden by default 15-month cutoff.
-**Fix applied:** Updated `ImportExecutionService.cs` to preserve `rawContractNumber` when available and deduplicate new contracts in memory, added trimmed header matching to `WizardService.cs` active mappings and null safety to Excel generation, added `prepareWizardContracts` to `apiService.ts` and consumed blob body to prevent DOM download abort, added `waitForResponse` in `import_wizard.spec.ts`, updated `WizardService.cs` to map `Cota` to `Quota` when `Contrato` exists, used `addInitScript` to pre-set `contracts_filterStartDate = '2020-01-01'` in `localStorage` in `import_wizard_verification.spec.ts`, updated contract 868498 assertions (including `Cancelado` status) to match `historical_contracts.xlsx`, and set `filterStartDate` to `'2020-01-01'` in `import_wizard_desistente_contracts.spec.ts`.
+## [2026-08-23] e2e — Attempt 1
+**Failure:** Flaky `expect(locator).toHaveValue(expected) failed` in `import_wizard_verification.spec.ts` when asserting form input values after opening edit modal.
+**Root cause:** React form state update after opening edit contract modal takes a tick to populate fields, causing instant assertions to occasionally race.
+**Fix applied:** Added `{ timeout: 10000 }` to all `toHaveValue` assertions in `import_wizard_verification.spec.ts`.
+**Result:** ❌ Still failing (race condition on page.waitForResponse called after searchInput.fill)
+
+## [2026-08-23] e2e — Attempt 2
+**Failure:** Flaky `page.waitForResponse` race condition in `import_wizard_verification.spec.ts`.
+**Root cause:** `page.waitForResponse` was called after `searchInput.fill`, causing the response listener to miss fast responses.
+**Fix applied:** Wrapped `page.waitForResponse` and `searchInput.fill` in `Promise.all` for both tests in `import_wizard_verification.spec.ts`.
+**Result:** ❌ Still failing (HTTP 500 on POST /api/scrape/configs due to missing DefaultStartMonth column in SQLite database)
+
+## [2026-08-23] e2e — Attempt 3
+**Failure:** `scrape_credentials.spec.ts` 3 tests failed on `POST /api/scrape/configs` returning HTTP 500 `table ScrapeConfigs has no column named DefaultStartMonth`.
+**Root cause:** Migration files `20260817160000_AddScrapeConfigDefaultStartMonth.cs` and `20260821180000_MakeScrapeConfigStoreNullable.cs` were missing `.Designer.cs` discovery metadata files with `[DbContext]` and `[Migration]` attributes, so EF Core skipped executing them during `Database.MigrateAsync()`.
+**Fix applied:** Added `20260817160000_AddScrapeConfigDefaultStartMonth.Designer.cs` and `20260821180000_MakeScrapeConfigStoreNullable.Designer.cs` to enable EF Core migration discovery.
 **Result:** ✅ Green
+
+
+
 
 

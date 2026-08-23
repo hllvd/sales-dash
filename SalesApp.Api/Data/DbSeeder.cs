@@ -8,48 +8,6 @@ namespace SalesApp.Data
         public static async Task SeedAsync(AppDbContext context)
         {
             await context.Database.MigrateAsync();
-
-            // Self-healing migration guard: ensure Store is nullable and DefaultStartMonth column exists in SQLite ScrapeConfigs table
-            try
-            {
-                // In SQLite, if Store has NOT NULL constraint, recreate table without NOT NULL constraint
-                await context.Database.ExecuteSqlRawAsync(@"
-CREATE TABLE IF NOT EXISTS ""ScrapeConfigs_temp_nullstore"" (
-    ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_ScrapeConfigs"" PRIMARY KEY AUTOINCREMENT,
-    ""UserInternalId"" INTEGER NULL,
-    ""Store"" TEXT NULL,
-    ""Matricula"" TEXT NOT NULL,
-    ""PowerBiPassword"" TEXT NULL,
-    ""CredentialStatus"" TEXT NULL,
-    ""DefaultStartMonth"" TEXT NULL,
-    ""IsEnabled"" INTEGER NOT NULL DEFAULT 1,
-    ""CreatedAt"" TEXT NOT NULL,
-    ""UpdatedAt"" TEXT NOT NULL,
-    CONSTRAINT ""FK_ScrapeConfigs_Users_UserInternalId"" FOREIGN KEY (""UserInternalId"") REFERENCES ""Users"" (""InternalId"") ON DELETE CASCADE
-);
-INSERT INTO ""ScrapeConfigs_temp_nullstore"" (""Id"", ""UserInternalId"", ""Store"", ""Matricula"", ""PowerBiPassword"", ""CredentialStatus"", ""DefaultStartMonth"", ""IsEnabled"", ""CreatedAt"", ""UpdatedAt"")
-SELECT ""Id"", ""UserInternalId"", ""Store"", ""Matricula"", ""PowerBiPassword"", ""CredentialStatus"", 
-       (CASE WHEN instr((SELECT sql FROM sqlite_master WHERE type='table' AND name='ScrapeConfigs'), 'DefaultStartMonth') > 0 THEN ""DefaultStartMonth"" ELSE NULL END),
-       ""IsEnabled"", ""CreatedAt"", ""UpdatedAt""
-FROM ""ScrapeConfigs"";
-DROP TABLE ""ScrapeConfigs"";
-ALTER TABLE ""ScrapeConfigs_temp_nullstore"" RENAME TO ""ScrapeConfigs"";
-CREATE INDEX IF NOT EXISTS ""IX_ScrapeConfigs_UserInternalId"" ON ""ScrapeConfigs"" (""UserInternalId"");
-");
-            }
-            catch
-            {
-                // Table already migrated or handles it
-            }
-
-            try
-            {
-                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"ScrapeConfigs\" ADD COLUMN \"DefaultStartMonth\" TEXT;");
-            }
-            catch
-            {
-                // Column already exists or table handles it
-            }
             
             // Check if admin user exists by email
             var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Email == "admin@salesapp.com");
