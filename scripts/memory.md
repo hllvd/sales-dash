@@ -162,20 +162,16 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated `import_wizard_desistente_contracts.spec.ts` to assert direct Step 2 transition, and updated `import_wizard_status_update.spec.ts` to select "Desistente" status filter before asserting row 821590 and "Desistente" badge label.
 **Result:** ✅ Green — 145/145 passed
 
-
-
 ## [2026-08-20] e2e — Attempt 2
 **Failure:** `scrape_credentials.spec.ts` timed out (60000ms) on `locator.click`.
 **Root cause:** Trash button locator `.locator('button', { has: page.locator('.tabler-icon-trash') })` failed to find the ActionIcon because `@tabler/icons-react` SVG elements do not carry the `.tabler-icon-trash` class.
 **Fix applied:** Replaced invalid CSS class locator in `client/e2e-test/e2e/scrape_credentials.spec.ts` with a robust multi-fallback locator (`row.getByRole('button', { name: 'Remover' }).or(row.locator('button[data-color="red"]'))`).
 **Result:** ✅ Green
 
-
-
-
 ## [2026-08-21] e2e — Attempt 5
 **Failure:** Failures in `import_wizard_verification.spec.ts` and `import_wizard_desistente_contracts.spec.ts`.
 **Root cause:** In `ImportExecutionService.cs`, line 392 unconditionally set `var contractNumber = cotaInfo.Contract`, overwriting `ContractNumber` (`90001305` & `868498`) with simple `Cota` numbers (`563` & `4311`) when importing contracts from Excel. Header `' Valor '` in `historical_contracts.xlsx` had surrounding spaces causing mapping failure until trimmed header matching was added to `WizardService.cs`. In `ImportWizardPage.tsx`, `handleImportContracts` called `downloadWizardContracts` which triggered DOM `a.click()`, aborting subsequent `runWizardStep3Import` POST request. `TEST-OK-002` in `import_wizard_desistente_contracts.spec.ts` was hidden by default 15-month cutoff.
+
 ## [2026-08-23] e2e — Attempt 1
 **Failure:** Flaky `expect(locator).toHaveValue(expected) failed` in `import_wizard_verification.spec.ts` when asserting form input values after opening edit modal.
 **Root cause:** React form state update after opening edit contract modal takes a tick to populate fields, causing instant assertions to occasionally race.
@@ -193,6 +189,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Migration files `20260817160000_AddScrapeConfigDefaultStartMonth.cs` and `20260821180000_MakeScrapeConfigStoreNullable.cs` were missing `.Designer.cs` discovery metadata files with `[DbContext]` and `[Migration]` attributes, so EF Core skipped executing them during `Database.MigrateAsync()`.
 **Fix applied:** Added `20260817160000_AddScrapeConfigDefaultStartMonth.Designer.cs` and `20260821180000_MakeScrapeConfigStoreNullable.Designer.cs` to enable EF Core migration discovery.
 **Result:** ✅ Green
+
+## [2026-08-24] all — Attempt 1
+**Failure:** SQLite Error 19 UNIQUE constraint on contract dashboard import, Quota is required auto-mapping regression, and soft-deleted contract restoration.
+**Root cause:** (1) Contract number normalization mismatches and case-sensitive dictionary lookups during dashboard upsert; (2) "cota" mapped to "Quota" in AutoMappingService broke Cota compound decomposition; (3) Soft-deleted contracts were not updating all fields on re-import.
+**Fix applied:** Normalized ContractNumber at storage and lookup time, reverted AutoMapping Quota rule, implemented full field updates for restored soft-deleted contracts in BuildContractDashboardFromRowAsync, and fixed test seeding.
+**Result:** ✅ Green — 271/271 Integration tests & 150/150 E2E tests passed
 
 ## [2026-08-24] all — Attempt 1
 **Failure:** `hierarchy_deep_visibility.spec.ts` timeout/closure during direct child test, and `admin_permissions.spec.ts` dialog close race condition.

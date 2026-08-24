@@ -714,6 +714,11 @@ namespace SalesApp.Controllers
             }
             catch (Exception ex)
             {
+                // ⚠️ Clear any pending tracked entities that caused the failure.
+                // Without this, the subsequent SaveChangesAsync for the session status update
+                // will attempt to replay the same failed entities and throw again.
+                _context.ChangeTracker.Clear();
+
                 session.Status = "failed";
                 await _sessionRepository.UpdateAsync(session);
 

@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
+using SalesApp.Repositories;
 using Xunit;
 
 namespace SalesApp.IntegrationTests.Imports
@@ -892,6 +893,89 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01,MAT-123
                 var contract = await context.Contracts.Include(c => c.Matricula).FirstAsync(c => c.ContractNumber == contractNumber);
                 contract.MatriculaId.Should().Be(originalMatriculaId); // Preserved!
                 contract.Matricula!.MatriculaNumber.Should().Be("MAT-ORIG-2");
+            }
+        }
+
+        [Fact]
+        public async Task ImportContractDashboard_WhenContractIsSoftDeleted_ShouldReactivateAndUpdateAllFields()
+        {
+            var contractNumber = $"CNT-SOFTDEL-{Guid.NewGuid().ToString("N")[..8]}";
+            int originalContractId;
+
+            // Seed a soft-deleted contract
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var groupRepo = scope.ServiceProvider.GetRequiredService<IGroupRepository>();
+
+                var status = await context.ContractStatuses.FirstOrDefaultAsync() 
+                    ?? new ContractStatusEntity { Name = "Active" };
+                if (status.Id == 0)
+                {
+                    context.ContractStatuses.Add(status);
+                    await context.SaveChangesAsync();
+                }
+
+                var group = await context.Groups.FirstOrDefaultAsync();
+                if (group == null)
+                {
+                    group = new Group { Name = "G1", IsActive = true };
+                    context.Groups.Add(group);
+                    await context.SaveChangesAsync();
+                }
+
+                var contract = new Contract
+                {
+                    ContractNumber = contractNumber,
+                    TotalAmount = 50000m,
+                    SaleStartDate = new DateTime(2023, 1, 1),
+                    ContractStatusId = status.Id,
+                    GroupId = group.Id,
+                    CustomerName = "Old Deleted Customer",
+                    IsActive = false, // Soft-deleted
+                    CreatedAt = DateTime.UtcNow.AddMonths(-6),
+                    UpdatedAt = DateTime.UtcNow.AddMonths(-6)
+                };
+                context.Contracts.Add(contract);
+                await context.SaveChangesAsync();
+                originalContractId = contract.Id;
+            }
+
+            // Re-import via Dashboard import with new values
+            var csv = "Cota,Total,SaleStartDate,Status,Matricula\n" +
+                      $"G1;123;C1;Restored Customer;{contractNumber},175000,2025-05-15,Ativo,MAT-RESTORE-1";
+
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var uploadId = await UploadFile(csv, "restore_deleted.csv", templateId: 3);
+
+            var mappingRequest = new ColumnMappingRequest
+            {
+                Mappings = new Dictionary<string, string>
+                {
+                    { "Cota", "Cota" },
+                    { "Total", "TotalAmount" },
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
+                }
+            };
+            await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings?entityType=Contract", mappingRequest);
+
+            var confirmRequest = new ConfirmImportRequest { DateFormat = "YYYY-MM-DD", AllowAutoCreateGroups = true, UpdateTotalAmountOnExisting = false, UpdateStartDateOnExisting = false };
+            var confirmResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", confirmRequest);
+            confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var restoredContract = await context.Contracts.Include(c => c.Matricula).FirstAsync(c => c.ContractNumber == contractNumber);
+                restoredContract.Id.Should().Be(originalContractId);
+                restoredContract.IsActive.Should().BeTrue(); // Reactivated!
+                restoredContract.TotalAmount.Should().Be(175000m); // Updated like insert!
+                restoredContract.SaleStartDate.Should().Be(new DateTime(2025, 5, 15)); // Updated like insert!
+                restoredContract.CustomerName.Should().Be("Restored Customer"); // Updated like insert!
             }
         }
 
