@@ -33,6 +33,7 @@ services:
       context: ./pbi-scraper
       dockerfile: Dockerfile
     container_name: pbi-scraper
+    command: ["node", "server.js"]
     environment:
       - PBI_TOKEN=${PBI_TOKEN}
       - AVAPRO_MATRICULA=${AVAPRO_MATRICULA:-}

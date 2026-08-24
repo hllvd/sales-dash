@@ -407,6 +407,8 @@ keys/
 .env.development
 .env.test
 .env.production
+.env.worker
+.env.worker.*
 
 # Local directories
 .local/

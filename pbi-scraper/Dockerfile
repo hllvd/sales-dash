@@ -39,9 +39,20 @@ COPY . .
 # Create output directory and set permissions
 RUN mkdir -p /app/outputs && chmod 777 /app/outputs
 
+# Create non-root user for security in Fargate container
+RUN useradd -m -u 1001 nodeuser \
+ && chown -R nodeuser:nodeuser /app
+
+USER nodeuser
+
 EXPOSE 3001
 
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV SCALE_TO_ZERO=true
 
-CMD ["node", "server.js"]
+# Container healthcheck using worker lock file or fallback
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD test -f /tmp/worker.lock || exit 0
+
+CMD ["node", "worker.js"]

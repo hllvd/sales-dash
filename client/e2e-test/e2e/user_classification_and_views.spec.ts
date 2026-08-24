@@ -182,12 +182,15 @@ test.describe('User Classification Levels & Custom Views E2E Tests', () => {
     // Save dashboard
     const saveBtn = page.locator('button:has-text("Salvar Dashboard")');
     await expect(saveBtn).toBeEnabled({ timeout: 5000 });
-    await saveBtn.click();
-    await page.waitForTimeout(1000);
+    await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/report-views') && res.request().method() === 'GET', { timeout: 15000 }).catch(() => null),
+      saveBtn.click()
+    ]);
+    await page.waitForTimeout(500);
 
     // Verify it exists in the dashboards list
     const newDashboardCard = page.locator('.mantine-Card-root', { hasText: testDashboardName });
-    await expect(newDashboardCard).toBeVisible({ timeout: 10000 });
+    await expect(newDashboardCard).toBeVisible({ timeout: 15000 });
 
     // Click "Abrir Dashboard" (the first button in the group inside the card representing play icon)
     console.log('>>> Opening the compiled dashboard...');

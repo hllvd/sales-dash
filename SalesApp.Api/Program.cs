@@ -98,6 +98,33 @@ namespace SalesApp
                     {
                         try
                         {
+                            // Reconcile SQLite migration history if DefaultStartMonth already exists on ScrapeConfigs
+                            try
+                            {
+                                var conn = context.Database.GetDbConnection();
+                                if (conn.State != System.Data.ConnectionState.Open)
+                                {
+                                    await conn.OpenAsync();
+                                }
+                                using var cmd = conn.CreateCommand();
+                                cmd.CommandText = @"
+                                    CREATE TABLE IF NOT EXISTS ""__EFMigrationsHistory"" (
+                                        ""MigrationId"" TEXT NOT NULL CONSTRAINT ""PK___EFMigrationsHistory"" PRIMARY KEY,
+                                        ""ProductVersion"" TEXT NOT NULL
+                                    );
+                                    INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                                    SELECT '20260817160000_AddScrapeConfigDefaultStartMonth', '9.0.10'
+                                    WHERE EXISTS (
+                                        SELECT 1 FROM pragma_table_info('ScrapeConfigs') WHERE name = 'DefaultStartMonth'
+                                    );
+                                ";
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warning(ex, "Pre-migration reconciliation check for ScrapeConfigs.DefaultStartMonth skipped or failed.");
+                            }
+
                             await context.Database.MigrateAsync();
                             await DbSeeder.SeedAsync(context);
                             break;

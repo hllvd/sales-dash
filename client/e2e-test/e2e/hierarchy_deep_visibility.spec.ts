@@ -49,7 +49,7 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
       await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
       // Clear filters if any are active (clearing default 15-month date filter)
-      const clearFiltersBtn = page.locator('button.clear-filters-btn');
+      const clearFiltersBtn = page.getByRole('button', { name: 'Limpar Filtros' });
       if (await clearFiltersBtn.isVisible()) {
         await clearFiltersBtn.click();
         await page.waitForTimeout(1000);
@@ -65,7 +65,10 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     test.setTimeout(45_000);
     await loginAndGoToContracts(page, CHAIN.A_EMAIL, CHAIN.A_PASSWORD);
 
-    await page.fill('#filterMatricula', CHAIN.B_MATRICULA);
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/contracts') && r.request().method() === 'GET').catch(() => null),
+      page.fill('#filterMatricula', CHAIN.B_MATRICULA)
+    ]);
 
     // Wait for loading to clear
     await page.waitForSelector('.contracts-loading', { state: 'hidden', timeout: 20_000 });
@@ -81,8 +84,11 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     await loginAndGoToContracts(page, CHAIN.A_EMAIL, CHAIN.A_PASSWORD);
 
     // Filter by the official contract number
-    await page.fill('input#filterContractNumber', CONTRACT_L3);
-    await page.waitForTimeout(6000); // Wait for debounce
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/contracts') && r.request().method() === 'GET').catch(() => null),
+      page.fill('input#filterContractNumber', CONTRACT_L3)
+    ]);
+    await page.waitForTimeout(1000);
 
     // Wait for any existing rows to disappear if filtering isn't instant
     await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
@@ -96,8 +102,11 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     await loginAndGoToContracts(page, CHAIN.A_EMAIL, CHAIN.A_PASSWORD);
 
     // Filter by the official contract number
-    await page.fill('input#filterContractNumber', CONTRACT_L4);
-    await page.waitForTimeout(6000); // Wait for debounce
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/contracts') && r.request().method() === 'GET').catch(() => null),
+      page.fill('input#filterContractNumber', CONTRACT_L4)
+    ]);
+    await page.waitForTimeout(1000);
 
     await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
     await expect(page.locator('table tbody tr').filter({ hasText: CHAIN.D_MATRICULA })).toBeVisible({ timeout: 15_000 });

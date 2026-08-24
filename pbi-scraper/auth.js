@@ -281,19 +281,39 @@ async function getTokenFromLogin(matricula, password, store = null) {
     const tryExtractStoreFromDom = async () => {
       try {
         return await page.evaluate(() => {
+          const isValidStore = (str) => {
+            if (!str || typeof str !== 'string') return false;
+            const s = str.trim().toLowerCase();
+            if (s.length < 3) return false;
+            if (
+              s.includes('selecionar') ||
+              s.includes('selecione') ||
+              s.includes('filtrar') ||
+              s.includes('todas') ||
+              s.includes('todos') ||
+              s === 'unidade' ||
+              s === 'loja' ||
+              s.includes('por unidade') ||
+              s.includes('por loja')
+            ) {
+              return false;
+            }
+            return true;
+          };
+
           // 1. Target data-testid="select_loja"
           const selectLojaVal = document.querySelector('[data-testid="select_loja"] [data-slot="value"]')
                              || document.querySelector('[data-testid="select_loja"]');
           if (selectLojaVal && selectLojaVal.textContent) {
             const t = selectLojaVal.textContent.replace(/^Loja\s*/i, '').trim();
-            if (t && t.length > 2 && !t.toLowerCase().includes('selecionar')) return t;
+            if (isValidStore(t)) return t;
           }
 
           // 2. Target any data-slot="value"
           const dataSlotVals = Array.from(document.querySelectorAll('[data-slot="value"]'));
           for (const el of dataSlotVals) {
             const t = (el.textContent || '').replace(/^Loja\s*/i, '').trim();
-            if (t && t.length > 2 && !t.toLowerCase().includes('selecionar') && (t.includes('-') || t.toUpperCase() === t)) {
+            if (isValidStore(t) && (t.includes('-') || t.toUpperCase() === t)) {
               return t;
             }
           }
@@ -303,7 +323,8 @@ async function getTokenFromLogin(matricula, password, store = null) {
           for (const el of elements) {
             const text = (el.textContent || '').trim();
             if (text.startsWith('Loja') && text.includes('-')) {
-              return text.replace(/^Loja\s*/i, '').trim();
+              const t = text.replace(/^Loja\s*/i, '').trim();
+              if (isValidStore(t)) return t;
             }
           }
 

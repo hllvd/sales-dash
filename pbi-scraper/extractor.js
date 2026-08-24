@@ -55,9 +55,30 @@ function getCalendarFilters(dateString) {
   return filters;
 }
 
+function isValidStoreName(store) {
+  if (!store || typeof store !== 'string') return false;
+  const s = store.trim().toLowerCase();
+  if (s.length < 3) return false;
+  if (
+    s.includes('selecionar') ||
+    s.includes('selecione') ||
+    s.includes('filtrar') ||
+    s.includes('todas') ||
+    s.includes('todos') ||
+    s === 'unidade' ||
+    s === 'loja' ||
+    s.includes('por unidade') ||
+    s.includes('por loja')
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function buildPayload1(store, matricula, scrapeDate) {
   const paddedMatricula = matricula.padStart(6, '0');
   const calendarFilters = getCalendarFilters(scrapeDate);
+  const validStore = isValidStoreName(store) ? store.trim() : null;
   
   return {
     "version": "1.0.0",
@@ -104,7 +125,7 @@ function buildPayload1(store, matricula, scrapeDate) {
                 },
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "Grupo Ativo"}}], "Values": [[{"Literal": {"Value": "'Sim'"}}]]}}},
                 ...calendarFilters,
-                ...(store && typeof store === 'string' && store.trim() ? [{"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property":"nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store.trim()}'` }}]]}}}] : []),
+                ...(validStore ? [{"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property":"nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${validStore}'` }}]]}}}] : []),
                 {"Condition": {"And": {"Left": {"Comparison": {"ComparisonKind": 2, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal": {"Value": "929009D"}}}}, "Right": {"Comparison": {"ComparisonKind": 4, "Left": {"Column": {"Expression": {"SourceRef": {"Source": "p"}}, "Property": "Parâmetro_Senhas"}}, "Right": {"Literal": {"Value": "929009D"}}}}}}},
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "a"}}, "Property": "matricula"}}], "Values": [[{"Literal": {"Value": `'${paddedMatricula}'` }}]]}}}
               ],
@@ -128,6 +149,7 @@ function buildPayload1(store, matricula, scrapeDate) {
 function buildPayload2(store, matricula, scrapeDate) {
   const paddedMatricula = matricula.padStart(6, '0');
   const calendarFilters = getCalendarFilters(scrapeDate);
+  const validStore = isValidStoreName(store) ? store.trim() : null;
 
   return {
     "version": "1.0.0",
@@ -197,7 +219,7 @@ function buildPayload2(store, matricula, scrapeDate) {
                   ]
                 },
                 ...calendarFilters,
-                ...(store && typeof store === 'string' && store.trim() ? [{"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${store.trim()}'` }}]]}}}] : []),
+                ...(validStore ? [{"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "nm_unidade_bi_original"}}], "Values": [[{"Literal": {"Value": `'${validStore}'` }}]]}}}] : []),
                 {"Condition": {"In": {"Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "a"}}, "Property": "matricula"}}], "Values": [[{"Literal": {"Value": `'${paddedMatricula}'` }}]]}}}
               ],
               "OrderBy": [{"Direction": 2, "Expression": {"Column": {"Expression": {"SourceRef": {"Source": "t"}}, "Property": "dt_producao"}}}]
