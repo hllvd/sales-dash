@@ -83,23 +83,7 @@ namespace SalesApp.Services
 
             // 1. Pre-identify potential contract numbers for bulk fetch
             var allContractNumbers = rows
-                .Select(r => {
-                    var cn = ParseContractNumber(GetFieldValue(r, reverseMappings, "ContractNumber"));
-                    if (string.IsNullOrWhiteSpace(cn))
-                    {
-                        var rawCota = GetFieldValue(r, reverseMappings, "Cota");
-                        if (string.IsNullOrWhiteSpace(rawCota))
-                        {
-                            var cotaKey = r.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("id_cota", StringComparison.OrdinalIgnoreCase));
-                            if (cotaKey != null) rawCota = r[cotaKey];
-                        }
-                        if (!string.IsNullOrWhiteSpace(rawCota))
-                        {
-                            cn = CotaDecomposer.Decompose(rawCota).Contract;
-                        }
-                    }
-                    return cn;
-                })
+                .Select(r => ResolveContractNumber(r, reverseMappings))
                 .Where(n => !string.IsNullOrWhiteSpace(n))
                 .Distinct()
                 .Select(n => n!) 
@@ -107,7 +91,9 @@ namespace SalesApp.Services
 
             // 2. Fetch existing contracts in bulk
             var existingContracts = await _contractRepository.GetByContractNumbersAsync(allContractNumbers);
-            var existingMap = existingContracts.ToDictionary(c => c.ContractNumber);
+            var existingMap = existingContracts.ToDictionary(
+                c => Utils.NormalizationUtils.NormalizeNumber(c.ContractNumber),
+                StringComparer.OrdinalIgnoreCase);
 
             // Phase 1: Build all contracts (validation only, no DB saves)
             Console.WriteLine($"[Import] Starting batch processing for {rows.Count} rows...");
@@ -137,20 +123,7 @@ namespace SalesApp.Services
                 try
                 {
                     var row = rows[i];
-                    var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
-                    if (string.IsNullOrWhiteSpace(contractNumber))
-                    {
-                        var rawCota = GetFieldValue(row, reverseMappings, "Cota");
-                        if (string.IsNullOrWhiteSpace(rawCota))
-                        {
-                            var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("id_cota", StringComparison.OrdinalIgnoreCase));
-                            if (cotaKey != null) rawCota = row[cotaKey];
-                        }
-                        if (!string.IsNullOrWhiteSpace(rawCota))
-                        {
-                            contractNumber = CotaDecomposer.Decompose(rawCota).Contract;
-                        }
-                    }
+                    var contractNumber = ResolveContractNumber(row, reverseMappings);
 
                     // Skip row if contract number is missing and skip option is enabled
                     if (skipMissingContractNumber)
@@ -1114,12 +1087,46 @@ namespace SalesApp.Services
         }
 
         /// <summary>
+        /// Resolves and normalizes the contract number from a row, checking direct ContractNumber mapping
+        /// first and falling back to Cota decomposition. Normalizes by stripping leading zeros and whitespace.
+        /// </summary>
+        private string? ResolveContractNumber(Dictionary<string, string> row, Dictionary<string, List<string>> reverseMappings)
+        {
+            var rawContract = GetFieldValue(row, reverseMappings, "ContractNumber");
+            var contractNumber = ParseContractNumber(rawContract);
+            if (!string.IsNullOrWhiteSpace(contractNumber))
+            {
+                return Utils.NormalizationUtils.NormalizeNumber(contractNumber);
+            }
+
+            var rawCota = GetFieldValue(row, reverseMappings, "Cota");
+            if (string.IsNullOrWhiteSpace(rawCota))
+            {
+                var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("id_cota", StringComparison.OrdinalIgnoreCase));
+                if (cotaKey != null) rawCota = row[cotaKey];
+            }
+
+            if (!string.IsNullOrWhiteSpace(rawCota))
+            {
+                var cotaInfo = CotaDecomposer.Decompose(rawCota);
+                if (cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Contract))
+                {
+                    return Utils.NormalizationUtils.NormalizeNumber(cotaInfo.Contract);
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Safely extracts the actual contract number from potentially concatenated PowerBI values 
         /// (e.g. '012173;4103;0;MARIO;1100326334' -> '1100326334')
         /// </summary>
         private string? ParseContractNumber(string? rawValue)
         {
-            return CotaDecomposer.Decompose(rawValue).Contract;
+            if (string.IsNullOrWhiteSpace(rawValue)) return null;
+            var decomposed = CotaDecomposer.Decompose(rawValue).Contract;
+            return string.IsNullOrWhiteSpace(decomposed) ? null : Utils.NormalizationUtils.NormalizeNumber(decomposed);
         }
 
         private bool TryParseBrazilianCurrency(string? input, out decimal result)
@@ -1309,16 +1316,7 @@ namespace SalesApp.Services
             var allContractNumbers = new List<string>();
             foreach (var row in rows)
             {
-                var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
-                if (string.IsNullOrWhiteSpace(contractNumber))
-                {
-                    var cotaValue = ParseContractNumber(GetFieldValue(row, reverseMappings, "Cota"));
-                    if (string.IsNullOrWhiteSpace(cotaValue))
-                    {
-                        continue; // Skip row if Cota is missing
-                    }
-                    contractNumber = cotaValue;
-                }
+                var contractNumber = ResolveContractNumber(row, reverseMappings);
 
                 // ✅ MANDATORY SILENT SKIP if no contract number found (New user request)
                 if (string.IsNullOrWhiteSpace(contractNumber))
@@ -1326,18 +1324,18 @@ namespace SalesApp.Services
                     continue;
                 }
 
-                if (!string.IsNullOrWhiteSpace(contractNumber))
-                {
-                    allContractNumbers.Add(contractNumber);
-                }
+                allContractNumbers.Add(contractNumber);
             }
 
             // 2. Fetch existing contracts in bulk
             var existingContracts = await _contractRepository.GetByContractNumbersAsync(allContractNumbers.Distinct().ToList());
-            var existingMap = existingContracts.ToDictionary(c => c.ContractNumber);
+            var existingMap = existingContracts.ToDictionary(
+                c => Utils.NormalizationUtils.NormalizeNumber(c.ContractNumber),
+                StringComparer.OrdinalIgnoreCase);
 
             var skippedNewContracts = new List<string>();
             var failedTotalAmountUpdateContracts = new List<string>();
+            var newContractsMap = new Dictionary<string, Contract>(StringComparer.OrdinalIgnoreCase);
 
             for (int i = 0; i < rows.Count; i++)
             {
@@ -1346,22 +1344,7 @@ namespace SalesApp.Services
                     var row = rows[i];
 
                     // Identify contract number again for skip check or lookup
-                    var contractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
-                    var cotaValue = GetFieldValue(row, reverseMappings, "Cota"); // Get cotaValue here for potential fallback
-                    if (string.IsNullOrWhiteSpace(contractNumber))
-                    {
-                        // Same fallback as above
-                        if (string.IsNullOrWhiteSpace(cotaValue))
-                        {
-                            continue;
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(cotaValue) && cotaValue.Contains(";"))
-                        {
-                            var cotaParts = cotaValue.Split(';');
-                            if (cotaParts.Length >= 5) contractNumber = cotaParts[^1].Trim();
-                        }
-                    }
+                    var contractNumber = ResolveContractNumber(row, reverseMappings);
 
                     // ✅ MANDATORY SILENT SKIP if no contract number found (New user request)
                     if (string.IsNullOrWhiteSpace(contractNumber))
@@ -1369,9 +1352,8 @@ namespace SalesApp.Services
                         continue;
                     }
 
-
-                    // Look for existing contract
-                    existingMap.TryGetValue(contractNumber ?? "", out var existingContract);
+                    // Look for existing contract in DB
+                    existingMap.TryGetValue(contractNumber, out var existingContract);
 
                     // ✅ MANDATORY SILENT SKIP: mandatory for SaleStartDate IF NEW CONTRACT
                     var startDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
@@ -1394,10 +1376,26 @@ namespace SalesApp.Services
 
                     if (contract != null)
                     {
-                        // If it's a new contract (not tracked), we add to list
+                        // If it's a new contract (not tracked), handle duplicates within the batch
                         if (existingContract == null)
                         {
-                            contractsToAdd.Add(contract);
+                            var normalizedCn = Utils.NormalizationUtils.NormalizeNumber(contract.ContractNumber);
+                            if (!string.IsNullOrEmpty(normalizedCn) && newContractsMap.TryGetValue(normalizedCn, out var pendingContract))
+                            {
+                                pendingContract.TotalAmount = contract.TotalAmount;
+                                pendingContract.ContractStatusId = contract.ContractStatusId;
+                                pendingContract.RawStatus = contract.RawStatus;
+                                pendingContract.SaleStartDate = contract.SaleStartDate;
+                                pendingContract.CustomerName = contract.CustomerName;
+                            }
+                            else
+                            {
+                                contractsToAdd.Add(contract);
+                                if (!string.IsNullOrEmpty(normalizedCn))
+                                {
+                                    newContractsMap[normalizedCn] = contract;
+                                }
+                            }
                         }
                         // If it's existing, it's already updated and tracked by the context
 
@@ -1482,23 +1480,41 @@ namespace SalesApp.Services
             // 4. Batch insert new contracts (now with reconciled UserIds)
             if (contractsToAdd.Any())
             {
-                try
-                {
-                    await _contractRepository.CreateBatchAsync(contractsToAdd);
-                }
-                catch (Exception ex)
-                {
-                    result.FailedRows += contractsToAdd.Count;
-                    result.ProcessedRows -= contractsToAdd.Count;
-                    result.Errors.Add($"Batch insert failed: {ex.Message}");
+                // Guard: check if any contract was committed concurrently or in a previous batch
+                var numbersToInsert = contractsToAdd
+                    .Select(c => Utils.NormalizationUtils.NormalizeNumber(c.ContractNumber))
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct()
+                    .ToList();
+                var alreadyExistingInDb = await _contractRepository.GetByContractNumbersAsync(numbersToInsert);
+                var alreadyExistingSet = alreadyExistingInDb
+                    .Select(c => Utils.NormalizationUtils.NormalizeNumber(c.ContractNumber))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                    foreach (var failedContract in contractsToAdd)
+                var trulyNewContracts = contractsToAdd
+                    .Where(c => !alreadyExistingSet.Contains(Utils.NormalizationUtils.NormalizeNumber(c.ContractNumber)))
+                    .ToList();
+
+                if (trulyNewContracts.Any())
+                {
+                    try
                     {
-                        result.FailedRowsDetails.Add(new Dictionary<string, string>
+                        await _contractRepository.CreateBatchAsync(trulyNewContracts);
+                    }
+                    catch (Exception ex)
+                    {
+                        result.FailedRows += trulyNewContracts.Count;
+                        result.ProcessedRows -= trulyNewContracts.Count;
+                        result.Errors.Add($"Batch insert failed: {ex.Message}");
+
+                        foreach (var failedContract in trulyNewContracts)
                         {
-                            ["ContractNumber"] = failedContract.ContractNumber ?? "",
-                            ["ERR"] = $"Batch insert failed: {ex.Message}"
-                        });
+                            result.FailedRowsDetails.Add(new Dictionary<string, string>
+                            {
+                                ["ContractNumber"] = failedContract.ContractNumber ?? "",
+                                ["ERR"] = $"Batch insert failed: {ex.Message}"
+                            });
+                        }
                     }
                 }
             }
@@ -1550,7 +1566,7 @@ namespace SalesApp.Services
             Action<string>? onFailedTotalAmountUpdate = null)
         {
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
-            var contractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
+            var contractNumber = ResolveContractNumber(row, reverseMappings);
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
             var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
@@ -1566,9 +1582,9 @@ namespace SalesApp.Services
                 }
 
                 var cotaInfo = CotaDecomposer.Decompose(cotaValue);
-                if (!string.IsNullOrWhiteSpace(cotaInfo.Contract))
+                if (cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Contract))
                 {
-                    if (string.IsNullOrWhiteSpace(contractNumber)) contractNumber = cotaInfo.Contract;
+                    if (string.IsNullOrWhiteSpace(contractNumber)) contractNumber = Utils.NormalizationUtils.NormalizeNumber(cotaInfo.Contract);
                     if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaInfo.Customer;
                     if (string.IsNullOrWhiteSpace(groupValue)) groupValue = cotaInfo.Group;
                     if (string.IsNullOrWhiteSpace(quotaStr)) quotaStr = cotaInfo.Matricula; // In this context Matricula is the Quota/Cota number
