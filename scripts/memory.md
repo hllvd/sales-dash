@@ -167,13 +167,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 ## [2026-08-20] e2e — Attempt 2
 **Failure:** `scrape_credentials.spec.ts` timed out (60000ms) on `locator.click`.
 **Root cause:** Trash button locator `.locator('button', { has: page.locator('.tabler-icon-trash') })` failed to find the ActionIcon because `@tabler/icons-react` SVG elements do not carry the `.tabler-icon-trash` class.
-**Fix applied:** Replaced invalid CSS class locator in `client/e2e-test/e2e/scrape_credentials.spec.ts` with a robust multi-fallback locator (`row.getByRole('button', { name: 'Remover' }).or(row.locator('button[data-color="red"]'))`).
-**Result:** ✅ Green
-
-## [2026-08-20] e2e — Attempt 5
-**Failure:** `scrape_credentials.spec.ts` timed out on deletion.
-**Root cause:** Conflicting `waitForEvent('dialog')` and `page.on('dialog')` handlers caused promise rejection microtask races, and pre-built client container image lacked new test IDs.
-**Fix applied:** Updated `ScrapeController.cs` to check `UserInternalId` directly, added `data-testid="delete-scrape-config-btn"` to `ScrapeDashboard.tsx`, rebuilt client container image via `./test.sh build`, and simplified `scrape_credentials.spec.ts` dialog handling.
-**Result:** ✅ Green
+## [2026-08-24] all — Attempt 1
+**Failure:** SQLite Error 19 UNIQUE constraint on contract dashboard import, Quota is required auto-mapping regression, and soft-deleted contract restoration.
+**Root cause:** (1) Contract number normalization mismatches and case-sensitive dictionary lookups during dashboard upsert; (2) "cota" mapped to "Quota" in AutoMappingService broke Cota compound decomposition; (3) Soft-deleted contracts were not updating all fields on re-import.
+**Fix applied:** Normalized ContractNumber at storage and lookup time, reverted AutoMapping Quota rule, implemented full field updates for restored soft-deleted contracts in BuildContractDashboardFromRowAsync, and fixed test seeding.
+**Result:** ✅ Green — 271/271 Integration tests & 150/150 E2E tests passed
 
 

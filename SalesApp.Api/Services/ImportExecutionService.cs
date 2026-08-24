@@ -1731,30 +1731,61 @@ namespace SalesApp.Services
 
             if (existingContract != null)
             {
+                var isRestoringDeleted = !existingContract.IsActive;
+
                 // Update status and reactivate
                 contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(status);
                 contract.RawStatus = status == ContractStatus.NaoDefinido.ToApiString() ? statusStr : null;
                 if (userInternalId.HasValue) contract.UserInternalId = userInternalId;
-                if (updateTotalAmountOnExisting)
+                
+                if (isRestoringDeleted || updateTotalAmountOnExisting)
                 {
                     if (hasTotalAmount)
                     {
                         contract.TotalAmount = totalAmount;
                     }
-                    else
+                    else if (!isRestoringDeleted)
                     {
                         onFailedTotalAmountUpdate?.Invoke(contractNumber);
                     }
                 }
-                if (updateStartDateOnExisting && saleStartDate.HasValue)
+
+                if ((isRestoringDeleted || updateStartDateOnExisting) && saleStartDate.HasValue)
                 {
                     contract.SaleStartDate = saleStartDate.Value;
                 }
+
+                // If restoring a deleted contract or fields are present, update all contract fields like insert
+                if (isRestoringDeleted)
+                {
+                    if (groupId.HasValue) contract.GroupId = groupId;
+                    if (!string.IsNullOrWhiteSpace(customerName)) contract.CustomerName = customerName;
+                    if (pvId.HasValue) contract.PvId = pvId;
+                    if (version.HasValue) contract.Version = version;
+                    if (matriculaId.HasValue) contract.MatriculaId = matriculaId;
+                    if (!string.IsNullOrWhiteSpace(tempMatricula)) contract.TempMatricula = tempMatricula;
+                    if (categoryMetadataId.HasValue) contract.CategoryMetadataId = categoryMetadataId;
+                    if (planoVendaMetadataId.HasValue) contract.PlanoVendaMetadataId = planoVendaMetadataId;
+                    contract.UploadId = uploadId;
+                    contract.ImportSessionId = importSessionId;
+                }
+                else
+                {
+                    if (groupId.HasValue && !contract.GroupId.HasValue) contract.GroupId = groupId;
+                    if (!string.IsNullOrWhiteSpace(customerName)) contract.CustomerName = customerName;
+                    if (pvId.HasValue) contract.PvId = pvId;
+                    if (version.HasValue) contract.Version = version;
+                    if (!string.IsNullOrWhiteSpace(tempMatricula) && string.IsNullOrWhiteSpace(contract.TempMatricula)) contract.TempMatricula = tempMatricula;
+                    if (categoryMetadataId.HasValue) contract.CategoryMetadataId = categoryMetadataId;
+                    if (planoVendaMetadataId.HasValue) contract.PlanoVendaMetadataId = planoVendaMetadataId;
+                    contract.ImportSessionId = importSessionId;
+                }
+
                 contract.IsActive = true;
                 contract.UpdatedAt = DateTime.UtcNow;
 
                 // ✅ Matricula change detection
-                if (updateMatriculaOnExisting && IsMatriculaChanged(existingContract.MatriculaId, matriculaId))
+                if ((isRestoringDeleted || updateMatriculaOnExisting) && IsMatriculaChanged(existingContract.MatriculaId, matriculaId))
                 {
                     var oldMatriculaNumber = existingContract.Matricula?.MatriculaNumber
                                             ?? existingContract.MatriculaId!.Value.ToString();
