@@ -215,7 +215,10 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     const noteamParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
     await expect(noteamParentOpt).toBeVisible({ timeout: 5000 });
     await noteamParentOpt.click();
-    await page.click('button:has-text("Criar Usuário")');
+    await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/users') && res.request().method() === 'POST', { timeout: 15000 }),
+      page.click('button:has-text("Criar Usuário")')
+    ]);
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(500);
 
@@ -240,7 +243,10 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     const ineligibleParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
     await expect(ineligibleParentOpt).toBeVisible({ timeout: 5000 });
     await ineligibleParentOpt.click();
-    await page.click('button:has-text("Criar Usuário")');
+    await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/users') && res.request().method() === 'POST', { timeout: 15000 }),
+      page.click('button:has-text("Criar Usuário")')
+    ]);
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(500);
 

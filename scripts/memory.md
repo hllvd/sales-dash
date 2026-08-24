@@ -194,7 +194,8 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Added `20260817160000_AddScrapeConfigDefaultStartMonth.Designer.cs` and `20260821180000_MakeScrapeConfigStoreNullable.Designer.cs` to enable EF Core migration discovery.
 **Result:** ✅ Green
 
-
-
-
-
+## [2026-08-24] all — Attempt 1
+**Failure:** `hierarchy_deep_visibility.spec.ts` timeout/closure during direct child test, and `admin_permissions.spec.ts` dialog close race condition.
+**Root cause:** `hierarchy_deep_visibility.spec.ts` used `page.fill` without pressing Enter on Mantine `MultiSelect` (`filterMatricula`), and had a hanging `waitForSelector('.contracts-loading')`. `admin_permissions.spec.ts` asserted dialog disappearance before `POST /api/users` resolved.
+**Fix applied:** Updated `hierarchy_deep_visibility.spec.ts` to type and press Enter on `#filterMatricula`, replaced `waitForSelector` with `expect(...).not.toBeVisible()`, and wrapped `Criar Usuário` clicks in `admin_permissions.spec.ts` with `Promise.all([page.waitForResponse(...), page.click(...)])`.
+**Result:** ✅ Green — 151/151 passed (Run 1 & Run 2 idempotent)

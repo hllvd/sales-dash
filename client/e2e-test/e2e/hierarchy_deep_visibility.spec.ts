@@ -65,13 +65,19 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     test.setTimeout(45_000);
     await loginAndGoToContracts(page, CHAIN.A_EMAIL, CHAIN.A_PASSWORD);
 
+    const matriculaInput = page.locator('input[placeholder="Filtrar por matrícula..."], #filterMatricula').first();
+    await matriculaInput.click();
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/contracts') && r.request().method() === 'GET').catch(() => null),
-      page.fill('#filterMatricula', CHAIN.B_MATRICULA)
+      (async () => {
+        await matriculaInput.fill(CHAIN.B_MATRICULA);
+        await page.keyboard.press('Enter');
+      })()
     ]);
+    await page.waitForTimeout(1000);
 
     // Wait for loading to clear
-    await page.waitForSelector('.contracts-loading', { state: 'hidden', timeout: 20_000 });
+    await expect(page.locator('.contracts-loading')).not.toBeVisible({ timeout: 15000 });
 
     const matching = page.locator('table tbody tr').filter({ hasText: CHAIN.B_MATRICULA });
     await expect(matching.first()).toBeVisible({ timeout: 15_000 });
