@@ -7,6 +7,25 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## 2026-08-24 e2e — Attempt 1
+**Failure:** `hierarchy_deep_visibility.spec.ts` failed on `expect(locator).toHaveCount(1)` due to race condition between contract number filter debounce and table render.
+**Root cause:** The test used a static 6s delay instead of waiting for `.contracts-loading` to disappear, causing it to assert table rows while the previous query results were still in-flight.
+**Fix applied:** Replaced `waitForTimeout` with `page.waitForSelector('.contracts-loading', { state: 'hidden' })` before checking row count. Also added button spinner animation and informative progress banner in `BulkImportModal.tsx`.
+**Result:** ✅ Green (150/150 E2E tests passed)
+
+## 2026-08-24 all — Attempt 1
+**Failure:** Importing large files (1.7MB+ / 15k+ rows) fails with "Failed to confirm import" due to Nginx 60s proxy timeouts and EF Core `ChangeTracker` accumulation across 30+ chunk iterations.
+**Root cause:** `GetByContractNumbersAsync` loaded deep entity graphs into tracking; `ImportRows` staging chunks were read with tracking; `_context.ChangeTracker.Clear()` was never called between chunks causing quadratic change detection slowdown; `PendingContractClaims` scanned the entire table repeatedly per chunk; Nginx configs had default 60s `proxy_read_timeout`.
+**Fix applied:** 
+- Filtered `PendingContractClaims` directly in SQL by chunk contract numbers.
+- Added `.AsNoTracking()` to staging chunk reads in `ImportsController.cs`.
+- Added `_context.ChangeTracker.Clear()` after saving staging batches in `UploadFileInternal` and between chunk iterations in `ConfirmImportInternal`.
+- Updated `ImportSessionRepository.UpdateAsync` to update scalar properties directly without re-attaching disconnected navigation graphs after `ChangeTracker.Clear()`.
+- Set `proxy_read_timeout 300s; proxy_connect_timeout 60s; proxy_send_timeout 300s;` in `nginx.conf`, `nginx.local.conf`, and `nginx.e2e.conf`.
+- Enhanced frontend `confirmImport` error parsing to present informative messages on 504/502 gateway timeouts.
+- Added multi-chunk batch test (`ImportContractDashboard_MultiChunkLargeBatch_ShouldProcessAllChunksAndPersistUpdates`) in `ImportUpsertTests.cs`.
+**Result:** ✅ Green (272/272 Integration tests passed, 150/150 E2E tests passed)
+
 ## 2026-06-04 e2e — Attempt 1
 **Failure:** 10 flaky/failed E2E tests in tear-2-roles-testing due to timeouts, race conditions, static delays, and database variance.
 **Root cause:** Hardcoded timeouts on searchable Select fields, race conditions in template mismatch warning handling, static delays after DB updates before query, and static percentage comparison.

@@ -398,6 +398,7 @@ namespace SalesApp.Controllers
                     var batch = importRows.Skip(i).Take(500).ToList();
                     await _context.ImportRows.AddRangeAsync(batch);
                     await _context.SaveChangesAsync();
+                    _context.ChangeTracker.Clear();
                 }
 
                 var columns = parsedRows.Count > 0 ? parsedRows[0].Keys.ToList() : new List<string>();
@@ -614,6 +615,7 @@ namespace SalesApp.Controllers
                     if (chunkIteration++ > maxChunks) break;
 
                     var chunk = await _context.ImportRows
+                        .AsNoTracking()
                         .Where(r => r.ImportSessionId == session.Id)
                         .OrderBy(r => r.RowIndex)
                         .Skip(skipRows)
@@ -649,6 +651,7 @@ namespace SalesApp.Controllers
                     totalResult.FailedRowsDetails.AddRange(result.FailedRowsDetails);
 
                     skipRows += 500;
+                    _context.ChangeTracker.Clear();
                 }
 
                 session.Status = totalResult.FailedRows > 0 ? "completed_with_errors" : "completed";

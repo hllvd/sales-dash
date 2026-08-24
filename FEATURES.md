@@ -1,5 +1,20 @@
 # Features
 
+## High-Volume File Import Performance & Timeout Optimization (1.7MB+ / 15k+ Rows)
+
+This feature optimizes the bulk import pipeline to reliably process large files (such as 1.7MB+ `contractDashboard` exports containing 15,000+ rows) without hitting proxy timeouts, memory bloat, or EF Core change tracking degradation.
+
+### Core Objectives
+- Prevent `"Failed to confirm import"` and `504 Gateway Timeout` errors when confirming high-volume dashboard and contract imports.
+- Eliminate EF Core `ChangeTracker` graph accumulation across batch iterations by using `AsNoTracking()` on bulk lookups and explicitly clearing the tracker between 500-row chunks.
+- Explicitly persist modified and restored entities via `_context.Contracts.UpdateRange()` and `_context.PendingContractClaims.Update()`.
+- Replace global full-table pending claims scanning with targeted SQL-filtered queries matching the current batch's contract numbers.
+- Increase Nginx reverse-proxy read/send timeouts to 300 seconds for `/api` endpoints across production, local, and E2E configurations.
+- Provide interactive button loading spinner and informational progress banner during import confirmation so users know large files are actively processing.
+- Provide descriptive, user-friendly frontend timeout notifications on gateway timeout responses (504/502).
+
+---
+
 ## Atualizar Data do Contrato (`SaleStartDate`) no Import Upload (contractDashboard)
 
 This feature introduces an **"Atualizar data do contrato"** option when importing sales via `contractDashboard` upload. Turned off by default (`false`), when enabled it allows existing contracts in the system to have their `SaleStartDate` updated to the value specified in the uploaded file.

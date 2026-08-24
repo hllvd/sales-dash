@@ -248,23 +248,16 @@ namespace SalesApp.Services
             {
                 try
                 {
-                    var importedNumbers = allImportedContracts.Select(c => c.ContractNumber).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
-                    Console.WriteLine($"[Import Phase 3 Debug] importedNumbers count: {importedNumbers.Count}");
-                    Console.WriteLine($"[Import Phase 3 Debug] importedNumbers: {string.Join(", ", importedNumbers)}");
-                    
-                    var pendingClaims = await _context.PendingContractClaims
-                        .Include(c => c.User)
-                        .Where(c => !c.IsResolved)
-                        .ToListAsync(); // Fetch all and filter in memory to be 100% sure about trimming/case
-                    
-                    Console.WriteLine($"[Import Phase 3 Debug] Unresolved pending claims in DB: {pendingClaims.Count}");
-                    if (pendingClaims.Any()) {
-                        Console.WriteLine($"[Import Phase 3 Debug] Claims: {string.Join(", ", pendingClaims.Select(c => c.ContractNumber))}");
-                    }
-                    
-                    var matchedClaims = pendingClaims
-                        .Where(c => importedNumbers.Contains(c.ContractNumber.Trim(), StringComparer.OrdinalIgnoreCase))
+                    var importedNumbers = allImportedContracts
+                        .Select(c => c.ContractNumber)
+                        .Where(n => !string.IsNullOrEmpty(n))
+                        .Select(n => n.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
+                    
+                    var matchedClaims = await _context.PendingContractClaims
+                        .Where(c => !c.IsResolved && importedNumbers.Contains(c.ContractNumber))
+                        .ToListAsync();
 
                     if (matchedClaims.Any())
                     {
@@ -294,17 +287,11 @@ namespace SalesApp.Services
                                 
                                 claim.IsResolved = true;
                                 claim.ResolvedAt = DateTime.UtcNow;
+                                _context.PendingContractClaims.Update(claim);
                                 
                                 Console.WriteLine($"[Import] RECONCILED: Contract {claimKey} assigned to user (internalId={claim.UserInternalId}) (was pending claim)");
                             }
                         }
-                        
-                        await _context.SaveChangesAsync();
-                        Console.WriteLine("[Import] Phase 3: Pending claims resolution committed to database.");
-                    }
-                    else
-                    {
-                        Console.WriteLine("[Import] No matching pending claims found.");
                     }
                 }
                 catch (Exception ex)
@@ -1429,16 +1416,16 @@ namespace SalesApp.Services
             {
                 try
                 {
-                    var importedNumbers = allContractsForReconciliation.Select(c => c.ContractNumber).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
-                    
-                    var pendingClaims = await _context.PendingContractClaims
-                        .Include(c => c.User)
-                        .Where(c => !c.IsResolved)
-                        .ToListAsync(); // Fetch all unresolved and filter in memory
-                    
-                    var matchedClaims = pendingClaims
-                        .Where(c => importedNumbers.Contains(c.ContractNumber.Trim(), StringComparer.OrdinalIgnoreCase))
+                    var importedNumbers = allContractsForReconciliation
+                        .Select(c => c.ContractNumber)
+                        .Where(n => !string.IsNullOrEmpty(n))
+                        .Select(n => n.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
+                    
+                    var matchedClaims = await _context.PendingContractClaims
+                        .Where(c => !c.IsResolved && importedNumbers.Contains(c.ContractNumber))
+                        .ToListAsync();
 
                     if (matchedClaims.Any())
                     {
@@ -1464,6 +1451,7 @@ namespace SalesApp.Services
                                 
                                 claim.IsResolved = true;
                                 claim.ResolvedAt = DateTime.UtcNow;
+                                _context.PendingContractClaims.Update(claim);
                                 
                                 Console.WriteLine($"[Import Dashboard] PRE-RECONCILED: Contract {claimKey} will be assigned to user (internalId={claim.UserInternalId})");
                             }

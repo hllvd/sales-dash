@@ -57,16 +57,25 @@ namespace SalesApp.Repositories
 
         public async Task UpdateAsync(ImportSession session)
         {
-            var existingEntry = _context.ChangeTracker.Entries<ImportSession>()
-                .FirstOrDefault(e => e.Entity.Id == session.Id);
-
-            if (existingEntry == null)
+            var trackedSession = await _context.ImportSessions.FindAsync(session.Id);
+            if (trackedSession != null)
             {
-                _context.ImportSessions.Update(session);
+                trackedSession.Status = session.Status;
+                trackedSession.ProcessedRows = session.ProcessedRows;
+                trackedSession.FailedRows = session.FailedRows;
+                trackedSession.CompletedAt = session.CompletedAt;
+                trackedSession.Mappings = session.Mappings;
+                trackedSession.TotalRows = session.TotalRows;
             }
-            else if (existingEntry.Entity != session)
+            else
             {
-                _context.Entry(existingEntry.Entity).CurrentValues.SetValues(session);
+                _context.ImportSessions.Attach(session);
+                _context.Entry(session).Property(s => s.Status).IsModified = true;
+                _context.Entry(session).Property(s => s.ProcessedRows).IsModified = true;
+                _context.Entry(session).Property(s => s.FailedRows).IsModified = true;
+                _context.Entry(session).Property(s => s.CompletedAt).IsModified = true;
+                _context.Entry(session).Property(s => s.Mappings).IsModified = true;
+                _context.Entry(session).Property(s => s.TotalRows).IsModified = true;
             }
 
             await _context.SaveChangesAsync();

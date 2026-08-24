@@ -576,7 +576,11 @@ export const apiService = {
     if (!response.ok) {
       const error = await response
         .json()
-        .catch(() => ({ message: "Failed to confirm import" }))
+        .catch(() => ({
+          message: response.status === 504 || response.status === 502
+            ? "A importação demorou mais que o esperado. O servidor pode estar processando — aguarde alguns instantes e verifique se os contratos foram importados."
+            : "Failed to confirm import"
+        }))
       throw new Error(error.message || "Failed to confirm import")
     }
 

@@ -336,7 +336,14 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
             Voltar
           </button>
           <button type="button" className="btn-submit" onClick={handleConfirmMapping} disabled={loading || !allRequiredFieldsMapped() || (statusValidation !== null && !statusValidation.isValid)}>
-            {loading ? "Importando..." : "Confirmar e Importar"}
+            {loading ? (
+              <>
+                <span className="btn-spinner"></span>
+                Importando...
+              </>
+            ) : (
+              "Confirmar e Importar"
+            )}
           </button>
         </>
       )
@@ -615,6 +622,18 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
               <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#7f1d1d' }}>
                 Verifique se a coluna correta está mapeada para "Status", ou corrija os valores no arquivo.
               </p>
+            </div>
+          )}
+
+          {loading && (
+            <div className="import-loading-indicator">
+              <div className="import-loading-spinner"></div>
+              <div>
+                <strong>Processando importação...</strong>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#1e40af' }}>
+                  Arquivos grandes com milhares de registros podem levar alguns instantes. Por favor, aguarde sem fechar a página.
+                </p>
+              </div>
             </div>
           )}
 

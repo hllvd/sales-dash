@@ -82,7 +82,8 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
 
     // Filter by the official contract number
     await page.fill('input#filterContractNumber', CONTRACT_L3);
-    await page.waitForTimeout(6000); // Wait for debounce
+    // Wait for debounce and network request to finish
+    await page.waitForSelector('.contracts-loading', { state: 'hidden', timeout: 20_000 });
 
     // Wait for any existing rows to disappear if filtering isn't instant
     await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
@@ -97,7 +98,8 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
 
     // Filter by the official contract number
     await page.fill('input#filterContractNumber', CONTRACT_L4);
-    await page.waitForTimeout(6000); // Wait for debounce
+    // Wait for debounce and network request to finish
+    await page.waitForSelector('.contracts-loading', { state: 'hidden', timeout: 20_000 });
 
     await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
     await expect(page.locator('table tbody tr').filter({ hasText: CHAIN.D_MATRICULA })).toBeVisible({ timeout: 15_000 });
