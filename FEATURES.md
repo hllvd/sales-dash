@@ -692,6 +692,27 @@ Automates store (Unidade / Loja) detection directly from the AVA PRO portal head
 - `SalesApp.Api/Controllers/ScrapeController.cs` & `ScrapeOrchestrator.cs` — Handled optional store requests and persisted `detectedStore` to DB when current `Store` is null.
 - `client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx` — Added `"Tentar selecionar automaticamente"` as default store option.
 
+## Dashboard Import - Upsert Robustness & Contract Number Normalization (2026-08-24)
+
+Fixes `SQLite Error 19: UNIQUE constraint failed: Contracts.ContractNumber` during contract dashboard imports (`contractDashboard`) by unifying contract number extraction, normalizing leading zeros at write and lookup times, making in-memory lookups case/format insensitive, and clearing EF Core change trackers on failure.
+
+### Key Capabilities
+- **Contract Number Normalization at Storage Time (`ContractRepository.cs`)**: `CreateAsync` and `CreateBatchAsync` strip leading zeros and whitespace using `NormalizationUtils.NormalizeNumber` before inserting new contracts into SQLite.
+- **Unified Contract Resolution (`ImportExecutionService.cs`)**: Extracted canonical `ResolveContractNumber` helper applied equally across pre-fetch bulk query, duplicate checking, and row processing.
+- **Case-Insensitive Normalized In-Memory Map (`ImportExecutionService.cs`)**: Pre-fetched existing contracts dictionary (`existingMap`) uses `NormalizeNumber` keys and `StringComparer.OrdinalIgnoreCase` to prevent false misses during upsert checks.
+- **In-Batch Duplicate De-duplication (`ImportExecutionService.cs`)**: Multiple rows referencing the same contract number in the same batch or across chunks are merged and updated in memory rather than causing duplicate batch insert attempts.
+- **Pre-Insert Database Existence Guard (`ImportExecutionService.cs`)**: Re-checks SQLite database before calling `CreateBatchAsync` to filter out any contracts committed concurrently or in prior chunks.
+- **Soft-Deleted Contract Full Restoration (`ImportExecutionService.cs`)**: When importing a contract that was soft-deleted (`IsActive == false`), reactivates the contract (`IsActive = true`) and updates all fields (`TotalAmount`, `SaleStartDate`, `CustomerName`, `GroupId`, `PvId`, `Quota`, `Version`, `MatriculaId`, `TempMatricula`, `Metadata`, etc.) with incoming data, identical to an insert update.
+- **ChangeTracker Cleanup on Failure (`ImportsController.cs`)**: Clears EF Core `ChangeTracker` before executing the session status update in `ConfirmImportInternal` exception handler to avoid re-triggering constraint violations.
+
+### Key Files Modified
+- `SalesApp.Api/Repositories/ContractRepository.cs` — Normalized `ContractNumber` in `CreateAsync` and `CreateBatchAsync`.
+- `SalesApp.Api/Services/ImportExecutionService.cs` — Added `ResolveContractNumber`, updated `existingMap` dictionary keys with case-insensitivity, added duplicate guards, and implemented full field updates for restored soft-deleted contracts.
+- `SalesApp.Api/Controllers/ImportsController.cs` — Added `_context.ChangeTracker.Clear()` before updating session status on failure.
+- `client/e2e-test/e2e/import_dashboard_upsert_robustness.spec.ts` — Comprehensive E2E test covering re-import updates, leading-zero normalization duplicates, and compound cota upserts.
+- `client/e2e-test/playwright.config.ts` — Registered new E2E test under `tear-2b-roles`.
+
+
 
 
 

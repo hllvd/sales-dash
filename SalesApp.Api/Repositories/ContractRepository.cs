@@ -301,6 +301,7 @@ namespace SalesApp.Repositories
         
         public async Task<Contract> CreateAsync(Contract contract)
         {
+            contract.ContractNumber = Utils.NormalizationUtils.NormalizeNumber(contract.ContractNumber);
             _context.Contracts.Add(contract);
             await _context.SaveChangesAsync();
             
@@ -318,6 +319,11 @@ namespace SalesApp.Repositories
             
             try
             {
+                foreach (var contract in contracts)
+                {
+                    contract.ContractNumber = Utils.NormalizationUtils.NormalizeNumber(contract.ContractNumber);
+                }
+
                 // ✅ Batch insert - single transaction, single SaveChanges
                 _context.Contracts.AddRange(contracts);
                 await _context.SaveChangesAsync();
