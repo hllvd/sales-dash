@@ -63,7 +63,7 @@ This feature tracks when users last accessed the system (`LastAccessedAt`), thro
 
 ### Key Capabilities
 - **24-Hour Database Throttle**: Middleware checks in-memory timestamp cache on authenticated requests. If the user's last DB update was < 24 hours ago, DB writes are skipped entirely.
-- **Background Asynchronous Updates**: When the 24-hour threshold is exceeded, the update runs asynchronously in a non-blocking background scope.
+- **Background Asynchronous Updates via Root Scope Factory**: When the 24-hour threshold is exceeded, the update runs asynchronously in a non-blocking background task using the root-level `IServiceScopeFactory` to safely create a new `IServiceScope`, completely decoupled from the short-lived HTTP request lifecycle to eliminate `ObjectDisposedException`.
 - **Login Instant Update**: Explicit user login via `/api/auth/token` updates `LastAccessedAt` instantly and updates the in-memory cache.
 - **Users Table Display**: Adds an **"Último Acesso"** column to the Users page table, displaying formatted dates (`DD/MM/YYYY`) or `"Never"` if null.
 

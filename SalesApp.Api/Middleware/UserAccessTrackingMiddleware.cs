@@ -8,16 +8,21 @@ namespace SalesApp.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<UserAccessTrackingMiddleware> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
         private static readonly ConcurrentDictionary<Guid, DateTime> _lastWriteCache = new();
         private static readonly TimeSpan ThrottleInterval = TimeSpan.FromHours(24);
 
-        public UserAccessTrackingMiddleware(RequestDelegate next, ILogger<UserAccessTrackingMiddleware> logger)
+        public UserAccessTrackingMiddleware(
+            RequestDelegate next,
+            ILogger<UserAccessTrackingMiddleware> logger,
+            IServiceScopeFactory scopeFactory)
         {
             _next = next;
             _logger = logger;
+            _scopeFactory = scopeFactory;
         }
 
-        public async Task InvokeAsync(HttpContext context, IServiceProvider serviceProvider)
+        public async Task InvokeAsync(HttpContext context)
         {
             if (context.User.Identity?.IsAuthenticated == true)
             {
@@ -35,7 +40,7 @@ namespace SalesApp.Middleware
                         {
                             try
                             {
-                                using var scope = serviceProvider.CreateScope();
+                                using var scope = _scopeFactory.CreateScope();
                                 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                                 var user = await dbContext.Users.FindAsync(userId);
                                 if (user != null)
