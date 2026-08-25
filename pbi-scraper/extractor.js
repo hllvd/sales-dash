@@ -316,29 +316,42 @@ function parseDSR(data) {
     }
   }
 
-  // Post-process rows: sanitize dates and status
+  // Post-process rows: sanitize dates, status, and fallback Produção Analitica
   const MIN_VALID_TIMESTAMP = 1262304000000; // 2010-01-01
   const MAX_VALID_TIMESTAMP = 2051222400000; // 2035-01-01
 
+  const toYyyyMmDd = (val) => {
+    if (val === null || val === undefined) return null;
+    const num = Number(val);
+    if (!isNaN(num) && num >= MIN_VALID_TIMESTAMP && num <= MAX_VALID_TIMESTAMP) {
+      const d = new Date(num);
+      return d.toISOString().split('T')[0];
+    }
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
+      return val.trim();
+    }
+    return null;
+  };
+
   allRows.forEach(row => {
-    // Sanitize dt_cancelamento and dt_contemplacao
-    ['Dt Cancelamento', 'tbl_cotas.dt_cancelamento', 'dt_cancelamento'].forEach(k => {
-      if (row[k] !== undefined && row[k] !== null) {
-        const num = Number(row[k]);
-        if (isNaN(num) || num < MIN_VALID_TIMESTAMP || num > MAX_VALID_TIMESTAMP) {
-          row[k] = null;
-        }
-      }
+    // Format all date columns to YYYY-MM-DD
+    const dateKeys = Object.keys(row).filter(k => k.toLowerCase().includes('dt_') || k.toLowerCase().includes('dt '));
+    dateKeys.forEach(k => {
+      row[k] = toYyyyMmDd(row[k]);
     });
 
-    ['Dt Contemplacao', 'tbl_cotas.dt_contemplacao', 'dt_contemplacao'].forEach(k => {
-      if (row[k] !== undefined && row[k] !== null) {
-        const num = Number(row[k]);
-        if (isNaN(num) || num < MIN_VALID_TIMESTAMP || num > MAX_VALID_TIMESTAMP) {
-          row[k] = null;
+    // Fallback Produção Analitica -> Crédito Venda if null, empty, or 0
+    const prodAnaliticaKey = Object.keys(row).find(k => k.includes('Produção Analitica') || k.includes('Producao Analitica'));
+    const creditoVendaKey = Object.keys(row).find(k => k.includes('Crédito Venda') || k.includes('vl_credito_venda') || k.includes('Credito Venda'));
+
+    if (prodAnaliticaKey) {
+      const pVal = row[prodAnaliticaKey];
+      if (pVal === null || pVal === undefined || String(pVal).trim() === '' || String(pVal).trim() === '0') {
+        if (creditoVendaKey && row[creditoVendaKey] !== null && row[creditoVendaKey] !== undefined && String(row[creditoVendaKey]).trim() !== '' && String(row[creditoVendaKey]).trim() !== '0') {
+          row[prodAnaliticaKey] = row[creditoVendaKey];
         }
       }
-    });
+    }
 
     // Fix status fallback if numeric, boolean, missing, or invalid
     const statusKey = Object.keys(row).find(k => k.includes('Situação Cobrança') || k.includes('status_cota') || k.includes('Status'));

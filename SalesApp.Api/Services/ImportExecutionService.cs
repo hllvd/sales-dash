@@ -172,6 +172,11 @@ namespace SalesApp.Services
 
                         result.ProcessedRows++;
                     }
+                    else if (existingContract == null)
+                    {
+                        // Silent skip for new contract during scraper import - do NOT count as failure
+                        continue;
+                    }
                     else
                     {
                         result.FailedRows++;
@@ -331,18 +336,80 @@ namespace SalesApp.Services
             Dictionary<string, int?>? matriculaCache = null,
             Action<MatriculaChangeRecord>? onMatriculaChange = null)
         {
-            var rawCota = GetFieldValue(row, reverseMappings, "ContractNumber");
+            var rawCota = GetFieldValue(row, reverseMappings, "Cota");
+            if (string.IsNullOrWhiteSpace(rawCota))
+            {
+                var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("id_cota", StringComparison.OrdinalIgnoreCase));
+                if (cotaKey != null) rawCota = row[cotaKey];
+            }
+            if (string.IsNullOrWhiteSpace(rawCota))
+            {
+                rawCota = GetFieldValue(row, reverseMappings, "ContractNumber");
+            }
+
             var cotaInfo = CotaDecomposer.Decompose(rawCota);
             
             var contractNumber = cotaInfo.Contract;
             var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
             var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
-            var groupValue = GetFieldValue(row, reverseMappings, "GroupId") ?? cotaInfo.Group;
-            var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber") ?? cotaInfo.Matricula;
 
-            // Optional fields might also be in the cota string if not mapped directly
+            if ((string.IsNullOrWhiteSpace(totalAmountStr) || totalAmountStr == "0") && existingContract == null)
+            {
+                var creditoVendaStr = GetRawFieldValue(row, reverseMappings, "CreditoVenda", "Crédito Venda", "vl_credito_venda", "Credito Venda");
+                if (!string.IsNullOrWhiteSpace(creditoVendaStr))
+                {
+                    totalAmountStr = creditoVendaStr;
+                }
+            }
+
+            var groupValue = GetFieldValue(row, reverseMappings, "GroupId") ?? cotaInfo.Group;
+            var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
+            if (string.IsNullOrWhiteSpace(matriculaNumber) && !string.IsNullOrWhiteSpace(cotaInfo.Matricula) && !cotaInfo.IsFromConcatenatedString)
+            {
+                matriculaNumber = cotaInfo.Matricula;
+            }
+
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
             if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaInfo.Customer;
+
+            bool isFromScrape = uploadId != null && uploadId.Contains("scrape", StringComparison.OrdinalIgnoreCase);
+
+            if (existingContract == null && isFromScrape)
+            {
+                // 1. Situação Cobrança requirement: If Status / Situação Cobrança is null or whitespace -> skip contract
+                var rawStatusStr = GetRawFieldValue(row, reverseMappings, "Status", "Situação Cobrança", "status_cota", "Status");
+                if (string.IsNullOrWhiteSpace(rawStatusStr))
+                {
+                    return null;
+                }
+
+                // 2. Cota complete fields requirement: Must have Customer, Contract Number, Group, and Quota
+                var quotaCheck = GetFieldValue(row, reverseMappings, "Quota");
+                if (cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Matricula)) quotaCheck = cotaInfo.Matricula;
+
+                if (string.IsNullOrWhiteSpace(contractNumber) ||
+                    string.IsNullOrWhiteSpace(customerName) ||
+                    string.IsNullOrWhiteSpace(groupValue) ||
+                    string.IsNullOrWhiteSpace(quotaCheck))
+                {
+                    return null;
+                }
+
+                // 3. Date format requirement: Dt Venda must be in YYYY-MM-DD format; Dt Produção (if present) must be YYYY-MM-DD format
+                var saleStartDateRaw = GetFieldValue(row, reverseMappings, "SaleStartDate");
+                var dtProducaoRaw = GetRawFieldValue(row, reverseMappings, "DtProducao", "Dt Produção", "dt_producao");
+
+                if (!IsStrictYyyyMmDdDate(saleStartDateRaw) || (!string.IsNullOrWhiteSpace(dtProducaoRaw) && !IsStrictYyyyMmDdDate(dtProducaoRaw)))
+                {
+                    return null;
+                }
+
+                // 4. Produção Analítica / Crédito Venda requirement: Must have valid positive total amount
+                if (string.IsNullOrWhiteSpace(totalAmountStr) || !TryParseBrazilianCurrency(totalAmountStr, out var parsedTotalAmount) || parsedTotalAmount <= 0)
+                {
+                    return null;
+                }
+            }
 
             // Validate required fields (UserEmail is no longer required for scraper imports)
             if (string.IsNullOrWhiteSpace(contractNumber) ||
@@ -390,14 +457,15 @@ namespace SalesApp.Services
                 }
             }
 
-            // Extract optional fields
+            // Map status
             var statusInput = GetFieldValue(row, reverseMappings, "Status");
-            var mappedStatus = _statusMapper.MapStatus(statusInput);
+            var mappedStatus = MapSituacaoCobrancaToStatus(statusInput);
             bool isUnknown = !string.IsNullOrWhiteSpace(statusInput) && 
                              mappedStatus == ContractStatus.NaoDefinido.ToApiString() && 
                              !statusInput.Trim().Equals("NaoDefinido", StringComparison.OrdinalIgnoreCase) &&
                              !statusInput.Trim().Equals("Não definido", StringComparison.OrdinalIgnoreCase);
-            if (isUnknown)
+
+            if (isUnknown && result != null)
             {
                 var warning = $"We detected the status \"{statusInput}\" and we will define it as \"Nao definido\"";
                 if (!result.Warnings.Contains(warning))
@@ -405,7 +473,6 @@ namespace SalesApp.Services
                     result.Warnings.Add(warning);
                 }
                 
-                // ✅ Log Status Anomaly to DynamoDB
                 await _errorService.LogErrorAsync(
                     ImportErrorType.StatusAnomaly,
                     "Contract",
@@ -417,6 +484,10 @@ namespace SalesApp.Services
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
             var contractTypeStr = GetFieldValue(row, reverseMappings, "ContractType");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
+            if (cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Matricula))
+            {
+                quotaStr = cotaInfo.Matricula;
+            }
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
             // Use the customerName extracted earlier from Cota if direct column is empty
             var directCustomerName = GetFieldValue(row, reverseMappings, "CustomerName");
@@ -1073,6 +1144,39 @@ namespace SalesApp.Services
             return row[sourceColumn]?.Trim();
         }
 
+        private string? GetRawFieldValue(
+            Dictionary<string, string> row,
+            Dictionary<string, List<string>> reverseMappings,
+            string targetField,
+            params string[] fallbackKeys)
+        {
+            var mappedVal = GetFieldValue(row, reverseMappings, targetField);
+            if (!string.IsNullOrWhiteSpace(mappedVal)) return mappedVal;
+
+            foreach (var key in fallbackKeys)
+            {
+                var foundKey = row.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase) || k.EndsWith(key, StringComparison.OrdinalIgnoreCase));
+                if (foundKey != null && !string.IsNullOrWhiteSpace(row[foundKey]))
+                {
+                    return row[foundKey].Trim();
+                }
+            }
+            return null;
+        }
+
+        private static bool IsStrictYyyyMmDdDate(string? dateStr)
+        {
+            if (string.IsNullOrWhiteSpace(dateStr)) return false;
+            dateStr = dateStr.Trim();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(dateStr, @"^\d{4}-\d{2}-\d{2}$"))
+            {
+                return false;
+            }
+            return DateTime.TryParseExact(dateStr, "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out _);
+        }
+
         /// <summary>
         /// Resolves and normalizes the contract number from a row, checking direct ContractNumber mapping
         /// first and falling back to Cota decomposition. Normalizes by stripping leading zeros and whitespace.
@@ -1333,7 +1437,7 @@ namespace SalesApp.Services
                     // Identify contract number again for skip check or lookup
                     var contractNumber = ResolveContractNumber(row, reverseMappings);
 
-                    // ✅ MANDATORY SILENT SKIP if no contract number found (New user request)
+                    // ✅ MANDATORY SILENT SKIP if no contract number found
                     if (string.IsNullOrWhiteSpace(contractNumber))
                     {
                         continue;
@@ -1348,6 +1452,8 @@ namespace SalesApp.Services
                     {
                         continue;
                     }
+
+                    var previousSkippedCount = skippedNewContracts.Count;
 
                     var contract = await BuildContractDashboardFromRowAsync(
                         row, reverseMappings, uploadId, importSessionId,
@@ -1388,9 +1494,9 @@ namespace SalesApp.Services
 
                         result.ProcessedRows++;
                     }
-                    else if (skippedNewContracts.Contains(contractNumber))
+                    else if (skippedNewContracts.Count > previousSkippedCount)
                     {
-                        // Silent skip for new contracts missing TotalAmount - do NOT count as failure
+                        // Silent skip for new contracts - do NOT count as failure
                         continue;
                     }
                     else
@@ -1553,30 +1659,35 @@ namespace SalesApp.Services
             Action<string>? onSkippedNewContract = null,
             Action<string>? onFailedTotalAmountUpdate = null)
         {
+            // Extract raw Cota value (composed string e.g. '012171;1276;0;JULIO FERNANDO BALANDIUK;1100708611')
+            var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
+            if (string.IsNullOrWhiteSpace(cotaValue))
+            {
+                var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("id_cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("Cota", StringComparison.OrdinalIgnoreCase));
+                if (cotaKey != null) cotaValue = row[cotaKey];
+            }
+
+            var rawContractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+            if (string.IsNullOrWhiteSpace(cotaValue) && !string.IsNullOrWhiteSpace(rawContractNumber) && rawContractNumber.Contains(";"))
+            {
+                cotaValue = rawContractNumber;
+            }
+
+            var cotaInfo = CotaDecomposer.Decompose(cotaValue);
+
             // Try to get fields directly first (may be mapped from virtual columns like cota.group, etc.)
             var contractNumber = ResolveContractNumber(row, reverseMappings);
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
             var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
 
-            // Fallback to Cota split only if critical fields are missing
-            if (string.IsNullOrWhiteSpace(contractNumber) || string.IsNullOrWhiteSpace(customerName) || string.IsNullOrWhiteSpace(groupValue) || string.IsNullOrWhiteSpace(quotaStr))
+            // Apply CotaDecomposer extracted fields whenever composed Cota string is available
+            if (cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Contract))
             {
-                var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
-                if (string.IsNullOrWhiteSpace(cotaValue))
-                {
-                    var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
-                    if (cotaKey != null) cotaValue = row[cotaKey];
-                }
-
-                var cotaInfo = CotaDecomposer.Decompose(cotaValue);
-                if (cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Contract))
-                {
-                    if (string.IsNullOrWhiteSpace(contractNumber)) contractNumber = Utils.NormalizationUtils.NormalizeNumber(cotaInfo.Contract);
-                    if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaInfo.Customer;
-                    if (string.IsNullOrWhiteSpace(groupValue)) groupValue = cotaInfo.Group;
-                    if (string.IsNullOrWhiteSpace(quotaStr)) quotaStr = cotaInfo.Matricula; // In this context Matricula is the Quota/Cota number
-                }
+                if (string.IsNullOrWhiteSpace(contractNumber)) contractNumber = Utils.NormalizationUtils.NormalizeNumber(cotaInfo.Contract);
+                if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaInfo.Customer;
+                if (string.IsNullOrWhiteSpace(groupValue)) groupValue = cotaInfo.Group;
+                if (string.IsNullOrWhiteSpace(quotaStr)) quotaStr = cotaInfo.Matricula; // Quota / Cota number (e.g. 1276)
             }
 
             // Resolve Matricula Id
@@ -1592,21 +1703,80 @@ namespace SalesApp.Services
             {
                 quota = parsedQuota;
             }
-            
-            // Final validation for required data after all fallback attempts
-            if (string.IsNullOrWhiteSpace(contractNumber)) throw new ArgumentException("Contract Number is required");
-            if (!groupId.HasValue) throw new ArgumentException($"Group not found or required: {groupValue}");
-            if (!quota.HasValue) throw new ArgumentException("Quota is required");
-            
-            // Parse TotalAmount
+
+            // Parse TotalAmount (initial attempt from TotalAmount / Produção Analitica)
             var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
             bool hasTotalAmount = TryParseBrazilianCurrency(totalAmountStr, out var totalAmount);
 
-            if (!hasTotalAmount && existingContract == null)
+            // Rule 3 (fallback check): If TotalAmount (Produção Analitica) is missing/0, check Crédito de Venda
+            if (!hasTotalAmount)
             {
-                // New contract missing TotalAmount -> silent skip, notify callback
-                onSkippedNewContract?.Invoke(contractNumber);
-                return null;
+                var creditoVendaStr = GetRawFieldValue(row, reverseMappings, "CreditoVenda", "Crédito Venda", "vl_credito_venda", "Credito Venda");
+                if (!string.IsNullOrWhiteSpace(creditoVendaStr))
+                {
+                    hasTotalAmount = TryParseBrazilianCurrency(creditoVendaStr, out totalAmount);
+                }
+            }
+
+            bool isFromScrape = uploadId != null && uploadId.Contains("scrape", StringComparison.OrdinalIgnoreCase);
+
+            // =========================================================================
+            // VALIDATION RULES FOR CREATING NEW CONTRACTS (existingContract == null):
+            // =========================================================================
+            if (existingContract == null)
+            {
+                // Must have valid positive total amount (from Produção Analitica or Crédito Venda)
+                if (!hasTotalAmount || totalAmount <= 0)
+                {
+                    onSkippedNewContract?.Invoke(contractNumber ?? "Unknown");
+                    return null;
+                }
+
+                // Strict validation rules specific to SCRAPE imports:
+                if (isFromScrape)
+                {
+                    // 1. Situação Cobrança requirement: If Status / Situação Cobrança is null or whitespace -> skip contract
+                    var rawStatusStr = GetRawFieldValue(row, reverseMappings, "Status", "Situação Cobrança", "status_cota", "Status");
+                    if (string.IsNullOrWhiteSpace(rawStatusStr))
+                    {
+                        onSkippedNewContract?.Invoke(contractNumber ?? "Unknown");
+                        return null;
+                    }
+
+                    // 2. Cota complete fields requirement: Must have Customer, Contract Number, Group, and Quota
+                    if (string.IsNullOrWhiteSpace(contractNumber) ||
+                        string.IsNullOrWhiteSpace(customerName) ||
+                        string.IsNullOrWhiteSpace(groupValue) ||
+                        string.IsNullOrWhiteSpace(quotaStr) ||
+                        !quota.HasValue)
+                    {
+                        onSkippedNewContract?.Invoke(contractNumber ?? "Unknown");
+                        return null;
+                    }
+
+                    // 3. Date format requirement: Dt Venda must be in YYYY-MM-DD format; Dt Produção (if present) must be YYYY-MM-DD format
+                    var saleStartDateRaw = GetFieldValue(row, reverseMappings, "SaleStartDate");
+                    var dtProducaoRaw = GetRawFieldValue(row, reverseMappings, "DtProducao", "Dt Produção", "dt_producao");
+
+                    if (!IsStrictYyyyMmDdDate(saleStartDateRaw) || (!string.IsNullOrWhiteSpace(dtProducaoRaw) && !IsStrictYyyyMmDdDate(dtProducaoRaw)))
+                    {
+                        onSkippedNewContract?.Invoke(contractNumber ?? "Unknown");
+                        return null;
+                    }
+                }
+            }
+            
+            // Final validation for required data after all fallback attempts
+            if (string.IsNullOrWhiteSpace(contractNumber) || !groupId.HasValue || !quota.HasValue)
+            {
+                if (existingContract == null)
+                {
+                    onSkippedNewContract?.Invoke(contractNumber ?? "Unknown");
+                    return null;
+                }
+                if (string.IsNullOrWhiteSpace(contractNumber)) throw new ArgumentException("Contract Number is required");
+                if (!groupId.HasValue) throw new ArgumentException($"Group not found or required: {groupValue}");
+                if (!quota.HasValue) throw new ArgumentException("Quota is required");
             }
             
             // Parse SaleStartDate - supports both Excel serial numbers and formatted dates
