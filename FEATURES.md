@@ -1,5 +1,26 @@
 # Features
 
+## Criação de Usuário por Administrador: Gestor, Matrícula e Equipe Padrão
+
+Esta funcionalidade simplifica e automatiza o processo de criação de novos usuários por administradores (`Admin`), preenchendo automaticamente o gestor com o administrador logado, selecionando por padrão a matrícula própria do gestor e vinculando o novo usuário à equipe do gestor.
+
+### Core Objectives
+- **Preenchimento Automático do Gestor**: Ao abrir o modal de criação de usuário como Administrador, o campo `"Usuário Pai"` é preenchido automaticamente com o e-mail do administrador autenticado, mantendo a possibilidade de alteração para outros usuários subordinados na sua hierarquia. Para Superadministradores, o campo inicia vazio.
+- **Usar Matrícula do Gestor**:
+  - Opção `"Usar matrícula do gestor"` marcada por padrão (`checked`).
+  - Caso o gestor possua exatamente 1 matrícula como proprietário (`isOwner = true`), esta matrícula é selecionada e exibida automaticamente.
+  - Caso o gestor seja proprietário de 2 ou mais matrículas, um menu de seleção (`Select`) é exibido contendo apenas as matrículas onde o gestor é o proprietário.
+  - Caso o gestor não possua matrículas próprias, uma mensagem informativa é exibida e o campo manual de matrícula fica disponível.
+  - Caso a opção seja desmarcada, o campo de entrada manual de matrícula é habilitado.
+  - Usuários criados através desse fluxo são vinculados à matrícula como membros (`isOwner = false`).
+- **Participação na Equipe do Gestor**:
+  - Caso o gestor pertença a uma equipe ativa (`currentTeamName`), a opção `"Participar da equipe [Nome da Equipe]"` é exibida e marcada por padrão (`checked`).
+  - Caso o gestor não possua equipe vinculada, o campo de equipe permanece oculto.
+  - Ao salvar o cadastro, o novo usuário é inserido automaticamente como membro ativo da equipe informada (`UserTeam`).
+- **Atualização Reativa**: Ao trocar o gestor selecionado no formulário, as matrículas próprias e a equipe são consultadas e atualizadas dinamicamente.
+
+---
+
 ## Coluna "Usuário Ativo" nos Relatórios (Reports)
 
 Esta funcionalidade adiciona a coluna de saída **"Usuário Ativo"** na seleção de campos e projeção de resultados dos relatórios (`Reports` / `ReportFilters`). O campo avalia se o vendedor/usuário responsável é considerado ativo de acordo com critérios temporais de acesso e criação de conta combinados com o status cadastral ativo.

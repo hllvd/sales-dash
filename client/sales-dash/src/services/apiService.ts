@@ -114,6 +114,9 @@ export interface CreateUserRequest {
   password: string
   role: string
   parentUserId?: string
+  matriculaNumber?: string
+  isMatriculaOwner?: boolean
+  joinParentTeam?: boolean
 }
 
 export interface UpdateUserRequest {

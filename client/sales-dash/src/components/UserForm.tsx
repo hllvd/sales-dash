@@ -23,6 +23,30 @@ const normalizeRole = (r?: string) => {
   return undefined;
 };
 
+const getStoredAdmin = (): User | null => {
+  try {
+    const stored = JSON.parse(localStorage.getItem("user") || "{}");
+    const role = (stored.role || stored.Role || "").toLowerCase();
+    const id = stored.id || stored.Id;
+    const email = stored.email || stored.Email;
+    const name = stored.name || stored.Name || email;
+    if (id && role === "admin") {
+      return {
+        id,
+        name,
+        email,
+        role: "admin",
+        isActive: true,
+        createdAt: "",
+        updatedAt: ""
+      } as User;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+};
+
 const UserForm: React.FC<UserFormProps> = ({
   user,
   onSubmit,
@@ -31,22 +55,44 @@ const UserForm: React.FC<UserFormProps> = ({
   isAdminRestricted = false,
   allowedParentUsers = [],
 }) => {
+  const isCurrentAdmin = isAdminRestricted || getStoredAdmin() !== null;
+  const initialAdmin = (!isEdit && isCurrentAdmin)
+    ? (allowedParentUsers.length > 0 ? allowedParentUsers[0] : getStoredAdmin())
+    : null;
+
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
     password: "",
     role: normalizeRole(user?.role) || (isAdminRestricted ? "user" : "user"),
-    parentUserId: user?.parentUserId || "",
+    parentUserId: user?.parentUserId || initialAdmin?.id || "",
     isActive: user?.isActive ?? true,
     matriculaNumber: "",
     isMatriculaOwner: false,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [users, setUsers] = useState<User[]>([])
-  const [parentUserSearch, setParentUserSearch] = useState("")
+  const [users, setUsers] = useState<User[]>(() => {
+    if (isAdminRestricted && allowedParentUsers.length > 0) {
+      return allowedParentUsers
+    }
+    if (initialAdmin) {
+      return [initialAdmin]
+    }
+    return []
+  })
+  const [parentUserSearch, setParentUserSearch] = useState(
+    initialAdmin ? `${initialAdmin.name || initialAdmin.email} (${initialAdmin.email})` : ""
+  )
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [hasContracts, setHasContracts] = useState(false)
+
+  // Gestor matriculas & team states
+  const [parentOwnedMatriculas, setParentOwnedMatriculas] = useState<{ id: number; matriculaNumber: string }[]>([])
+  const [parentTeamName, setParentTeamName] = useState<string | null>(null)
+  const [useGestorMatricula, setUseGestorMatricula] = useState<boolean>(true)
+  const [joinParentTeam, setJoinParentTeam] = useState<boolean>(true)
+  const [loadingParentDetails, setLoadingParentDetails] = useState<boolean>(false)
 
   useEffect(() => {
     if (user && isEdit) {
@@ -118,6 +164,59 @@ const UserForm: React.FC<UserFormProps> = ({
     loadUsers()
   }, [user?.parentUserId, isAdminRestricted, allowedParentUsers])
 
+  // Ensure parent user defaults for Admin creating new user
+  useEffect(() => {
+    const isCurAdmin = isAdminRestricted || getStoredAdmin() !== null;
+    if (isCurAdmin && !isEdit) {
+      const admin = (allowedParentUsers && allowedParentUsers.length > 0) ? allowedParentUsers[0] : getStoredAdmin();
+      if (admin && admin.id) {
+        setFormData(prev => prev.parentUserId ? prev : ({ ...prev, parentUserId: admin.id }));
+        setParentUserSearch(prev => prev || `${admin.name || admin.email} (${admin.email})`);
+      }
+    }
+  }, [isAdminRestricted, allowedParentUsers, isEdit]);
+
+  // Fetch parent details (owned matriculas & active team) dynamically
+  useEffect(() => {
+    if (isEdit || !formData.parentUserId) {
+      setParentOwnedMatriculas([])
+      setParentTeamName(null)
+      return
+    }
+
+    let isMounted = true
+    setLoadingParentDetails(true)
+
+    apiService.getUser(formData.parentUserId)
+      .then((res) => {
+        if (!isMounted) return
+        if (res.success && res.data) {
+          const owned = (res.data.activeMatriculas || []).filter(m => m.isOwner)
+          setParentOwnedMatriculas(owned)
+          setParentTeamName(res.data.currentTeamName || null)
+
+          if (useGestorMatricula && owned.length > 0) {
+            setFormData(prev => ({
+              ...prev,
+              matriculaNumber: owned[0].matriculaNumber
+            }))
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch parent user details:', err)
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingParentDetails(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [formData.parentUserId, isEdit, useGestorMatricula])
+
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({
       ...prev,
@@ -128,15 +227,35 @@ const UserForm: React.FC<UserFormProps> = ({
   const handleParentUserSelect = (value: string) => {
     setParentUserSearch(value)
     
-    // Find user by name or email
+    // Find user by formatted label or email
     const selectedUser = users.find(u => 
-      `${u.name} (${u.email})` === value
-    )
+      `${u.name} (${u.email})` === value || u.email === value || (u.email && value.includes(u.email))
+    ) || (initialAdmin && (initialAdmin.email === value || value.includes(initialAdmin.email)) ? initialAdmin : null)
     
     if (selectedUser) {
       setFormData(prev => ({
         ...prev,
         parentUserId: selectedUser.id
+      }))
+    } else if (!value.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        parentUserId: ""
+      }))
+    }
+  }
+
+  const handleUseGestorMatriculaChange = (checked: boolean) => {
+    setUseGestorMatricula(checked)
+    if (checked && parentOwnedMatriculas.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        matriculaNumber: parentOwnedMatriculas[0].matriculaNumber
+      }))
+    } else if (!checked) {
+      setFormData(prev => ({
+        ...prev,
+        matriculaNumber: ''
       }))
     }
   }
@@ -161,11 +280,20 @@ const UserForm: React.FC<UserFormProps> = ({
         userData.parentUserId = formData.parentUserId
       }
 
-      // Only include matricula fields when creating a new user
+      // Only include matricula and team fields when creating a new user
       if (!isEdit) {
-        if (formData.matriculaNumber) {
-          userData.matriculaNumber = formData.matriculaNumber
-          userData.isMatriculaOwner = formData.isMatriculaOwner
+        let chosenMatricula = formData.matriculaNumber
+        if (useGestorMatricula && parentOwnedMatriculas.length > 0) {
+          chosenMatricula = formData.matriculaNumber || parentOwnedMatriculas[0].matriculaNumber
+        }
+
+        if (chosenMatricula) {
+          userData.matriculaNumber = chosenMatricula
+          userData.isMatriculaOwner = false
+        }
+
+        if (parentTeamName && joinParentTeam) {
+          userData.joinParentTeam = true
         }
       }
 
@@ -259,14 +387,14 @@ const UserForm: React.FC<UserFormProps> = ({
             onChange={handleParentUserSelect}
             data={Array.from(
               new Set(
-                users
+                (users.length === 0 && initialAdmin ? [initialAdmin] : users)
                   .filter(u => {
                     const searchLower = debouncedSearch.trim().toLowerCase()
                     if (!searchLower) return true
-                    return u.name.toLowerCase().includes(searchLower) || 
-                           u.email.toLowerCase().includes(searchLower)
+                    return (u.name || "").toLowerCase().includes(searchLower) || 
+                           (u.email || "").toLowerCase().includes(searchLower)
                   })
-                  .map(u => `${u.name} (${u.email})`)
+                  .map(u => `${u.name || u.email} (${u.email})`)
               )
             )}
             limit={10}
@@ -275,23 +403,97 @@ const UserForm: React.FC<UserFormProps> = ({
 
         {!isEdit && (
           <>
-            <FormField 
-              label="Matrícula"
-              description="Opcional - número da matrícula"
-            >
-              <TextInput
-                value={formData.matriculaNumber}
-                onChange={(e) => handleChange('matriculaNumber', e.target.value)}
-                placeholder="Número da matrícula"
-              />
-            </FormField>
+            {formData.parentUserId ? (
+              <>
+                {parentOwnedMatriculas.length > 0 ? (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <Checkbox
+                      label="Usar matrícula do gestor"
+                      checked={useGestorMatricula}
+                      onChange={(e) => handleUseGestorMatriculaChange(e.currentTarget.checked)}
+                      mb={useGestorMatricula ? "xs" : 0}
+                    />
 
-            <FormField label="Proprietário da Matrícula">
-              <Checkbox
-                checked={formData.isMatriculaOwner}
-                onChange={(e) => handleChange('isMatriculaOwner', e.currentTarget.checked)}
-              />
-            </FormField>
+                    {useGestorMatricula && (
+                      parentOwnedMatriculas.length === 1 ? (
+                        <FormField label="Matrícula do Gestor">
+                          <TextInput
+                            value={parentOwnedMatriculas[0].matriculaNumber}
+                            readOnly
+                            disabled
+                            description="Matrícula do gestor selecionada automaticamente"
+                          />
+                        </FormField>
+                      ) : (
+                        <FormField label="Selecione a Matrícula do Gestor" required>
+                          <Select
+                            data={parentOwnedMatriculas.map(m => ({
+                              value: m.matriculaNumber,
+                              label: m.matriculaNumber
+                            }))}
+                            value={formData.matriculaNumber}
+                            onChange={(value) => handleChange('matriculaNumber', value || '')}
+                            placeholder="Escolha uma matrícula"
+                          />
+                        </FormField>
+                      )
+                    )}
+
+                    {!useGestorMatricula && (
+                      <FormField 
+                        label="Matrícula"
+                        description="Opcional - informe uma matrícula existente"
+                      >
+                        <TextInput
+                          value={formData.matriculaNumber}
+                          onChange={(e) => handleChange('matriculaNumber', e.target.value)}
+                          placeholder="Número da matrícula"
+                        />
+                      </FormField>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: '1rem' }}>
+                    {!loadingParentDetails && (
+                      <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
+                        O gestor selecionado não possui matrículas como proprietário.
+                      </p>
+                    )}
+                    <FormField 
+                      label="Matrícula"
+                      description="Opcional - informe uma matrícula existente"
+                    >
+                      <TextInput
+                        value={formData.matriculaNumber}
+                        onChange={(e) => handleChange('matriculaNumber', e.target.value)}
+                        placeholder="Número da matrícula"
+                      />
+                    </FormField>
+                  </div>
+                )}
+
+                {parentTeamName && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <Checkbox
+                      label={`Participar da equipe ${parentTeamName}`}
+                      checked={joinParentTeam}
+                      onChange={(e) => setJoinParentTeam(e.currentTarget.checked)}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <FormField 
+                label="Matrícula"
+                description="Opcional - informe uma matrícula existente"
+              >
+                <TextInput
+                  value={formData.matriculaNumber}
+                  onChange={(e) => handleChange('matriculaNumber', e.target.value)}
+                  placeholder="Número da matrícula"
+                />
+              </FormField>
+            )}
           </>
         )}
 

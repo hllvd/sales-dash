@@ -33,6 +33,8 @@ namespace SalesApp.DTOs
         
         public bool IsMatriculaOwner { get; set; } = false;
         
+        public bool JoinParentTeam { get; set; } = false;
+        
         public bool SendEmail { get; set; } = false;
     }
 }

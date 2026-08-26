@@ -460,7 +460,7 @@ namespace SalesApp.Controllers
                         await _matriculaRepository.CreateAsync(matriculaEntity);
                     }
                     
-                    bool isOwner = request.IsMatriculaOwner;
+                    bool isOwner = (roleIdClaim == "2" || request.Role.Equals("user", StringComparison.OrdinalIgnoreCase)) ? false : request.IsMatriculaOwner;
                     
                     // Link user to matricula
                     var userMatricula = new UserMatricula
@@ -483,6 +483,33 @@ namespace SalesApp.Controllers
                         Data = MapToUserResponse(user),
                         Message = _messageService.Get(AppMessage.UserCreatedButMatriculaFailed, ex.Message)
                     });
+                }
+            }
+            
+            // Handle joining parent's team if requested
+            if (request.JoinParentTeam && request.ParentUserId.HasValue)
+            {
+                try
+                {
+                    var parentUserTeam = await _context.UserTeams
+                        .Include(ut => ut.Team)
+                        .Where(ut => ut.User.Id == request.ParentUserId.Value && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow))
+                        .FirstOrDefaultAsync();
+
+                    if (parentUserTeam != null)
+                    {
+                        var userTeam = new UserTeam
+                        {
+                            TeamId = parentUserTeam.TeamId,
+                            UserInternalId = user.InternalId,
+                            StartDate = DateTime.UtcNow.AddYears(-8)
+                        };
+                        await _teamRepository.AddMemberAsync(userTeam);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Team assignment error shouldn't fail user creation
                 }
             }
             
