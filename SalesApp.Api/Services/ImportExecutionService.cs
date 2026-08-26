@@ -253,23 +253,16 @@ namespace SalesApp.Services
             {
                 try
                 {
-                    var importedNumbers = allImportedContracts.Select(c => c.ContractNumber).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
-                    Console.WriteLine($"[Import Phase 3 Debug] importedNumbers count: {importedNumbers.Count}");
-                    Console.WriteLine($"[Import Phase 3 Debug] importedNumbers: {string.Join(", ", importedNumbers)}");
-                    
-                    var pendingClaims = await _context.PendingContractClaims
-                        .Include(c => c.User)
-                        .Where(c => !c.IsResolved)
-                        .ToListAsync(); // Fetch all and filter in memory to be 100% sure about trimming/case
-                    
-                    Console.WriteLine($"[Import Phase 3 Debug] Unresolved pending claims in DB: {pendingClaims.Count}");
-                    if (pendingClaims.Any()) {
-                        Console.WriteLine($"[Import Phase 3 Debug] Claims: {string.Join(", ", pendingClaims.Select(c => c.ContractNumber))}");
-                    }
-                    
-                    var matchedClaims = pendingClaims
-                        .Where(c => importedNumbers.Contains(c.ContractNumber.Trim(), StringComparer.OrdinalIgnoreCase))
+                    var importedNumbers = allImportedContracts
+                        .Select(c => c.ContractNumber)
+                        .Where(n => !string.IsNullOrEmpty(n))
+                        .Select(n => n.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
+                    
+                    var matchedClaims = await _context.PendingContractClaims
+                        .Where(c => !c.IsResolved && importedNumbers.Contains(c.ContractNumber))
+                        .ToListAsync();
 
                     if (matchedClaims.Any())
                     {
@@ -299,17 +292,11 @@ namespace SalesApp.Services
                                 
                                 claim.IsResolved = true;
                                 claim.ResolvedAt = DateTime.UtcNow;
+                                _context.PendingContractClaims.Update(claim);
                                 
                                 Console.WriteLine($"[Import] RECONCILED: Contract {claimKey} assigned to user (internalId={claim.UserInternalId}) (was pending claim)");
                             }
                         }
-                        
-                        await _context.SaveChangesAsync();
-                        Console.WriteLine("[Import] Phase 3: Pending claims resolution committed to database.");
-                    }
-                    else
-                    {
-                        Console.WriteLine("[Import] No matching pending claims found.");
                     }
                 }
                 catch (Exception ex)
@@ -349,23 +336,26 @@ namespace SalesApp.Services
             Dictionary<string, int?>? matriculaCache = null,
             Action<MatriculaChangeRecord>? onMatriculaChange = null)
         {
-            var rawCota = GetFieldValue(row, reverseMappings, "Cota");
-            if (string.IsNullOrWhiteSpace(rawCota))
+            var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
+            if (string.IsNullOrWhiteSpace(cotaValue))
             {
                 var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("id_cota", StringComparison.OrdinalIgnoreCase));
-                if (cotaKey != null) rawCota = row[cotaKey];
-            }
-            if (string.IsNullOrWhiteSpace(rawCota))
-            {
-                rawCota = GetFieldValue(row, reverseMappings, "ContractNumber");
+                if (cotaKey != null) cotaValue = row[cotaKey];
             }
 
-            var cotaInfo = CotaDecomposer.Decompose(rawCota);
-            
-            var rawContractNumber = ParseContractNumber(GetFieldValue(row, reverseMappings, "ContractNumber"));
-            var contractNumber = !string.IsNullOrWhiteSpace(rawContractNumber) 
-                ? rawContractNumber 
-                : cotaInfo.Contract;
+            var rawContractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+            if (string.IsNullOrWhiteSpace(cotaValue) && !string.IsNullOrWhiteSpace(rawContractNumber) && rawContractNumber.Contains(";"))
+            {
+                cotaValue = rawContractNumber;
+            }
+
+            var cotaInfo = CotaDecomposer.Decompose(cotaValue);
+
+            var contractNumber = ResolveContractNumber(row, reverseMappings);
+            if (string.IsNullOrWhiteSpace(contractNumber) && cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Contract))
+            {
+                contractNumber = Utils.NormalizationUtils.NormalizeNumber(cotaInfo.Contract);
+            }
             var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
             var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
 
@@ -378,7 +368,9 @@ namespace SalesApp.Services
                 }
             }
 
-            var groupValue = GetFieldValue(row, reverseMappings, "GroupId") ?? cotaInfo.Group;
+            var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
+            if (string.IsNullOrWhiteSpace(groupValue) && cotaInfo.IsFromConcatenatedString) groupValue = cotaInfo.Group;
+
             var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
             if (string.IsNullOrWhiteSpace(matriculaNumber) && !string.IsNullOrWhiteSpace(cotaInfo.Matricula) && !cotaInfo.IsFromConcatenatedString)
             {
@@ -386,7 +378,7 @@ namespace SalesApp.Services
             }
 
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
-            if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaInfo.Customer;
+            if (string.IsNullOrWhiteSpace(customerName) && cotaInfo.IsFromConcatenatedString) customerName = cotaInfo.Customer;
 
             bool isFromScrape = uploadId != null && uploadId.Contains("scrape", StringComparison.OrdinalIgnoreCase);
 
@@ -503,6 +495,10 @@ namespace SalesApp.Services
             if (cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Matricula))
             {
                 quotaStr = cotaInfo.Matricula;
+            }
+            else if (string.IsNullOrWhiteSpace(quotaStr) && !string.IsNullOrWhiteSpace(cotaValue) && !cotaInfo.IsFromConcatenatedString)
+            {
+                quotaStr = cotaValue;
             }
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
             // Use the customerName extracted earlier from Cota if direct column is empty
@@ -1538,16 +1534,16 @@ namespace SalesApp.Services
             {
                 try
                 {
-                    var importedNumbers = allContractsForReconciliation.Select(c => c.ContractNumber).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
-                    
-                    var pendingClaims = await _context.PendingContractClaims
-                        .Include(c => c.User)
-                        .Where(c => !c.IsResolved)
-                        .ToListAsync(); // Fetch all unresolved and filter in memory
-                    
-                    var matchedClaims = pendingClaims
-                        .Where(c => importedNumbers.Contains(c.ContractNumber.Trim(), StringComparer.OrdinalIgnoreCase))
+                    var importedNumbers = allContractsForReconciliation
+                        .Select(c => c.ContractNumber)
+                        .Where(n => !string.IsNullOrEmpty(n))
+                        .Select(n => n.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
+                    
+                    var matchedClaims = await _context.PendingContractClaims
+                        .Where(c => !c.IsResolved && importedNumbers.Contains(c.ContractNumber))
+                        .ToListAsync();
 
                     if (matchedClaims.Any())
                     {
@@ -1573,6 +1569,7 @@ namespace SalesApp.Services
                                 
                                 claim.IsResolved = true;
                                 claim.ResolvedAt = DateTime.UtcNow;
+                                _context.PendingContractClaims.Update(claim);
                                 
                                 Console.WriteLine($"[Import Dashboard] PRE-RECONCILED: Contract {claimKey} will be assigned to user (internalId={claim.UserInternalId})");
                             }

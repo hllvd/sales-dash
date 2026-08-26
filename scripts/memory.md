@@ -7,6 +7,25 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## 2026-08-24 e2e — Attempt 1
+**Failure:** `hierarchy_deep_visibility.spec.ts` failed on `expect(locator).toHaveCount(1)` due to race condition between contract number filter debounce and table render.
+**Root cause:** The test used a static 6s delay instead of waiting for `.contracts-loading` to disappear, causing it to assert table rows while the previous query results were still in-flight.
+**Fix applied:** Replaced `waitForTimeout` with `page.waitForSelector('.contracts-loading', { state: 'hidden' })` before checking row count. Also added button spinner animation and informative progress banner in `BulkImportModal.tsx`.
+**Result:** ✅ Green (150/150 E2E tests passed)
+
+## 2026-08-24 all — Attempt 1
+**Failure:** Importing large files (1.7MB+ / 15k+ rows) fails with "Failed to confirm import" due to Nginx 60s proxy timeouts and EF Core `ChangeTracker` accumulation across 30+ chunk iterations.
+**Root cause:** `GetByContractNumbersAsync` loaded deep entity graphs into tracking; `ImportRows` staging chunks were read with tracking; `_context.ChangeTracker.Clear()` was never called between chunks causing quadratic change detection slowdown; `PendingContractClaims` scanned the entire table repeatedly per chunk; Nginx configs had default 60s `proxy_read_timeout`.
+**Fix applied:** 
+- Filtered `PendingContractClaims` directly in SQL by chunk contract numbers.
+- Added `.AsNoTracking()` to staging chunk reads in `ImportsController.cs`.
+- Added `_context.ChangeTracker.Clear()` after saving staging batches in `UploadFileInternal` and between chunk iterations in `ConfirmImportInternal`.
+- Updated `ImportSessionRepository.UpdateAsync` to update scalar properties directly without re-attaching disconnected navigation graphs after `ChangeTracker.Clear()`.
+- Set `proxy_read_timeout 300s; proxy_connect_timeout 60s; proxy_send_timeout 300s;` in `nginx.conf`, `nginx.local.conf`, and `nginx.e2e.conf`.
+- Enhanced frontend `confirmImport` error parsing to present informative messages on 504/502 gateway timeouts.
+- Added multi-chunk batch test (`ImportContractDashboard_MultiChunkLargeBatch_ShouldProcessAllChunksAndPersistUpdates`) in `ImportUpsertTests.cs`.
+**Result:** ✅ Green (272/272 Integration tests passed, 150/150 E2E tests passed)
+
 ## 2026-06-04 e2e — Attempt 1
 **Failure:** 10 flaky/failed E2E tests in tear-2-roles-testing due to timeouts, race conditions, static delays, and database variance.
 **Root cause:** Hardcoded timeouts on searchable Select fields, race conditions in template mismatch warning handling, static delays after DB updates before query, and static percentage comparison.
@@ -196,8 +215,14 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Normalized ContractNumber at storage and lookup time, reverted AutoMapping Quota rule, implemented full field updates for restored soft-deleted contracts in BuildContractDashboardFromRowAsync, and fixed test seeding.
 **Result:** ✅ Green — 271/271 Integration tests & 150/150 E2E tests passed
 
-## [2026-08-24] all — Attempt 1
+## [2026-08-24] all — Attempt 2
 **Failure:** `hierarchy_deep_visibility.spec.ts` timeout/closure during direct child test, and `admin_permissions.spec.ts` dialog close race condition.
 **Root cause:** `hierarchy_deep_visibility.spec.ts` used `page.fill` without pressing Enter on Mantine `MultiSelect` (`filterMatricula`), and had a hanging `waitForSelector('.contracts-loading')`. `admin_permissions.spec.ts` asserted dialog disappearance before `POST /api/users` resolved.
 **Fix applied:** Updated `hierarchy_deep_visibility.spec.ts` to type and press Enter on `#filterMatricula`, replaced `waitForSelector` with `expect(...).not.toBeVisible()`, and wrapped `Criar Usuário` clicks in `admin_permissions.spec.ts` with `Promise.all([page.waitForResponse(...), page.click(...)])`.
 **Result:** ✅ Green — 151/151 passed (Run 1 & Run 2 idempotent)
+
+## [2026-08-25] all — Attempt 1
+**Failure:** `import_wizard.spec.ts` failed on `expect(locator).toBeVisible()` waiting for `.aggregation-summary` on `#/contracts` due to SQLite Error 19 UNIQUE constraint on `Contracts.ContractNumber` during Step 3 import.
+**Root cause:** In Step 3 default mappings (`WizardService.cs`), `"Cota"` was mapped to `"ContractNumber"` alongside `"Contrato"`, and `BuildContractFromRowAsync` (`ImportExecutionService.cs`) extracted `contractNumber` from `row["Cota"]`, overriding the real contract number with quota numbers and creating duplicate contract numbers across groups.
+**Fix applied:** Updated `WizardService.cs` Step 3 mappings to map `"Cota"` to `"Quota"`; updated `BuildContractFromRowAsync` to prioritize `ResolveContractNumber` and only decompose `Cota` when formatted as a concatenated string; updated `contracts_ui_enhancements.spec.ts` to clean up `localStorage` filters; rebuilt containers and verified full suite.
+**Result:** ✅ Green — 150/150 (Run 1) and 148/148 (Run 2) passed with 0 errors

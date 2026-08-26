@@ -95,6 +95,7 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
       page.fill('input#filterContractNumber', CONTRACT_L3)
     ]);
     await page.waitForTimeout(1000);
+    await expect(page.locator('.contracts-loading')).not.toBeVisible({ timeout: 20_000 });
 
     // Wait for any existing rows to disappear if filtering isn't instant
     await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
@@ -113,6 +114,7 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
       page.fill('input#filterContractNumber', CONTRACT_L4)
     ]);
     await page.waitForTimeout(1000);
+    await expect(page.locator('.contracts-loading')).not.toBeVisible({ timeout: 20_000 });
 
     await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
     await expect(page.locator('table tbody tr').filter({ hasText: CHAIN.D_MATRICULA })).toBeVisible({ timeout: 15_000 });

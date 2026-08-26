@@ -979,6 +979,96 @@ C-123,superadmin@test.com,5000,0,Active,2024-01-01,MAT-123
             }
         }
 
+        [Fact]
+        public async Task ImportContractDashboard_MultiChunkLargeBatch_ShouldProcessAllChunksAndPersistUpdates()
+        {
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Pre-seed an existing contract to verify update across multi-chunk processing
+            var existingContractNum = $"CNT-PRE-CHUNK-{Guid.NewGuid().ToString("N")[..6]}";
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var status = await context.ContractStatuses.FirstOrDefaultAsync() ?? new ContractStatusEntity { Name = "Active" };
+                if (status.Id == 0) { context.ContractStatuses.Add(status); await context.SaveChangesAsync(); }
+                var group = await context.Groups.FirstOrDefaultAsync(g => g.Name == "G-CHUNK");
+                if (group == null)
+                {
+                    group = new Group { Name = "G-CHUNK", IsActive = true };
+                    context.Groups.Add(group);
+                    await context.SaveChangesAsync();
+                }
+
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = existingContractNum,
+                    TotalAmount = 10000m,
+                    SaleStartDate = new DateTime(2023, 1, 1),
+                    ContractStatusId = status.Id,
+                    GroupId = group.Id,
+                    CustomerName = "Pre-existing Client",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+                await context.SaveChangesAsync();
+            }
+
+            // Generate 1,100 rows across 3 chunks (500 + 500 + 100)
+            var sb = new StringBuilder();
+            sb.AppendLine("Cota,Total,SaleStartDate,Status,Matricula");
+
+            // First row updates existing contract
+            sb.AppendLine($"G-CHUNK;1;C1;Updated Pre-existing Client;{existingContractNum},99999,2025-06-01,Ativo,MAT-CHUNK-0");
+
+            for (int i = 1; i <= 1100; i++)
+            {
+                sb.AppendLine($"G-CHUNK;{i};C{i};Client {i};CNT-CHUNK-{i},50000,2025-06-01,Ativo,MAT-CHUNK-{i % 10}");
+            }
+
+            var uploadId = await UploadFile(sb.ToString(), "multi_chunk_test.csv", templateId: 3);
+
+            var mappingRequest = new ColumnMappingRequest
+            {
+                Mappings = new Dictionary<string, string>
+                {
+                    { "Cota", "Cota" },
+                    { "Total", "TotalAmount" },
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "Status", "Status" },
+                    { "Matricula", "MatriculaNumber" }
+                }
+            };
+            await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings?entityType=Contract", mappingRequest);
+
+            var confirmRequest = new ConfirmImportRequest
+            {
+                DateFormat = "YYYY-MM-DD",
+                AllowAutoCreateGroups = true,
+                UpdateTotalAmountOnExisting = true
+            };
+            var confirmResponse = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", confirmRequest);
+            confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var confirmResult = await confirmResponse.Content.ReadFromJsonAsync<ApiResponse<ImportStatusResponse>>();
+            confirmResult.Should().NotBeNull();
+            confirmResult!.Data!.ProcessedRows.Should().Be(1101);
+            confirmResult.Data.FailedRows.Should().Be(0);
+
+            // Verify both the updated contract and newly inserted contracts in database
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var updatedContract = await context.Contracts.FirstAsync(c => c.ContractNumber == existingContractNum);
+                updatedContract.TotalAmount.Should().Be(99999m);
+                updatedContract.CustomerName.Should().Be("Updated Pre-existing Client");
+
+                var countNew = await context.Contracts.CountAsync(c => c.ContractNumber.StartsWith("CNT-CHUNK-"));
+                countNew.Should().Be(1100);
+            }
+        }
+
         private async Task<string> UploadFile(string content, string fileName, int templateId = 2)
         {
             var multipartContent = new MultipartFormDataContent();

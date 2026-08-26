@@ -48,6 +48,10 @@ test.describe('Contracts UI Enhancements', () => {
 
     // Validation error should disappear
     await expect(errorMsg).not.toBeVisible();
+
+    // Clean up filterStartDate so it does not pollute subsequent tests
+    await page.fill('input#filterStartDate', '');
+    await page.evaluate(() => localStorage.removeItem('contracts_filterStartDate'));
   });
 
   test('should toggle column visibility via Column Modal', async ({ page }) => {

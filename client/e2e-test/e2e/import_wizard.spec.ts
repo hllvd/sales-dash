@@ -75,7 +75,14 @@ test.describe('Import Wizard Flow', () => {
     const goToContractsBtn = page.locator('button:has-text("Ir para Lista de Contratos")');
     await expect(goToContractsBtn).toBeVisible({ timeout: 15000 });
     await goToContractsBtn.click();
+    await page.goto('/#/contracts');
 
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('.contracts-loading')).not.toBeVisible({ timeout: 20000 });
+    await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 20000 });
+
+    // Verify aggregation chart (Smoke Check)
+    await expect(page.locator('.aggregation-summary')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('.aggregation-chart').first()).toContainText(/[0-9]+%/, { timeout: 15000 });
   });
 });

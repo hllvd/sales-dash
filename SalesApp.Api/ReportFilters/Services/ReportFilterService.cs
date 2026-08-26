@@ -1071,7 +1071,8 @@ namespace SalesApp.ReportFilters.Services
                             "team",
                             "teamOwner",
                             "classification",
-                            "store"
+                            "store",
+                            "userActive"
                         }
                     },
                     new SourceColumns
@@ -1080,7 +1081,8 @@ namespace SalesApp.ReportFilters.Services
                         Fields = new List<string>
                         {
                             "name",
-                            "email"
+                            "email",
+                            "userActive"
                         }
                     },
                     new SourceColumns
@@ -1125,6 +1127,26 @@ namespace SalesApp.ReportFilters.Services
         }
 
         // ── Private helpers ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Resolves whether a user is considered active:
+        /// - Returns "—" if user is null.
+        /// - Returns "Sim" if user.IsActive == true, user.CreatedAt was at least 15 days ago,
+        ///   and user.LastAccessedAt was within the last 30 days.
+        /// - Returns "Não" otherwise.
+        /// </summary>
+        public static object? ResolveUserActive(SalesApp.Models.User? user, DateTime? referenceTime = null)
+        {
+            if (user == null) return "—";
+
+            var now = referenceTime ?? DateTime.UtcNow;
+            bool isActive = user.IsActive
+                && user.CreatedAt <= now.AddDays(-15)
+                && user.LastAccessedAt.HasValue
+                && user.LastAccessedAt.Value >= now.AddDays(-30);
+
+            return isActive ? "Sim" : "Não";
+        }
 
         /// <summary>
         /// Projects a Contract entity down to only the requested columns.
@@ -1199,22 +1221,24 @@ namespace SalesApp.ReportFilters.Services
                 },
                 "Users_Contract" => field switch
                 {
-                    "name"      => c.User?.Name,
-                    "email"     => c.User?.Email,
-                    "team"      => getTeamName(c),
-                    "teamOwner" => getTeamOwnerName(c),
+                    "name"       => c.User?.Name,
+                    "email"      => c.User?.Email,
+                    "team"       => getTeamName(c),
+                    "teamOwner"  => getTeamOwnerName(c),
                     "classification" => getClassification(c),
-                    "store"     => getStoreName(c),
-                    _           => null
+                    "store"      => getStoreName(c),
+                    "userActive" => ResolveUserActive(c.User),
+                    _            => null
                 },
                 "Users_Matricula" => c.Matricula?.UserMatriculas
                     .Select(um => um.User)
                     .Where(u => u != null)
                     .Select(u => field switch
                     {
-                        "name"  => (object?)u!.Name,
-                        "email" => u!.Email,
-                        _       => null
+                        "name"       => (object?)u!.Name,
+                        "email"      => u!.Email,
+                        "userActive" => ResolveUserActive(u),
+                        _            => null
                     })
                     .FirstOrDefault(),
                 "Status" => field switch

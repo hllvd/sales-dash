@@ -137,6 +137,10 @@ const COLUMN_METADATA_DICT: Record<string, ColumnMetadata> = {
     title: 'Loja do Vendedor',
     description: 'Nome da loja à qual a equipe do vendedor pertence no período da venda.'
   },
+  'Users_Contract|userActive': {
+    title: 'Usuário Ativo',
+    description: 'Indica se o vendedor é ativo no sistema (acesso nos últimos 30 dias, criado há mais de 15 dias e cadastro ativo).'
+  },
   'Users_Matricula|name': {
     title: 'Nome do Titular da Matrícula',
     description: 'Nome do usuário que possui a titularidade oficial da matrícula vinculada.'
@@ -144,6 +148,10 @@ const COLUMN_METADATA_DICT: Record<string, ColumnMetadata> = {
   'Users_Matricula|email': {
     title: 'E-mail do Titular da Matrícula',
     description: 'E-mail cadastrado para o titular oficial da matrícula do contrato.'
+  },
+  'Users_Matricula|userActive': {
+    title: 'Titular Ativo',
+    description: 'Indica se o titular da matrícula é ativo no sistema (acesso nos últimos 30 dias, criado há mais de 15 dias e cadastro ativo).'
   },
   'Status|name': {
     title: 'Status do Contrato',
@@ -516,10 +524,13 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       if (field === 'name') return 'Nome (Vendedor)';
       if (field === 'email') return 'E-mail (Vendedor)';
       if (field === 'classification') return 'Nível de Classificação';
+      if (field === 'store') return 'Loja';
+      if (field === 'userActive') return 'Usuário Ativo';
     }
     if (source === 'Users_Matricula') {
       if (field === 'name') return 'Nome (Matrícula)';
       if (field === 'email') return 'E-mail (Matrícula)';
+      if (field === 'userActive') return 'Titular Ativo';
     }
     return field;
   };

@@ -815,11 +815,11 @@ namespace SalesApp.Services
                 ["Matrícula"]        = "MatriculaNumber",
                 ["Matricula"]        = "MatriculaNumber",
                 ["Contrato"]         = "ContractNumber",
-                ["Cota"]             = firstRow.ContainsKey("Contrato") ? "Quota" : "ContractNumber",
+                ["Cota"]             = firstRow.Keys.Any(k => k.Trim().Equals("Contrato", StringComparison.OrdinalIgnoreCase)) ? "Quota" : "ContractNumber",
+                ["Cota_Number"]      = "Quota", // Alias to avoid conflict with the concatenated 'Cota' column
                 ["Valor"]            = "TotalAmount",
                 ["Crédito Venda"]    = "TotalAmount",
                 ["Grupo"]            = "GroupId",
-                ["Cota_Number"]      = "Quota", // Alias to avoid conflict with the concatenated 'Cota' column
                 ["Data da Venda"]    = "SaleStartDate",
                 ["Dt Venda"]         = "SaleStartDate",
                 ["Dt Produção"]      = "SaleStartDate",

@@ -165,5 +165,216 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<string>?>(),
                 It.IsAny<bool>()), Times.Once);
         }
+
+        [Fact]
+        public void GetAvailableColumns_ShouldIncludeUserActiveInUsersContractAndUsersMatricula()
+        {
+            // Act
+            var available = _service.GetAvailableColumns();
+
+            // Assert
+            var usersContract = available.Sources.Find(s => s.Source == "Users_Contract");
+            usersContract.Should().NotBeNull();
+            usersContract!.Fields.Should().Contain("userActive");
+
+            var usersMatricula = available.Sources.Find(s => s.Source == "Users_Matricula");
+            usersMatricula.Should().NotBeNull();
+            usersMatricula!.Fields.Should().Contain("userActive");
+        }
+
+        [Fact]
+        public void ResolveUserActive_WhenUserIsNull_ShouldReturnDash()
+        {
+            // Act
+            var result = ReportFilterService.ResolveUserActive(null);
+
+            // Assert
+            result.Should().Be("—");
+        }
+
+        [Fact]
+        public void ResolveUserActive_WhenUserIsInactiveInDatabase_ShouldReturnNao()
+        {
+            // Arrange
+            var now = new DateTime(2026, 8, 25, 12, 0, 0, DateTimeKind.Utc);
+            var user = new User
+            {
+                IsActive = false,
+                CreatedAt = now.AddDays(-20),
+                LastAccessedAt = now.AddDays(-5)
+            };
+
+            // Act
+            var result = ReportFilterService.ResolveUserActive(user, now);
+
+            // Assert
+            result.Should().Be("Não");
+        }
+
+        [Fact]
+        public void ResolveUserActive_WhenUserCreatedAtIsLessThan15DaysAgo_ShouldReturnNao()
+        {
+            // Arrange
+            var now = new DateTime(2026, 8, 25, 12, 0, 0, DateTimeKind.Utc);
+            var user = new User
+            {
+                IsActive = true,
+                CreatedAt = now.AddDays(-10), // only 10 days old
+                LastAccessedAt = now.AddDays(-2)
+            };
+
+            // Act
+            var result = ReportFilterService.ResolveUserActive(user, now);
+
+            // Assert
+            result.Should().Be("Não");
+        }
+
+        [Fact]
+        public void ResolveUserActive_WhenUserNeverAccessed_ShouldReturnNao()
+        {
+            // Arrange
+            var now = new DateTime(2026, 8, 25, 12, 0, 0, DateTimeKind.Utc);
+            var user = new User
+            {
+                IsActive = true,
+                CreatedAt = now.AddDays(-20),
+                LastAccessedAt = null
+            };
+
+            // Act
+            var result = ReportFilterService.ResolveUserActive(user, now);
+
+            // Assert
+            result.Should().Be("Não");
+        }
+
+        [Fact]
+        public void ResolveUserActive_WhenLastAccessedIsMoreThan30DaysAgo_ShouldReturnNao()
+        {
+            // Arrange
+            var now = new DateTime(2026, 8, 25, 12, 0, 0, DateTimeKind.Utc);
+            var user = new User
+            {
+                IsActive = true,
+                CreatedAt = now.AddDays(-60),
+                LastAccessedAt = now.AddDays(-31)
+            };
+
+            // Act
+            var result = ReportFilterService.ResolveUserActive(user, now);
+
+            // Assert
+            result.Should().Be("Não");
+        }
+
+        [Fact]
+        public void ResolveUserActive_WhenAllCriteriaAreMet_ShouldReturnSim()
+        {
+            // Arrange
+            var now = new DateTime(2026, 8, 25, 12, 0, 0, DateTimeKind.Utc);
+            var user = new User
+            {
+                IsActive = true,
+                CreatedAt = now.AddDays(-20),
+                LastAccessedAt = now.AddDays(-5)
+            };
+
+            // Act
+            var result = ReportFilterService.ResolveUserActive(user, now);
+
+            // Assert
+            result.Should().Be("Sim");
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithUserActiveColumn_ShouldProjectSimAndNaoCorrectly()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "20260825120000000-useractive01";
+            var now = DateTime.UtcNow;
+
+            var activeUser = new User
+            {
+                Name = "Active User",
+                Email = "active@test.com",
+                IsActive = true,
+                CreatedAt = now.AddDays(-25),
+                LastAccessedAt = now.AddDays(-2)
+            };
+
+            var inactiveUser = new User
+            {
+                Name = "Inactive User",
+                Email = "inactive@test.com",
+                IsActive = true,
+                CreatedAt = now.AddDays(-5), // < 15 days
+                LastAccessedAt = now.AddDays(-1)
+            };
+
+            var existingReport = new ReportFilter
+            {
+                UserId = callerId,
+                FilterId = filterId,
+                Name = "User Active Test Report",
+                Scope = "private",
+                FilterConfig = new FilterConfig(),
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 },
+                    new OutputColumn { Source = "Users_Contract", Field = "userActive", Label = "Usuário Ativo", Order = 2 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(existingReport);
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+                .ReturnsAsync(new List<Team>());
+
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "CTR-001", User = activeUser, TotalAmount = 1000m },
+                new Contract { ContractNumber = "CTR-002", User = inactiveUser, TotalAmount = 2000m },
+                new Contract { ContractNumber = "CTR-003", User = null, TotalAmount = 3000m }
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(),
+                It.IsAny<int?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<bool>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Rows.Should().HaveCount(3);
+
+            result.Data.Rows[0]["Contrato"].Should().Be("CTR-001");
+            result.Data.Rows[0]["Usuário Ativo"].Should().Be("Sim");
+
+            result.Data.Rows[1]["Contrato"].Should().Be("CTR-002");
+            result.Data.Rows[1]["Usuário Ativo"].Should().Be("Não");
+
+            result.Data.Rows[2]["Contrato"].Should().Be("CTR-003");
+            result.Data.Rows[2]["Usuário Ativo"].Should().Be("—");
+        }
     }
 }
