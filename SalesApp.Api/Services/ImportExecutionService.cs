@@ -528,8 +528,8 @@ namespace SalesApp.Services
                 }
                 catch (ArgumentException)
                 {
-                    // Fallback to int parsing for backwards compatibility
-                    if (int.TryParse(contractTypeStr, out var parsedType))
+                    // Fallback to int parsing only if it maps to a defined ContractType
+                    if (int.TryParse(contractTypeStr, out var parsedType) && Enum.IsDefined(typeof(ContractType), parsedType))
                     {
                         contractType = parsedType;
                     }
