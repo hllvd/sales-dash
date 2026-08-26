@@ -116,12 +116,13 @@ const ContractReconciliationPage: React.FC = () => {
     if (!selectedTeamId || !selectedTeam) {
       return users;
     }
-    const activeMemberIds = new Set(
-      (selectedTeam.members || [])
-        .filter((m) => m.isActive)
-        .map((m) => m.userId.toLowerCase())
-    );
-    return users.filter((u) => activeMemberIds.has(u.value.toLowerCase()));
+    return (selectedTeam.members || [])
+      .filter((m) => m.isActive)
+      .map((m) => ({
+        value: m.userId,
+        label: `${m.userName} (${m.userEmail})`,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [users, selectedTeamId, selectedTeam]);
 
   const handleTeamChange = (val: string | null) => {
