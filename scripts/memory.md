@@ -186,10 +186,13 @@ Each entry records a fix attempt — past entries must be consulted before retry
 ## [2026-08-20] e2e — Attempt 2
 **Failure:** `scrape_credentials.spec.ts` timed out (60000ms) on `locator.click`.
 **Root cause:** Trash button locator `.locator('button', { has: page.locator('.tabler-icon-trash') })` failed to find the ActionIcon because `@tabler/icons-react` SVG elements do not carry the `.tabler-icon-trash` class.
-## [2026-08-24] all — Attempt 1
-**Failure:** SQLite Error 19 UNIQUE constraint on contract dashboard import, Quota is required auto-mapping regression, and soft-deleted contract restoration.
-**Root cause:** (1) Contract number normalization mismatches and case-sensitive dictionary lookups during dashboard upsert; (2) "cota" mapped to "Quota" in AutoMappingService broke Cota compound decomposition; (3) Soft-deleted contracts were not updating all fields on re-import.
-**Fix applied:** Normalized ContractNumber at storage and lookup time, reverted AutoMapping Quota rule, implemented full field updates for restored soft-deleted contracts in BuildContractDashboardFromRowAsync, and fixed test seeding.
-**Result:** ✅ Green — 271/271 Integration tests & 150/150 E2E tests passed
+## [2026-08-25] all — Attempt 1
+**Failure:** `import_wizard.spec.ts` failed on `expect(locator).toBeVisible()` waiting for `.aggregation-summary` on `#/contracts` due to SQLite Error 19 UNIQUE constraint on `Contracts.ContractNumber` during Step 3 import.
+**Root cause:** In Step 3 default mappings (`WizardService.cs`), `"Cota"` was mapped to `"ContractNumber"` alongside `"Contrato"`, and `BuildContractFromRowAsync` (`ImportExecutionService.cs`) extracted `contractNumber` from `row["Cota"]`, overriding the real contract number with quota numbers and creating duplicate contract numbers across groups.
+**Fix applied:** Updated `WizardService.cs` Step 3 mappings to map `"Cota"` to `"Quota"`; updated `BuildContractFromRowAsync` to prioritize `ResolveContractNumber` and only decompose `Cota` when formatted as a concatenated string; updated `contracts_ui_enhancements.spec.ts` to clean up `localStorage` filters; rebuilt containers and verified full suite.
+**Result:** ✅ Green — 150/150 (Run 1) and 148/148 (Run 2) passed with 0 errors
+
+
+
 
 

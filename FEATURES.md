@@ -1,5 +1,27 @@
 # Features
 
+## Coluna "Usuário Ativo" nos Relatórios (Reports)
+
+Esta funcionalidade adiciona a coluna de saída **"Usuário Ativo"** na seleção de campos e projeção de resultados dos relatórios (`Reports` / `ReportFilters`). O campo avalia se o vendedor/usuário responsável é considerado ativo de acordo com critérios temporais de acesso e criação de conta combinados com o status cadastral ativo.
+
+### Core Objectives
+- Disponibilizar a coluna **"Usuário Ativo"** sob a fonte de dados `Users_Contract` (e `Users_Matricula`) no modal de seleção de colunas do relatório.
+- Projetar o valor booleano formatado em texto (`"Sim"` / `"Não"` / `"—"`) em tabelas de visualização, visualizações compartilhadas (`Views`) e exportações.
+
+### Critérios de Avaliação do Usuário Ativo
+O status ativo (`"Sim"`) é determinado quando todas as condições a seguir são atendidas simultaneamente (**AND**):
+1. **Cadastro Ativo**: `User.IsActive == true`.
+2. **Criação da Conta**: Conta criada há pelo menos 15 dias (`User.CreatedAt <= now - 15 dias`).
+3. **Último Acesso**: Usuário acessou o sistema nos últimos 30 dias (`User.LastAccessedAt != null` e `User.LastAccessedAt >= now - 30 dias`).
+4. **Sem Usuário Atribuído**: Caso o contrato não tenha vendedor/usuário associado (`User == null`), o valor retornado é `"—"`.
+5. **Critérios Não Atendidos**: Caso o usuário exista mas qualquer um dos critérios acima não seja satisfeito (ex: sem login registrado, login há mais de 30 dias, conta com menos de 15 dias de criação ou desativada), retorna `"Não"`.
+
+### Key Capabilities
+- **Disponibilidade em Colunas**: Exposto em `GetAvailableColumns` na API e selecionável na interface de criação/edição de relatórios (`ReportFormPage.tsx`).
+- **Resolução Determinística**: Função pura `ResolveUserActive(User? user, DateTime? referenceTime = null)` em `ReportFilterService` para projeção ágil durante a execução do relatório.
+
+---
+
 ## High-Volume File Import Performance & Timeout Optimization (1.7MB+ / 15k+ Rows)
 
 This feature optimizes the bulk import pipeline to reliably process large files (such as 1.7MB+ `contractDashboard` exports containing 15,000+ rows) without hitting proxy timeouts, memory bloat, or EF Core change tracking degradation.

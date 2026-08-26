@@ -336,20 +336,27 @@ namespace SalesApp.Services
             Dictionary<string, int?>? matriculaCache = null,
             Action<MatriculaChangeRecord>? onMatriculaChange = null)
         {
-            var rawCota = GetFieldValue(row, reverseMappings, "Cota");
-            if (string.IsNullOrWhiteSpace(rawCota))
+            var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
+            if (string.IsNullOrWhiteSpace(cotaValue))
             {
                 var cotaKey = row.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase) || k.EndsWith("id_cota", StringComparison.OrdinalIgnoreCase));
-                if (cotaKey != null) rawCota = row[cotaKey];
-            }
-            if (string.IsNullOrWhiteSpace(rawCota))
-            {
-                rawCota = GetFieldValue(row, reverseMappings, "ContractNumber");
+                if (cotaKey != null) cotaValue = row[cotaKey];
             }
 
-            var cotaInfo = CotaDecomposer.Decompose(rawCota);
+            var rawContractNumber = GetFieldValue(row, reverseMappings, "ContractNumber");
+            if (string.IsNullOrWhiteSpace(cotaValue) && !string.IsNullOrWhiteSpace(rawContractNumber) && rawContractNumber.Contains(";"))
+            {
+                cotaValue = rawContractNumber;
+            }
+
+            var cotaInfo = CotaDecomposer.Decompose(cotaValue);
             
-            var contractNumber = cotaInfo.Contract;
+            var contractNumber = ResolveContractNumber(row, reverseMappings);
+            if (string.IsNullOrWhiteSpace(contractNumber) && cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Contract))
+            {
+                contractNumber = Utils.NormalizationUtils.NormalizeNumber(cotaInfo.Contract);
+            }
+
             var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
             var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
 
@@ -362,7 +369,9 @@ namespace SalesApp.Services
                 }
             }
 
-            var groupValue = GetFieldValue(row, reverseMappings, "GroupId") ?? cotaInfo.Group;
+            var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
+            if (string.IsNullOrWhiteSpace(groupValue) && cotaInfo.IsFromConcatenatedString) groupValue = cotaInfo.Group;
+
             var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
             if (string.IsNullOrWhiteSpace(matriculaNumber) && !string.IsNullOrWhiteSpace(cotaInfo.Matricula) && !cotaInfo.IsFromConcatenatedString)
             {
@@ -370,7 +379,7 @@ namespace SalesApp.Services
             }
 
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
-            if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaInfo.Customer;
+            if (string.IsNullOrWhiteSpace(customerName) && cotaInfo.IsFromConcatenatedString) customerName = cotaInfo.Customer;
 
             bool isFromScrape = uploadId != null && uploadId.Contains("scrape", StringComparison.OrdinalIgnoreCase);
 
@@ -487,6 +496,10 @@ namespace SalesApp.Services
             if (cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Matricula))
             {
                 quotaStr = cotaInfo.Matricula;
+            }
+            else if (string.IsNullOrWhiteSpace(quotaStr) && !string.IsNullOrWhiteSpace(cotaValue) && !cotaInfo.IsFromConcatenatedString)
+            {
+                quotaStr = cotaValue;
             }
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
             // Use the customerName extracted earlier from Cota if direct column is empty
