@@ -122,6 +122,8 @@ namespace SalesApp.Controllers
             var missingInSystem = new List<ReconciledContractItemDto>();
             var missingInImport = new List<ReconciledContractItemDto>();
             var amountMismatches = new List<AmountMismatchItemDto>();
+            var dateMismatches = new List<DateMismatchItemDto>();
+            var sellerMismatches = new List<SellerMismatchItemDto>();
             var unassignedUserContracts = new List<ReconciledContractItemDto>();
 
             // System contract matching lookup
@@ -196,12 +198,11 @@ namespace SalesApp.Controllers
                 if (systemContractsMap.TryGetValue(contractNum, out var systemContract))
                 {
                     matchedSystemContractNumbers.Add(contractNum);
+                    var sysUser = systemContract.UserInternalId.HasValue && userIdToUserMap.TryGetValue(systemContract.UserInternalId.Value, out var u) ? u.Name : resolvedUserName;
 
                     // Check amount mismatch
                     if (Math.Abs(systemContract.TotalAmount - amountVal) > 0.01m)
                     {
-                        var sysUser = systemContract.UserInternalId.HasValue && userIdToUserMap.TryGetValue(systemContract.UserInternalId.Value, out var u) ? u.Name : resolvedUserName;
-
                         amountMismatches.Add(new AmountMismatchItemDto
                         {
                             ContractNumber = contractNum,
@@ -209,6 +210,32 @@ namespace SalesApp.Controllers
                             XlsxAmount = amountVal,
                             UserIdentifier = userVal ?? resolvedUserName,
                             SystemUserName = sysUser,
+                            SaleStartDate = systemContract.SaleStartDate
+                        });
+                    }
+
+                    // Check date mismatch (ignoring time)
+                    if (dateVal.HasValue && systemContract.SaleStartDate.Date != dateVal.Value.Date)
+                    {
+                        dateMismatches.Add(new DateMismatchItemDto
+                        {
+                            ContractNumber = contractNum,
+                            TotalAmount = systemContract.TotalAmount,
+                            SystemDate = systemContract.SaleStartDate,
+                            XlsxDate = dateVal.Value,
+                            SystemUserName = sysUser
+                        });
+                    }
+
+                    // Check seller mismatch (when XLSX resolved a user and it differs from system user)
+                    if (rowUser != null && (!systemContract.UserInternalId.HasValue || systemContract.UserInternalId.Value != rowUser.InternalId))
+                    {
+                        sellerMismatches.Add(new SellerMismatchItemDto
+                        {
+                            ContractNumber = contractNum,
+                            TotalAmount = systemContract.TotalAmount,
+                            SystemUserName = sysUser,
+                            XlsxUserIdentifier = rowUser.Name ?? userVal,
                             SaleStartDate = systemContract.SaleStartDate
                         });
                     }
@@ -269,6 +296,16 @@ namespace SalesApp.Controllers
                     Count = amountMismatches.Count,
                     TotalAmount = amountMismatches.Sum(x => x.Difference)
                 },
+                DateMismatchSummary = new ReconciliationCategorySummaryDto
+                {
+                    Count = dateMismatches.Count,
+                    TotalAmount = dateMismatches.Sum(x => x.TotalAmount)
+                },
+                SellerMismatchSummary = new ReconciliationCategorySummaryDto
+                {
+                    Count = sellerMismatches.Count,
+                    TotalAmount = sellerMismatches.Sum(x => x.TotalAmount)
+                },
                 UnassignedUserSummary = new ReconciliationCategorySummaryDto
                 {
                     Count = unassignedUserContracts.Count,
@@ -278,6 +315,8 @@ namespace SalesApp.Controllers
                 MissingInSystem = missingInSystem,
                 MissingInImport = missingInImport,
                 AmountMismatches = amountMismatches,
+                DateMismatches = dateMismatches,
+                SellerMismatches = sellerMismatches,
                 UnassignedUserContracts = unassignedUserContracts
             };
 

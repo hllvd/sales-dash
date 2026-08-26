@@ -1,6 +1,26 @@
 # Features
 
-## Criação de Usuário por Administrador: Gestor, Matrícula e Equipe Padrão
+## Reconciliação de Contratos: Filtro por Equipe e Novas Categorias de Divergência
+
+Esta funcionalidade expande a ferramenta de Reconciliação de Contratos (`/#/contract-reconciliation`), adicionando o filtro opcional por **Equipe** que preenche/restringe a listagem de usuários apenas aos membros ativos da equipe selecionada, além de introduzir duas novas categorias de divergência de auditoria: **Divergência de Data** e **Divergência de Vendedor**.
+
+### Core Objectives
+- **Filtro de Equipe (`Team`)**:
+  - Novo campo de seleção de equipes no formulário de reconciliação.
+  - Ao selecionar uma equipe, o dropdown de seleção de usuários passa a listar automaticamente apenas os membros **ativos** pertencentes àquela equipe (`isActive = true`).
+  - Ao alterar ou limpar a equipe selecionada, a seleção de usuário é redefinida com segurança.
+- **Rótulo Dinâmico para Contratos Ausentes na Planilha**:
+  - Quando uma equipe está selecionada, o card de KPI e a aba correspondente passam a indicar expressamente os contratos da equipe: *"Contratos da Equipe [Nome da Equipe] ausentes no XLSX"*.
+- **Divergência de Data (`Date Mismatches`)**:
+  - Identifica contratos presentes tanto na planilha XLSX quanto no sistema cuja data de venda (`SaleStartDate` vs data extraída da planilha) seja divergente (considerando apenas a parte da data).
+  - Exibe card de KPI dedicado com contagem e valor total, além de aba interativa detalhando número do contrato, data no sistema, data no XLSX, valor e usuário.
+- **Divergência de Vendedor (`Seller Mismatches`)**:
+  - Identifica contratos presentes em ambas as fontes, porém atribuídos a vendedores/usuários diferentes entre o sistema e a planilha importada.
+  - Exibe card de KPI dedicado com contagem e valor total, além de aba interativa exibindo o vendedor no sistema, vendedor identificado no XLSX, valor e data de venda.
+- **Exportação CSV Completa**:
+  - As novas abas de Divergência de Data e Divergência de Vendedor contam com suporte à exportação de relatórios em formato CSV compatível com Excel.
+
+---
 
 Esta funcionalidade simplifica e automatiza o processo de criação de novos usuários por administradores (`Admin`), preenchendo automaticamente o gestor com o administrador logado, selecionando por padrão a matrícula própria do gestor e vinculando o novo usuário à equipe do gestor.
 
