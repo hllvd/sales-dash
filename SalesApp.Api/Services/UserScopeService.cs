@@ -98,10 +98,8 @@ namespace SalesApp.Services
 
             context.AllowedMatriculas = new HashSet<string>(allowedMatriculas);
 
-            // Also include every active matricula that the requesting user belongs to,
-            // regardless of IsOwner flag. This ensures an admin always sees contracts
-            // linked to their own matriculas even when their user node has no descendants.
-            var selfMatriculas = await _context.UserMatriculas
+            // Fetch Matricula numbers directly linked to the requesting admin (owner or member)
+            var adminLinkedMatriculas = await _context.UserMatriculas
                 .AsNoTracking()
                 .Where(m => m.IsActive &&
                             (m.EndDate == null || m.EndDate > now) &&
@@ -110,8 +108,7 @@ namespace SalesApp.Services
                 .Distinct()
                 .ToListAsync();
 
-            foreach (var mat in selfMatriculas)
-                context.AllowedMatriculas.Add(mat);
+            context.AdminLinkedMatriculas = new HashSet<string>(adminLinkedMatriculas);
 
             return context;
         }

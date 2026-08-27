@@ -83,7 +83,14 @@ namespace SalesApp.Repositories
                 query = query.Where(c => 
                     (c.User != null && scope.AllowedUserIds.Contains(c.User.Id)) ||
                     (!string.IsNullOrEmpty(c.TempMatricula) && scope.AllowedMatriculas.Contains(c.TempMatricula)) ||
-                    (c.Matricula != null && scope.AllowedMatriculas.Contains(c.Matricula.MatriculaNumber))
+                    (c.Matricula != null && scope.AllowedMatriculas.Contains(c.Matricula.MatriculaNumber)) ||
+                    (scope.AdminLinkedMatriculas.Count > 0 && (
+                        (!string.IsNullOrEmpty(c.TempMatricula) && scope.AdminLinkedMatriculas.Contains(c.TempMatricula)) ||
+                        (c.Matricula != null && scope.AdminLinkedMatriculas.Contains(c.Matricula.MatriculaNumber))
+                    ) && (
+                        c.UserInternalId == null ||
+                        (c.User != null && scope.AllowedUserIds.Contains(c.User.Id))
+                    ))
                 );
             }
             

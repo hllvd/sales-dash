@@ -1,6 +1,22 @@
 # Features
 
-## Reconciliação de Contratos: Filtro por Equipe e Novas Categorias de Divergência
+## Visibilidade de Contratos por Matrículas Vinculadas ao Administrador (Admin Linked Matriculas)
+
+Esta funcionalidade expande o escopo de visualização de contratos na listagem de contratos (`Contracts list`), permitindo que administradores (`Admin`) visualizem contratos diretamente vinculados às matrículas às quais estão associados (seja como proprietário/owner ou como membro), mantendo a integridade da hierarquia de usuários.
+
+### Core Objectives
+- **Escopo Baseado em Matrículas Vinculadas (`AdminLinkedMatriculas`)**:
+  - Identifica no `UserScopeService` todas as matrículas ativas e não expiradas diretamente vinculadas ao usuário administrador logado (`UserMatriculas`).
+  - Disponibiliza a propriedade `AdminLinkedMatriculas` no contexto de escopo (`UserScopeContext`).
+- **Inclusão Aditiva de Contratos no Repositório (`ContractRepository`)**:
+  - Contratos vinculados a uma matrícula do administrador (`AdminLinkedMatriculas`) passam a ser visíveis se:
+    1. O contrato **não possui usuário atribuído** (`UserInternalId == null`), OU
+    2. O contrato está atribuído a um usuário que pertence à **árvore de subordinados** do administrador (`AllowedUserIds`).
+  - Contratos atribuídos a usuários de ramos hierárquicos não subordinados permanecem devidamente restritos e inacessíveis.
+- **Preservação do Escopo Hierárquico Existente**:
+  - Toda a lógica de visibilidade hierárquica baseada em `AllowedUserIds` (BFS descendente a partir de `ParentUserId`) e `AllowedMatriculas` é preservada sem alterações regressivas.
+
+---
 
 Esta funcionalidade expande a ferramenta de Reconciliação de Contratos (`/#/contract-reconciliation`), adicionando o filtro opcional por **Equipe** que preenche/restringe a listagem de usuários apenas aos membros ativos da equipe selecionada, além de introduzir duas novas categorias de divergência de auditoria: **Divergência de Data** e **Divergência de Vendedor**.
 
