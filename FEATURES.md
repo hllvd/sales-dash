@@ -422,8 +422,10 @@ Improve UI response times, eliminate redundant load on the backend, and prevent 
 - **Contract Form Optimization**: Overhauls `ContractForm` to read from the cache for users, groups, and PVs, completely eliminating up to 3 redundant API calls every time the "Criar/Editar Contrato" modal is opened.
 - **Admin Import Model Restriction**: Restricts `BulkImportModal` to hide the template selection dropdown for users with `admin` role, automatically enforcing the `"contractDashboard"` template model as default, while allowing `superadmin` users to still choose other models.
 - **Contract Dashboard Parameterized Import Updates**: Enables configurable update behavior when importing existing contracts via the `contractDashboard` template:
-  - **Atualizar matrícula em contratos existentes**: Checkbox (default: unchecked/off). Controls whether `MatriculaId` is updated on existing contracts.
+  - **Auto-Fill Missing Matrículas**: If an existing contract currently has no matrícula (`MatriculaId == null`) and the imported file row provides a valid matrícula, `MatriculaId` is always automatically populated (treated as an initial fill without triggering change warnings).
+  - **Atualizar matrícula em contratos existentes**: Checkbox (default: unchecked/off). Controls whether `MatriculaId` is updated on existing contracts that already have a matrícula assigned. When checked, updates the link and ensures the assigned user is linked in `UserMatricula`.
   - **Atualizar valor total em contratos existentes**: Checkbox (default: checked/on). Controls whether `TotalAmount` is updated on existing contracts.
+  - **Atualizar data do contrato**: Checkbox (default: checked/on). Controls whether `SaleStartDate` is updated on existing contracts.
 - **Waterfall Fetch Elimination**: 
   - **MyContractsPage**: Parallelizes pending claims retrieval using `Promise.all` instead of a serial `for...of` loop (one query per owned matricula). Also separates date-based filter changes from claims loading.
   - **TeamsPage**: Parallelizes member removal logic using `Promise.all` to execute all removal calls simultaneously.

@@ -1946,6 +1946,32 @@ namespace SalesApp.Services
                     if (!string.IsNullOrWhiteSpace(customerName)) contract.CustomerName = customerName;
                     if (pvId.HasValue) contract.PvId = pvId;
                     if (version.HasValue) contract.Version = version;
+                    if (!contract.MatriculaId.HasValue && matriculaId.HasValue)
+                    {
+                        contract.MatriculaId = matriculaId;
+
+                        // If updateMatriculaOnExisting is enabled and user is assigned, ensure UserMatricula link exists
+                        if (updateMatriculaOnExisting && contract.UserInternalId.HasValue)
+                        {
+                            var userGuid = resolvedUserGuid ?? contract.User?.Id;
+                            if (userGuid.HasValue && !string.IsNullOrWhiteSpace(matriculaNumber))
+                            {
+                                var existingLink = await _userMatriculaRepository
+                                    .GetByMatriculaNumberAndUserIdAsync(matriculaNumber, userGuid.Value);
+                                if (existingLink == null)
+                                {
+                                    await _userMatriculaRepository.CreateAsync(new UserMatricula
+                                    {
+                                        UserInternalId = contract.UserInternalId.Value,
+                                        MatriculaId = matriculaId.Value,
+                                        IsOwner = false,
+                                        IsActive = true,
+                                        ImportSessionId = importSessionId
+                                    });
+                                }
+                            }
+                        }
+                    }
                     if (!string.IsNullOrWhiteSpace(tempMatricula) && string.IsNullOrWhiteSpace(contract.TempMatricula)) contract.TempMatricula = tempMatricula;
                     if (categoryMetadataId.HasValue) contract.CategoryMetadataId = categoryMetadataId;
                     if (planoVendaMetadataId.HasValue) contract.PlanoVendaMetadataId = planoVendaMetadataId;
