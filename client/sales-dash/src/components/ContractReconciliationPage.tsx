@@ -151,7 +151,8 @@ const ContractReconciliationPage: React.FC = () => {
         file,
         startDate,
         endDate,
-        selectedUserId || undefined
+        selectedUserId || undefined,
+        selectedTeamId ? parseInt(selectedTeamId, 10) : undefined
       );
       setResult(res);
       setActiveTab('missing-in-system');

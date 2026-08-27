@@ -1463,7 +1463,8 @@ export const apiService = {
     file: File,
     startDate: string,
     endDate: string,
-    userId?: string
+    userId?: string,
+    teamId?: number
   ): Promise<ContractReconciliationResult> {
     const formData = new FormData()
     formData.append("file", file)
@@ -1471,6 +1472,9 @@ export const apiService = {
     formData.append("endDate", endDate)
     if (userId) {
       formData.append("userId", userId)
+    }
+    if (teamId) {
+      formData.append("teamId", teamId.toString())
     }
 
     const token = localStorage.getItem("token")
@@ -1908,6 +1912,8 @@ export interface ContractReconciliationResult {
   endDate: string
   targetUserId?: string
   targetUserName?: string
+  targetTeamId?: number
+  targetTeamName?: string
   missingInSystemSummary: ReconciliationCategorySummary
   missingInImportSummary: ReconciliationCategorySummary
   amountMismatchSummary: ReconciliationCategorySummary

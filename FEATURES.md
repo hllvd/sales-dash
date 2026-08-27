@@ -9,6 +9,7 @@ Esta funcionalidade expande a ferramenta de Reconciliação de Contratos (`/#/co
   - Novo campo de seleção de equipes no formulário de reconciliação.
   - Ao selecionar uma equipe, o dropdown de seleção de usuários passa a listar automaticamente apenas os membros **ativos** pertencentes àquela equipe (`isActive = true`).
   - Ao alterar ou limpar a equipe selecionada, a seleção de usuário é redefinida com segurança.
+  - No backend, ao submeter com uma equipe selecionada (sem usuário individual), os contratos do sistema e o cruzamento com o XLSX são filtrados estritamente pelos membros ativos daquela equipe.
 - **Rótulo Dinâmico para Contratos Ausentes na Planilha**:
   - Quando uma equipe está selecionada, o card de KPI e a aba correspondente passam a indicar expressamente os contratos da equipe: *"Contratos da Equipe [Nome da Equipe] ausentes no XLSX"*.
 - **Divergência de Data (`Date Mismatches`)**:

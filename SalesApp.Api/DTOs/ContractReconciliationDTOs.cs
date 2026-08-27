@@ -54,6 +54,8 @@ namespace SalesApp.DTOs
         public DateTime EndDate { get; set; }
         public Guid? TargetUserId { get; set; }
         public string? TargetUserName { get; set; }
+        public int? TargetTeamId { get; set; }
+        public string? TargetTeamName { get; set; }
 
         public ReconciliationCategorySummaryDto MissingInSystemSummary { get; set; } = new();
         public ReconciliationCategorySummaryDto MissingInImportSummary { get; set; } = new();

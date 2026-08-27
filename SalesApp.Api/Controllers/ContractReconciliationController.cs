@@ -35,7 +35,8 @@ namespace SalesApp.Controllers
             [FromForm] IFormFile file,
             [FromForm] DateTime startDate,
             [FromForm] DateTime endDate,
-            [FromForm] Guid? userId)
+            [FromForm] Guid? userId,
+            [FromForm] int? teamId)
         {
             if (file == null || file.Length == 0)
             {
@@ -69,6 +70,23 @@ namespace SalesApp.Controllers
             if (userId.HasValue && userId.Value != Guid.Empty)
             {
                 targetUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId.Value);
+            }
+
+            // Target Team Lookup & Active Member IDs
+            Team? targetTeam = null;
+            HashSet<int>? activeTeamMemberInternalIds = null;
+            if (teamId.HasValue && teamId.Value > 0)
+            {
+                targetTeam = await _context.Teams.AsNoTracking().FirstOrDefaultAsync(t => t.Id == teamId.Value);
+                if (targetTeam != null)
+                {
+                    var activeUserIds = await _context.UserTeams
+                        .AsNoTracking()
+                        .Where(ut => ut.TeamId == targetTeam.Id && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow))
+                        .Select(ut => ut.UserInternalId)
+                        .ToListAsync();
+                    activeTeamMemberInternalIds = activeUserIds.ToHashSet();
+                }
             }
 
             // Preload system users and matriculas for matching
@@ -105,6 +123,10 @@ namespace SalesApp.Controllers
             if (targetUser != null)
             {
                 contractsQuery = contractsQuery.Where(c => c.UserInternalId == targetUser.InternalId);
+            }
+            else if (activeTeamMemberInternalIds != null)
+            {
+                contractsQuery = contractsQuery.Where(c => c.UserInternalId.HasValue && activeTeamMemberInternalIds.Contains(c.UserInternalId.Value));
             }
 
             var systemContracts = await contractsQuery.ToListAsync();
@@ -188,7 +210,15 @@ namespace SalesApp.Controllers
                 {
                     if (rowUser != null && rowUser.Id != targetUser.Id)
                     {
-                        // Belongs to another user, skip for Target User A scope
+                        // Belongs to another user, skip for Target User scope
+                        continue;
+                    }
+                }
+                else if (activeTeamMemberInternalIds != null)
+                {
+                    if (rowUser != null && !activeTeamMemberInternalIds.Contains(rowUser.InternalId))
+                    {
+                        // Belongs to a user outside the target Team, skip for Target Team scope
                         continue;
                     }
                 }
@@ -280,6 +310,8 @@ namespace SalesApp.Controllers
                 EndDate = endDate,
                 TargetUserId = targetUser?.Id,
                 TargetUserName = targetUser?.Name,
+                TargetTeamId = targetTeam?.Id,
+                TargetTeamName = targetTeam?.Name,
 
                 MissingInSystemSummary = new ReconciliationCategorySummaryDto
                 {
