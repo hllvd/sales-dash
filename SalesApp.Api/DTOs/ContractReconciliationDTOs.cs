@@ -42,6 +42,16 @@ namespace SalesApp.DTOs
         public DateTime? SaleStartDate { get; set; }
     }
 
+    public class StatusMismatchItemDto
+    {
+        public string ContractNumber { get; set; } = string.Empty;
+        public decimal TotalAmount { get; set; }
+        public string? SystemStatus { get; set; }
+        public string? XlsxStatus { get; set; }
+        public string? SystemUserName { get; set; }
+        public DateTime? SaleStartDate { get; set; }
+    }
+
     public class ReconciliationCategorySummaryDto
     {
         public int Count { get; set; }
@@ -62,6 +72,7 @@ namespace SalesApp.DTOs
         public ReconciliationCategorySummaryDto AmountMismatchSummary { get; set; } = new();
         public ReconciliationCategorySummaryDto DateMismatchSummary { get; set; } = new();
         public ReconciliationCategorySummaryDto SellerMismatchSummary { get; set; } = new();
+        public ReconciliationCategorySummaryDto StatusMismatchSummary { get; set; } = new();
         public ReconciliationCategorySummaryDto UnassignedUserSummary { get; set; } = new();
 
         public List<ReconciledContractItemDto> MissingInSystem { get; set; } = new();
@@ -69,6 +80,7 @@ namespace SalesApp.DTOs
         public List<AmountMismatchItemDto> AmountMismatches { get; set; } = new();
         public List<DateMismatchItemDto> DateMismatches { get; set; } = new();
         public List<SellerMismatchItemDto> SellerMismatches { get; set; } = new();
+        public List<StatusMismatchItemDto> StatusMismatches { get; set; } = new();
         public List<ReconciledContractItemDto> UnassignedUserContracts { get; set; } = new();
     }
 }
