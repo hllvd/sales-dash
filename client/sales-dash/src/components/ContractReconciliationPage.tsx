@@ -385,7 +385,7 @@ const ContractReconciliationPage: React.FC = () => {
                 onClick={() => setActiveTab('missing-in-system')}
               >
                 <div className="kpi-header">
-                  <span className="kpi-label">Ausentes no Sistema</span>
+                  <span className="kpi-label">No XLSX (Fora do Sistema)</span>
                   <div className="kpi-icon-wrapper">
                     <IconAlertCircle size={20} />
                   </div>
@@ -403,7 +403,7 @@ const ContractReconciliationPage: React.FC = () => {
               >
                 <div className="kpi-header">
                   <span className="kpi-label">
-                    {selectedTeam ? `Ausentes no XLSX (${selectedTeam.name})` : 'Ausentes no XLSX'}
+                    {selectedTeam ? `No Sistema (Fora do XLSX - ${selectedTeam.name})` : 'No Sistema (Fora do XLSX)'}
                   </span>
                   <div className="kpi-icon-wrapper">
                     <IconFileSpreadsheet size={20} />
@@ -514,7 +514,7 @@ const ContractReconciliationPage: React.FC = () => {
                       </Badge>
                     }
                   >
-                    Importados no XLSX que não estão no sistema
+                    No XLSX (Não cadastrados no Sistema)
                   </Tabs.Tab>
 
                   <Tabs.Tab
@@ -527,8 +527,8 @@ const ContractReconciliationPage: React.FC = () => {
                     }
                   >
                     {selectedTeam
-                      ? `Contratos da Equipe "${selectedTeam.name}" ausentes no XLSX`
-                      : 'No Sistema que não vieram no XLSX'}
+                      ? `No Sistema (Equipe "${selectedTeam.name}", ausentes no XLSX)`
+                      : 'No Sistema (Ausentes no XLSX)'}
                   </Tabs.Tab>
 
                   <Tabs.Tab
@@ -617,8 +617,8 @@ const ContractReconciliationPage: React.FC = () => {
                   {filteredMissingInSystem.length === 0 ? (
                     <div className="empty-state">
                       <IconCheck className="empty-icon" color="green" />
-                      <Text fw={600}>Nenhum contrato ausente no sistema!</Text>
-                      <Text size="sm">Todos os contratos da planilha importada para este usuário/equipe existem no sistema.</Text>
+                      <Text fw={600}>Nenhum contrato da planilha pendente de cadastro no sistema!</Text>
+                      <Text size="sm">Todos os contratos da planilha importada para este usuário/equipe já existem no sistema.</Text>
                     </div>
                   ) : (
                     <div className="table-responsive">
@@ -643,7 +643,7 @@ const ContractReconciliationPage: React.FC = () => {
                               <Table.Td>{formatDate(item.date)}</Table.Td>
                               <Table.Td>
                                 <Badge color="red" variant="light">
-                                  Não Encontrado no Sistema
+                                  Não Cadastrado no Sistema
                                 </Badge>
                               </Table.Td>
                             </Table.Tr>
@@ -659,7 +659,7 @@ const ContractReconciliationPage: React.FC = () => {
                   {filteredMissingInImport.length === 0 ? (
                     <div className="empty-state">
                       <IconCheck className="empty-icon" color="green" />
-                      <Text fw={600}>Nenhum contrato ausente na planilha!</Text>
+                      <Text fw={600}>Nenhum contrato do sistema ausente na planilha!</Text>
                       <Text size="sm">Todos os contratos cadastrados no sistema dentro do período constam no arquivo enviado.</Text>
                     </div>
                   ) : (
@@ -685,7 +685,7 @@ const ContractReconciliationPage: React.FC = () => {
                               <Table.Td>{formatDate(item.date)}</Table.Td>
                               <Table.Td>
                                 <Badge color="yellow" variant="light">
-                                  Ausente na Planilha XLSX
+                                  Não Consta na Planilha XLSX
                                 </Badge>
                               </Table.Td>
                             </Table.Tr>
