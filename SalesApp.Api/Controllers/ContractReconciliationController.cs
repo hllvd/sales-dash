@@ -22,11 +22,16 @@ namespace SalesApp.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IFileParserService _fileParserService;
+        private readonly IContractStatusMapper _statusMapper;
 
-        public ContractReconciliationController(AppDbContext context, IFileParserService fileParserService)
+        public ContractReconciliationController(
+            AppDbContext context,
+            IFileParserService fileParserService,
+            IContractStatusMapper statusMapper)
         {
             _context = context;
             _fileParserService = fileParserService;
+            _statusMapper = statusMapper;
         }
 
         [HttpPost("reconcile")]
@@ -273,15 +278,17 @@ namespace SalesApp.Controllers
                         });
                     }
 
-                    // Check status mismatch (case-insensitive)
+                    // Check status mismatch (using Contract.ContractStatusId / ContractStatus.Name)
                     var statusVal = GetColumnValue(row, statusAliases)?.Trim();
-                    var systemStatus = !string.IsNullOrWhiteSpace(systemContract.RawStatus)
-                        ? systemContract.RawStatus.Trim()
-                        : systemContract.ContractStatus?.Name?.Trim();
+                    var systemStatus = systemContract.ContractStatus?.Name?.Trim();
 
                     if (!string.IsNullOrWhiteSpace(statusVal) || !string.IsNullOrWhiteSpace(systemStatus))
                     {
-                        if (!string.Equals(systemStatus ?? string.Empty, statusVal ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                        var xlsxCanonical = !string.IsNullOrWhiteSpace(statusVal) ? _statusMapper.MapStatus(statusVal) : null;
+                        bool matches = string.Equals(systemStatus ?? string.Empty, statusVal ?? string.Empty, StringComparison.OrdinalIgnoreCase)
+                                    || (!string.IsNullOrWhiteSpace(xlsxCanonical) && string.Equals(systemStatus ?? string.Empty, xlsxCanonical, StringComparison.OrdinalIgnoreCase));
+
+                        if (!matches)
                         {
                             statusMismatches.Add(new StatusMismatchItemDto
                             {
