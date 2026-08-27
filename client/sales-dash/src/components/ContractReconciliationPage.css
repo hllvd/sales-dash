@@ -87,6 +87,10 @@
   border-left: 5px solid #6366f1;
 }
 
+.kpi-card.teal {
+  border-left: 5px solid #0d9488;
+}
+
 .kpi-card.gray {
   border-left: 5px solid #6b7280;
 }
@@ -138,6 +142,11 @@
 .kpi-card.indigo .kpi-icon-wrapper {
   background: rgba(99, 102, 241, 0.1);
   color: #6366f1;
+}
+
+.kpi-card.teal .kpi-icon-wrapper {
+  background: rgba(13, 148, 136, 0.1);
+  color: #0d9488;
 }
 
 .kpi-card.gray .kpi-icon-wrapper {

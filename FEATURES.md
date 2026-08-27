@@ -18,8 +18,11 @@ Esta funcionalidade expande a ferramenta de Reconciliação de Contratos (`/#/co
 - **Divergência de Vendedor (`Seller Mismatches`)**:
   - Identifica contratos presentes em ambas as fontes, porém atribuídos a vendedores/usuários diferentes entre o sistema e a planilha importada.
   - Exibe card de KPI dedicado com contagem e valor total, além de aba interativa exibindo o vendedor no sistema, vendedor identificado no XLSX, valor e data de venda.
+- **Divergência de Status (`Status Mismatches`)**:
+  - Identifica contratos presentes em ambas as fontes cujo status difere entre o sistema (`RawStatus` / `ContractStatus`) e a planilha XLSX (comparação case-insensitive).
+  - Exibe card de KPI dedicado com contagem e valor total, além de aba interativa exibindo o status no sistema, status no XLSX, vendedor, valor e data de venda.
 - **Exportação CSV Completa**:
-  - As novas abas de Divergência de Data e Divergência de Vendedor contam com suporte à exportação de relatórios em formato CSV compatível com Excel.
+  - Todas as abas de divergência contam com suporte à exportação de relatórios em formato CSV compatível com Excel.
 
 ---
 

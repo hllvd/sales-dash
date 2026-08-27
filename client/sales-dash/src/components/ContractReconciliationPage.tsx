@@ -23,6 +23,7 @@ import {
   IconCheck,
   IconCalendarTime,
   IconUserExclamation,
+  IconTags,
 } from '@tabler/icons-react';
 import {
   apiService,
@@ -215,6 +216,16 @@ const ContractReconciliationPage: React.FC = () => {
         item.totalAmount.toFixed(2),
         `"${formatDate(item.saleStartDate)}"`,
       ]);
+    } else if (activeTab === 'status-mismatches') {
+      headers = ['Número do Contrato', 'Status no Sistema', 'Status no XLSX', 'Valor Total', 'Usuário no Sistema', 'Data de Venda'];
+      rows = filteredStatusMismatches.map((item) => [
+        `"${item.contractNumber}"`,
+        `"${item.systemStatus || ''}"`,
+        `"${item.xlsxStatus || ''}"`,
+        item.totalAmount.toFixed(2),
+        `"${item.systemUserName || ''}"`,
+        `"${formatDate(item.saleStartDate)}"`,
+      ]);
     } else if (activeTab === 'unassigned-users') {
       headers = ['Número do Contrato', 'Valor (XLSX)', 'Identificador de Usuário (XLSX)', 'Data'];
       rows = filteredUnassigned.map((item) => [
@@ -260,6 +271,11 @@ const ContractReconciliationPage: React.FC = () => {
 
   const filteredSellerMismatches =
     result?.sellerMismatches?.filter((i) => filterItem(i.contractNumber, `${i.systemUserName || ''} ${i.xlsxUserIdentifier || ''}`)) || [];
+
+  const filteredStatusMismatches =
+    result?.statusMismatches?.filter((i) =>
+      filterItem(i.contractNumber, `${i.systemUserName || ''} ${i.systemStatus || ''} ${i.xlsxStatus || ''}`)
+    ) || [];
 
   const filteredUnassigned =
     result?.unassignedUserContracts.filter((i) => filterItem(i.contractNumber, i.userIdentifier)) || [];
@@ -450,7 +466,24 @@ const ContractReconciliationPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Card 6: Unassigned Users */}
+              {/* Card 6: Status Mismatches */}
+              <div
+                className={`kpi-card teal ${activeTab === 'status-mismatches' ? 'active' : ''}`}
+                onClick={() => setActiveTab('status-mismatches')}
+              >
+                <div className="kpi-header">
+                  <span className="kpi-label">Divergência de Status</span>
+                  <div className="kpi-icon-wrapper">
+                    <IconTags size={20} />
+                  </div>
+                </div>
+                <div className="kpi-count">{result.statusMismatchSummary?.count || 0}</div>
+                <div className="kpi-amount">
+                  Total Sistema: {formatCurrency(result.statusMismatchSummary?.totalAmount || 0)}
+                </div>
+              </div>
+
+              {/* Card 7: Unassigned Users */}
               <div
                 className={`kpi-card gray ${activeTab === 'unassigned-users' ? 'active' : ''}`}
                 onClick={() => setActiveTab('unassigned-users')}
@@ -532,6 +565,18 @@ const ContractReconciliationPage: React.FC = () => {
                     }
                   >
                     Divergência de Vendedor
+                  </Tabs.Tab>
+
+                  <Tabs.Tab
+                    value="status-mismatches"
+                    leftSection={<IconTags size={16} />}
+                    rightSection={
+                      <Badge size="xs" color="teal" variant="filled">
+                        {result.statusMismatchSummary?.count || 0}
+                      </Badge>
+                    }
+                  >
+                    Divergência de Status
                   </Tabs.Tab>
 
                   <Tabs.Tab
@@ -783,7 +828,57 @@ const ContractReconciliationPage: React.FC = () => {
                   )}
                 </Tabs.Panel>
 
-                {/* Tab 6: Unassigned Users */}
+                {/* Tab: Status Mismatches */}
+                <Tabs.Panel value="status-mismatches">
+                  {filteredStatusMismatches.length === 0 ? (
+                    <div className="empty-state">
+                      <IconCheck className="empty-icon" color="green" />
+                      <Text fw={600}>Nenhuma divergência de status!</Text>
+                      <Text size="sm">Os status de todos os contratos correspondentes coincidem entre o sistema e o XLSX.</Text>
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <Table striped highlightOnHover>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Número do Contrato</Table.Th>
+                            <Table.Th>Status no Sistema</Table.Th>
+                            <Table.Th>Status no XLSX</Table.Th>
+                            <Table.Th>Valor Total</Table.Th>
+                            <Table.Th>Usuário no Sistema</Table.Th>
+                            <Table.Th>Data de Venda</Table.Th>
+                            <Table.Th>Status</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {filteredStatusMismatches.map((item, index) => (
+                            <Table.Tr key={index}>
+                              <Table.Td>
+                                <Text fw={600}>{item.contractNumber}</Text>
+                              </Table.Td>
+                              <Table.Td>
+                                <Badge color="blue" variant="light">{item.systemStatus || 'Não Definido'}</Badge>
+                              </Table.Td>
+                              <Table.Td>
+                                <Badge color="orange" variant="light">{item.xlsxStatus || 'Não Informado'}</Badge>
+                              </Table.Td>
+                              <Table.Td>{formatCurrency(item.totalAmount)}</Table.Td>
+                              <Table.Td>{item.systemUserName || '-'}</Table.Td>
+                              <Table.Td>{formatDate(item.saleStartDate)}</Table.Td>
+                              <Table.Td>
+                                <Badge color="teal" variant="light">
+                                  Status Divergente
+                                </Badge>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    </div>
+                  )}
+                </Tabs.Panel>
+
+                {/* Tab 7: Unassigned Users */}
                 <Tabs.Panel value="unassigned-users">
                   {filteredUnassigned.length === 0 ? (
                     <div className="empty-state">

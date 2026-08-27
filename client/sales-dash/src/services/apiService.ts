@@ -1902,6 +1902,15 @@ export interface SellerMismatchItem {
   saleStartDate?: string
 }
 
+export interface StatusMismatchItem {
+  contractNumber: string
+  totalAmount: number
+  systemStatus?: string
+  xlsxStatus?: string
+  systemUserName?: string
+  saleStartDate?: string
+}
+
 export interface ReconciliationCategorySummary {
   count: number
   totalAmount: number
@@ -1919,12 +1928,14 @@ export interface ContractReconciliationResult {
   amountMismatchSummary: ReconciliationCategorySummary
   dateMismatchSummary: ReconciliationCategorySummary
   sellerMismatchSummary: ReconciliationCategorySummary
+  statusMismatchSummary: ReconciliationCategorySummary
   unassignedUserSummary: ReconciliationCategorySummary
   missingInSystem: ReconciledContractItem[]
   missingInImport: ReconciledContractItem[]
   amountMismatches: AmountMismatchItem[]
   dateMismatches: DateMismatchItem[]
   sellerMismatches: SellerMismatchItem[]
+  statusMismatches: StatusMismatchItem[]
   unassignedUserContracts: ReconciledContractItem[]
 }
 

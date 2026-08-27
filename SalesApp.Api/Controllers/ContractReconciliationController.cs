@@ -118,6 +118,7 @@ namespace SalesApp.Controllers
 
             var contractsQuery = _context.Contracts
                 .AsNoTracking()
+                .Include(c => c.ContractStatus)
                 .Where(c => c.SaleStartDate >= startDateTime && c.SaleStartDate <= endDateTime);
 
             if (targetUser != null)
@@ -139,6 +140,7 @@ namespace SalesApp.Controllers
             var amountAliases = new[] { "totalamount", "valor", "valortotal", "valor total", "amount", "preco", "preço", "valor_total" };
             var userAliases = new[] { "useremail", "email", "e-mail", "matricula", "matrícula", "cpf", "userinternalid", "usuario", "usuário", "vendedor", "nome" };
             var dateAliases = new[] { "date", "salestartdate", "datavenda", "data da venda", "data", "createdat" };
+            var statusAliases = new[] { "status", "situacao", "situação", "estado", "rawstatus", "raw stats", "raw_status" };
 
             // Result sets
             var missingInSystem = new List<ReconciledContractItemDto>();
@@ -146,6 +148,7 @@ namespace SalesApp.Controllers
             var amountMismatches = new List<AmountMismatchItemDto>();
             var dateMismatches = new List<DateMismatchItemDto>();
             var sellerMismatches = new List<SellerMismatchItemDto>();
+            var statusMismatches = new List<StatusMismatchItemDto>();
             var unassignedUserContracts = new List<ReconciledContractItemDto>();
 
             // System contract matching lookup
@@ -269,6 +272,28 @@ namespace SalesApp.Controllers
                             SaleStartDate = systemContract.SaleStartDate
                         });
                     }
+
+                    // Check status mismatch (case-insensitive)
+                    var statusVal = GetColumnValue(row, statusAliases)?.Trim();
+                    var systemStatus = !string.IsNullOrWhiteSpace(systemContract.RawStatus)
+                        ? systemContract.RawStatus.Trim()
+                        : systemContract.ContractStatus?.Name?.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(statusVal) || !string.IsNullOrWhiteSpace(systemStatus))
+                    {
+                        if (!string.Equals(systemStatus ?? string.Empty, statusVal ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                        {
+                            statusMismatches.Add(new StatusMismatchItemDto
+                            {
+                                ContractNumber = contractNum,
+                                TotalAmount = systemContract.TotalAmount,
+                                SystemStatus = systemStatus,
+                                XlsxStatus = statusVal,
+                                SystemUserName = sysUser,
+                                SaleStartDate = systemContract.SaleStartDate
+                            });
+                        }
+                    }
                 }
                 else
                 {
@@ -338,6 +363,11 @@ namespace SalesApp.Controllers
                     Count = sellerMismatches.Count,
                     TotalAmount = sellerMismatches.Sum(x => x.TotalAmount)
                 },
+                StatusMismatchSummary = new ReconciliationCategorySummaryDto
+                {
+                    Count = statusMismatches.Count,
+                    TotalAmount = statusMismatches.Sum(x => x.TotalAmount)
+                },
                 UnassignedUserSummary = new ReconciliationCategorySummaryDto
                 {
                     Count = unassignedUserContracts.Count,
@@ -349,6 +379,7 @@ namespace SalesApp.Controllers
                 AmountMismatches = amountMismatches,
                 DateMismatches = dateMismatches,
                 SellerMismatches = sellerMismatches,
+                StatusMismatches = statusMismatches,
                 UnassignedUserContracts = unassignedUserContracts
             };
 
