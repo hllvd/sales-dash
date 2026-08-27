@@ -475,7 +475,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconTools size={20} />}
               childrenOffset={28}
               styles={navLinkStyles('')}
-              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation'}
+              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter'}
             >
               <NavLink
                 href="#/tester"
@@ -496,6 +496,13 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
                 label="Reconciliação de Contratos"
                 active={isActive('#/contract-reconciliation')}
                 styles={navLinkStyles('#/contract-reconciliation')}
+                onClick={() => { if (opened) close(); }}
+              />
+              <NavLink
+                href="#/retention-filter"
+                label="Filtro Modelo Retenção"
+                active={isActive('#/retention-filter')}
+                styles={navLinkStyles('#/retention-filter')}
                 onClick={() => { if (opened) close(); }}
               />
             </NavLink>

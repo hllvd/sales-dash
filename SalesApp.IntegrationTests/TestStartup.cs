@@ -67,6 +67,7 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IWizardHeaderValidator, WizardHeaderValidator>();
             services.AddScoped<IContractStatusService, ContractStatusService>();
             services.AddScoped<IApprovalService, ApprovalService>();
+            services.AddScoped<IRetentionFilterService, RetentionFilterService>();
 
             // Monitoring & Notifications
             services.AddScoped<IMonitoringRepository, MonitoringRepository>();

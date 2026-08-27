@@ -1499,6 +1499,56 @@ export const apiService = {
 
     return response.json()
   },
+
+  async previewRetentionFilter(fileA: File, fileB: File): Promise<ApiResponse<RetentionFilterProcessResponse>> {
+    const formData = new FormData()
+    formData.append("fileA", fileA)
+    formData.append("fileB", fileB)
+
+    const token = localStorage.getItem("token")
+    const response = await authenticatedFetch(`${API_BASE_URL}/retentionfilter/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorText = typeof response === "string" ? response : await response.text().catch(() => "Erro na requisição")
+      let errorObj
+      try {
+        errorObj = JSON.parse(errorText)
+      } catch {
+        errorObj = null
+      }
+      throw new Error(errorObj?.message || errorText || "Erro ao processar o filtro de retenção")
+    }
+
+    return response.json()
+  },
+
+  async downloadFilteredRetentionFile(fileA: File, fileB: File): Promise<Blob> {
+    const formData = new FormData()
+    formData.append("fileA", fileA)
+    formData.append("fileB", fileB)
+
+    const token = localStorage.getItem("token")
+    const response = await authenticatedFetch(`${API_BASE_URL}/retentionfilter/download`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Erro no download do arquivo")
+      throw new Error(errorText || "Erro ao baixar arquivo filtrado")
+    }
+
+    return response.blob()
+  },
 }
 
 export interface UserHierarchyNode {
@@ -1938,4 +1988,20 @@ export interface ContractReconciliationResult {
   statusMismatches: StatusMismatchItem[]
   unassignedUserContracts: ReconciledContractItem[]
 }
+
+export interface RetentionFilterStats {
+  totalRowsModelA: number
+  totalContractsModelB: number
+  matchedRowsModelC: number
+  removedRows: number
+  retentionRate: number
+}
+
+export interface RetentionFilterProcessResponse {
+  stats: RetentionFilterStats
+  matchedContracts: string[]
+  sampleRows: Array<Record<string, string>>
+  headers: string[]
+}
+
 
