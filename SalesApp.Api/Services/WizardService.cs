@@ -680,7 +680,7 @@ namespace SalesApp.Services
                     var row = JsonSerializer.Deserialize<Dictionary<string, string>>(dbRow.RowData) ?? new();
 
                     var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "name", "Nome", "Usuário");
-                    var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
+                    var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat");
 
                     var nameNorm = nameVal.ToLower().Trim();
                     var matNorm = matVal.ToLower().Trim();
@@ -906,7 +906,7 @@ namespace SalesApp.Services
             {
                 var emailVal = row.TryGetValue("Email", out var e) ? e?.Trim() : null;
                 var nameVal = GetColumnValue(row, "Consultor", "Vendedor", "Comissionado", "Name", "name", "Nome", "Usuário");
-                var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat", "ID");
+                var matVal = GetColumnValue(row, "Matrícula", "Matricula", "matricula", "Mat");
 
                 var nameNorm = nameVal?.Trim().ToLower();
                 var matNorm = matVal?.Trim().ToLower();

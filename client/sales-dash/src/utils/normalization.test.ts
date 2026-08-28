@@ -1,4 +1,4 @@
-import { normalizeName } from './normalization';
+import { normalizeName, normalizeNumber } from './normalization';
 
 describe('normalizeName', () => {
   it('should normalize uppercase names to Pascal Case', () => {
@@ -22,3 +22,29 @@ describe('normalizeName', () => {
     expect(normalizeName(undefined)).toBe('');
   });
 });
+
+describe('normalizeNumber', () => {
+  it('should remove leading zeros', () => {
+    expect(normalizeNumber('012345')).toBe('12345');
+    expect(normalizeNumber('000123')).toBe('123');
+    expect(normalizeNumber('0')).toBe('0');
+    expect(normalizeNumber('000')).toBe('0');
+  });
+
+  it('should sanitize dash and placeholder values to empty string', () => {
+    expect(normalizeNumber('-')).toBe('');
+    expect(normalizeNumber('--')).toBe('');
+    expect(normalizeNumber(' - ')).toBe('');
+    expect(normalizeNumber('N/A')).toBe('');
+    expect(normalizeNumber('null')).toBe('');
+    expect(normalizeNumber('none')).toBe('');
+    expect(normalizeNumber('sem matricula')).toBe('');
+  });
+
+  it('should handle empty, null, and undefined values', () => {
+    expect(normalizeNumber('')).toBe('');
+    expect(normalizeNumber(null)).toBe('');
+    expect(normalizeNumber(undefined)).toBe('');
+  });
+});
+

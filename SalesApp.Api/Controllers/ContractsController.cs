@@ -460,6 +460,7 @@ namespace SalesApp.Controllers
                 
                 contract.MatriculaId = matricula.Id;
                 contract.TempMatricula = matricula.MatriculaNumber;
+                contract.Matricula = matricula;
             }
             else if (request.UserMatriculaId.HasValue)
             {
@@ -469,6 +470,19 @@ namespace SalesApp.Controllers
                 {
                     contract.MatriculaId = um.MatriculaId;
                     contract.TempMatricula = um.Matricula?.MatriculaNumber;
+                    contract.Matricula = um.Matricula;
+                }
+            }
+            else if (contract.User != null)
+            {
+                var userMatriculas = await _userMatriculaRepository.GetByUserIdAsync(contract.User.Id);
+                var defaultMatricula = userMatriculas.FirstOrDefault(um => um.IsActive && um.IsOwner)
+                                       ?? userMatriculas.FirstOrDefault(um => um.IsActive);
+                if (defaultMatricula != null)
+                {
+                    contract.MatriculaId = defaultMatricula.MatriculaId;
+                    contract.TempMatricula = defaultMatricula.Matricula?.MatriculaNumber;
+                    contract.Matricula = defaultMatricula.Matricula;
                 }
             }
 
@@ -639,6 +653,7 @@ namespace SalesApp.Controllers
                 }
                 contract.MatriculaId = matricula.Id;
                 contract.TempMatricula = matricula.MatriculaNumber;
+                contract.Matricula = matricula;
             }
             else
             {
@@ -658,6 +673,18 @@ namespace SalesApp.Controllers
                     contract.MatriculaId = null;
                     contract.TempMatricula = null;
                     contract.Matricula = null;
+                }
+                else if (contract.User != null)
+                {
+                    var userMatriculas = await _userMatriculaRepository.GetByUserIdAsync(contract.User.Id);
+                    var defaultMatricula = userMatriculas.FirstOrDefault(um => um.IsActive && um.IsOwner)
+                                           ?? userMatriculas.FirstOrDefault(um => um.IsActive);
+                    if (defaultMatricula != null)
+                    {
+                        contract.MatriculaId = defaultMatricula.MatriculaId;
+                        contract.TempMatricula = defaultMatricula.Matricula?.MatriculaNumber;
+                        contract.Matricula = defaultMatricula.Matricula;
+                    }
                 }
             }
             
@@ -853,7 +880,17 @@ namespace SalesApp.Controllers
         private ContractResponse MapToContractResponse(Contract contract)
         {
             // Resolve the most appropriate matricula number for the response
-            var matriculaNumber = contract.Matricula?.MatriculaNumber ?? contract.TempMatricula;
+            var matriculaNumber = contract.Matricula?.MatriculaNumber 
+                ?? contract.TempMatricula
+                ?? contract.User?.UserMatriculas?.FirstOrDefault(um => um.IsActive && um.IsOwner)?.Matricula?.MatriculaNumber
+                ?? contract.User?.UserMatriculas?.FirstOrDefault(um => um.IsActive)?.Matricula?.MatriculaNumber;
+
+            // Sanitize placeholder values (e.g. "-", "--", "N/A", "null")
+            matriculaNumber = NormalizationUtils.NormalizeNumber(matriculaNumber);
+            if (string.IsNullOrWhiteSpace(matriculaNumber))
+            {
+                matriculaNumber = null;
+            }
 
             return new ContractResponse
             {

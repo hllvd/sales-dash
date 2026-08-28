@@ -377,6 +377,8 @@ namespace SalesApp.Services
             {
                 matriculaNumber = cotaInfo.Matricula;
             }
+            matriculaNumber = NormalizationUtils.NormalizeNumber(matriculaNumber);
+            if (string.IsNullOrWhiteSpace(matriculaNumber)) matriculaNumber = null;
 
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
             if (string.IsNullOrWhiteSpace(customerName) && cotaInfo.IsFromConcatenatedString) customerName = cotaInfo.Customer;
@@ -463,6 +465,19 @@ namespace SalesApp.Services
                 if (ownerRel != null)
                 {
                     user = ownerRel.User;
+                }
+            }
+
+            // If user is resolved but no matricula was provided in row, fallback to user's active/owner matricula
+            if (user != null && !matriculaId.HasValue)
+            {
+                var userMatriculas = await _userMatriculaRepository.GetByUserIdAsync(user.Id);
+                var defaultMatricula = userMatriculas.FirstOrDefault(um => um.IsActive && um.IsOwner)
+                                       ?? userMatriculas.FirstOrDefault(um => um.IsActive);
+                if (defaultMatricula != null)
+                {
+                    matriculaId = defaultMatricula.MatriculaId;
+                    matriculaNumber = defaultMatricula.Matricula?.MatriculaNumber;
                 }
             }
 
@@ -599,9 +614,13 @@ namespace SalesApp.Services
 
             contract.ContractNumber = contractNumber;
             contract.UserInternalId = user?.InternalId; // Can be null if unassigned
-            if (user == null && !string.IsNullOrWhiteSpace(matriculaNumber) && string.IsNullOrWhiteSpace(contract.TempMatricula))
+            if (user == null && !string.IsNullOrWhiteSpace(matriculaNumber))
             {
                 contract.TempMatricula = matriculaNumber;
+            }
+            else if (user != null)
+            {
+                contract.TempMatricula = null;
             }
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
@@ -621,6 +640,10 @@ namespace SalesApp.Services
             if (matriculaId.HasValue && contract.MatriculaId != matriculaId)
             {
                 contract.MatriculaId = matriculaId;
+            }
+            else if (!matriculaId.HasValue && user == null)
+            {
+                contract.MatriculaId = null;
             }
 
             return contract;
