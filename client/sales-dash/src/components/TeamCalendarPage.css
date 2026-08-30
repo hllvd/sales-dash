@@ -1,0 +1,349 @@
+.team-calendar-page {
+  padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.team-calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.team-calendar-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .team-calendar-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Left Pane: User List ──────────────────────────────────────────────── */
+
+.team-calendar-users-pane {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.team-calendar-users-search {
+  margin-bottom: 12px;
+}
+
+.team-calendar-level-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.team-calendar-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.team-calendar-level-group {
+  margin-bottom: 16px;
+}
+
+.team-calendar-level-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  padding: 6px 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.team-calendar-user-card {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #f3f4f6;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.team-calendar-user-card:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+.team-calendar-user-card.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.team-calendar-user-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.team-calendar-user-card__name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1f2937;
+}
+
+.team-calendar-user-card__email {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.team-calendar-user-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 0.75rem;
+}
+
+/* ── Right Pane: Timeline & Details ────────────────────────────────────── */
+
+.team-calendar-details-pane {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  min-height: 480px;
+}
+
+.team-calendar-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 380px;
+  color: #9ca3af;
+  text-align: center;
+  gap: 12px;
+}
+
+.team-calendar-user-detail-header {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.team-calendar-timeline-container {
+  margin: 32px 0 24px 0;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.team-calendar-timeline-track {
+  position: relative;
+  height: 72px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  display: flex;
+  overflow: visible;
+  user-select: none;
+  margin: 20px 0;
+}
+
+.team-calendar-timeline-block {
+  position: relative;
+  height: 100%;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  padding: 0 12px;
+  box-sizing: border-box;
+  transition: opacity 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.team-calendar-timeline-block:hover {
+  filter: brightness(1.05);
+}
+
+.team-calendar-timeline-block__title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
+}
+
+.team-calendar-timeline-block__dates {
+  font-size: 0.72rem;
+  opacity: 0.9;
+}
+
+/* Drag Handle on boundary */
+.team-calendar-boundary-handle {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 18px;
+  margin-left: -9px;
+  z-index: 20;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease;
+}
+
+.team-calendar-boundary-handle:hover,
+.team-calendar-boundary-handle.dragging {
+  transform: scale(1.15);
+}
+
+.team-calendar-boundary-handle__line {
+  width: 4px;
+  height: 100%;
+  background: #111827;
+  border-radius: 4px;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.team-calendar-boundary-handle__pill {
+  position: absolute;
+  top: -24px;
+  background: #111827;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Timeline Cards List below bar */
+.team-calendar-periods-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.team-calendar-period-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-left-width: 6px;
+  transition: transform 0.15s ease;
+}
+
+.team-calendar-period-card:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Preview Modal ──────────────────────────────────────────────────────── */
+
+.team-calendar-preview-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.team-calendar-preview-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .team-calendar-preview-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.team-calendar-preview-col {
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.team-calendar-preview-col__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.team-calendar-preview-table {
+  width: 100%;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+}
+
+.team-calendar-preview-table th {
+  text-align: left;
+  padding: 6px 8px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.team-calendar-preview-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #1f2937;
+}
+
+.team-calendar-preview-table tr:hover td {
+  background: #f9fafb;
+}
+
+.team-calendar-preview-empty {
+  padding: 24px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}

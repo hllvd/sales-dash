@@ -27,6 +27,7 @@ import {
   IconReceipt2,
   IconMailForward,
   IconBuildingStore,
+  IconCalendar,
 } from '@tabler/icons-react';
 
 interface MenuProps {
@@ -43,6 +44,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   const { buildInfo } = useBuildInfo();
   const [usersMenuOpened, setUsersMenuOpened] = useState(
     window.location.hash === '#/users' || window.location.hash === '#/users/tree'
+  );
+  const [teamsMenuOpened, setTeamsMenuOpened] = useState(
+    window.location.hash === '#/teams' || window.location.hash === '#/teams/calendar'
   );
   const [pendingCount, setPendingCount] = useState<number>(0);
 
@@ -61,6 +65,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   useEffect(() => {
     if (currentPath === '#/users' || currentPath === '#/users/tree') {
       setUsersMenuOpened(true);
+    }
+    if (currentPath === '#/teams' || currentPath === '#/teams/calendar') {
+      setTeamsMenuOpened(true);
     }
   }, [currentPath]);
 
@@ -123,7 +130,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   };
 
   const navLinkStyles = (path: string) => {
-    const isNodeActive = isActive(path) || (path === 'users-parent' && (currentPath === '#/users' || currentPath === '#/users/tree'));
+    const isNodeActive = isActive(path) || 
+      (path === 'users-parent' && (currentPath === '#/users' || currentPath === '#/users/tree')) ||
+      (path === 'teams-parent' && (currentPath === '#/teams' || currentPath === '#/teams/calendar'));
     return {
       root: {
         color: '#d1d5db',
@@ -305,16 +314,45 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
           )}
 
           {hasPermission('teams:manage') && (
-            <NavLink
-              href="#/teams"
-              label="Equipes"
-              leftSection={<IconUsers size={20} />}
-              active={isActive('#/teams')}
-              variant="filled"
-              color="red"
-              styles={navLinkStyles('#/teams')}
-              onClick={() => { if (opened) close(); }}
-            />
+            <>
+              <NavLink
+                component="a"
+                href="#/teams"
+                role="link"
+                label="Equipes"
+                leftSection={<IconUsers size={20} />}
+                styles={navLinkStyles('teams-parent')}
+                active={currentPath === '#/teams' || currentPath === '#/teams/calendar'}
+                color="red"
+                variant="filled"
+                rightSection={teamsMenuOpened ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+                onClick={() => {
+                  setTeamsMenuOpened(!teamsMenuOpened);
+                  if (opened) close();
+                }}
+              />
+              {teamsMenuOpened && (
+                <>
+                  <NavLink
+                    href="#/teams"
+                    label="Lista"
+                    active={isActive('#/teams')}
+                    styles={navLinkStyles('#/teams')}
+                    style={{ paddingLeft: 28 }}
+                    onClick={() => { if (opened) close(); }}
+                  />
+                  <NavLink
+                    href="#/teams/calendar"
+                    label="Calendário"
+                    leftSection={<IconCalendar size={16} />}
+                    active={isActive('#/teams/calendar')}
+                    styles={navLinkStyles('#/teams/calendar')}
+                    style={{ paddingLeft: 28 }}
+                    onClick={() => { if (opened) close(); }}
+                  />
+                </>
+              )}
+            </>
           )}
 
           {hasPermission('system:superadmin') && (

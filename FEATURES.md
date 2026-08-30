@@ -1,5 +1,37 @@
 # Features
 
+## Calendário de Equipes por Usuário (Team Calendar Timeline)
+
+Esta funcionalidade adiciona uma visão interativa de linha do tempo e calendário de equipes (`#/teams/calendar`), permitindo visualizar e ajustar de forma visual os períodos de vínculo de equipes de cada usuário descendente (Níveis 1, 2 e 3) do administrador logado, com preview dos contratos afetados pela transição.
+
+### Core Objectives
+- **Submenu Expansível "Equipes" (`Menu.tsx`)**:
+  - Transforma o item de navegação "Equipes" em um menu expansível com as opções:
+    - **Lista** (`#/teams`): listagem e gerenciamento padrão de equipes.
+    - **Calendário** (`#/teams/calendar`): visualização de linha do tempo por usuário.
+- **Visualização Hierárquica por Níveis (Nível 1, 2 e 3)**:
+  - Painel lateral com lista de usuários ordenada por níveis de descendência (Nível 1, depois Nível 2 e Nível 3).
+  - Filtros rápidos por nível e busca em tempo real por nome, e-mail ou equipe.
+  - Indicadores visuais de equipe atual (ou "Sem equipe") e contagem de períodos.
+- **Linha do Tempo Interativa de Equipes (`Timeline Track`)**:
+  - Renderiza todos os períodos de histórico de equipes do usuário ao longo do tempo como blocos coloridos e proporcionais.
+  - Exibe nome da equipe, datas formatadas e duração calculada.
+  - Handles arrastáveis nas bordas de transição entre equipes adjacentes para ajuste visual das datas de corte.
+- **Regra de Intervalo Mínimo de 1 Semana**:
+  - Restrição rígida de que nenhum período de equipe pode ter duração inferior a 7 dias (1 semana), validada tanto visualmente no drag quanto no backend.
+- **Modal de Confirmação com Preview de Contratos**:
+  - Ao soltar o ajuste de data ou clicar no botão de ajuste, um modal exibe:
+    - Nova data de corte de transição entre a equipe anterior e a nova equipe.
+    - Tabela comparativa dos **5 contratos mais recentes** da equipe anterior (antes da data).
+    - Tabela comparativa dos **5 contratos mais antigos** da nova equipe (a partir da data).
+    - Campos detalhados: ID do Contrato, Data da Venda, Nome do Cliente (`CustomerName`) e Matrícula.
+- **Endpoints de Backend Dedicados**:
+  - `GET api/teams/calendar`: consulta a hierarquia de usuários (níveis 1, 2 e 3) e carrega o histórico de equipes ordenado.
+  - `GET api/teams/calendar/contract-preview`: consulta os contratos antes/depois da data de corte para o usuário.
+  - `PUT api/teams/calendar/adjust-boundary`: atualiza atomicamente as datas de transição de equipes com validação do período mínimo.
+
+---
+
 ## Visibilidade de Contratos por Matrículas Vinculadas ao Administrador (Admin Linked Matriculas)
 
 Esta funcionalidade expande o escopo de visualização de contratos na listagem de contratos (`Contracts list`), permitindo que administradores (`Admin`) visualizem contratos diretamente vinculados às matrículas às quais estão associados (seja como proprietário/owner ou como membro), mantendo a integridade da hierarquia de usuários.

@@ -190,7 +190,11 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Failure:** `import_wizard.spec.ts` failed on `expect(locator).toBeVisible()` waiting for `.aggregation-summary` on `#/contracts` due to SQLite Error 19 UNIQUE constraint on `Contracts.ContractNumber` during Step 3 import.
 **Root cause:** In Step 3 default mappings (`WizardService.cs`), `"Cota"` was mapped to `"ContractNumber"` alongside `"Contrato"`, and `BuildContractFromRowAsync` (`ImportExecutionService.cs`) extracted `contractNumber` from `row["Cota"]`, overriding the real contract number with quota numbers and creating duplicate contract numbers across groups.
 **Fix applied:** Updated `WizardService.cs` Step 3 mappings to map `"Cota"` to `"Quota"`; updated `BuildContractFromRowAsync` to prioritize `ResolveContractNumber` and only decompose `Cota` when formatted as a concatenated string; updated `contracts_ui_enhancements.spec.ts` to clean up `localStorage` filters; rebuilt containers and verified full suite.
-**Result:** ✅ Green — 150/150 (Run 1) and 148/148 (Run 2) passed with 0 errors
+## [2026-08-30] all — Attempt 1
+**Failure:** CS0106 / CS1513 compiler errors in `TeamsController.cs` during build.
+**Root cause:** Missing closing brace `}` on `MapToTeamResponse` prior to `GetTeamCalendar` endpoint definition.
+**Fix applied:** Added closing brace for `MapToTeamResponse` in `TeamsController.cs`.
+**Result:** ✅ Green (272/272 integration tests, 152/152 E2E Run 1, 153/153 E2E Run 2)
 
 
 

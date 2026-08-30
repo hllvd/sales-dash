@@ -9,6 +9,7 @@ import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
 import MatriculasPage from './components/MatriculasPage';
 import TeamsPage from './components/TeamsPage';
+import TeamCalendarPage from './components/TeamCalendarPage';
 import StoresPage from './components/StoresPage';
 import ClassificationsPage from './components/ClassificationsPage';
 import MyProfilePage from './components/MyProfilePage';
@@ -103,6 +104,8 @@ function App() {
         return <MatriculasPage />;
       case '#/teams':
         return <TeamsPage />;
+      case '#/teams/calendar':
+        return <TeamCalendarPage />;
       case '#/stores':
         return <StoresPage />;
       case '#/classifications':

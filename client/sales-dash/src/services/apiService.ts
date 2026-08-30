@@ -1229,6 +1229,46 @@ export const apiService = {
     return response.json()
   },
 
+  async getTeamCalendar(): Promise<ApiResponse<TeamCalendarUser[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/calendar`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao carregar calendário de equipes"))
+    }
+    return response.json()
+  },
+
+  async getContractPreview(userId: string, boundaryDate: string): Promise<ApiResponse<CalendarContractPreviewResponse>> {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/teams/calendar/contract-preview?userId=${encodeURIComponent(userId)}&boundaryDate=${encodeURIComponent(boundaryDate)}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    )
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao carregar preview de contratos"))
+    }
+    return response.json()
+  },
+
+  async adjustTeamBoundary(data: AdjustTeamBoundaryRequest): Promise<ApiResponse<TeamCalendarUser>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/calendar/adjust-boundary`, {
+      method: "PUT",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao ajustar datas da equipe"))
+    }
+    return response.json()
+  },
+
   // ── Classification Levels ────────────────────────────────────────────────────
 
   async getClassificationLevels(): Promise<ApiResponse<ClassificationLevel[]>> {
@@ -1703,6 +1743,48 @@ export interface Team {
   warnings?: string[]
   createdAt: string
   updatedAt: string
+}
+
+export interface UserTeamHistoryEntry {
+  userTeamId: number
+  teamId: number
+  teamName: string
+  startDate: string
+  endDate: string | null
+  isActive: boolean
+}
+
+export interface TeamCalendarUser {
+  userId: string
+  userInternalId: number
+  userName: string
+  userEmail: string
+  currentTeamName: string | null
+  currentTeamId: number | null
+  hierarchyLevel: number
+  parentUserName?: string | null
+  teamHistory: UserTeamHistoryEntry[]
+}
+
+export interface CalendarContractPreviewItem {
+  contractId: number
+  contractNumber: string
+  saleStartDate: string
+  customerName: string | null
+  matriculaNumber: string | null
+  totalAmount: number
+}
+
+export interface CalendarContractPreviewResponse {
+  olderTeamContracts: CalendarContractPreviewItem[]
+  newerTeamContracts: CalendarContractPreviewItem[]
+}
+
+export interface AdjustTeamBoundaryRequest {
+  userId: string
+  olderTeamId?: number
+  newerTeamId?: number
+  boundaryDate: string
 }
 
 // ── Classification Levels ──────────────────────────────────────────────────────

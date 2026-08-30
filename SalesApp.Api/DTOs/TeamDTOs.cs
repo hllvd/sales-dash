@@ -74,4 +74,53 @@ namespace SalesApp.DTOs
 
         public DateTime? EndDate { get; set; }
     }
+
+    public class TeamCalendarUserHistoryItem
+    {
+        public int UserTeamId { get; set; }
+        public int TeamId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class TeamCalendarUserResponse
+    {
+        public Guid UserId { get; set; }
+        public int UserInternalId { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public string UserEmail { get; set; } = string.Empty;
+        public string? CurrentTeamName { get; set; }
+        public int? CurrentTeamId { get; set; }
+        public int HierarchyLevel { get; set; }
+        public string? ParentUserName { get; set; }
+        public List<TeamCalendarUserHistoryItem> TeamHistory { get; set; } = new List<TeamCalendarUserHistoryItem>();
+    }
+
+    public class CalendarContractPreviewItem
+    {
+        public int ContractId { get; set; }
+        public string ContractNumber { get; set; } = string.Empty;
+        public DateTime SaleStartDate { get; set; }
+        public string? CustomerName { get; set; }
+        public string? MatriculaNumber { get; set; }
+        public decimal TotalAmount { get; set; }
+    }
+
+    public class CalendarContractPreviewResponse
+    {
+        public List<CalendarContractPreviewItem> OlderTeamContracts { get; set; } = new List<CalendarContractPreviewItem>();
+        public List<CalendarContractPreviewItem> NewerTeamContracts { get; set; } = new List<CalendarContractPreviewItem>();
+    }
+
+    public class AdjustTeamBoundaryRequest
+    {
+        [Required]
+        public Guid UserId { get; set; }
+        public int? OlderTeamId { get; set; }
+        public int? NewerTeamId { get; set; }
+        [Required]
+        public DateTime BoundaryDate { get; set; }
+    }
 }
