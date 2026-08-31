@@ -124,7 +124,7 @@
   font-size: 0.75rem;
 }
 
-/* ── Right Pane: Timeline & Details ────────────────────────────────────── */
+/* ── Right Pane: Details & Hero Card ───────────────────────────────────── */
 
 .team-calendar-details-pane {
   background: white;
@@ -149,7 +149,7 @@
 .team-calendar-user-detail-header {
   border-bottom: 1px solid #e5e7eb;
   padding-bottom: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -157,8 +157,50 @@
   gap: 16px;
 }
 
+/* Hero Current Team Card */
+.team-calendar-current-card {
+  border: 1px solid #e0e7ff;
+  background: linear-gradient(135deg, #f8faff 0%, #eff6ff 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.team-calendar-current-card.no-team {
+  border-color: #f3f4f6;
+  background: #f9fafb;
+}
+
+.team-calendar-current-card__info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.team-calendar-current-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #dbeafe;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-calendar-current-card.no-team .team-calendar-current-card__icon {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+/* Timeline Section */
 .team-calendar-timeline-container {
-  margin: 32px 0 24px 0;
+  margin: 24px 0;
   padding: 16px;
   background: #f9fafb;
   border-radius: 12px;
@@ -187,15 +229,18 @@
   color: white;
   padding: 0 12px;
   box-sizing: border-box;
-  transition: opacity 0.15s ease;
+  transition: all 0.15s ease;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.85rem;
+  cursor: pointer;
 }
 
 .team-calendar-timeline-block:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
 }
 
 .team-calendar-timeline-block__title {
@@ -217,8 +262,8 @@
   position: absolute;
   top: -8px;
   bottom: -8px;
-  width: 18px;
-  margin-left: -9px;
+  width: 20px;
+  margin-left: -10px;
   z-index: 20;
   cursor: col-resize;
   display: flex;
@@ -255,12 +300,12 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Timeline Cards List below bar */
+/* Periods List */
 .team-calendar-periods-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 24px;
+  margin-top: 16px;
 }
 
 .team-calendar-period-card {
@@ -280,12 +325,34 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
-/* ── Preview Modal ──────────────────────────────────────────────────────── */
+/* ── Wizard Modal ───────────────────────────────────────────────────────── */
 
-.team-calendar-preview-modal {
+.team-calendar-modal-title {
+  color: #111827 !important;
+  font-weight: 700 !important;
+  font-size: 1.15rem !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-calendar-wizard-modal {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.team-calendar-stepper {
+  width: 100%;
+}
+
+.team-calendar-stepper .mantine-Stepper-steps {
+  flex-wrap: nowrap !important;
+}
+
+.team-calendar-wizard-step-content {
+  min-height: 230px;
+  padding: 12px 0;
 }
 
 .team-calendar-preview-columns {

@@ -25,8 +25,18 @@ Esta funcionalidade adiciona uma visão interativa de linha do tempo e calendár
     - Tabela comparativa dos **5 contratos mais recentes** da equipe anterior (antes da data).
     - Tabela comparativa dos **5 contratos mais antigos** da nova equipe (a partir da data).
     - Campos detalhados: ID do Contrato, Data da Venda, Nome do Cliente (`CustomerName`) e Matrícula.
+- **Card de Destaque "Equipe Atual" e Ações Rápidas**:
+  - Exibe a equipe ativa com badge colorido, data de início, tempo de permanência formatado e botão de ação primário `[+ Atribuir Nova Equipe]` (ou `[+ Atribuir Primeira Equipe]`).
+- **Wizard de Atribuição de Nova Equipe (`AssignTeamWizardModal`)**:
+  - Fluxo assistido em 4 passos:
+    - **Passo 1 (Seleção da Equipe)**: Dropdown de equipes permitidas na hierarquia (gestor logado + subordinados até 3 níveis) com exibição de Loja, Gestor e membros ativos, acompanhado da opção habilitada por padrão *"Mudar também o superior direto (usuário pai) para {Gestor da Equipe}"*.
+    - **Passo 2 (Data de Início)**: Definição da data de início na nova equipe e encerramento da equipe anterior, com aviso informativo se a permanência na equipe anterior for inferior a 14 dias (*"Não é normal pertencer a uma equipe por tão poucos dias..."*).
+    - **Passo 3 (Preview de Contratos)**: Consulta dinâmica e tabela comparativa dos contratos antes/depois da data de corte.
+    - **Passo 4 (Confirmação)**: Resumo visual da transição, nova equipe e novo superior direto com botão de confirmação.
 - **Endpoints de Backend Dedicados**:
   - `GET api/teams/calendar`: consulta a hierarquia de usuários (níveis 1, 2 e 3) e carrega o histórico de equipes ordenado.
+  - `GET api/teams/calendar/available-teams`: lista de equipes sob a gestão do admin logado ou subordinados até 3 níveis com seus respectivos gestores.
+  - `POST api/teams/calendar/assign-team`: encerra o vínculo ativo anterior, cria o novo vínculo de equipe atomicamente e atualiza o `ParentUserId` para o gestor da nova equipe com validação contra ciclos hierárquicos.
   - `GET api/teams/calendar/contract-preview`: consulta os contratos antes/depois da data de corte para o usuário.
   - `PUT api/teams/calendar/adjust-boundary`: atualiza atomicamente as datas de transição de equipes com validação do período mínimo.
 

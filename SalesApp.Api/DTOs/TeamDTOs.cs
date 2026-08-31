@@ -95,6 +95,7 @@ namespace SalesApp.DTOs
         public int? CurrentTeamId { get; set; }
         public int HierarchyLevel { get; set; }
         public string? ParentUserName { get; set; }
+        public DateTime? EarliestContractDate { get; set; }
         public List<TeamCalendarUserHistoryItem> TeamHistory { get; set; } = new List<TeamCalendarUserHistoryItem>();
     }
 
@@ -122,5 +123,26 @@ namespace SalesApp.DTOs
         public int? NewerTeamId { get; set; }
         [Required]
         public DateTime BoundaryDate { get; set; }
+    }
+
+    public class AvailableTeamItemResponse
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? StoreName { get; set; }
+        public string? OwnerName { get; set; }
+        public Guid? OwnerUserId { get; set; }
+        public int MemberCount { get; set; }
+    }
+
+    public class AssignUserTeamRequest
+    {
+        [Required]
+        public Guid UserId { get; set; }
+        [Required]
+        public int NewTeamId { get; set; }
+        [Required]
+        public DateTime StartDate { get; set; }
+        public bool UpdateParentUser { get; set; } = true;
     }
 }

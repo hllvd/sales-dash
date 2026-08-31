@@ -1269,6 +1269,32 @@ export const apiService = {
     return response.json()
   },
 
+  async getAvailableTeamsForAssignment(): Promise<ApiResponse<AvailableTeamItem[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/calendar/available-teams`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao carregar equipes disponíveis"))
+    }
+    return response.json()
+  },
+
+  async assignUserTeam(data: AssignUserTeamRequest): Promise<ApiResponse<TeamCalendarUser>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/calendar/assign-team`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao atribuir nova equipe"))
+    }
+    return response.json()
+  },
+
   // ── Classification Levels ────────────────────────────────────────────────────
 
   async getClassificationLevels(): Promise<ApiResponse<ClassificationLevel[]>> {
@@ -1763,6 +1789,7 @@ export interface TeamCalendarUser {
   currentTeamId: number | null
   hierarchyLevel: number
   parentUserName?: string | null
+  earliestContractDate?: string | null
   teamHistory: UserTeamHistoryEntry[]
 }
 
@@ -1785,6 +1812,22 @@ export interface AdjustTeamBoundaryRequest {
   olderTeamId?: number
   newerTeamId?: number
   boundaryDate: string
+}
+
+export interface AvailableTeamItem {
+  id: number
+  name: string
+  storeName?: string
+  ownerName?: string
+  ownerUserId?: string
+  memberCount: number
+}
+
+export interface AssignUserTeamRequest {
+  userId: string
+  newTeamId: number
+  startDate: string
+  updateParentUser?: boolean
 }
 
 // ── Classification Levels ──────────────────────────────────────────────────────

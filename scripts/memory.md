@@ -196,6 +196,36 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Added closing brace for `MapToTeamResponse` in `TeamsController.cs`.
 **Result:** ✅ Green (272/272 integration tests, 152/152 E2E Run 1, 153/153 E2E Run 2)
 
+## [2026-08-30] all — Attempt 2
+**Failure:** None — added new backend integration tests (`TeamCalendarIntegrationTests.cs`) and frontend E2E tests (`team_calendar.spec.ts`) for the Team Calendar feature.
+**Root cause:** N/A (new test suite coverage).
+**Fix applied:** Resolved `RoleId = 2` assignment in `TeamCalendarIntegrationTests.cs` and registered `team_calendar.spec.ts` in `playwright.config.ts`.
+**Result:** ✅ Green (all integration tests passed, 150/150 E2E Run 1, 153/153 E2E Run 2)
+
+## [2026-08-30] all — Attempt 3
+**Failure:** `TeamCalendarPage.tsx` TS18047 null check on build and `approval_requests.spec.ts` idempotency collision in E2E Run 2.
+**Root cause:** `selectedUser` null check missing in Step 3 confirmation card; `RUN_ID` 4-digit timestamp slice collision and lack of proactive cleanup in `approval_requests.spec.ts`.
+**Fix applied:** Added null check for `selectedUser` in `TeamCalendarPage.tsx` and added unique RUN_ID generation + proactive cleanup in `approval_requests.spec.ts`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 153/153 E2E Run 2)
+
+## [2026-08-30] all — Attempt 4
+**Failure:** None — added modal styling adjustments, direct team period editing modal, 1-day before oldest contract assignment, and distinct transition dates (EndDate = StartDate - 1 day).
+**Root cause:** N/A (UI and business rule refinements).
+**Fix applied:** Updated `TeamCalendarPage.tsx`, `TeamCalendarPage.css`, `TeamsController.cs`, `TeamDTOs.cs`, `apiService.ts`, and `TeamCalendarIntegrationTests.cs`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 152/152 E2E Run 2)
+
+## [2026-08-31] all — Attempt 5
+**Failure:** None — added automatic parent user update to team owner on assignment wizard (enabled by default).
+**Root cause:** N/A (new feature implementation).
+**Fix applied:** Updated `TeamsController.cs`, `TeamDTOs.cs`, `apiService.ts`, `TeamCalendarPage.tsx`, `TeamCalendarIntegrationTests.cs`, `team_calendar.spec.ts`, and `FEATURES.md`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 152/152 E2E Run 1, 153/153 E2E Run 2)
+
+## [2026-08-31] all — Attempt 6
+**Failure:** None — added integration test `AssignUserTeam_WithCircularParent_ShouldPreventCircularHierarchy`.
+**Root cause:** N/A (expanded integration test coverage for hierarchy cycle prevention).
+**Fix applied:** Added test to `SalesApp.IntegrationTests/Users/TeamCalendarIntegrationTests.cs`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 153/153 E2E Run 2)
+
 
 
 
