@@ -33,6 +33,10 @@ Esta funcionalidade adiciona uma visão interativa de linha do tempo e calendár
     - **Passo 2 (Data de Início)**: Definição da data de início na nova equipe e encerramento da equipe anterior, com aviso informativo se a permanência na equipe anterior for inferior a 14 dias (*"Não é normal pertencer a uma equipe por tão poucos dias..."*).
     - **Passo 3 (Preview de Contratos)**: Consulta dinâmica e tabela comparativa dos contratos antes/depois da data de corte.
     - **Passo 4 (Confirmação)**: Resumo visual da transição, nova equipe e novo superior direto com botão de confirmação.
+- **Filtro Temporal de Contratos por Equipe (Point-in-Time Matching)**:
+  - Ao filtrar contratos por equipe na listagem de Contratos (`ContractsPage`), o sistema consulta a vigência temporal (`UserTeams.StartDate` até `UserTeams.EndDate`) do vendedor em relação à data da venda (`Contract.SaleStartDate`).
+  - Garante que contratos faturados quando o membro pertencia a uma equipe continuem pertencendo àquela equipe no histórico, mesmo após o membro ser transferido para outra equipe.
+  - Implementado via subquery correlacionada `EXISTS` em SQL/EF Core com índices compostos `(UserInternalId, SaleStartDate)` em `Contracts` e `(TeamId, StartDate, EndDate, UserInternalId)` em `UserTeams`.
 - **Endpoints de Backend Dedicados**:
   - `GET api/teams/calendar`: consulta a hierarquia de usuários (níveis 1, 2 e 3) e carrega o histórico de equipes ordenado.
   - `GET api/teams/calendar/available-teams`: lista de equipes sob a gestão do admin logado ou subordinados até 3 níveis com seus respectivos gestores.

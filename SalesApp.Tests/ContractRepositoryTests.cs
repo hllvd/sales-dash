@@ -207,5 +207,116 @@ namespace SalesApp.Tests.Repositories
             contractNumbers.Should().NotContain("CTR-OTHER-ADM-MAT"); // other user is not in hierarchy
             contractNumbers.Should().NotContain("CTR-UNRELATED");
         }
+
+        [Fact]
+        public async Task GetAllAsync_WithTeamIds_ShouldReturnContractsSoldDuringTeamTenure()
+        {
+            // Arrange
+            var userA = new User { Id = Guid.NewGuid(), Name = "User A", Email = "usera@test.com", RoleId = 3 };
+            var userB = new User { Id = Guid.NewGuid(), Name = "User B", Email = "userb@test.com", RoleId = 3 };
+            _context.Users.AddRange(userA, userB);
+            await _context.SaveChangesAsync();
+
+            var team1 = new Team { Id = 10, Name = "Team Alpha" };
+            var team2 = new Team { Id = 20, Name = "Team Beta" };
+            _context.Teams.AddRange(team1, team2);
+            await _context.SaveChangesAsync();
+
+            // User A in Team 1 (Jan 2024 to May 2024), then Team 2 (Jun 2024 onwards)
+            var utA1 = new UserTeam
+            {
+                TeamId = team1.Id,
+                UserInternalId = userA.InternalId,
+                StartDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2024, 5, 31, 23, 59, 59, DateTimeKind.Utc)
+            };
+            var utA2 = new UserTeam
+            {
+                TeamId = team2.Id,
+                UserInternalId = userA.InternalId,
+                StartDate = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = null
+            };
+
+            // User B in Team 1 (Mar 2024 onwards)
+            var utB1 = new UserTeam
+            {
+                TeamId = team1.Id,
+                UserInternalId = userB.InternalId,
+                StartDate = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = null
+            };
+            _context.UserTeams.AddRange(utA1, utA2, utB1);
+            await _context.SaveChangesAsync();
+
+            var activeStatus = new ContractStatus { Id = 101, Name = "Ativo" };
+            _context.ContractStatuses.Add(activeStatus);
+            await _context.SaveChangesAsync();
+
+            // Contracts
+            var cA_before = new Contract
+            {
+                ContractNumber = "CTR-A-BEFORE",
+                UserInternalId = userA.InternalId,
+                User = userA,
+                SaleStartDate = new DateTime(2023, 11, 15, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                IsActive = true
+            };
+            var cA_team1 = new Contract
+            {
+                ContractNumber = "CTR-A-TEAM1",
+                UserInternalId = userA.InternalId,
+                User = userA,
+                SaleStartDate = new DateTime(2024, 2, 20, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                IsActive = true
+            };
+            var cA_team2 = new Contract
+            {
+                ContractNumber = "CTR-A-TEAM2",
+                UserInternalId = userA.InternalId,
+                User = userA,
+                SaleStartDate = new DateTime(2024, 7, 15, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                IsActive = true
+            };
+            var cB_team1 = new Contract
+            {
+                ContractNumber = "CTR-B-TEAM1",
+                UserInternalId = userB.InternalId,
+                User = userB,
+                SaleStartDate = new DateTime(2024, 4, 10, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                IsActive = true
+            };
+
+            _context.Contracts.AddRange(cA_before, cA_team1, cA_team2, cB_team1);
+            await _context.SaveChangesAsync();
+
+            // Act 1: Query by Team 1
+            var team1Results = await _repository.GetAllAsync(teamIds: new List<int> { team1.Id });
+            var team1Numbers = team1Results.Select(c => c.ContractNumber).ToList();
+
+            // Assert 1: Only contracts during Team 1 period
+            team1Numbers.Should().Contain("CTR-A-TEAM1");
+            team1Numbers.Should().Contain("CTR-B-TEAM1");
+            team1Numbers.Should().NotContain("CTR-A-TEAM2");
+            team1Numbers.Should().NotContain("CTR-A-BEFORE");
+
+            // Act 2: Query by Team 2
+            var team2Results = await _repository.GetAllAsync(teamIds: new List<int> { team2.Id });
+            var team2Numbers = team2Results.Select(c => c.ContractNumber).ToList();
+
+            // Assert 2: Only contracts during Team 2 period
+            team2Numbers.Should().Contain("CTR-A-TEAM2");
+            team2Numbers.Should().NotContain("CTR-A-TEAM1");
+            team2Numbers.Should().NotContain("CTR-A-BEFORE");
+            team2Numbers.Should().NotContain("CTR-B-TEAM1");
+        }
     }
 }

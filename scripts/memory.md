@@ -226,6 +226,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Added test to `SalesApp.IntegrationTests/Users/TeamCalendarIntegrationTests.cs`.
 **Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 153/153 E2E Run 2)
 
+## [2026-08-31] all — Attempt 7
+**Failure:** None — implemented point-in-time team contract filtering and temporal composite indexes.
+**Root cause:** N/A (new feature implementation).
+**Fix applied:** Updated `ContractRepository.cs`, `AppDbContext.cs`, created migration `20260831170000_AddTeamTemporalIndexes.cs`, added unit test in `ContractRepositoryTests.cs`, and updated `FEATURES.md`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 152/152 E2E Run 2)
+
 
 
 

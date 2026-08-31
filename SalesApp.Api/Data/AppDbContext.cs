@@ -112,6 +112,7 @@ namespace SalesApp.Data
                 entity.HasIndex(e => e.ContractNumber).IsUnique();
                 entity.HasIndex(e => new { e.IsActive, e.SaleStartDate }).HasDatabaseName("IX_Contracts_IsActive_SaleStartDate");
                 entity.HasIndex(e => e.UserInternalId).HasDatabaseName("IX_Contracts_UserInternalId");
+                entity.HasIndex(e => new { e.UserInternalId, e.SaleStartDate }).HasDatabaseName("IX_Contracts_UserInternalId_SaleStartDate");
                 entity.HasIndex(e => e.ContractStatusId).HasDatabaseName("IX_Contracts_ContractStatusId");
                 entity.HasIndex(e => e.MatriculaId).HasDatabaseName("IX_Contracts_MatriculaId");
                 entity.HasIndex(e => e.TempMatricula).HasDatabaseName("IX_Contracts_TempMatricula");
@@ -463,6 +464,7 @@ namespace SalesApp.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasIndex(e => new { e.UserInternalId, e.EndDate });
+                entity.HasIndex(e => new { e.TeamId, e.StartDate, e.EndDate, e.UserInternalId }).HasDatabaseName("IX_UserTeams_TeamId_Dates_UserInternalId");
             });
 
             // ClassificationLevel entity configuration
