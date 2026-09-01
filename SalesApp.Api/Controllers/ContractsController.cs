@@ -373,7 +373,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = $"Invalid status. Must be one of: {string.Join(", ", _statusMapper.GetValidStatuses())}"
+                    Message = $"Status inválido. Os valores válidos são: {string.Join(", ", _statusMapper.GetValidStatuses())}"
                 });
             }
             
@@ -405,7 +405,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Invalid group"
+                        Message = "O grupo selecionado é inválido ou está inativo."
                     });
                 }
             }
@@ -442,7 +442,7 @@ namespace SalesApp.Controllers
                         var isAssignedToUser = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, request.UserId.Value);
                         if (isAssignedToUser == null)
                         {
-                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "Matrícula not found for this user" });
+                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "A matrícula informada não pertence ao vendedor selecionado ou não está ativa." });
                         }
                     }
                 }
@@ -560,7 +560,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Invalid group"
+                        Message = "O grupo selecionado é inválido ou está inativo."
                     });
                 }
                 contract.GroupId = request.GroupId.Value;
@@ -580,7 +580,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = $"Invalid status. Must be one of: {string.Join(", ", _statusMapper.GetValidStatuses())}"
+                        Message = $"Status inválido. Os valores válidos são: {string.Join(", ", _statusMapper.GetValidStatuses())}"
                     });
                 }
                 contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(request.Status);
@@ -637,7 +637,7 @@ namespace SalesApp.Controllers
                         var isAssignedToUser = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, contractUserGuid.Value);
                         if (isAssignedToUser == null)
                         {
-                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "Matrícula not found for this user" });
+                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "A matrícula informada não pertence ao vendedor selecionado ou não está ativa." });
                         }
                     }
                 }

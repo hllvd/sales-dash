@@ -169,7 +169,7 @@ test.describe('[TEAR 3] Admin Assign Contract and Matricula Guards', () => {
     await expect(page.getByRole('option', { name: userB.name, exact: false })).not.toBeVisible();
 
     // Verify red warning is shown
-    const warningText = page.locator('text=Este usuário não possui matrícula');
+    const warningText = page.locator('text=/Este (vendedor|usuário) não possui.*matrícula/i');
     await expect(warningText).toBeVisible();
 
     // Verify submit button is disabled

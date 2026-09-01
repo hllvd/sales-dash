@@ -6,9 +6,10 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
   // Use serial mode to maintain DB state cleanly across sequential verification steps
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Date.now().toString().slice(-4);
-  const letters = 'abcdefghij';
-  const RUN_LETTERS = RUN_ID.split('').map(digit => letters[parseInt(digit, 10)]).join('').toUpperCase();
+  const RUN_ID = Array.from({ length: 8 }, () =>
+    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  ).join('');
+  const RUN_LETTERS = RUN_ID.toUpperCase();
   
   const ADMIN_A_EMAIL = `admin.a.scope.${RUN_ID}@test.com`;
   const ADMIN_B_EMAIL = `admin.b.scope.${RUN_ID}@test.com`;
@@ -306,10 +307,10 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await expect(page.locator('.teams-container')).toBeVisible();
 
     const container = page.locator('.teams-container');
-    await expect(container).toContainText(`ADMIN A ${RUN_ID}`);
+    await expect(container).toContainText(new RegExp(`ADMIN A ${RUN_ID}`, 'i'));
     
     const containerText = await container.innerText();
-    expect(containerText).not.toContain(`ADMIN B ${RUN_ID}`);
+    expect(containerText.toUpperCase()).not.toContain(`ADMIN B ${RUN_ID}`.toUpperCase());
   });
 
   test('4. UI buttons visibility on TeamsPage for Admin A', async ({ page }) => {
@@ -322,7 +323,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await expect(createBtn).not.toBeVisible();
 
     // 4.2 Delete button on row should NOT be visible
-    const teamRow = page.locator('table tbody tr').filter({ hasText: `ADMIN A ${RUN_ID}` });
+    const teamRow = page.locator('table tbody tr').filter({ hasText: new RegExp(`ADMIN A ${RUN_ID}`, 'i') });
     await expect(teamRow.locator('button[title="Excluir"]')).not.toBeVisible();
   });
 

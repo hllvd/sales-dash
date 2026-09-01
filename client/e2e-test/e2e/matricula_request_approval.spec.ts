@@ -5,9 +5,11 @@ test.describe('Matrícula Request and Approval Flow (TEAR 3)', () => {
 
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Date.now().toString().slice(-4);
+  const RUN_ID = Array.from({ length: 8 }, () =>
+    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  ).join('');
   const USER_EMAIL = `req.approve.${RUN_ID}@test.com`;
-  const REQ_MATR = `55${RUN_ID}`;
+  const REQ_MATR = `${Math.floor(10000000 + Math.random() * 90000000)}`;
 
   let testUserId = '';
   let superadminId = '';
