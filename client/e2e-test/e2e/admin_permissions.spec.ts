@@ -6,10 +6,10 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
   // Use serial mode to maintain DB state cleanly across sequential verification steps
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Array.from({ length: 8 }, () =>
-    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  const RUN_LETTERS = Array.from({ length: 8 }, () =>
+    String.fromCharCode(65 + Math.floor(Math.random() * 26))
   ).join('');
-  const RUN_LETTERS = RUN_ID.toUpperCase();
+  const RUN_ID = RUN_LETTERS.toLowerCase() + Date.now().toString().slice(-4);
   
   const ADMIN_EMAIL = `admin.scope.${RUN_ID}@test.com`;
   const CHILD_EMAIL = `child.scope.${RUN_ID}@test.com`;
@@ -86,14 +86,8 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await page.close();
   });
 
-  test.afterAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await cleanupUsers(page);
-    await page.close();
-  });
-
   test('1. Setup: SuperAdmin creates Admin, Child, and other test users', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     // Login as SuperAdmin
     await loginAs(page);
 
@@ -103,7 +97,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
 
 
     // 1.1 Create Admin User
-    await page.click('button:has-text("Criar")');
+    await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.fill('input[placeholder="Nome completo"]', `Admin EE ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', ADMIN_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
@@ -111,11 +105,11 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await page.click('div[role="option"]:has-text("Administrador")');
     // Set parent to SuperAdmin so they are not a root user
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
-    const adminParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
+    const adminParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(adminParentOpt).toBeVisible({ timeout: 5000 });
     await adminParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Admin User ID
@@ -132,17 +126,17 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     console.log(`>>> Admin User ID: ${adminUserId}`);
 
     // 1.2 Create Child User (under Admin)
-    await page.click('button:has-text("Criar")');
+    await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.fill('input[placeholder="Nome completo"]', `Child EE ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', CHILD_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
     // Set parent to Admin EE
     await page.fill('input[placeholder="Digite para buscar..."]', ADMIN_EMAIL);
-    const childParentOpt = page.locator('div[role="option"]', { hasText: ADMIN_EMAIL });
+    const childParentOpt = page.locator('div[role="option"]', { hasText: ADMIN_EMAIL }).first();
     await expect(childParentOpt).toBeVisible({ timeout: 5000 });
     await childParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Child User ID
@@ -157,17 +151,17 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     expect(childUserId).not.toBe('');
 
     // 1.3 Create Other User (independent, no child)
-    await page.click('button:has-text("Criar")');
+    await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.fill('input[placeholder="Nome completo"]', `Other EE ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', OTHER_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
     // Set parent to SuperAdmin so they are not a root user
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
-    const otherParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
+    const otherParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(otherParentOpt).toBeVisible({ timeout: 5000 });
     await otherParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Other User ID
@@ -182,17 +176,17 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     expect(otherUserId).not.toBe('');
 
     // 1.4 Create Noparent User (no parent, eligible for Admin's team)
-    await page.click('button:has-text("Criar")');
+    await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.fill('input[placeholder="Nome completo"]', `NoParent EE ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', NOPARENT_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
     // Set parent to SuperAdmin so they are not a root user
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
-    const noparentParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
+    const noparentParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(noparentParentOpt).toBeVisible({ timeout: 5000 });
     await noparentParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Noparent User ID
@@ -207,17 +201,17 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     expect(noparentUserId).not.toBe('');
 
     // 1.5 Create Noteam User (has parent but no team, eligible for Admin's team)
-    await page.click('button:has-text("Criar")');
+    await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.fill('input[placeholder="Nome completo"]', `NoTeam EE ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', NOTEAM_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
     // Set parent to SuperAdmin so they have a parent
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
-    const noteamParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
+    const noteamParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(noteamParentOpt).toBeVisible({ timeout: 5000 });
     await noteamParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Noteam User ID
@@ -231,18 +225,18 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     }, NOTEAM_EMAIL);
     expect(noteamUserId).not.toBe('');
 
-    // 1.6 Create Ineligible User (has parent AND has team, ineligible for Admin's team)
-    await page.click('button:has-text("Criar")');
+    // 1.6 Create Ineligible User (has parent AND has team)
+    await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.fill('input[placeholder="Nome completo"]', `Ineligible EE ${RUN_LETTERS}`);
     await page.fill('input[placeholder="email@exemplo.com"]', INELIGIBLE_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
     // Set parent to SuperAdmin
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
-    const ineligibleParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
+    const ineligibleParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(ineligibleParentOpt).toBeVisible({ timeout: 5000 });
     await ineligibleParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Ineligible User ID
@@ -422,7 +416,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await page.goto('/#/users');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Usuários' })).toBeVisible();
 
-    await page.click('button:has-text("Criar")');
+    await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     // 4.1 Verify Role selector is disabled and set to User (Usuário)

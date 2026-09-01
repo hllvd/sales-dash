@@ -234,7 +234,7 @@ namespace SalesApp.IntegrationTests.Users
                 
                 oldMembership.Should().NotBeNull();
                 oldMembership!.EndDate.Should().NotBeNull(); // Should be closed
-                oldMembership.EndDate.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+                oldMembership.EndDate.Value.Date.Should().Be(DateTime.UtcNow.Date.AddDays(-1));
             }
         }
 

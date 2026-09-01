@@ -89,7 +89,9 @@ export default defineConfig({
         'teams_hierarchy_visibility.spec.ts',
         'team_report_setup.spec.ts',
         'team_members_management.spec.ts',
-        'contracts_matricula_multiselect.spec.ts'
+        'contracts_matricula_multiselect.spec.ts',
+        'team_calendar.spec.ts',
+        'team_transition_contracts_filter.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2a-import', 'tear-2b-roles']

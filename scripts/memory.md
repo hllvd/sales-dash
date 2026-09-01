@@ -263,9 +263,25 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated `UserScopeContext.cs`, `UserScopeService.cs`, `ContractRepository.cs`, `ContractRepositoryTests.cs`, and `FEATURES.md`.
 **Result:** ✅ Green (Build PASSED, all integration tests PASSED, 152/152 E2E Run 1, 153/153 E2E Run 2)
 
+## [2026-09-01] all — Attempt 9
+**Failure:** None — added route parameter constraints (`{id:int}`, `{userId:guid}`) to `TeamsController.cs` to prevent route collision where `/api/teams/calendar` was misrouted to `GetTeam(int id)`.
+**Root cause:** ASP.NET Core route template `[HttpGet("{id}")]` without `:int` constraint hijacked literal sub-paths like `calendar`.
+**Fix applied:** Added `:int` and `:guid` constraints to all parameterized routes in `TeamsController.cs`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 152/152 E2E Run 2)
 
-
-
-
-
+## [2026-09-01] all — Attempt 10
+**Failure:** None — fixed date comparison gap in point-in-time team filtering and date range filtering in `ContractRepository.cs` and `TeamsController.cs`.
+**Root cause:** Time-of-day components (`T12:00:00Z` vs `00:00:00` vs `23:59:59`) caused contracts on transition/end dates to fall outside boundary comparisons.
+## [2026-09-01] all — Attempt 12
+**Failure:** Team membership overlapping dates causing contract duplication across teams, and gaps/breaks during period editing.
+**Root cause:** 
+1. `CreateTeam` and `AddMembers` closed previous team memberships with `DateTime.UtcNow` instead of `StartDate - 1 day`, causing overlap whenever start dates were historical or arbitrary.
+2. `UpdateMemberDates` lacked neighbor boundary sync and allowed overlapping dates.
+3. Overlap auto-resolution deleted records instead of preserving history with non-overlapping end dates.
+**Fix applied:**
+1. Updated `CreateTeam` and `AddMembers` to cap prior memberships at `StartDate - 1 day` (or `overlap.StartDate` if starting on the same day).
+2. Implemented seamless contiguous neighbor synchronization (0 gaps, 0 overlaps) and 7-day duration validation in `UpdateMemberDates`.
+3. Added UI validation and guidance alert in `TeamCalendarPage.tsx`.
+4. Added new integration test `UpdateMemberDates_ShouldSeamlesslySyncNeighborBoundaries_WithZeroGapAndZeroOverlap` in `TeamCalendarIntegrationTests.cs`.
+**Result:** ✅ Green (Build PASSED, 291/291 integration tests PASSED, 159/159 E2E Run 1 passed, 158/158 E2E Run 2 passed)
 

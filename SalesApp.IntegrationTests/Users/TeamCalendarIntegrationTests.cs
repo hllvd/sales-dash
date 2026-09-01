@@ -668,6 +668,86 @@ namespace SalesApp.IntegrationTests.Users
             }
         }
 
+        [Fact]
+        public async Task UpdateMemberDates_ShouldSeamlesslySyncNeighborBoundaries_WithZeroGapAndZeroOverlap()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Guid testUserId;
+            int teamAId;
+            int teamBId;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var testUser = new User
+                {
+                    Name = $"Continuity User {Guid.NewGuid():N}",
+                    Email = $"continuity.{Guid.NewGuid():N}@test.com",
+                    PasswordHash = "hashedpassword",
+                    RoleId = 2,
+                    IsActive = true
+                };
+                context.Users.Add(testUser);
+
+                var teamA = new Team { Name = $"Cont Team A {Guid.NewGuid():N}" };
+                var teamB = new Team { Name = $"Cont Team B {Guid.NewGuid():N}" };
+                context.Teams.AddRange(teamA, teamB);
+                await context.SaveChangesAsync();
+
+                testUserId = testUser.Id;
+                teamAId = teamA.Id;
+                teamBId = teamB.Id;
+
+                // Team A: 2024-01-01 to 2024-05-31
+                context.UserTeams.Add(new UserTeam
+                {
+                    TeamId = teamAId,
+                    UserInternalId = testUser.InternalId,
+                    StartDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    EndDate = new DateTime(2024, 5, 31, 0, 0, 0, DateTimeKind.Utc)
+                });
+
+                // Team B: 2024-06-01 to null
+                context.UserTeams.Add(new UserTeam
+                {
+                    TeamId = teamBId,
+                    UserInternalId = testUser.InternalId,
+                    StartDate = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    EndDate = null
+                });
+                await context.SaveChangesAsync();
+            }
+
+            // Act: Update Team B's StartDate to 2024-06-15
+            var updateRequest = new UpdateMemberDatesRequest
+            {
+                StartDate = new DateTime(2024, 6, 15, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = null
+            };
+            var response = await client.PutAsJsonAsync($"/api/teams/{teamBId}/members/{testUserId}", updateRequest);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var utA = await context.UserTeams.FirstOrDefaultAsync(ut => ut.TeamId == teamAId && ut.User.Id == testUserId);
+                var utB = await context.UserTeams.FirstOrDefaultAsync(ut => ut.TeamId == teamBId && ut.User.Id == testUserId);
+
+                utA.Should().NotBeNull();
+                utB.Should().NotBeNull();
+
+                // Team A EndDate synced to 2024-06-14 (1 day before Team B StartDate)
+                utA!.EndDate.Should().Be(new DateTime(2024, 6, 14, 0, 0, 0, DateTimeKind.Utc));
+                utB!.StartDate.Should().Be(new DateTime(2024, 6, 15, 0, 0, 0, DateTimeKind.Utc));
+            }
+        }
+
         private async Task<string> GetSuperAdminToken()
         {
             var loginRequest = new LoginRequest

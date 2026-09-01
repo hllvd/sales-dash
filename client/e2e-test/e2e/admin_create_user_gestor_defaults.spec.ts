@@ -28,8 +28,8 @@ test.describe('[TEAR 3] Admin Create User Gestor Defaults (Parent, Matricula & T
   };
 
   const teamName = `Equipe Gestor ${RUN_ID}`;
-  const MAT1 = `MAT1${RUN_ID}`;
-  const MAT2 = `MAT2${RUN_ID}`;
+  const MAT1 = `91${Math.floor(10000 + Math.random() * 90000)}`;
+  const MAT2 = `92${Math.floor(10000 + Math.random() * 90000)}`;
 
   let superadminToken: string;
   let superadminId: string;

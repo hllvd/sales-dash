@@ -115,10 +115,16 @@ namespace SalesApp.Repositories
                 query = query.Where(c => c.GroupId == groupId.Value);
                 
             if (startDate.HasValue)
-                query = query.Where(c => c.SaleStartDate >= startDate.Value);
+            {
+                var start = startDate.Value.Date;
+                query = query.Where(c => c.SaleStartDate >= start);
+            }
                 
             if (endDate.HasValue)
-                query = query.Where(c => c.SaleStartDate <= endDate.Value);
+            {
+                var end = endDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(c => c.SaleStartDate <= end);
+            }
  
             if (!string.IsNullOrEmpty(contractNumber))
                 query = query.Where(c => c.ContractNumber == contractNumber);
@@ -145,8 +151,8 @@ namespace SalesApp.Repositories
                 query = query.Where(c => c.UserInternalId != null && _context.UserTeams.Any(ut =>
                     teamIds.Contains(ut.TeamId) &&
                     ut.UserInternalId == c.UserInternalId.Value &&
-                    c.SaleStartDate >= ut.StartDate &&
-                    (ut.EndDate == null || c.SaleStartDate <= ut.EndDate)
+                    c.SaleStartDate.Date >= ut.StartDate.Date &&
+                    (ut.EndDate == null || c.SaleStartDate.Date <= ut.EndDate.Value.Date)
                 ));
             }
 

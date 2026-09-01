@@ -10,7 +10,7 @@ test.describe('Delete User with Contract Migration E2E Flow', () => {
 
   const RUN_ID = Array.from({ length: 8 }, () =>
     String.fromCharCode(97 + Math.floor(Math.random() * 26))
-  ).join('');
+  ).join('') + Date.now().toString().slice(-4);
   const PARENT_EMAIL = `superior.e2e.${RUN_ID}@test.com`;
   const CHILD_EMAIL = `subordinado.e2e.${RUN_ID}@test.com`;
   const PARENT_MATRICULA = `MAT-SUP-${RUN_ID}`;

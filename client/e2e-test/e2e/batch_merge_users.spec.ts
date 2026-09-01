@@ -5,13 +5,14 @@ test.describe('Batch Merge Users E2E', () => {
 
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Array.from({ length: 6 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
+  const RUN_LETTERS = Array.from({ length: 6 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join('');
+  const RUN_ID = RUN_LETTERS.toLowerCase() + Date.now().toString().slice(-4);
 
   const users = {
     superadmin: { email: 'superadmin@salesapp.com', password: 'string' },
     admin: { email: 'admin@salesapp.com', password: 'admin123' },
-    main: { name: `Main User ${RUN_ID}`, email: `main.merge.${RUN_ID}@test.com`, role: 'user' },
-    duplicate: { name: `Duplicate User ${RUN_ID}`, email: `dup.merge.${RUN_ID}@test.com`, role: 'user' },
+    main: { name: `Main User ${RUN_LETTERS}`, email: `main.merge.${RUN_ID}@test.com`, role: 'user' },
+    duplicate: { name: `Duplicate User ${RUN_LETTERS}`, email: `dup.merge.${RUN_ID}@test.com`, role: 'user' },
   };
 
   let superadminToken: string;

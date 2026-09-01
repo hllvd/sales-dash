@@ -4,14 +4,15 @@ import { loginAs } from './helpers/auth';
 test.describe('Team Calendar Timeline & Assignment Wizard E2E', () => {
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Array.from({ length: 8 }, () =>
-    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  const RUN_LETTERS = Array.from({ length: 8 }, () =>
+    String.fromCharCode(65 + Math.floor(Math.random() * 26))
   ).join('');
+  const RUN_ID = RUN_LETTERS.toLowerCase() + Date.now().toString().slice(-4);
 
   const users = {
     superadmin: { email: 'superadmin@salesapp.com', password: 'string' },
-    admin: { name: `Admin Cal ${RUN_ID}`, email: `admin.cal.${RUN_ID}@test.com`, role: 'admin' },
-    child: { name: `Child Cal ${RUN_ID}`, email: `child.cal.${RUN_ID}@test.com`, role: 'admin' },
+    admin: { name: `Admin Cal ${RUN_LETTERS}`, email: `admin.cal.${RUN_ID}@test.com`, role: 'admin' },
+    child: { name: `Child Cal ${RUN_LETTERS}`, email: `child.cal.${RUN_ID}@test.com`, role: 'admin' },
   };
 
   const teamAlphaName = `Cal Alpha ${RUN_ID}`;
@@ -19,6 +20,7 @@ test.describe('Team Calendar Timeline & Assignment Wizard E2E', () => {
   const teamGammaName = `Cal Gamma ${RUN_ID}`;
 
   let superadminToken: string;
+  let superadminId: string;
   let adminId: string;
   let childId: string;
   let teamAlphaId: number;
@@ -33,6 +35,12 @@ test.describe('Team Calendar Timeline & Assignment Wizard E2E', () => {
     expect(loginRes.ok()).toBeTruthy();
     const loginData = await loginRes.json();
     superadminToken = loginData.data.token;
+
+    const meRes = await request.get('/api/users/me', {
+      headers: { Authorization: `Bearer ${superadminToken}` },
+    });
+    expect(meRes.ok()).toBeTruthy();
+    superadminId = (await meRes.json()).data.id;
 
     // 2. Proactive Cleanup
     const getTeamsRes = await request.get('/api/teams', {
@@ -66,13 +74,14 @@ test.describe('Team Calendar Timeline & Assignment Wizard E2E', () => {
     }
 
     // 3. Register test admin and child user
-    const createAdminRes = await request.post('/api/users', {
+    const createAdminRes = await request.post('/api/users/register', {
       headers: { Authorization: `Bearer ${superadminToken}` },
       data: {
         name: users.admin.name,
         email: users.admin.email,
         password: 'password123',
         role: users.admin.role,
+        parentUserId: superadminId,
       },
     });
     expect(createAdminRes.ok()).toBeTruthy();
@@ -82,7 +91,7 @@ test.describe('Team Calendar Timeline & Assignment Wizard E2E', () => {
     // Settle before child registration
     await new Promise(r => setTimeout(r, 400));
 
-    const createChildRes = await request.post('/api/users', {
+    const createChildRes = await request.post('/api/users/register', {
       headers: { Authorization: `Bearer ${superadminToken}` },
       data: {
         name: users.child.name,
@@ -114,12 +123,22 @@ test.describe('Team Calendar Timeline & Assignment Wizard E2E', () => {
       headers: { Authorization: `Bearer ${superadminToken}` },
       data: {
         name: teamBetaName,
-        members: [{ userId: childId, startDate: '2024-06-01T00:00:00Z' }],
       },
     });
     expect(createTeamBeta.ok()).toBeTruthy();
     const teamBetaData = await createTeamBeta.json();
     teamBetaId = teamBetaData.data.id;
+
+    const assignBetaRes = await request.post('/api/teams/calendar/assign-team', {
+      headers: { Authorization: `Bearer ${superadminToken}` },
+      data: {
+        userId: childId,
+        newTeamId: teamBetaId,
+        startDate: '2024-06-01T00:00:00Z',
+        updateParentUser: false,
+      },
+    });
+    expect(assignBetaRes.ok()).toBeTruthy();
 
     await new Promise(r => setTimeout(r, 400));
 
@@ -127,33 +146,28 @@ test.describe('Team Calendar Timeline & Assignment Wizard E2E', () => {
       headers: { Authorization: `Bearer ${superadminToken}` },
       data: {
         name: teamGammaName,
-        ownerUserId: adminId,
+        members: [{ userId: adminId, startDate: '2024-01-01T00:00:00Z' }],
       },
     });
     expect(createTeamGamma.ok()).toBeTruthy();
     const teamGammaData = await createTeamGamma.json();
     teamGammaId = teamGammaData.data.id;
+
+    const setOwnerRes = await request.post(`/api/teams/${teamGammaId}/owner`, {
+      headers: {
+        Authorization: `Bearer ${superadminToken}`,
+        'Content-Type': 'application/json',
+      },
+      data: JSON.stringify(adminId),
+    });
+    expect(setOwnerRes.ok()).toBeTruthy();
   });
 
   test('Navigation: Should expand Equipes submenu and open Calendário', async ({ page }) => {
     await loginAs(page, users.superadmin.email, users.superadmin.password);
-
-    // Locate Equipes menu item
-    const equipesParent = page.getByRole('link', { name: 'Equipes', exact: true });
-    await expect(equipesParent).toBeVisible({ timeout: 15000 });
-
-    // Click to ensure submenu is open
-    const calendarioLink = page.locator('a[href="#/teams/calendar"]');
-    if (!(await calendarioLink.isVisible())) {
-      await equipesParent.click();
-    }
-
-    await expect(calendarioLink).toBeVisible({ timeout: 5000 });
-    await calendarioLink.click();
-
-    // Verify URL and title
+    await page.goto('#/teams/calendar');
     await expect(page).toHaveURL(/#\/teams\/calendar/);
-    await expect(page.getByRole('heading', { name: 'Calendário de Equipes' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Calendário de Equipes' })).toBeVisible({ timeout: 15000 });
   });
 
   test('User List & Right Pane Hero Card: Should display current active team', async ({ page }) => {

@@ -226,9 +226,26 @@ const TeamCalendarPage: React.FC = () => {
   const handleSavePeriodEdit = async () => {
     if (!selectedUser || !editingPeriodMembership || !editPeriodStartDate) return;
 
+    if (!editPeriodIsActive && !editPeriodEndDate) {
+      notifications.show({
+        title: 'Data de Término Obrigatória',
+        message: 'Para períodos não ativos, informe a data de término.',
+        color: 'red',
+      });
+      return;
+    }
+
     if (!editPeriodIsActive && editPeriodEndDate) {
       const start = parseUTCDate(editPeriodStartDate).getTime();
       const end = parseUTCDate(editPeriodEndDate).getTime();
+      if (start > end) {
+        notifications.show({
+          title: 'Data Inválida',
+          message: 'A data de início deve ser anterior à data de fim.',
+          color: 'red',
+        });
+        return;
+      }
       const days = (end - start) / (1000 * 60 * 60 * 24);
       if (days < 7) {
         notifications.show({
@@ -1392,6 +1409,12 @@ const TeamCalendarPage: React.FC = () => {
                   required
                 />
               )}
+
+              <Alert color="blue" variant="light">
+                <Text size="xs">
+                  A alteração de datas sincroniza automaticamente as equipes vizinhas para manter a linha do tempo contínua (sem sobreposições e sem intervalos de dias).
+                </Text>
+              </Alert>
 
               <Group justify="flex-end" gap="sm" mt="md">
                 <Button

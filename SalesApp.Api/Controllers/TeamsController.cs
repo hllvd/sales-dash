@@ -74,7 +74,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> GetTeam(int id)
         {
@@ -135,15 +135,22 @@ namespace SalesApp.Controllers
                     var user = await _userRepository.GetByIdAsync(memberReq.UserId);
                     if (user == null) continue;
 
-                    var start = memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8);
+                    var start = (memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8)).Date;
 
-                    // Resolve overlaps on other teams
+                    // Resolve overlaps on other teams (ensuring no gap and no overlap)
                     var overlaps = await _teamRepository.FindOverlappingMembershipsAsync(user.InternalId, start, null);
                     foreach (var overlap in overlaps)
                     {
                         if (overlap.TeamId != createdTeam.Id)
                         {
-                            overlap.EndDate = DateTime.UtcNow;
+                            if (overlap.StartDate < start)
+                            {
+                                overlap.EndDate = start.AddDays(-1);
+                            }
+                            else
+                            {
+                                overlap.EndDate = overlap.StartDate;
+                            }
                             overlap.UpdatedAt = DateTime.UtcNow;
                             await _teamRepository.UpdateAsync(overlap.Team);
 
@@ -175,7 +182,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:int}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> UpdateTeam(int id, UpdateTeamRequest request)
         {
@@ -296,7 +303,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteTeam(int id)
         {
@@ -329,7 +336,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpPost("{id}/members")]
+        [HttpPost("{id:int}/members")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> AddMembers(int id, AddMembersRequest request)
         {
@@ -385,15 +392,22 @@ namespace SalesApp.Controllers
                     }
                 }
 
-                var start = memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8);
+                var start = (memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8)).Date;
 
-                // Auto-close overlapping memberships on other teams
+                // Auto-close overlapping memberships on other teams (ensuring no gap and no overlap)
                 var overlaps = await _teamRepository.FindOverlappingMembershipsAsync(user.InternalId, start, null);
                 foreach (var overlap in overlaps)
                 {
                     if (overlap.TeamId != id)
                     {
-                        overlap.EndDate = DateTime.UtcNow;
+                        if (overlap.StartDate < start)
+                        {
+                            overlap.EndDate = start.AddDays(-1);
+                        }
+                        else
+                        {
+                            overlap.EndDate = overlap.StartDate;
+                        }
                         overlap.UpdatedAt = DateTime.UtcNow;
                         await _teamRepository.UpdateAsync(overlap.Team);
 
@@ -427,7 +441,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpDelete("{id}/members/{userId}")]
+        [HttpDelete("{id:int}/members/{userId:guid}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> RemoveMember(int id, Guid userId)
         {
@@ -482,7 +496,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpPost("{id}/owner")]
+        [HttpPost("{id:int}/owner")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> SetOwner(int id, [FromBody] Guid ownerUserId)
         {
@@ -547,7 +561,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpPut("{id}/members/{userId}")]
+        [HttpPut("{id:int}/members/{userId:guid}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> UpdateMemberDates(int id, Guid userId, [FromBody] UpdateMemberDatesRequest request)
         {
@@ -586,7 +600,10 @@ namespace SalesApp.Controllers
                 });
             }
 
-            if (request.EndDate.HasValue && request.StartDate > request.EndDate.Value)
+            var newStartDate = request.StartDate.Date;
+            var newEndDate = request.EndDate.HasValue ? request.EndDate.Value.Date : (DateTime?)null;
+
+            if (newEndDate.HasValue && newStartDate > newEndDate.Value)
             {
                 return BadRequest(new ApiResponse<TeamResponse>
                 {
@@ -595,7 +612,7 @@ namespace SalesApp.Controllers
                 });
             }
 
-            if (request.EndDate.HasValue && (request.EndDate.Value - request.StartDate).TotalDays < 7)
+            if (newEndDate.HasValue && (newEndDate.Value - newStartDate).TotalDays < 7)
             {
                 return BadRequest(new ApiResponse<TeamResponse>
                 {
@@ -604,11 +621,81 @@ namespace SalesApp.Controllers
                 });
             }
 
-            membership.StartDate = request.StartDate;
-            membership.EndDate = request.EndDate;
+            // Load other memberships for this user to enforce 0 overlap and 0 gaps
+            var otherUserTeams = await _context.UserTeams
+                .Include(ut => ut.Team)
+                .Where(ut => ut.UserInternalId == user.InternalId && ut.Id != membership.Id)
+                .OrderBy(ut => ut.StartDate)
+                .ToListAsync();
+
+            var precedingMembership = otherUserTeams
+                .Where(ut => ut.StartDate < newStartDate)
+                .OrderByDescending(ut => ut.StartDate)
+                .FirstOrDefault();
+
+            var succeedingMembership = otherUserTeams
+                .Where(ut => ut.StartDate >= newStartDate)
+                .OrderBy(ut => ut.StartDate)
+                .FirstOrDefault();
+
+            // Sync with preceding team (no gap, no overlap)
+            if (precedingMembership != null)
+            {
+                var wasContiguous = precedingMembership.EndDate.HasValue && precedingMembership.EndDate.Value.Date == membership.StartDate.Date.AddDays(-1);
+                var isOverlapping = precedingMembership.EndDate == null || precedingMembership.EndDate.Value.Date >= newStartDate;
+
+                if (wasContiguous || isOverlapping)
+                {
+                    var adjustedPrecedingEnd = newStartDate.AddDays(-1);
+                    if (adjustedPrecedingEnd < precedingMembership.StartDate || (adjustedPrecedingEnd - precedingMembership.StartDate).TotalDays < 7)
+                    {
+                        return BadRequest(new ApiResponse<TeamResponse>
+                        {
+                            Success = false,
+                            Message = $"A alteração deixaria a equipe anterior ({precedingMembership.Team?.Name}) com menos de 7 dias."
+                        });
+                    }
+                    precedingMembership.EndDate = adjustedPrecedingEnd;
+                    precedingMembership.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            // Sync with succeeding team (no gap, no overlap)
+            if (succeedingMembership != null)
+            {
+                var wasContiguous = membership.EndDate.HasValue && succeedingMembership.StartDate.Date == membership.EndDate.Value.Date.AddDays(1);
+                var isOverlapping = !newEndDate.HasValue || succeedingMembership.StartDate.Date <= newEndDate.Value;
+
+                if (wasContiguous || isOverlapping)
+                {
+                    if (!newEndDate.HasValue)
+                    {
+                        return BadRequest(new ApiResponse<TeamResponse>
+                        {
+                            Success = false,
+                            Message = $"Existe um período posterior na equipe '{succeedingMembership.Team?.Name}'. É necessário definir uma data de término."
+                        });
+                    }
+
+                    var adjustedSucceedingStart = newEndDate.Value.AddDays(1);
+                    if (succeedingMembership.EndDate.HasValue && (succeedingMembership.EndDate.Value - adjustedSucceedingStart).TotalDays < 7)
+                    {
+                        return BadRequest(new ApiResponse<TeamResponse>
+                        {
+                            Success = false,
+                            Message = $"A alteração deixaria a equipe posterior ({succeedingMembership.Team?.Name}) com menos de 7 dias."
+                        });
+                    }
+                    succeedingMembership.StartDate = adjustedSucceedingStart;
+                    succeedingMembership.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            membership.StartDate = newStartDate;
+            membership.EndDate = newEndDate;
             membership.UpdatedAt = DateTime.UtcNow;
 
-            await _teamRepository.UpdateAsync(team);
+            await _context.SaveChangesAsync();
 
             var reloadedTeam = await _teamRepository.GetByIdAsync(id);
             return Ok(new ApiResponse<TeamResponse>
@@ -872,10 +959,12 @@ namespace SalesApp.Controllers
                 }
             }
 
+            var boundary = boundaryDate.Date;
+
             var olderContracts = await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.Matricula)
-                .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.SaleStartDate < boundaryDate)
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.SaleStartDate.Date < boundary)
                 .OrderByDescending(c => c.SaleStartDate)
                 .Take(5)
                 .Select(c => new CalendarContractPreviewItem
@@ -892,7 +981,7 @@ namespace SalesApp.Controllers
             var newerContracts = await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.Matricula)
-                .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.SaleStartDate >= boundaryDate)
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.SaleStartDate.Date >= boundary)
                 .OrderBy(c => c.SaleStartDate)
                 .Take(5)
                 .Select(c => new CalendarContractPreviewItem
@@ -997,13 +1086,13 @@ namespace SalesApp.Controllers
 
             if (olderUserTeam != null)
             {
-                olderUserTeam.EndDate = request.BoundaryDate.AddDays(-1);
+                olderUserTeam.EndDate = request.BoundaryDate.Date.AddDays(-1);
                 olderUserTeam.UpdatedAt = DateTime.UtcNow;
             }
 
             if (newerUserTeam != null)
             {
-                newerUserTeam.StartDate = request.BoundaryDate;
+                newerUserTeam.StartDate = request.BoundaryDate.Date;
                 newerUserTeam.UpdatedAt = DateTime.UtcNow;
             }
 
@@ -1163,7 +1252,7 @@ namespace SalesApp.Controllers
                     });
                 }
 
-                activeTeam.EndDate = request.StartDate.AddDays(-1);
+                activeTeam.EndDate = request.StartDate.Date.AddDays(-1);
                 activeTeam.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -1177,8 +1266,8 @@ namespace SalesApp.Controllers
 
                 if (earliestContract != null)
                 {
-                    var oneDayBeforeContract = earliestContract.SaleStartDate.AddDays(-1);
-                    if (request.StartDate > oneDayBeforeContract)
+                    var oneDayBeforeContract = earliestContract.SaleStartDate.Date.AddDays(-1);
+                    if (request.StartDate.Date > oneDayBeforeContract)
                     {
                         request.StartDate = oneDayBeforeContract;
                     }
@@ -1222,7 +1311,7 @@ namespace SalesApp.Controllers
             {
                 TeamId = request.NewTeamId,
                 UserInternalId = user.InternalId,
-                StartDate = request.StartDate,
+                StartDate = request.StartDate.Date,
                 EndDate = null,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
