@@ -1,6 +1,22 @@
 # Features
 
-## Visibilidade de Contratos por Matrículas Vinculadas ao Administrador (Admin Linked Matriculas)
+## Detalhamento de Erros e Validação no Cadastro e Edição de Contratos (Contract Form Error Handling & Validation)
+
+Esta funcionalidade aprimora a experiência do usuário ao criar ou editar contratos diretamente pelo formulário de contratos (`ContractForm`), eliminando mensagens de erro genéricas, traduzindo e detalhando todas as falhas de validação de modelo e regras de negócio em português claro, destacando o alerta visualmente no topo do formulário com rolagem automática, e fornecendo uma instrução direta e explícita sobre a remoção de números no campo de nome do cliente.
+
+### Core Objectives
+- **Validação Específica do Nome do Cliente**:
+  - Tanto no backend (`ValidUserNameAttribute`) quanto no frontend (`ContractForm`), caso o campo de nome do cliente contenha números/dígitos, a submissão é bloqueada com mensagem clara e direta:
+    *"O campo Nome do Cliente não pode conter números. É necessário remover os números do campo cliente para poder salvar."*
+- **Detalhamento das Mensagens de Erro em Português**:
+  - DTOs de contrato (`ContractRequest` e `UpdateContractRequest`) atualizados com anotações `[Display(Name = ...)]` e mensagens de validação traduzidas para português.
+  - Endpoints de criação e edição (`ContractsController.cs`) traduzidos com detalhamento sobre matrícula (não pertencente ao vendedor, inativa ou inexistente), vendedor sem matrícula ativa vinculada, duplicidade de número de contrato, status inválido e restrições de hierarquia.
+  - O serviço frontend (`contractService.ts`) processa estruturas de resposta padrão do ASP.NET Core `ProblemDetails` e dicionários de erro (`errors: { Field: [...] }`), extraindo todas as mensagens e combinando-as em texto legível em vez de retornar mensagens em inglês ou genéricas como *"Falha ao salvar contrato"*.
+- **Experiência Visual e Rolagem Automática**:
+  - O modal exibe um componente Mantine `<Alert>` em destaque vermelho no topo do formulário contendo a lista formatada de pendências.
+  - Ao ocorrer qualquer erro de validação ou resposta da API, o formulário realiza uma rolagem suave (`scrollIntoView({ behavior: 'smooth', block: 'start' })`) levando o usuário imediatamente até o alerta no topo para fácil visualização e correção.
+
+---
 
 Esta funcionalidade expande o escopo de visualização de contratos na listagem de contratos (`Contracts list`), permitindo que administradores (`Admin`) visualizem contratos diretamente vinculados às matrículas às quais estão associados (seja como proprietário/owner ou como membro), mantendo a integridade da hierarquia de usuários.
 

@@ -5,7 +5,9 @@ import { loginAs } from './helpers/auth';
 test.describe('Approval Requests E2E', () => {
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Date.now().toString().slice(-4);
+  const RUN_ID = Array.from({ length: 8 }, () =>
+    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  ).join('');
   const ADMIN_EMAIL = `parent.admin.${RUN_ID}@test.com`;
   const USER_EMAIL = `request.user.${RUN_ID}@test.com`;
   const PASSWORD = 'Password123!';

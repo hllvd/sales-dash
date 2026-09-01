@@ -126,7 +126,7 @@ namespace SalesApp.IntegrationTests.Contracts
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result!.Success.Should().BeFalse();
-            result.Message.Should().Contain("not found for this user");
+            result.Message.Should().Contain("A matrícula informada não pertence ao vendedor selecionado ou não está ativa.");
         }
 
         [Fact]

@@ -8,7 +8,9 @@ test.describe('Delete User with Contract Migration E2E Flow', () => {
   // Run tests in serial mode since they depend on the initial CSV import
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Date.now().toString().slice(-4);
+  const RUN_ID = Array.from({ length: 8 }, () =>
+    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  ).join('');
   const PARENT_EMAIL = `superior.e2e.${RUN_ID}@test.com`;
   const CHILD_EMAIL = `subordinado.e2e.${RUN_ID}@test.com`;
   const PARENT_MATRICULA = `MAT-SUP-${RUN_ID}`;

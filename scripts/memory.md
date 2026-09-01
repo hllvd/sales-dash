@@ -186,11 +186,38 @@ Each entry records a fix attempt — past entries must be consulted before retry
 ## [2026-08-20] e2e — Attempt 2
 **Failure:** `scrape_credentials.spec.ts` timed out (60000ms) on `locator.click`.
 **Root cause:** Trash button locator `.locator('button', { has: page.locator('.tabler-icon-trash') })` failed to find the ActionIcon because `@tabler/icons-react` SVG elements do not carry the `.tabler-icon-trash` class.
+
 ## [2026-08-25] all — Attempt 1
 **Failure:** `import_wizard.spec.ts` failed on `expect(locator).toBeVisible()` waiting for `.aggregation-summary` on `#/contracts` due to SQLite Error 19 UNIQUE constraint on `Contracts.ContractNumber` during Step 3 import.
 **Root cause:** In Step 3 default mappings (`WizardService.cs`), `"Cota"` was mapped to `"ContractNumber"` alongside `"Contrato"`, and `BuildContractFromRowAsync` (`ImportExecutionService.cs`) extracted `contractNumber` from `row["Cota"]`, overriding the real contract number with quota numbers and creating duplicate contract numbers across groups.
 **Fix applied:** Updated `WizardService.cs` Step 3 mappings to map `"Cota"` to `"Quota"`; updated `BuildContractFromRowAsync` to prioritize `ResolveContractNumber` and only decompose `Cota` when formatted as a concatenated string; updated `contracts_ui_enhancements.spec.ts` to clean up `localStorage` filters; rebuilt containers and verified full suite.
 **Result:** ✅ Green — 150/150 (Run 1) and 148/148 (Run 2) passed with 0 errors
+
+## [2026-08-31] integration — Attempt 1
+**Failure:** `UpdateContract_WithMatriculaFromDifferentUser_ShouldFail` failed expecting "not found for this user" in error message.
+**Root cause:** The error message in `ContractsController.cs` was translated and detailed to Portuguese ("A matrícula informada não pertence ao vendedor selecionado ou não está ativa."), but the integration test asserted the old English string.
+**Fix applied:** Updated the assertion in `SalesApp.IntegrationTests/Contracts/ContractMatriculaTests.cs` to check for "A matrícula informada não pertence ao vendedor selecionado ou não está ativa.".
+**Result:** ✅ Green (280/280 integration tests passed)
+
+## [2026-08-31] all — Attempt 2
+**Failure:** `admin_assign_contract_matricula.spec.ts` failed on `expect(warningText).toBeVisible()` looking for text "Este usuário não possui matrícula".
+**Root cause:** The warning banner message in `ContractForm.tsx` was enhanced to Portuguese ("Este vendedor não possui nenhuma matrícula ativa..."), but the test expected the previous text format.
+**Fix applied:** Updated the locator in `client/e2e-test/e2e/admin_assign_contract_matricula.spec.ts` to match regex `/Este (vendedor|usuário) não possui.*matrícula/i`.
+**Result:** ✅ Green (280/280 integration tests passed, 153/153 E2E Run 1 passed, 153/153 E2E Run 2 passed)
+
+## [2026-08-31] all — Attempt 3
+**Failure:** `admin_permissions.spec.ts` dialog not closing due to 4-digit email collisions with soft-deleted users in previous runs, `equipe_admin_permission.spec.ts` casing assertion on team name, and `matricula_request_approval.spec.ts` failing on alphanumeric matricula number in `RequestMatricula`.
+**Root cause:** 
+1. `Date.now().toString().slice(-4)` generated collisions on user emails against soft-deleted rows.
+2. Team names rendered uppercase in UI while `RUN_ID` was lowercase.
+3. `RequestMatricula` endpoint strictly validates numeric-only format (`^\d+$`), failing when `RUN_ID` contained letters.
+**Fix applied:**
+1. Updated `admin_permissions.spec.ts`, `equipe_admin_permission.spec.ts`, `approval_requests.spec.ts`, `circular_hierarchy_prevention.spec.ts`, and `delete_user_migration.spec.ts` to generate 8-character unique random strings.
+2. Updated team name assertions in `equipe_admin_permission.spec.ts` to be case-insensitive.
+3. Updated `matricula_request_approval.spec.ts` to generate digits-only `REQ_MATR`.
+**Result:** ✅ Green (Build passed, 280/280 integration tests passed, 151/151 Run 1 passed, 153/153 Run 2 passed)
+
+
 
 
 
