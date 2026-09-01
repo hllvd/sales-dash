@@ -211,6 +211,7 @@ namespace SalesApp.ReportFilters.Services
                 AllowedTeamIds = request.AllowedTeamIds,
                 AllowedRoles = request.AllowedRoles,
                 SumTotal = request.SumTotal,
+                CountActiveUsers = request.CountActiveUsers,
                 OutputType = request.OutputType ?? "table",
                 ChartType = request.ChartType ?? "bar",
                 SummaryRetentionType = request.SummaryRetentionType ?? "standard",
@@ -257,6 +258,7 @@ namespace SalesApp.ReportFilters.Services
             filter.AllowedTeamIds = request.AllowedTeamIds;
             filter.AllowedRoles = request.AllowedRoles;
             filter.SumTotal = request.SumTotal;
+            filter.CountActiveUsers = request.CountActiveUsers;
             filter.OutputType = request.OutputType ?? "table";
             filter.ChartType = request.ChartType ?? "bar";
             filter.SummaryRetentionType = request.SummaryRetentionType ?? "standard";
@@ -873,11 +875,27 @@ namespace SalesApp.ReportFilters.Services
 
             decimal? totalSum = null;
             decimal? overallRetention = null;
+            int? activeUsersCount = null;
+            int? inactiveUsersCount = null;
 
             if (report.SumTotal)
             {
                 totalSum = contracts.Sum(c => c.TotalAmount);
                 overallRetention = ReportRetentionCalculator.CalculateOverallRetention(contracts, report.SummaryRetentionType);
+            }
+
+            if (report.CountActiveUsers)
+            {
+                var distinctUsers = contracts
+                    .Where(c => c.User != null)
+                    .Select(c => c.User!)
+                    .GroupBy(u => u.Id != Guid.Empty ? u.Id.ToString() : u.Email)
+                    .Select(g => g.First())
+                    .ToList();
+
+                var activeCount = distinctUsers.Count(u => string.Equals(ResolveUserActive(u) as string, "Sim", StringComparison.OrdinalIgnoreCase));
+                activeUsersCount = activeCount;
+                inactiveUsersCount = distinctUsers.Count - activeCount;
             }
 
             if (report.GroupByEmail)
@@ -982,6 +1000,8 @@ namespace SalesApp.ReportFilters.Services
                 TotalPages = totalPages,
                 TotalSum   = totalSum,
                 OverallRetention = overallRetention,
+                ActiveUsersCount = activeUsersCount,
+                InactiveUsersCount = inactiveUsersCount,
                 Columns    = columns.Select(col => new OutputColumnResponse
                 {
                     Source = col.Source,
@@ -1395,6 +1415,7 @@ namespace SalesApp.ReportFilters.Services
                 AllowedTeamIds = f.AllowedTeamIds,
                 AllowedRoles = f.AllowedRoles,
                 SumTotal = f.SumTotal,
+                CountActiveUsers = f.CountActiveUsers,
                 OutputType = f.OutputType ?? "table",
                 ChartType = f.ChartType ?? "bar",
                 SummaryRetentionType = f.SummaryRetentionType ?? "standard",

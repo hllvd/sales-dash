@@ -64,6 +64,7 @@ export interface ReportFilter {
   allowedTeamIds?: number[];
   allowedRoles?: string[];
   sumTotal?: boolean;
+  countActiveUsers?: boolean;
   outputType?: string;
   chartType?: string;
   summaryRetentionType?: 'standard' | 'strict';
@@ -86,6 +87,7 @@ export interface CreateReportFilterRequest {
   allowedTeamIds?: number[];
   allowedRoles?: string[];
   sumTotal?: boolean;
+  countActiveUsers?: boolean;
   outputType?: string;
   chartType?: string;
   summaryRetentionType?: 'standard' | 'strict';
@@ -108,6 +110,7 @@ export interface UpdateReportFilterRequest {
   allowedTeamIds?: number[];
   allowedRoles?: string[];
   sumTotal?: boolean;
+  countActiveUsers?: boolean;
   outputType?: string;
   chartType?: string;
   summaryRetentionType?: 'standard' | 'strict';
@@ -132,6 +135,8 @@ export interface ReportResultsResponse {
   rows: Record<string, any>[];
   totalSum?: number;
   overallRetention?: number;
+  activeUsersCount?: number;
+  inactiveUsersCount?: number;
 }
 
 
