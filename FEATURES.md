@@ -828,6 +828,35 @@ Fixes `SQLite Error 19: UNIQUE constraint failed: Contracts.ContractNumber` duri
 - `client/e2e-test/e2e/import_dashboard_upsert_robustness.spec.ts` — Comprehensive E2E test covering re-import updates, leading-zero normalization duplicates, and compound cota upserts.
 - `client/e2e-test/playwright.config.ts` — Registered new E2E test under `tear-2b-roles`.
 
+## Relatórios - Contagem de Usuários Ativos vs Inativos (2026-09-01)
+
+Adiciona a opção configurável `"Contar usuários ativos vs inativos"` na seção de **Colunas de Saída** na criação e edição de relatórios, permitindo calcular e exibir a contagem agregada de usuários únicos ativos e inativos no resumo do relatório.
+
+### Key Capabilities
+- **Switch Independente de Contagem (`CountActiveUsers`)**: Permite habilitar a sumarização de usuários ativos vs inativos de forma independente ou em conjunto com a soma monetária de contratos e retenção (`SumTotal`).
+- **Avaliação Canônica de Usuário Ativo**: Aplica a mesma regra de negócio da coluna `"Usuário Ativo"` (`ResolveUserActive`):
+  - **Ativo**: `user.IsActive == true` **E** usuário criado há pelo menos 15 dias (`CreatedAt <= now - 15d`) **E** último acesso nos últimos 30 dias (`LastAccessedAt >= now - 30d`).
+  - **Inativo**: Todos os outros usuários únicos associados aos contratos filtrados.
+  - Contratos sem usuário vinculado (`c.User == null`) são desconsiderados da contagem de usuários.
+- **Deduplicação de Usuários**: Agrupa e deduplica usuários por identificador único para garantir que múltiplos contratos do mesmo vendedor/usuário não inflem a contagem.
+- **Exibição Dinâmica no Sumário**:
+  - Se ambas as opções estiverem desligadas (`!sumTotal && !countActiveUsers`), o card de resumo do relatório permanece oculto.
+  - Se apenas `Contar usuários ativos vs inativos` estiver ativo, exibe os badges de métrica `"Usuários Ativos"` e `"Usuários Inativos"` juntamente com a contagem geral.
+  - Se ambas as opções estiverem ativas, exibe tanto o montante financeiro/retenção quanto os contadores de usuários ativos e inativos.
+- **Suporte Completo no Frontend e Backend**: Suportado no Live Preview (`ReportFormPage.tsx`), na visualização de resultados de relatórios (`ReportResultsPage.tsx`) e na visualização de widgets/execução salva (`ViewExecutionPage.tsx`).
+
+### Key Files Modified
+- `SalesApp.Api/ReportFilters/Models/ReportFilter.cs` — Adicionada propriedade `CountActiveUsers`.
+- `SalesApp.Api/ReportFilters/DTOs/CreateReportFilterRequest.cs` & `UpdateReportFilterRequest.cs` — Suporte no payload de criação e edição.
+- `SalesApp.Api/ReportFilters/DTOs/ReportFilterResponse.cs` & `ReportResultsResponse.cs` — Retorno das propriedades `CountActiveUsers`, `ActiveUsersCount` e `InactiveUsersCount`.
+- `SalesApp.Api/ReportFilters/Repositories/DynamoDbReportFilterRepository.cs` — Mapeamento e persistência do atributo `countActiveUsers` no DynamoDB.
+- `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs` — Cálculo in-memory de usuários únicos ativos vs inativos durante a execução do relatório.
+- `SalesApp.Tests/Services/ReportFilterServiceTests.cs` — Suíte de testes unitários validando a contagem de usuários ativos/inativos, deduplicação e independência de flags.
+- `client/sales-dash/src/services/reportFilterService.ts` — Tipagem TypeScript atualizada.
+- `client/sales-dash/src/components/Reports/ReportFormPage.tsx` — Switch de configuração e Live Preview com badges de contagem de usuários.
+- `client/sales-dash/src/components/Reports/ReportResultsPage.tsx` — Renderização do sumário de usuários ativos e inativos na visualização de resultados.
+- `client/sales-dash/src/components/Reports/ViewExecutionPage.tsx` — Renderização do sumário no card de execução/widget.
+
 
 
 

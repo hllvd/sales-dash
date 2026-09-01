@@ -36,6 +36,8 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
   const [totalCount, setTotalCount] = useState(0);
   const [totalSum, setTotalSum] = useState<number | undefined>(undefined);
   const [overallRetention, setOverallRetention] = useState<number | undefined>(undefined);
+  const [activeUsersCount, setActiveUsersCount] = useState<number | undefined>(undefined);
+  const [inactiveUsersCount, setInactiveUsersCount] = useState<number | undefined>(undefined);
   const pageSize = 25; // Replicating pagination size
 
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
@@ -120,6 +122,8 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
       setTotalCount(resultsData.totalCount);
       setTotalSum(resultsData.totalSum);
       setOverallRetention(resultsData.overallRetention);
+      setActiveUsersCount(resultsData.activeUsersCount);
+      setInactiveUsersCount(resultsData.inactiveUsersCount);
     } catch (err: any) {
       notifications.show({ title: 'Erro', message: err.message || 'Falha ao carregar resultados do relatório', color: 'red' });
     } finally {
@@ -499,20 +503,23 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                   </>
                 )}
 
-                {/* Part 2: Summary Sum Card (if sumTotal is true) */}
-                {report?.sumTotal && totalSum !== undefined && totalSum !== null && (
+                {/* Part 2: Summary Sum Card (if sumTotal or countActiveUsers is true) */}
+                {((report?.sumTotal && totalSum !== undefined && totalSum !== null) ||
+                  (report?.countActiveUsers && activeUsersCount !== undefined && activeUsersCount !== null)) && (
                   <Paper withBorder p="md" radius="md" style={{ backgroundColor: '#f5fdf8', borderLeft: '4px solid #10b981' }}>
-                    <Group justify="space-between" align="center">
+                    <Group justify="space-between" align="center" wrap="wrap" gap="md">
                       <Stack gap={2}>
                         <Text size="xs" c="dimmed" tt="uppercase" fw={700} style={{ letterSpacing: '0.05em' }}>
                           Resumo do Relatório (Summary)
                         </Text>
-                        <Title order={3} style={{ color: '#0f766e', fontWeight: 700 }}>
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSum)}
-                        </Title>
+                        {report?.sumTotal && totalSum !== undefined && totalSum !== null && (
+                          <Title order={3} style={{ color: '#0f766e', fontWeight: 700 }}>
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSum)}
+                          </Title>
+                        )}
                       </Stack>
-                      <Group gap="sm">
-                        {overallRetention !== undefined && overallRetention !== null && (
+                      <Group gap="sm" wrap="wrap">
+                        {report?.sumTotal && overallRetention !== undefined && overallRetention !== null && (
                           <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px' }}>
                             <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
                               {report?.summaryRetentionType === 'strict' ? "Retenção Estrita Geral" : "Retenção Geral"}
@@ -521,6 +528,26 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                               {new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(overallRetention)}
                             </Text>
                           </Paper>
+                        )}
+                        {report?.countActiveUsers && activeUsersCount !== undefined && activeUsersCount !== null && (
+                          <>
+                            <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px', borderColor: '#86efac' }}>
+                              <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
+                                Usuários Ativos
+                              </Text>
+                              <Text size="md" fw={700} style={{ textAlign: 'center', color: '#16a34a' }}>
+                                {activeUsersCount}
+                              </Text>
+                            </Paper>
+                            <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px', borderColor: '#cbd5e1' }}>
+                              <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
+                                Usuários Inativos
+                              </Text>
+                              <Text size="md" fw={700} style={{ textAlign: 'center', color: '#64748b' }}>
+                                {inactiveUsersCount ?? 0}
+                              </Text>
+                            </Paper>
+                          </>
                         )}
                         <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px' }}>
                           <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>

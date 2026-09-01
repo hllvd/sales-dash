@@ -376,5 +376,175 @@ namespace SalesApp.Tests.Services
             result.Data.Rows[2]["Contrato"].Should().Be("CTR-003");
             result.Data.Rows[2]["Usuário Ativo"].Should().Be("—");
         }
+
+        [Fact]
+        public async Task ExecuteAsync_WithCountActiveUsers_ShouldCalculateActiveAndInactiveUsersCorrectly()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "20260825120000000-countactive01";
+            var now = DateTime.UtcNow;
+
+            var activeUser1 = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Active User 1",
+                Email = "active1@test.com",
+                IsActive = true,
+                CreatedAt = now.AddDays(-25),
+                LastAccessedAt = now.AddDays(-2)
+            };
+
+            var activeUser2 = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Active User 2",
+                Email = "active2@test.com",
+                IsActive = true,
+                CreatedAt = now.AddDays(-20),
+                LastAccessedAt = now.AddDays(-3)
+            };
+
+            var inactiveUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Inactive User",
+                Email = "inactive@test.com",
+                IsActive = true,
+                CreatedAt = now.AddDays(-5), // < 15 days
+                LastAccessedAt = now.AddDays(-1)
+            };
+
+            var existingReport = new ReportFilter
+            {
+                UserId = callerId,
+                FilterId = filterId,
+                Name = "Count Active Users Report",
+                Scope = "private",
+                CountActiveUsers = true,
+                SumTotal = true,
+                FilterConfig = new FilterConfig(),
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(existingReport);
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+                .ReturnsAsync(new List<Team>());
+
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "CTR-001", User = activeUser1, TotalAmount = 1000m },
+                new Contract { ContractNumber = "CTR-002", User = activeUser1, TotalAmount = 1500m }, // Same user
+                new Contract { ContractNumber = "CTR-003", User = activeUser2, TotalAmount = 2000m },
+                new Contract { ContractNumber = "CTR-004", User = inactiveUser, TotalAmount = 2500m },
+                new Contract { ContractNumber = "CTR-005", User = null, TotalAmount = 3000m } // Null user
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(),
+                It.IsAny<int?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<bool>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.ActiveUsersCount.Should().Be(2); // activeUser1, activeUser2
+            result.Data.InactiveUsersCount.Should().Be(1); // inactiveUser
+            result.Data.TotalSum.Should().Be(10000m);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WhenCountActiveUsersIsDisabled_ShouldReturnNullUserCounts()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "20260825120000000-countactivedisabled";
+            var now = DateTime.UtcNow;
+
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Active User",
+                Email = "active@test.com",
+                IsActive = true,
+                CreatedAt = now.AddDays(-25),
+                LastAccessedAt = now.AddDays(-2)
+            };
+
+            var existingReport = new ReportFilter
+            {
+                UserId = callerId,
+                FilterId = filterId,
+                Name = "Disabled Count Active Users Report",
+                Scope = "private",
+                CountActiveUsers = false,
+                FilterConfig = new FilterConfig(),
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(existingReport);
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+                .ReturnsAsync(new List<Team>());
+
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "CTR-001", User = user, TotalAmount = 1000m }
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(),
+                It.IsAny<int?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<bool>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.ActiveUsersCount.Should().BeNull();
+            result.Data.InactiveUsersCount.Should().BeNull();
+        }
     }
 }

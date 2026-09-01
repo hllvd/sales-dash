@@ -60,6 +60,7 @@ namespace SalesApp.ReportFilters.Models
         public List<int>? AllowedTeamIds { get; set; }
         public List<string>? AllowedRoles { get; set; }
         public bool SumTotal { get; set; }
+        public bool CountActiveUsers { get; set; }
         public string OutputType { get; set; } = "table";
         public string ChartType { get; set; } = "bar";
         public string? SummaryRetentionType { get; set; } = "standard";

@@ -219,6 +219,24 @@ const ReportCard: React.FC<ReportCardProps> = ({ reportFilterId }) => {
           </Paper>
         )}
 
+        {/* Active vs Inactive Users aggregate badge card */}
+        {filter.countActiveUsers && results.activeUsersCount !== undefined && results.activeUsersCount !== null && (
+          <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', marginTop: filter.sumTotal ? '4px' : 'auto' }}>
+            <Group justify="space-between" align="center" wrap="nowrap">
+              <Text size="xxs" c="dimmed" fw={600} tt="uppercase">Usuários Ativos / Inativos</Text>
+              <Group gap="xs" wrap="nowrap">
+                <Text size="xs" fw={700} style={{ color: '#16a34a' }}>
+                  {results.activeUsersCount} ativos
+                </Text>
+                <Text size="xs" c="dimmed">/</Text>
+                <Text size="xs" fw={700} style={{ color: '#64748b' }}>
+                  {results.inactiveUsersCount ?? 0} inativos
+                </Text>
+              </Group>
+            </Group>
+          </Paper>
+        )}
+
         {/* Chart representation */}
         {(outputType === 'chart' || outputType === 'both') && (
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '140px', padding: '4px' }}>

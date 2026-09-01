@@ -31,5 +31,7 @@ namespace SalesApp.ReportFilters.DTOs
 
         public decimal? TotalSum { get; set; }
         public decimal? OverallRetention { get; set; }
+        public int? ActiveUsersCount { get; set; }
+        public int? InactiveUsersCount { get; set; }
     }
 }
