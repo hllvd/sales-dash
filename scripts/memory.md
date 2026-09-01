@@ -257,6 +257,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 3. Updated `matricula_request_approval.spec.ts` to generate digits-only `REQ_MATR`.
 **Result:** ✅ Green (Build passed, 280/280 integration tests passed, 151/151 Run 1 passed, 153/153 Run 2 passed)
 
+## [2026-09-01] all — Attempt 8
+**Failure:** None — implemented orphan contract priority ordering by admin owned/linked matriculas.
+**Root cause:** N/A (new feature implementation).
+**Fix applied:** Updated `UserScopeContext.cs`, `UserScopeService.cs`, `ContractRepository.cs`, `ContractRepositoryTests.cs`, and `FEATURES.md`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 152/152 E2E Run 1, 153/153 E2E Run 2)
+
 
 
 

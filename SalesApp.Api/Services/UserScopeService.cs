@@ -98,17 +98,18 @@ namespace SalesApp.Services
 
             context.AllowedMatriculas = new HashSet<string>(allowedMatriculas);
 
-            // Fetch Matricula numbers directly linked to the requesting admin (owner or member)
-            var adminLinkedMatriculas = await _context.UserMatriculas
+            // Fetch Matricula numbers directly linked to the requesting admin (both owned and member)
+            var adminMatriculas = await _context.UserMatriculas
                 .AsNoTracking()
                 .Where(m => m.IsActive &&
                             (m.EndDate == null || m.EndDate > now) &&
                             m.User.Id == currentUserId)
-                .Select(m => m.Matricula.MatriculaNumber)
+                .Select(m => new { m.Matricula.MatriculaNumber, m.IsOwner })
                 .Distinct()
                 .ToListAsync();
 
-            context.AdminLinkedMatriculas = new HashSet<string>(adminLinkedMatriculas);
+            context.AdminOwnedMatriculas = new HashSet<string>(adminMatriculas.Where(m => m.IsOwner).Select(m => m.MatriculaNumber));
+            context.AdminLinkedMatriculas = new HashSet<string>(adminMatriculas.Select(m => m.MatriculaNumber));
 
             return context;
         }

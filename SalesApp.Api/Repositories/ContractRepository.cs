@@ -158,17 +158,39 @@ namespace SalesApp.Repositories
             return query;
         }
 
+        private IOrderedQueryable<Contract> ApplyOrphanPriority(
+            IQueryable<Contract> query, UserScopeContext? scope)
+        {
+            if (scope == null || scope.IsGlobal ||
+                (scope.AdminOwnedMatriculas.Count == 0 && scope.AdminLinkedMatriculas.Count == 0))
+            {
+                return query.OrderByDescending(c => c.SaleStartDate);
+            }
+
+            var owned = scope.AdminOwnedMatriculas;
+            var linked = scope.AdminLinkedMatriculas;
+
+            return query
+                .OrderBy(c =>
+                    c.UserInternalId != null ? 3 :
+                    ((c.TempMatricula != null && owned.Contains(c.TempMatricula)) ||
+                     (c.Matricula != null && owned.Contains(c.Matricula.MatriculaNumber))) ? 0 :
+                    ((c.TempMatricula != null && linked.Contains(c.TempMatricula)) ||
+                     (c.Matricula != null && linked.Contains(c.Matricula.MatriculaNumber))) ? 1 : 2
+                )
+                .ThenByDescending(c => c.SaleStartDate);
+        }
+
         public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false)
         {
             var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
             
-            return await query
+            return await ApplyOrphanPriority(query, scope)
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
         }
 
@@ -178,13 +200,12 @@ namespace SalesApp.Repositories
 
             int totalCount = await query.CountAsync();
 
-            var items = await query
+            var items = await ApplyOrphanPriority(query, scope)
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .OrderByDescending(c => c.SaleStartDate)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

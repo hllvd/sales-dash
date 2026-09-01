@@ -318,5 +318,145 @@ namespace SalesApp.Tests.Repositories
             team2Numbers.Should().NotContain("CTR-A-BEFORE");
             team2Numbers.Should().NotContain("CTR-B-TEAM1");
         }
+
+        [Fact]
+        public async Task GetPagedAsync_WithOrphanContracts_ShouldOrderByOwnedThenLinkedThenOtherMatriculas()
+        {
+            // Arrange
+            var admin = new User { Id = Guid.NewGuid(), Name = "Admin User", Email = "admin@test.com", RoleId = 2 };
+            var seller = new User { Id = Guid.NewGuid(), Name = "Seller User", Email = "seller@test.com", RoleId = 3, ParentUserId = admin.Id };
+            _context.Users.AddRange(admin, seller);
+            await _context.SaveChangesAsync();
+
+            var status = new ContractStatus { Id = 201, Name = "Ativo" };
+            _context.ContractStatuses.Add(status);
+            await _context.SaveChangesAsync();
+
+            var matOwned = new Matricula { Id = 101, MatriculaNumber = "MAT-OWNED" };
+            var matLinked = new Matricula { Id = 102, MatriculaNumber = "MAT-LINKED" };
+            var matOther = new Matricula { Id = 103, MatriculaNumber = "MAT-OTHER" };
+            _context.Matriculas.AddRange(matOwned, matLinked, matOther);
+            await _context.SaveChangesAsync();
+
+            var cOrphanOwned = new Contract
+            {
+                ContractNumber = "CTR-ORPHAN-OWNED",
+                UserInternalId = null,
+                MatriculaId = matOwned.Id,
+                Matricula = matOwned,
+                TempMatricula = "MAT-OWNED",
+                SaleStartDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+
+            var cOrphanLinked = new Contract
+            {
+                ContractNumber = "CTR-ORPHAN-LINKED",
+                UserInternalId = null,
+                MatriculaId = matLinked.Id,
+                Matricula = matLinked,
+                TempMatricula = "MAT-LINKED",
+                SaleStartDate = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+
+            var cOrphanOther = new Contract
+            {
+                ContractNumber = "CTR-ORPHAN-OTHER",
+                UserInternalId = null,
+                MatriculaId = matOther.Id,
+                Matricula = matOther,
+                TempMatricula = "MAT-OTHER",
+                SaleStartDate = new DateTime(2024, 8, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+
+            var cAssigned = new Contract
+            {
+                ContractNumber = "CTR-ASSIGNED",
+                UserInternalId = seller.InternalId,
+                User = seller,
+                MatriculaId = matOther.Id,
+                Matricula = matOther,
+                SaleStartDate = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+
+            _context.Contracts.AddRange(cOrphanOwned, cOrphanLinked, cOrphanOther, cAssigned);
+            await _context.SaveChangesAsync();
+
+            var scope = new UserScopeContext
+            {
+                IsGlobal = false,
+                AllowedUserIds = new HashSet<Guid> { admin.Id, seller.Id },
+                AllowedMatriculas = new HashSet<string> { "MAT-OWNED", "MAT-LINKED", "MAT-OTHER" },
+                AdminOwnedMatriculas = new HashSet<string> { "MAT-OWNED" },
+                AdminLinkedMatriculas = new HashSet<string> { "MAT-OWNED", "MAT-LINKED" }
+            };
+
+            // Act
+            var (items, totalCount) = await _repository.GetPagedAsync(1, 10, scope: scope);
+            var itemNumbers = items.Select(c => c.ContractNumber).ToList();
+
+            // Assert
+            totalCount.Should().Be(4);
+            // Priority 0: Owned matricula orphan
+            itemNumbers[0].Should().Be("CTR-ORPHAN-OWNED");
+            // Priority 1: Linked matricula orphan
+            itemNumbers[1].Should().Be("CTR-ORPHAN-LINKED");
+            // Priority 2: Other matricula orphan
+            itemNumbers[2].Should().Be("CTR-ORPHAN-OTHER");
+            // Priority 3: Assigned contract
+            itemNumbers[3].Should().Be("CTR-ASSIGNED");
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_WithGlobalScope_ShouldOrderBySaleStartDate()
+        {
+            // Arrange
+            var status = new ContractStatus { Id = 202, Name = "Ativo" };
+            _context.ContractStatuses.Add(status);
+            await _context.SaveChangesAsync();
+
+            var c1 = new Contract
+            {
+                ContractNumber = "CTR-GLOBAL-OLD",
+                UserInternalId = null,
+                TempMatricula = "MAT-A",
+                SaleStartDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+            var c2 = new Contract
+            {
+                ContractNumber = "CTR-GLOBAL-NEW",
+                UserInternalId = null,
+                TempMatricula = "MAT-B",
+                SaleStartDate = new DateTime(2024, 12, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+            _context.Contracts.AddRange(c1, c2);
+            await _context.SaveChangesAsync();
+
+            var globalScope = new UserScopeContext { IsGlobal = true };
+
+            // Act
+            var (items, _) = await _repository.GetPagedAsync(1, 10, scope: globalScope);
+
+            // Assert: ordered by SaleStartDate DESC
+            var itemNumbers = items.Where(c => c.ContractNumber.StartsWith("CTR-GLOBAL-")).Select(c => c.ContractNumber).ToList();
+            itemNumbers.Should().Equal("CTR-GLOBAL-NEW", "CTR-GLOBAL-OLD");
+        }
     }
 }

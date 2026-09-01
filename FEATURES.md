@@ -82,7 +82,24 @@ Esta funcionalidade expande o escopo de visualização de contratos na listagem 
 
 ---
 
-Esta funcionalidade expande a ferramenta de Reconciliação de Contratos (`/#/contract-reconciliation`), adicionando o filtro opcional por **Equipe** que preenche/restringe a listagem de usuários apenas aos membros ativos da equipe selecionada, além de introduzir duas novas categorias de divergência de auditoria: **Divergência de Data** e **Divergência de Vendedor**.
+## Ordenação Prioritária de Contratos Órfãos por Matrícula do Administrador (Orphan Contracts Priority Ordering)
+
+Esta funcionalidade define uma ordenação prioritária na listagem e paginação de contratos para contratos órfãos (sem vendedor atribuído, `UserInternalId == null`), priorizando a proximidade com o administrador logado:
+
+### Core Objectives
+- **Classificação por Grupos de Prioridade**:
+  - **Grupo 0 (Prioridade Máxima)**: Contratos órfãos cuja matrícula pertence diretamente ao administrador logado como titular/proprietário (`UserMatricula.IsOwner == true`, conjunto `AdminOwnedMatriculas`).
+  - **Grupo 1 (Prioridade Secundária)**: Contratos órfãos cuja matrícula está vinculada ao administrador como membro secundário (`UserMatricula.IsOwner == false`, conjunto `AdminLinkedMatriculas`).
+  - **Grupo 2 (Demais Órfãos)**: Contratos órfãos vinculados a outras matrículas permitidas no escopo (ex.: de sua árvore de subordinados).
+  - **Grupo 3**: Contratos que já possuem vendedor atribuído (`UserInternalId != null`).
+- **Critério de Desempate Temporal**:
+  - Dentro de cada grupo de prioridade, os contratos são ordenados por **Data da Venda decrescente (`SaleStartDate DESC`)**.
+- **Comportamento para SuperAdmin**:
+  - Para usuários SuperAdmin (escopo global), a ordenação padrão por `SaleStartDate DESC` é mantida integralmente sem priorização arbitrária.
+
+---
+
+## Reconciliação de Contratos por Equipe e Novas Divergências de Auditoria (Team Reconciliation & Audit Mismatches)
 
 ### Core Objectives
 - **Filtro de Equipe (`Team`)**:
