@@ -62,16 +62,16 @@ test.describe('Contract Dashboard Import Update Options', () => {
 
     await expect(updateMatriculaCb).not.toBeChecked(); // Default OFF
     await expect(updateTotalAmountCb).toBeChecked();    // Default ON
-    await expect(updateStartDateCb).not.toBeChecked(); // Default OFF
+    await expect(updateStartDateCb).toBeChecked();       // Default ON
 
     // Assert label text
     await expect(page.locator('label[for="updateStartDateOnExisting"]')).toHaveText('Atualizar data do contrato');
 
     // Verify it can be toggled
-    await updateStartDateCb.check();
-    await expect(updateStartDateCb).toBeChecked();
     await updateStartDateCb.uncheck();
     await expect(updateStartDateCb).not.toBeChecked();
+    await updateStartDateCb.check();
+    await expect(updateStartDateCb).toBeChecked();
 
     // Clean up temporary file
     if (fs.existsSync(tempCsvPath)) {
