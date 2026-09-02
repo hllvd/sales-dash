@@ -1549,6 +1549,36 @@ export const apiService = {
 
     return response.blob()
   },
+
+  async searchAdminUsers(query?: string): Promise<ApiResponse<AdminUserSearchItem[]>> {
+    const token = localStorage.getItem("token")
+    const url = query ? `${API_BASE_URL}/admin-tools/users/search?query=${encodeURIComponent(query)}` : `${API_BASE_URL}/admin-tools/users/search`
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao buscar usuários"))
+    }
+    return response.json()
+  },
+
+  async adminMigrateContracts(data: AdminMigrateContractsRequest): Promise<ApiResponse<AdminMigrateContractsResult>> {
+    const token = localStorage.getItem("token")
+    const response = await fetch(`${API_BASE_URL}/admin-tools/migrate-contracts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao migrar contratos"))
+    }
+    return response.json()
+  },
 }
 
 export interface UserHierarchyNode {
@@ -2003,5 +2033,27 @@ export interface RetentionFilterProcessResponse {
   sampleRows: Array<Record<string, string>>
   headers: string[]
 }
+
+export interface AdminUserSearchItem {
+  id: string
+  name: string
+  email: string
+  isActive: boolean
+  matriculas: string[]
+}
+
+export interface AdminMigrateContractsRequest {
+  fromEmail: string
+  toEmail: string
+  migrateMatricula: boolean
+}
+
+export interface AdminMigrateContractsResult {
+  contractsMigrated: number
+  matriculasMigrated: number
+  fromUser: string
+  toUser: string
+}
+
 
 

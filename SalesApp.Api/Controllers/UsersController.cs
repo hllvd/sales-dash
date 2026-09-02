@@ -846,21 +846,6 @@ namespace SalesApp.Controllers
             
             if (request.IsActive.HasValue && hasUpdatePermission)
             {
-                if (!request.IsActive.Value && user.IsActive)
-                {
-                    var hasContractsCheck = await _context.Contracts
-                        .Include(c => c.ContractStatus)
-                        .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente" && c.ContractStatus.Name.ToLower() != "naodefinido");
-                    
-                    if (hasContractsCheck)
-                    {
-                        return BadRequest(new ApiResponse<UserResponse>
-                        {
-                            Success = false,
-                            Message = "Este usuário possui contratos ativos em seu nome. Para desativá-lo, utilize a opção de exclusão para realizar a migração obrigatória dos contratos."
-                        });
-                    }
-                }
                 user.IsActive = request.IsActive.Value;
             }
 
@@ -914,28 +899,6 @@ namespace SalesApp.Controllers
                 }
             }
 
-            var hasContracts = await _context.Contracts
-                .Include(c => c.ContractStatus)
-                .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente" && c.ContractStatus.Name.ToLower() != "naodefinido");
-
-            if (hasContracts)
-            {
-                if (!user.ParentUserId.HasValue)
-                {
-                    return BadRequest(new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Este usuário possui contratos ativos em seu nome. Para desativá-lo, é obrigatório que ele possua um usuário superior para que os contratos possam ser migrados."
-                    });
-                }
-
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Este usuário possui contratos ativos em seu nome. Os contratos devem ser migrados para o superior antes de desativar o usuário."
-                });
-            }
-            
             var isMatriculaOwner = await _context.UserMatriculas
                 .AnyAsync(um => um.UserInternalId == user.InternalId && um.IsOwner && um.IsActive && (um.EndDate == null || um.EndDate > DateTime.UtcNow));
 

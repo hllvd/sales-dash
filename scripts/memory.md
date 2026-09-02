@@ -217,6 +217,27 @@ Each entry records a fix attempt — past entries must be consulted before retry
 3. Updated `matricula_request_approval.spec.ts` to generate digits-only `REQ_MATR`.
 **Result:** ✅ Green (Build passed, 280/280 integration tests passed, 151/151 Run 1 passed, 153/153 Run 2 passed)
 
+## [2026-09-02] e2e — Attempt 1
+**Failure:** `circular_hierarchy_prevention.spec.ts` timed out waiting for button name 'Excluir', and `delete_user_migration.spec.ts` timed out on outdated modal flow and wrong placeholder.
+**Root cause:** User deactivation modal was simplified to direct deactivation with button 'Desativar', and `delete_user_migration.spec.ts` tested the deprecated mandatory migration wizard flow.
+**Fix applied:** Updated `circular_hierarchy_prevention.spec.ts` to match button `/Excluir|Desativar/i`, and updated `delete_user_migration.spec.ts` to verify direct deactivation without mandatory migration and fixed contract search placeholder to `Buscar por número...`.
+**Result:** ❌ Still failing (1 failure remaining on placeholder in delete_user_migration)
+
+## [2026-09-02] e2e — Attempt 2
+**Failure:** `delete_user_migration.spec.ts` timed out waiting for input with placeholder `Buscar contrato, PV ou cliente...`.
+**Root cause:** The contracts list search input uses placeholder `Buscar por número...`.
+**Fix applied:** Updated contract search input selector in `client/e2e-test/e2e/delete_user_migration.spec.ts` to `input[placeholder="Buscar por número..."]`.
+**Result:** ✅ Green (152/152 E2E tests passed)
+
+## [2026-09-02] all — Attempt 1
+**Failure:** None — full verification run.
+**Root cause:** N/A.
+**Fix applied:** Verified full suite across Build, Integration tests, and 2x Playwright E2E with idempotency check.
+**Result:** ✅ Green (Build passed, Integration tests passed, E2E Run 1: 152/152, E2E Run 2: 153/153)
+
+
+
+
 
 
 

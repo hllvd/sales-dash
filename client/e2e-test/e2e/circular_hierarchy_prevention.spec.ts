@@ -93,7 +93,7 @@ test.describe('Circular Hierarchy Prevention', () => {
       await userRow.locator('button[title="Excluir"]').click();
       
       // Confirm deletion
-      await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: /Excluir|Desativar/i }).click();
       
       // Select "Inativos" filter to verify inactive status badge
       await page.locator('.search-bar .mantine-Select-input').click();

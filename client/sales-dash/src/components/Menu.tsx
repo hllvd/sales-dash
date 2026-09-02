@@ -475,8 +475,15 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconTools size={20} />}
               childrenOffset={28}
               styles={navLinkStyles('')}
-              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter'}
+              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts'}
             >
+              <NavLink
+                href="#/admin-tools/migrate-contracts"
+                label="Migração de Contratos"
+                active={isActive('#/admin-tools/migrate-contracts')}
+                styles={navLinkStyles('#/admin-tools/migrate-contracts')}
+                onClick={() => { if (opened) close(); }}
+              />
               <NavLink
                 href="#/tester"
                 label="Painel de Testes"

@@ -27,6 +27,7 @@ import TesterPage from './components/TesterPage';
 import BatchPage from './components/BatchPage';
 import ContractReconciliationPage from './components/ContractReconciliationPage';
 import RetentionFilterPage from './components/RetentionFilterPage';
+import ContractMigrationTool from './components/AdminTools/ContractMigrationTool';
 import RequestsPage from './components/RequestsPage';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
@@ -132,6 +133,8 @@ function App() {
         return <ContractReconciliationPage />;
       case '#/retention-filter':
         return <RetentionFilterPage />;
+      case '#/admin-tools/migrate-contracts':
+        return <ContractMigrationTool />;
       case '#/requests':
         return <RequestsPage />;
       case '#/dashboards':

@@ -3,8 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { loginAs } from './helpers/auth';
 
-
-test.describe('Delete User with Contract Migration E2E Flow', () => {
+test.describe('Delete User without Mandatory Migration E2E Flow', () => {
   // Run tests in serial mode since they depend on the initial CSV import
   test.describe.configure({ mode: 'serial' });
 
@@ -55,12 +54,11 @@ test.describe('Delete User with Contract Migration E2E Flow', () => {
     }
   });
 
-  test('should migrate contracts to parent user during deletion flow (Superadmin)', async ({ page }) => {
+  test('should allow direct deactivation of user with contracts without mandatory migration (Superadmin)', async ({ page }) => {
     test.setTimeout(120000);
 
     // 1. Login as Superadmin
     await loginAs(page);
-
 
     // 2. Import the hierarchy CSV
     await page.click('a[href="#/users"]');
@@ -116,32 +114,32 @@ test.describe('Delete User with Contract Migration E2E Flow', () => {
     const childRow = page.locator('table tbody tr').filter({ hasText: CHILD_EMAIL });
     await childRow.locator('button[title="Excluir"]').click();
 
-    // 5. Verify the Alert shows mandatory migration (no checkbox)
+    // 5. Verify the simplified direct deactivation modal
     const deleteDialog = page.getByRole('dialog');
     await expect(deleteDialog).toBeVisible();
-    await expect(deleteDialog.getByText('Contratos Detectados')).toBeVisible();
-    await expect(deleteDialog.getByText('A migração destes contratos para o superior')).toBeVisible();
-    await expect(deleteDialog.getByText(`Superior E2E ${RUN_ID}`)).toBeVisible();
-    
-    // Checkbox should NOT exist
-    await expect(deleteDialog.locator('input[type="checkbox"]')).not.toBeVisible();
+    await expect(deleteDialog.getByText('Confirmar Desativação')).toBeVisible();
+    await expect(deleteDialog.getByText('Seus contratos permanecerão registrados e visíveis nos relatórios')).toBeVisible();
 
-    // Click Continue
-    await deleteDialog.getByRole('button', { name: 'Continuar' }).click();
+    // Confirm deactivation directly
+    await deleteDialog.getByRole('button', { name: /Desativar|Excluir/i }).click();
 
-    // 6. Verify Step 2 preview & execute
-    await expect(deleteDialog.getByText('Prévia da Migração de Contratos')).toBeVisible();
-    await expect(deleteDialog.getByText(PARENT_MATRICULA)).toBeVisible();
-    await expect(deleteDialog.getByText('Total de contratos a migrar: 1')).toBeVisible();
-
-    // Click Executar
-    await deleteDialog.getByRole('button', { name: 'Executar' }).click();
-
+    // User should disappear from active users table
     await expect(childRow).not.toBeVisible({ timeout: 15000 });
+
+    // 6. Verify that the contract still exists and is attributed to the deactivated seller
+    await page.click('a[href="#/contracts"]');
+    await expect(page.getByText('Gerenciamento de Contratos')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.contracts-loading')).not.toBeVisible({ timeout: 15000 });
+
+    await page.fill('input[placeholder="Buscar por número..."]', CONTRACT_NUMBER);
+    await page.waitForTimeout(1000);
+
+    const contractRow = page.locator('table tbody tr').filter({ hasText: CONTRACT_NUMBER });
+    await expect(contractRow).toBeVisible();
+    await expect(contractRow.getByText(`Subordinado E2E ${RUN_ID}`)).toBeVisible();
   });
 
-  test('admin should be able to delete direct child user and migrate their contracts', async ({ page }) => {
-
+  test('admin should be able to directly deactivate child user without migration wizard', async ({ page }) => {
     test.setTimeout(120000);
 
     // 1. Create a contract for the Admin's child user (using Superadmin login first)
@@ -185,25 +183,18 @@ test.describe('Delete User with Contract Migration E2E Flow', () => {
     await expect(childRow).toBeVisible();
     await childRow.locator('button[title="Excluir"]').click();
 
-    // 5. Verify the Alert shows mandatory migration and click Continue
+    // 5. Verify direct deactivation modal and confirm
     const deleteDialog = page.getByRole('dialog');
     await expect(deleteDialog).toBeVisible();
-    await expect(deleteDialog.getByText('Contratos Detectados')).toBeVisible();
-    await expect(deleteDialog.getByText(`Admin E2E ${RUN_ID}`)).toBeVisible();
+    await expect(deleteDialog.getByText('Confirmar Desativação')).toBeVisible();
 
-    await deleteDialog.getByRole('button', { name: 'Continuar' }).click();
+    await deleteDialog.getByRole('button', { name: /Desativar|Excluir/i }).click();
 
-    // 6. Verify Step 2 and Executar
-    await expect(deleteDialog.getByText('Prévia da Migração de Contratos')).toBeVisible();
-    await expect(deleteDialog.getByText(ADMIN_MATRICULA)).toBeVisible();
-    await deleteDialog.getByRole('button', { name: 'Executar' }).click();
-
-    // Verify success and check that user is no longer in active view
-    await expect(page.getByText('1 contratos migrados e usuário')).toBeVisible({ timeout: 15000 });
+    // Verify user is no longer in active view
     await expect(childRow).not.toBeVisible({ timeout: 15000 });
   });
 
-  test('admin/superadmin cannot delete a user with contracts and no superior', async ({ page }) => {
+  test('admin/superadmin can directly deactivate user with contracts and no superior', async ({ page }) => {
     test.setTimeout(90000);
 
     // 1. Create a contract for the Orphan user (using Superadmin)
@@ -243,51 +234,45 @@ test.describe('Delete User with Contract Migration E2E Flow', () => {
     await expect(orphanRow).toBeVisible();
     await orphanRow.locator('button[title="Excluir"]').click();
 
-    // 4. Verify red blocking alert is shown
+    // 4. Verify that deactivation is NOT blocked and can be confirmed directly
     const deleteDialog = page.getByRole('dialog');
     await expect(deleteDialog).toBeVisible();
-    await expect(deleteDialog.getByText('Erro: Superior Mandatório')).toBeVisible();
-    await expect(deleteDialog.getByText('Este usuário possui 1 contrato(s) ativo(s) em seu nome. Para desativá-lo, é obrigatório que ele possua um usuário superior')).toBeVisible();
+    await expect(deleteDialog.getByText('Erro: Superior Mandatório')).not.toBeVisible();
 
-    // 5. Verify action buttons (Excluir/Continuar) are not visible, only Fechar
-    await expect(deleteDialog.getByRole('button', { name: 'Excluir' })).not.toBeVisible();
-    await expect(deleteDialog.getByRole('button', { name: 'Continuar' })).not.toBeVisible();
+    const deativarButton = deleteDialog.getByRole('button', { name: /Desativar|Excluir/i });
+    await expect(deativarButton).toBeVisible();
+    await deativarButton.click();
 
-    const fecharButton = deleteDialog.getByRole('button', { name: 'Fechar' });
-    await expect(fecharButton).toBeVisible();
-    await fecharButton.click();
-
-    await expect(deleteDialog).not.toBeVisible();
+    await expect(orphanRow).not.toBeVisible({ timeout: 15000 });
   });
 
-  test('should disable Usuário Ativo checkbox in edit form if user has active contracts', async ({ page }) => {
+  test('should allow toggling Usuário Ativo checkbox in edit form even if user has active contracts', async ({ page }) => {
     test.setTimeout(60000);
 
     // Login as Superadmin
     await loginAs(page);
     await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 20000 });
 
-
     await page.click('a[href="#/users"]');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Usuários' })).toBeVisible();
 
-    // Search for Orphan user (who still has contract and is active)
-    await page.fill('input[placeholder="Buscar por nome ou email..."]', ORPHAN_EMAIL);
+    // Search for Superior user (who has no direct contracts or can be edited)
+    await page.fill('input[placeholder="Buscar por nome ou email..."]', PARENT_EMAIL);
     await page.waitForTimeout(1000);
 
-    const orphanRow = page.locator('table tbody tr').filter({ hasText: ORPHAN_EMAIL });
-    await expect(orphanRow).toBeVisible();
+    const parentRow = page.locator('table tbody tr').filter({ hasText: PARENT_EMAIL });
+    await expect(parentRow).toBeVisible();
     
     // Click Editar
-    await orphanRow.locator('button[title="Editar"]').click();
+    await parentRow.locator('button[title="Editar"]').click();
 
     const editDialog = page.getByRole('dialog');
     await expect(editDialog).toBeVisible();
 
-    // Verify checkbox is disabled and description is displayed
+    // Verify checkbox is enabled and description warning is NOT displayed
     const checkbox = editDialog.locator('input[type="checkbox"]').last(); // Active checkbox
-    await expect(checkbox).toBeDisabled();
-    await expect(editDialog.getByText('Usuários com contratos ativos não podem ser desativados por aqui.')).toBeVisible();
+    await expect(checkbox).toBeEnabled();
+    await expect(editDialog.getByText('Usuários com contratos ativos não podem ser desativados por aqui.')).not.toBeVisible();
 
     await editDialog.getByRole('button', { name: 'Cancelar' }).click();
   });

@@ -1,5 +1,23 @@
 # Features
 
+## Desativação Direta de Usuário e Ferramenta Admin de Migração de Contratos (Direct User Deactivation & Admin Contract Migration Tool)
+
+Esta funcionalidade atualiza o ciclo de vida e desativação de usuários no sistema e introduz uma ferramenta administrativa dedicada para migração manual de contratos entre usuários.
+
+### Core Objectives
+- **Desativação Direta sem Migração Compulsória**:
+  - Usuários podem ser desativados diretamente através da listagem (`DeleteUserModal`) ou na tela de edição (`UserForm`) sem a obrigatoriedade de migrar seus contratos ativos previamente para um gestor/superior.
+  - Ao desativar o usuário, `IsActive` é alterado para `false`, impedindo o login no sistema e encerrando vínculos ativos de equipe e classificações.
+  - Os contratos do usuário inativo **permanecem intactos** em seu nome e continuam sendo listados nas consultas, relatórios e telas de contratos normalmente, com o nome do vendedor original.
+  - O modal de exclusão/desativação (`DeleteUserModal`) foi simplificado para uma confirmação direta e amigável, eliminando o antigo assistente de mapeamento por contrato e superior obrigatório.
+- **Ferramenta Admin de Migração de Contratos (`/#/admin-tools/migrate-contracts`)**:
+  - Nova funcionalidade adicionada à seção **Ferramentas Admin** no menu lateral, com acesso restrito a Superadministradores.
+  - Permite a transferência de contratos de um consultor de origem (`From`) para um consultor de destino (`To`) informando os e-mails com suporte a busca/autocomplete por nome ou e-mail.
+  - Inclui opção (toggle) para migrar também as matrículas ativas do consultor de origem para o de destino (`MigrateMatricula`), garantindo a preservação e unificação de titularidade de matrículas quando desejado.
+  - Preserva os endpoints existentes de migração de contratos (`/api/contracts/user/{userId}/migrate-preview` e `/api/contracts/user/{userId}/migrate`) intactos para garantir retrocompatibilidade.
+
+---
+
 ## Detalhamento de Erros e Validação no Cadastro e Edição de Contratos (Contract Form Error Handling & Validation)
 
 Esta funcionalidade aprimora a experiência do usuário ao criar ou editar contratos diretamente pelo formulário de contratos (`ContractForm`), eliminando mensagens de erro genéricas, traduzindo e detalhando todas as falhas de validação de modelo e regras de negócio em português claro, destacando o alerta visualmente no topo do formulário com rolagem automática, e fornecendo uma instrução direta e explícita sobre a remoção de números no campo de nome do cliente.

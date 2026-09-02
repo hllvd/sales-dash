@@ -85,7 +85,6 @@ const UserForm: React.FC<UserFormProps> = ({
     initialAdmin ? `${initialAdmin.name || initialAdmin.email} (${initialAdmin.email})` : ""
   )
   const [debouncedSearch, setDebouncedSearch] = useState("")
-  const [hasContracts, setHasContracts] = useState(false)
 
   // Gestor matriculas & team states
   const [parentOwnedMatriculas, setParentOwnedMatriculas] = useState<{ id: number; matriculaNumber: string }[]>([])
@@ -93,22 +92,6 @@ const UserForm: React.FC<UserFormProps> = ({
   const [useGestorMatricula, setUseGestorMatricula] = useState<boolean>(true)
   const [joinParentTeam, setJoinParentTeam] = useState<boolean>(true)
   const [loadingParentDetails, setLoadingParentDetails] = useState<boolean>(false)
-
-  useEffect(() => {
-    if (user && isEdit) {
-      apiService.getMigrationPreview(user.id)
-        .then((res) => {
-          if (res.success && res.data && res.data.length > 0) {
-            setHasContracts(true)
-          }
-        })
-        .catch(() => {
-          setHasContracts(false)
-        })
-    } else {
-      setHasContracts(false)
-    }
-  }, [user, isEdit])
 
   // Force role to "user" if Admin restricted and not editing
   useEffect(() => {
@@ -498,13 +481,9 @@ const UserForm: React.FC<UserFormProps> = ({
         )}
 
         {isEdit && (
-          <FormField 
-            label="Usuário Ativo"
-            description={hasContracts ? "Usuários com contratos ativos não podem ser desativados por aqui. Use a opção de exclusão (Delete) na listagem para realizar a migração obrigatória dos contratos." : undefined}
-          >
+          <FormField label="Usuário Ativo">
             <Checkbox
               checked={formData.isActive}
-              disabled={hasContracts}
               onChange={(e) => handleChange('isActive', e.currentTarget.checked)}
             />
           </FormField>
