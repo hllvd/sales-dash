@@ -297,3 +297,15 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated `import_wizard_duplicate_contracts.spec.ts` to expand "Importação" before clicking `a[href="#/import-wizard"]`, and `user_classification_and_views.spec.ts` to expand "Dados & Relatórios" before clicking `a[href="#/views"]`.
 **Result:** ✅ Green (159/159 E2E tests passed after `./test.sh rm-db && ./test.sh e2e`)
 
+## [2026-09-04] all — Attempt 13
+**Failure:** None — added feature to delete periods from team calendar history with automatic contiguous boundary healing, and reversed vertical list ordering to newest-first.
+**Root cause:** Feature request: allow deleting erroneous/historical team periods, with healing rules (bridge gap if in middle, make preceding active if deleting active), and show most recent periods at the top of the vertical list.
+**Fix applied:**
+1. Added `DELETE /api/teams/{id}/members/{userId}/period/{userTeamId}` in `TeamsController.cs` with healing rules (bridge preceding and succeeding, make preceding active if deleting active, or clear team if single).
+2. Added `deleteTeamMemberPeriod` in `apiService.ts`.
+3. In `TeamCalendarPage.tsx`: sorted vertical list descending (`reversedHistory`), linked `olderTeam` for `Ajustar Transição`, added "Excluir" button with confirmation modal.
+4. Added integration tests `DeleteMemberPeriod_WhenInMiddle_ShouldBridgeGapBetweenPrecedingAndSucceeding` and `DeleteMemberPeriod_WhenActive_ShouldMakePrecedingActive` in `TeamCalendarIntegrationTests.cs`.
+5. Documented feature in `FEATURES.md`.
+**Result:** ✅ Green (Build PASSED, 293/293 integration tests PASSED, 159/159 E2E Run 1 passed, 159/159 E2E Run 2 passed)
+
+

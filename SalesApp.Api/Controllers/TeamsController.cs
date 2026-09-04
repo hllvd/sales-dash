@@ -706,6 +706,101 @@ namespace SalesApp.Controllers
             });
         }
 
+        [HttpDelete("{id:int}/members/{userId:guid}/period/{userTeamId:int}")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<TeamResponse>>> DeleteMemberPeriod(int id, Guid userId, int userTeamId)
+        {
+            var team = await _teamRepository.GetByIdAsync(id);
+            if (team == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.TeamNotFound)
+                });
+            }
+
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                var caller = await _userRepository.GetByIdAsync(currentUserId);
+                var allowedOwnerInternalIds = await GetDescendantsUpToLevel4Async(currentUserId);
+                if (caller == null || (team.OwnerUserInternalId != caller.InternalId && (team.OwnerUserInternalId == null || !allowedOwnerInternalIds.Contains(team.OwnerUserInternalId.Value))))
+                {
+                    return Forbid();
+                }
+            }
+
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+
+            var allUserTeams = await _context.UserTeams
+                .Include(ut => ut.Team)
+                .Where(ut => ut.UserInternalId == user.InternalId)
+                .OrderBy(ut => ut.StartDate)
+                .ToListAsync();
+
+            var membership = allUserTeams.FirstOrDefault(ut => ut.Id == userTeamId && ut.TeamId == id);
+            if (membership == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = "Período não encontrado nesta equipe para o usuário."
+                });
+            }
+
+            var currentIndex = allUserTeams.FindIndex(ut => ut.Id == userTeamId);
+            var preceding = currentIndex > 0 ? allUserTeams[currentIndex - 1] : null;
+            var succeeding = currentIndex < allUserTeams.Count - 1 ? allUserTeams[currentIndex + 1] : null;
+
+            // Healing rules:
+            // 1. Both preceding and succeeding exist: bridge the gap so preceding.EndDate = succeeding.StartDate - 1 day
+            if (preceding != null && succeeding != null)
+            {
+                preceding.EndDate = succeeding.StartDate.Date.AddDays(-1);
+                preceding.UpdatedAt = DateTime.UtcNow;
+            }
+            // 2. Only preceding exists (deleting the most recent / active period): preceding becomes the active period
+            else if (preceding != null && succeeding == null)
+            {
+                preceding.EndDate = null;
+                preceding.UpdatedAt = DateTime.UtcNow;
+            }
+            // 3. Only succeeding exists (deleting the oldest period): succeeding remains as is
+            // 4. Neither exists (single period): user has no team remaining
+
+            // If user was owner of the team, check if they have any remaining active period in this team
+            if (team.OwnerUserInternalId == user.InternalId)
+            {
+                var remainingActiveInTeam = allUserTeams.Any(ut => ut.Id != userTeamId && ut.TeamId == id && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow));
+                if (!remainingActiveInTeam)
+                {
+                    team.OwnerUserInternalId = null;
+                    await _teamRepository.UpdateAsync(team);
+                }
+            }
+
+            _context.UserTeams.Remove(membership);
+            await _context.SaveChangesAsync();
+
+            var reloadedTeam = await _teamRepository.GetByIdAsync(id);
+            return Ok(new ApiResponse<TeamResponse>
+            {
+                Success = true,
+                Data = MapToTeamResponse(reloadedTeam ?? team),
+                Message = "Período removido com sucesso."
+            });
+        }
+
         private async Task<HashSet<int>> GetDescendantsUpToLevel4Async(Guid userId)
         {
             // Explicitly displaying only 4 levels below the current user admin.

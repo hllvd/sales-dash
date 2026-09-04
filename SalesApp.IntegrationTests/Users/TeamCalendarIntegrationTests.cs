@@ -748,6 +748,169 @@ namespace SalesApp.IntegrationTests.Users
             }
         }
 
+        [Fact]
+        public async Task DeleteMemberPeriod_WhenInMiddle_ShouldBridgeGapBetweenPrecedingAndSucceeding()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Guid testUserId;
+            int teamAId, teamBId, teamCId;
+            int userTeamBId;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var testUser = new User
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "User Delete Mid",
+                    Email = $"user.del.mid.{Guid.NewGuid():N}@test.com",
+                    PasswordHash = "hash",
+                    RoleId = 3,
+                    IsActive = true
+                };
+                context.Users.Add(testUser);
+                await context.SaveChangesAsync();
+                testUserId = testUser.Id;
+
+                var teamA = new Team { Name = $"Team Del A {Guid.NewGuid():N}" };
+                var teamB = new Team { Name = $"Team Del B {Guid.NewGuid():N}" };
+                var teamC = new Team { Name = $"Team Del C {Guid.NewGuid():N}" };
+                context.Teams.AddRange(teamA, teamB, teamC);
+                await context.SaveChangesAsync();
+
+                teamAId = teamA.Id;
+                teamBId = teamB.Id;
+                teamCId = teamC.Id;
+
+                var utA = new UserTeam
+                {
+                    UserInternalId = testUser.InternalId,
+                    TeamId = teamAId,
+                    StartDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    EndDate = new DateTime(2024, 5, 31, 0, 0, 0, DateTimeKind.Utc)
+                };
+                var utB = new UserTeam
+                {
+                    UserInternalId = testUser.InternalId,
+                    TeamId = teamBId,
+                    StartDate = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    EndDate = new DateTime(2024, 8, 31, 0, 0, 0, DateTimeKind.Utc)
+                };
+                var utC = new UserTeam
+                {
+                    UserInternalId = testUser.InternalId,
+                    TeamId = teamCId,
+                    StartDate = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+                    EndDate = null
+                };
+                context.UserTeams.AddRange(utA, utB, utC);
+                await context.SaveChangesAsync();
+
+                userTeamBId = utB.Id;
+            }
+
+            // Act: Delete Team B period
+            var response = await client.DeleteAsync($"/api/teams/{teamBId}/members/{testUserId}/period/{userTeamBId}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var utA = await context.UserTeams.FirstOrDefaultAsync(ut => ut.TeamId == teamAId && ut.User.Id == testUserId);
+                var utB = await context.UserTeams.FirstOrDefaultAsync(ut => ut.TeamId == teamBId && ut.User.Id == testUserId);
+                var utC = await context.UserTeams.FirstOrDefaultAsync(ut => ut.TeamId == teamCId && ut.User.Id == testUserId);
+
+                utB.Should().BeNull();
+                utA.Should().NotBeNull();
+                utC.Should().NotBeNull();
+
+                // Team A EndDate should now bridge to 2024-08-31 (1 day before Team C StartDate 2024-09-01)
+                utA!.EndDate.Should().Be(new DateTime(2024, 8, 31, 0, 0, 0, DateTimeKind.Utc));
+            }
+        }
+
+        [Fact]
+        public async Task DeleteMemberPeriod_WhenActive_ShouldMakePrecedingActive()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Guid testUserId;
+            int teamAId, teamBId;
+            int userTeamBId;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var testUser = new User
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "User Delete Active",
+                    Email = $"user.del.act.{Guid.NewGuid():N}@test.com",
+                    PasswordHash = "hash",
+                    RoleId = 3,
+                    IsActive = true
+                };
+                context.Users.Add(testUser);
+                await context.SaveChangesAsync();
+                testUserId = testUser.Id;
+
+                var teamA = new Team { Name = $"Team Act A {Guid.NewGuid():N}" };
+                var teamB = new Team { Name = $"Team Act B {Guid.NewGuid():N}" };
+                context.Teams.AddRange(teamA, teamB);
+                await context.SaveChangesAsync();
+
+                teamAId = teamA.Id;
+                teamBId = teamB.Id;
+
+                var utA = new UserTeam
+                {
+                    UserInternalId = testUser.InternalId,
+                    TeamId = teamAId,
+                    StartDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    EndDate = new DateTime(2024, 5, 31, 0, 0, 0, DateTimeKind.Utc)
+                };
+                var utB = new UserTeam
+                {
+                    UserInternalId = testUser.InternalId,
+                    TeamId = teamBId,
+                    StartDate = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    EndDate = null
+                };
+                context.UserTeams.AddRange(utA, utB);
+                await context.SaveChangesAsync();
+
+                userTeamBId = utB.Id;
+            }
+
+            // Act: Delete Team B (active)
+            var response = await client.DeleteAsync($"/api/teams/{teamBId}/members/{testUserId}/period/{userTeamBId}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var utA = await context.UserTeams.FirstOrDefaultAsync(ut => ut.TeamId == teamAId && ut.User.Id == testUserId);
+                var utB = await context.UserTeams.FirstOrDefaultAsync(ut => ut.TeamId == teamBId && ut.User.Id == testUserId);
+
+                utB.Should().BeNull();
+                utA.Should().NotBeNull();
+
+                // Team A EndDate is now null (active)
+                utA!.EndDate.Should().BeNull();
+            }
+        }
+
         private async Task<string> GetSuperAdminToken()
         {
             var loginRequest = new LoginRequest

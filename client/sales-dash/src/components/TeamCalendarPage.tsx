@@ -8,7 +8,7 @@ import {
   IconSearch, IconCalendar, IconUsers, IconRefresh,
   IconArrowRight, IconAlertTriangle, IconCheck, IconClock,
   IconBuildingCommunity, IconUserPlus, IconArrowsRightLeft, IconInfoCircle,
-  IconEdit
+  IconEdit, IconTrash
 } from '@tabler/icons-react';
 import Menu from './Menu';
 import {
@@ -102,6 +102,11 @@ const TeamCalendarPage: React.FC = () => {
   const [editPeriodEndDate, setEditPeriodEndDate] = useState('');
   const [editPeriodIsActive, setEditPeriodIsActive] = useState(false);
   const [savingPeriodEdit, setSavingPeriodEdit] = useState(false);
+
+  // Delete Period Modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [periodToDelete, setPeriodToDelete] = useState<UserTeamHistoryEntry | null>(null);
+  const [deletingPeriod, setDeletingPeriod] = useState(false);
 
   // Drag and drop timeline state
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
@@ -278,6 +283,42 @@ const TeamCalendarPage: React.FC = () => {
       });
     } finally {
       setSavingPeriodEdit(false);
+    }
+  };
+
+  // Open Delete Period Modal
+  const openDeletePeriodModal = (period: UserTeamHistoryEntry) => {
+    setPeriodToDelete(period);
+    setDeleteModalOpen(true);
+  };
+
+  // Confirm Delete Period
+  const handleConfirmDeletePeriod = async () => {
+    if (!selectedUser || !periodToDelete) return;
+
+    setDeletingPeriod(true);
+    try {
+      await apiService.deleteTeamMemberPeriod(
+        periodToDelete.teamId,
+        selectedUser.userId,
+        periodToDelete.userTeamId
+      );
+      notifications.show({
+        title: 'Período Excluído',
+        message: `O período na equipe ${periodToDelete.teamName} foi excluído com sucesso!`,
+        color: 'green',
+      });
+      setDeleteModalOpen(false);
+      setPeriodToDelete(null);
+      await fetchCalendar();
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro ao excluir período',
+        message: err.message || 'Falha ao excluir o período da equipe.',
+        color: 'red',
+      });
+    } finally {
+      setDeletingPeriod(false);
     }
   };
 
@@ -493,6 +534,22 @@ const TeamCalendarPage: React.FC = () => {
     const totalDuration = maxTime - minTime || 1;
 
     return { minTime, maxTime, totalDuration };
+  }, [selectedUser]);
+
+  // Chronological team history (oldest first, for horizontal timeline)
+  const chronologicalHistory = useMemo(() => {
+    if (!selectedUser) return [];
+    return [...selectedUser.teamHistory].sort(
+      (a, b) => parseUTCDate(a.startDate).getTime() - parseUTCDate(b.startDate).getTime()
+    );
+  }, [selectedUser]);
+
+  // Reverse team history (newest/active first, for vertical periods list)
+  const reversedHistory = useMemo(() => {
+    if (!selectedUser) return [];
+    return [...selectedUser.teamHistory].sort(
+      (a, b) => parseUTCDate(b.startDate).getTime() - parseUTCDate(a.startDate).getTime()
+    );
   }, [selectedUser]);
 
   // Handle Drag Move & Release on Timeline
@@ -912,15 +969,19 @@ const TeamCalendarPage: React.FC = () => {
                 ) : null}
 
                 {/* Periods List */}
-                {selectedUser.teamHistory.length > 0 && (
+                {reversedHistory.length > 0 && (
                   <div>
                     <Text size="sm" fw={600} c="#374151" mb="xs">
-                      Histórico Cronológico de Períodos
+                      Histórico de Períodos
                     </Text>
                     <div className="team-calendar-periods-list">
-                      {selectedUser.teamHistory.map((item, idx) => {
+                      {reversedHistory.map((item, idx) => {
                         const color = getTeamColor(item.teamId);
                         const days = getDurationInDays(item.startDate, item.endDate);
+
+                        // Find chronologically preceding (older) period to allow adjusting transition boundary
+                        const chronIdx = chronologicalHistory.findIndex(h => h.userTeamId === item.userTeamId);
+                        const olderTeam = chronIdx > 0 ? chronologicalHistory[chronIdx - 1] : null;
 
                         return (
                           <div
@@ -959,22 +1020,32 @@ const TeamCalendarPage: React.FC = () => {
                                 Editar Datas
                               </Button>
 
-                              {idx < selectedUser.teamHistory.length - 1 && (
+                              {olderTeam && (
                                 <Button
                                   size="xs"
                                   variant="light"
                                   color="blue"
                                   onClick={() => {
-                                    const next = selectedUser.teamHistory[idx + 1];
-                                    const targetDate = item.endDate
-                                      ? parseUTCDate(item.endDate)
-                                      : parseUTCDate(next.startDate);
-                                    openAdjustmentModal(selectedUser, item, next, targetDate);
+                                    const targetDate = olderTeam.endDate
+                                      ? parseUTCDate(olderTeam.endDate)
+                                      : parseUTCDate(item.startDate);
+                                    openAdjustmentModal(selectedUser, olderTeam, item, targetDate);
                                   }}
                                 >
                                   Ajustar Transição
                                 </Button>
                               )}
+
+                              <Button
+                                size="xs"
+                                variant="subtle"
+                                color="red"
+                                leftSection={<IconTrash size={14} />}
+                                onClick={() => openDeletePeriodModal(item)}
+                                title="Excluir período do histórico"
+                              >
+                                Excluir
+                              </Button>
                             </Group>
                           </div>
                         );
@@ -1607,6 +1678,54 @@ const TeamCalendarPage: React.FC = () => {
               </Button>
             </Group>
           </div>
+        </Modal>
+
+        {/* ── Modal: Confirmar Exclusão de Período ───────────────────────── */}
+        <Modal
+          opened={deleteModalOpen}
+          onClose={() => !deletingPeriod && setDeleteModalOpen(false)}
+          title={
+            <Group gap="xs">
+              <IconAlertTriangle size={20} color="#ef4444" />
+              <Text fw={700} size="md" c="#111827">
+                Confirmar Exclusão de Período
+              </Text>
+            </Group>
+          }
+          centered
+          size="md"
+        >
+          {periodToDelete && selectedUser && (
+            <Stack gap="md">
+              <Text size="sm" c="#374151">
+                Tem certeza que deseja excluir o período na equipe <strong>{periodToDelete.teamName}</strong> ({formatDateBR(periodToDelete.startDate)} até {formatDateBR(periodToDelete.endDate)}) de <strong>{normalizeName(selectedUser.userName)}</strong>?
+              </Text>
+
+              <Alert icon={<IconInfoCircle size={16} />} color="blue" title="Continuidade Automática">
+                <Text size="xs" c="#1e40af">
+                  Os períodos vizinhos serão ajustados automaticamente para preservar a continuidade do histórico (sem sobreposições e sem lacunas).
+                </Text>
+              </Alert>
+
+              <Group justify="flex-end" mt="md">
+                <Button
+                  variant="default"
+                  onClick={() => setDeleteModalOpen(false)}
+                  disabled={deletingPeriod}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  color="red"
+                  onClick={handleConfirmDeletePeriod}
+                  loading={deletingPeriod}
+                  leftSection={<IconTrash size={16} />}
+                >
+                  Excluir Período
+                </Button>
+              </Group>
+            </Stack>
+          )}
         </Modal>
       </div>
     </Menu>

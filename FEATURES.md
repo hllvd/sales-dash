@@ -67,6 +67,17 @@ Esta funcionalidade adiciona uma visão interativa de linha do tempo e calendár
   - `POST api/teams/calendar/assign-team`: encerra o vínculo ativo anterior, cria o novo vínculo de equipe atomicamente e atualiza o `ParentUserId` para o gestor da nova equipe com validação contra ciclos hierárquicos.
   - `GET api/teams/calendar/contract-preview`: consulta os contratos antes/depois da data de corte para o usuário.
   - `PUT api/teams/calendar/adjust-boundary`: atualiza atomicamente as datas de transição de equipes com validação do período mínimo.
+  - `DELETE api/teams/{id}/members/{userId}/period/{userTeamId}`: exclui um período de equipe do histórico do usuário aplicando regras de autocura/continuidade contígua entre os períodos vizinhos.
+- **Ordenação Decrescente do Histórico Vertical ("Mais Novo para o Mais Velho")**:
+  - A lista de cards de períodos é exibida em ordem cronológica decrescente (o período ativo/mais recente sempre no topo e os períodos passados para baixo), garantindo leitura clara e focada no estado mais recente.
+  - A linha do tempo gráfica horizontal mantém a progressão da esquerda (passado) para a direita (presente), preservando a coerência visual temporal.
+- **Exclusão de Períodos do Histórico com Continuidade Automática**:
+  - Cada card de período no histórico conta com botão de exclusão que aciona modal de confirmação.
+  - Regras de integridade ao excluir:
+    - *Entre dois períodos*: o período anterior é automaticamente estendido para encostar no posterior (`anterior.EndDate = posterior.StartDate - 1 dia`), eliminando lacunas (zero gaps).
+    - *Período ativo*: o período imediatamente anterior torna-se o novo período ativo (`EndDate = null`).
+    - *Período mais antigo*: o posterior é preservado sem alterações.
+    - *Único período*: removido sem afetar outros vínculos, deixando o usuário sem equipe ativa.
 
 ---
 

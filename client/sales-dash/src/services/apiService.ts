@@ -1223,6 +1223,17 @@ export const apiService = {
     return response.json()
   },
 
+  async deleteTeamMemberPeriod(id: number, userId: string, userTeamId: number): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/members/${userId}/period/${userTeamId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to delete team member period"))
+    }
+    return response.json()
+  },
+
   async setTeamOwner(id: number, ownerUserId: string): Promise<ApiResponse<Team>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/owner`, {
       method: "POST",
