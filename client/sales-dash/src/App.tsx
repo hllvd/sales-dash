@@ -38,6 +38,7 @@ import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
 import { BuildInfoProvider } from './contexts/BuildInfoContext';
 import { ReferenceDataProvider } from './contexts/ReferenceDataContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/charts/styles.css';
@@ -170,10 +171,12 @@ function App() {
             <ReferenceDataProvider>
               <MantineProvider>
                 <Notifications />
-                <SurveyModal />
-                <ErrorBoundary>
-                  {renderPage()}
-                </ErrorBoundary>
+                <NotificationProvider>
+                  <SurveyModal />
+                  <ErrorBoundary>
+                    {renderPage()}
+                  </ErrorBoundary>
+                </NotificationProvider>
               </MantineProvider>
             </ReferenceDataProvider>
           </ContractsProvider>

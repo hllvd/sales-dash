@@ -33,6 +33,7 @@ import {
   IconFileImport,
 } from '@tabler/icons-react';
 import { surveyPollingService } from '../services/surveyPollingService';
+import { NotificationBell } from './notifications/NotificationBell';
 
 interface MenuProps {
   children?: React.ReactNode;
@@ -209,7 +210,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               Painel de Vendas
             </Text>
           </Group>
-          {/* Header can contain profile or other info later */}
+          <NotificationBell />
         </Group>
       </AppShell.Header>
       <AppShell.Navbar 
@@ -222,7 +223,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         }}
       >
         <AppShell.Section>
-          <Group mb="lg">
+          <Group mb="lg" justify="space-between" align="center">
             <Tooltip
               label={buildInfo ? `Build: ${buildInfo.buildId}` : 'Carregando build info…'}
               position="right"
@@ -241,6 +242,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
                 Painel de Vendas
               </Text>
             </Tooltip>
+            <NotificationBell />
           </Group>
         </AppShell.Section>
 

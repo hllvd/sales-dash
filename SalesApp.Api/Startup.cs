@@ -23,6 +23,9 @@ using SalesApp.ReportFilters.Services;
 using SalesApp.ReportFilters.Settings;
 using SalesApp.ReportViews.Repositories;
 using SalesApp.ReportViews.Services;
+using SalesApp.Notifications.Repositories;
+using SalesApp.Notifications.Services;
+using SalesApp.Notifications.BackgroundJobs;
 
 namespace SalesApp
 {
@@ -103,8 +106,18 @@ namespace SalesApp
             // Monitoring & Notifications
             services.AddScoped<IMonitoringRepository, MonitoringRepository>();
             services.AddScoped<IMonitoringService, MonitoringService>();
-            services.AddSingleton<INotificationService, LoggingNotificationService>();
             services.AddScoped<IContractStatusService, ContractStatusService>();
+
+            // Modern DynamoDB Notifications Feature
+            services.AddScoped<INotificationRepository, DynamoDbNotificationRepository>();
+            services.AddSingleton<ISseConnectionManager, SseConnectionManager>();
+            services.AddSingleton<INotificationQueue, NotificationQueue>();
+            services.AddScoped<INotificationWriter, NotificationWriter>();
+            services.AddHostedService<NotificationFanOutWorker>();
+            services.AddHostedService<StaleRequestCleanupService>();
+
+            // INotificationService backward-compatibility bridge
+            services.AddScoped<INotificationService, DynamoDbNotificationService>();
             
             // Export service (singleton — holds in-memory export jobs)
             services.AddSingleton<IExportService, ExportService>();
@@ -217,7 +230,8 @@ namespace SalesApp
                         if (!string.IsNullOrEmpty(accessToken) &&
                             (path.StartsWithSegments("/api/contracts/export") ||
                              path.StartsWithSegments("/api/users/me/contracts/export") ||
-                             path.StartsWithSegments("/api/report-filters/export")))
+                             path.StartsWithSegments("/api/report-filters/export") ||
+                             path.StartsWithSegments("/api/notifications/stream")))
                         {
                             context.Token = accessToken;
                         }
