@@ -290,3 +290,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Card contained both `<span class="mantine-Badge-label">Respondida</span>` and `<p>Respondida em: ...</p>`.
 **Fix applied:** Updated assertion in `surveys_qa.spec.ts` to `getByText('Respondida', { exact: true })`.
 **Result:** ✅ Green (159/159 E2E tests passed after `./test.sh rm-db && ./test.sh e2e`)
+
+## [2026-09-04] e2e — Attempt 2
+**Failure:** `import_wizard_duplicate_contracts.spec.ts` timed out clicking `a[href="#/import-wizard"]`.
+**Root cause:** Menu restructuring moved "Assistente de Importação" under the collapsible "Importação" parent menu, which is collapsed when on `#/contracts`.
+**Fix applied:** Updated `import_wizard_duplicate_contracts.spec.ts` to expand "Importação" before clicking `a[href="#/import-wizard"]`, and `user_classification_and_views.spec.ts` to expand "Dados & Relatórios" before clicking `a[href="#/views"]`.
+**Result:** ✅ Green (159/159 E2E tests passed after `./test.sh rm-db && ./test.sh e2e`)
+

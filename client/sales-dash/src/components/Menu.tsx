@@ -29,6 +29,8 @@ import {
   IconBuildingStore,
   IconCalendar,
   IconHelp,
+  IconDatabase,
+  IconFileImport,
 } from '@tabler/icons-react';
 import { surveyPollingService } from '../services/surveyPollingService';
 
@@ -49,6 +51,14 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   );
   const [teamsMenuOpened, setTeamsMenuOpened] = useState(
     window.location.hash === '#/teams' || window.location.hash === '#/teams/calendar'
+  );
+  const [dadosMenuOpened, setDadosMenuOpened] = useState(
+    window.location.hash.startsWith('#/reports') ||
+    window.location.hash.startsWith('#/views') ||
+    window.location.hash.startsWith('#/scrapes')
+  );
+  const [importacaoMenuOpened, setImportacaoMenuOpened] = useState(
+    window.location.hash === '#/import-wizard' || window.location.hash === '#/import-history'
   );
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [pendingSurveyCount, setPendingSurveyCount] = useState<number>(0);
@@ -82,6 +92,12 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     }
     if (currentPath === '#/teams' || currentPath === '#/teams/calendar') {
       setTeamsMenuOpened(true);
+    }
+    if (currentPath.startsWith('#/reports') || currentPath.startsWith('#/views') || currentPath.startsWith('#/scrapes')) {
+      setDadosMenuOpened(true);
+    }
+    if (currentPath === '#/import-wizard' || currentPath === '#/import-history') {
+      setImportacaoMenuOpened(true);
     }
   }, [currentPath]);
 
@@ -287,6 +303,18 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           ) : null}
 
+          <NavLink
+            href="#/my-contracts"
+            label="Meus Contratos"
+            leftSection={<IconClipboardList size={20} />}
+            active={isActive('#/my-contracts')}
+            variant="filled"
+            color="red"
+            styles={navLinkStyles('#/my-contracts')}
+            data-testid="nav-my-contracts"
+            onClick={() => { if (opened) close(); }}
+          />
+
           {hasPermission('requests:read') && (
             <NavLink
               href="#/requests"
@@ -434,43 +462,87 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {hasPermission('imports:history') && (
-            <NavLink
-              href="#/import-history"
-              label="Histórico de Importação"
-              leftSection={<IconHistory size={20} />}
-              active={isActive('#/import-history')}
-              variant="filled"
-              color="red"
-              styles={navLinkStyles('#/import-history')}
-              onClick={() => { if (opened) close(); }}
-            />
-          )}
-
-          {hasPermission('imports:execute') && (
-            <NavLink
-              href="#/import-wizard"
-              label="Assistente de Importação"
-              leftSection={<IconWand size={20} />}
-              active={isActive('#/import-wizard')}
-              variant="filled"
-              color="red"
-              styles={navLinkStyles('#/import-wizard')}
-              onClick={() => { if (opened) close(); }}
-            />
-          )}
-
           <NavLink
-            href="#/my-contracts"
-            label="Meus Contratos"
-            leftSection={<IconClipboardList size={20} />}
-            active={isActive('#/my-contracts')}
-            variant="filled"
-            color="red"
-            styles={navLinkStyles('#/my-contracts')}
-            data-testid="nav-my-contracts"
-            onClick={() => { if (opened) close(); }}
-          />
+            label="Dados & Relatórios"
+            leftSection={<IconDatabase size={20} />}
+            childrenOffset={28}
+            styles={navLinkStyles('')}
+            opened={dadosMenuOpened}
+            onChange={setDadosMenuOpened}
+          >
+            <NavLink
+              href="#/reports"
+              label="Relatórios"
+              leftSection={<IconChartBar size={16} />}
+              active={isActive('#/reports') || currentPath.startsWith('#/reports/')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/reports')}
+              data-testid="nav-reports"
+              onClick={() => { if (opened) close(); }}
+            />
+            
+            <NavLink
+              href="#/views"
+              label="Dashboards"
+              leftSection={<IconLayoutDashboard size={16} />}
+              active={isActive('#/views') || currentPath.startsWith('#/views/')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/views')}
+              onClick={() => { if (opened) close(); }}
+            />
+            
+            {hasPermission('system:admin') && (
+              <NavLink
+                href="#/scrapes"
+                label="Extração PowerBI"
+                leftSection={<IconRefresh size={16} />}
+                active={isActive('#/scrapes')}
+                variant="filled"
+                color="red"
+                styles={navLinkStyles('#/scrapes')}
+                onClick={() => { if (opened) close(); }}
+              />
+            )}
+          </NavLink>
+
+          {(hasPermission('imports:execute') || hasPermission('imports:history')) && (
+            <NavLink
+              label="Importação"
+              leftSection={<IconFileImport size={20} />}
+              childrenOffset={28}
+              styles={navLinkStyles('')}
+              opened={importacaoMenuOpened}
+              onChange={setImportacaoMenuOpened}
+            >
+              {hasPermission('imports:execute') && (
+                <NavLink
+                  href="#/import-wizard"
+                  label="Assistente de Importação"
+                  leftSection={<IconWand size={16} />}
+                  active={isActive('#/import-wizard')}
+                  variant="filled"
+                  color="red"
+                  styles={navLinkStyles('#/import-wizard')}
+                  onClick={() => { if (opened) close(); }}
+                />
+              )}
+
+              {hasPermission('imports:history') && (
+                <NavLink
+                  href="#/import-history"
+                  label="Histórico de Importação"
+                  leftSection={<IconHistory size={16} />}
+                  active={isActive('#/import-history')}
+                  variant="filled"
+                  color="red"
+                  styles={navLinkStyles('#/import-history')}
+                  onClick={() => { if (opened) close(); }}
+                />
+              )}
+            </NavLink>
+          )}
 
           <NavLink
             href="#/qa"
@@ -484,42 +556,6 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             data-testid="nav-qa"
             onClick={() => { if (opened) close(); }}
           />
-
-          <NavLink
-            href="#/reports"
-            label="Relatórios"
-            leftSection={<IconChartBar size={20} />}
-            active={isActive('#/reports') || currentPath.startsWith('#/reports/')}
-            variant="filled"
-            color="red"
-            styles={navLinkStyles('#/reports')}
-            data-testid="nav-reports"
-            onClick={() => { if (opened) close(); }}
-          />
-          
-          <NavLink
-            href="#/views"
-            label="Dashboards"
-            leftSection={<IconLayoutDashboard size={20} />}
-            active={isActive('#/views') || currentPath.startsWith('#/views/')}
-            variant="filled"
-            color="red"
-            styles={navLinkStyles('#/views')}
-            onClick={() => { if (opened) close(); }}
-          />
-          
-          {hasPermission('system:admin') && (
-            <NavLink
-              href="#/scrapes"
-              label="Extração PowerBI"
-              leftSection={<IconRefresh size={20} />}
-              active={isActive('#/scrapes')}
-              variant="filled"
-              color="red"
-              styles={navLinkStyles('#/scrapes')}
-              onClick={() => { if (opened) close(); }}
-            />
-          )}
 
           {hasPermission('system:superadmin') && (
             <NavLink

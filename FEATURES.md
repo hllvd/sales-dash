@@ -1,5 +1,29 @@
 # Features
 
+## Reestruturação da Navegação Lateral (Sidebar Menu Restructuring)
+
+Reorganização da navegação principal do sistema (`Menu.tsx`) para agrupar funcionalidades correlatas em categorias expansíveis e melhorar a ergonomia de acesso a contratos e dados.
+
+### Core Objectives
+- **Posicionamento de "Meus Contratos" logo após "Contratos"**:
+  - O link de navegação para `#/my-contracts` foi reposicionado imediatamente abaixo de `#/contracts` (visível para todos os usuários elegíveis), facilitando a alternância entre contratos globais e contratos pessoais.
+- **Grupo Expansível "Dados & Relatórios"**:
+  - Novo item pai colapsável com ícone de banco de dados (`IconDatabase`), aberto por padrão quando em qualquer subrota de relatórios/dashboards.
+  - Agrupa os itens de navegação:
+    - **Relatórios** (`#/reports`)
+    - **Dashboards** (`#/views`)
+    - **Extração PowerBI** (`#/scrapes`, visível para administradores com permissão `system:admin`)
+- **Grupo Expansível "Importação"**:
+  - Novo item pai colapsável com ícone de importação de arquivos (`IconFileImport`), exibido para usuários com permissão de execução ou histórico (`imports:execute` ou `imports:history`).
+  - Agrupa os itens de navegação:
+    - **Assistente de Importação** (`#/import-wizard`)
+    - **Histórico de Importação** (`#/import-history`)
+- **Estado Reativo e Suporte a Responsividade**:
+  - Abertura automática inteligente dos grupos ao navegar diretamente ou via hash change para qualquer subrota filha.
+  - Fechamento automático da barra de navegação ao clicar em qualquer item no modo mobile.
+
+---
+
 ## Calendário de Equipes por Usuário (Team Calendar Timeline)
 
 Esta funcionalidade adiciona uma visão interativa de linha do tempo e calendário de equipes (`#/teams/calendar`), permitindo visualizar e ajustar de forma visual os períodos de vínculo de equipes de cada usuário descendente (Níveis 1, 2 e 3) do administrador logado, com preview dos contratos afetados pela transição.

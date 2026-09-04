@@ -173,6 +173,7 @@ test.describe('[TEAR 2] Import Wizard — Duplicate Contract Number Detection', 
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
     // Step C: Navigate back to the Import Wizard
+    await page.getByText('Importação', { exact: true }).click();
     await page.click('a[href="#/import-wizard"]');
     await expect(page.getByRole('heading', { name: 'Assistente de Importação Completa' })).toBeVisible({ timeout: 10_000 });
 
