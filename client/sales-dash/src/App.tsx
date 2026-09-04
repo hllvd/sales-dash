@@ -29,6 +29,10 @@ import BatchPage from './components/BatchPage';
 import ContractReconciliationPage from './components/ContractReconciliationPage';
 import RetentionFilterPage from './components/RetentionFilterPage';
 import RequestsPage from './components/RequestsPage';
+import SurveyPage from './components/Survey/SurveyPage';
+import MyQAPage from './components/Survey/MyQAPage';
+import { SurveyModal } from './components/Survey/SurveyModal';
+import { surveyPollingService } from './services/surveyPollingService';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -61,6 +65,15 @@ function App() {
       });
     }
   }, [currentRoute]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      surveyPollingService.start();
+    }
+    return () => {
+      surveyPollingService.stop();
+    };
+  }, [isAuthenticated]);
 
   const routePath = currentRoute.split('?')[0];
   const isPublicRoute = routePath === '#/user/registration/admin';
@@ -137,6 +150,10 @@ function App() {
         return <RetentionFilterPage />;
       case '#/requests':
         return <RequestsPage />;
+      case '#/surveys':
+        return <SurveyPage />;
+      case '#/qa':
+        return <MyQAPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':
@@ -153,6 +170,7 @@ function App() {
             <ReferenceDataProvider>
               <MantineProvider>
                 <Notifications />
+                <SurveyModal />
                 <ErrorBoundary>
                   {renderPage()}
                 </ErrorBoundary>

@@ -1,5 +1,14 @@
 import config from '../config'
 import { authenticatedFetch, getAuthHeaders } from '../utils/httpInterceptor'
+import {
+  CreateSurveyDto,
+  SurveySummaryDto,
+  SurveyResultDto,
+  SurveyAssignmentDto,
+  AnswerSurveyDto,
+  ResendSurveyDto,
+  UserSurveyHistoryDto,
+} from '../types/Survey'
 
 const API_BASE_URL = config.apiUrl
 
@@ -1614,6 +1623,68 @@ export const apiService = {
     }
 
     return response.blob()
+  },
+
+  async createSurvey(dto: CreateSurveyDto): Promise<ApiResponse<SurveySummaryDto>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(dto),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to create survey"))
+    return response.json()
+  },
+
+  async getSurveys(): Promise<ApiResponse<SurveySummaryDto[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch surveys"))
+    return response.json()
+  },
+
+  async getSurveyResults(id: string): Promise<ApiResponse<SurveyResultDto>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/${id}/results`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch survey results"))
+    return response.json()
+  },
+
+  async resendSurvey(id: string, dto: ResendSurveyDto): Promise<ApiResponse<string>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/${id}/resend`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(dto),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to resend survey"))
+    return response.json()
+  },
+
+  async getPendingSurveys(): Promise<ApiResponse<SurveyAssignmentDto[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/pending`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch pending surveys"))
+    return response.json()
+  },
+
+  async answerSurvey(dto: AnswerSurveyDto): Promise<ApiResponse<string>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/answer`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(dto),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to submit survey answer"))
+    return response.json()
+  },
+
+  async getMySurveyHistory(): Promise<ApiResponse<UserSurveyHistoryDto[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/my-history`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch survey history"))
+    return response.json()
   },
 }
 

@@ -28,7 +28,9 @@ import {
   IconMailForward,
   IconBuildingStore,
   IconCalendar,
+  IconHelp,
 } from '@tabler/icons-react';
+import { surveyPollingService } from '../services/surveyPollingService';
 
 interface MenuProps {
   children?: React.ReactNode;
@@ -49,6 +51,18 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     window.location.hash === '#/teams' || window.location.hash === '#/teams/calendar'
   );
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [pendingSurveyCount, setPendingSurveyCount] = useState<number>(0);
+
+  useEffect(() => {
+    const updateSurveyCount = () => {
+      const list = surveyPollingService.getPendingList();
+      setPendingSurveyCount(list.length);
+    };
+
+    updateSurveyCount();
+    window.addEventListener('survey:updated', updateSurveyCount);
+    return () => window.removeEventListener('survey:updated', updateSurveyCount);
+  }, []);
 
   useEffect(() => {
     if (userRole === 'admin' || userRole === 'superadmin') {
@@ -368,6 +382,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
+          {hasPermission('system:superadmin') && (
+            <NavLink
+              href="#/surveys"
+              label="Perguntas"
+              leftSection={<IconHelp size={20} />}
+              active={isActive('#/surveys')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/surveys')}
+              onClick={() => { if (opened) close(); }}
+            />
+          )}
+
           {(userRole === 'superadmin' || userRole === 'admin' || userRole === UserRole.SUPERADMIN || userRole === UserRole.ADMIN || hasPermission('teams:manage') || hasPermission('system:admin')) && (
             <NavLink
               href="#/classifications"
@@ -442,6 +469,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             color="red"
             styles={navLinkStyles('#/my-contracts')}
             data-testid="nav-my-contracts"
+            onClick={() => { if (opened) close(); }}
+          />
+
+          <NavLink
+            href="#/qa"
+            label="QA"
+            leftSection={<IconHelp size={20} />}
+            rightSection={pendingSurveyCount > 0 ? <Badge size="xs" circle color="red">{pendingSurveyCount}</Badge> : undefined}
+            active={isActive('#/qa')}
+            variant="filled"
+            color="red"
+            styles={navLinkStyles('#/qa')}
+            data-testid="nav-qa"
             onClick={() => { if (opened) close(); }}
           />
 

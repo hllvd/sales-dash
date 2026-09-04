@@ -168,7 +168,17 @@ namespace SalesApp.Services
             
             // Forgot Password Messages
             [AppMessage.ForgotPasswordGenericResponse] = "Se este e-mail estiver cadastrado, uma nova senha será enviada em breve.",
-            [AppMessage.ForgotPasswordEmailRequired] = "O campo e-mail é obrigatório."
+            [AppMessage.ForgotPasswordEmailRequired] = "O campo e-mail é obrigatório.",
+
+            // Survey Messages
+            [AppMessage.SurveyCreatedSuccessfully] = "Pergunta criada e distribuída com sucesso",
+            [AppMessage.SurveyNotFound] = "Pergunta não encontrada",
+            [AppMessage.SurveyAlreadyAnswered] = "Esta pergunta já foi respondida",
+            [AppMessage.SurveyExpired] = "Esta pergunta expirou",
+            [AppMessage.SurveyAnsweredSuccessfully] = "Resposta registrada com sucesso",
+            [AppMessage.SurveyResentSuccessfully] = "Pergunta reenviada com sucesso",
+            [AppMessage.SurveysRetrievedSuccessfully] = "Perguntas recuperadas com sucesso",
+            [AppMessage.SurveyResultsRetrievedSuccessfully] = "Resultados da pergunta recuperados com sucesso"
         };
         
         /// <summary>

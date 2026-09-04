@@ -285,3 +285,8 @@ Each entry records a fix attempt — past entries must be consulted before retry
 4. Added new integration test `UpdateMemberDates_ShouldSeamlesslySyncNeighborBoundaries_WithZeroGapAndZeroOverlap` in `TeamCalendarIntegrationTests.cs`.
 **Result:** ✅ Green (Build PASSED, 291/291 integration tests PASSED, 159/159 E2E Run 1 passed, 158/158 E2E Run 2 passed)
 
+## [2026-09-04] e2e — Attempt 1
+**Failure:** `surveys_qa.spec.ts` strict mode violation on `getByText('Respondida')`.
+**Root cause:** Card contained both `<span class="mantine-Badge-label">Respondida</span>` and `<p>Respondida em: ...</p>`.
+**Fix applied:** Updated assertion in `surveys_qa.spec.ts` to `getByText('Respondida', { exact: true })`.
+**Result:** ✅ Green (159/159 E2E tests passed after `./test.sh rm-db && ./test.sh e2e`)

@@ -922,9 +922,51 @@ Adiciona a opção configurável `"Contar usuários ativos vs inativos"` na seç
 - `client/sales-dash/src/components/Reports/ReportResultsPage.tsx` — Renderização do sumário de usuários ativos e inativos na visualização de resultados.
 - `client/sales-dash/src/components/Reports/ViewExecutionPage.tsx` — Renderização do sumário no card de execução/widget.
 
+---
 
+## 40. Perguntas e Respostas Pontuais (Survey / Q&A)
 
+### Overview
+Permite que superadministradores criem e distribuam perguntas rápidas (Sim/Não/Não tenho certeza, escolha única ou múltipla escolha) para públicos segmentados com base em filtros de papel/role, email, nome e equipe. Os usuários recebem lembretes pontuais via modal na aplicação até 3 vezes ao dia até responderem (apenas respostas definitivas contam como respondidas) ou até o término do TTL de 2 dias. Superadministradores contam com dashboard com visão agregada e detalhada das respostas individuais, além da funcionalidade de reenvio com reinício de prazo.
 
+### Key Capabilities
+- **Criação e Distribuição Segmentada (Superadmin)**:
+  - Criação de perguntas com título, enunciado e seleção de tipo:
+    - *Sim / Não / Não tenho certeza*: Pergunta binária com opção intermediária.
+    - *Escolha Única*: Seleção exclusiva a partir de opções dinâmicas configuráveis.
+    - *Múltipla Escolha*: Seleção combinada de uma ou mais opções.
+  - Painel de seleção de destinatários com filtros instantâneos por papel (`role`), email, nome e equipe (`Team`).
+  - Ações em lote: selecionar todos os filtrados e limpar seleção, com contador de selecionados em tempo real.
+- **Ciclo de Vida da Pergunta e TTL de 2 Dias**:
+  - Cada atribuição possui data de expiração calculada para `SentAt + 2 dias`.
+  - Perguntas expiradas deixam de ser exibidas no fluxo de respostas ativas automaticamente.
+- **Apresentação e Rate-Limiting no Cliente (3x ao dia)**:
+  - Armazenamento local no cliente para verificação periódica (3 vezes ao dia, a cada 8 horas).
+  - Modal automático não invasivo exibido no máximo 3 vezes por dia por pergunta.
+  - Fechar o modal ou selecionar "Não tenho certeza ainda" é considerado **não respondido** (o questionamento reaparecerá no próximo intervalo até o término do prazo).
+- **Indicador no Menu e Painel de Histórico ("Meu QA")**:
+  - Badge numérico vermelho no item `"QA"` do menu indicando a quantidade de perguntas pendentes.
+  - Página dedicada de histórico (`#/qa`) disponível para todos os usuários com abas: Todas, Pendentes, Respondidas e Expiradas.
+  - Botão de "Responder agora" diretamente pelo histórico.
+- **Relatório de Resultados e Reenvio**:
+  - Superadministradores visualizam estatísticas agregadas (gráfico de progresso percentual e total de votos por opção).
+  - Tabela detalhada de respostas individuais por usuário com data e hora.
+  - Ação de **Reenviar para não respondidos**: redefine o status para pendente, reseta o TTL para mais 2 dias e reativa os avisos no cliente.
 
-
-
+### Key Files Created/Modified
+- `SalesApp.Api/Models/Survey.cs`, `SurveyAssignment.cs`, `SurveyResponse.cs` — Modelos de domínio.
+- `SalesApp.Api/Data/AppDbContext.cs` — DbSets e configuração do Fluent API com índices relacionais.
+- `SalesApp.Api/Migrations/20260904120000_AddSurveyTables.cs` — Migração do banco de dados SQLite.
+- `SalesApp.Api/DTOs/SurveyDtos.cs` — DTOs de criação, resultados, respostas e histórico.
+- `SalesApp.Api/Repositories/ISurveyRepository.cs` & `SurveyRepository.cs` — Repositório com suporte a expiração em lote e limpeza de respostas para reenvio.
+- `SalesApp.Api/Services/ISurveyService.cs` & `SurveyService.cs` — Regras de negócio, validação, serialização de opções e agregação estatística.
+- `SalesApp.Api/Controllers/SurveysController.cs` — Endpoints protegidos por autorização superadmin e endpoints para usuários comuns.
+- `client/sales-dash/src/types/Survey.ts` — Interfaces TypeScript.
+- `client/sales-dash/src/services/apiService.ts` — Métodos da API para pesquisas e respostas.
+- `client/sales-dash/src/services/surveyPollingService.ts` — Serviço de polling 3x/dia, rate-limiting local e eventos de ciclo de vida.
+- `client/sales-dash/src/components/Survey/SurveyModal.tsx` & `.css` — Modal interativo de resposta com suporte a todos os tipos de pergunta.
+- `client/sales-dash/src/components/Survey/SurveyResultModal.tsx` — Modal de análise de respostas e reenvio para superadmin.
+- `client/sales-dash/src/components/Survey/SurveyPage.tsx` & `.css` — Página de administração de perguntas com filtros e seleção em massa.
+- `client/sales-dash/src/components/Survey/MyQAPage.tsx` & `.css` — Página de histórico de perguntas do usuário.
+- `client/sales-dash/src/components/Menu.tsx` — Item de menu "Perguntas" (superadmin) e "QA" com badge numérico.
+- `client/sales-dash/src/App.tsx` — Rotas `#/surveys`, `#/qa`, inicialização do polling e montagem do modal global.
