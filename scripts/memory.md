@@ -308,4 +308,14 @@ Each entry records a fix attempt — past entries must be consulted before retry
 5. Documented feature in `FEATURES.md`.
 **Result:** ✅ Green (Build PASSED, 293/293 integration tests PASSED, 159/159 E2E Run 1 passed, 159/159 E2E Run 2 passed)
 
+## [2026-09-04] e2e — Attempt 3
+**Failure:** E2E tests `circular_hierarchy_prevent` and `import_wizard` failed with `Microsoft.Data.Sqlite.SqliteException: SQLite Error 1: 'no such column: c.HasPayment'`.
+**Root cause:** EF Core migration `20260904190000_AddHasPaymentToContracts.cs` lacked metadata attributes and its matching `.Designer.cs` file (EF Core "blind migration" gotcha), causing EF Core to silently ignore the migration and omit `HasPayment` column in the SQLite database. Docker builder cache also required pruning after disk resource exhaustion.
+**Fix applied:** Created `20260904190000_AddHasPaymentToContracts.Designer.cs` with `[DbContext(typeof(AppDbContext))]` and `[Migration("20260904190000_AddHasPaymentToContracts")]`, pruned Docker builder cache (`docker builder prune -a -f`), rebuilt container images via `./test.sh build`, and executed `./test.sh rm-db && ./test.sh e2e`.
+**Result:** ✅ Green (158/158 E2E tests passed)
 
+## [2026-09-07] all — Attempt 1
+**Failure:** `import_wizard_verification.spec.ts` failed on `expect(row).toBeVisible()` searching for contract `868498`.
+**Root cause:** Contract `868498` has `SaleStartDate = 2025-06-05`. As date advanced to 2026-09-07, the default 15-month date filter (`StartDate >= 2025-06-07`) in `ContractsPage.tsx` filtered out the contract because the test did not clear filters before searching.
+**Fix applied:** Updated `import_wizard_verification.spec.ts` to click `button.clear-filters-btn` before searching by contract number (matching the pattern used by other historical import E2E specs).
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 159/159 E2E Run 1, 160/160 E2E Run 2 — idempotent)

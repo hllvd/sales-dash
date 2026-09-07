@@ -21,5 +21,7 @@ namespace SalesApp.DTOs
         public int? MatriculaId { get; set; }
         public string? MatriculaNumber { get; set; }
         public string? RawStatus { get; set; }
+        public bool? HasPayment { get; set; }
+        public bool IsAwaitingPayment { get; set; }
     }
 }

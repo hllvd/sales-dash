@@ -1032,6 +1032,7 @@ export const apiService = {
     userEmail?: string;
     teamIds?: number[];
     userIds?: string[];
+    awaitingPayment?: boolean;
   }): Promise<{ jobId: string; status: string; totalRows: number; processedRows: number }> {
     const response = await authenticatedFetch(`${API_BASE_URL}/contracts/export`, {
       method: 'POST',

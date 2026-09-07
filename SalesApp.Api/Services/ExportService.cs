@@ -195,18 +195,36 @@ namespace SalesApp.Services
 
                 var matriculas = job.Filters.Matriculas ?? (!string.IsNullOrEmpty(job.Filters.Matricula) ? new List<string> { job.Filters.Matricula } : null);
 
-                var contracts = await contractRepo.GetAllAsync(
-                    job.Filters.UserId,
-                    job.Filters.GroupId,
-                    job.Filters.StartDate,
-                    job.Filters.EndDate,
-                    job.Filters.ContractNumber,
-                    job.Filters.ShowUnassigned,
-                    matriculas,
-                    job.Filters.UserEmail,
-                    job.Scope,
-                    job.Filters.TeamIds,
-                    job.Filters.UserIds);
+                var contracts = job.Filters.AwaitingPayment.HasValue
+                    ? await contractRepo.GetAllAsync(
+                        job.Filters.UserId,
+                        job.Filters.GroupId,
+                        job.Filters.StartDate,
+                        job.Filters.EndDate,
+                        job.Filters.ContractNumber,
+                        job.Filters.ShowUnassigned,
+                        matriculas,
+                        job.Filters.UserEmail,
+                        job.Scope,
+                        job.Filters.TeamIds,
+                        job.Filters.UserIds,
+                        statuses: null,
+                        isSuperAdmin: false,
+                        awaitingPayment: job.Filters.AwaitingPayment)
+                    : await contractRepo.GetAllAsync(
+                        job.Filters.UserId,
+                        job.Filters.GroupId,
+                        job.Filters.StartDate,
+                        job.Filters.EndDate,
+                        job.Filters.ContractNumber,
+                        job.Filters.ShowUnassigned,
+                        matriculas,
+                        job.Filters.UserEmail,
+                        job.Scope,
+                        job.Filters.TeamIds,
+                        job.Filters.UserIds,
+                        null,
+                        false);
 
                 job.TotalRows = contracts.Count;
 

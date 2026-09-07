@@ -49,6 +49,8 @@ namespace SalesApp.Models
         
         public byte? Version { get; set; } // For contractDashboard import
         
+        public bool? HasPayment { get; set; } // For contractDashboard import (Tem Pagamento?)
+        
         [MaxLength(100)]
         public string? RawStatus { get; set; } // Stores original status if mapped to NaoDefinido
         

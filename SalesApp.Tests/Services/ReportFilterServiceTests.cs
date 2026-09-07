@@ -137,7 +137,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
                 .ReturnsAsync(new List<Contract>());
 
             var overrideTeams = new List<int> { 99 };
@@ -163,7 +164,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()), Times.Once);
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()), Times.Once);
         }
 
         [Fact]
@@ -356,7 +358,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
                 .ReturnsAsync(contracts);
 
             // Act
@@ -461,7 +464,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
                 .ReturnsAsync(contracts);
 
             // Act
@@ -534,7 +538,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
                 .ReturnsAsync(contracts);
 
             // Act

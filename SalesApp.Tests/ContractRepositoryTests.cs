@@ -249,7 +249,7 @@ namespace SalesApp.Tests.Repositories
             _context.UserTeams.AddRange(utA1, utA2, utB1);
             await _context.SaveChangesAsync();
 
-            var activeStatus = new ContractStatus { Id = 101, Name = "Ativo" };
+            var activeStatus = new ContractStatusEntity { Id = 101, Name = "Ativo" };
             _context.ContractStatuses.Add(activeStatus);
             await _context.SaveChangesAsync();
 
@@ -328,7 +328,7 @@ namespace SalesApp.Tests.Repositories
             _context.Users.AddRange(admin, seller);
             await _context.SaveChangesAsync();
 
-            var status = new ContractStatus { Id = 201, Name = "Ativo" };
+            var status = new ContractStatusEntity { Id = 201, Name = "Ativo" };
             _context.ContractStatuses.Add(status);
             await _context.SaveChangesAsync();
 
@@ -422,7 +422,7 @@ namespace SalesApp.Tests.Repositories
         public async Task GetPagedAsync_WithGlobalScope_ShouldOrderBySaleStartDate()
         {
             // Arrange
-            var status = new ContractStatus { Id = 202, Name = "Ativo" };
+            var status = new ContractStatusEntity { Id = 202, Name = "Ativo" };
             _context.ContractStatuses.Add(status);
             await _context.SaveChangesAsync();
 
@@ -457,6 +457,112 @@ namespace SalesApp.Tests.Repositories
             // Assert: ordered by SaleStartDate DESC
             var itemNumbers = items.Where(c => c.ContractNumber.StartsWith("CTR-GLOBAL-")).Select(c => c.ContractNumber).ToList();
             itemNumbers.Should().Equal("CTR-GLOBAL-NEW", "CTR-GLOBAL-OLD");
+        }
+
+        [Fact]
+        public async Task GetAllAsync_WithAwaitingPaymentTrue_ShouldReturnOnlyActiveContractsWithoutPayment()
+        {
+            // Arrange
+            var activeStatus = new ContractStatusEntity { Id = 301, Name = "Active" };
+            var lateStatus = new ContractStatusEntity { Id = 302, Name = "Late1" };
+            _context.ContractStatuses.AddRange(activeStatus, lateStatus);
+
+            var c1 = new Contract
+            {
+                ContractNumber = "CTR-AP-YES",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = false,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c2 = new Contract
+            {
+                ContractNumber = "CTR-AP-PAID",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = true,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c3 = new Contract
+            {
+                ContractNumber = "CTR-AP-LATE",
+                ContractStatusId = lateStatus.Id,
+                ContractStatus = lateStatus,
+                HasPayment = false,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c4 = new Contract
+            {
+                ContractNumber = "CTR-AP-NULL",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = null,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            _context.Contracts.AddRange(c1, c2, c3, c4);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var results = await _repository.GetAllAsync(awaitingPayment: true);
+
+            // Assert
+            var resultNumbers = results.Select(c => c.ContractNumber).ToList();
+            resultNumbers.Should().Contain("CTR-AP-YES");
+            resultNumbers.Should().NotContain("CTR-AP-PAID");
+            resultNumbers.Should().NotContain("CTR-AP-LATE");
+            resultNumbers.Should().NotContain("CTR-AP-NULL");
+        }
+
+        [Fact]
+        public async Task GetAllAsync_WithAwaitingPaymentFalse_ShouldExcludeActiveContractsWithoutPayment()
+        {
+            // Arrange
+            var activeStatus = new ContractStatusEntity { Id = 311, Name = "Active" };
+            var lateStatus = new ContractStatusEntity { Id = 312, Name = "Late1" };
+            _context.ContractStatuses.AddRange(activeStatus, lateStatus);
+
+            var c1 = new Contract
+            {
+                ContractNumber = "CTR-NOT-AP-WAITING",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = false,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c2 = new Contract
+            {
+                ContractNumber = "CTR-NOT-AP-PAID",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = true,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c3 = new Contract
+            {
+                ContractNumber = "CTR-NOT-AP-LATE",
+                ContractStatusId = lateStatus.Id,
+                ContractStatus = lateStatus,
+                HasPayment = false,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            _context.Contracts.AddRange(c1, c2, c3);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var results = await _repository.GetAllAsync(awaitingPayment: false);
+
+            // Assert
+            var resultNumbers = results.Select(c => c.ContractNumber).ToList();
+            resultNumbers.Should().NotContain("CTR-NOT-AP-WAITING");
+            resultNumbers.Should().Contain("CTR-NOT-AP-PAID");
+            resultNumbers.Should().Contain("CTR-NOT-AP-LATE");
         }
     }
 }

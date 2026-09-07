@@ -1852,6 +1852,39 @@ namespace SalesApp.Services
             {
                 version = parsedVersion;
             }
+
+            // Parse HasPayment ("Tem Pagamento?")
+            var hasPaymentStr = GetFieldValue(row, reverseMappings, "HasPayment");
+            if (string.IsNullOrWhiteSpace(hasPaymentStr))
+            {
+                var payKey = row.Keys.FirstOrDefault(k => 
+                    k.Equals("Tem Pagamento?", StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals("Tem Pagamento", StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals("TemPagamento", StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals("HasPayment", StringComparison.OrdinalIgnoreCase));
+                if (payKey != null) hasPaymentStr = row[payKey];
+            }
+
+            bool? hasPayment = null;
+            if (!string.IsNullOrWhiteSpace(hasPaymentStr))
+            {
+                var trimmed = hasPaymentStr.Trim();
+                if (trimmed.Equals("Sim", StringComparison.OrdinalIgnoreCase) || 
+                    trimmed.Equals("S", StringComparison.OrdinalIgnoreCase) || 
+                    trimmed.Equals("Yes", StringComparison.OrdinalIgnoreCase) || 
+                    trimmed.Equals("True", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasPayment = true;
+                }
+                else if (trimmed.Equals("Não", StringComparison.OrdinalIgnoreCase) || 
+                         trimmed.Equals("Nao", StringComparison.OrdinalIgnoreCase) || 
+                         trimmed.Equals("N", StringComparison.OrdinalIgnoreCase) || 
+                         trimmed.Equals("No", StringComparison.OrdinalIgnoreCase) || 
+                         trimmed.Equals("False", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasPayment = false;
+                }
+            }
             
             // Parse PvId and PvName
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
@@ -1956,6 +1989,7 @@ namespace SalesApp.Services
                     if (!string.IsNullOrWhiteSpace(customerName)) contract.CustomerName = customerName;
                     if (pvId.HasValue) contract.PvId = pvId;
                     if (version.HasValue) contract.Version = version;
+                    if (hasPayment.HasValue) contract.HasPayment = hasPayment;
                     if (matriculaId.HasValue) contract.MatriculaId = matriculaId;
                     if (!string.IsNullOrWhiteSpace(tempMatricula)) contract.TempMatricula = tempMatricula;
                     if (categoryMetadataId.HasValue) contract.CategoryMetadataId = categoryMetadataId;
@@ -1969,6 +2003,7 @@ namespace SalesApp.Services
                     if (!string.IsNullOrWhiteSpace(customerName)) contract.CustomerName = customerName;
                     if (pvId.HasValue) contract.PvId = pvId;
                     if (version.HasValue) contract.Version = version;
+                    if (hasPayment.HasValue) contract.HasPayment = hasPayment;
                     if (!contract.MatriculaId.HasValue && matriculaId.HasValue)
                     {
                         contract.MatriculaId = matriculaId;
@@ -2061,6 +2096,7 @@ namespace SalesApp.Services
             contract.PvId = pvId;
             contract.Quota = quota;
             contract.Version = version;
+            contract.HasPayment = hasPayment;
             contract.TempMatricula = tempMatricula;
             contract.ImportSessionId = importSessionId;
             contract.CategoryMetadataId = categoryMetadataId;

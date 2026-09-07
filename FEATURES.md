@@ -1005,3 +1005,43 @@ Permite que superadministradores criem e distribuam perguntas rápidas (Sim/Não
 - `client/sales-dash/src/components/Survey/MyQAPage.tsx` & `.css` — Página de histórico de perguntas do usuário.
 - `client/sales-dash/src/components/Menu.tsx` — Item de menu "Perguntas" (superadmin) e "QA" com badge numérico.
 - `client/sales-dash/src/App.tsx` — Rotas `#/surveys`, `#/qa`, inicialização do polling e montagem do modal global.
+
+---
+
+## 41. Coluna e Filtro Aguardando Pagamento e Campo Tem Pagamento? no Import
+
+### Overview
+Adiciona o suporte ao campo `Tem Pagamento?` a partir da importação de arquivos do Power BI (`contractDashboard`), armazenando-o no banco de dados como propriedade do contrato. Adiciona também a coluna e filtro "Aguardando Pagamento" na listagem de contratos, permitindo identificar contratos com status "Normal" (ativo) que ainda não possuem pagamento registrado.
+
+### Key Capabilities
+- **Importação do Campo `Tem Pagamento?`**:
+  - Exclusivo para o template `contractDashboard` de importação de contratos.
+  - Reconhece colunas com variações de cabeçalho (`Tem Pagamento?`, `Tem Pagamento`, `TemPagamento`).
+  - Mapeamento determinístico dos valores: `"Sim"` -> `true`, `"Não"` -> `false`.
+  - Persistência na coluna `HasPayment` (`INTEGER`/`boolean?`) da tabela `Contracts`.
+- **Cálculo da Coluna "Aguardando Pagamento"**:
+  - Valor binário (`Sim` / `Não`).
+  - **Sim**: contrato com status canônico `"Active"` ("Normal") E `HasPayment == false` ("Não").
+  - **Não**: todos os outros cenários (contratos com `HasPayment == true`, `null` ou status diferente de "Normal").
+- **Exibição e Controle de Visibilidade**:
+  - Disponível na tabela de contratos (`ContractsPage`).
+  - Escondida por padrão nas preferências de colunas (`visibleColumns.awaitingPayment = false`).
+  - Habilitável a qualquer momento através do modal de seleção de colunas ("Colunas").
+- **Filtro no Backend e Frontend**:
+  - Filtro dedicado na barra de ferramentas: Todos / Sim / Não.
+  - Integração nos endpoints da API de listagem de contratos (`awaitingPayment` booleano opcional) com paginação e ordenação preservadas.
+  - Integração no serviço de exportação em Excel (`ExportService`).
+
+### Key Files Created/Modified
+- `SalesApp.Api/Models/Contract.cs` — Adição da propriedade `HasPayment` (`bool?`).
+- `SalesApp.Api/Migrations/20260904190000_AddHasPaymentToContracts.cs` & `AppDbContextModelSnapshot.cs` — Migração para adição da coluna `HasPayment` no SQLite.
+- `SalesApp.Api/DTOs/ContractResponse.cs` — Adição de `HasPayment` e `IsAwaitingPayment`.
+- `SalesApp.Api/Controllers/ContractsController.cs` — Mapeamento de `IsAwaitingPayment` e parâmetro de consulta `awaitingPayment`.
+- `SalesApp.Api/Repositories/IContractRepository.cs` & `ContractRepository.cs` — Suporte a filtro por `awaitingPayment` no Entity Framework Core.
+- `SalesApp.Api/Data/DbSeeder.cs` & `Controllers/ImportsController.cs` — Configuração de mapeamentos padrão do template `contractDashboard`.
+- `SalesApp.Api/Services/ImportExecutionService.cs` — Leitura, conversão e persistência do campo `HasPayment` durante importação.
+- `SalesApp.Api/DTOs/ContractExportRequest.cs` & `Services/ExportService.cs` — Suporte ao filtro na exportação para planilha.
+- `client/sales-dash/src/services/contractService.ts` & `apiService.ts` — Tipagens e parâmetros de requisição.
+- `client/sales-dash/src/components/ContractsPage.tsx` — Coluna com visibilidade toggleable (default oculta), filtro e persistência.
+- `SalesApp.Tests/ContractRepositoryTests.cs` & `ContractsControllerTests.cs` — Testes unitários para mapeamento, regra de cálculo e filtragem.
+

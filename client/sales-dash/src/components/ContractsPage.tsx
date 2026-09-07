@@ -38,6 +38,7 @@ interface VisibleColumns {
   startDate: boolean;
   quota: boolean;
   lastUpdated: boolean;
+  awaitingPayment: boolean;
 }
 
 const DEFAULT_COLUMNS: VisibleColumns = {
@@ -51,6 +52,7 @@ const DEFAULT_COLUMNS: VisibleColumns = {
   startDate: true,
   quota: false,
   lastUpdated: false,
+  awaitingPayment: false,
 };
 
 const ContractsPage: React.FC = () => {
@@ -97,6 +99,8 @@ const ContractsPage: React.FC = () => {
   const [debouncedTeamIds, setDebouncedTeamIds] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [debouncedStatuses, setDebouncedStatuses] = useState<string[]>([]);
+  const [filterAwaitingPayment, setFilterAwaitingPayment] = useState<string>('all');
+  const [debouncedAwaitingPayment, setDebouncedAwaitingPayment] = useState<string>('all');
 
   // Columns visibility state
   const [showColumnsModal, setShowColumnsModal] = useState(false);
@@ -104,7 +108,7 @@ const ContractsPage: React.FC = () => {
     const saved = localStorage.getItem('contracts_visibleColumns');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return { ...DEFAULT_COLUMNS, ...JSON.parse(saved) };
       } catch (e) {
         console.error('Failed to parse visible columns state:', e);
       }
@@ -171,7 +175,8 @@ const ContractsPage: React.FC = () => {
         debouncedUserIds.length > 0 ? debouncedUserIds : undefined,
         currentPage,
         pageSize,
-        debouncedStatuses.length > 0 ? debouncedStatuses : undefined
+        debouncedStatuses.length > 0 ? debouncedStatuses : undefined,
+        debouncedAwaitingPayment === 'yes' ? true : debouncedAwaitingPayment === 'no' ? false : undefined
       );
       if (requestId !== requestCountRef.current) return;
       setContracts(data);
@@ -189,7 +194,7 @@ const ContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedUserIds, debouncedStatuses, currentPage, pageSize, setCachedContracts]);
+  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedUserIds, debouncedStatuses, debouncedAwaitingPayment, currentPage, pageSize, setCachedContracts]);
 
   // Load saved filters from localStorage
   useEffect(() => {
@@ -232,10 +237,11 @@ const ContractsPage: React.FC = () => {
       setDebouncedMatriculas(filterMatriculas);
       setDebouncedTeamIds(filterTeamIds);
       setDebouncedStatuses(filterStatuses);
+      setDebouncedAwaitingPayment(filterAwaitingPayment);
     }, 500); // 500ms debounce for all fields
 
     return () => clearTimeout(timer);
-  }, [filterUserIds, filterStartDate, filterEndDate, filterContractNumber, filterShowUnassigned, filterMatriculas, filterTeamIds, filterStatuses]);
+  }, [filterUserIds, filterStartDate, filterEndDate, filterContractNumber, filterShowUnassigned, filterMatriculas, filterTeamIds, filterStatuses, filterAwaitingPayment]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -245,7 +251,7 @@ const ContractsPage: React.FC = () => {
   // Reset to page 1 when filters change (using debounced values to avoid flickering)
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedUserIds, debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedStatuses]);
+  }, [debouncedUserIds, debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedStatuses, debouncedAwaitingPayment]);
 
   // Calculate pagination
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -396,6 +402,7 @@ const ContractsPage: React.FC = () => {
                       matriculas: debouncedMatriculas.length > 0 ? debouncedMatriculas : undefined,
                       teamIds: debouncedTeamIds.length > 0 ? debouncedTeamIds.map(id => parseInt(id)) : undefined,
                       userIds: debouncedUserIds.length > 0 ? debouncedUserIds : undefined,
+                      awaitingPayment: debouncedAwaitingPayment === 'yes' ? true : debouncedAwaitingPayment === 'no' ? false : undefined,
                     });
                     setExportJobId(job.jobId);
                   } catch (e: any) {
@@ -567,7 +574,20 @@ const ContractsPage: React.FC = () => {
           />
         </div>
 
-        {(filterUserIds.length > 0 || filterStartDate || filterEndDate || filterContractNumber || filterMatriculas.length > 0 || filterShowUnassigned !== 'all' || filterTeamIds.length > 0 || filterStatuses.length > 0) && (
+        <div className="filter-group">
+          <label htmlFor="filterAwaitingPayment">Aguardando Pagamento</label>
+          <select
+            id="filterAwaitingPayment"
+            value={filterAwaitingPayment}
+            onChange={(e) => setFilterAwaitingPayment(e.target.value)}
+          >
+            <option value="all">Todos</option>
+            <option value="yes">Sim</option>
+            <option value="no">Não</option>
+          </select>
+        </div>
+
+        {(filterUserIds.length > 0 || filterStartDate || filterEndDate || filterContractNumber || filterMatriculas.length > 0 || filterShowUnassigned !== 'all' || filterTeamIds.length > 0 || filterStatuses.length > 0 || filterAwaitingPayment !== 'all') && (
           <button
             className="clear-filters-btn"
             onClick={() => {
@@ -587,6 +607,8 @@ const ContractsPage: React.FC = () => {
               setDebouncedTeamIds([]);
               setFilterStatuses([]);
               setDebouncedStatuses([]);
+              setFilterAwaitingPayment('all');
+              setDebouncedAwaitingPayment('all');
               localStorage.removeItem('contracts_filterStartDate');
               localStorage.removeItem('contracts_filterEndDate');
             }}
@@ -634,6 +656,7 @@ const ContractsPage: React.FC = () => {
                 {visibleColumns.status && <Table.Th>Status</Table.Th>}
                 {visibleColumns.startDate && <Table.Th>Data Início</Table.Th>}
                 {visibleColumns.lastUpdated && <Table.Th>Data da Última Atualização</Table.Th>}
+                {visibleColumns.awaitingPayment && <Table.Th>Aguardando Pagamento</Table.Th>}
                 <Table.Th>Ações</Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -654,6 +677,9 @@ const ContractsPage: React.FC = () => {
                   )}
                   {visibleColumns.startDate && <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>}
                   {visibleColumns.lastUpdated && <Table.Td>{renderLastUpdated(contract.updatedAt)}</Table.Td>}
+                  {visibleColumns.awaitingPayment && (
+                    <Table.Td>{contract.isAwaitingPayment ? 'Sim' : 'Não'}</Table.Td>
+                  )}
                   <Table.Td>
                     <Group gap="xs">
                       <ActionIcon
@@ -783,6 +809,11 @@ const ContractsPage: React.FC = () => {
             label="Data da Última Atualização"
             checked={visibleColumns.lastUpdated}
             onChange={(e) => handleColumnToggle('lastUpdated', e.currentTarget.checked)}
+          />
+          <Checkbox
+            label="Aguardando Pagamento"
+            checked={visibleColumns.awaitingPayment}
+            onChange={(e) => handleColumnToggle('awaitingPayment', e.currentTarget.checked)}
           />
         </div>
       </StandardModal>

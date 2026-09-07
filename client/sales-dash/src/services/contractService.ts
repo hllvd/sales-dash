@@ -39,6 +39,8 @@ export interface Contract {
   matriculaNumber?: string;
   userMatriculaId?: number | null;
   rawStatus?: string;
+  hasPayment?: boolean | null;
+  isAwaitingPayment?: boolean;
 }
 
 export interface CreateContractRequest {
@@ -277,7 +279,8 @@ export const getContracts = async (
   userIds?: string[],
   page?: number,
   pageSize?: number,
-  statuses?: string[]
+  statuses?: string[],
+  awaitingPayment?: boolean
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation; totalCount: number }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
@@ -298,6 +301,7 @@ export const getContracts = async (
   if (teamIds && teamIds.length > 0) teamIds.forEach(id => params.append('teamIds', id.toString()));
   if (userIds && userIds.length > 0) userIds.forEach(id => params.append('userIds', id));
   if (statuses && statuses.length > 0) statuses.forEach(s => params.append('statuses', s));
+  if (awaitingPayment !== undefined) params.append('awaitingPayment', awaitingPayment.toString());
   if (page !== undefined) params.append('page', page.toString());
   if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
 
