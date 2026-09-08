@@ -31,6 +31,11 @@ namespace SalesApp.ReportFilters.DTOs
         public decimal? MaxStrictRetention { get; set; }
         public decimal? MinProduction { get; set; }
         public decimal? MaxProduction { get; set; }
+        /// <summary>
+        /// When true: only contracts with status "Active" and HasPayment == false.
+        /// When false: exclude those contracts. When null: no filter applied.
+        /// </summary>
+        public bool? AwaitingPayment { get; set; }
     }
 
     /// <summary>

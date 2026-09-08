@@ -1045,3 +1045,32 @@ Adiciona o suporte ao campo `Tem Pagamento?` a partir da importação de arquivo
 - `client/sales-dash/src/components/ContractsPage.tsx` — Coluna com visibilidade toggleable (default oculta), filtro e persistência.
 - `SalesApp.Tests/ContractRepositoryTests.cs` & `ContractsControllerTests.cs` — Testes unitários para mapeamento, regra de cálculo e filtragem.
 
+---
+
+## 42. Filtro Aguardando Pagamento no Módulo de Relatórios (Reports)
+
+### Overview
+Adiciona o filtro "Aguardando Pagamento" nas configurações de relatórios (`ReportFilter`), permitindo filtrar contratos que estão com status "Normal" (ativo) e ainda sem pagamento (`HasPayment == false`), além de excluir tais contratos do cálculo de taxas de retenção quando o filtro estiver ativo.
+
+### Key Capabilities
+- **Configuração de Filtro em Relatórios**:
+  - Novo campo `AwaitingPayment` (`bool?`) no modelo `FilterConfig`, DTOs de criação/atualização e resposta.
+  - Salvo na persistência do DynamoDB junto com os demais filtros do relatório.
+- **Lógica de Filtragem e Retenção em Memória**:
+  - Aplicado em memória no `ReportFilterService.ExecuteAsync`:
+    - Quando `true`: inclui apenas contratos com `ContractStatus == "Active"` e `HasPayment == false`.
+    - Quando `false`: exclui contratos nessa condição.
+    - Quando `null`: não aplica filtro.
+  - Executado **antes** do cálculo das métricas de retenção por email, equipe, classificação e resumo geral, garantindo que contratos excluídos não afetem o denominador ou numerador das taxas de retenção quando o filtro estiver ativo.
+- **Interface do Usuário (`ReportFormPage`)**:
+  - Campo seletor "Aguardando Pagamento" com opções: "Todos" (default), "Sim (Aguardando pagamento)" e "Não".
+  - Totalmente integrado na criação, edição e visualização de relatórios.
+
+### Key Files Created/Modified
+- `SalesApp.Api/ReportFilters/Models/FilterConfig.cs` — Adição de `AwaitingPayment` (`bool?`).
+- `SalesApp.Api/ReportFilters/DTOs/CreateReportFilterRequest.cs` & `ReportFilterResponse.cs` — Suporte a `AwaitingPayment` em requests/responses de relatórios.
+- `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs` — Mapeamento, serialização e filtragem em memória antes do cálculo de retenção.
+- `client/sales-dash/src/services/reportFilterService.ts` — Tipagem TypeScript com `awaitingPayment?: boolean`.
+- `client/sales-dash/src/components/Reports/ReportFormPage.tsx` — Estado, binding, UI de seleção e payload do filtro.
+- `SalesApp.Tests/Services/ReportFilterServiceTests.cs` — Testes unitários para `AwaitingPayment` (`true`, `false`, `null`).
+
