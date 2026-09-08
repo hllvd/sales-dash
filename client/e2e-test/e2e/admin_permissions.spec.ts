@@ -209,6 +209,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
     const noteamParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(noteamParentOpt).toBeVisible({ timeout: 5000 });
+    await noteamParentOpt.click();
     await Promise.all([
       page.waitForResponse(res => res.url().includes('/api/users') && res.request().method() === 'POST', { timeout: 15000 }),
       page.click('button:has-text("Criar Usuário")')
@@ -236,6 +237,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
     const ineligibleParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(ineligibleParentOpt).toBeVisible({ timeout: 5000 });
+    await ineligibleParentOpt.click();
     await Promise.all([
       page.waitForResponse(res => res.url().includes('/api/users') && res.request().method() === 'POST', { timeout: 15000 }),
       page.click('button:has-text("Criar Usuário")')

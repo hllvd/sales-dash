@@ -374,4 +374,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Contract `868498` has `SaleStartDate = 2025-06-05`. As date advanced to 2026-09-07, the default 15-month date filter (`StartDate >= 2025-06-07`) in `ContractsPage.tsx` filtered out the contract because the test did not clear filters before searching.
 **Fix applied:** Updated `import_wizard_verification.spec.ts` to click `button.clear-filters-btn` before searching by contract number (matching the pattern used by other historical import E2E specs).
 **Result:** ✅ Green (Build PASSED, all integration tests PASSED, 159/159 E2E Run 1, 160/160 E2E Run 2 — idempotent)
->>>>>>> feat/import-data-from-external-resource-pbi
+
+## [2026-09-08] e2e — Attempt 1
+**Failure:** `admin_permissions.spec.ts` failed waiting for user creation dialog to close (`expect(locator).not.toBeVisible()`).
+**Root cause:** Clicks on parent option autocomplete item were omitted for noteam and ineligible users, triggering root user validation and keeping modal open.
+**Fix applied:** Restored `await noteamParentOpt.click()` and `await ineligibleParentOpt.click()` in `client/e2e-test/e2e/admin_permissions.spec.ts`.
+**Result:** ✅ Green (160/160 E2E tests passed)
