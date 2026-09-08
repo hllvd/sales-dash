@@ -5,7 +5,9 @@ import { loginAs } from './helpers/auth';
 test.describe('Approval Requests E2E', () => {
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Date.now().toString().slice(-4);
+  const RUN_ID = Array.from({ length: 8 }, () =>
+    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  ).join('') + Date.now().toString().slice(-4);
   const ADMIN_EMAIL = `parent.admin.${RUN_ID}@test.com`;
   const USER_EMAIL = `request.user.${RUN_ID}@test.com`;
   const PASSWORD = 'Password123!';
@@ -28,37 +30,40 @@ test.describe('Approval Requests E2E', () => {
     expect(meRes.ok()).toBeTruthy();
     superadminId = (await meRes.json()).data.id;
 
-    // 2. Register a parent admin
-    const adminRes = await request.post('/api/users/register', {
+    // Proactive cleanup of old test users
+    const getUsersRes = await request.get('/api/users?pageSize=1000', {
       headers: { Authorization: `Bearer ${superadminToken}` },
-      data: {
-        name: 'Parent Admin Test',
-        email: ADMIN_EMAIL,
-        password: PASSWORD,
-        role: 'admin',
-        parentUserId: superadminId,
-      },
     });
-    if (!adminRes.ok()) {
-      console.error(`FAILED admin register: status=${adminRes.status()}, error=${await adminRes.text()}`);
+    if (getUsersRes.ok()) {
+      const body = await getUsersRes.json();
+      const usersList = body.data?.items || [];
+      for (const u of usersList) {
+        if (u.email.toLowerCase().includes('parent.admin.') || u.email.toLowerCase().includes('request.user.')) {
+          await request.delete(`/api/users/${u.id}`, {
+            headers: { Authorization: `Bearer ${superadminToken}` },
+          });
+        }
+      }
     }
-    expect(adminRes.ok()).toBeTruthy();
+
+    const registerUser = async (name: string, email: string, role: string, parentUserId?: string) => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const res = await request.post('/api/users/register', {
+          headers: { Authorization: `Bearer ${superadminToken}` },
+          data: { name, email, password: PASSWORD, role, parentUserId },
+        });
+        if (res.ok()) return;
+        await new Promise(r => setTimeout(r, 500));
+      }
+      throw new Error(`Failed to register user ${email}`);
+    };
+
+    // 2. Register a parent admin
+    await registerUser('Parent Admin Test', ADMIN_EMAIL, 'admin', superadminId);
+    await new Promise(r => setTimeout(r, 400));
 
     // 3. Register user initially under SuperAdmin
-    const userRes = await request.post('/api/users/register', {
-      headers: { Authorization: `Bearer ${superadminToken}` },
-      data: {
-        name: 'User Request Test',
-        email: USER_EMAIL,
-        password: PASSWORD,
-        role: 'user',
-        parentUserId: superadminId,
-      },
-    });
-    if (!userRes.ok()) {
-      console.error(`FAILED user register: status=${userRes.status()}, error=${await userRes.text()}`);
-    }
-    expect(userRes.ok()).toBeTruthy();
+    await registerUser('User Request Test', USER_EMAIL, 'user', superadminId);
   });
 
   test('Superadmin can view requests page and tabs', async ({ page }) => {

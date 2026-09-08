@@ -21,7 +21,7 @@ namespace SalesApp.Services
                 ["ContractType"] = new[] { "contract type", "contracttype", "contract_type", "type", "tipo" },
                 ["CustomerName"] = new[] { "customer name", "customername", "customer_name", "client name", "clientname", "nome do cliente", "nome cliente", "cliente" },
                 ["SellerName"] = new[] { "consultor", "consultar", "vendedor", "comissionado", "vendedor(a)", "consultor(a)", "comissionada", "name", "nome" },
-                ["MatriculaNumber"] = new[] { "matrícula", "matricula", "enrollment", "id", "mat", "matriculanumber" }
+                ["MatriculaNumber"] = new[] { "matrícula", "matricula", "enrollment", "mat", "matriculanumber" }
             },
             ["User"] = new Dictionary<string, string[]>
             {

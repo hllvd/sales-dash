@@ -90,7 +90,7 @@ namespace SalesApp.Controllers
                     "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName", "MatriculaNumber" 
                 }),
                 OptionalFields = JsonSerializer.Serialize(new List<string> { 
-                    "Status", "PvId", "PvName", "Version", "Category", "PlanoVenda", "UserEmail"
+                    "Status", "PvId", "PvName", "Version", "Category", "PlanoVenda", "UserEmail", "HasPayment"
                 }),
                 DefaultMappings = JsonSerializer.Serialize(new Dictionary<string, string> {
                     { "cota.group", "GroupId" },
@@ -108,7 +108,10 @@ namespace SalesApp.Controllers
                     { "Matricula", "MatriculaNumber" },
                     { "Categoria", "Category" },
                     { "PlanoVenda", "PlanoVenda" },
-                    { "Email", "UserEmail" }
+                    { "Email", "UserEmail" },
+                    { "Tem Pagamento?", "HasPayment" },
+                    { "Tem Pagamento", "HasPayment" },
+                    { "TemPagamento", "HasPayment" }
                 }),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow

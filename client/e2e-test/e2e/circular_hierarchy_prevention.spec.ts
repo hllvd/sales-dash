@@ -3,7 +3,9 @@ import path from 'path';
 import fs from 'fs';
 
 test.describe('Circular Hierarchy Prevention', () => {
-  const RUN_ID = Date.now().toString().slice(-4);
+  const RUN_ID = Array.from({ length: 8 }, () =>
+    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  ).join('');
   const EMAIL_A = `cycle.a.${RUN_ID}@test.com`;
   const EMAIL_B = `cycle.b.${RUN_ID}@test.com`;
   const EMAIL_C = `cycle.c.${RUN_ID}@test.com`;
@@ -91,7 +93,7 @@ test.describe('Circular Hierarchy Prevention', () => {
       await userRow.locator('button[title="Excluir"]').click();
       
       // Confirm deletion
-      await page.getByRole('dialog').getByRole('button', { name: 'Excluir' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: /Excluir|Desativar/i }).click();
       
       // Select "Inativos" filter to verify inactive status badge
       await page.locator('.search-bar .mantine-Select-input').click();

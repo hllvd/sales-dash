@@ -39,6 +39,8 @@ export interface Contract {
   matriculaNumber?: string;
   userMatriculaId?: number | null;
   rawStatus?: string;
+  hasPayment?: boolean | null;
+  isAwaitingPayment?: boolean;
 }
 
 export interface CreateContractRequest {
@@ -277,7 +279,8 @@ export const getContracts = async (
   userIds?: string[],
   page?: number,
   pageSize?: number,
-  statuses?: string[]
+  statuses?: string[],
+  awaitingPayment?: boolean
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation; totalCount: number }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
@@ -298,6 +301,7 @@ export const getContracts = async (
   if (teamIds && teamIds.length > 0) teamIds.forEach(id => params.append('teamIds', id.toString()));
   if (userIds && userIds.length > 0) userIds.forEach(id => params.append('userIds', id));
   if (statuses && statuses.length > 0) statuses.forEach(s => params.append('statuses', s));
+  if (awaitingPayment !== undefined) params.append('awaitingPayment', awaitingPayment.toString());
   if (page !== undefined) params.append('page', page.toString());
   if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
 
@@ -373,6 +377,22 @@ export const getContract = async (id: number): Promise<Contract> => {
   return result.data;
 };
 
+const extractErrorMessage = (error: any, fallbackMessage: string): string => {
+  if (!error) return fallbackMessage;
+  if (typeof error === 'string') return error;
+  if (error.message && typeof error.message === 'string') return error.message;
+  if (error.errors && typeof error.errors === 'object') {
+    const messages = Object.values(error.errors)
+      .flat()
+      .filter((msg): msg is string => typeof msg === 'string' && msg.trim().length > 0);
+    if (messages.length > 0) {
+      return messages.join('\n');
+    }
+  }
+  if (error.title && typeof error.title === 'string') return error.title;
+  return fallbackMessage;
+};
+
 export const createContract = async (data: CreateContractRequest): Promise<Contract> => {
   const response = await authenticatedFetch(`${API_BASE_URL}/contracts`, {
     method: 'POST',
@@ -381,8 +401,13 @@ export const createContract = async (data: CreateContractRequest): Promise<Contr
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to create contract');
+    let error: any;
+    try {
+      error = await response.json();
+    } catch {
+      error = null;
+    }
+    throw new Error(extractErrorMessage(error, 'Falha ao criar contrato'));
   }
 
   const result: ApiResponse<Contract> = await response.json();
@@ -397,8 +422,13 @@ export const updateContract = async (id: number, data: UpdateContractRequest): P
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to update contract');
+    let error: any;
+    try {
+      error = await response.json();
+    } catch {
+      error = null;
+    }
+    throw new Error(extractErrorMessage(error, 'Falha ao atualizar contrato'));
   }
 
   const result: ApiResponse<Contract> = await response.json();

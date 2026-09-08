@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { TextInput, NumberInput, Select, Button, Group, Text } from '@mantine/core';
+import React, { useState, useEffect, useRef } from 'react';
+import { TextInput, NumberInput, Select, Button, Group, Text, Alert } from '@mantine/core';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { normalizeNumber } from '../utils/normalization';
 import {
   CreateContractRequest,
@@ -60,6 +61,13 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   const [pvs, setPVs] = useState<PV[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const topAlertRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error && topAlertRef.current) {
+      topAlertRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [error]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -152,21 +160,24 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     if (!formData.contractNumber.trim()) {
       const errorMessage = 'Número do contrato é obrigatório';
       setError(errorMessage);
-      toast.error(errorMessage);
       return false;
     }
 
     if (formData.totalAmount < 0.01) {
       const errorMessage = 'Valor total deve ser pelo menos 0.01';
       setError(errorMessage);
-      toast.error(errorMessage);
       return false;
     }
 
     if (!formData.contractStartDate) {
       const errorMessage = 'Data de início do contrato é obrigatória';
       setError(errorMessage);
-      toast.error(errorMessage);
+      return false;
+    }
+
+    if (formData.customerName && /\d/.test(formData.customerName)) {
+      const errorMessage = 'O campo Nome do Cliente não pode conter números. É necessário remover os números do campo cliente para poder salvar.';
+      setError(errorMessage);
       return false;
     }
 
@@ -174,15 +185,13 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
       const selectedUser = users.find((u) => u.id === formData.userId);
       const activeMatriculas = selectedUser?.activeMatriculas || [];
       if (activeMatriculas.length === 0) {
-        const errorMessage = 'Este usuário não possui matrícula, por favor vá em matrícula e atribua uma a ele antes de atribuir este contrato';
+        const errorMessage = 'Este vendedor não possui nenhuma matrícula ativa. Por favor, atribua uma matrícula a ele na tela de Matrículas antes de vincular este contrato.';
         setError(errorMessage);
-        toast.error(errorMessage);
         return false;
       }
       if (!formData.matriculaNumber) {
-        const errorMessage = 'Por favor, selecione uma matrícula para o vendedor';
+        const errorMessage = 'Por favor, selecione uma matrícula para o vendedor.';
         setError(errorMessage);
-        toast.error(errorMessage);
         return false;
       }
     }
@@ -240,7 +249,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     } catch (err: any) {
       const errorMessage = err.message || 'Falha ao salvar contrato';
       setError(errorMessage);
-      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -254,11 +262,25 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
       size="lg"
     >
       <form onSubmit={handleSubmit}>
-        {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
+        <div ref={topAlertRef}>
+          {error && (
+            <Alert
+              icon={<IconAlertCircle size={18} />}
+              title="Atenção"
+              color="red"
+              variant="light"
+              mb="md"
+              style={{ whiteSpace: 'pre-line' }}
+            >
+              {error}
+            </Alert>
+          )}
+        </div>
 
         <FormField label="Número do Contrato" required>
           <TextInput
             required
+            aria-label="Número do Contrato"
             value={formData.contractNumber}
             onChange={(e) => handleChange('contractNumber', e.target.value)}
             maxLength={50}
@@ -267,6 +289,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
         <FormField label="Vendedor">
           <Select
+            aria-label="Vendedor"
             placeholder="Selecione o vendedor"
             data={[
               { value: '', label: 'Sem vendedor atribuído' },
@@ -288,7 +311,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
             if (activeMatriculas.length === 0) {
               return (
                 <Text color="red" size="sm" mt="xs">
-                  Este usuário não possui matrícula, por favor vá em matrícula e atribua uma a ele antes de atribuir este contrato
+                  Este vendedor não possui nenhuma matrícula ativa. Por favor, atribua uma matrícula a ele na tela de Matrículas antes de vincular este contrato.
                 </Text>
               );
             }
@@ -303,6 +326,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
         <FormField label="Grupo (Opcional)">
           <Select
+            aria-label="Grupo"
             value={formData.groupId}
             onChange={(value) => handleChange('groupId', value)}
             data={[
@@ -315,6 +339,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
         <FormField label="Ponto de Venda">
           <Select
+            aria-label="Ponto de Venda"
             value={formData.pvId}
             onChange={(value) => handleChange('pvId', value)}
             data={[
@@ -328,6 +353,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
         <FormField label="Valor Total" required>
           <NumberInput
             required
+            aria-label="Valor Total"
             value={formData.totalAmount}
             onChange={(value) => handleChange('totalAmount', value)}
             min={0.01}
@@ -339,6 +365,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
         <FormField label="Status">
           <Select
+            aria-label="Status"
             value={formData.status}
             onChange={(value) => handleChange('status', value)}
             data={CONTRACT_STATUS_OPTIONS}
@@ -349,6 +376,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           <input
             type="date"
             required
+            aria-label="Data de Início"
             value={formData.contractStartDate}
             onChange={(e) => handleChange('contractStartDate', e.target.value)}
             style={{
@@ -363,6 +391,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
         <FormField label="Tipo de Contrato">
           <Select
+            aria-label="Tipo de Contrato"
             value={formData.contractType}
             onChange={(value) => handleChange('contractType', value)}
             data={[
@@ -375,6 +404,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
         <FormField label="Cota (Opcional)">
           <NumberInput
+            aria-label="Cota"
             value={formData.quota}
             onChange={(value) => handleChange('quota', value)}
             placeholder="Ex: 10"
@@ -383,6 +413,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
         <FormField label="Nome do Cliente">
           <TextInput
+            aria-label="Nome do Cliente"
             value={formData.customerName}
             onChange={(e) => handleChange('customerName', e.target.value)}
             placeholder="Ex: João Silva"

@@ -9,6 +9,20 @@ namespace SalesApp.Utils
             if (string.IsNullOrWhiteSpace(value)) return string.Empty;
             
             var trimmed = value.Trim();
+
+            // Ignore placeholder strings representing absent data
+            if (trimmed == "-" || trimmed == "--" || trimmed == "---" ||
+                trimmed.Equals("N/A", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Equals("NA", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Equals("null", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Equals("none", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Equals("undefined", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Equals("sem matricula", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Equals("sem matrícula", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Empty;
+            }
+            
             // Remove leading zeros
             var normalized = trimmed.TrimStart('0');
             

@@ -211,6 +211,7 @@ namespace SalesApp.ReportFilters.Services
                 AllowedTeamIds = request.AllowedTeamIds,
                 AllowedRoles = request.AllowedRoles,
                 SumTotal = request.SumTotal,
+                CountActiveUsers = request.CountActiveUsers,
                 OutputType = request.OutputType ?? "table",
                 ChartType = request.ChartType ?? "bar",
                 SummaryRetentionType = request.SummaryRetentionType ?? "standard",
@@ -257,6 +258,7 @@ namespace SalesApp.ReportFilters.Services
             filter.AllowedTeamIds = request.AllowedTeamIds;
             filter.AllowedRoles = request.AllowedRoles;
             filter.SumTotal = request.SumTotal;
+            filter.CountActiveUsers = request.CountActiveUsers;
             filter.OutputType = request.OutputType ?? "table";
             filter.ChartType = request.ChartType ?? "bar";
             filter.SummaryRetentionType = request.SummaryRetentionType ?? "standard";
@@ -656,6 +658,22 @@ namespace SalesApp.ReportFilters.Services
                 }).ToList();
             }
 
+            // ── AwaitingPayment Filter ────────────────────────────────────────────
+            // Applied BEFORE retention calculation so that, when this filter is active,
+            // the excluded contracts are not counted in retention metrics.
+            // NOTE: If "AwaitingPayment" ever becomes an official ContractStatus, this
+            // block should be removed and callers should use the Statuses filter instead.
+            if (fc.AwaitingPayment.HasValue)
+            {
+                contracts = contracts.Where(c =>
+                {
+                    bool isAwaiting = string.Equals(
+                        c.ContractStatus?.Name, "Active", StringComparison.OrdinalIgnoreCase)
+                        && c.HasPayment == false;
+                    return fc.AwaitingPayment.Value ? isAwaiting : !isAwaiting;
+                }).ToList();
+            }
+
             // ── Compute per-user/team retention BEFORE status filtering ───────
             // Retention must reflect a user's/team's FULL portfolio (all statuses), not just
             // the subset visible after a status filter is applied.
@@ -873,11 +891,27 @@ namespace SalesApp.ReportFilters.Services
 
             decimal? totalSum = null;
             decimal? overallRetention = null;
+            int? activeUsersCount = null;
+            int? inactiveUsersCount = null;
 
             if (report.SumTotal)
             {
                 totalSum = contracts.Sum(c => c.TotalAmount);
                 overallRetention = ReportRetentionCalculator.CalculateOverallRetention(contracts, report.SummaryRetentionType);
+            }
+
+            if (report.CountActiveUsers)
+            {
+                var distinctUsers = contracts
+                    .Where(c => c.User != null)
+                    .Select(c => c.User!)
+                    .GroupBy(u => u.Id != Guid.Empty ? u.Id.ToString() : u.Email)
+                    .Select(g => g.First())
+                    .ToList();
+
+                var activeCount = distinctUsers.Count(u => string.Equals(ResolveUserActive(u) as string, "Sim", StringComparison.OrdinalIgnoreCase));
+                activeUsersCount = activeCount;
+                inactiveUsersCount = distinctUsers.Count - activeCount;
             }
 
             if (report.GroupByEmail)
@@ -982,6 +1016,8 @@ namespace SalesApp.ReportFilters.Services
                 TotalPages = totalPages,
                 TotalSum   = totalSum,
                 OverallRetention = overallRetention,
+                ActiveUsersCount = activeUsersCount,
+                InactiveUsersCount = inactiveUsersCount,
                 Columns    = columns.Select(col => new OutputColumnResponse
                 {
                     Source = col.Source,
@@ -1395,6 +1431,7 @@ namespace SalesApp.ReportFilters.Services
                 AllowedTeamIds = f.AllowedTeamIds,
                 AllowedRoles = f.AllowedRoles,
                 SumTotal = f.SumTotal,
+                CountActiveUsers = f.CountActiveUsers,
                 OutputType = f.OutputType ?? "table",
                 ChartType = f.ChartType ?? "bar",
                 SummaryRetentionType = f.SummaryRetentionType ?? "standard",
@@ -1428,7 +1465,8 @@ namespace SalesApp.ReportFilters.Services
                     MinStrictRetention  = f.FilterConfig.MinStrictRetention,
                     MaxStrictRetention  = f.FilterConfig.MaxStrictRetention,
                     MinProduction       = f.FilterConfig.MinProduction,
-                    MaxProduction       = f.FilterConfig.MaxProduction
+                    MaxProduction       = f.FilterConfig.MaxProduction,
+                    AwaitingPayment     = f.FilterConfig.AwaitingPayment
                 },
                 OutputColumns = f.OutputColumns
                     .OrderBy(c => c.Order)
@@ -1477,7 +1515,8 @@ namespace SalesApp.ReportFilters.Services
                 MinStrictRetention  = req.MinStrictRetention,
                 MaxStrictRetention  = req.MaxStrictRetention,
                 MinProduction       = req.MinProduction,
-                MaxProduction       = req.MaxProduction
+                MaxProduction       = req.MaxProduction,
+                AwaitingPayment     = req.AwaitingPayment
             };
 
         private static List<OutputColumn> MapOutputColumns(List<OutputColumnRequest> columns) =>

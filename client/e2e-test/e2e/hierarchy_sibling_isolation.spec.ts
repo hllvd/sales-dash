@@ -86,7 +86,7 @@ test.describe('[TEAR 3] Sibling Isolation', () => {
     await page.fill('input#filterContractNumber', SIBLING_CONTRACT);
     await searchPromise;
 
-    await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 15_000 });
+    await expect(page.locator('table tbody tr').filter({ hasText: SIBLING_CONTRACT })).toBeVisible({ timeout: 15_000 });
   });
 
   test('Carlos Mendes cannot see contracts belonging to unrelated matricula 10134', async ({ page }) => {

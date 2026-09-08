@@ -6,7 +6,9 @@ test.describe('Admin Matrícula Scoping and Access (TEAR 3)', () => {
   // Use serial mode to maintain DB state cleanly across sequential verification steps
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Date.now().toString().slice(-4);
+  const RUN_ID = Array.from({ length: 8 }, () =>
+    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  ).join('');
   const ADMIN_EMAIL = `matricula.admin.${RUN_ID}@test.com`;
   const OTHER_EMAIL = `matricula.other.${RUN_ID}@test.com`;
   const MATR_ADM = `MATR-ADM-${RUN_ID}`;

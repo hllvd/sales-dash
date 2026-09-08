@@ -122,6 +122,7 @@ namespace SalesApp.Controllers
             [FromQuery] List<int>? teamIds = null,
             [FromQuery] List<Guid>? userIds = null,
             [FromQuery] List<string>? statuses = null,
+            [FromQuery] bool? awaitingPayment = null,
             [FromQuery] int? page = null,
             [FromQuery] int? pageSize = null)
         {
@@ -132,12 +133,12 @@ namespace SalesApp.Controllers
             {
                 var (contracts, totalCount) = await _contractRepository.GetPagedAsync(
                     page.Value, pageSize.Value, userId, groupId, startDate, endDate,
-                    contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
+                    contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
 
                 var contractResponses = contracts.Select(MapToContractResponse).ToList();
                 var aggregation = await _contractRepository.GetAggregationAsync(
                     userId, groupId, startDate, endDate, contractNumber, showUnassigned,
-                    matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
+                    matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
 
                 return Ok(new ApiResponse<PagedContractResponse>
                 {
@@ -156,7 +157,7 @@ namespace SalesApp.Controllers
             }
             else
             {
-                var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
+                var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
                 var contractResponses = contracts.Select(MapToContractResponse).ToList();
                 var aggregation = _aggregationService.CalculateAggregation(contracts);
 
@@ -373,7 +374,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new ApiResponse<ContractResponse>
                 {
                     Success = false,
-                    Message = $"Invalid status. Must be one of: {string.Join(", ", _statusMapper.GetValidStatuses())}"
+                    Message = $"Status inválido. Os valores válidos são: {string.Join(", ", _statusMapper.GetValidStatuses())}"
                 });
             }
             
@@ -405,7 +406,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Invalid group"
+                        Message = "O grupo selecionado é inválido ou está inativo."
                     });
                 }
             }
@@ -442,7 +443,7 @@ namespace SalesApp.Controllers
                         var isAssignedToUser = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, request.UserId.Value);
                         if (isAssignedToUser == null)
                         {
-                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "Matrícula not found for this user" });
+                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "A matrícula informada não pertence ao vendedor selecionado ou não está ativa." });
                         }
                     }
                 }
@@ -460,6 +461,7 @@ namespace SalesApp.Controllers
                 
                 contract.MatriculaId = matricula.Id;
                 contract.TempMatricula = matricula.MatriculaNumber;
+                contract.Matricula = matricula;
             }
             else if (request.UserMatriculaId.HasValue)
             {
@@ -469,6 +471,19 @@ namespace SalesApp.Controllers
                 {
                     contract.MatriculaId = um.MatriculaId;
                     contract.TempMatricula = um.Matricula?.MatriculaNumber;
+                    contract.Matricula = um.Matricula;
+                }
+            }
+            else if (contract.User != null)
+            {
+                var userMatriculas = await _userMatriculaRepository.GetByUserIdAsync(contract.User.Id);
+                var defaultMatricula = userMatriculas.FirstOrDefault(um => um.IsActive && um.IsOwner)
+                                       ?? userMatriculas.FirstOrDefault(um => um.IsActive);
+                if (defaultMatricula != null)
+                {
+                    contract.MatriculaId = defaultMatricula.MatriculaId;
+                    contract.TempMatricula = defaultMatricula.Matricula?.MatriculaNumber;
+                    contract.Matricula = defaultMatricula.Matricula;
                 }
             }
 
@@ -546,7 +561,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = "Invalid group"
+                        Message = "O grupo selecionado é inválido ou está inativo."
                     });
                 }
                 contract.GroupId = request.GroupId.Value;
@@ -566,7 +581,7 @@ namespace SalesApp.Controllers
                     return BadRequest(new ApiResponse<ContractResponse>
                     {
                         Success = false,
-                        Message = $"Invalid status. Must be one of: {string.Join(", ", _statusMapper.GetValidStatuses())}"
+                        Message = $"Status inválido. Os valores válidos são: {string.Join(", ", _statusMapper.GetValidStatuses())}"
                     });
                 }
                 contract.ContractStatusId = await _statusService.GetStatusIdByNameAsync(request.Status);
@@ -623,7 +638,7 @@ namespace SalesApp.Controllers
                         var isAssignedToUser = await _userMatriculaRepository.GetByMatriculaNumberAndUserIdAsync(request.MatriculaNumber, contractUserGuid.Value);
                         if (isAssignedToUser == null)
                         {
-                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "Matrícula not found for this user" });
+                            return BadRequest(new ApiResponse<ContractResponse> { Success = false, Message = "A matrícula informada não pertence ao vendedor selecionado ou não está ativa." });
                         }
                     }
                 }
@@ -639,6 +654,7 @@ namespace SalesApp.Controllers
                 }
                 contract.MatriculaId = matricula.Id;
                 contract.TempMatricula = matricula.MatriculaNumber;
+                contract.Matricula = matricula;
             }
             else
             {
@@ -658,6 +674,18 @@ namespace SalesApp.Controllers
                     contract.MatriculaId = null;
                     contract.TempMatricula = null;
                     contract.Matricula = null;
+                }
+                else if (contract.User != null)
+                {
+                    var userMatriculas = await _userMatriculaRepository.GetByUserIdAsync(contract.User.Id);
+                    var defaultMatricula = userMatriculas.FirstOrDefault(um => um.IsActive && um.IsOwner)
+                                           ?? userMatriculas.FirstOrDefault(um => um.IsActive);
+                    if (defaultMatricula != null)
+                    {
+                        contract.MatriculaId = defaultMatricula.MatriculaId;
+                        contract.TempMatricula = defaultMatricula.Matricula?.MatriculaNumber;
+                        contract.Matricula = defaultMatricula.Matricula;
+                    }
                 }
             }
             
@@ -853,7 +881,20 @@ namespace SalesApp.Controllers
         private ContractResponse MapToContractResponse(Contract contract)
         {
             // Resolve the most appropriate matricula number for the response
-            var matriculaNumber = contract.Matricula?.MatriculaNumber ?? contract.TempMatricula;
+            var matriculaNumber = contract.Matricula?.MatriculaNumber 
+                ?? contract.TempMatricula
+                ?? contract.User?.UserMatriculas?.FirstOrDefault(um => um.IsActive && um.IsOwner)?.Matricula?.MatriculaNumber
+                ?? contract.User?.UserMatriculas?.FirstOrDefault(um => um.IsActive)?.Matricula?.MatriculaNumber;
+
+            // Sanitize placeholder values (e.g. "-", "--", "N/A", "null")
+            matriculaNumber = NormalizationUtils.NormalizeNumber(matriculaNumber);
+            if (string.IsNullOrWhiteSpace(matriculaNumber))
+            {
+                matriculaNumber = null;
+            }
+
+            var statusName = contract.ContractStatus?.Name ?? "";
+            var isAwaitingPayment = statusName.Equals("Active", StringComparison.OrdinalIgnoreCase) && contract.HasPayment == false;
 
             return new ContractResponse
             {
@@ -864,7 +905,7 @@ namespace SalesApp.Controllers
                 TotalAmount = contract.TotalAmount,
                 GroupId = contract.GroupId,
                 GroupName = contract.Group?.Name ?? "",
-                Status = contract.ContractStatus?.Name ?? "",
+                Status = statusName,
                 ContractStartDate = contract.SaleStartDate,
                 IsActive = contract.IsActive,
                 CreatedAt = contract.CreatedAt,
@@ -875,7 +916,9 @@ namespace SalesApp.Controllers
                 CustomerName = contract.CustomerName,
                 MatriculaId = contract.MatriculaId,
                 MatriculaNumber = matriculaNumber,
-                RawStatus = contract.RawStatus
+                RawStatus = contract.RawStatus,
+                HasPayment = contract.HasPayment,
+                IsAwaitingPayment = isAwaitingPayment
             };
         }
         

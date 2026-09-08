@@ -1,0 +1,56 @@
+.survey-modal-header {
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: #1c1c1e !important;
+  margin: 0;
+}
+
+.survey-modal-header::first-letter {
+  color: #b2342b !important;
+}
+
+.mantine-Modal-title {
+  color: #1c1c1e !important;
+}
+
+.survey-question-text {
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: #374151;
+  margin-bottom: 1.25rem;
+  white-space: pre-wrap;
+}
+
+.survey-options-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.survey-option-card {
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+}
+
+.survey-option-card:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.survey-option-card.selected {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.survey-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f3f4f6;
+}

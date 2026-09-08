@@ -36,7 +36,13 @@ const UsersPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false)
   const [editingUser, setEditingUser] = useState<User | undefined>(undefined)
   const [showImportModal, setShowImportModal] = useState(false)
-  const [currentUserRole, setCurrentUserRole] = useState<string>("")
+  const [currentUserRole, setCurrentUserRole] = useState<string>(() => {
+    try {
+      return (JSON.parse(localStorage.getItem("user") || "{}").role || "").toLowerCase()
+    } catch {
+      return ""
+    }
+  })
   const [deleteConfirm, setDeleteConfirm] = useState<User | null>(null)
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null)
   const [descendantUsers, setDescendantUsers] = useState<User[]>([])
@@ -114,7 +120,7 @@ const UsersPage: React.FC = () => {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}")
-    setCurrentUserRole(user.role || "")
+    setCurrentUserRole((user.role || "").toLowerCase())
   }, [])
 
   const handleCreateUser = async (userData: CreateUserRequest) => {
@@ -173,13 +179,17 @@ const UsersPage: React.FC = () => {
   }
 
 
-  const adminFromStorage = JSON.parse(localStorage.getItem("user") || "{}")
-  const rawAllowed = currentUserRole === "admin" ? [
+  const adminRaw = JSON.parse(localStorage.getItem("user") || "{}")
+  const adminId = adminRaw.id || adminRaw.Id
+  const adminEmail = adminRaw.email || adminRaw.Email
+  const adminName = adminRaw.name || adminRaw.Name || adminEmail
+  const adminRole = (adminRaw.role || adminRaw.Role || currentUserRole || "").toLowerCase()
+  const rawAllowed = adminRole === "admin" ? [
     {
-      id: adminFromStorage.id,
-      name: adminFromStorage.name || adminFromStorage.email,
-      email: adminFromStorage.email,
-      role: adminFromStorage.role || "admin",
+      id: adminId,
+      name: adminName,
+      email: adminEmail,
+      role: "admin",
       isActive: true,
       createdAt: "",
       updatedAt: ""
@@ -191,7 +201,7 @@ const UsersPage: React.FC = () => {
   const seenEmails = new Set<string>()
   const allowedParentUsers: User[] = []
   for (const u of rawAllowed) {
-    if (u.email) {
+    if (u && u.email) {
       const emailLower = u.email.toLowerCase().trim()
       if (!seenEmails.has(emailLower)) {
         seenEmails.add(emailLower)

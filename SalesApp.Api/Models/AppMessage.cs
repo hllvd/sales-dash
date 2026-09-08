@@ -164,6 +164,16 @@ namespace SalesApp.Models
         
         // Forgot Password Messages
         ForgotPasswordGenericResponse,
-        ForgotPasswordEmailRequired
+        ForgotPasswordEmailRequired,
+
+        // Survey Messages
+        SurveyCreatedSuccessfully,
+        SurveyNotFound,
+        SurveyAlreadyAnswered,
+        SurveyExpired,
+        SurveyAnsweredSuccessfully,
+        SurveyResentSuccessfully,
+        SurveysRetrievedSuccessfully,
+        SurveyResultsRetrievedSuccessfully
     }
 }

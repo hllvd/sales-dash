@@ -24,6 +24,14 @@ namespace SalesApp.Attributes
             if (!NamePattern.IsMatch(name))
             {
                 var displayName = validationContext.DisplayName ?? validationContext.MemberName ?? "Nome";
+                if (System.Text.RegularExpressions.Regex.IsMatch(name, @"\d"))
+                {
+                    return new ValidationResult(
+                        $"O campo {displayName} não pode conter números. É necessário remover os números do campo cliente para poder salvar.",
+                        new[] { validationContext.MemberName ?? "Name" }
+                    );
+                }
+
                 return new ValidationResult(
                     $"{displayName} só pode conter letras, espaços, hífens, apóstrofos, acentuação, barras e e-comercial (/ e &).",
                     new[] { validationContext.MemberName ?? "Name" }

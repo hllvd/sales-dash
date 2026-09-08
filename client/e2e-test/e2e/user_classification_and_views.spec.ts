@@ -136,6 +136,7 @@ test.describe('User Classification Levels & Custom Views E2E Tests', () => {
     // Part B: Views Engine / Dashboard Verification
     // ────────────────────────────────────────────────────────────────────────
     console.log('>>> Navigating to Dashboards Page...');
+    await page.getByText('Dados & Relatórios', { exact: true }).click();
     const dashboardsLink = page.locator('a[href="#/views"]');
     await expect(dashboardsLink).toBeVisible({ timeout: 10000 });
     await dashboardsLink.click();

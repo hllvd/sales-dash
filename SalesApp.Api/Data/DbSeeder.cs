@@ -129,7 +129,7 @@ namespace SalesApp.Data
                     EntityType = "Contract",
                     Description = "Template for contract dashboard import from Power BI",
                     RequiredFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName", "MatriculaNumber" }),
-                    OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Status", "PvId", "PvName", "Version", "Category", "PlanoVenda", "UserEmail" }),
+                    OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Status", "PvId", "PvName", "Version", "Category", "PlanoVenda", "UserEmail", "HasPayment" }),
                     DefaultMappings = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> {
                         { "cota.group", "GroupId" },
                         { "cota.cota", "Quota" },
@@ -146,7 +146,10 @@ namespace SalesApp.Data
                         { "Matricula", "MatriculaNumber" },
                         { "Categoria", "Category" },
                         { "PlanoVenda", "PlanoVenda" },
-                        { "Email", "UserEmail" }
+                        { "Email", "UserEmail" },
+                        { "Tem Pagamento?", "HasPayment" },
+                        { "Tem Pagamento", "HasPayment" },
+                        { "TemPagamento", "HasPayment" }
                     }),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
@@ -157,7 +160,7 @@ namespace SalesApp.Data
             {
                 // Ensure existing dashboard template is updated
                 dashboardTemplate.RequiredFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName", "MatriculaNumber" });
-                dashboardTemplate.OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Status", "PvId", "PvName", "Version", "Category", "PlanoVenda", "UserEmail" });
+                dashboardTemplate.OptionalFields = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Status", "PvId", "PvName", "Version", "Category", "PlanoVenda", "UserEmail", "HasPayment" });
                 dashboardTemplate.DefaultMappings = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> {
                     { "cota.group", "GroupId" },
                     { "cota.cota", "Quota" },
@@ -174,7 +177,10 @@ namespace SalesApp.Data
                     { "Matricula", "MatriculaNumber" },
                     { "Categoria", "Category" },
                     { "PlanoVenda", "PlanoVenda" },
-                    { "Email", "UserEmail" }
+                    { "Email", "UserEmail" },
+                    { "Tem Pagamento?", "HasPayment" },
+                    { "Tem Pagamento", "HasPayment" },
+                    { "TemPagamento", "HasPayment" }
                 });
                 context.ImportTemplates.Update(dashboardTemplate);
             }

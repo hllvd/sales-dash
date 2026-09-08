@@ -376,6 +376,8 @@ namespace SalesApp.Services
             {
                 matriculaNumber = cotaInfo.Matricula;
             }
+            matriculaNumber = NormalizationUtils.NormalizeNumber(matriculaNumber);
+            if (string.IsNullOrWhiteSpace(matriculaNumber)) matriculaNumber = null;
 
             var customerName = GetFieldValue(row, reverseMappings, "CustomerName");
             if (string.IsNullOrWhiteSpace(customerName) && cotaInfo.IsFromConcatenatedString) customerName = cotaInfo.Customer;
@@ -465,6 +467,19 @@ namespace SalesApp.Services
                 }
             }
 
+            // If user is resolved but no matricula was provided in row, fallback to user's active/owner matricula
+            if (user != null && !matriculaId.HasValue)
+            {
+                var userMatriculas = await _userMatriculaRepository.GetByUserIdAsync(user.Id);
+                var defaultMatricula = userMatriculas.FirstOrDefault(um => um.IsActive && um.IsOwner)
+                                       ?? userMatriculas.FirstOrDefault(um => um.IsActive);
+                if (defaultMatricula != null)
+                {
+                    matriculaId = defaultMatricula.MatriculaId;
+                    matriculaNumber = defaultMatricula.Matricula?.MatriculaNumber;
+                }
+            }
+
             // Map status
             var statusInput = GetFieldValue(row, reverseMappings, "Status");
             var mappedStatus = MapSituacaoCobrancaToStatus(statusInput);
@@ -527,8 +542,8 @@ namespace SalesApp.Services
                 }
                 catch (ArgumentException)
                 {
-                    // Fallback to int parsing for backwards compatibility
-                    if (int.TryParse(contractTypeStr, out var parsedType))
+                    // Fallback to int parsing only if it maps to a defined ContractType
+                    if (int.TryParse(contractTypeStr, out var parsedType) && Enum.IsDefined(typeof(ContractType), parsedType))
                     {
                         contractType = parsedType;
                     }
@@ -598,9 +613,13 @@ namespace SalesApp.Services
 
             contract.ContractNumber = contractNumber;
             contract.UserInternalId = user?.InternalId; // Can be null if unassigned
-            if (user == null && !string.IsNullOrWhiteSpace(matriculaNumber) && string.IsNullOrWhiteSpace(contract.TempMatricula))
+            if (user == null && !string.IsNullOrWhiteSpace(matriculaNumber))
             {
                 contract.TempMatricula = matriculaNumber;
+            }
+            else if (user != null)
+            {
+                contract.TempMatricula = null;
             }
             contract.TotalAmount = totalAmount;
             contract.GroupId = groupId;
@@ -620,6 +639,10 @@ namespace SalesApp.Services
             if (matriculaId.HasValue && contract.MatriculaId != matriculaId)
             {
                 contract.MatriculaId = matriculaId;
+            }
+            else if (!matriculaId.HasValue && user == null)
+            {
+                contract.MatriculaId = null;
             }
 
             return contract;
@@ -1828,6 +1851,39 @@ namespace SalesApp.Services
             {
                 version = parsedVersion;
             }
+
+            // Parse HasPayment ("Tem Pagamento?")
+            var hasPaymentStr = GetFieldValue(row, reverseMappings, "HasPayment");
+            if (string.IsNullOrWhiteSpace(hasPaymentStr))
+            {
+                var payKey = row.Keys.FirstOrDefault(k => 
+                    k.Equals("Tem Pagamento?", StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals("Tem Pagamento", StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals("TemPagamento", StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals("HasPayment", StringComparison.OrdinalIgnoreCase));
+                if (payKey != null) hasPaymentStr = row[payKey];
+            }
+
+            bool? hasPayment = null;
+            if (!string.IsNullOrWhiteSpace(hasPaymentStr))
+            {
+                var trimmed = hasPaymentStr.Trim();
+                if (trimmed.Equals("Sim", StringComparison.OrdinalIgnoreCase) || 
+                    trimmed.Equals("S", StringComparison.OrdinalIgnoreCase) || 
+                    trimmed.Equals("Yes", StringComparison.OrdinalIgnoreCase) || 
+                    trimmed.Equals("True", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasPayment = true;
+                }
+                else if (trimmed.Equals("Não", StringComparison.OrdinalIgnoreCase) || 
+                         trimmed.Equals("Nao", StringComparison.OrdinalIgnoreCase) || 
+                         trimmed.Equals("N", StringComparison.OrdinalIgnoreCase) || 
+                         trimmed.Equals("No", StringComparison.OrdinalIgnoreCase) || 
+                         trimmed.Equals("False", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasPayment = false;
+                }
+            }
             
             // Parse PvId and PvName
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
@@ -1932,6 +1988,7 @@ namespace SalesApp.Services
                     if (!string.IsNullOrWhiteSpace(customerName)) contract.CustomerName = customerName;
                     if (pvId.HasValue) contract.PvId = pvId;
                     if (version.HasValue) contract.Version = version;
+                    if (hasPayment.HasValue) contract.HasPayment = hasPayment;
                     if (matriculaId.HasValue) contract.MatriculaId = matriculaId;
                     if (!string.IsNullOrWhiteSpace(tempMatricula)) contract.TempMatricula = tempMatricula;
                     if (categoryMetadataId.HasValue) contract.CategoryMetadataId = categoryMetadataId;
@@ -1945,6 +2002,33 @@ namespace SalesApp.Services
                     if (!string.IsNullOrWhiteSpace(customerName)) contract.CustomerName = customerName;
                     if (pvId.HasValue) contract.PvId = pvId;
                     if (version.HasValue) contract.Version = version;
+                    if (hasPayment.HasValue) contract.HasPayment = hasPayment;
+                    if (!contract.MatriculaId.HasValue && matriculaId.HasValue)
+                    {
+                        contract.MatriculaId = matriculaId;
+
+                        // If updateMatriculaOnExisting is enabled and user is assigned, ensure UserMatricula link exists
+                        if (updateMatriculaOnExisting && contract.UserInternalId.HasValue)
+                        {
+                            var userGuid = resolvedUserGuid ?? contract.User?.Id;
+                            if (userGuid.HasValue && !string.IsNullOrWhiteSpace(matriculaNumber))
+                            {
+                                var existingLink = await _userMatriculaRepository
+                                    .GetByMatriculaNumberAndUserIdAsync(matriculaNumber, userGuid.Value);
+                                if (existingLink == null)
+                                {
+                                    await _userMatriculaRepository.CreateAsync(new UserMatricula
+                                    {
+                                        UserInternalId = contract.UserInternalId.Value,
+                                        MatriculaId = matriculaId.Value,
+                                        IsOwner = false,
+                                        IsActive = true,
+                                        ImportSessionId = importSessionId
+                                    });
+                                }
+                            }
+                        }
+                    }
                     if (!string.IsNullOrWhiteSpace(tempMatricula) && string.IsNullOrWhiteSpace(contract.TempMatricula)) contract.TempMatricula = tempMatricula;
                     if (categoryMetadataId.HasValue) contract.CategoryMetadataId = categoryMetadataId;
                     if (planoVendaMetadataId.HasValue) contract.PlanoVendaMetadataId = planoVendaMetadataId;
@@ -2011,6 +2095,7 @@ namespace SalesApp.Services
             contract.PvId = pvId;
             contract.Quota = quota;
             contract.Version = version;
+            contract.HasPayment = hasPayment;
             contract.TempMatricula = tempMatricula;
             contract.ImportSessionId = importSessionId;
             contract.CategoryMetadataId = categoryMetadataId;

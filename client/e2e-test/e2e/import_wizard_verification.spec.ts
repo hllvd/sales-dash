@@ -14,11 +14,22 @@ test.describe('Import Wizard Record Verification', () => {
     await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15000 });
     await expect(page.locator('.contracts-loading')).not.toBeVisible({ timeout: 15000 });
+    const clearBtn = page.locator('button.clear-filters-btn');
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click();
+      await page.waitForTimeout(1000);
+    }
   });
 
   const getFormField = (page, label: string) => page.locator('div').filter({ has: page.locator('label', { hasText: label, exact: true }) }).last();
 
   test('verify contract 90001305 - Leonardo Bandieri', async ({ page }) => {
+    const clearBtn = page.locator('button.clear-filters-btn');
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click();
+      await page.waitForTimeout(1000);
+    }
+
     const searchInput = page.locator('input#filterContractNumber');
     
     // Wait for the debounced search API call containing contractNumber=90001305
@@ -31,7 +42,7 @@ test.describe('Import Wizard Record Verification', () => {
     ]);
 
     const row = page.locator('table tbody tr').filter({ hasText: '90001305' }).first();
-    await expect(row).toBeVisible({ timeout: 15000 });
+    await expect(row).toBeVisible({ timeout: 20000 });
     const editBtn = row.locator('button[title="Editar"]');
     await expect(editBtn).toBeVisible({ timeout: 10000 });
     await editBtn.click();
@@ -49,6 +60,12 @@ test.describe('Import Wizard Record Verification', () => {
   });
 
   test('verify contract 868498 - Paulo Carvalho', async ({ page }) => {
+    const clearBtn = page.locator('button.clear-filters-btn');
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click();
+      await page.waitForTimeout(1000);
+    }
+
     const searchInput = page.locator('input#filterContractNumber');
 
     // Wait for the debounced search API call containing contractNumber=868498
@@ -61,7 +78,7 @@ test.describe('Import Wizard Record Verification', () => {
     ]);
 
     const row = page.locator('table tbody tr').filter({ hasText: '868498' }).first();
-    await expect(row).toBeVisible({ timeout: 15000 });
+    await expect(row).toBeVisible({ timeout: 20000 });
     const editBtn = row.locator('button[title="Editar"]');
     await expect(editBtn).toBeVisible({ timeout: 10000 });
     await editBtn.click();

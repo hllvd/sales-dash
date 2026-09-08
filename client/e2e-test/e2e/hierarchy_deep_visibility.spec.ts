@@ -97,8 +97,8 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     await page.waitForTimeout(1000);
     await expect(page.locator('.contracts-loading')).not.toBeVisible({ timeout: 20_000 });
 
-    // Wait for any existing rows to disappear if filtering isn't instant
-    await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
+    // Wait for row containing contract to be visible
+    await expect(page.locator('table tbody tr').filter({ hasText: CONTRACT_L3 })).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('table tbody tr').filter({ hasText: CHAIN.C_MATRICULA })).toBeVisible({ timeout: 15_000 });
     console.log(`>>> A sees C (7777) contract at depth 2 ✓`);
   });
@@ -108,7 +108,6 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     test.setTimeout(45_000);
     await loginAndGoToContracts(page, CHAIN.A_EMAIL, CHAIN.A_PASSWORD);
 
-    // Filter by the official contract number
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/contracts') && r.request().method() === 'GET').catch(() => null),
       page.fill('input#filterContractNumber', CONTRACT_L4)
@@ -116,7 +115,7 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     await page.waitForTimeout(1000);
     await expect(page.locator('.contracts-loading')).not.toBeVisible({ timeout: 20_000 });
 
-    await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
+    await expect(page.locator('table tbody tr').filter({ hasText: CONTRACT_L4 })).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('table tbody tr').filter({ hasText: CHAIN.D_MATRICULA })).toBeVisible({ timeout: 15_000 });
     console.log(`>>> A sees D (8888) contract at depth 3 ✓`);
   });

@@ -5,12 +5,13 @@ test.describe('Batch Merge Matriculas E2E', () => {
 
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Array.from({ length: 6 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
+  const RUN_LETTERS = Array.from({ length: 6 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join('');
+  const RUN_ID = RUN_LETTERS.toLowerCase() + Date.now().toString().slice(-4);
 
   const users = {
     superadmin: { email: 'superadmin@salesapp.com', password: 'string' },
     admin: { email: 'admin@salesapp.com', password: 'admin123' },
-    user: { name: `Mat User ${RUN_ID}`, email: `mat.user.${RUN_ID}@test.com`, role: 'user' }
+    user: { name: `Mat User ${RUN_LETTERS}`, email: `mat.user.${RUN_ID}@test.com`, role: 'user' }
   };
 
   const mainMat = `MMMAIN${RUN_ID}`;

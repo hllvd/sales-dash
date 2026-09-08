@@ -15,6 +15,17 @@ namespace SalesApp.Tests.Utils
         [InlineData("123", "123")]
         [InlineData("A001", "A001")]
         [InlineData("00A001", "A001")]
+        // Placeholder cases representing absent/dash data
+        [InlineData("-", "")]
+        [InlineData("--", "")]
+        [InlineData(" - ", "")]
+        [InlineData("N/A", "")]
+        [InlineData("NA", "")]
+        [InlineData("null", "")]
+        [InlineData("none", "")]
+        [InlineData("undefined", "")]
+        [InlineData("sem matricula", "")]
+        [InlineData("sem matrícula", "")]
         // Contract number investigation cases
         [InlineData("1100239686", "1100239686")] // no leading zeros — unchanged
         [InlineData("0239686", "239686")]         // one leading zero stripped

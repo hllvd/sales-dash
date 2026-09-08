@@ -460,7 +460,7 @@ namespace SalesApp.Controllers
                         await _matriculaRepository.CreateAsync(matriculaEntity);
                     }
                     
-                    bool isOwner = request.IsMatriculaOwner;
+                    bool isOwner = (roleIdClaim == "2" || request.Role.Equals("user", StringComparison.OrdinalIgnoreCase)) ? false : request.IsMatriculaOwner;
                     
                     // Link user to matricula
                     var userMatricula = new UserMatricula
@@ -483,6 +483,33 @@ namespace SalesApp.Controllers
                         Data = MapToUserResponse(user),
                         Message = _messageService.Get(AppMessage.UserCreatedButMatriculaFailed, ex.Message)
                     });
+                }
+            }
+            
+            // Handle joining parent's team if requested
+            if (request.JoinParentTeam && request.ParentUserId.HasValue)
+            {
+                try
+                {
+                    var parentUserTeam = await _context.UserTeams
+                        .Include(ut => ut.Team)
+                        .Where(ut => ut.User.Id == request.ParentUserId.Value && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow))
+                        .FirstOrDefaultAsync();
+
+                    if (parentUserTeam != null)
+                    {
+                        var userTeam = new UserTeam
+                        {
+                            TeamId = parentUserTeam.TeamId,
+                            UserInternalId = user.InternalId,
+                            StartDate = DateTime.UtcNow.AddYears(-8)
+                        };
+                        await _teamRepository.AddMemberAsync(userTeam);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Team assignment error shouldn't fail user creation
                 }
             }
             
@@ -819,21 +846,6 @@ namespace SalesApp.Controllers
             
             if (request.IsActive.HasValue && hasUpdatePermission)
             {
-                if (!request.IsActive.Value && user.IsActive)
-                {
-                    var hasContractsCheck = await _context.Contracts
-                        .Include(c => c.ContractStatus)
-                        .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente" && c.ContractStatus.Name.ToLower() != "naodefinido");
-                    
-                    if (hasContractsCheck)
-                    {
-                        return BadRequest(new ApiResponse<UserResponse>
-                        {
-                            Success = false,
-                            Message = "Este usuário possui contratos ativos em seu nome. Para desativá-lo, utilize a opção de exclusão para realizar a migração obrigatória dos contratos."
-                        });
-                    }
-                }
                 user.IsActive = request.IsActive.Value;
             }
 
@@ -887,28 +899,6 @@ namespace SalesApp.Controllers
                 }
             }
 
-            var hasContracts = await _context.Contracts
-                .Include(c => c.ContractStatus)
-                .AnyAsync(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente" && c.ContractStatus.Name.ToLower() != "naodefinido");
-
-            if (hasContracts)
-            {
-                if (!user.ParentUserId.HasValue)
-                {
-                    return BadRequest(new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Este usuário possui contratos ativos em seu nome. Para desativá-lo, é obrigatório que ele possua um usuário superior para que os contratos possam ser migrados."
-                    });
-                }
-
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Este usuário possui contratos ativos em seu nome. Os contratos devem ser migrados para o superior antes de desativar o usuário."
-                });
-            }
-            
             var isMatriculaOwner = await _context.UserMatriculas
                 .AnyAsync(um => um.UserInternalId == user.InternalId && um.IsOwner && um.IsActive && (um.EndDate == null || um.EndDate > DateTime.UtcNow));
 

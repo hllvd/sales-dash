@@ -234,6 +234,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [stores, setStores] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
+  const [awaitingPayment, setAwaitingPayment] = useState<boolean | null>(null);
 
   // Classification & Performance Filters
   const [classificationLevelIds, setClassificationLevelIds] = useState<string[]>([]);
@@ -264,6 +265,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
   // Column Summing & Output Type
   const [sumTotal, setSumTotal] = useState(false);
+  const [countActiveUsers, setCountActiveUsers] = useState(false);
   const [summaryRetentionType, setSummaryRetentionType] = useState<'standard' | 'strict'>('standard');
   const [chartMetric, setChartMetric] = useState<string>('');
   const [outputType, setOutputType] = useState<string>('table');
@@ -369,6 +371,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setPvs((fc.pvs || []).map(p => p.toString()));
         setStatuses(fc.statuses || []);
         setStatusOperator(fc.statusOperator || 'or');
+        setAwaitingPayment(fc.awaitingPayment ?? null);
 
         const restoredClassIds = (fc.classificationLevelIds || []).map(String);
         setClassificationLevelIds(restoredClassIds);
@@ -434,6 +437,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
         // Restore Sum and Chart types
         setSumTotal(report.sumTotal || false);
+        setCountActiveUsers(report.countActiveUsers || false);
         setSummaryRetentionType(report.summaryRetentionType || 'standard');
         setChartMetric(report.chartMetric || '');
         setOutputType(report.outputType || 'table');
@@ -640,6 +644,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       maxStrictRetention: maxStrictRetention !== '' ? maxStrictRetention / 100 : undefined,
       minProduction: minProduction !== '' ? minProduction : undefined,
       maxProduction: maxProduction !== '' ? maxProduction : undefined,
+      awaitingPayment: awaitingPayment !== null ? awaitingPayment : undefined,
     };
 
     const exportedFieldsList: ExportedField[] = [];
@@ -660,6 +665,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       allowedTeamIds: scope === 'shared' ? allowedTeamIds.map(Number) : [],
       allowedRoles: scope === 'shared' ? allowedRoles : [],
       sumTotal,
+      countActiveUsers,
       summaryRetentionType: sumTotal ? summaryRetentionType : undefined,
       chartMetric: chartMetric || undefined,
       outputType,
@@ -1184,6 +1190,20 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                     size="sm"
                   />
                 </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Aguardando Pagamento"
+                    placeholder="Todos"
+                    clearable
+                    data={[
+                      { value: 'true',  label: 'Sim (Aguardando pagamento)' },
+                      { value: 'false', label: 'Não' },
+                    ]}
+                    value={awaitingPayment === null ? null : String(awaitingPayment)}
+                    onChange={(val) => setAwaitingPayment(val === null ? null : val === 'true')}
+                    size="sm"
+                  />
+                </Grid.Col>
               </Grid>
 
               {/* Advanced Collapse */}
@@ -1493,6 +1513,12 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                       ]}
                     />
                   )}
+                  <Switch
+                    label="Contar usuários ativos vs inativos"
+                    checked={countActiveUsers}
+                    onChange={(e) => setCountActiveUsers(e.currentTarget.checked)}
+                    size="sm"
+                  />
                 </Stack>
               </Group>
 
@@ -1871,20 +1897,23 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                     </div>
                   )}
 
-                  {/* Part 2: Summary Sum Card (if sumTotal is true) */}
-                  {sumTotal && previewData.totalSum !== undefined && previewData.totalSum !== null && (
+                  {/* Part 2: Summary Sum Card (if sumTotal or countActiveUsers is true) */}
+                  {((sumTotal && previewData.totalSum !== undefined && previewData.totalSum !== null) ||
+                    (countActiveUsers && previewData.activeUsersCount !== undefined && previewData.activeUsersCount !== null)) && (
                     <Paper withBorder p="md" radius="md" style={{ backgroundColor: '#f5fdf8', borderLeft: '4px solid #10b981' }}>
-                      <Group justify="space-between" align="center">
+                      <Group justify="space-between" align="center" wrap="wrap" gap="md">
                         <Stack gap={2}>
                           <Text size="xs" c="dimmed" tt="uppercase" fw={700} style={{ letterSpacing: '0.05em' }}>
                             Resumo do Relatório (Summary)
                           </Text>
-                          <Title order={3} style={{ color: '#0f766e', fontWeight: 700 }}>
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(previewData.totalSum)}
-                          </Title>
+                          {sumTotal && previewData.totalSum !== undefined && previewData.totalSum !== null && (
+                            <Title order={3} style={{ color: '#0f766e', fontWeight: 700 }}>
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(previewData.totalSum)}
+                            </Title>
+                          )}
                         </Stack>
-                        <Group gap="sm">
-                          {previewData.overallRetention !== undefined && previewData.overallRetention !== null && (
+                        <Group gap="sm" wrap="wrap">
+                          {sumTotal && previewData.overallRetention !== undefined && previewData.overallRetention !== null && (
                             <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px' }}>
                               <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
                                 {summaryRetentionType === 'strict' ? "Retenção Estrita Geral" : "Retenção Geral"}
@@ -1893,6 +1922,26 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                                 {new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(previewData.overallRetention)}
                               </Text>
                             </Paper>
+                          )}
+                          {countActiveUsers && previewData.activeUsersCount !== undefined && previewData.activeUsersCount !== null && (
+                            <>
+                              <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px', borderColor: '#86efac' }}>
+                                <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
+                                  Usuários Ativos
+                                </Text>
+                                <Text size="md" fw={700} style={{ textAlign: 'center', color: '#16a34a' }}>
+                                  {previewData.activeUsersCount}
+                                </Text>
+                              </Paper>
+                              <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px', borderColor: '#cbd5e1' }}>
+                                <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>
+                                  Usuários Inativos
+                                </Text>
+                                <Text size="md" fw={700} style={{ textAlign: 'center', color: '#64748b' }}>
+                                  {previewData.inactiveUsersCount ?? 0}
+                                </Text>
+                              </Paper>
+                            </>
                           )}
                           <Paper withBorder p="xs" radius="sm" style={{ backgroundColor: '#ffffff', minWidth: '120px' }}>
                             <Text size="xxs" c="dimmed" fw={500} style={{ textAlign: 'center' }}>

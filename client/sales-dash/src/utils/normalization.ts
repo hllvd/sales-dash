@@ -10,6 +10,22 @@ export const normalizeNumber = (value: string | null | undefined): string => {
   const trimmed = value.trim();
   if (!trimmed) return '';
   
+  const lower = trimmed.toLowerCase();
+  if (
+    trimmed === '-' ||
+    trimmed === '--' ||
+    trimmed === '---' ||
+    lower === 'n/a' ||
+    lower === 'na' ||
+    lower === 'null' ||
+    lower === 'none' ||
+    lower === 'undefined' ||
+    lower === 'sem matricula' ||
+    lower === 'sem matrícula'
+  ) {
+    return '';
+  }
+
   // Remove leading zeros
   const normalized = trimmed.replace(/^0+/, '');
   

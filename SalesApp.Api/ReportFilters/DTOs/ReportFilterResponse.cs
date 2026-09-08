@@ -24,6 +24,7 @@ namespace SalesApp.ReportFilters.DTOs
         public List<int>? AllowedTeamIds { get; set; }
         public List<string>? AllowedRoles { get; set; }
         public bool SumTotal { get; set; }
+        public bool CountActiveUsers { get; set; }
         public string OutputType { get; set; } = "table";
         public string ChartType { get; set; } = "bar";
         public string? SummaryRetentionType { get; set; }
@@ -62,6 +63,7 @@ namespace SalesApp.ReportFilters.DTOs
         public decimal? MaxStrictRetention { get; set; }
         public decimal? MinProduction { get; set; }
         public decimal? MaxProduction { get; set; }
+        public bool? AwaitingPayment { get; set; }
     }
 
     public class OutputColumnResponse

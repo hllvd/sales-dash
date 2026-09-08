@@ -167,6 +167,9 @@ namespace SalesApp.Api.Migrations
                     b.Property<byte?>("Version")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool?>("HasPayment")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryMetadataId");

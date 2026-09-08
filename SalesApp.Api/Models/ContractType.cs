@@ -21,13 +21,13 @@ namespace SalesApp.Models
     /// </summary>
     public static class ContractTypeExtensions
     {
-        public static string ToApiString(this ContractType type)
+        public static string? ToApiString(this ContractType type)
         {
             return type switch
             {
                 ContractType.Lar => "lar",
                 ContractType.Motores => "motores",
-                _ => throw new ArgumentException($"Unknown contract type: {type}")
+                _ => null
             };
         }
         
@@ -46,6 +46,7 @@ namespace SalesApp.Models
         public static string? ToApiString(int? contractTypeValue)
         {
             if (!contractTypeValue.HasValue) return null;
+            if (!Enum.IsDefined(typeof(ContractType), contractTypeValue.Value)) return null;
             return ((ContractType)contractTypeValue.Value).ToApiString();
         }
         

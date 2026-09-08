@@ -293,6 +293,128 @@ namespace SalesApp.IntegrationTests.Imports
                 .Should().AllSatisfy(c => c.NewMatricula.Should().Be(matB));
         }
 
+        // ── Test: Initial fill when existing MatriculaId is null ────────────
+
+        [Fact]
+        public async Task ImportDashboard_WhenExistingMatriculaIsNull_AndToggleIsFalse_ShouldPopulateMatriculaAndNotReportChange()
+        {
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var contractNumber = $"MC-NULL-F-{Guid.NewGuid().ToString()[..6]}";
+            var matriculaNumber = $"MAT-NULL-F-{Guid.NewGuid().ToString()[..6]}";
+
+            // Seed: contract has MatriculaId = null
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var mat = new Matricula { MatriculaNumber = matriculaNumber, StartDate = DateTime.UtcNow, Status = "active" };
+                ctx.Matriculas.Add(mat);
+                await ctx.SaveChangesAsync();
+
+                ctx.Contracts.Add(new Contract
+                {
+                    ContractNumber = contractNumber,
+                    TotalAmount = 1000,
+                    GroupId = 0,
+                    ContractStatusId = 1,
+                    IsActive = true,
+                    MatriculaId = null,
+                    SaleStartDate = DateTime.UtcNow
+                });
+                await ctx.SaveChangesAsync();
+            }
+
+            // Import with updateMatriculaOnExisting = false
+            var cota = $"G1;100;X;Customer;{contractNumber}";
+            var (confirmResult, _) = await RunDashboardImport(
+                cota, "1000", "2024-01-01", matriculaNumber, contractNumber, updateMatriculaOnExisting: false);
+
+            // Assert: No change warning reported (treated as initial fill)
+            confirmResult.Should().NotBeNull();
+            confirmResult!.Data!.MatriculaChanges.Should().BeEmpty();
+            confirmResult.Data.Warnings.Should().NotContain(w => w.Contains("alteração de matrículas"));
+
+            // Assert: DB reflects the newly assigned matricula
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var contract = await ctx.Contracts
+                    .Include(c => c.Matricula)
+                    .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
+                contract.Should().NotBeNull();
+                contract!.MatriculaId.Should().NotBeNull();
+                contract.Matricula!.MatriculaNumber.Should().Be(matriculaNumber);
+            }
+        }
+
+        [Fact]
+        public async Task ImportDashboard_WhenExistingMatriculaIsNull_AndToggleIsTrue_ShouldPopulateMatriculaAndLinkAssignedUser()
+        {
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var contractNumber = $"MC-NULL-T-{Guid.NewGuid().ToString()[..6]}";
+            var matriculaNumber = $"MAT-NULL-T-{Guid.NewGuid().ToString()[..6]}";
+            var userEmail = $"user-null-{Guid.NewGuid().ToString()[..6]}@test.com";
+
+            // Seed: user, contract assigned to user with MatriculaId = null
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var user = new User
+                {
+                    Email = userEmail,
+                    Name = "Assigned User",
+                    PasswordHash = "hash",
+                    RoleId = 1,
+                    IsActive = true
+                };
+                var mat = new Matricula { MatriculaNumber = matriculaNumber, StartDate = DateTime.UtcNow, Status = "active" };
+                ctx.Users.Add(user);
+                ctx.Matriculas.Add(mat);
+                await ctx.SaveChangesAsync();
+
+                ctx.Contracts.Add(new Contract
+                {
+                    ContractNumber = contractNumber,
+                    TotalAmount = 1000,
+                    GroupId = 0,
+                    ContractStatusId = 1,
+                    IsActive = true,
+                    MatriculaId = null,
+                    UserInternalId = user.InternalId,
+                    SaleStartDate = DateTime.UtcNow
+                });
+                await ctx.SaveChangesAsync();
+            }
+
+            // Import with updateMatriculaOnExisting = true
+            var cota = $"G1;100;X;Customer;{contractNumber}";
+            var (confirmResult, _) = await RunDashboardImport(
+                cota, "1000", "2024-01-01", matriculaNumber, contractNumber, updateMatriculaOnExisting: true);
+
+            // Assert: No change warning reported (treated as initial fill)
+            confirmResult.Should().NotBeNull();
+            confirmResult!.Data!.MatriculaChanges.Should().BeEmpty();
+
+            // Assert: DB reflects new matricula and user is linked
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var contract = await ctx.Contracts
+                    .Include(c => c.Matricula)
+                    .FirstOrDefaultAsync(c => c.ContractNumber == contractNumber);
+                contract.Should().NotBeNull();
+                contract!.MatriculaId.Should().NotBeNull();
+                contract.Matricula!.MatriculaNumber.Should().Be(matriculaNumber);
+
+                var userMatricula = await ctx.UserMatriculas
+                    .FirstOrDefaultAsync(um => um.UserInternalId == contract.UserInternalId && um.MatriculaId == contract.MatriculaId);
+                userMatricula.Should().NotBeNull();
+            }
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         /// <summary>
@@ -300,7 +422,7 @@ namespace SalesApp.IntegrationTests.Imports
         /// confirms, and returns the deserialized response.
         /// </summary>
         private async Task<(ApiResponse<ImportStatusResponse>? response, string uploadId)> RunDashboardImport(
-            string cota, string total, string saleStartDate, string matricula, string contractNumber)
+            string cota, string total, string saleStartDate, string matricula, string contractNumber, bool updateMatriculaOnExisting = true)
         {
             var csv = "Cota,Total,SaleStartDate,Matricula\n" +
                       $"{cota},{total},{saleStartDate},{matricula}";
@@ -315,7 +437,7 @@ namespace SalesApp.IntegrationTests.Imports
 
             var confirmResponse = await _client.PostAsJsonAsync(
                 $"/api/imports/{uploadId}/confirm",
-                new ConfirmImportRequest { AllowAutoCreateGroups = true, UpdateMatriculaOnExisting = true });
+                new ConfirmImportRequest { AllowAutoCreateGroups = true, UpdateMatriculaOnExisting = updateMatriculaOnExisting });
             confirmResponse.EnsureSuccessStatusCode();
 
             var result = await confirmResponse.Content

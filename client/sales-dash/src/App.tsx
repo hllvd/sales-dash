@@ -9,6 +9,7 @@ import PVPage from './components/PVPage';
 import MyContractsPage from './components/MyContractsPage';
 import MatriculasPage from './components/MatriculasPage';
 import TeamsPage from './components/TeamsPage';
+import TeamCalendarPage from './components/TeamCalendarPage';
 import StoresPage from './components/StoresPage';
 import ClassificationsPage from './components/ClassificationsPage';
 import MyProfilePage from './components/MyProfilePage';
@@ -26,7 +27,13 @@ import AdminRegistrationPage from './components/AdminRegistrationPage';
 import TesterPage from './components/TesterPage';
 import BatchPage from './components/BatchPage';
 import ContractReconciliationPage from './components/ContractReconciliationPage';
+import RetentionFilterPage from './components/RetentionFilterPage';
+import ContractMigrationTool from './components/AdminTools/ContractMigrationTool';
 import RequestsPage from './components/RequestsPage';
+import SurveyPage from './components/Survey/SurveyPage';
+import MyQAPage from './components/Survey/MyQAPage';
+import { SurveyModal } from './components/Survey/SurveyModal';
+import { surveyPollingService } from './services/surveyPollingService';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
@@ -59,6 +66,15 @@ function App() {
       });
     }
   }, [currentRoute]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      surveyPollingService.start();
+    }
+    return () => {
+      surveyPollingService.stop();
+    };
+  }, [isAuthenticated]);
 
   const routePath = currentRoute.split('?')[0];
   const isPublicRoute = routePath === '#/user/registration/admin';
@@ -102,6 +118,8 @@ function App() {
         return <MatriculasPage />;
       case '#/teams':
         return <TeamsPage />;
+      case '#/teams/calendar':
+        return <TeamCalendarPage />;
       case '#/stores':
         return <StoresPage />;
       case '#/classifications':
@@ -129,8 +147,16 @@ function App() {
         return <BatchPage />;
       case '#/contract-reconciliation':
         return <ContractReconciliationPage />;
+      case '#/retention-filter':
+        return <RetentionFilterPage />;
+      case '#/admin-tools/migrate-contracts':
+        return <ContractMigrationTool />;
       case '#/requests':
         return <RequestsPage />;
+      case '#/surveys':
+        return <SurveyPage />;
+      case '#/qa':
+        return <MyQAPage />;
       case '#/dashboards':
       case '#/grupos':
       case '#/home':
@@ -147,6 +173,7 @@ function App() {
             <ReferenceDataProvider>
               <MantineProvider>
                 <Notifications />
+                <SurveyModal />
                 <ErrorBoundary>
                   {renderPage()}
                 </ErrorBoundary>

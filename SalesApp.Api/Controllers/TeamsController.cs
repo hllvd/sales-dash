@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
@@ -21,17 +23,20 @@ namespace SalesApp.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IMessageService _messageService;
         private readonly IUserHierarchyService _userHierarchyService;
+        private readonly AppDbContext _context;
 
         public TeamsController(
             ITeamRepository teamRepository,
             IUserRepository userRepository,
             IMessageService messageService,
-            IUserHierarchyService userHierarchyService)
+            IUserHierarchyService userHierarchyService,
+            AppDbContext context)
         {
             _teamRepository = teamRepository;
             _userRepository = userRepository;
             _messageService = messageService;
             _userHierarchyService = userHierarchyService;
+            _context = context;
         }
 
         [HttpGet]
@@ -69,7 +74,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> GetTeam(int id)
         {
@@ -130,15 +135,22 @@ namespace SalesApp.Controllers
                     var user = await _userRepository.GetByIdAsync(memberReq.UserId);
                     if (user == null) continue;
 
-                    var start = memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8);
+                    var start = (memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8)).Date;
 
-                    // Resolve overlaps on other teams
+                    // Resolve overlaps on other teams (ensuring no gap and no overlap)
                     var overlaps = await _teamRepository.FindOverlappingMembershipsAsync(user.InternalId, start, null);
                     foreach (var overlap in overlaps)
                     {
                         if (overlap.TeamId != createdTeam.Id)
                         {
-                            overlap.EndDate = DateTime.UtcNow;
+                            if (overlap.StartDate < start)
+                            {
+                                overlap.EndDate = start.AddDays(-1);
+                            }
+                            else
+                            {
+                                overlap.EndDate = overlap.StartDate;
+                            }
                             overlap.UpdatedAt = DateTime.UtcNow;
                             await _teamRepository.UpdateAsync(overlap.Team);
 
@@ -170,7 +182,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:int}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> UpdateTeam(int id, UpdateTeamRequest request)
         {
@@ -291,7 +303,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteTeam(int id)
         {
@@ -324,7 +336,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpPost("{id}/members")]
+        [HttpPost("{id:int}/members")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> AddMembers(int id, AddMembersRequest request)
         {
@@ -380,15 +392,22 @@ namespace SalesApp.Controllers
                     }
                 }
 
-                var start = memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8);
+                var start = (memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8)).Date;
 
-                // Auto-close overlapping memberships on other teams
+                // Auto-close overlapping memberships on other teams (ensuring no gap and no overlap)
                 var overlaps = await _teamRepository.FindOverlappingMembershipsAsync(user.InternalId, start, null);
                 foreach (var overlap in overlaps)
                 {
                     if (overlap.TeamId != id)
                     {
-                        overlap.EndDate = DateTime.UtcNow;
+                        if (overlap.StartDate < start)
+                        {
+                            overlap.EndDate = start.AddDays(-1);
+                        }
+                        else
+                        {
+                            overlap.EndDate = overlap.StartDate;
+                        }
                         overlap.UpdatedAt = DateTime.UtcNow;
                         await _teamRepository.UpdateAsync(overlap.Team);
 
@@ -422,7 +441,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpDelete("{id}/members/{userId}")]
+        [HttpDelete("{id:int}/members/{userId:guid}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> RemoveMember(int id, Guid userId)
         {
@@ -477,7 +496,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpPost("{id}/owner")]
+        [HttpPost("{id:int}/owner")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> SetOwner(int id, [FromBody] Guid ownerUserId)
         {
@@ -542,7 +561,7 @@ namespace SalesApp.Controllers
             });
         }
 
-        [HttpPut("{id}/members/{userId}")]
+        [HttpPut("{id:int}/members/{userId:guid}")]
         [HasPermission("teams:manage")]
         public async Task<ActionResult<ApiResponse<TeamResponse>>> UpdateMemberDates(int id, Guid userId, [FromBody] UpdateMemberDatesRequest request)
         {
@@ -581,7 +600,10 @@ namespace SalesApp.Controllers
                 });
             }
 
-            if (request.EndDate.HasValue && request.StartDate > request.EndDate.Value)
+            var newStartDate = request.StartDate.Date;
+            var newEndDate = request.EndDate.HasValue ? request.EndDate.Value.Date : (DateTime?)null;
+
+            if (newEndDate.HasValue && newStartDate > newEndDate.Value)
             {
                 return BadRequest(new ApiResponse<TeamResponse>
                 {
@@ -590,11 +612,90 @@ namespace SalesApp.Controllers
                 });
             }
 
-            membership.StartDate = request.StartDate;
-            membership.EndDate = request.EndDate;
+            if (newEndDate.HasValue && (newEndDate.Value - newStartDate).TotalDays < 7)
+            {
+                return BadRequest(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = "O período na equipe deve ter duração mínima de 1 semana (7 dias)."
+                });
+            }
+
+            // Load other memberships for this user to enforce 0 overlap and 0 gaps
+            var otherUserTeams = await _context.UserTeams
+                .Include(ut => ut.Team)
+                .Where(ut => ut.UserInternalId == user.InternalId && ut.Id != membership.Id)
+                .OrderBy(ut => ut.StartDate)
+                .ToListAsync();
+
+            var precedingMembership = otherUserTeams
+                .Where(ut => ut.StartDate < newStartDate)
+                .OrderByDescending(ut => ut.StartDate)
+                .FirstOrDefault();
+
+            var succeedingMembership = otherUserTeams
+                .Where(ut => ut.StartDate >= newStartDate)
+                .OrderBy(ut => ut.StartDate)
+                .FirstOrDefault();
+
+            // Sync with preceding team (no gap, no overlap)
+            if (precedingMembership != null)
+            {
+                var wasContiguous = precedingMembership.EndDate.HasValue && precedingMembership.EndDate.Value.Date == membership.StartDate.Date.AddDays(-1);
+                var isOverlapping = precedingMembership.EndDate == null || precedingMembership.EndDate.Value.Date >= newStartDate;
+
+                if (wasContiguous || isOverlapping)
+                {
+                    var adjustedPrecedingEnd = newStartDate.AddDays(-1);
+                    if (adjustedPrecedingEnd < precedingMembership.StartDate || (adjustedPrecedingEnd - precedingMembership.StartDate).TotalDays < 7)
+                    {
+                        return BadRequest(new ApiResponse<TeamResponse>
+                        {
+                            Success = false,
+                            Message = $"A alteração deixaria a equipe anterior ({precedingMembership.Team?.Name}) com menos de 7 dias."
+                        });
+                    }
+                    precedingMembership.EndDate = adjustedPrecedingEnd;
+                    precedingMembership.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            // Sync with succeeding team (no gap, no overlap)
+            if (succeedingMembership != null)
+            {
+                var wasContiguous = membership.EndDate.HasValue && succeedingMembership.StartDate.Date == membership.EndDate.Value.Date.AddDays(1);
+                var isOverlapping = !newEndDate.HasValue || succeedingMembership.StartDate.Date <= newEndDate.Value;
+
+                if (wasContiguous || isOverlapping)
+                {
+                    if (!newEndDate.HasValue)
+                    {
+                        return BadRequest(new ApiResponse<TeamResponse>
+                        {
+                            Success = false,
+                            Message = $"Existe um período posterior na equipe '{succeedingMembership.Team?.Name}'. É necessário definir uma data de término."
+                        });
+                    }
+
+                    var adjustedSucceedingStart = newEndDate.Value.AddDays(1);
+                    if (succeedingMembership.EndDate.HasValue && (succeedingMembership.EndDate.Value - adjustedSucceedingStart).TotalDays < 7)
+                    {
+                        return BadRequest(new ApiResponse<TeamResponse>
+                        {
+                            Success = false,
+                            Message = $"A alteração deixaria a equipe posterior ({succeedingMembership.Team?.Name}) com menos de 7 dias."
+                        });
+                    }
+                    succeedingMembership.StartDate = adjustedSucceedingStart;
+                    succeedingMembership.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            membership.StartDate = newStartDate;
+            membership.EndDate = newEndDate;
             membership.UpdatedAt = DateTime.UtcNow;
 
-            await _teamRepository.UpdateAsync(team);
+            await _context.SaveChangesAsync();
 
             var reloadedTeam = await _teamRepository.GetByIdAsync(id);
             return Ok(new ApiResponse<TeamResponse>
@@ -602,6 +703,101 @@ namespace SalesApp.Controllers
                 Success = true,
                 Data = MapToTeamResponse(reloadedTeam ?? team),
                 Message = "Datas atualizadas com sucesso"
+            });
+        }
+
+        [HttpDelete("{id:int}/members/{userId:guid}/period/{userTeamId:int}")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<TeamResponse>>> DeleteMemberPeriod(int id, Guid userId, int userTeamId)
+        {
+            var team = await _teamRepository.GetByIdAsync(id);
+            if (team == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.TeamNotFound)
+                });
+            }
+
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                var caller = await _userRepository.GetByIdAsync(currentUserId);
+                var allowedOwnerInternalIds = await GetDescendantsUpToLevel4Async(currentUserId);
+                if (caller == null || (team.OwnerUserInternalId != caller.InternalId && (team.OwnerUserInternalId == null || !allowedOwnerInternalIds.Contains(team.OwnerUserInternalId.Value))))
+                {
+                    return Forbid();
+                }
+            }
+
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+
+            var allUserTeams = await _context.UserTeams
+                .Include(ut => ut.Team)
+                .Where(ut => ut.UserInternalId == user.InternalId)
+                .OrderBy(ut => ut.StartDate)
+                .ToListAsync();
+
+            var membership = allUserTeams.FirstOrDefault(ut => ut.Id == userTeamId && ut.TeamId == id);
+            if (membership == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = "Período não encontrado nesta equipe para o usuário."
+                });
+            }
+
+            var currentIndex = allUserTeams.FindIndex(ut => ut.Id == userTeamId);
+            var preceding = currentIndex > 0 ? allUserTeams[currentIndex - 1] : null;
+            var succeeding = currentIndex < allUserTeams.Count - 1 ? allUserTeams[currentIndex + 1] : null;
+
+            // Healing rules:
+            // 1. Both preceding and succeeding exist: bridge the gap so preceding.EndDate = succeeding.StartDate - 1 day
+            if (preceding != null && succeeding != null)
+            {
+                preceding.EndDate = succeeding.StartDate.Date.AddDays(-1);
+                preceding.UpdatedAt = DateTime.UtcNow;
+            }
+            // 2. Only preceding exists (deleting the most recent / active period): preceding becomes the active period
+            else if (preceding != null && succeeding == null)
+            {
+                preceding.EndDate = null;
+                preceding.UpdatedAt = DateTime.UtcNow;
+            }
+            // 3. Only succeeding exists (deleting the oldest period): succeeding remains as is
+            // 4. Neither exists (single period): user has no team remaining
+
+            // If user was owner of the team, check if they have any remaining active period in this team
+            if (team.OwnerUserInternalId == user.InternalId)
+            {
+                var remainingActiveInTeam = allUserTeams.Any(ut => ut.Id != userTeamId && ut.TeamId == id && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow));
+                if (!remainingActiveInTeam)
+                {
+                    team.OwnerUserInternalId = null;
+                    await _teamRepository.UpdateAsync(team);
+                }
+            }
+
+            _context.UserTeams.Remove(membership);
+            await _context.SaveChangesAsync();
+
+            var reloadedTeam = await _teamRepository.GetByIdAsync(id);
+            return Ok(new ApiResponse<TeamResponse>
+            {
+                Success = true,
+                Data = MapToTeamResponse(reloadedTeam ?? team),
+                Message = "Período removido com sucesso."
             });
         }
 
@@ -694,6 +890,564 @@ namespace SalesApp.Controllers
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt
             };
+        }
+
+        [HttpGet("calendar")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<List<TeamCalendarUserResponse>>>> GetTeamCalendar()
+        {
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (!Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                return Unauthorized();
+            }
+
+            var allLinks = await _userRepository.GetAllHierarchyLinksAsync();
+            var childrenMap = new Dictionary<Guid, List<Guid>>();
+            var allIds = allLinks.Select(l => l.Id).ToHashSet();
+
+            foreach (var link in allLinks)
+            {
+                if (link.ParentUserId.HasValue)
+                {
+                    if (!childrenMap.ContainsKey(link.ParentUserId.Value))
+                        childrenMap[link.ParentUserId.Value] = new List<Guid>();
+                    childrenMap[link.ParentUserId.Value].Add(link.Id);
+                }
+            }
+
+            var userLevels = new Dictionary<Guid, int>();
+            var queue = new Queue<(Guid Id, int Depth)>();
+
+            if (roleIdClaim == "1") // Superadmin
+            {
+                // Traverse from roots or top-level nodes to identify levels 1, 2, 3
+                var rootIds = allLinks.Where(l => !l.ParentUserId.HasValue || !allIds.Contains(l.ParentUserId.Value)).Select(l => l.Id).ToList();
+                foreach (var rootId in rootIds)
+                {
+                    queue.Enqueue((rootId, 0));
+                }
+            }
+            else // Admin
+            {
+                queue.Enqueue((currentUserId, 0));
+            }
+
+            while (queue.Count > 0)
+            {
+                var (curId, curDepth) = queue.Dequeue();
+                if (curDepth >= 1 && curDepth <= 3)
+                {
+                    if (!userLevels.ContainsKey(curId))
+                    {
+                        userLevels[curId] = curDepth;
+                    }
+                }
+
+                if (curDepth < 3 && childrenMap.TryGetValue(curId, out var kids))
+                {
+                    foreach (var kid in kids)
+                    {
+                        queue.Enqueue((kid, curDepth + 1));
+                    }
+                }
+            }
+
+            var targetUserGuids = userLevels.Keys.ToList();
+            if (!targetUserGuids.Any())
+            {
+                return Ok(new ApiResponse<List<TeamCalendarUserResponse>>
+                {
+                    Success = true,
+                    Data = new List<TeamCalendarUserResponse>(),
+                    Message = "Nenhum usuário encontrado na hierarquia."
+                });
+            }
+
+            var users = await _context.Users
+                .AsNoTracking()
+                .Include(u => u.ParentUser)
+                .Where(u => targetUserGuids.Contains(u.Id) && u.IsActive)
+                .ToListAsync();
+
+            var userInternalIds = users.Select(u => u.InternalId).ToList();
+            var allMemberships = await _teamRepository.GetAllMembershipsForUsersAsync(userInternalIds);
+
+            // Query earliest contract date for each user
+            var earliestContractDates = await _context.Contracts
+                .AsNoTracking()
+                .Where(c => c.UserInternalId.HasValue && userInternalIds.Contains(c.UserInternalId.Value) && c.IsActive)
+                .GroupBy(c => c.UserInternalId!.Value)
+                .Select(g => new { UserInternalId = g.Key, EarliestDate = g.Min(c => c.SaleStartDate) })
+                .ToDictionaryAsync(x => x.UserInternalId, x => (DateTime?)x.EarliestDate);
+
+            var membershipsByUser = allMemberships
+                .GroupBy(m => m.UserInternalId)
+                .ToDictionary(g => g.Key, g => g.OrderBy(m => m.StartDate).ToList());
+
+            var result = new List<TeamCalendarUserResponse>();
+            foreach (var user in users)
+            {
+                var history = membershipsByUser.TryGetValue(user.InternalId, out var mems)
+                    ? mems.Select(m => new TeamCalendarUserHistoryItem
+                    {
+                        UserTeamId = m.Id,
+                        TeamId = m.TeamId,
+                        TeamName = m.Team?.Name ?? $"Equipe #{m.TeamId}",
+                        StartDate = m.StartDate,
+                        EndDate = m.EndDate,
+                        IsActive = m.EndDate == null || m.EndDate > DateTime.UtcNow
+                    }).ToList()
+                    : new List<TeamCalendarUserHistoryItem>();
+
+                var activeTeam = history.FirstOrDefault(h => h.IsActive);
+
+                result.Add(new TeamCalendarUserResponse
+                {
+                    UserId = user.Id,
+                    UserInternalId = user.InternalId,
+                    UserName = user.Name,
+                    UserEmail = user.Email,
+                    CurrentTeamName = activeTeam?.TeamName,
+                    CurrentTeamId = activeTeam?.TeamId,
+                    HierarchyLevel = userLevels.TryGetValue(user.Id, out var lvl) ? lvl : 1,
+                    ParentUserName = user.ParentUser?.Name,
+                    EarliestContractDate = earliestContractDates.TryGetValue(user.InternalId, out var dt) ? dt : null,
+                    TeamHistory = history
+                });
+            }
+
+            return Ok(new ApiResponse<List<TeamCalendarUserResponse>>
+            {
+                Success = true,
+                Data = result.OrderBy(u => u.HierarchyLevel).ThenBy(u => u.UserName).ToList(),
+                Message = "Calendário de equipes recuperado com sucesso"
+            });
+        }
+
+        [HttpGet("calendar/contract-preview")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<CalendarContractPreviewResponse>>> GetContractPreview(
+            [FromQuery] Guid userId,
+            [FromQuery] DateTime boundaryDate)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<CalendarContractPreviewResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                var allowedUserIds = await _userHierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (!allowedUserIds.Contains(userId))
+                {
+                    return Forbid();
+                }
+            }
+
+            var boundary = boundaryDate.Date;
+
+            var olderContracts = await _context.Contracts
+                .AsNoTracking()
+                .Include(c => c.Matricula)
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.SaleStartDate.Date < boundary)
+                .OrderByDescending(c => c.SaleStartDate)
+                .Take(5)
+                .Select(c => new CalendarContractPreviewItem
+                {
+                    ContractId = c.Id,
+                    ContractNumber = c.ContractNumber,
+                    SaleStartDate = c.SaleStartDate,
+                    CustomerName = c.CustomerName,
+                    MatriculaNumber = c.Matricula != null ? c.Matricula.MatriculaNumber : c.TempMatricula,
+                    TotalAmount = c.TotalAmount
+                })
+                .ToListAsync();
+
+            var newerContracts = await _context.Contracts
+                .AsNoTracking()
+                .Include(c => c.Matricula)
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.SaleStartDate.Date >= boundary)
+                .OrderBy(c => c.SaleStartDate)
+                .Take(5)
+                .Select(c => new CalendarContractPreviewItem
+                {
+                    ContractId = c.Id,
+                    ContractNumber = c.ContractNumber,
+                    SaleStartDate = c.SaleStartDate,
+                    CustomerName = c.CustomerName,
+                    MatriculaNumber = c.Matricula != null ? c.Matricula.MatriculaNumber : c.TempMatricula,
+                    TotalAmount = c.TotalAmount
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponse<CalendarContractPreviewResponse>
+            {
+                Success = true,
+                Data = new CalendarContractPreviewResponse
+                {
+                    OlderTeamContracts = olderContracts,
+                    NewerTeamContracts = newerContracts
+                },
+                Message = "Preview de contratos recuperado com sucesso"
+            });
+        }
+
+        [HttpPut("calendar/adjust-boundary")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<TeamCalendarUserResponse>>> AdjustTeamBoundary([FromBody] AdjustTeamBoundaryRequest request)
+        {
+            var user = await _userRepository.GetByIdAsync(request.UserId);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<TeamCalendarUserResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                var allowedUserIds = await _userHierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (!allowedUserIds.Contains(request.UserId))
+                {
+                    return Forbid();
+                }
+            }
+
+            var userTeams = await _context.UserTeams
+                .Include(ut => ut.Team)
+                .Where(ut => ut.UserInternalId == user.InternalId)
+                .ToListAsync();
+
+            UserTeam? olderUserTeam = null;
+            UserTeam? newerUserTeam = null;
+
+            if (request.OlderTeamId.HasValue)
+            {
+                olderUserTeam = userTeams.FirstOrDefault(ut => ut.TeamId == request.OlderTeamId.Value);
+                if (olderUserTeam == null)
+                {
+                    return BadRequest(new ApiResponse<TeamCalendarUserResponse>
+                    {
+                        Success = false,
+                        Message = "Equipe anterior não encontrada no histórico do usuário."
+                    });
+                }
+
+                if ((request.BoundaryDate - olderUserTeam.StartDate).TotalDays < 7)
+                {
+                    return BadRequest(new ApiResponse<TeamCalendarUserResponse>
+                    {
+                        Success = false,
+                        Message = "O período na equipe anterior deve ter duração mínima de 1 semana (7 dias)."
+                    });
+                }
+            }
+
+            if (request.NewerTeamId.HasValue)
+            {
+                newerUserTeam = userTeams.FirstOrDefault(ut => ut.TeamId == request.NewerTeamId.Value);
+                if (newerUserTeam == null)
+                {
+                    return BadRequest(new ApiResponse<TeamCalendarUserResponse>
+                    {
+                        Success = false,
+                        Message = "Nova equipe não encontrada no histórico do usuário."
+                    });
+                }
+
+                if (newerUserTeam.EndDate.HasValue && (newerUserTeam.EndDate.Value - request.BoundaryDate).TotalDays < 7)
+                {
+                    return BadRequest(new ApiResponse<TeamCalendarUserResponse>
+                    {
+                        Success = false,
+                        Message = "O período na nova equipe deve ter duração mínima de 1 semana (7 dias)."
+                    });
+                }
+            }
+
+            if (olderUserTeam != null)
+            {
+                olderUserTeam.EndDate = request.BoundaryDate.Date.AddDays(-1);
+                olderUserTeam.UpdatedAt = DateTime.UtcNow;
+            }
+
+            if (newerUserTeam != null)
+            {
+                newerUserTeam.StartDate = request.BoundaryDate.Date;
+                newerUserTeam.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Reload user history
+            var updatedMemberships = await _teamRepository.GetAllMembershipsForUsersAsync(new[] { user.InternalId });
+            var history = updatedMemberships.Select(m => new TeamCalendarUserHistoryItem
+            {
+                UserTeamId = m.Id,
+                TeamId = m.TeamId,
+                TeamName = m.Team?.Name ?? $"Equipe #{m.TeamId}",
+                StartDate = m.StartDate,
+                EndDate = m.EndDate,
+                IsActive = m.EndDate == null || m.EndDate > DateTime.UtcNow
+            }).ToList();
+
+            var activeTeam = history.FirstOrDefault(h => h.IsActive);
+
+            var response = new TeamCalendarUserResponse
+            {
+                UserId = user.Id,
+                UserInternalId = user.InternalId,
+                UserName = user.Name,
+                UserEmail = user.Email,
+                CurrentTeamName = activeTeam?.TeamName,
+                CurrentTeamId = activeTeam?.TeamId,
+                HierarchyLevel = 1,
+                ParentUserName = user.ParentUser?.Name,
+                TeamHistory = history
+            };
+
+            return Ok(new ApiResponse<TeamCalendarUserResponse>
+            {
+                Success = true,
+                Data = response,
+                Message = "Datas atualizadas com sucesso."
+            });
+        }
+
+        [HttpGet("calendar/available-teams")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<List<AvailableTeamItemResponse>>>> GetAvailableTeams()
+        {
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (!Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                return Unauthorized();
+            }
+
+            HashSet<int>? allowedOwnerInternalIds = null;
+
+            if (roleIdClaim != "1") // Not a Superadmin
+            {
+                var caller = await _userRepository.GetByIdAsync(currentUserId);
+                if (caller == null)
+                {
+                    return Unauthorized();
+                }
+
+                var descendants = await _userHierarchyService.GetDescendantInternalIdsAsync(currentUserId);
+                allowedOwnerInternalIds = new HashSet<int>(descendants) { caller.InternalId };
+            }
+
+            var teams = await _context.Teams
+                .AsNoTracking()
+                .Include(t => t.Store)
+                .Include(t => t.Owner)
+                .Include(t => t.UserTeams)
+                .Where(t => allowedOwnerInternalIds == null ||
+                            (t.OwnerUserInternalId.HasValue && allowedOwnerInternalIds.Contains(t.OwnerUserInternalId.Value)) ||
+                            (!t.OwnerUserInternalId.HasValue && allowedOwnerInternalIds.Contains(t.UserTeams.Select(ut => ut.UserInternalId).FirstOrDefault())))
+                .OrderBy(t => t.Name)
+                .ToListAsync();
+
+            var result = teams.Select(t => new AvailableTeamItemResponse
+            {
+                Id = t.Id,
+                Name = t.Name,
+                StoreName = t.Store?.Name,
+                OwnerName = t.Owner?.Name,
+                OwnerUserId = t.Owner?.Id,
+                MemberCount = t.UserTeams.Count(ut => ut.EndDate == null || ut.EndDate > DateTime.UtcNow)
+            }).ToList();
+
+            return Ok(new ApiResponse<List<AvailableTeamItemResponse>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Equipes disponíveis recuperadas com sucesso"
+            });
+        }
+
+        [HttpPost("calendar/assign-team")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<TeamCalendarUserResponse>>> AssignUserTeam([FromBody] AssignUserTeamRequest request)
+        {
+            var user = await _userRepository.GetByIdAsync(request.UserId);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<TeamCalendarUserResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (roleIdClaim == "2" && Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                var allowedUserIds = await _userHierarchyService.GetDescendantIdsAsync(currentUserId);
+                if (!allowedUserIds.Contains(request.UserId))
+                {
+                    return Forbid();
+                }
+            }
+
+            var targetTeam = await _teamRepository.GetByIdAsync(request.NewTeamId);
+            if (targetTeam == null)
+            {
+                return NotFound(new ApiResponse<TeamCalendarUserResponse>
+                {
+                    Success = false,
+                    Message = "Equipe de destino não encontrada."
+                });
+            }
+
+            var userTeams = await _context.UserTeams
+                .Where(ut => ut.UserInternalId == user.InternalId)
+                .OrderBy(ut => ut.StartDate)
+                .ToListAsync();
+
+            // Check active team (where EndDate is null or > StartDate)
+            var activeTeam = userTeams.FirstOrDefault(ut => ut.EndDate == null || ut.EndDate > request.StartDate);
+
+            if (activeTeam != null)
+            {
+                if (activeTeam.TeamId == request.NewTeamId)
+                {
+                    return BadRequest(new ApiResponse<TeamCalendarUserResponse>
+                    {
+                        Success = false,
+                        Message = "O usuário já está ativo nesta equipe."
+                    });
+                }
+
+                // Validate 1-week rule (7 days) on previous team
+                if ((request.StartDate - activeTeam.StartDate).TotalDays < 7)
+                {
+                    return BadRequest(new ApiResponse<TeamCalendarUserResponse>
+                    {
+                        Success = false,
+                        Message = "O período na equipe anterior deve ter duração mínima de 1 semana (7 dias)."
+                    });
+                }
+
+                activeTeam.EndDate = request.StartDate.Date.AddDays(-1);
+                activeTeam.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                // If this is the member's first team, ensure start date is 1 day before their earliest contract
+                var earliestContract = await _context.Contracts
+                    .AsNoTracking()
+                    .Where(c => c.UserInternalId == user.InternalId && c.IsActive)
+                    .OrderBy(c => c.SaleStartDate)
+                    .FirstOrDefaultAsync();
+
+                if (earliestContract != null)
+                {
+                    var oneDayBeforeContract = earliestContract.SaleStartDate.Date.AddDays(-1);
+                    if (request.StartDate.Date > oneDayBeforeContract)
+                    {
+                        request.StartDate = oneDayBeforeContract;
+                    }
+                }
+            }
+
+            // Update parent user to the new team's owner if requested
+            if (request.UpdateParentUser && targetTeam.OwnerUserInternalId.HasValue)
+            {
+                var targetOwner = await _context.Users.FirstOrDefaultAsync(u => u.InternalId == targetTeam.OwnerUserInternalId.Value && u.IsActive);
+                if (targetOwner != null && targetOwner.Id != user.Id)
+                {
+                    // Check for circular hierarchy: ensure user.Id is not an ancestor of targetOwner.Id
+                    var ownerAncestors = new HashSet<Guid>();
+                    var currentParentId = targetOwner.ParentUserId;
+                    int depth = 0;
+                    while (currentParentId.HasValue && depth < 50)
+                    {
+                        if (currentParentId.Value == user.Id)
+                        {
+                            ownerAncestors.Add(user.Id);
+                            break;
+                        }
+                        var parent = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentParentId.Value);
+                        if (parent == null) break;
+                        currentParentId = parent.ParentUserId;
+                        depth++;
+                    }
+
+                    if (!ownerAncestors.Contains(user.Id))
+                    {
+                        user.ParentUserId = targetOwner.Id;
+                        user.UpdatedAt = DateTime.UtcNow;
+                        _context.Users.Update(user);
+                    }
+                }
+            }
+
+            // Add new UserTeam
+            var newMembership = new UserTeam
+            {
+                TeamId = request.NewTeamId,
+                UserInternalId = user.InternalId,
+                StartDate = request.StartDate.Date,
+                EndDate = null,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.UserTeams.Add(newMembership);
+            await _context.SaveChangesAsync();
+
+            // Reload user history
+            var updatedMemberships = await _teamRepository.GetAllMembershipsForUsersAsync(new[] { user.InternalId });
+            var history = updatedMemberships.Select(m => new TeamCalendarUserHistoryItem
+            {
+                UserTeamId = m.Id,
+                TeamId = m.TeamId,
+                TeamName = m.Team?.Name ?? $"Equipe #{m.TeamId}",
+                StartDate = m.StartDate,
+                EndDate = m.EndDate,
+                IsActive = m.EndDate == null || m.EndDate > DateTime.UtcNow
+            }).ToList();
+
+            var currentActive = history.FirstOrDefault(h => h.IsActive);
+
+            var response = new TeamCalendarUserResponse
+            {
+                UserId = user.Id,
+                UserInternalId = user.InternalId,
+                UserName = user.Name,
+                UserEmail = user.Email,
+                CurrentTeamName = currentActive?.TeamName,
+                CurrentTeamId = currentActive?.TeamId,
+                HierarchyLevel = 1,
+                ParentUserName = user.ParentUser?.Name ?? (await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == user.ParentUserId))?.Name,
+                TeamHistory = history
+            };
+
+            return Ok(new ApiResponse<TeamCalendarUserResponse>
+            {
+                Success = true,
+                Data = response,
+                Message = "Equipe atribuída com sucesso."
+            });
         }
     }
 }
