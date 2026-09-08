@@ -378,7 +378,7 @@ export const SurveyPage: React.FC = () => {
                       value={questionType}
                       onChange={(val) => setQuestionType(val as SurveyQuestionType)}
                       data={[
-                        { label: 'Sim / Não / Não tenho certeza', value: 'yesno' },
+                        { label: 'Sim / Não', value: 'yesno' },
                         { label: 'Escolha Única', value: 'singlechoice' },
                         { label: 'Múltipla Escolha', value: 'multichoice' },
                       ]}

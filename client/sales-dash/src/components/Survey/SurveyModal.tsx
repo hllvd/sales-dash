@@ -11,7 +11,7 @@ import {
   Badge,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconCheck, IconX, IconQuestionMark } from '@tabler/icons-react';
+import { IconCheck, IconX } from '@tabler/icons-react';
 import { SurveyAssignmentDto } from '../../types/Survey';
 import { apiService } from '../../services/apiService';
 import { surveyPollingService } from '../../services/surveyPollingService';
@@ -85,24 +85,10 @@ export const SurveyModal: React.FC<SurveyModalProps> = ({ explicitAssignment, on
     }
   };
 
-  const handleNotSure = () => {
-    notifications.show({
-      title: 'Pergunta adiada',
-      message: 'Você poderá responder a esta pergunta mais tarde.',
-      color: 'blue',
-      icon: <IconQuestionMark size={16} />,
-    });
-    handleClose();
-  };
-
   const handleSubmit = async () => {
     let finalAnswer = '';
 
     if (currentAssignment.questionType === 'yesno') {
-      if (selectedRadio === 'unsure') {
-        handleNotSure();
-        return;
-      }
       if (!selectedRadio) {
         notifications.show({
           title: 'Atenção',
@@ -232,12 +218,6 @@ export const SurveyModal: React.FC<SurveyModalProps> = ({ explicitAssignment, on
                 onClick={() => setSelectedRadio('no')}
               >
                 <Radio value="no" label="Não" />
-              </div>
-              <div
-                className={`survey-option-card ${selectedRadio === 'unsure' ? 'selected' : ''}`}
-                onClick={() => setSelectedRadio('unsure')}
-              >
-                <Radio value="unsure" label="Não tenho certeza ainda" />
               </div>
             </Stack>
           </Radio.Group>

@@ -980,12 +980,12 @@ Adiciona a opção configurável `"Contar usuários ativos vs inativos"` na seç
 ## 40. Perguntas e Respostas Pontuais (Survey / Q&A)
 
 ### Overview
-Permite que superadministradores criem e distribuam perguntas rápidas (Sim/Não/Não tenho certeza, escolha única ou múltipla escolha) para públicos segmentados com base em filtros de papel/role, email, nome e equipe. Os usuários recebem lembretes pontuais via modal na aplicação até 3 vezes ao dia até responderem (apenas respostas definitivas contam como respondidas) ou até o término do TTL de 2 dias. Superadministradores contam com dashboard com visão agregada e detalhada das respostas individuais, além da funcionalidade de reenvio com reinício de prazo.
+Permite que superadministradores criem e distribuam perguntas rápidas (Sim/Não, escolha única ou múltipla escolha) para públicos segmentados com base em filtros de papel/role, email, nome e equipe. Os usuários recebem lembretes pontuais via modal na aplicação até 3 vezes ao dia até responderem (apenas respostas definitivas contam como respondidas) ou até o término do TTL de 2 dias. Superadministradores contam com dashboard com visão agregada e detalhada das respostas individuais, além da funcionalidade de reenvio com reinício de prazo.
 
 ### Key Capabilities
 - **Criação e Distribuição Segmentada (Superadmin)**:
   - Criação de perguntas com título, enunciado e seleção de tipo:
-    - *Sim / Não / Não tenho certeza*: Pergunta binária com opção intermediária.
+    - *Sim / Não*: Pergunta binária com opções diretas "Sim" e "Não".
     - *Escolha Única*: Seleção exclusiva a partir de opções dinâmicas configuráveis.
     - *Múltipla Escolha*: Seleção combinada de uma ou mais opções.
   - Painel de seleção de destinatários com filtros instantâneos por papel (`role`), email, nome e equipe (`Team`).
@@ -996,7 +996,7 @@ Permite que superadministradores criem e distribuam perguntas rápidas (Sim/Não
 - **Apresentação e Rate-Limiting no Cliente (3x ao dia)**:
   - Armazenamento local no cliente para verificação periódica (3 vezes ao dia, a cada 8 horas).
   - Modal automático não invasivo exibido no máximo 3 vezes por dia por pergunta.
-  - Fechar o modal ou selecionar "Não tenho certeza ainda" é considerado **não respondido** (o questionamento reaparecerá no próximo intervalo até o término do prazo).
+  - Fechar o modal (botão "X") ou clicar em "Responder depois" mantém a pergunta como **não respondida** (o questionamento reaparecerá no próximo intervalo até o término do prazo).
 - **Indicador no Menu e Painel de Histórico ("Meu QA")**:
   - Badge numérico vermelho no item `"QA"` do menu indicando a quantidade de perguntas pendentes.
   - Página dedicada de histórico (`#/qa`) disponível para todos os usuários com abas: Todas, Pendentes, Respondidas e Expiradas.
