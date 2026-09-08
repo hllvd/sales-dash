@@ -6,10 +6,10 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
   // Use serial mode to maintain DB state cleanly across sequential verification steps
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Array.from({ length: 8 }, () =>
-    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  const RUN_LETTERS = Array.from({ length: 8 }, () =>
+    String.fromCharCode(65 + Math.floor(Math.random() * 26))
   ).join('');
-  const RUN_LETTERS = RUN_ID.toUpperCase();
+  const RUN_ID = RUN_LETTERS.toLowerCase() + Date.now().toString().slice(-4);
   
   const ADMIN_A_EMAIL = `admin.a.scope.${RUN_ID}@test.com`;
   const ADMIN_B_EMAIL = `admin.b.scope.${RUN_ID}@test.com`;

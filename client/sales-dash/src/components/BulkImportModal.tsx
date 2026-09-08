@@ -42,7 +42,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState<boolean>(true)
   const [updateMatriculaOnExisting, setUpdateMatriculaOnExisting] = useState<boolean>(false)
   const [updateTotalAmountOnExisting, setUpdateTotalAmountOnExisting] = useState<boolean>(true)
-  const [updateStartDateOnExisting, setUpdateStartDateOnExisting] = useState<boolean>(false)
+  const [updateStartDateOnExisting, setUpdateStartDateOnExisting] = useState<boolean>(true)
 
   // Status column validation
   const [statusValidation, setStatusValidation] = useState<{

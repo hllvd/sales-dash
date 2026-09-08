@@ -122,6 +122,7 @@ namespace SalesApp.Controllers
             [FromQuery] List<int>? teamIds = null,
             [FromQuery] List<Guid>? userIds = null,
             [FromQuery] List<string>? statuses = null,
+            [FromQuery] bool? awaitingPayment = null,
             [FromQuery] int? page = null,
             [FromQuery] int? pageSize = null)
         {
@@ -132,12 +133,12 @@ namespace SalesApp.Controllers
             {
                 var (contracts, totalCount) = await _contractRepository.GetPagedAsync(
                     page.Value, pageSize.Value, userId, groupId, startDate, endDate,
-                    contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
+                    contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
 
                 var contractResponses = contracts.Select(MapToContractResponse).ToList();
                 var aggregation = await _contractRepository.GetAggregationAsync(
                     userId, groupId, startDate, endDate, contractNumber, showUnassigned,
-                    matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
+                    matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
 
                 return Ok(new ApiResponse<PagedContractResponse>
                 {
@@ -156,7 +157,7 @@ namespace SalesApp.Controllers
             }
             else
             {
-                var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
+                var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
                 var contractResponses = contracts.Select(MapToContractResponse).ToList();
                 var aggregation = _aggregationService.CalculateAggregation(contracts);
 
@@ -892,6 +893,9 @@ namespace SalesApp.Controllers
                 matriculaNumber = null;
             }
 
+            var statusName = contract.ContractStatus?.Name ?? "";
+            var isAwaitingPayment = statusName.Equals("Active", StringComparison.OrdinalIgnoreCase) && contract.HasPayment == false;
+
             return new ContractResponse
             {
                 Id = contract.Id,
@@ -901,7 +905,7 @@ namespace SalesApp.Controllers
                 TotalAmount = contract.TotalAmount,
                 GroupId = contract.GroupId,
                 GroupName = contract.Group?.Name ?? "",
-                Status = contract.ContractStatus?.Name ?? "",
+                Status = statusName,
                 ContractStartDate = contract.SaleStartDate,
                 IsActive = contract.IsActive,
                 CreatedAt = contract.CreatedAt,
@@ -912,7 +916,9 @@ namespace SalesApp.Controllers
                 CustomerName = contract.CustomerName,
                 MatriculaId = contract.MatriculaId,
                 MatriculaNumber = matriculaNumber,
-                RawStatus = contract.RawStatus
+                RawStatus = contract.RawStatus,
+                HasPayment = contract.HasPayment,
+                IsAwaitingPayment = isAwaitingPayment
             };
         }
         

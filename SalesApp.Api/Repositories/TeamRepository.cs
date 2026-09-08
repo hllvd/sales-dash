@@ -112,6 +112,19 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<UserTeam>> GetAllMembershipsForUsersAsync(IEnumerable<int> userInternalIds)
+        {
+            var idList = userInternalIds.ToList();
+            if (!idList.Any()) return new List<UserTeam>();
+
+            return await _context.UserTeams
+                .AsNoTracking()
+                .Include(ut => ut.Team)
+                .Where(ut => idList.Contains(ut.UserInternalId))
+                .OrderBy(ut => ut.StartDate)
+                .ToListAsync();
+        }
+
         public async Task<UserTeam> AddMemberAsync(UserTeam userTeam)
         {
             userTeam.CreatedAt = DateTime.UtcNow;

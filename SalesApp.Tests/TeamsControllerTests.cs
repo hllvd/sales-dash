@@ -5,9 +5,11 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using FluentAssertions;
 using Moq;
 using SalesApp.Controllers;
+using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Repositories;
@@ -22,6 +24,7 @@ namespace SalesApp.Tests
         private readonly Mock<IUserRepository> _mockUserRepository;
         private readonly Mock<IMessageService> _mockMessageService;
         private readonly Mock<IUserHierarchyService> _mockHierarchyService;
+        private readonly AppDbContext _context;
         private readonly TeamsController _controller;
 
         public TeamsControllerTests()
@@ -31,11 +34,17 @@ namespace SalesApp.Tests
             _mockMessageService = new Mock<IMessageService>();
             _mockHierarchyService = new Mock<IUserHierarchyService>();
 
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+            _context = new AppDbContext(options, new Mock<IHttpContextAccessor>().Object);
+
             _controller = new TeamsController(
                 _mockTeamRepository.Object,
                 _mockUserRepository.Object,
                 _mockMessageService.Object,
-                _mockHierarchyService.Object
+                _mockHierarchyService.Object,
+                _context
             );
 
             // Mock message service basic formatting

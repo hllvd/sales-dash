@@ -137,7 +137,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
                 .ReturnsAsync(new List<Contract>());
 
             var overrideTeams = new List<int> { 99 };
@@ -163,7 +164,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()), Times.Once);
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()), Times.Once);
         }
 
         [Fact]
@@ -356,7 +358,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
                 .ReturnsAsync(contracts);
 
             // Act
@@ -461,7 +464,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
                 .ReturnsAsync(contracts);
 
             // Act
@@ -534,7 +538,8 @@ namespace SalesApp.Tests.Services
                 It.IsAny<List<int>?>(),
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
                 .ReturnsAsync(contracts);
 
             // Act
@@ -545,6 +550,178 @@ namespace SalesApp.Tests.Services
             result.Data.Should().NotBeNull();
             result.Data!.ActiveUsersCount.Should().BeNull();
             result.Data.InactiveUsersCount.Should().BeNull();
+        }
+        [Fact]
+        public async Task ExecuteAsync_WithAwaitingPaymentTrue_ShouldReturnOnlyActiveContractsWithNoPayment()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "20260907120000000-awaitpay001";
+
+            var activeStatus = new ContractStatusEntity { Name = "Active" };
+            var defaultedStatus = new ContractStatusEntity { Name = "Defaulted" };
+
+            var existingReport = new ReportFilter
+            {
+                UserId = callerId,
+                FilterId = filterId,
+                Name = "Awaiting Payment Test",
+                Scope = "private",
+                FilterConfig = new FilterConfig { AwaitingPayment = true },
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(existingReport);
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+                .ReturnsAsync(new List<Team>());
+
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var contracts = new List<Contract>
+            {
+                // Should be included: Active + HasPayment == false
+                new Contract { ContractNumber = "CTR-001", ContractStatus = activeStatus, HasPayment = false, TotalAmount = 1000m },
+                // Should be excluded: Active + HasPayment == true
+                new Contract { ContractNumber = "CTR-002", ContractStatus = activeStatus, HasPayment = true, TotalAmount = 2000m },
+                // Should be excluded: Defaulted + HasPayment == false
+                new Contract { ContractNumber = "CTR-003", ContractStatus = defaultedStatus, HasPayment = false, TotalAmount = 500m },
+                // Should be excluded: Active + HasPayment == null
+                new Contract { ContractNumber = "CTR-004", ContractStatus = activeStatus, HasPayment = null, TotalAmount = 300m },
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Rows.Should().HaveCount(1);
+            result.Data.Rows[0]["Contrato"].Should().Be("CTR-001");
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithAwaitingPaymentFalse_ShouldExcludeActiveContractsWithNoPayment()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "20260907120000000-awaitpay002";
+
+            var activeStatus = new ContractStatusEntity { Name = "Active" };
+            var defaultedStatus = new ContractStatusEntity { Name = "Defaulted" };
+
+            var existingReport = new ReportFilter
+            {
+                UserId = callerId,
+                FilterId = filterId,
+                Name = "Not Awaiting Payment Test",
+                Scope = "private",
+                FilterConfig = new FilterConfig { AwaitingPayment = false },
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(existingReport);
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+                .ReturnsAsync(new List<Team>());
+
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var contracts = new List<Contract>
+            {
+                // Should be excluded: Active + HasPayment == false (this IS awaiting payment)
+                new Contract { ContractNumber = "CTR-001", ContractStatus = activeStatus, HasPayment = false, TotalAmount = 1000m },
+                // Should be included: Active + HasPayment == true
+                new Contract { ContractNumber = "CTR-002", ContractStatus = activeStatus, HasPayment = true, TotalAmount = 2000m },
+                // Should be included: Defaulted + HasPayment == false
+                new Contract { ContractNumber = "CTR-003", ContractStatus = defaultedStatus, HasPayment = false, TotalAmount = 500m },
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Rows.Should().HaveCount(2);
+            result.Data.Rows.Select(r => r["Contrato"]).Should().NotContain("CTR-001");
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithAwaitingPaymentNull_ShouldReturnAllContracts()
+        {
+            // Arrange: no AwaitingPayment filter → all contracts pass through
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "20260907120000000-awaitpay003";
+
+            var activeStatus = new ContractStatusEntity { Name = "Active" };
+
+            var existingReport = new ReportFilter
+            {
+                UserId = callerId,
+                FilterId = filterId,
+                Name = "No Awaiting Payment Filter",
+                Scope = "private",
+                FilterConfig = new FilterConfig { AwaitingPayment = null },
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(existingReport);
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+                .ReturnsAsync(new List<Team>());
+
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "CTR-001", ContractStatus = activeStatus, HasPayment = false, TotalAmount = 1000m },
+                new Contract { ContractNumber = "CTR-002", ContractStatus = activeStatus, HasPayment = true,  TotalAmount = 2000m },
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Rows.Should().HaveCount(2, "no filter applied when AwaitingPayment is null");
         }
     }
 }

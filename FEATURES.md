@@ -18,6 +18,87 @@ Esta funcionalidade atualiza o ciclo de vida e desativação de usuários no sis
 
 ---
 
+## Reestruturação da Navegação Lateral (Sidebar Menu Restructuring)
+
+Reorganização da navegação principal do sistema (`Menu.tsx`) para agrupar funcionalidades correlatas em categorias expansíveis e melhorar a ergonomia de acesso a contratos e dados.
+
+### Core Objectives
+- **Posicionamento de "Meus Contratos" logo após "Contratos"**:
+  - O link de navegação para `#/my-contracts` foi reposicionado imediatamente abaixo de `#/contracts` (visível para todos os usuários elegíveis), facilitando a alternância entre contratos globais e contratos pessoais.
+- **Grupo Expansível "Dados & Relatórios"**:
+  - Novo item pai colapsável com ícone de banco de dados (`IconDatabase`), aberto por padrão quando em qualquer subrota de relatórios/dashboards.
+  - Agrupa os itens de navegação:
+    - **Relatórios** (`#/reports`)
+    - **Dashboards** (`#/views`)
+    - **Extração PowerBI** (`#/scrapes`, visível para administradores com permissão `system:admin`)
+- **Grupo Expansível "Importação"**:
+  - Novo item pai colapsável com ícone de importação de arquivos (`IconFileImport`), exibido para usuários com permissão de execução ou histórico (`imports:execute` ou `imports:history`).
+  - Agrupa os itens de navegação:
+    - **Assistente de Importação** (`#/import-wizard`)
+    - **Histórico de Importação** (`#/import-history`)
+- **Estado Reativo e Suporte a Responsividade**:
+  - Abertura automática inteligente dos grupos ao navegar diretamente ou via hash change para qualquer subrota filha.
+  - Fechamento automático da barra de navegação ao clicar em qualquer item no modo mobile.
+
+---
+
+## Calendário de Equipes por Usuário (Team Calendar Timeline)
+
+Esta funcionalidade adiciona uma visão interativa de linha do tempo e calendário de equipes (`#/teams/calendar`), permitindo visualizar e ajustar de forma visual os períodos de vínculo de equipes de cada usuário descendente (Níveis 1, 2 e 3) do administrador logado, com preview dos contratos afetados pela transição.
+
+### Core Objectives
+- **Submenu Expansível "Equipes" (`Menu.tsx`)**:
+  - Transforma o item de navegação "Equipes" em um menu expansível com as opções:
+    - **Lista** (`#/teams`): listagem e gerenciamento padrão de equipes.
+    - **Calendário** (`#/teams/calendar`): visualização de linha do tempo por usuário.
+- **Visualização Hierárquica por Níveis (Nível 1, 2 e 3)**:
+  - Painel lateral com lista de usuários ordenada por níveis de descendência (Nível 1, depois Nível 2 e Nível 3).
+  - Filtros rápidos por nível e busca em tempo real por nome, e-mail ou equipe.
+  - Indicadores visuais de equipe atual (ou "Sem equipe") e contagem de períodos.
+- **Linha do Tempo Interativa de Equipes (`Timeline Track`)**:
+  - Renderiza todos os períodos de histórico de equipes do usuário ao longo do tempo como blocos coloridos e proporcionais.
+  - Exibe nome da equipe, datas formatadas e duração calculada.
+  - Handles arrastáveis nas bordas de transição entre equipes adjacentes para ajuste visual das datas de corte.
+- **Regra de Intervalo Mínimo de 1 Semana**:
+  - Restrição rígida de que nenhum período de equipe pode ter duração inferior a 7 dias (1 semana), validada tanto visualmente no drag quanto no backend.
+- **Modal de Confirmação com Preview de Contratos**:
+  - Ao soltar o ajuste de data ou clicar no botão de ajuste, um modal exibe:
+    - Nova data de corte de transição entre a equipe anterior e a nova equipe.
+    - Tabela comparativa dos **5 contratos mais recentes** da equipe anterior (antes da data).
+    - Tabela comparativa dos **5 contratos mais antigos** da nova equipe (a partir da data).
+    - Campos detalhados: ID do Contrato, Data da Venda, Nome do Cliente (`CustomerName`) e Matrícula.
+- **Card de Destaque "Equipe Atual" e Ações Rápidas**:
+  - Exibe a equipe ativa com badge colorido, data de início, tempo de permanência formatado e botão de ação primário `[+ Atribuir Nova Equipe]` (ou `[+ Atribuir Primeira Equipe]`).
+- **Wizard de Atribuição de Nova Equipe (`AssignTeamWizardModal`)**:
+  - Fluxo assistido em 4 passos:
+    - **Passo 1 (Seleção da Equipe)**: Dropdown de equipes permitidas na hierarquia (gestor logado + subordinados até 3 níveis) com exibição de Loja, Gestor e membros ativos, acompanhado da opção habilitada por padrão *"Mudar também o superior direto (usuário pai) para {Gestor da Equipe}"*.
+    - **Passo 2 (Data de Início)**: Definição da data de início na nova equipe e encerramento da equipe anterior, com aviso informativo se a permanência na equipe anterior for inferior a 14 dias (*"Não é normal pertencer a uma equipe por tão poucos dias..."*).
+    - **Passo 3 (Preview de Contratos)**: Consulta dinâmica e tabela comparativa dos contratos antes/depois da data de corte.
+    - **Passo 4 (Confirmação)**: Resumo visual da transição, nova equipe e novo superior direto com botão de confirmação.
+- **Filtro Temporal de Contratos por Equipe (Point-in-Time Matching)**:
+  - Ao filtrar contratos por equipe na listagem de Contratos (`ContractsPage`), o sistema consulta a vigência temporal (`UserTeams.StartDate` até `UserTeams.EndDate`) do vendedor em relação à data da venda (`Contract.SaleStartDate`).
+  - Garante que contratos faturados quando o membro pertencia a uma equipe continuem pertencendo àquela equipe no histórico, mesmo após o membro ser transferido para outra equipe.
+  - Implementado via subquery correlacionada `EXISTS` em SQL/EF Core com índices compostos `(UserInternalId, SaleStartDate)` em `Contracts` e `(TeamId, StartDate, EndDate, UserInternalId)` em `UserTeams`.
+- **Endpoints de Backend Dedicados**:
+  - `GET api/teams/calendar`: consulta a hierarquia de usuários (níveis 1, 2 e 3) e carrega o histórico de equipes ordenado.
+  - `GET api/teams/calendar/available-teams`: lista de equipes sob a gestão do admin logado ou subordinados até 3 níveis com seus respectivos gestores.
+  - `POST api/teams/calendar/assign-team`: encerra o vínculo ativo anterior, cria o novo vínculo de equipe atomicamente e atualiza o `ParentUserId` para o gestor da nova equipe com validação contra ciclos hierárquicos.
+  - `GET api/teams/calendar/contract-preview`: consulta os contratos antes/depois da data de corte para o usuário.
+  - `PUT api/teams/calendar/adjust-boundary`: atualiza atomicamente as datas de transição de equipes com validação do período mínimo.
+  - `DELETE api/teams/{id}/members/{userId}/period/{userTeamId}`: exclui um período de equipe do histórico do usuário aplicando regras de autocura/continuidade contígua entre os períodos vizinhos.
+- **Ordenação Decrescente do Histórico Vertical ("Mais Novo para o Mais Velho")**:
+  - A lista de cards de períodos é exibida em ordem cronológica decrescente (o período ativo/mais recente sempre no topo e os períodos passados para baixo), garantindo leitura clara e focada no estado mais recente.
+  - A linha do tempo gráfica horizontal mantém a progressão da esquerda (passado) para a direita (presente), preservando a coerência visual temporal.
+- **Exclusão de Períodos do Histórico com Continuidade Automática**:
+  - Cada card de período no histórico conta com botão de exclusão que aciona modal de confirmação.
+  - Regras de integridade ao excluir:
+    - *Entre dois períodos*: o período anterior é automaticamente estendido para encostar no posterior (`anterior.EndDate = posterior.StartDate - 1 dia`), eliminando lacunas (zero gaps).
+    - *Período ativo*: o período imediatamente anterior torna-se o novo período ativo (`EndDate = null`).
+    - *Período mais antigo*: o posterior é preservado sem alterações.
+    - *Único período*: removido sem afetar outros vínculos, deixando o usuário sem equipe ativa.
+
+---
+
 ## Detalhamento de Erros e Validação no Cadastro e Edição de Contratos (Contract Form Error Handling & Validation)
 
 Esta funcionalidade aprimora a experiência do usuário ao criar ou editar contratos diretamente pelo formulário de contratos (`ContractForm`), eliminando mensagens de erro genéricas, traduzindo e detalhando todas as falhas de validação de modelo e regras de negócio em português claro, destacando o alerta visualmente no topo do formulário com rolagem automática, e fornecendo uma instrução direta e explícita sobre a remoção de números no campo de nome do cliente.
@@ -36,6 +117,8 @@ Esta funcionalidade aprimora a experiência do usuário ao criar ou editar contr
 
 ---
 
+## Visibilidade de Contratos por Matrículas Vinculadas ao Administrador (Admin Linked Matriculas)
+
 Esta funcionalidade expande o escopo de visualização de contratos na listagem de contratos (`Contracts list`), permitindo que administradores (`Admin`) visualizem contratos diretamente vinculados às matrículas às quais estão associados (seja como proprietário/owner ou como membro), mantendo a integridade da hierarquia de usuários.
 
 ### Core Objectives
@@ -52,7 +135,24 @@ Esta funcionalidade expande o escopo de visualização de contratos na listagem 
 
 ---
 
-Esta funcionalidade expande a ferramenta de Reconciliação de Contratos (`/#/contract-reconciliation`), adicionando o filtro opcional por **Equipe** que preenche/restringe a listagem de usuários apenas aos membros ativos da equipe selecionada, além de introduzir duas novas categorias de divergência de auditoria: **Divergência de Data** e **Divergência de Vendedor**.
+## Ordenação Prioritária de Contratos Órfãos por Matrícula do Administrador (Orphan Contracts Priority Ordering)
+
+Esta funcionalidade define uma ordenação prioritária na listagem e paginação de contratos para contratos órfãos (sem vendedor atribuído, `UserInternalId == null`), priorizando a proximidade com o administrador logado:
+
+### Core Objectives
+- **Classificação por Grupos de Prioridade**:
+  - **Grupo 0 (Prioridade Máxima)**: Contratos órfãos cuja matrícula pertence diretamente ao administrador logado como titular/proprietário (`UserMatricula.IsOwner == true`, conjunto `AdminOwnedMatriculas`).
+  - **Grupo 1 (Prioridade Secundária)**: Contratos órfãos cuja matrícula está vinculada ao administrador como membro secundário (`UserMatricula.IsOwner == false`, conjunto `AdminLinkedMatriculas`).
+  - **Grupo 2 (Demais Órfãos)**: Contratos órfãos vinculados a outras matrículas permitidas no escopo (ex.: de sua árvore de subordinados).
+  - **Grupo 3**: Contratos que já possuem vendedor atribuído (`UserInternalId != null`).
+- **Critério de Desempate Temporal**:
+  - Dentro de cada grupo de prioridade, os contratos são ordenados por **Data da Venda decrescente (`SaleStartDate DESC`)**.
+- **Comportamento para SuperAdmin**:
+  - Para usuários SuperAdmin (escopo global), a ordenação padrão por `SaleStartDate DESC` é mantida integralmente sem priorização arbitrária.
+
+---
+
+## Reconciliação de Contratos por Equipe e Novas Divergências de Auditoria (Team Reconciliation & Audit Mismatches)
 
 ### Core Objectives
 - **Filtro de Equipe (`Team`)**:
@@ -875,9 +975,120 @@ Adiciona a opção configurável `"Contar usuários ativos vs inativos"` na seç
 - `client/sales-dash/src/components/Reports/ReportResultsPage.tsx` — Renderização do sumário de usuários ativos e inativos na visualização de resultados.
 - `client/sales-dash/src/components/Reports/ViewExecutionPage.tsx` — Renderização do sumário no card de execução/widget.
 
+---
 
+## 40. Perguntas e Respostas Pontuais (Survey / Q&A)
 
+### Overview
+Permite que superadministradores criem e distribuam perguntas rápidas (Sim/Não/Não tenho certeza, escolha única ou múltipla escolha) para públicos segmentados com base em filtros de papel/role, email, nome e equipe. Os usuários recebem lembretes pontuais via modal na aplicação até 3 vezes ao dia até responderem (apenas respostas definitivas contam como respondidas) ou até o término do TTL de 2 dias. Superadministradores contam com dashboard com visão agregada e detalhada das respostas individuais, além da funcionalidade de reenvio com reinício de prazo.
 
+### Key Capabilities
+- **Criação e Distribuição Segmentada (Superadmin)**:
+  - Criação de perguntas com título, enunciado e seleção de tipo:
+    - *Sim / Não / Não tenho certeza*: Pergunta binária com opção intermediária.
+    - *Escolha Única*: Seleção exclusiva a partir de opções dinâmicas configuráveis.
+    - *Múltipla Escolha*: Seleção combinada de uma ou mais opções.
+  - Painel de seleção de destinatários com filtros instantâneos por papel (`role`), email, nome e equipe (`Team`).
+  - Ações em lote: selecionar todos os filtrados e limpar seleção, com contador de selecionados em tempo real.
+- **Ciclo de Vida da Pergunta e TTL de 2 Dias**:
+  - Cada atribuição possui data de expiração calculada para `SentAt + 2 dias`.
+  - Perguntas expiradas deixam de ser exibidas no fluxo de respostas ativas automaticamente.
+- **Apresentação e Rate-Limiting no Cliente (3x ao dia)**:
+  - Armazenamento local no cliente para verificação periódica (3 vezes ao dia, a cada 8 horas).
+  - Modal automático não invasivo exibido no máximo 3 vezes por dia por pergunta.
+  - Fechar o modal ou selecionar "Não tenho certeza ainda" é considerado **não respondido** (o questionamento reaparecerá no próximo intervalo até o término do prazo).
+- **Indicador no Menu e Painel de Histórico ("Meu QA")**:
+  - Badge numérico vermelho no item `"QA"` do menu indicando a quantidade de perguntas pendentes.
+  - Página dedicada de histórico (`#/qa`) disponível para todos os usuários com abas: Todas, Pendentes, Respondidas e Expiradas.
+  - Botão de "Responder agora" diretamente pelo histórico.
+- **Relatório de Resultados e Reenvio**:
+  - Superadministradores visualizam estatísticas agregadas (gráfico de progresso percentual e total de votos por opção).
+  - Tabela detalhada de respostas individuais por usuário com data e hora.
+  - Ação de **Reenviar para não respondidos**: redefine o status para pendente, reseta o TTL para mais 2 dias e reativa os avisos no cliente.
 
+### Key Files Created/Modified
+- `SalesApp.Api/Models/Survey.cs`, `SurveyAssignment.cs`, `SurveyResponse.cs` — Modelos de domínio.
+- `SalesApp.Api/Data/AppDbContext.cs` — DbSets e configuração do Fluent API com índices relacionais.
+- `SalesApp.Api/Migrations/20260904120000_AddSurveyTables.cs` — Migração do banco de dados SQLite.
+- `SalesApp.Api/DTOs/SurveyDtos.cs` — DTOs de criação, resultados, respostas e histórico.
+- `SalesApp.Api/Repositories/ISurveyRepository.cs` & `SurveyRepository.cs` — Repositório com suporte a expiração em lote e limpeza de respostas para reenvio.
+- `SalesApp.Api/Services/ISurveyService.cs` & `SurveyService.cs` — Regras de negócio, validação, serialização de opções e agregação estatística.
+- `SalesApp.Api/Controllers/SurveysController.cs` — Endpoints protegidos por autorização superadmin e endpoints para usuários comuns.
+- `client/sales-dash/src/types/Survey.ts` — Interfaces TypeScript.
+- `client/sales-dash/src/services/apiService.ts` — Métodos da API para pesquisas e respostas.
+- `client/sales-dash/src/services/surveyPollingService.ts` — Serviço de polling 3x/dia, rate-limiting local e eventos de ciclo de vida.
+- `client/sales-dash/src/components/Survey/SurveyModal.tsx` & `.css` — Modal interativo de resposta com suporte a todos os tipos de pergunta.
+- `client/sales-dash/src/components/Survey/SurveyResultModal.tsx` — Modal de análise de respostas e reenvio para superadmin.
+- `client/sales-dash/src/components/Survey/SurveyPage.tsx` & `.css` — Página de administração de perguntas com filtros e seleção em massa.
+- `client/sales-dash/src/components/Survey/MyQAPage.tsx` & `.css` — Página de histórico de perguntas do usuário.
+- `client/sales-dash/src/components/Menu.tsx` — Item de menu "Perguntas" (superadmin) e "QA" com badge numérico.
+- `client/sales-dash/src/App.tsx` — Rotas `#/surveys`, `#/qa`, inicialização do polling e montagem do modal global.
 
+---
+
+## 41. Coluna e Filtro Aguardando Pagamento e Campo Tem Pagamento? no Import
+
+### Overview
+Adiciona o suporte ao campo `Tem Pagamento?` a partir da importação de arquivos do Power BI (`contractDashboard`), armazenando-o no banco de dados como propriedade do contrato. Adiciona também a coluna e filtro "Aguardando Pagamento" na listagem de contratos, permitindo identificar contratos com status "Normal" (ativo) que ainda não possuem pagamento registrado.
+
+### Key Capabilities
+- **Importação do Campo `Tem Pagamento?`**:
+  - Exclusivo para o template `contractDashboard` de importação de contratos.
+  - Reconhece colunas com variações de cabeçalho (`Tem Pagamento?`, `Tem Pagamento`, `TemPagamento`).
+  - Mapeamento determinístico dos valores: `"Sim"` -> `true`, `"Não"` -> `false`.
+  - Persistência na coluna `HasPayment` (`INTEGER`/`boolean?`) da tabela `Contracts`.
+- **Cálculo da Coluna "Aguardando Pagamento"**:
+  - Valor binário (`Sim` / `Não`).
+  - **Sim**: contrato com status canônico `"Active"` ("Normal") E `HasPayment == false` ("Não").
+  - **Não**: todos os outros cenários (contratos com `HasPayment == true`, `null` ou status diferente de "Normal").
+- **Exibição e Controle de Visibilidade**:
+  - Disponível na tabela de contratos (`ContractsPage`).
+  - Escondida por padrão nas preferências de colunas (`visibleColumns.awaitingPayment = false`).
+  - Habilitável a qualquer momento através do modal de seleção de colunas ("Colunas").
+- **Filtro no Backend e Frontend**:
+  - Filtro dedicado na barra de ferramentas: Todos / Sim / Não.
+  - Integração nos endpoints da API de listagem de contratos (`awaitingPayment` booleano opcional) com paginação e ordenação preservadas.
+  - Integração no serviço de exportação em Excel (`ExportService`).
+
+### Key Files Created/Modified
+- `SalesApp.Api/Models/Contract.cs` — Adição da propriedade `HasPayment` (`bool?`).
+- `SalesApp.Api/Migrations/20260904190000_AddHasPaymentToContracts.cs` & `AppDbContextModelSnapshot.cs` — Migração para adição da coluna `HasPayment` no SQLite.
+- `SalesApp.Api/DTOs/ContractResponse.cs` — Adição de `HasPayment` e `IsAwaitingPayment`.
+- `SalesApp.Api/Controllers/ContractsController.cs` — Mapeamento de `IsAwaitingPayment` e parâmetro de consulta `awaitingPayment`.
+- `SalesApp.Api/Repositories/IContractRepository.cs` & `ContractRepository.cs` — Suporte a filtro por `awaitingPayment` no Entity Framework Core.
+- `SalesApp.Api/Data/DbSeeder.cs` & `Controllers/ImportsController.cs` — Configuração de mapeamentos padrão do template `contractDashboard`.
+- `SalesApp.Api/Services/ImportExecutionService.cs` — Leitura, conversão e persistência do campo `HasPayment` durante importação.
+- `SalesApp.Api/DTOs/ContractExportRequest.cs` & `Services/ExportService.cs` — Suporte ao filtro na exportação para planilha.
+- `client/sales-dash/src/services/contractService.ts` & `apiService.ts` — Tipagens e parâmetros de requisição.
+- `client/sales-dash/src/components/ContractsPage.tsx` — Coluna com visibilidade toggleable (default oculta), filtro e persistência.
+- `SalesApp.Tests/ContractRepositoryTests.cs` & `ContractsControllerTests.cs` — Testes unitários para mapeamento, regra de cálculo e filtragem.
+
+---
+
+## 42. Filtro Aguardando Pagamento no Módulo de Relatórios (Reports)
+
+### Overview
+Adiciona o filtro "Aguardando Pagamento" nas configurações de relatórios (`ReportFilter`), permitindo filtrar contratos que estão com status "Normal" (ativo) e ainda sem pagamento (`HasPayment == false`), além de excluir tais contratos do cálculo de taxas de retenção quando o filtro estiver ativo.
+
+### Key Capabilities
+- **Configuração de Filtro em Relatórios**:
+  - Novo campo `AwaitingPayment` (`bool?`) no modelo `FilterConfig`, DTOs de criação/atualização e resposta.
+  - Salvo na persistência do DynamoDB junto com os demais filtros do relatório.
+- **Lógica de Filtragem e Retenção em Memória**:
+  - Aplicado em memória no `ReportFilterService.ExecuteAsync`:
+    - Quando `true`: inclui apenas contratos com `ContractStatus == "Active"` e `HasPayment == false`.
+    - Quando `false`: exclui contratos nessa condição.
+    - Quando `null`: não aplica filtro.
+  - Executado **antes** do cálculo das métricas de retenção por email, equipe, classificação e resumo geral, garantindo que contratos excluídos não afetem o denominador ou numerador das taxas de retenção quando o filtro estiver ativo.
+- **Interface do Usuário (`ReportFormPage`)**:
+  - Campo seletor "Aguardando Pagamento" com opções: "Todos" (default), "Sim (Aguardando pagamento)" e "Não".
+  - Totalmente integrado na criação, edição e visualização de relatórios.
+
+### Key Files Created/Modified
+- `SalesApp.Api/ReportFilters/Models/FilterConfig.cs` — Adição de `AwaitingPayment` (`bool?`).
+- `SalesApp.Api/ReportFilters/DTOs/CreateReportFilterRequest.cs` & `ReportFilterResponse.cs` — Suporte a `AwaitingPayment` em requests/responses de relatórios.
+- `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs` — Mapeamento, serialização e filtragem em memória antes do cálculo de retenção.
+- `client/sales-dash/src/services/reportFilterService.ts` — Tipagem TypeScript com `awaitingPayment?: boolean`.
+- `client/sales-dash/src/components/Reports/ReportFormPage.tsx` — Estado, binding, UI de seleção e payload do filtro.
+- `SalesApp.Tests/Services/ReportFilterServiceTests.cs` — Testes unitários para `AwaitingPayment` (`true`, `false`, `null`).
 

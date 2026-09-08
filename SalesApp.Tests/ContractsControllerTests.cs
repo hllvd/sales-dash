@@ -321,5 +321,84 @@ namespace SalesApp.Tests
             updatedModelPassedToRepo!.MatriculaId.Should().BeNull();
             updatedModelPassedToRepo!.TempMatricula.Should().BeNull();
         }
+
+        [Fact]
+        public async Task GetContracts_MapsHasPaymentAndCalculatesIsAwaitingPayment()
+        {
+            // Arrange
+            var activeStatus = new ContractStatusEntity { Id = 1, Name = "Active" };
+            var lateStatus = new ContractStatusEntity { Id = 2, Name = "Late1" };
+
+            var contracts = new List<Contract>
+            {
+                new Contract { Id = 1, ContractNumber = "CTR-1", ContractStatus = activeStatus, HasPayment = false, IsActive = true },
+                new Contract { Id = 2, ContractNumber = "CTR-2", ContractStatus = activeStatus, HasPayment = true, IsActive = true },
+                new Contract { Id = 3, ContractNumber = "CTR-3", ContractStatus = lateStatus, HasPayment = false, IsActive = true },
+                new Contract { Id = 4, ContractNumber = "CTR-4", ContractStatus = activeStatus, HasPayment = null, IsActive = true }
+            };
+
+            _mockUserScopeService.Setup(s => s.GetContractScopeAsync(It.IsAny<ClaimsPrincipal>()))
+                .ReturnsAsync(new UserScopeContext { IsGlobal = true });
+
+            _mockContractRepository.Setup(r => r.GetPagedAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<int?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
+                .ReturnsAsync((contracts, 4));
+
+            _mockContractRepository.Setup(r => r.GetAggregationAsync(
+                It.IsAny<Guid?>(),
+                It.IsAny<int?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool?>()))
+                .ReturnsAsync(new ContractAggregation());
+
+            // Act
+            var result = await _controller.GetContracts(page: 1, pageSize: 10, awaitingPayment: true);
+
+            // Assert
+            var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+            var response = okResult.Value.Should().BeOfType<ApiResponse<PagedContractResponse>>().Subject;
+            var items = response.Data!.Items;
+
+            // Item 1: Active + HasPayment false -> IsAwaitingPayment = true
+            items[0].HasPayment.Should().Be(false);
+            items[0].IsAwaitingPayment.Should().BeTrue();
+
+            // Item 2: Active + HasPayment true -> IsAwaitingPayment = false
+            items[1].HasPayment.Should().Be(true);
+            items[1].IsAwaitingPayment.Should().BeFalse();
+
+            // Item 3: Late1 + HasPayment false -> IsAwaitingPayment = false
+            items[2].HasPayment.Should().Be(false);
+            items[2].IsAwaitingPayment.Should().BeFalse();
+
+            // Item 4: Active + HasPayment null -> IsAwaitingPayment = false
+            items[3].HasPayment.Should().BeNull();
+            items[3].IsAwaitingPayment.Should().BeFalse();
+        }
     }
 }

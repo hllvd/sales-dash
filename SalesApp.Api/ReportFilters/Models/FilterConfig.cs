@@ -89,5 +89,13 @@ namespace SalesApp.ReportFilters.Models
 
         /// <summary>Maximum total production (TotalAmount sum per user).</summary>
         public decimal? MaxProduction { get; set; }
+
+        /// <summary>
+        /// When true, includes only contracts where Status is "Active" AND HasPayment is false
+        /// (i.e. "Aguardando Pagamento"). When false, excludes those contracts. When null, no filter.
+        /// NOTE: If "AwaitingPayment" ever becomes an official ContractStatus, this field should be
+        /// deprecated in favour of the Statuses filter.
+        /// </summary>
+        public bool? AwaitingPayment { get; set; }
     }
 }

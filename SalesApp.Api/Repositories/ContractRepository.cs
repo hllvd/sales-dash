@@ -53,11 +53,11 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
         
-        private async Task<IQueryable<Contract>> BuildFilteredQueryAsync(
+        private IQueryable<Contract> BuildFilteredQuery(
             Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null,
             string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null,
             string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null,
-            List<string>? statuses = null, bool isSuperAdmin = false)
+            List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -115,10 +115,16 @@ namespace SalesApp.Repositories
                 query = query.Where(c => c.GroupId == groupId.Value);
                 
             if (startDate.HasValue)
-                query = query.Where(c => c.SaleStartDate >= startDate.Value);
+            {
+                var start = startDate.Value.Date;
+                query = query.Where(c => c.SaleStartDate >= start);
+            }
                 
             if (endDate.HasValue)
-                query = query.Where(c => c.SaleStartDate <= endDate.Value);
+            {
+                var end = endDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(c => c.SaleStartDate <= end);
+            }
  
             if (!string.IsNullOrEmpty(contractNumber))
                 query = query.Where(c => c.ContractNumber == contractNumber);
@@ -139,19 +145,15 @@ namespace SalesApp.Repositories
                 }
             }
 
-            // Filter by team membership: resolve active members of selected teams, then filter contracts
+            // Filter by team membership (point-in-time): contract sale date must fall within member's team tenure
             if (teamIds != null && teamIds.Count > 0)
             {
-                var now = DateTime.UtcNow;
-                var memberInternalIds = await _context.UserTeams
-                    .AsNoTracking()
-                    .Where(ut => teamIds.Contains(ut.TeamId)
-                              && (ut.EndDate == null || ut.EndDate > now))
-                    .Select(ut => ut.UserInternalId)
-                    .Distinct()
-                    .ToListAsync();
-
-                query = query.Where(c => c.UserInternalId != null && memberInternalIds.Contains(c.UserInternalId.Value));
+                query = query.Where(c => c.UserInternalId != null && _context.UserTeams.Any(ut =>
+                    teamIds.Contains(ut.TeamId) &&
+                    ut.UserInternalId == c.UserInternalId.Value &&
+                    c.SaleStartDate.Date >= ut.StartDate.Date &&
+                    (ut.EndDate == null || c.SaleStartDate.Date <= ut.EndDate.Value.Date)
+                ));
             }
 
             if (userIds != null && userIds.Count > 0)
@@ -159,36 +161,69 @@ namespace SalesApp.Repositories
                 query = query.Where(c => c.User != null && userIds.Contains(c.User.Id));
             }
 
+            if (awaitingPayment.HasValue)
+            {
+                if (awaitingPayment.Value)
+                {
+                    query = query.Where(c => c.ContractStatus.Name.ToLower() == "active" && c.HasPayment == false);
+                }
+                else
+                {
+                    query = query.Where(c => !(c.ContractStatus.Name.ToLower() == "active" && c.HasPayment == false));
+                }
+            }
+
             return query;
         }
 
-        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false)
+        private IOrderedQueryable<Contract> ApplyOrphanPriority(
+            IQueryable<Contract> query, UserScopeContext? scope)
         {
-            var query = await BuildFilteredQueryAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
+            if (scope == null || scope.IsGlobal ||
+                (scope.AdminOwnedMatriculas.Count == 0 && scope.AdminLinkedMatriculas.Count == 0))
+            {
+                return query.OrderByDescending(c => c.SaleStartDate);
+            }
+
+            var owned = scope.AdminOwnedMatriculas;
+            var linked = scope.AdminLinkedMatriculas;
+
+            return query
+                .OrderBy(c =>
+                    c.UserInternalId != null ? 3 :
+                    ((c.TempMatricula != null && owned.Contains(c.TempMatricula)) ||
+                     (c.Matricula != null && owned.Contains(c.Matricula.MatriculaNumber))) ? 0 :
+                    ((c.TempMatricula != null && linked.Contains(c.TempMatricula)) ||
+                     (c.Matricula != null && linked.Contains(c.Matricula.MatriculaNumber))) ? 1 : 2
+                )
+                .ThenByDescending(c => c.SaleStartDate);
+        }
+
+        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
+        {
+            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
             
-            return await query
+            return await ApplyOrphanPriority(query, scope)
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
         }
 
-        public async Task<(List<Contract> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false)
+        public async Task<(List<Contract> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
         {
-            var query = await BuildFilteredQueryAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
+            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
 
             int totalCount = await query.CountAsync();
 
-            var items = await query
+            var items = await ApplyOrphanPriority(query, scope)
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
-                .OrderByDescending(c => c.SaleStartDate)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -196,9 +231,9 @@ namespace SalesApp.Repositories
             return (items, totalCount);
         }
 
-        public async Task<ContractAggregation> GetAggregationAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false)
+        public async Task<ContractAggregation> GetAggregationAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
         {
-            var query = await BuildFilteredQueryAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin);
+            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
 
             var groupings = await query
                 .GroupBy(c => c.ContractStatus.Name)

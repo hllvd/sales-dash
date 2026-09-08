@@ -13,5 +13,6 @@ namespace SalesApp.DTOs
         public string? UserEmail { get; set; }
         public List<int>? TeamIds { get; set; }
         public List<Guid>? UserIds { get; set; }
+        public bool? AwaitingPayment { get; set; }
     }
 }

@@ -658,6 +658,22 @@ namespace SalesApp.ReportFilters.Services
                 }).ToList();
             }
 
+            // ── AwaitingPayment Filter ────────────────────────────────────────────
+            // Applied BEFORE retention calculation so that, when this filter is active,
+            // the excluded contracts are not counted in retention metrics.
+            // NOTE: If "AwaitingPayment" ever becomes an official ContractStatus, this
+            // block should be removed and callers should use the Statuses filter instead.
+            if (fc.AwaitingPayment.HasValue)
+            {
+                contracts = contracts.Where(c =>
+                {
+                    bool isAwaiting = string.Equals(
+                        c.ContractStatus?.Name, "Active", StringComparison.OrdinalIgnoreCase)
+                        && c.HasPayment == false;
+                    return fc.AwaitingPayment.Value ? isAwaiting : !isAwaiting;
+                }).ToList();
+            }
+
             // ── Compute per-user/team retention BEFORE status filtering ───────
             // Retention must reflect a user's/team's FULL portfolio (all statuses), not just
             // the subset visible after a status filter is applied.
@@ -1449,7 +1465,8 @@ namespace SalesApp.ReportFilters.Services
                     MinStrictRetention  = f.FilterConfig.MinStrictRetention,
                     MaxStrictRetention  = f.FilterConfig.MaxStrictRetention,
                     MinProduction       = f.FilterConfig.MinProduction,
-                    MaxProduction       = f.FilterConfig.MaxProduction
+                    MaxProduction       = f.FilterConfig.MaxProduction,
+                    AwaitingPayment     = f.FilterConfig.AwaitingPayment
                 },
                 OutputColumns = f.OutputColumns
                     .OrderBy(c => c.Order)
@@ -1498,7 +1515,8 @@ namespace SalesApp.ReportFilters.Services
                 MinStrictRetention  = req.MinStrictRetention,
                 MaxStrictRetention  = req.MaxStrictRetention,
                 MinProduction       = req.MinProduction,
-                MaxProduction       = req.MaxProduction
+                MaxProduction       = req.MaxProduction,
+                AwaitingPayment     = req.AwaitingPayment
             };
 
         private static List<OutputColumn> MapOutputColumns(List<OutputColumnRequest> columns) =>

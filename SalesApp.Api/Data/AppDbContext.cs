@@ -43,6 +43,9 @@ namespace SalesApp.Data
         public DbSet<UserMetadataValue> UserMetadataValues { get; set; }
         public DbSet<ApprovalRequest> ApprovalRequests { get; set; }
         public DbSet<Store> Stores { get; set; }
+        public DbSet<Survey> Surveys { get; set; }
+        public DbSet<SurveyAssignment> SurveyAssignments { get; set; }
+        public DbSet<SurveyResponse> SurveyResponses { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -112,6 +115,7 @@ namespace SalesApp.Data
                 entity.HasIndex(e => e.ContractNumber).IsUnique();
                 entity.HasIndex(e => new { e.IsActive, e.SaleStartDate }).HasDatabaseName("IX_Contracts_IsActive_SaleStartDate");
                 entity.HasIndex(e => e.UserInternalId).HasDatabaseName("IX_Contracts_UserInternalId");
+                entity.HasIndex(e => new { e.UserInternalId, e.SaleStartDate }).HasDatabaseName("IX_Contracts_UserInternalId_SaleStartDate");
                 entity.HasIndex(e => e.ContractStatusId).HasDatabaseName("IX_Contracts_ContractStatusId");
                 entity.HasIndex(e => e.MatriculaId).HasDatabaseName("IX_Contracts_MatriculaId");
                 entity.HasIndex(e => e.TempMatricula).HasDatabaseName("IX_Contracts_TempMatricula");
@@ -463,6 +467,7 @@ namespace SalesApp.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasIndex(e => new { e.UserInternalId, e.EndDate });
+                entity.HasIndex(e => new { e.TeamId, e.StartDate, e.EndDate, e.UserInternalId }).HasDatabaseName("IX_UserTeams_TeamId_Dates_UserInternalId");
             });
 
             // ClassificationLevel entity configuration
@@ -572,6 +577,67 @@ namespace SalesApp.Data
                 entity.HasIndex(e => e.RequesterId);
                 entity.HasIndex(e => e.Status);
                 entity.HasIndex(e => new { e.RequestType, e.Status });
+            });
+
+            // Survey entity configuration
+            modelBuilder.Entity<Survey>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(150);
+                entity.Property(e => e.QuestionText).IsRequired();
+                entity.Property(e => e.QuestionType).IsRequired().HasMaxLength(30);
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+                entity.HasOne(e => e.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.CreatedByUserId);
+                entity.HasIndex(e => e.IsActive);
+                entity.HasIndex(e => e.CreatedAt);
+            });
+
+            // SurveyAssignment entity configuration
+            modelBuilder.Entity<SurveyAssignment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("pending");
+
+                entity.HasOne(e => e.Survey)
+                    .WithMany(s => s.Assignments)
+                    .HasForeignKey(e => e.SurveyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => new { e.SurveyId, e.UserId }).IsUnique();
+                entity.HasIndex(e => new { e.UserId, e.Status });
+                entity.HasIndex(e => e.ExpiresAt);
+            });
+
+            // SurveyResponse entity configuration
+            modelBuilder.Entity<SurveyResponse>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.Answer).IsRequired();
+
+                entity.HasOne(e => e.Assignment)
+                    .WithOne(a => a.Response)
+                    .HasForeignKey<SurveyResponse>(e => e.SurveyAssignmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.SurveyAssignmentId).IsUnique();
             });
         }
         

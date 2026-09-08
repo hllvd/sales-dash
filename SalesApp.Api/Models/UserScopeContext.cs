@@ -9,5 +9,6 @@ namespace SalesApp.Models
         public HashSet<Guid> AllowedUserIds { get; set; } = new HashSet<Guid>();
         public HashSet<string> AllowedMatriculas { get; set; } = new HashSet<string>();
         public HashSet<string> AdminLinkedMatriculas { get; set; } = new HashSet<string>();
+        public HashSet<string> AdminOwnedMatriculas { get; set; } = new HashSet<string>();
     }
 }

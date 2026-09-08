@@ -1,0 +1,18 @@
+.my-qa-container {
+  padding: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.qa-card-pending {
+  border-left: 4px solid #f59e0b;
+}
+
+.qa-card-answered {
+  border-left: 4px solid #10b981;
+}
+
+.qa-card-expired {
+  border-left: 4px solid #9ca3af;
+  opacity: 0.85;
+}

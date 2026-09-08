@@ -29,6 +29,8 @@ export interface FilterConfig {
   maxStrictRetention?: number;
   minProduction?: number;
   maxProduction?: number;
+  /** When true: only contracts with status "Active" and HasPayment == false. When false: exclude those. When undefined: no filter. */
+  awaitingPayment?: boolean;
 }
 
 export interface ExportedField {

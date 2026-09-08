@@ -1,5 +1,14 @@
 import config from '../config'
 import { authenticatedFetch, getAuthHeaders } from '../utils/httpInterceptor'
+import {
+  CreateSurveyDto,
+  SurveySummaryDto,
+  SurveyResultDto,
+  SurveyAssignmentDto,
+  AnswerSurveyDto,
+  ResendSurveyDto,
+  UserSurveyHistoryDto,
+} from '../types/Survey'
 
 const API_BASE_URL = config.apiUrl
 
@@ -1023,6 +1032,7 @@ export const apiService = {
     userEmail?: string;
     teamIds?: number[];
     userIds?: string[];
+    awaitingPayment?: boolean;
   }): Promise<{ jobId: string; status: string; totalRows: number; processedRows: number }> {
     const response = await authenticatedFetch(`${API_BASE_URL}/contracts/export`, {
       method: 'POST',
@@ -1214,6 +1224,17 @@ export const apiService = {
     return response.json()
   },
 
+  async deleteTeamMemberPeriod(id: number, userId: string, userTeamId: number): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/members/${userId}/period/${userTeamId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to delete team member period"))
+    }
+    return response.json()
+  },
+
   async setTeamOwner(id: number, ownerUserId: string): Promise<ApiResponse<Team>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/owner`, {
       method: "POST",
@@ -1225,6 +1246,72 @@ export const apiService = {
     })
     if (!response.ok) {
       throw new Error(await extractErrorMessage(response, "Failed to set team owner"))
+    }
+    return response.json()
+  },
+
+  async getTeamCalendar(): Promise<ApiResponse<TeamCalendarUser[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/calendar`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao carregar calendário de equipes"))
+    }
+    return response.json()
+  },
+
+  async getContractPreview(userId: string, boundaryDate: string): Promise<ApiResponse<CalendarContractPreviewResponse>> {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/teams/calendar/contract-preview?userId=${encodeURIComponent(userId)}&boundaryDate=${encodeURIComponent(boundaryDate)}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    )
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao carregar preview de contratos"))
+    }
+    return response.json()
+  },
+
+  async adjustTeamBoundary(data: AdjustTeamBoundaryRequest): Promise<ApiResponse<TeamCalendarUser>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/calendar/adjust-boundary`, {
+      method: "PUT",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao ajustar datas da equipe"))
+    }
+    return response.json()
+  },
+
+  async getAvailableTeamsForAssignment(): Promise<ApiResponse<AvailableTeamItem[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/calendar/available-teams`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao carregar equipes disponíveis"))
+    }
+    return response.json()
+  },
+
+  async assignUserTeam(data: AssignUserTeamRequest): Promise<ApiResponse<TeamCalendarUser>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/calendar/assign-team`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao atribuir nova equipe"))
     }
     return response.json()
   },
@@ -1579,6 +1666,68 @@ export const apiService = {
     }
     return response.json()
   },
+
+  async createSurvey(dto: CreateSurveyDto): Promise<ApiResponse<SurveySummaryDto>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(dto),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to create survey"))
+    return response.json()
+  },
+
+  async getSurveys(): Promise<ApiResponse<SurveySummaryDto[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch surveys"))
+    return response.json()
+  },
+
+  async getSurveyResults(id: string): Promise<ApiResponse<SurveyResultDto>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/${id}/results`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch survey results"))
+    return response.json()
+  },
+
+  async resendSurvey(id: string, dto: ResendSurveyDto): Promise<ApiResponse<string>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/${id}/resend`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(dto),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to resend survey"))
+    return response.json()
+  },
+
+  async getPendingSurveys(): Promise<ApiResponse<SurveyAssignmentDto[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/pending`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch pending surveys"))
+    return response.json()
+  },
+
+  async answerSurvey(dto: AnswerSurveyDto): Promise<ApiResponse<string>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/answer`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(dto),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to submit survey answer"))
+    return response.json()
+  },
+
+  async getMySurveyHistory(): Promise<ApiResponse<UserSurveyHistoryDto[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/my-history`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to fetch survey history"))
+    return response.json()
+  },
 }
 
 export interface UserHierarchyNode {
@@ -1733,6 +1882,65 @@ export interface Team {
   warnings?: string[]
   createdAt: string
   updatedAt: string
+}
+
+export interface UserTeamHistoryEntry {
+  userTeamId: number
+  teamId: number
+  teamName: string
+  startDate: string
+  endDate: string | null
+  isActive: boolean
+}
+
+export interface TeamCalendarUser {
+  userId: string
+  userInternalId: number
+  userName: string
+  userEmail: string
+  currentTeamName: string | null
+  currentTeamId: number | null
+  hierarchyLevel: number
+  parentUserName?: string | null
+  earliestContractDate?: string | null
+  teamHistory: UserTeamHistoryEntry[]
+}
+
+export interface CalendarContractPreviewItem {
+  contractId: number
+  contractNumber: string
+  saleStartDate: string
+  customerName: string | null
+  matriculaNumber: string | null
+  totalAmount: number
+}
+
+export interface CalendarContractPreviewResponse {
+  olderTeamContracts: CalendarContractPreviewItem[]
+  newerTeamContracts: CalendarContractPreviewItem[]
+}
+
+export interface AdjustTeamBoundaryRequest {
+  userId: string
+  olderTeamId?: number
+  newerTeamId?: number
+  boundaryDate: string
+}
+
+export interface AvailableTeamItem {
+  id: number
+  name: string
+  storeName?: string
+  ownerName?: string
+  ownerUserId?: string
+  memberCount: number
+}
+
+export interface AssignUserTeamRequest {
+  userId: string
+  newTeamId: number
+  startDate: string
+  updateParentUser?: boolean
 }
 
 // ── Classification Levels ──────────────────────────────────────────────────────

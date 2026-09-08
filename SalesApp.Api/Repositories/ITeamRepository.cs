@@ -17,6 +17,7 @@ namespace SalesApp.Repositories
         
         Task<List<UserTeam>> GetActiveMembershipsForUserAsync(int userInternalId, DateTime at);
         Task<List<UserTeam>> FindOverlappingMembershipsAsync(int userInternalId, DateTime start, DateTime? end);
+        Task<List<UserTeam>> GetAllMembershipsForUsersAsync(IEnumerable<int> userInternalIds);
         Task<UserTeam> AddMemberAsync(UserTeam userTeam);
         Task RemoveMemberAsync(int teamId, int userInternalId);
         Task SetOwnerAsync(int teamId, int? ownerUserInternalId);

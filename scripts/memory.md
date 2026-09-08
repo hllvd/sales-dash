@@ -191,7 +191,47 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Failure:** `import_wizard.spec.ts` failed on `expect(locator).toBeVisible()` waiting for `.aggregation-summary` on `#/contracts` due to SQLite Error 19 UNIQUE constraint on `Contracts.ContractNumber` during Step 3 import.
 **Root cause:** In Step 3 default mappings (`WizardService.cs`), `"Cota"` was mapped to `"ContractNumber"` alongside `"Contrato"`, and `BuildContractFromRowAsync` (`ImportExecutionService.cs`) extracted `contractNumber` from `row["Cota"]`, overriding the real contract number with quota numbers and creating duplicate contract numbers across groups.
 **Fix applied:** Updated `WizardService.cs` Step 3 mappings to map `"Cota"` to `"Quota"`; updated `BuildContractFromRowAsync` to prioritize `ResolveContractNumber` and only decompose `Cota` when formatted as a concatenated string; updated `contracts_ui_enhancements.spec.ts` to clean up `localStorage` filters; rebuilt containers and verified full suite.
-**Result:** ✅ Green — 150/150 (Run 1) and 148/148 (Run 2) passed with 0 errors
+## [2026-08-30] all — Attempt 1
+**Failure:** CS0106 / CS1513 compiler errors in `TeamsController.cs` during build.
+**Root cause:** Missing closing brace `}` on `MapToTeamResponse` prior to `GetTeamCalendar` endpoint definition.
+**Fix applied:** Added closing brace for `MapToTeamResponse` in `TeamsController.cs`.
+**Result:** ✅ Green (272/272 integration tests, 152/152 E2E Run 1, 153/153 E2E Run 2)
+
+## [2026-08-30] all — Attempt 2
+**Failure:** None — added new backend integration tests (`TeamCalendarIntegrationTests.cs`) and frontend E2E tests (`team_calendar.spec.ts`) for the Team Calendar feature.
+**Root cause:** N/A (new test suite coverage).
+**Fix applied:** Resolved `RoleId = 2` assignment in `TeamCalendarIntegrationTests.cs` and registered `team_calendar.spec.ts` in `playwright.config.ts`.
+**Result:** ✅ Green (all integration tests passed, 150/150 E2E Run 1, 153/153 E2E Run 2)
+
+## [2026-08-30] all — Attempt 3
+**Failure:** `TeamCalendarPage.tsx` TS18047 null check on build and `approval_requests.spec.ts` idempotency collision in E2E Run 2.
+**Root cause:** `selectedUser` null check missing in Step 3 confirmation card; `RUN_ID` 4-digit timestamp slice collision and lack of proactive cleanup in `approval_requests.spec.ts`.
+**Fix applied:** Added null check for `selectedUser` in `TeamCalendarPage.tsx` and added unique RUN_ID generation + proactive cleanup in `approval_requests.spec.ts`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 153/153 E2E Run 2)
+
+## [2026-08-30] all — Attempt 4
+**Failure:** None — added modal styling adjustments, direct team period editing modal, 1-day before oldest contract assignment, and distinct transition dates (EndDate = StartDate - 1 day).
+**Root cause:** N/A (UI and business rule refinements).
+**Fix applied:** Updated `TeamCalendarPage.tsx`, `TeamCalendarPage.css`, `TeamsController.cs`, `TeamDTOs.cs`, `apiService.ts`, and `TeamCalendarIntegrationTests.cs`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 152/152 E2E Run 2)
+
+## [2026-08-31] all — Attempt 5
+**Failure:** None — added automatic parent user update to team owner on assignment wizard (enabled by default).
+**Root cause:** N/A (new feature implementation).
+**Fix applied:** Updated `TeamsController.cs`, `TeamDTOs.cs`, `apiService.ts`, `TeamCalendarPage.tsx`, `TeamCalendarIntegrationTests.cs`, `team_calendar.spec.ts`, and `FEATURES.md`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 152/152 E2E Run 1, 153/153 E2E Run 2)
+
+## [2026-08-31] all — Attempt 6
+**Failure:** None — added integration test `AssignUserTeam_WithCircularParent_ShouldPreventCircularHierarchy`.
+**Root cause:** N/A (expanded integration test coverage for hierarchy cycle prevention).
+**Fix applied:** Added test to `SalesApp.IntegrationTests/Users/TeamCalendarIntegrationTests.cs`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 153/153 E2E Run 2)
+
+## [2026-08-31] all — Attempt 7
+**Failure:** None — implemented point-in-time team contract filtering and temporal composite indexes.
+**Root cause:** N/A (new feature implementation).
+**Fix applied:** Updated `ContractRepository.cs`, `AppDbContext.cs`, created migration `20260831170000_AddTeamTemporalIndexes.cs`, added unit test in `ContractRepositoryTests.cs`, and updated `FEATURES.md`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 152/152 E2E Run 2)
 
 ## [2026-08-31] integration — Attempt 1
 **Failure:** `UpdateContract_WithMatriculaFromDifferentUser_ShouldFail` failed expecting "not found for this user" in error message.
@@ -217,6 +257,35 @@ Each entry records a fix attempt — past entries must be consulted before retry
 3. Updated `matricula_request_approval.spec.ts` to generate digits-only `REQ_MATR`.
 **Result:** ✅ Green (Build passed, 280/280 integration tests passed, 151/151 Run 1 passed, 153/153 Run 2 passed)
 
+## [2026-09-01] all — Attempt 8
+**Failure:** None — implemented orphan contract priority ordering by admin owned/linked matriculas.
+**Root cause:** N/A (new feature implementation).
+**Fix applied:** Updated `UserScopeContext.cs`, `UserScopeService.cs`, `ContractRepository.cs`, `ContractRepositoryTests.cs`, and `FEATURES.md`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 152/152 E2E Run 1, 153/153 E2E Run 2)
+
+## [2026-09-01] all — Attempt 9
+**Failure:** None — added route parameter constraints (`{id:int}`, `{userId:guid}`) to `TeamsController.cs` to prevent route collision where `/api/teams/calendar` was misrouted to `GetTeam(int id)`.
+**Root cause:** ASP.NET Core route template `[HttpGet("{id}")]` without `:int` constraint hijacked literal sub-paths like `calendar`.
+**Fix applied:** Added `:int` and `:guid` constraints to all parameterized routes in `TeamsController.cs`.
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 153/153 E2E Run 1, 152/152 E2E Run 2)
+
+## [2026-09-01] all — Attempt 10
+**Failure:** None — fixed date comparison gap in point-in-time team filtering and date range filtering in `ContractRepository.cs` and `TeamsController.cs`.
+**Root cause:** Time-of-day components (`T12:00:00Z` vs `00:00:00` vs `23:59:59`) caused contracts on transition/end dates to fall outside boundary comparisons.
+
+## [2026-09-01] all — Attempt 12
+**Failure:** Team membership overlapping dates causing contract duplication across teams, and gaps/breaks during period editing.
+**Root cause:** 
+1. `CreateTeam` and `AddMembers` closed previous team memberships with `DateTime.UtcNow` instead of `StartDate - 1 day`, causing overlap whenever start dates were historical or arbitrary.
+2. `UpdateMemberDates` lacked neighbor boundary sync and allowed overlapping dates.
+3. Overlap auto-resolution deleted records instead of preserving history with non-overlapping end dates.
+**Fix applied:**
+1. Updated `CreateTeam` and `AddMembers` to cap prior memberships at `StartDate - 1 day` (or `overlap.StartDate` if starting on the same day).
+2. Implemented seamless contiguous neighbor synchronization (0 gaps, 0 overlaps) and 7-day duration validation in `UpdateMemberDates`.
+3. Added UI validation and guidance alert in `TeamCalendarPage.tsx`.
+4. Added new integration test `UpdateMemberDates_ShouldSeamlesslySyncNeighborBoundaries_WithZeroGapAndZeroOverlap` in `TeamCalendarIntegrationTests.cs`.
+**Result:** ✅ Green (Build PASSED, 291/291 integration tests PASSED, 159/159 E2E Run 1 passed, 158/158 E2E Run 2 passed)
+
 ## [2026-09-02] e2e — Attempt 1
 **Failure:** `circular_hierarchy_prevention.spec.ts` timed out waiting for button name 'Excluir', and `delete_user_migration.spec.ts` timed out on outdated modal flow and wrong placeholder.
 **Root cause:** User deactivation modal was simplified to direct deactivation with button 'Desativar', and `delete_user_migration.spec.ts` tested the deprecated mandatory migration wizard flow.
@@ -235,12 +304,37 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Verified full suite across Build, Integration tests, and 2x Playwright E2E with idempotency check.
 **Result:** ✅ Green (Build passed, Integration tests passed, E2E Run 1: 152/152, E2E Run 2: 153/153)
 
+## [2026-09-04] e2e — Attempt 1
+**Failure:** `surveys_qa.spec.ts` strict mode violation on `getByText('Respondida')`.
+**Root cause:** Card contained both `<span class="mantine-Badge-label">Respondida</span>` and `<p>Respondida em: ...</p>`.
+**Fix applied:** Updated assertion in `surveys_qa.spec.ts` to `getByText('Respondida', { exact: true })`.
+**Result:** ✅ Green (159/159 E2E tests passed after `./test.sh rm-db && ./test.sh e2e`)
 
+## [2026-09-04] e2e — Attempt 2
+**Failure:** `import_wizard_duplicate_contracts.spec.ts` timed out clicking `a[href="#/import-wizard"]`.
+**Root cause:** Menu restructuring moved "Assistente de Importação" under the collapsible "Importação" parent menu, which is collapsed when on `#/contracts`.
+**Fix applied:** Updated `import_wizard_duplicate_contracts.spec.ts` to expand "Importação" before clicking `a[href="#/import-wizard"]`, and `user_classification_and_views.spec.ts` to expand "Dados & Relatórios" before clicking `a[href="#/views"]`.
+**Result:** ✅ Green (159/159 E2E tests passed after `./test.sh rm-db && ./test.sh e2e`)
 
+## [2026-09-04] all — Attempt 13
+**Failure:** None — added feature to delete periods from team calendar history with automatic contiguous boundary healing, and reversed vertical list ordering to newest-first.
+**Root cause:** Feature request: allow deleting erroneous/historical team periods, with healing rules (bridge gap if in middle, make preceding active if deleting active), and show most recent periods at the top of the vertical list.
+**Fix applied:**
+1. Added `DELETE /api/teams/{id}/members/{userId}/period/{userTeamId}` in `TeamsController.cs` with healing rules (bridge preceding and succeeding, make preceding active if deleting active, or clear team if single).
+2. Added `deleteTeamMemberPeriod` in `apiService.ts`.
+3. In `TeamCalendarPage.tsx`: sorted vertical list descending (`reversedHistory`), linked `olderTeam` for `Ajustar Transição`, added "Excluir" button with confirmation modal.
+4. Added integration tests `DeleteMemberPeriod_WhenInMiddle_ShouldBridgeGapBetweenPrecedingAndSucceeding` and `DeleteMemberPeriod_WhenActive_ShouldMakePrecedingActive` in `TeamCalendarIntegrationTests.cs`.
+5. Documented feature in `FEATURES.md`.
+**Result:** ✅ Green (Build PASSED, 293/293 integration tests PASSED, 159/159 E2E Run 1 passed, 159/159 E2E Run 2 passed)
 
+## [2026-09-04] e2e — Attempt 3
+**Failure:** E2E tests `circular_hierarchy_prevent` and `import_wizard` failed with `Microsoft.Data.Sqlite.SqliteException: SQLite Error 1: 'no such column: c.HasPayment'`.
+**Root cause:** EF Core migration `20260904190000_AddHasPaymentToContracts.cs` lacked metadata attributes and its matching `.Designer.cs` file (EF Core "blind migration" gotcha), causing EF Core to silently ignore the migration and omit `HasPayment` column in the SQLite database. Docker builder cache also required pruning after disk resource exhaustion.
+**Fix applied:** Created `20260904190000_AddHasPaymentToContracts.Designer.cs` with `[DbContext(typeof(AppDbContext))]` and `[Migration("20260904190000_AddHasPaymentToContracts")]`, pruned Docker builder cache (`docker builder prune -a -f`), rebuilt container images via `./test.sh build`, and executed `./test.sh rm-db && ./test.sh e2e`.
+**Result:** ✅ Green (158/158 E2E tests passed)
 
-
-
-
-
-
+## [2026-09-07] all — Attempt 1
+**Failure:** `import_wizard_verification.spec.ts` failed on `expect(row).toBeVisible()` searching for contract `868498`.
+**Root cause:** Contract `868498` has `SaleStartDate = 2025-06-05`. As date advanced to 2026-09-07, the default 15-month date filter (`StartDate >= 2025-06-07`) in `ContractsPage.tsx` filtered out the contract because the test did not clear filters before searching.
+**Fix applied:** Updated `import_wizard_verification.spec.ts` to click `button.clear-filters-btn` before searching by contract number (matching the pattern used by other historical import E2E specs).
+**Result:** ✅ Green (Build PASSED, all integration tests PASSED, 159/159 E2E Run 1, 160/160 E2E Run 2 — idempotent)

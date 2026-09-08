@@ -207,5 +207,362 @@ namespace SalesApp.Tests.Repositories
             contractNumbers.Should().NotContain("CTR-OTHER-ADM-MAT"); // other user is not in hierarchy
             contractNumbers.Should().NotContain("CTR-UNRELATED");
         }
+
+        [Fact]
+        public async Task GetAllAsync_WithTeamIds_ShouldReturnContractsSoldDuringTeamTenure()
+        {
+            // Arrange
+            var userA = new User { Id = Guid.NewGuid(), Name = "User A", Email = "usera@test.com", RoleId = 3 };
+            var userB = new User { Id = Guid.NewGuid(), Name = "User B", Email = "userb@test.com", RoleId = 3 };
+            _context.Users.AddRange(userA, userB);
+            await _context.SaveChangesAsync();
+
+            var team1 = new Team { Id = 10, Name = "Team Alpha" };
+            var team2 = new Team { Id = 20, Name = "Team Beta" };
+            _context.Teams.AddRange(team1, team2);
+            await _context.SaveChangesAsync();
+
+            // User A in Team 1 (Jan 2024 to May 2024), then Team 2 (Jun 2024 onwards)
+            var utA1 = new UserTeam
+            {
+                TeamId = team1.Id,
+                UserInternalId = userA.InternalId,
+                StartDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2024, 5, 31, 23, 59, 59, DateTimeKind.Utc)
+            };
+            var utA2 = new UserTeam
+            {
+                TeamId = team2.Id,
+                UserInternalId = userA.InternalId,
+                StartDate = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = null
+            };
+
+            // User B in Team 1 (Mar 2024 onwards)
+            var utB1 = new UserTeam
+            {
+                TeamId = team1.Id,
+                UserInternalId = userB.InternalId,
+                StartDate = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = null
+            };
+            _context.UserTeams.AddRange(utA1, utA2, utB1);
+            await _context.SaveChangesAsync();
+
+            var activeStatus = new ContractStatusEntity { Id = 101, Name = "Ativo" };
+            _context.ContractStatuses.Add(activeStatus);
+            await _context.SaveChangesAsync();
+
+            // Contracts
+            var cA_before = new Contract
+            {
+                ContractNumber = "CTR-A-BEFORE",
+                UserInternalId = userA.InternalId,
+                User = userA,
+                SaleStartDate = new DateTime(2023, 11, 15, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                IsActive = true
+            };
+            var cA_team1 = new Contract
+            {
+                ContractNumber = "CTR-A-TEAM1",
+                UserInternalId = userA.InternalId,
+                User = userA,
+                SaleStartDate = new DateTime(2024, 2, 20, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                IsActive = true
+            };
+            var cA_team2 = new Contract
+            {
+                ContractNumber = "CTR-A-TEAM2",
+                UserInternalId = userA.InternalId,
+                User = userA,
+                SaleStartDate = new DateTime(2024, 7, 15, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                IsActive = true
+            };
+            var cB_team1 = new Contract
+            {
+                ContractNumber = "CTR-B-TEAM1",
+                UserInternalId = userB.InternalId,
+                User = userB,
+                SaleStartDate = new DateTime(2024, 4, 10, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                IsActive = true
+            };
+
+            _context.Contracts.AddRange(cA_before, cA_team1, cA_team2, cB_team1);
+            await _context.SaveChangesAsync();
+
+            // Act 1: Query by Team 1
+            var team1Results = await _repository.GetAllAsync(teamIds: new List<int> { team1.Id });
+            var team1Numbers = team1Results.Select(c => c.ContractNumber).ToList();
+
+            // Assert 1: Only contracts during Team 1 period
+            team1Numbers.Should().Contain("CTR-A-TEAM1");
+            team1Numbers.Should().Contain("CTR-B-TEAM1");
+            team1Numbers.Should().NotContain("CTR-A-TEAM2");
+            team1Numbers.Should().NotContain("CTR-A-BEFORE");
+
+            // Act 2: Query by Team 2
+            var team2Results = await _repository.GetAllAsync(teamIds: new List<int> { team2.Id });
+            var team2Numbers = team2Results.Select(c => c.ContractNumber).ToList();
+
+            // Assert 2: Only contracts during Team 2 period
+            team2Numbers.Should().Contain("CTR-A-TEAM2");
+            team2Numbers.Should().NotContain("CTR-A-TEAM1");
+            team2Numbers.Should().NotContain("CTR-A-BEFORE");
+            team2Numbers.Should().NotContain("CTR-B-TEAM1");
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_WithOrphanContracts_ShouldOrderByOwnedThenLinkedThenOtherMatriculas()
+        {
+            // Arrange
+            var admin = new User { Id = Guid.NewGuid(), Name = "Admin User", Email = "admin@test.com", RoleId = 2 };
+            var seller = new User { Id = Guid.NewGuid(), Name = "Seller User", Email = "seller@test.com", RoleId = 3, ParentUserId = admin.Id };
+            _context.Users.AddRange(admin, seller);
+            await _context.SaveChangesAsync();
+
+            var status = new ContractStatusEntity { Id = 201, Name = "Ativo" };
+            _context.ContractStatuses.Add(status);
+            await _context.SaveChangesAsync();
+
+            var matOwned = new Matricula { Id = 101, MatriculaNumber = "MAT-OWNED" };
+            var matLinked = new Matricula { Id = 102, MatriculaNumber = "MAT-LINKED" };
+            var matOther = new Matricula { Id = 103, MatriculaNumber = "MAT-OTHER" };
+            _context.Matriculas.AddRange(matOwned, matLinked, matOther);
+            await _context.SaveChangesAsync();
+
+            var cOrphanOwned = new Contract
+            {
+                ContractNumber = "CTR-ORPHAN-OWNED",
+                UserInternalId = null,
+                MatriculaId = matOwned.Id,
+                Matricula = matOwned,
+                TempMatricula = "MAT-OWNED",
+                SaleStartDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+
+            var cOrphanLinked = new Contract
+            {
+                ContractNumber = "CTR-ORPHAN-LINKED",
+                UserInternalId = null,
+                MatriculaId = matLinked.Id,
+                Matricula = matLinked,
+                TempMatricula = "MAT-LINKED",
+                SaleStartDate = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+
+            var cOrphanOther = new Contract
+            {
+                ContractNumber = "CTR-ORPHAN-OTHER",
+                UserInternalId = null,
+                MatriculaId = matOther.Id,
+                Matricula = matOther,
+                TempMatricula = "MAT-OTHER",
+                SaleStartDate = new DateTime(2024, 8, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+
+            var cAssigned = new Contract
+            {
+                ContractNumber = "CTR-ASSIGNED",
+                UserInternalId = seller.InternalId,
+                User = seller,
+                MatriculaId = matOther.Id,
+                Matricula = matOther,
+                SaleStartDate = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+
+            _context.Contracts.AddRange(cOrphanOwned, cOrphanLinked, cOrphanOther, cAssigned);
+            await _context.SaveChangesAsync();
+
+            var scope = new UserScopeContext
+            {
+                IsGlobal = false,
+                AllowedUserIds = new HashSet<Guid> { admin.Id, seller.Id },
+                AllowedMatriculas = new HashSet<string> { "MAT-OWNED", "MAT-LINKED", "MAT-OTHER" },
+                AdminOwnedMatriculas = new HashSet<string> { "MAT-OWNED" },
+                AdminLinkedMatriculas = new HashSet<string> { "MAT-OWNED", "MAT-LINKED" }
+            };
+
+            // Act
+            var (items, totalCount) = await _repository.GetPagedAsync(1, 10, scope: scope);
+            var itemNumbers = items.Select(c => c.ContractNumber).ToList();
+
+            // Assert
+            totalCount.Should().Be(4);
+            // Priority 0: Owned matricula orphan
+            itemNumbers[0].Should().Be("CTR-ORPHAN-OWNED");
+            // Priority 1: Linked matricula orphan
+            itemNumbers[1].Should().Be("CTR-ORPHAN-LINKED");
+            // Priority 2: Other matricula orphan
+            itemNumbers[2].Should().Be("CTR-ORPHAN-OTHER");
+            // Priority 3: Assigned contract
+            itemNumbers[3].Should().Be("CTR-ASSIGNED");
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_WithGlobalScope_ShouldOrderBySaleStartDate()
+        {
+            // Arrange
+            var status = new ContractStatusEntity { Id = 202, Name = "Ativo" };
+            _context.ContractStatuses.Add(status);
+            await _context.SaveChangesAsync();
+
+            var c1 = new Contract
+            {
+                ContractNumber = "CTR-GLOBAL-OLD",
+                UserInternalId = null,
+                TempMatricula = "MAT-A",
+                SaleStartDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+            var c2 = new Contract
+            {
+                ContractNumber = "CTR-GLOBAL-NEW",
+                UserInternalId = null,
+                TempMatricula = "MAT-B",
+                SaleStartDate = new DateTime(2024, 12, 1, 0, 0, 0, DateTimeKind.Utc),
+                ContractStatusId = status.Id,
+                ContractStatus = status,
+                IsActive = true
+            };
+            _context.Contracts.AddRange(c1, c2);
+            await _context.SaveChangesAsync();
+
+            var globalScope = new UserScopeContext { IsGlobal = true };
+
+            // Act
+            var (items, _) = await _repository.GetPagedAsync(1, 10, scope: globalScope);
+
+            // Assert: ordered by SaleStartDate DESC
+            var itemNumbers = items.Where(c => c.ContractNumber.StartsWith("CTR-GLOBAL-")).Select(c => c.ContractNumber).ToList();
+            itemNumbers.Should().Equal("CTR-GLOBAL-NEW", "CTR-GLOBAL-OLD");
+        }
+
+        [Fact]
+        public async Task GetAllAsync_WithAwaitingPaymentTrue_ShouldReturnOnlyActiveContractsWithoutPayment()
+        {
+            // Arrange
+            var activeStatus = new ContractStatusEntity { Id = 301, Name = "Active" };
+            var lateStatus = new ContractStatusEntity { Id = 302, Name = "Late1" };
+            _context.ContractStatuses.AddRange(activeStatus, lateStatus);
+
+            var c1 = new Contract
+            {
+                ContractNumber = "CTR-AP-YES",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = false,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c2 = new Contract
+            {
+                ContractNumber = "CTR-AP-PAID",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = true,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c3 = new Contract
+            {
+                ContractNumber = "CTR-AP-LATE",
+                ContractStatusId = lateStatus.Id,
+                ContractStatus = lateStatus,
+                HasPayment = false,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c4 = new Contract
+            {
+                ContractNumber = "CTR-AP-NULL",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = null,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            _context.Contracts.AddRange(c1, c2, c3, c4);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var results = await _repository.GetAllAsync(awaitingPayment: true);
+
+            // Assert
+            var resultNumbers = results.Select(c => c.ContractNumber).ToList();
+            resultNumbers.Should().Contain("CTR-AP-YES");
+            resultNumbers.Should().NotContain("CTR-AP-PAID");
+            resultNumbers.Should().NotContain("CTR-AP-LATE");
+            resultNumbers.Should().NotContain("CTR-AP-NULL");
+        }
+
+        [Fact]
+        public async Task GetAllAsync_WithAwaitingPaymentFalse_ShouldExcludeActiveContractsWithoutPayment()
+        {
+            // Arrange
+            var activeStatus = new ContractStatusEntity { Id = 311, Name = "Active" };
+            var lateStatus = new ContractStatusEntity { Id = 312, Name = "Late1" };
+            _context.ContractStatuses.AddRange(activeStatus, lateStatus);
+
+            var c1 = new Contract
+            {
+                ContractNumber = "CTR-NOT-AP-WAITING",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = false,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c2 = new Contract
+            {
+                ContractNumber = "CTR-NOT-AP-PAID",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                HasPayment = true,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c3 = new Contract
+            {
+                ContractNumber = "CTR-NOT-AP-LATE",
+                ContractStatusId = lateStatus.Id,
+                ContractStatus = lateStatus,
+                HasPayment = false,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            _context.Contracts.AddRange(c1, c2, c3);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var results = await _repository.GetAllAsync(awaitingPayment: false);
+
+            // Assert
+            var resultNumbers = results.Select(c => c.ContractNumber).ToList();
+            resultNumbers.Should().NotContain("CTR-NOT-AP-WAITING");
+            resultNumbers.Should().Contain("CTR-NOT-AP-PAID");
+            resultNumbers.Should().Contain("CTR-NOT-AP-LATE");
+        }
     }
 }

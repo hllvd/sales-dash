@@ -9,12 +9,22 @@ test.describe('Import Wizard Record Verification', () => {
     await loginAs(page);
     await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15000 });
+    const clearBtn = page.locator('button.clear-filters-btn');
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click();
+      await page.waitForTimeout(1000);
+    }
   });
 
 
   const getFormField = (page, label: string) => page.locator('div').filter({ has: page.locator('label', { hasText: label, exact: true }) }).last();
 
   test('verify contract 90001305 - Leonardo Bandieri', async ({ page }) => {
+    const clearBtn = page.locator('button.clear-filters-btn');
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click();
+      await page.waitForTimeout(1000);
+    }
     await page.fill('input#filterContractNumber', '90001305');
     // Wait for filter debounce and table to settle
     await page.waitForTimeout(1000);
@@ -37,6 +47,11 @@ test.describe('Import Wizard Record Verification', () => {
   });
 
   test('verify contract 868498 - Paulo Carvalho', async ({ page }) => {
+    const clearBtn = page.locator('button.clear-filters-btn');
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click();
+      await page.waitForTimeout(1000);
+    }
     await page.fill('input#filterContractNumber', '868498');
     // Wait for filter debounce and table to settle
     await page.waitForTimeout(1000);

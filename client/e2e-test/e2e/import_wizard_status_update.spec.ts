@@ -91,7 +91,7 @@ test.describe('Import Wizard Status Update Test', () => {
     // Filter for contract 826650 (CSV status: "Ativa" → should map to "Active" → display "Ativo")
     await page.fill('input#filterContractNumber', '826650');
 
-    const row826650 = page.locator('table tbody tr', { hasText: '826650' });
+    const row826650 = page.locator('table tbody tr').filter({ has: page.locator('td', { hasText: /^826650$/ }) });
     await expect(row826650).toBeVisible({ timeout: 25_000 });
     await expect(row826650.locator('.mantine-Badge-label')).toHaveText('Ativo', { timeout: 15_000 });
 
@@ -107,7 +107,7 @@ test.describe('Import Wizard Status Update Test', () => {
     await statusSelect.click();
     await page.click('.mantine-MultiSelect-option:has-text("Desistente"), .mantine-Select-option:has-text("Desistente")');
 
-    const row821590 = page.locator('table tbody tr', { hasText: '821590' });
+    const row821590 = page.locator('table tbody tr').filter({ has: page.locator('td', { hasText: /^821590$/ }) });
     await expect(row821590).toBeVisible({ timeout: 25_000 });
     await expect(row821590.locator('.mantine-Badge-label')).toHaveText('Desistente', { timeout: 15_000 });
   });

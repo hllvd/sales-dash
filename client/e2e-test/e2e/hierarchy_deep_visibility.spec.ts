@@ -85,8 +85,8 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     // Wait for debounce and network request to finish
     await page.waitForSelector('.contracts-loading', { state: 'hidden', timeout: 20_000 });
 
-    // Wait for any existing rows to disappear if filtering isn't instant
-    await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
+    // Wait for row containing contract to be visible
+    await expect(page.locator('table tbody tr').filter({ hasText: CONTRACT_L3 })).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('table tbody tr').filter({ hasText: CHAIN.C_MATRICULA })).toBeVisible({ timeout: 15_000 });
     console.log(`>>> A sees C (7777) contract at depth 2 ✓`);
   });
@@ -99,9 +99,7 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
     // Filter by the official contract number
     await page.fill('input#filterContractNumber', CONTRACT_L4);
     // Wait for debounce and network request to finish
-    await page.waitForSelector('.contracts-loading', { state: 'hidden', timeout: 20_000 });
-
-    await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 20_000 });
+    await expect(page.locator('table tbody tr').filter({ hasText: CONTRACT_L4 })).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('table tbody tr').filter({ hasText: CHAIN.D_MATRICULA })).toBeVisible({ timeout: 15_000 });
     console.log(`>>> A sees D (8888) contract at depth 3 ✓`);
   });

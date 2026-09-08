@@ -234,6 +234,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [stores, setStores] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
+  const [awaitingPayment, setAwaitingPayment] = useState<boolean | null>(null);
 
   // Classification & Performance Filters
   const [classificationLevelIds, setClassificationLevelIds] = useState<string[]>([]);
@@ -370,6 +371,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setPvs((fc.pvs || []).map(p => p.toString()));
         setStatuses(fc.statuses || []);
         setStatusOperator(fc.statusOperator || 'or');
+        setAwaitingPayment(fc.awaitingPayment ?? null);
 
         const restoredClassIds = (fc.classificationLevelIds || []).map(String);
         setClassificationLevelIds(restoredClassIds);
@@ -642,6 +644,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       maxStrictRetention: maxStrictRetention !== '' ? maxStrictRetention / 100 : undefined,
       minProduction: minProduction !== '' ? minProduction : undefined,
       maxProduction: maxProduction !== '' ? maxProduction : undefined,
+      awaitingPayment: awaitingPayment !== null ? awaitingPayment : undefined,
     };
 
     const exportedFieldsList: ExportedField[] = [];
@@ -1184,6 +1187,20 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                     value={statuses}
                     onChange={setStatuses}
                     searchable
+                    size="sm"
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Aguardando Pagamento"
+                    placeholder="Todos"
+                    clearable
+                    data={[
+                      { value: 'true',  label: 'Sim (Aguardando pagamento)' },
+                      { value: 'false', label: 'Não' },
+                    ]}
+                    value={awaitingPayment === null ? null : String(awaitingPayment)}
+                    onChange={(val) => setAwaitingPayment(val === null ? null : val === 'true')}
                     size="sm"
                   />
                 </Grid.Col>
