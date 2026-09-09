@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -10,6 +11,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
@@ -487,6 +490,84 @@ namespace SalesApp.Controllers
             };
 
             return Ok(result);
+        }
+
+        [HttpPost("export-xlsx")]
+        public IActionResult ExportTabXlsx([FromBody] ExportReconciliationTabRequestDto request)
+        {
+            if (request == null || request.Headers == null || request.Headers.Count == 0)
+            {
+                return BadRequest("Dados inválidos para exportação.");
+            }
+
+            ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
+            using var package = new ExcelPackage();
+            var rawTitle = string.IsNullOrWhiteSpace(request.Title) ? "Reconciliação" : request.Title;
+            var cleanTitle = Regex.Replace(rawTitle, @"[\\/?*:[\]]", " ").Trim();
+            if (cleanTitle.Length > 30) cleanTitle = cleanTitle.Substring(0, 30);
+            if (string.IsNullOrWhiteSpace(cleanTitle)) cleanTitle = "Reconciliação";
+
+            var worksheet = package.Workbook.Worksheets.Add(cleanTitle);
+
+            // Header row
+            for (int col = 0; col < request.Headers.Count; col++)
+            {
+                var cell = worksheet.Cells[1, col + 1];
+                cell.Value = request.Headers[col];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(243, 244, 246));
+                cell.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+            }
+
+            // Data rows
+            if (request.Rows != null)
+            {
+                for (int r = 0; r < request.Rows.Count; r++)
+                {
+                    var row = request.Rows[r];
+                    for (int c = 0; c < row.Count && c < request.Headers.Count; c++)
+                    {
+                        var cell = worksheet.Cells[r + 2, c + 1];
+                        var header = request.Headers[c].ToLowerInvariant();
+                        var valStr = row[c]?.Trim();
+
+                        if (string.IsNullOrWhiteSpace(valStr))
+                        {
+                            cell.Value = string.Empty;
+                            continue;
+                        }
+
+                        // Identifier / code columns should remain text to preserve leading zeros
+                        bool isCodeOrId = header.Contains("número") || header.Contains("numero") ||
+                                         header.Contains("contrato") || header.Contains("matrícula") ||
+                                         header.Contains("matricula") || header.Contains("código") ||
+                                         header.Contains("codigo") || header.Contains("cota") ||
+                                         header.Contains("grupo");
+
+                        if (!isCodeOrId && decimal.TryParse(valStr, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal numVal))
+                        {
+                            cell.Value = numVal;
+                            if (numVal % 1 == 0 && !valStr.Contains("."))
+                            {
+                                cell.Style.Numberformat.Format = "#,##0";
+                            }
+                            else
+                            {
+                                cell.Style.Numberformat.Format = "#,##0.00";
+                            }
+                        }
+                        else
+                        {
+                            cell.Value = valStr;
+                        }
+                    }
+                }
+            }
+
+            worksheet.Cells.AutoFitColumns();
+            var fileBytes = package.GetAsByteArray();
+            return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         }
 
         private static string NormalizeName(string? name)

@@ -94,4 +94,12 @@ namespace SalesApp.DTOs
         public int SystemCount { get; set; }
         public int ContractDiff => XlsxCount - SystemCount;
     }
+
+    public class ExportReconciliationTabRequestDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public List<string> Headers { get; set; } = new();
+        public List<List<string>> Rows { get; set; } = new();
+    }
 }
+

@@ -1179,14 +1179,24 @@ Adiciona a aba **"Comparação por Usuário"** na tela de Reconciliação de Con
 - **Parser Monetário com Suporte a Múltiplos Separadores**:
   - Detecção dinâmica de formato monetário em strings mistas (`R$ 140,000.00`, `R$ 140.000,00`, `140000.00`, `140000,00`).
   - Se a string contiver ambos os separadores `,` e `.`, identifica qual é o milhar e qual é o decimal com base na posição do último separador, evitando truncamento para valores decimais baixos.
-- **Exportação CSV e KPI Dedicado**:
-  - Exportação da aba em arquivo CSV (`reconciliacao_comparacao_usuarios_YYYY-MM-DD.csv`).
+- **Exportação Nativa XLSX com Nomenclatura Descritiva por Problema**:
+  - Exportação de arquivos `.xlsx` nativos gerados via `EPPlus` no backend com cabeçalhos estilizados, larguras automáticas e formatação numérica adequada.
+  - Nome do arquivo dinâmico e autoexplicativo baseado no problema da aba e no escopo selecionado (`{EQUIPE}`, `{USUARIO}` ou `Geral`):
+    1. *No XLSX (Não cadastrados no Sistema)*: `Contratos na planilha que não existem no sistema - {ESCOPO}.xlsx`
+    2. *No Sistema (Ausentes no XLSX)*: `Contratos no sistema que não existem na planilha ou consultor diferente - {ESCOPO}.xlsx`
+    3. *Divergência de Valor*: `Divergência de valor entre planilha e sistema - {ESCOPO}.xlsx`
+    4. *Divergência de Data*: `Divergência de data da venda entre planilha e sistema - {ESCOPO}.xlsx`
+    5. *Divergência de Consultor*: `Divergência de consultor entre planilha e sistema - {ESCOPO}.xlsx`
+    6. *Divergência de Status*: `Divergência de status entre planilha e sistema - {ESCOPO}.xlsx`
+    7. *Sem Usuário Atribuído*: `Contratos na planilha sem consultor identificado no sistema - {ESCOPO}.xlsx`
+    8. *Comparação por Consultor*: `Comparação financeira e contratos por consultor - {ESCOPO}.xlsx`
+  - Sanitização automática de caracteres especiais inválidos para nomes de arquivos.
   - Card de KPI dedicado "Comparação por Usuário" exibindo o total de usuários analisados.
   - Toggle opcional para permitir correspondência parcial de nomes quando único.
 
 ### Key Files Created/Modified
-- `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs` — DTOs `UserComparisonItemDto` e lista em `ContractReconciliationResultDto`.
-- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Lógica de reconciliação por usuário, `GetColumnValue` de duas fases com exclusões, `ParseDecimal` multi-formato e agregação financeira.
-- `client/sales-dash/src/services/apiService.ts` — Tipagens de `UserComparisonItem` e parâmetro `allowPartialNameMatch`.
-- `client/sales-dash/src/components/ContractReconciliationPage.tsx` & `.css` — Aba "user-comparison", KPI card, tabela com badges e exportação CSV.
+- `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs` — DTOs `UserComparisonItemDto`, `ExportReconciliationTabRequestDto` e lista em `ContractReconciliationResultDto`.
+- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Lógica de reconciliação por usuário, endpoint `POST /api/contractreconciliation/export-xlsx`, `GetColumnValue` de duas fases com exclusões, `ParseDecimal` multi-formato e agregação financeira.
+- `client/sales-dash/src/services/apiService.ts` — Tipagens de `UserComparisonItem`, `exportReconciliationXlsx` e parâmetro `allowPartialNameMatch`.
+- `client/sales-dash/src/components/ContractReconciliationPage.tsx` & `.css` — Aba "user-comparison", KPI card, tabela com badges, `handleExportXlsx` com nomenclatura descritiva de problemas e exportação XLSX nativa.
 

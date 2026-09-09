@@ -33,6 +33,7 @@ import {
   Team,
   UserComparisonItem,
 } from '../services/apiService';
+import { notifications } from '@mantine/notifications';
 import Menu from './Menu';
 import './ContractReconciliationPage.css';
 
@@ -76,6 +77,7 @@ const ContractReconciliationPage: React.FC = () => {
   // Active tab & search filter
   const [activeTab, setActiveTab] = useState<string | null>('missing-in-system');
   const [searchQuery, setSearchQuery] = useState('');
+  const [exportingXlsx, setExportingXlsx] = useState(false);
 
   // Fetch teams and users on mount
   useEffect(() => {
@@ -115,6 +117,11 @@ const ContractReconciliationPage: React.FC = () => {
   const selectedTeam = useMemo(
     () => teams.find((t) => t.id.toString() === selectedTeamId),
     [teams, selectedTeamId]
+  );
+
+  const selectedUser = useMemo(
+    () => users.find((u) => u.value === selectedUserId),
+    [users, selectedUserId]
   );
 
   const teamFilteredUsers = useMemo(() => {
@@ -169,96 +176,144 @@ const ContractReconciliationPage: React.FC = () => {
     }
   };
 
-  // CSV Export for active tab
-  const handleExportCSV = () => {
+  const sanitizeFilename = (name: string) => {
+    return name.replace(/[/\\?%*:|"<>]/g, '-').trim();
+  };
+
+  const getExportScope = () => {
+    if (selectedTeam?.name) {
+      return sanitizeFilename(selectedTeam.name);
+    }
+    if (selectedUser?.label) {
+      const cleanName = selectedUser.label.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      return sanitizeFilename(cleanName);
+    }
+    return 'Geral';
+  };
+
+  // XLSX Export for active tab with problem-descriptive naming
+  const handleExportXlsx = async () => {
     if (!result) return;
 
+    const scope = getExportScope();
+    let title = '';
+    let filename = '';
     let headers: string[] = [];
     let rows: string[][] = [];
-    let filename = `reconciliacao_${activeTab}_${todayStr}.csv`;
 
     if (activeTab === 'missing-in-system') {
+      title = 'Não cadastrados no Sistema';
+      filename = `Contratos na planilha que não existem no sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Valor (XLSX)', 'Usuário', 'Data'];
       rows = filteredMissingInSystem.map((item) => [
-        `"${item.contractNumber}"`,
+        item.contractNumber,
         item.totalAmount.toFixed(2),
-        `"${item.systemUserName || item.userIdentifier || ''}"`,
-        `"${formatDate(item.date)}"`,
+        item.systemUserName || item.userIdentifier || '',
+        formatDate(item.date),
       ]);
     } else if (activeTab === 'missing-in-import') {
+      title = 'Ausentes no XLSX';
+      filename = `Contratos no sistema que não existem na planilha ou consultor diferente - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Valor (Sistema)', 'Usuário no Sistema', 'Data de Venda'];
       rows = filteredMissingInImport.map((item) => [
-        `"${item.contractNumber}"`,
+        item.contractNumber,
         item.totalAmount.toFixed(2),
-        `"${item.systemUserName || item.userIdentifier || ''}"`,
-        `"${formatDate(item.date)}"`,
+        item.systemUserName || item.userIdentifier || '',
+        formatDate(item.date),
       ]);
     } else if (activeTab === 'amount-mismatches') {
+      title = 'Divergência de Valor';
+      filename = `Divergência de valor entre planilha e sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Valor Sistema', 'Valor XLSX', 'Diferença', 'Usuário', 'Data de Venda'];
       rows = filteredAmountMismatches.map((item) => [
-        `"${item.contractNumber}"`,
+        item.contractNumber,
         item.systemAmount.toFixed(2),
         item.xlsxAmount.toFixed(2),
         item.difference.toFixed(2),
-        `"${item.systemUserName || item.userIdentifier || ''}"`,
-        `"${formatDate(item.saleStartDate)}"`,
+        item.systemUserName || item.userIdentifier || '',
+        formatDate(item.saleStartDate),
       ]);
     } else if (activeTab === 'date-mismatches') {
+      title = 'Divergência de Data';
+      filename = `Divergência de data da venda entre planilha e sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Data no Sistema', 'Data no XLSX', 'Valor Total', 'Usuário no Sistema'];
       rows = filteredDateMismatches.map((item) => [
-        `"${item.contractNumber}"`,
-        `"${formatDate(item.systemDate)}"`,
-        `"${formatDate(item.xlsxDate)}"`,
+        item.contractNumber,
+        formatDate(item.systemDate),
+        formatDate(item.xlsxDate),
         item.totalAmount.toFixed(2),
-        `"${item.systemUserName || ''}"`,
+        item.systemUserName || '',
       ]);
     } else if (activeTab === 'seller-mismatches') {
+      title = 'Divergência de Consultor';
+      filename = `Divergência de consultor entre planilha e sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Vendedor no Sistema', 'Vendedor no XLSX', 'Valor Total', 'Data de Venda'];
       rows = filteredSellerMismatches.map((item) => [
-        `"${item.contractNumber}"`,
-        `"${item.systemUserName || ''}"`,
-        `"${item.xlsxUserIdentifier || ''}"`,
+        item.contractNumber,
+        item.systemUserName || '',
+        item.xlsxUserIdentifier || '',
         item.totalAmount.toFixed(2),
-        `"${formatDate(item.saleStartDate)}"`,
+        formatDate(item.saleStartDate),
       ]);
     } else if (activeTab === 'status-mismatches') {
+      title = 'Divergência de Status';
+      filename = `Divergência de status entre planilha e sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Status no Sistema', 'Status no XLSX', 'Valor Total', 'Usuário no Sistema', 'Data de Venda'];
       rows = filteredStatusMismatches.map((item) => [
-        `"${item.contractNumber}"`,
-        `"${item.systemStatus || ''}"`,
-        `"${item.xlsxStatus || ''}"`,
+        item.contractNumber,
+        item.systemStatus || '',
+        item.xlsxStatus || '',
         item.totalAmount.toFixed(2),
-        `"${item.systemUserName || ''}"`,
-        `"${formatDate(item.saleStartDate)}"`,
+        item.systemUserName || '',
+        formatDate(item.saleStartDate),
       ]);
     } else if (activeTab === 'unassigned-users') {
+      title = 'Sem Usuário Atribuído';
+      filename = `Contratos na planilha sem consultor identificado no sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Valor (XLSX)', 'Identificador de Usuário (XLSX)', 'Data'];
       rows = filteredUnassigned.map((item) => [
-        `"${item.contractNumber}"`,
+        item.contractNumber,
         item.totalAmount.toFixed(2),
-        `"${item.userIdentifier || ''}"`,
-        `"${formatDate(item.date)}"`,
+        item.userIdentifier || '',
+        formatDate(item.date),
       ]);
     } else if (activeTab === 'user-comparison') {
-      filename = `reconciliacao_comparacao_usuarios_${todayStr}.csv`;
+      title = 'Comparação por Consultor';
+      filename = `Comparação financeira e contratos por consultor - ${scope}.xlsx`;
       headers = ['Nome do Usuário', 'Total Planilha', 'Total Sistema', 'Qtd Contratos'];
       rows = filteredUserComparisons.map((item) => [
-        `"${item.userName}"`,
+        item.userName,
         item.xlsxTotal.toFixed(2),
         item.systemTotal.toFixed(2),
         item.contractDiff > 0 ? `+${item.contractDiff}` : `${item.contractDiff}`,
       ]);
     }
 
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      setExportingXlsx(true);
+      const blob = await apiService.exportReconciliationXlsx({
+        title,
+        headers,
+        rows,
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro na exportação',
+        message: err.message || 'Falha ao gerar arquivo XLSX.',
+        color: 'red',
+      });
+    } finally {
+      setExportingXlsx(false);
+    }
   };
 
   // Filtered lists by searchQuery
@@ -736,10 +791,11 @@ const ContractReconciliationPage: React.FC = () => {
                   <Button
                     variant="light"
                     color="blue"
-                    leftSection={<IconDownload size={16} />}
-                    onClick={handleExportCSV}
+                    leftSection={exportingXlsx ? <Loader size="xs" color="blue" /> : <IconDownload size={16} />}
+                    onClick={handleExportXlsx}
+                    disabled={exportingXlsx}
                   >
-                    Exportar Relatório CSV
+                    {exportingXlsx ? 'Gerando XLSX...' : 'Exportar Planilha (XLSX)'}
                   </Button>
                 </div>
 

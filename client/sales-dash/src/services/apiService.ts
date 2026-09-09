@@ -1602,6 +1602,29 @@ export const apiService = {
     return response.json()
   },
 
+  async exportReconciliationXlsx(data: {
+    title: string;
+    headers: string[];
+    rows: string[][];
+  }): Promise<Blob> {
+    const token = localStorage.getItem("token")
+    const response = await authenticatedFetch(`${API_BASE_URL}/contractreconciliation/export-xlsx`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Erro no download do arquivo")
+      throw new Error(errorText || "Erro ao gerar arquivo XLSX")
+    }
+
+    return response.blob()
+  },
+
   async previewRetentionFilter(fileA: File, fileB: File): Promise<ApiResponse<RetentionFilterProcessResponse>> {
     const formData = new FormData()
     formData.append("fileA", fileA)
