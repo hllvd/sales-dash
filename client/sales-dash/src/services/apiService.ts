@@ -1562,7 +1562,8 @@ export const apiService = {
     startDate: string,
     endDate: string,
     userId?: string,
-    teamId?: number
+    teamId?: number,
+    allowPartialNameMatch?: boolean
   ): Promise<ContractReconciliationResult> {
     const formData = new FormData()
     formData.append("file", file)
@@ -1573,6 +1574,9 @@ export const apiService = {
     }
     if (teamId) {
       formData.append("teamId", teamId.toString())
+    }
+    if (allowPartialNameMatch !== undefined) {
+      formData.append("allowPartialNameMatch", allowPartialNameMatch.toString())
     }
 
     const token = localStorage.getItem("token")

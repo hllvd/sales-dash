@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -41,7 +43,8 @@ namespace SalesApp.Controllers
             [FromForm] DateTime startDate,
             [FromForm] DateTime endDate,
             [FromForm] Guid? userId,
-            [FromForm] int? teamId)
+            [FromForm] int? teamId,
+            [FromForm] bool allowPartialNameMatch = false)
         {
             if (file == null || file.Length == 0)
             {
@@ -109,9 +112,9 @@ namespace SalesApp.Controllers
             var usersByInternalId = allUsers
                 .ToLookup(u => u.InternalId);
 
-            var usersByName = allUsers
+            var usersByNormalizedName = allUsers
                 .Where(u => !string.IsNullOrWhiteSpace(u.Name))
-                .ToLookup(u => u.Name.Trim().ToLowerInvariant());
+                .ToLookup(u => NormalizeName(u.Name));
 
             var usersByMatricula = allMatriculas
                 .Where(m => m.User != null && m.Matricula != null && !string.IsNullOrWhiteSpace(m.Matricula.MatriculaNumber))
@@ -143,7 +146,7 @@ namespace SalesApp.Controllers
             // Setup Column Headers Aliases
             var contractNumAliases = new[] { "contractnumber", "contrato", "numerocontrato", "numero do contrato", "número do contrato", "proposta", "codigo", "código", "number" };
             var amountAliases = new[] { "totalamount", "valor", "valortotal", "valor total", "amount", "preco", "preço", "valor_total" };
-            var userAliases = new[] { "useremail", "email", "e-mail", "matricula", "matrícula", "cpf", "userinternalid", "usuario", "usuário", "vendedor", "nome" };
+            var userAliases = new[] { "consultor", "consultora", "vendedor", "vendedora", "useremail", "email", "e-mail", "matricula", "matrícula", "cpf", "userinternalid", "usuario", "usuário", "nome" };
             var dateAliases = new[] { "date", "salestartdate", "datavenda", "data da venda", "data", "createdat" };
             var statusAliases = new[] { "status", "situacao", "situação", "estado", "rawstatus", "raw stats", "raw_status" };
 
@@ -155,7 +158,7 @@ namespace SalesApp.Controllers
             var sellerMismatches = new List<SellerMismatchItemDto>();
             var statusMismatches = new List<StatusMismatchItemDto>();
             var unassignedUserContracts = new List<ReconciledContractItemDto>();
-            var userComparisonsMap = new Dictionary<string, (decimal xlsxTotal, decimal sysTotal, int xlsxCount, int sysCount)>(StringComparer.OrdinalIgnoreCase);
+            var userComparisonsMap = new Dictionary<string, (string displayName, decimal xlsxTotal, decimal sysTotal, int xlsxCount, int sysCount)>(StringComparer.OrdinalIgnoreCase);
 
             // System contract matching lookup
             // Key: ContractNumber (Trim + Lower) -> Contract entity
@@ -185,14 +188,29 @@ namespace SalesApp.Controllers
                 User? rowUser = null;
                 if (!string.IsNullOrWhiteSpace(userVal))
                 {
-                    var userKey = userVal.ToLowerInvariant();
+                    var userKey = userVal.Trim().ToLowerInvariant();
+                    var normalizedUserVal = NormalizeName(userVal);
+
                     rowUser = usersByEmail[userKey].FirstOrDefault()
                               ?? usersByMatricula[userKey].FirstOrDefault()
-                              ?? usersByName[userKey].FirstOrDefault();
+                              ?? usersByNormalizedName[normalizedUserVal].FirstOrDefault();
 
                     if (rowUser == null && int.TryParse(userVal, out int parsedInternalId))
                     {
                         rowUser = usersByInternalId[parsedInternalId].FirstOrDefault();
+                    }
+
+                    if (rowUser == null && allowPartialNameMatch && !string.IsNullOrWhiteSpace(normalizedUserVal))
+                    {
+                        var candidateMatches = allUsers
+                            .Where(u => !string.IsNullOrWhiteSpace(u.Name) &&
+                                        (NormalizeName(u.Name).Contains(normalizedUserVal) || normalizedUserVal.Contains(NormalizeName(u.Name))))
+                            .ToList();
+
+                        if (candidateMatches.Count == 1)
+                        {
+                            rowUser = candidateMatches[0];
+                        }
                     }
                 }
 
@@ -209,9 +227,16 @@ namespace SalesApp.Controllers
                         Source = "XLSX"
                     });
 
-                    var unassignedKey = $"Não atribuído ({userVal})";
+                    var unassignedDisplayName = $"Não atribuído ({userVal})";
+                    var unassignedKey = NormalizeName(unassignedDisplayName);
                     userComparisonsMap.TryGetValue(unassignedKey, out var currentUnassigned);
-                    userComparisonsMap[unassignedKey] = (currentUnassigned.xlsxTotal + amountVal, currentUnassigned.sysTotal, currentUnassigned.xlsxCount + 1, currentUnassigned.sysCount);
+                    userComparisonsMap[unassignedKey] = (
+                        string.IsNullOrWhiteSpace(currentUnassigned.displayName) ? unassignedDisplayName : currentUnassigned.displayName,
+                        currentUnassigned.xlsxTotal + amountVal,
+                        currentUnassigned.sysTotal,
+                        currentUnassigned.xlsxCount + 1,
+                        currentUnassigned.sysCount
+                    );
 
                     continue; // Skip further matching if explicitly assigned to unknown user
                 }
@@ -238,9 +263,16 @@ namespace SalesApp.Controllers
                 }
 
                 var resolvedUserName = rowUser?.Name ?? targetUser?.Name ?? (string.IsNullOrWhiteSpace(userVal) ? null : userVal);
-                var xlsxUserKey = resolvedUserName ?? "Sem Usuário Atribuído";
+                var xlsxDisplayName = resolvedUserName ?? "Sem Usuário Atribuído";
+                var xlsxUserKey = NormalizeName(xlsxDisplayName);
                 userComparisonsMap.TryGetValue(xlsxUserKey, out var currentXlsx);
-                userComparisonsMap[xlsxUserKey] = (currentXlsx.xlsxTotal + amountVal, currentXlsx.sysTotal, currentXlsx.xlsxCount + 1, currentXlsx.sysCount);
+                userComparisonsMap[xlsxUserKey] = (
+                    string.IsNullOrWhiteSpace(currentXlsx.displayName) ? xlsxDisplayName : currentXlsx.displayName,
+                    currentXlsx.xlsxTotal + amountVal,
+                    currentXlsx.sysTotal,
+                    currentXlsx.xlsxCount + 1,
+                    currentXlsx.sysCount
+                );
 
                 if (systemContractsMap.TryGetValue(contractNum, out var systemContract))
                 {
@@ -330,9 +362,16 @@ namespace SalesApp.Controllers
             foreach (var sc in systemContracts)
             {
                 var sysUser = sc.UserInternalId.HasValue && userIdToUserMap.TryGetValue(sc.UserInternalId.Value, out var u) ? u.Name : (targetUser?.Name ?? "Sem Usuário Atribuído");
+                var sysUserKey = NormalizeName(sysUser);
 
-                userComparisonsMap.TryGetValue(sysUser, out var currentSys);
-                userComparisonsMap[sysUser] = (currentSys.xlsxTotal, currentSys.sysTotal + sc.TotalAmount, currentSys.xlsxCount, currentSys.sysCount + 1);
+                userComparisonsMap.TryGetValue(sysUserKey, out var currentSys);
+                userComparisonsMap[sysUserKey] = (
+                    string.IsNullOrWhiteSpace(currentSys.displayName) ? sysUser : currentSys.displayName,
+                    currentSys.xlsxTotal,
+                    currentSys.sysTotal + sc.TotalAmount,
+                    currentSys.xlsxCount,
+                    currentSys.sysCount + 1
+                );
 
                 if (!string.IsNullOrWhiteSpace(sc.ContractNumber) && !matchedSystemContractNumbers.Contains(sc.ContractNumber.Trim()))
                 {
@@ -355,18 +394,20 @@ namespace SalesApp.Controllers
                 {
                     if (userIdToUserMap.TryGetValue(memberId, out var memberUser) && !string.IsNullOrWhiteSpace(memberUser.Name))
                     {
-                        if (!userComparisonsMap.ContainsKey(memberUser.Name))
+                        var memberKey = NormalizeName(memberUser.Name);
+                        if (!userComparisonsMap.ContainsKey(memberKey))
                         {
-                            userComparisonsMap[memberUser.Name] = (0m, 0m, 0, 0);
+                            userComparisonsMap[memberKey] = (memberUser.Name, 0m, 0m, 0, 0);
                         }
                     }
                 }
             }
             else if (targetUser != null && !string.IsNullOrWhiteSpace(targetUser.Name))
             {
-                if (!userComparisonsMap.ContainsKey(targetUser.Name))
+                var targetKey = NormalizeName(targetUser.Name);
+                if (!userComparisonsMap.ContainsKey(targetKey))
                 {
-                    userComparisonsMap[targetUser.Name] = (0m, 0m, 0, 0);
+                    userComparisonsMap[targetKey] = (targetUser.Name, 0m, 0m, 0, 0);
                 }
             }
 
@@ -423,14 +464,14 @@ namespace SalesApp.Controllers
                 StatusMismatches = statusMismatches,
                 UnassignedUserContracts = unassignedUserContracts,
 
-                UserComparisons = userComparisonsMap
-                    .Select(kvp => new UserComparisonItemDto
+                UserComparisons = userComparisonsMap.Values
+                    .Select(v => new UserComparisonItemDto
                     {
-                        UserName = kvp.Key,
-                        XlsxTotal = kvp.Value.xlsxTotal,
-                        SystemTotal = kvp.Value.sysTotal,
-                        XlsxCount = kvp.Value.xlsxCount,
-                        SystemCount = kvp.Value.sysCount
+                        UserName = v.displayName,
+                        XlsxTotal = v.xlsxTotal,
+                        SystemTotal = v.sysTotal,
+                        XlsxCount = v.xlsxCount,
+                        SystemCount = v.sysCount
                     })
                     .OrderByDescending(x => x.XlsxTotal)
                     .ThenByDescending(x => x.SystemTotal)
@@ -438,6 +479,26 @@ namespace SalesApp.Controllers
             };
 
             return Ok(result);
+        }
+
+        private static string NormalizeName(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return string.Empty;
+
+            var normalizedString = name.Trim().Normalize(NormalizationForm.FormD);
+            var stringBuilder = new StringBuilder();
+            foreach (var c in normalizedString)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    stringBuilder.Append(c);
+                }
+            }
+
+            var text = stringBuilder.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
+            return Regex.Replace(text, @"\s+", " ").Trim();
         }
 
         private static string? GetColumnValue(Dictionary<string, string> row, string[] aliases)

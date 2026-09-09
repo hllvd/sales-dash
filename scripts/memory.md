@@ -345,3 +345,13 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Added response filter tabs (dinâmicas com contadores) and name/email search input in `SurveyResultModal.tsx`, updated `FEATURES.md`, and validated full suite.
 **Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 166/166, E2E Run 2: 165/165 — idempotent)
 
+## [2026-09-09] e2e — Attempt 1
+**Failure:** `user_classification_and_views.spec.ts` timeout on `classificationsLink.click()` due to Mantine modal overlay intercepting pointer events; on retry, `page.goto('/')` interrupted in `loginAs`.
+**Root cause:** A lingering modal overlay (e.g. `SurveyModal` prompt triggered on login for pending questions) blocked pointer events to the sidebar nav link. On retry, `beforeEach` called `page.goto('/')` without waiting for DOMContentLoaded before `loginAs` triggered another `page.goto('/')`.
+**Fix applied:** 
+1. Added modal/survey prompt dismissal check after `loginAs`.
+2. Wrapped sidebar navigation to `#/classifications` with try/catch fallback to direct `page.goto('/#/classifications')` after dismissing any lingering modal overlay.
+3. Added try/catch fallback to `page.goto('/#/views')` in Part B.
+4. Stabilized `beforeEach` with `await page.goto('/', { waitUntil: 'domcontentloaded' })` and cleared both `localStorage` and `sessionStorage`.
+**Result:** ✅ Green
+

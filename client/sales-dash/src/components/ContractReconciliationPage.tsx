@@ -10,6 +10,7 @@ import {
   Tabs,
   Alert,
   Loader,
+  Switch,
 } from '@mantine/core';
 import {
   IconTools,
@@ -59,6 +60,7 @@ const ContractReconciliationPage: React.FC = () => {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [allowPartialNameMatch, setAllowPartialNameMatch] = useState(false);
 
   // Teams & Users list for dropdowns
   const [teams, setTeams] = useState<Team[]>([]);
@@ -155,7 +157,8 @@ const ContractReconciliationPage: React.FC = () => {
         startDate,
         endDate,
         selectedUserId || undefined,
-        selectedTeamId ? parseInt(selectedTeamId, 10) : undefined
+        selectedTeamId ? parseInt(selectedTeamId, 10) : undefined,
+        allowPartialNameMatch
       );
       setResult(res);
       setActiveTab('missing-in-system');
@@ -297,13 +300,25 @@ const ContractReconciliationPage: React.FC = () => {
       return result.userComparisons;
     }
 
+    // Helper to normalize names
+    const normalizeName = (str?: string) => {
+      if (!str) return '';
+      return str
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+    };
+
     // Fallback if backend does not supply userComparisons directly
-    const userMap = new Map<string, { xlsxTotal: number; systemTotal: number; xlsxCount: number; systemCount: number }>();
+    const userMap = new Map<string, { displayName: string; xlsxTotal: number; systemTotal: number; xlsxCount: number; systemCount: number }>();
     const getAcc = (name: string) => {
-      let acc = userMap.get(name);
+      const key = normalizeName(name);
+      let acc = userMap.get(key);
       if (!acc) {
-        acc = { xlsxTotal: 0, systemTotal: 0, xlsxCount: 0, systemCount: 0 };
-        userMap.set(name, acc);
+        acc = { displayName: name, xlsxTotal: 0, systemTotal: 0, xlsxCount: 0, systemCount: 0 };
+        userMap.set(key, acc);
       }
       return acc;
     };
@@ -338,9 +353,9 @@ const ContractReconciliationPage: React.FC = () => {
       acc.xlsxCount += 1;
     });
 
-    return Array.from(userMap.entries())
-      .map(([userName, data]) => ({
-        userName,
+    return Array.from(userMap.values())
+      .map((data) => ({
+        userName: data.displayName,
         xlsxTotal: data.xlsxTotal,
         systemTotal: data.systemTotal,
         xlsxCount: data.xlsxCount,
@@ -431,6 +446,15 @@ const ContractReconciliationPage: React.FC = () => {
               >
                 Executar Reconciliação
               </Button>
+            </div>
+
+            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Switch
+                label="Permitir correspondência parcial de nomes de consultor/vendedor (se único)"
+                checked={allowPartialNameMatch}
+                onChange={(e) => setAllowPartialNameMatch(e.currentTarget.checked)}
+                color="blue"
+              />
             </div>
           </form>
         </div>

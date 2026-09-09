@@ -9,6 +9,13 @@ Adicionada nova análise e aba **"Comparação por Usuário"** na ferramenta de 
   - Se uma equipe for selecionada, apenas os membros e contratos pertencentes àquela equipe e período são computados, exibindo inclusive membros com 0 contratos em ambos os lados.
   - Se um usuário específico for selecionado, os dados refletem apenas a produção desse usuário.
   - O intervalo de datas de venda delimita os contratos do sistema e as linhas da planilha.
+- **Reconhecimento de Colunas (Aliases)**: Suporte a colunas como `"Consultor"`, `"Consultora"`, `"Vendedor"`, `"Vendedora"`, `"Usuário"`, `"Nome"`, além de e-mail e matrícula.
+- **Normalização de Nomes**:
+  - Sanitização com remoção de acentos/diacríticos (`FormD`), colapso de múltiplos espaços em branco e conversão para minúsculas (`ToLowerInvariant`), garantindo o cruzamento de nomes mesmo com pequenas divergências tipográficas entre planilha e sistema.
+  - Chaveamento consistente no agrupamento usando a identidade canônica do sistema para somar no mesmo registro a planilha e o sistema.
+- **Toggle de Correspondência Parcial Única**:
+  - Opção no formulário de filtros: *"Permitir correspondência parcial de nomes de consultor/vendedor (se único)"*.
+  - Quando habilitado, caso não haja match exato, busca candidatos que contenham o nome. Se encontrar **exatamente 1 consultor**, vincula; se houver ambiguidade (mais de 1) ou nenhum, mantém não atribuído.
 - **Tabela de 4 Colunas**:
   1. **Nome do Usuário**: Identificação do vendedor ou indicação de "Não atribuído / Sem Usuário".
   2. **Total Planilha**: Soma financeira (`totalAmount`) dos contratos do vendedor encontrados na planilha XLSX.
@@ -24,10 +31,10 @@ Adicionada nova análise e aba **"Comparação por Usuário"** na ferramenta de 
 ### Arquivos alterados
 - **Backend**:
   - `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs`: criação do DTO `UserComparisonItemDto` e adição da propriedade `UserComparisons` no `ContractReconciliationResultDto`.
-  - `SalesApp.Api/Controllers/ContractReconciliationController.cs`: consolidação de totais financeiros e contagens de contratos por usuário tanto do XLSX quanto do sistema respeitando escopo de equipe e usuário.
+  - `SalesApp.Api/Controllers/ContractReconciliationController.cs`: normalização de nomes, inclusão de aliases `consultor`/`vendedor`, toggle `allowPartialNameMatch`, consolidação de totais financeiros e contagens de contratos por usuário tanto do XLSX quanto do sistema respeitando escopo de equipe e usuário.
 - **Frontend**:
-  - `client/sales-dash/src/services/apiService.ts`: adição da interface `UserComparisonItem` e campo `userComparisons` em `ContractReconciliationResult`.
-  - `client/sales-dash/src/components/ContractReconciliationPage.tsx`: nova aba, card de KPI, tabela comparativa com badges de saldo e exportação CSV.
+  - `client/sales-dash/src/services/apiService.ts`: adição da interface `UserComparisonItem`, campo `userComparisons` e parâmetro `allowPartialNameMatch` em `reconcileContracts`.
+  - `client/sales-dash/src/components/ContractReconciliationPage.tsx`: nova aba, card de KPI, tabela comparativa com badges de saldo, toggle de correspondência parcial e exportação CSV.
   - `client/sales-dash/src/components/ContractReconciliationPage.css`: estilização do card de KPI azul.
 
 ---
