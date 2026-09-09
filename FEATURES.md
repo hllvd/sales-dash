@@ -15,6 +15,15 @@ Adicionado filtro MultiSelect de **Equipe** na página `/#/my-contracts`, permit
 ### Arquivos alterados
 - **Backend**: `IContractRepository.cs`, `ContractRepository.cs`, `ContractsController.cs`, `UsersController.cs` (novo `GET /users/me/teams`)
 - **Frontend**: `apiService.ts` (`getMyTeams`, `startMyContractExport`), `contractService.ts` (`getUserContracts`), `MyContractsPage.tsx`
+- **E2E**: `my_contracts_team_filter.spec.ts` (tear-3a-hierarchy)
+
+### Cobertura E2E (`my_contracts_team_filter.spec.ts`)
+- `GET /users/me/teams` retorna apenas as equipes do vendedor (históricas + atuais)
+- MultiSelect renderiza com opções corretas na UI
+- Selecionar uma equipe dispara `teamIds` no request para `/contracts/user/{id}`
+- Filtro temporal: contrato do período Alpha visível com Alpha selecionado, Beta ausente
+- Filtro temporal inverso: contrato do período Beta visível com Beta selecionado, Alpha ausente
+- "Limpar Filtros" reseta o MultiSelect e esconde o botão
 
 ---
 

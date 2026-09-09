@@ -338,3 +338,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Contract `868498` has `SaleStartDate = 2025-06-05`. As date advanced to 2026-09-07, the default 15-month date filter (`StartDate >= 2025-06-07`) in `ContractsPage.tsx` filtered out the contract because the test did not clear filters before searching.
 **Fix applied:** Updated `import_wizard_verification.spec.ts` to click `button.clear-filters-btn` before searching by contract number (matching the pattern used by other historical import E2E specs).
 **Result:** ✅ Green (Build PASSED, all integration tests PASSED, 159/159 E2E Run 1, 160/160 E2E Run 2 — idempotent)
+
+## [2026-09-09] e2e — Attempt 1
+**Failure:** `my_contracts_team_filter.spec.ts` failed on seller registration (`Name não pode conter números`) and `waitForResponse` timeout in test 4.
+**Root cause:** 1) `seller.name` used `RUN_ID` containing numeric timestamp suffix, violating backend Name validator. 2) In Tests 4 and 5, `page.waitForResponse` was registered after clicking the filter option, creating a race condition where fast responses completed before the listener was attached.
+**Fix applied:** 1) Separated `RUN_LETTERS` (letters only) for user `name` while keeping `RUN_ID` for email and team names, and added self-healing registration for idempotent runs. 2) Set up `waitForResponse` promise before triggering the click action that dispatches the API request in Tests 4 and 5.
+**Result:** ✅ Green (164/164 E2E tests passed after `./test.sh rm-db && ./test.sh e2e`)
+
