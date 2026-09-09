@@ -72,7 +72,38 @@ namespace SalesApp.Controllers
             _adminInfo = adminInfoOptions.Value;
         }
 
+        // ── My-Teams endpoint ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns the distinct teams the current user belongs to or has belonged to.
+        /// Used to populate the team filter on the "My Contracts" page.
+        /// </summary>
+        [HttpGet("me/teams")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<List<object>>>> GetMyTeams()
+        {
+            var currentUserId = GetCurrentUserId();
+            var user = await _context.Users
+                .AsNoTracking()
+                .Include(u => u.UserTeams)
+                    .ThenInclude(ut => ut.Team)
+                .FirstOrDefaultAsync(u => u.Id == currentUserId);
+
+            if (user == null)
+                return NotFound(new ApiResponse<List<object>> { Success = false, Message = "User not found" });
+
+            var teams = user.UserTeams
+                .Where(ut => ut.Team != null)
+                .GroupBy(ut => ut.TeamId)
+                .Select(g => new { id = g.Key, name = g.First().Team.Name })
+                .OrderBy(t => t.name)
+                .ToList<object>();
+
+            return Ok(new ApiResponse<List<object>> { Success = true, Data = teams });
+        }
+
         // ── My-Contracts Export endpoints ────────────────────────────────────
+
         
         /// <summary>
         /// Queue an async XLSX export scoped strictly to the current user's own contracts.

@@ -1,5 +1,23 @@
 # Features
 
+## Filtro de Equipe em Meus Contratos (`/#/my-contracts`)
+
+Adicionado filtro MultiSelect de **Equipe** na página `/#/my-contracts`, permitindo que o usuário filtre seus contratos pela equipe à qual pertencia na época da venda.
+
+### Comportamento
+- O filtro exibe apenas as equipes às quais o usuário logado pertence ou pertenceu (históricas e atuais).
+- A filtragem considera a data de participação: um contrato é incluído se `UserTeam.StartDate ≤ SaleStartDate ≤ UserTeam.EndDate` (ou `EndDate` nulo = ainda ativo).
+- Suporta múltipla seleção (MultiSelect com busca e clear).
+- Exibe "Todos" por padrão — sem persistência em `localStorage`.
+- O filtro é incluído na exportação Excel (`startMyContractExport`).
+- O botão "Limpar Filtros" também reseta a seleção de equipes.
+
+### Arquivos alterados
+- **Backend**: `IContractRepository.cs`, `ContractRepository.cs`, `ContractsController.cs`, `UsersController.cs` (novo `GET /users/me/teams`)
+- **Frontend**: `apiService.ts` (`getMyTeams`, `startMyContractExport`), `contractService.ts` (`getUserContracts`), `MyContractsPage.tsx`
+
+---
+
 ## Desativação Direta de Usuário e Ferramenta Admin de Migração de Contratos (Direct User Deactivation & Admin Contract Migration Tool)
 
 Esta funcionalidade atualiza o ciclo de vida e desativação de usuários no sistema e introduz uma ferramenta administrativa dedicada para migração manual de contratos entre usuários.

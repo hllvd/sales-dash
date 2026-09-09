@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Title, Button, Table, TextInput, Select, Alert, Badge } from '@mantine/core';
+import { Title, Button, Table, TextInput, Select, Alert, Badge, MultiSelect } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { normalizeNumber, normalizeName } from '../utils/normalization';
 import './MyContractsPage.css';
@@ -50,6 +50,10 @@ const MyContractsPage: React.FC = () => {
   const [matriculaFilter, setMatriculaFilter] = useState<string>('');
   const [debouncedMatricula, setDebouncedMatricula] = useState<string>('');
 
+  // Team filter state — always resets to "Todos" (empty) on mount
+  const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]);
+  const [myTeams, setMyTeams] = useState<Array<{ value: string; label: string }>>([]);
+
   // Contract assignment state
   const [contractNumber, setContractNumber] = useState('');
   const [retrievedContract, setRetrievedContract] = useState<Contract | null>(null);
@@ -78,12 +82,14 @@ const MyContractsPage: React.FC = () => {
         return;
       }
 
-      // Load contracts for current user with date filters
+      // Load contracts for current user with date and team filters
+      const teamIdsAsNumbers = filterTeamIds.map(id => parseInt(id, 10));
       const { contracts: data, aggregation: aggData } = await getUserContracts(
         userId,
         startDate || undefined,
         endDate || undefined,
-        debouncedMatricula || undefined
+        debouncedMatricula || undefined,
+        teamIdsAsNumbers.length > 0 ? teamIdsAsNumbers : undefined
       );
       if (requestId !== requestCountRef.current) return;
       setContracts(data);
@@ -96,7 +102,7 @@ const MyContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [startDate, endDate, debouncedMatricula, currentUser]);
+  }, [startDate, endDate, debouncedMatricula, filterTeamIds, currentUser]);
 
   // Load saved date filters from localStorage
   useEffect(() => {
@@ -115,6 +121,17 @@ const MyContractsPage: React.FC = () => {
     }, 500);
     return () => clearTimeout(timer);
   }, [matriculaFilter]);
+
+  // Load the current user's team history (for the Equipe filter options)
+  useEffect(() => {
+    apiService.getMyTeams()
+      .then(res => {
+        if (res.success && res.data) {
+          setMyTeams(res.data.map(t => ({ value: String(t.id), label: t.name })));
+        }
+      })
+      .catch(err => console.error('Failed to load my teams:', err));
+  }, []);
 
   const loadPendingClaims = useCallback(async () => {
     try {
@@ -306,6 +323,7 @@ const MyContractsPage: React.FC = () => {
     setEndDate('');
     setMatriculaFilter('');
     setDebouncedMatricula('');
+    setFilterTeamIds([]);
     localStorage.removeItem('myContracts_startDate');
     localStorage.removeItem('myContracts_endDate');
     localStorage.removeItem('myContracts_matricula');
@@ -363,9 +381,13 @@ const MyContractsPage: React.FC = () => {
               onExport={async () => {
                 setIsExporting(true);
                 try {
+                  const teamIdsForExport = filterTeamIds.length > 0
+                    ? filterTeamIds.map(id => parseInt(id, 10))
+                    : undefined;
                   const job = await apiService.startMyContractExport({
                     startDate: startDate || undefined,
                     endDate: endDate || undefined,
+                    teamIds: teamIdsForExport,
                   });
                   setExportJobId(job.jobId);
                 } catch (e: any) {
@@ -392,7 +414,7 @@ const MyContractsPage: React.FC = () => {
 
         {error && <div className="my-contracts-error">{error}</div>}
 
-        {/* Date Filters */}
+        {/* Filters */}
         {(
           <div className="date-filters">
             <div className="filter-group">
@@ -428,8 +450,21 @@ const MyContractsPage: React.FC = () => {
                 }}
               />
             </div>
+            {myTeams.length > 0 && (
+              <div className="filter-group">
+                <label>Equipe:</label>
+                <MultiSelect
+                  placeholder="Todos"
+                  value={filterTeamIds}
+                  onChange={setFilterTeamIds}
+                  data={myTeams}
+                  clearable
+                  searchable
+                />
+              </div>
+            )}
             <div className="filter-actions">
-              {(startDate || endDate || matriculaFilter) && (
+              {(startDate || endDate || matriculaFilter || filterTeamIds.length > 0) && (
                 <Button onClick={handleClearFilters} variant="subtle" size="sm">
                   Limpar Filtros
                 </Button>
@@ -445,7 +480,7 @@ const MyContractsPage: React.FC = () => {
           </div>
         ) : contracts.length === 0 ? (
           <div className="my-contracts-empty">
-            {startDate || endDate || matriculaFilter ? (
+            {startDate || endDate || matriculaFilter || filterTeamIds.length > 0 ? (
               <>
                 <p>Nenhum contrato correspondente aos filtros aplicados foi encontrado. Você pode limpar os filtros para tentar novamente.</p>
                 <Button onClick={handleClearFilters}>

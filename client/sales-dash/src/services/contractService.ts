@@ -339,12 +339,16 @@ export const getUserContracts = async (
   userId: string,
   startDate?: string,
   endDate?: string,
-  matricula?: string
+  matricula?: string,
+  teamIds?: number[]
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
   const params = new URLSearchParams();
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
   if (matricula) params.append('matricula', matricula);
+  if (teamIds && teamIds.length > 0) {
+    teamIds.forEach(id => params.append('teamIds', String(id)));
+  }
 
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts/user/${userId}${queryString ? `?${queryString}` : ''}`;
@@ -361,6 +365,7 @@ export const getUserContracts = async (
   const data: ApiResponse<Contract[]> = await response.json();
   return { contracts: data.data, aggregation: data.aggregation };
 };
+
 
 
 export const getContract = async (id: number): Promise<Contract> => {

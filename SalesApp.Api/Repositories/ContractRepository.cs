@@ -298,7 +298,7 @@ namespace SalesApp.Repositories
             };
         }
         
-        public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null)
+        public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null, List<int>? teamIds = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -323,9 +323,22 @@ namespace SalesApp.Repositories
                     (!string.IsNullOrEmpty(c.TempMatricula) && c.TempMatricula.ToLower().Contains(normalizedMatricula))
                 );
             }
+
+            if (teamIds != null && teamIds.Any())
+            {
+                query = query.Where(c =>
+                    _context.UserTeams.Any(ut =>
+                        ut.UserInternalId == c.User.InternalId &&
+                        teamIds.Contains(ut.TeamId) &&
+                        ut.StartDate <= c.SaleStartDate &&
+                        (ut.EndDate == null || ut.EndDate >= c.SaleStartDate)
+                    )
+                );
+            }
             
             return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
         }
+
         
         public async Task<List<Contract>> GetByUploadIdAsync(string uploadId)
         {

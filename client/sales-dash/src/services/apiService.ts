@@ -1064,6 +1064,7 @@ export const apiService = {
   async startMyContractExport(filters: {
     startDate?: string;
     endDate?: string;
+    teamIds?: number[];
   }): Promise<{ jobId: string; status: string; totalRows: number; processedRows: number }> {
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/contracts/export`, {
       method: 'POST',
@@ -1083,6 +1084,15 @@ export const apiService = {
     return `${API_BASE_URL}/users/me/contracts/export/${jobId}`;
   },
 
+  // Returns the teams the current user belongs to or has belonged to
+  async getMyTeams(): Promise<ApiResponse<Array<{ id: number; name: string }>>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/teams`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to fetch my teams')
+    return response.json()
+  },
+
   // Teams Management methods
   async getTeams(): Promise<ApiResponse<Team[]>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams`, {
@@ -1091,6 +1101,7 @@ export const apiService = {
     if (!response.ok) throw new Error("Failed to fetch teams")
     return response.json()
   },
+
 
   async getTeam(id: number): Promise<ApiResponse<Team>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}`, {

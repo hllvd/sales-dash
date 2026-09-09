@@ -177,7 +177,8 @@ namespace SalesApp.Controllers
             Guid userId,
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
-            [FromQuery] string? matricula = null)
+            [FromQuery] string? matricula = null,
+            [FromQuery] List<int>? teamIds = null)
         {
             var currentUserId = GetCurrentUserId();
             var hasReadPermission = User.HasClaim("perm", "contracts:read") || User.HasClaim("perm", "system:superadmin");
@@ -187,7 +188,7 @@ namespace SalesApp.Controllers
                 return Forbid();
             }
             
-            var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate, matricula);
+            var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate, matricula, teamIds);
             
             var contractResponses = contracts.Select(MapToContractResponse).ToList();
             
@@ -202,6 +203,7 @@ namespace SalesApp.Controllers
                 Aggregation = aggregation
             });
         }
+
         
         [HttpGet("aggregation/historic-production")]
         [HasPermission("contracts:read")]
