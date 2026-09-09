@@ -339,9 +339,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated `import_wizard_verification.spec.ts` to click `button.clear-filters-btn` before searching by contract number (matching the pattern used by other historical import E2E specs).
 **Result:** ✅ Green (Build PASSED, all integration tests PASSED, 159/159 E2E Run 1, 160/160 E2E Run 2 — idempotent)
 
-## [2026-09-09] e2e — Attempt 1
-**Failure:** `my_contracts_team_filter.spec.ts` failed on seller registration (`Name não pode conter números`) and `waitForResponse` timeout in test 4.
-**Root cause:** 1) `seller.name` used `RUN_ID` containing numeric timestamp suffix, violating backend Name validator. 2) In Tests 4 and 5, `page.waitForResponse` was registered after clicking the filter option, creating a race condition where fast responses completed before the listener was attached.
-**Fix applied:** 1) Separated `RUN_LETTERS` (letters only) for user `name` while keeping `RUN_ID` for email and team names, and added self-healing registration for idempotent runs. 2) Set up `waitForResponse` promise before triggering the click action that dispatches the API request in Tests 4 and 5.
-**Result:** ✅ Green (164/164 E2E tests passed after `./test.sh rm-db && ./test.sh e2e`)
+## [2026-09-09] all — Attempt 1
+**Failure:** None — full verification run for Survey responses filter feature.
+**Root cause:** N/A.
+**Fix applied:** Added response filter tabs (dinâmicas com contadores) and name/email search input in `SurveyResultModal.tsx`, updated `FEATURES.md`, and validated full suite.
+**Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 166/166, E2E Run 2: 165/165 — idempotent)
 

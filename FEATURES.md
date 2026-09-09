@@ -1060,9 +1060,11 @@ Permite que superadministradores criem e distribuam perguntas rápidas (Sim/Não
   - Badge numérico vermelho no item `"QA"` do menu indicando a quantidade de perguntas pendentes.
   - Página dedicada de histórico (`#/qa`) disponível para todos os usuários com abas: Todas, Pendentes, Respondidas e Expiradas.
   - Botão de "Responder agora" diretamente pelo histórico.
-- **Relatório de Resultados e Reenvio**:
+- **Relatório de Resultados, Filtragem e Reenvio**:
   - Superadministradores visualizam estatísticas agregadas (gráfico de progresso percentual e total de votos por opção).
   - Tabela detalhada de respostas individuais por usuário com data e hora.
+  - **Filtro de Respostas por Abas**: Abas dinâmicas baseadas no tipo e opções da pergunta ("Todas", "Sim", "Não", "Não respondidas" ou opções customizadas), exibindo contadores em tempo real para isolar usuários por resposta.
+  - **Busca por Nome e Email**: Campo de texto com busca instantânea combinável com o filtro de abas.
   - Ação de **Reenviar para não respondidos**: redefine o status para pendente, reseta o TTL para mais 2 dias e reativa os avisos no cliente.
 
 ### Key Files Created/Modified

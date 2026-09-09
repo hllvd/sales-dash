@@ -101,6 +101,24 @@ test.describe('Surveys / QA Feature (TEAR 3B)', () => {
     await expect(resultModal.locator('td', { hasText: 'Sim' })).toBeVisible({ timeout: 10000 });
     await expect(resultModal.getByText('1 voto(s)')).toBeVisible();
 
+    // 10. Test filter tabs and search query inside resultModal
+    // Click "Não" tab - user responded "Sim", so table should be empty
+    await resultModal.getByRole('tab', { name: /Não \(/i }).click();
+    await expect(resultModal.getByText('Nenhuma resposta encontrada para os filtros selecionados.')).toBeVisible();
+
+    // Click "Sim" tab - user should be visible
+    await resultModal.getByRole('tab', { name: /Sim \(/i }).click();
+    await expect(resultModal.locator('td', { hasText: 'Sim' })).toBeVisible();
+
+    // Test search input - search non-existent name
+    const searchInput = resultModal.getByPlaceholder('Buscar por nome ou email...');
+    await searchInput.fill('NonExistentUserXYZ');
+    await expect(resultModal.getByText('Nenhuma resposta encontrada para os filtros selecionados.')).toBeVisible();
+
+    // Clear search input
+    await searchInput.fill('Super');
+    await expect(resultModal.locator('td', { hasText: 'Sim' })).toBeVisible();
+
     // Close result modal
     await resultModal.locator('.mantine-Modal-close').click();
     await expect(resultModal).not.toBeVisible();
