@@ -1,5 +1,37 @@
 # Features
 
+## Comparação por Usuário na Reconciliação de Contratos (`/#/contract-reconciliation`)
+
+Adicionada nova análise e aba **"Comparação por Usuário"** na ferramenta de Reconciliação de Contratos (`/#/contract-reconciliation`), permitindo cruzar a produção e quantidade de contratos entre a planilha de auditoria (XLSX) e o banco de dados do sistema, por vendedor/usuário.
+
+### Comportamento e Regras
+- **Filtros Respeitados**: Todos os filtros de cabeçalho da reconciliação (Data Inicial, Data Final, Equipe e Usuário Específico) são rigorosamente respeitados:
+  - Se uma equipe for selecionada, apenas os membros e contratos pertencentes àquela equipe e período são computados, exibindo inclusive membros com 0 contratos em ambos os lados.
+  - Se um usuário específico for selecionado, os dados refletem apenas a produção desse usuário.
+  - O intervalo de datas de venda delimita os contratos do sistema e as linhas da planilha.
+- **Tabela de 4 Colunas**:
+  1. **Nome do Usuário**: Identificação do vendedor ou indicação de "Não atribuído / Sem Usuário".
+  2. **Total Planilha**: Soma financeira (`totalAmount`) dos contratos do vendedor encontrados na planilha XLSX.
+  3. **Total Sistema**: Soma financeira (`totalAmount`) dos contratos do vendedor cadastrados no sistema dentro do período.
+  4. **Qtd Contratos**: Indicador da diferença de quantidade de contratos entre a planilha e o sistema (`XLSX - Sistema`), com badge dinâmica e detalhamento:
+     - `+N`: Badge verde quando o XLSX possui contratos a mais do que o sistema (`+N (X xlsx / Y sistema)`).
+     - `-N`: Badge vermelha quando o XLSX possui contratos a menos do que o sistema (`-N (X xlsx / Y sistema)`).
+     - `0`: Badge neutra quando a quantidade é idêntica (`0 (X contratos)`).
+- **KPI Card Dedicado**: Novo card azul no painel de resumo de reconciliação exibindo o número total de usuários analisados e quantos possuem divergência de contratos.
+- **Busca em Tempo Real**: Barra de pesquisa integrada para filtrar rapidamente os usuários da tabela.
+- **Exportação CSV**: Botão "Exportar Relatório CSV" exporta a relação completa com as 4 colunas formatadas para download (`reconciliacao_comparacao_usuarios_YYYY-MM-DD.csv`).
+
+### Arquivos alterados
+- **Backend**:
+  - `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs`: criação do DTO `UserComparisonItemDto` e adição da propriedade `UserComparisons` no `ContractReconciliationResultDto`.
+  - `SalesApp.Api/Controllers/ContractReconciliationController.cs`: consolidação de totais financeiros e contagens de contratos por usuário tanto do XLSX quanto do sistema respeitando escopo de equipe e usuário.
+- **Frontend**:
+  - `client/sales-dash/src/services/apiService.ts`: adição da interface `UserComparisonItem` e campo `userComparisons` em `ContractReconciliationResult`.
+  - `client/sales-dash/src/components/ContractReconciliationPage.tsx`: nova aba, card de KPI, tabela comparativa com badges de saldo e exportação CSV.
+  - `client/sales-dash/src/components/ContractReconciliationPage.css`: estilização do card de KPI azul.
+
+---
+
 ## Filtro de Equipe em Meus Contratos (`/#/my-contracts`)
 
 Adicionado filtro MultiSelect de **Equipe** na página `/#/my-contracts`, permitindo que o usuário filtre seus contratos pela equipe à qual pertencia na época da venda.

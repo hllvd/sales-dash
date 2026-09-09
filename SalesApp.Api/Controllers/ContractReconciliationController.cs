@@ -155,6 +155,7 @@ namespace SalesApp.Controllers
             var sellerMismatches = new List<SellerMismatchItemDto>();
             var statusMismatches = new List<StatusMismatchItemDto>();
             var unassignedUserContracts = new List<ReconciledContractItemDto>();
+            var userComparisonsMap = new Dictionary<string, (decimal xlsxTotal, decimal sysTotal, int xlsxCount, int sysCount)>(StringComparer.OrdinalIgnoreCase);
 
             // System contract matching lookup
             // Key: ContractNumber (Trim + Lower) -> Contract entity
@@ -207,6 +208,11 @@ namespace SalesApp.Controllers
                         Date = dateVal,
                         Source = "XLSX"
                     });
+
+                    var unassignedKey = $"Não atribuído ({userVal})";
+                    userComparisonsMap.TryGetValue(unassignedKey, out var currentUnassigned);
+                    userComparisonsMap[unassignedKey] = (currentUnassigned.xlsxTotal + amountVal, currentUnassigned.sysTotal, currentUnassigned.xlsxCount + 1, currentUnassigned.sysCount);
+
                     continue; // Skip further matching if explicitly assigned to unknown user
                 }
 
@@ -232,6 +238,9 @@ namespace SalesApp.Controllers
                 }
 
                 var resolvedUserName = rowUser?.Name ?? targetUser?.Name ?? (string.IsNullOrWhiteSpace(userVal) ? null : userVal);
+                var xlsxUserKey = resolvedUserName ?? "Sem Usuário Atribuído";
+                userComparisonsMap.TryGetValue(xlsxUserKey, out var currentXlsx);
+                userComparisonsMap[xlsxUserKey] = (currentXlsx.xlsxTotal + amountVal, currentXlsx.sysTotal, currentXlsx.xlsxCount + 1, currentXlsx.sysCount);
 
                 if (systemContractsMap.TryGetValue(contractNum, out var systemContract))
                 {
@@ -317,13 +326,16 @@ namespace SalesApp.Controllers
                 }
             }
 
-            // Contracts in System but NOT in XLSX
+            // Contracts in System (all tracked for user comparison, plus missingInImport check)
             foreach (var sc in systemContracts)
             {
+                var sysUser = sc.UserInternalId.HasValue && userIdToUserMap.TryGetValue(sc.UserInternalId.Value, out var u) ? u.Name : (targetUser?.Name ?? "Sem Usuário Atribuído");
+
+                userComparisonsMap.TryGetValue(sysUser, out var currentSys);
+                userComparisonsMap[sysUser] = (currentSys.xlsxTotal, currentSys.sysTotal + sc.TotalAmount, currentSys.xlsxCount, currentSys.sysCount + 1);
+
                 if (!string.IsNullOrWhiteSpace(sc.ContractNumber) && !matchedSystemContractNumbers.Contains(sc.ContractNumber.Trim()))
                 {
-                    var sysUser = sc.UserInternalId.HasValue && userIdToUserMap.TryGetValue(sc.UserInternalId.Value, out var u) ? u.Name : targetUser?.Name;
-
                     missingInImport.Add(new ReconciledContractItemDto
                     {
                         ContractNumber = sc.ContractNumber,
@@ -333,6 +345,28 @@ namespace SalesApp.Controllers
                         Date = sc.SaleStartDate,
                         Source = "System"
                     });
+                }
+            }
+
+            // Ensure all members of selected team or specific user are in user comparison (even with 0 contracts)
+            if (activeTeamMemberInternalIds != null)
+            {
+                foreach (var memberId in activeTeamMemberInternalIds)
+                {
+                    if (userIdToUserMap.TryGetValue(memberId, out var memberUser) && !string.IsNullOrWhiteSpace(memberUser.Name))
+                    {
+                        if (!userComparisonsMap.ContainsKey(memberUser.Name))
+                        {
+                            userComparisonsMap[memberUser.Name] = (0m, 0m, 0, 0);
+                        }
+                    }
+                }
+            }
+            else if (targetUser != null && !string.IsNullOrWhiteSpace(targetUser.Name))
+            {
+                if (!userComparisonsMap.ContainsKey(targetUser.Name))
+                {
+                    userComparisonsMap[targetUser.Name] = (0m, 0m, 0, 0);
                 }
             }
 
@@ -387,7 +421,20 @@ namespace SalesApp.Controllers
                 DateMismatches = dateMismatches,
                 SellerMismatches = sellerMismatches,
                 StatusMismatches = statusMismatches,
-                UnassignedUserContracts = unassignedUserContracts
+                UnassignedUserContracts = unassignedUserContracts,
+
+                UserComparisons = userComparisonsMap
+                    .Select(kvp => new UserComparisonItemDto
+                    {
+                        UserName = kvp.Key,
+                        XlsxTotal = kvp.Value.xlsxTotal,
+                        SystemTotal = kvp.Value.sysTotal,
+                        XlsxCount = kvp.Value.xlsxCount,
+                        SystemCount = kvp.Value.sysCount
+                    })
+                    .OrderByDescending(x => x.XlsxTotal)
+                    .ThenByDescending(x => x.SystemTotal)
+                    .ToList()
             };
 
             return Ok(result);

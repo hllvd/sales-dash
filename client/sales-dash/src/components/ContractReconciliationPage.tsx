@@ -24,11 +24,13 @@ import {
   IconCalendarTime,
   IconUserExclamation,
   IconTags,
+  IconUsers,
 } from '@tabler/icons-react';
 import {
   apiService,
   ContractReconciliationResult,
   Team,
+  UserComparisonItem,
 } from '../services/apiService';
 import Menu from './Menu';
 import './ContractReconciliationPage.css';
@@ -234,6 +236,15 @@ const ContractReconciliationPage: React.FC = () => {
         `"${item.userIdentifier || ''}"`,
         `"${formatDate(item.date)}"`,
       ]);
+    } else if (activeTab === 'user-comparison') {
+      filename = `reconciliacao_comparacao_usuarios_${todayStr}.csv`;
+      headers = ['Nome do Usuário', 'Total Planilha', 'Total Sistema', 'Qtd Contratos'];
+      rows = filteredUserComparisons.map((item) => [
+        `"${item.userName}"`,
+        item.xlsxTotal.toFixed(2),
+        item.systemTotal.toFixed(2),
+        item.contractDiff > 0 ? `+${item.contractDiff}` : `${item.contractDiff}`,
+      ]);
     }
 
     const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
@@ -279,6 +290,71 @@ const ContractReconciliationPage: React.FC = () => {
 
   const filteredUnassigned =
     result?.unassignedUserContracts.filter((i) => filterItem(i.contractNumber, i.userIdentifier)) || [];
+
+  const userComparisonData = useMemo<UserComparisonItem[]>(() => {
+    if (!result) return [];
+    if (result.userComparisons && result.userComparisons.length > 0) {
+      return result.userComparisons;
+    }
+
+    // Fallback if backend does not supply userComparisons directly
+    const userMap = new Map<string, { xlsxTotal: number; systemTotal: number; xlsxCount: number; systemCount: number }>();
+    const getAcc = (name: string) => {
+      let acc = userMap.get(name);
+      if (!acc) {
+        acc = { xlsxTotal: 0, systemTotal: 0, xlsxCount: 0, systemCount: 0 };
+        userMap.set(name, acc);
+      }
+      return acc;
+    };
+
+    result.missingInSystem.forEach((item) => {
+      const u = item.systemUserName || item.userIdentifier || 'Sem Usuário Atribuído';
+      const acc = getAcc(u);
+      acc.xlsxTotal += item.totalAmount;
+      acc.xlsxCount += 1;
+    });
+
+    result.missingInImport.forEach((item) => {
+      const u = item.systemUserName || item.userIdentifier || 'Sem Usuário Atribuído';
+      const acc = getAcc(u);
+      acc.systemTotal += item.totalAmount;
+      acc.systemCount += 1;
+    });
+
+    result.amountMismatches.forEach((item) => {
+      const u = item.systemUserName || item.userIdentifier || 'Sem Usuário Atribuído';
+      const acc = getAcc(u);
+      acc.xlsxTotal += item.xlsxAmount;
+      acc.systemTotal += item.systemAmount;
+      acc.xlsxCount += 1;
+      acc.systemCount += 1;
+    });
+
+    result.unassignedUserContracts.forEach((item) => {
+      const u = item.userIdentifier ? `Não atribuído (${item.userIdentifier})` : 'Sem Usuário Atribuído';
+      const acc = getAcc(u);
+      acc.xlsxTotal += item.totalAmount;
+      acc.xlsxCount += 1;
+    });
+
+    return Array.from(userMap.entries())
+      .map(([userName, data]) => ({
+        userName,
+        xlsxTotal: data.xlsxTotal,
+        systemTotal: data.systemTotal,
+        xlsxCount: data.xlsxCount,
+        systemCount: data.systemCount,
+        contractDiff: data.xlsxCount - data.systemCount,
+      }))
+      .sort((a, b) => b.xlsxTotal - a.xlsxTotal || b.systemTotal - a.systemTotal);
+  }, [result]);
+
+  const filteredUserComparisons = useMemo(() => {
+    if (!searchQuery.trim()) return userComparisonData;
+    const q = searchQuery.toLowerCase().trim();
+    return userComparisonData.filter((item) => item.userName.toLowerCase().includes(q));
+  }, [userComparisonData, searchQuery]);
 
   return (
     <Menu>
@@ -499,6 +575,25 @@ const ContractReconciliationPage: React.FC = () => {
                   Total XLSX: {formatCurrency(result.unassignedUserSummary.totalAmount)}
                 </div>
               </div>
+
+              {/* Card 8: User Comparison */}
+              <div
+                className={`kpi-card blue ${activeTab === 'user-comparison' ? 'active' : ''}`}
+                onClick={() => setActiveTab('user-comparison')}
+              >
+                <div className="kpi-header">
+                  <span className="kpi-label">Comparação por Usuário</span>
+                  <div className="kpi-icon-wrapper">
+                    <IconUsers size={20} />
+                  </div>
+                </div>
+                <div className="kpi-count">{userComparisonData.length}</div>
+                <div className="kpi-amount">
+                  {userComparisonData.filter(u => u.contractDiff !== 0).length > 0
+                    ? `${userComparisonData.filter(u => u.contractDiff !== 0).length} com divergência`
+                    : 'Todos equalizados'}
+                </div>
+              </div>
             </div>
 
             {/* Interactive Detailed Table Card */}
@@ -589,6 +684,18 @@ const ContractReconciliationPage: React.FC = () => {
                     }
                   >
                     Importados sem Usuário
+                  </Tabs.Tab>
+
+                  <Tabs.Tab
+                    value="user-comparison"
+                    leftSection={<IconUsers size={16} />}
+                    rightSection={
+                      <Badge size="xs" color="blue" variant="filled">
+                        {userComparisonData.length}
+                      </Badge>
+                    }
+                  >
+                    Comparação por Usuário
                   </Tabs.Tab>
                 </Tabs.List>
 
@@ -913,6 +1020,56 @@ const ContractReconciliationPage: React.FC = () => {
                                 <Text size="sm" color="dimmed">
                                   Usuário não localizado no banco de dados
                                 </Text>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    </div>
+                  )}
+                </Tabs.Panel>
+
+                {/* Tab 8: User Comparison */}
+                <Tabs.Panel value="user-comparison">
+                  {filteredUserComparisons.length === 0 ? (
+                    <div className="empty-state">
+                      <IconCheck className="empty-icon" color="green" />
+                      <Text fw={600}>Nenhum usuário encontrado para os filtros selecionados!</Text>
+                      <Text size="sm">Não há dados de produção para comparar entre a planilha e o sistema.</Text>
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <Table striped highlightOnHover>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Nome do Usuário</Table.Th>
+                            <Table.Th>Total Planilha</Table.Th>
+                            <Table.Th>Total Sistema</Table.Th>
+                            <Table.Th>Qtd Contratos</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {filteredUserComparisons.map((item, index) => (
+                            <Table.Tr key={index}>
+                              <Table.Td>
+                                <Text fw={600}>{item.userName}</Text>
+                              </Table.Td>
+                              <Table.Td>{formatCurrency(item.xlsxTotal)}</Table.Td>
+                              <Table.Td>{formatCurrency(item.systemTotal)}</Table.Td>
+                              <Table.Td>
+                                {item.contractDiff > 0 ? (
+                                  <Badge color="green" variant="light">
+                                    +{item.contractDiff} ({item.xlsxCount} xlsx / {item.systemCount} sistema)
+                                  </Badge>
+                                ) : item.contractDiff < 0 ? (
+                                  <Badge color="red" variant="light">
+                                    {item.contractDiff} ({item.xlsxCount} xlsx / {item.systemCount} sistema)
+                                  </Badge>
+                                ) : (
+                                  <Badge color="gray" variant="light">
+                                    0 ({item.xlsxCount} contratos)
+                                  </Badge>
+                                )}
                               </Table.Td>
                             </Table.Tr>
                           ))}

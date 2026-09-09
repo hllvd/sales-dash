@@ -2215,6 +2215,15 @@ export interface ReconciliationCategorySummary {
   totalAmount: number
 }
 
+export interface UserComparisonItem {
+  userName: string
+  xlsxTotal: number
+  systemTotal: number
+  xlsxCount: number
+  systemCount: number
+  contractDiff: number
+}
+
 export interface ContractReconciliationResult {
   startDate: string
   endDate: string
@@ -2236,6 +2245,7 @@ export interface ContractReconciliationResult {
   sellerMismatches: SellerMismatchItem[]
   statusMismatches: StatusMismatchItem[]
   unassignedUserContracts: ReconciledContractItem[]
+  userComparisons?: UserComparisonItem[]
 }
 
 export interface RetentionFilterStats {
