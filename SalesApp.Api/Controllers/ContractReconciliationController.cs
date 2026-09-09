@@ -145,8 +145,15 @@ namespace SalesApp.Controllers
 
             // Setup Column Headers Aliases
             var contractNumAliases = new[] { "contractnumber", "contrato", "numerocontrato", "numero do contrato", "número do contrato", "proposta", "codigo", "código", "number" };
-            var amountAliases = new[] { "totalamount", "valor", "valortotal", "valor total", "amount", "preco", "preço", "valor_total" };
-            var userAliases = new[] { "consultor", "consultora", "vendedor", "vendedora", "useremail", "email", "e-mail", "matricula", "matrícula", "cpf", "userinternalid", "usuario", "usuário", "nome" };
+            // Give top priority to "valor" (exact match first)
+            var amountAliases = new[] { "valor", "valortotal", "valor total", "totalamount", "amount", "preco", "preço", "valor_total", "total" };
+            var amountExcludedSubstrings = new[] { "parcela", "taxa", "entrada", "comissao", "comissão" };
+
+            // Prioritize explicit seller/consultant columns before generic/matricula/email fields
+            var sellerNameAliases = new[] { "consultor", "consultora", "vendedor", "vendedora", "comissionado", "comissionada", "assessor", "assessora", "corretor", "corretora" };
+            var sellerSecondaryAliases = new[] { "useremail", "email", "e-mail", "matricula", "matrícula", "cpf", "userinternalid", "usuario", "usuário", "nome" };
+            var sellerExcludedSubstrings = new[] { "nomepv", "nomedopv", "cliente", "nomedocliente", "pv" };
+
             var dateAliases = new[] { "date", "salestartdate", "datavenda", "data da venda", "data", "createdat" };
             var statusAliases = new[] { "status", "situacao", "situação", "estado", "rawstatus", "raw stats", "raw_status" };
 
@@ -180,8 +187,9 @@ namespace SalesApp.Controllers
                     continue;
 
                 contractNum = contractNum.Trim();
-                var amountVal = ParseDecimal(GetColumnValue(row, amountAliases));
-                var userVal = GetColumnValue(row, userAliases)?.Trim();
+                var amountVal = ParseDecimal(GetColumnValue(row, amountAliases, amountExcludedSubstrings));
+                var userVal = (GetColumnValue(row, sellerNameAliases, sellerExcludedSubstrings)
+                               ?? GetColumnValue(row, sellerSecondaryAliases, sellerExcludedSubstrings))?.Trim();
                 var dateVal = ParseDateTime(GetColumnValue(row, dateAliases));
 
                 // Resolve User for row
@@ -501,24 +509,50 @@ namespace SalesApp.Controllers
             return Regex.Replace(text, @"\s+", " ").Trim();
         }
 
-        private static string? GetColumnValue(Dictionary<string, string> row, string[] aliases)
+        private static string? GetColumnValue(Dictionary<string, string> row, string[] aliases, string[]? excludedSubstrings = null)
         {
+            var normalizedRow = new List<(string originalKey, string normalizedKey, string value)>();
             foreach (var kvp in row)
             {
-                var normalizedKey = kvp.Key.Trim().ToLowerInvariant()
+                if (string.IsNullOrWhiteSpace(kvp.Key)) continue;
+
+                var normKey = kvp.Key.Trim().ToLowerInvariant()
                     .Replace("_", "")
                     .Replace("-", "")
                     .Replace(" ", "");
+                normalizedRow.Add((kvp.Key, normKey, kvp.Value));
+            }
 
-                foreach (var alias in aliases)
+            // 1st Pass: EXACT MATCH (aliases in prioritized order)
+            foreach (var alias in aliases)
+            {
+                var normAlias = alias.ToLowerInvariant().Replace("_", "").Replace("-", "").Replace(" ", "");
+                foreach (var item in normalizedRow)
                 {
-                    var normalizedAlias = alias.Replace("_", "").Replace("-", "").Replace(" ", "");
-                    if (normalizedKey == normalizedAlias || normalizedKey.Contains(normalizedAlias))
+                    if (item.normalizedKey == normAlias)
                     {
-                        return kvp.Value;
+                        if (excludedSubstrings != null && excludedSubstrings.Any(exc => item.normalizedKey.Contains(exc)))
+                            continue;
+                        return item.value;
                     }
                 }
             }
+
+            // 2nd Pass: SUBSTRING MATCH (aliases in prioritized order)
+            foreach (var alias in aliases)
+            {
+                var normAlias = alias.ToLowerInvariant().Replace("_", "").Replace("-", "").Replace(" ", "");
+                foreach (var item in normalizedRow)
+                {
+                    if (item.normalizedKey.Contains(normAlias))
+                    {
+                        if (excludedSubstrings != null && excludedSubstrings.Any(exc => item.normalizedKey.Contains(exc)))
+                            continue;
+                        return item.value;
+                    }
+                }
+            }
+
             return null;
         }
 
@@ -529,13 +563,26 @@ namespace SalesApp.Controllers
 
             var clean = rawValue.Trim().Replace("R$", "").Replace("$", "").Trim();
 
-            // Support Brazilian currency format: 1.250,50 -> 1250.50
+            // Detect separator formats when both ',' and '.' exist
             if (clean.Contains(",") && clean.Contains("."))
             {
-                clean = clean.Replace(".", "").Replace(",", ".");
+                int lastDot = clean.LastIndexOf('.');
+                int lastComma = clean.LastIndexOf(',');
+
+                if (lastDot > lastComma)
+                {
+                    // e.g. "140,000.00" -> comma is thousand separator, dot is decimal separator
+                    clean = clean.Replace(",", "");
+                }
+                else
+                {
+                    // e.g. "140.000,00" -> dot is thousand separator, comma is decimal separator
+                    clean = clean.Replace(".", "").Replace(",", ".");
+                }
             }
             else if (clean.Contains(","))
             {
+                // e.g. "140000,00" or "140,50" -> comma is decimal separator
                 clean = clean.Replace(",", ".");
             }
 
@@ -552,11 +599,11 @@ namespace SalesApp.Controllers
             if (string.IsNullOrWhiteSpace(rawValue))
                 return null;
 
-            if (DateTime.TryParse(rawValue, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
-                return dt;
-
             if (DateTime.TryParse(rawValue, new CultureInfo("pt-BR"), DateTimeStyles.None, out var dtPt))
                 return dtPt;
+
+            if (DateTime.TryParse(rawValue, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+                return dt;
 
             return null;
         }

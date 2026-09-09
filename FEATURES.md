@@ -1157,6 +1157,36 @@ Adiciona o filtro "Aguardando Pagamento" nas configurações de relatórios (`Re
 - `SalesApp.Api/ReportFilters/DTOs/CreateReportFilterRequest.cs` & `ReportFilterResponse.cs` — Suporte a `AwaitingPayment` em requests/responses de relatórios.
 - `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs` — Mapeamento, serialização e filtragem em memória antes do cálculo de retenção.
 - `client/sales-dash/src/services/reportFilterService.ts` — Tipagem TypeScript com `awaitingPayment?: boolean`.
-- `client/sales-dash/src/components/Reports/ReportFormPage.tsx` — Estado, binding, UI de seleção e payload do filtro.
-- `SalesApp.Tests/Services/ReportFilterServiceTests.cs` — Testes unitários para `AwaitingPayment` (`true`, `false`, `null`).
+
+---
+
+## 43. Reconciliação de Contratos — Comparação por Usuário e Extração Inteligente de Planilhas
+
+### Overview
+Adiciona a aba **"Comparação por Usuário"** na tela de Reconciliação de Contratos (`/#/contract-reconciliation`), permitindo cruzar o total financeiro e contagem de contratos de cada consultor/vendedor entre a planilha externa enviada (XLSX/CSV) e o sistema interno, com suporte a múltiplos formatos monetários e identificação prioritária de colunas.
+
+### Key Capabilities
+- **Tabela Comparativa de 4 Colunas**:
+  - `Nome do Usuário`: Nome oficial do consultor/vendedor no sistema ou na planilha.
+  - `Total Planilha`: Soma financeira dos contratos atribuídos ao usuário na planilha.
+  - `Total Sistema`: Soma financeira dos contratos atribuídos ao usuário no sistema para o período/equipe selecionado.
+  - `Qtd Contratos`: Diferença de quantidade de contratos (`XLSX - Sistema`), exibida com badges coloridos (`+N` verde, `-N` vermelho, `0` cinza).
+- **Extração Inteligente de Colunas e Precedência Exata**:
+  - **Coluna de Valor**: Prioridade máxima para colunas exatamente nomeadas `Valor` (case-insensitive), com exclusão automática de colunas secundárias como `Valor da Parcela`, `Taxa`, `Entrada`.
+  - **Coluna de Consultor/Vendedor**: Detecção prioritária em duas fases:
+    1. Fase 1: Busca colunas específicas de vendedor (`Consultor`, `Consultora`, `Vendedor`, `Vendedora`, `Comissionado`, `Comissionada`, `Assessor`, `Corretor`) com precedência de correspondência exata.
+    2. Fase 2: Busca por identificadores alternativos (`Matrícula`, `Email`, etc.), excluindo expressamente colunas de terceiros como `Nome PV` e `Nome do Cliente`.
+- **Parser Monetário com Suporte a Múltiplos Separadores**:
+  - Detecção dinâmica de formato monetário em strings mistas (`R$ 140,000.00`, `R$ 140.000,00`, `140000.00`, `140000,00`).
+  - Se a string contiver ambos os separadores `,` e `.`, identifica qual é o milhar e qual é o decimal com base na posição do último separador, evitando truncamento para valores decimais baixos.
+- **Exportação CSV e KPI Dedicado**:
+  - Exportação da aba em arquivo CSV (`reconciliacao_comparacao_usuarios_YYYY-MM-DD.csv`).
+  - Card de KPI dedicado "Comparação por Usuário" exibindo o total de usuários analisados.
+  - Toggle opcional para permitir correspondência parcial de nomes quando único.
+
+### Key Files Created/Modified
+- `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs` — DTOs `UserComparisonItemDto` e lista em `ContractReconciliationResultDto`.
+- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Lógica de reconciliação por usuário, `GetColumnValue` de duas fases com exclusões, `ParseDecimal` multi-formato e agregação financeira.
+- `client/sales-dash/src/services/apiService.ts` — Tipagens de `UserComparisonItem` e parâmetro `allowPartialNameMatch`.
+- `client/sales-dash/src/components/ContractReconciliationPage.tsx` & `.css` — Aba "user-comparison", KPI card, tabela com badges e exportação CSV.
 
