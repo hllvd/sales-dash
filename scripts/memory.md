@@ -369,3 +369,15 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Result:** ✅ Green (Build PASSED, 294/294 Integration tests PASSED, 165/165 Playwright E2E PASSED)
 
 
+
+## [2026-09-10] all — Attempt 2
+**Failure:** None — full verification run for Smart Date Detection (Data da Venda) and Auto Date Range Fill in Contract Reconciliation.
+**Root cause:** N/A.
+**Fix applied:**
+1. Created pure deterministic service ReconciliationDateDetector.cs with 4-tier date pattern detection: impossible day/month values (>12), system contract cross-referencing, Excel EPPlus number format metadata, and fallback to Brazilian standard dd/MM/yyyy.
+2. Added DetectDateRange method and POST /api/contractreconciliation/detect-date-range endpoint returning min/max sale dates and detected format.
+3. Updated ContractReconciliationController.Reconcile to detect format once per file and parse all row dates consistently using the detected format.
+4. Updated ContractReconciliationPage.tsx with handleFileChange to automatically populate startDate (Data Inicial) and endDate (Data Final) on file upload, displaying format badge and notification.
+5. Added integration tests in ContractReconciliationTests.cs validating dd/MM/yyyy and MM/dd/yyyy format detection.
+6. Updated FEATURES.md Section 43.
+**Result:** ✅ Green (Build PASSED, 296/296 Integration tests PASSED, 163/163 Playwright E2E PASSED)

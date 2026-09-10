@@ -62,6 +62,35 @@ const ContractReconciliationPage: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [allowPartialNameMatch, setAllowPartialNameMatch] = useState(false);
+  const [detectingDates, setDetectingDates] = useState(false);
+  const [detectedFormatInfo, setDetectedFormatInfo] = useState<string | null>(null);
+
+  const handleFileChange = async (selectedFile: File | null) => {
+    setFile(selectedFile);
+    setDetectedFormatInfo(null);
+    if (!selectedFile) return;
+
+    try {
+      setDetectingDates(true);
+      const res = await apiService.detectReconciliationDateRange(selectedFile);
+      if (res.startDate && res.endDate) {
+        setStartDate(res.startDate);
+        setEndDate(res.endDate);
+        const formatLabel = res.detectedFormat || 'dd/MM/yyyy';
+        setDetectedFormatInfo(`Padrão detectado: ${formatLabel}`);
+        notifications.show({
+          title: 'Período preenchido automaticamente',
+          message: `Datas ajustadas para ${formatDate(res.startDate)} até ${formatDate(res.endDate)} (Padrão: ${formatLabel}).`,
+          color: 'teal',
+          icon: <IconCheck size={18} />,
+        });
+      }
+    } catch (err: any) {
+      console.warn('Não foi possível autodetectar período das datas:', err);
+    } finally {
+      setDetectingDates(false);
+    }
+  };
 
   // Teams & Users list for dropdowns
   const [teams, setTeams] = useState<Team[]>([]);
@@ -482,15 +511,27 @@ const ContractReconciliationPage: React.FC = () => {
                 disabled={loadingUsers}
               />
 
-              <FileInput
-                label="Planilha XLSX do Cliente"
-                placeholder="Selecione o arquivo (.xlsx)"
-                leftSection={<IconFileSpreadsheet size={18} />}
-                accept=".xlsx,.csv"
-                value={file}
-                onChange={setFile}
-                required
-              />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <FileInput
+                  label="Planilha XLSX do Cliente"
+                  placeholder="Selecione o arquivo (.xlsx)"
+                  leftSection={<IconFileSpreadsheet size={18} />}
+                  accept=".xlsx,.csv"
+                  value={file}
+                  onChange={handleFileChange}
+                  required
+                />
+                {detectingDates && (
+                  <Text size="xs" c="dimmed" mt={4}>
+                    Analisando datas do arquivo...
+                  </Text>
+                )}
+                {detectedFormatInfo && (
+                  <Text size="xs" c="teal" mt={4}>
+                    ✓ {detectedFormatInfo}
+                  </Text>
+                )}
+              </div>
 
               <Button
                 type="submit"

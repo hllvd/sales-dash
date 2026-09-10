@@ -101,5 +101,13 @@ namespace SalesApp.DTOs
         public List<string> Headers { get; set; } = new();
         public List<List<string>> Rows { get; set; } = new();
     }
+
+    public class DetectDateRangeResponseDto
+    {
+        public string? StartDate { get; set; }
+        public string? EndDate { get; set; }
+        public string? DetectedFormat { get; set; }
+        public int TotalRows { get; set; }
+    }
 }
 

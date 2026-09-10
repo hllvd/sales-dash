@@ -190,6 +190,15 @@ namespace SalesApp.Controllers
                 })
                 .ToList();
 
+            using var fileStream = file.OpenReadStream();
+            var detectedDateFormat = ReconciliationDateDetector.DetectDateFormat(
+                rows,
+                fileStream,
+                dateAliases,
+                contractNumAliases,
+                systemContractsMap,
+                GetColumnValue);
+
             var matchedSystemContractNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var row in rows)
@@ -202,7 +211,7 @@ namespace SalesApp.Controllers
                 var amountVal = ParseDecimal(GetColumnValue(row, amountAliases, amountExcludedSubstrings));
                 var userVal = (GetColumnValue(row, sellerNameAliases, sellerExcludedSubstrings)
                                ?? GetColumnValue(row, sellerSecondaryAliases, sellerExcludedSubstrings))?.Trim();
-                var dateVal = ParseDateTime(GetColumnValue(row, dateAliases));
+                var dateVal = ReconciliationDateDetector.TryParseDateWithPattern(GetColumnValue(row, dateAliases), detectedDateFormat);
 
                 // Resolve User for row
                 User? rowUser = null;
@@ -591,6 +600,83 @@ namespace SalesApp.Controllers
             worksheet.Cells.AutoFitColumns();
             var fileBytes = package.GetAsByteArray();
             return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        [HttpPost("detect-date-range")]
+        public async Task<IActionResult> DetectDateRange([FromForm] IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("Nenhum arquivo enviado.");
+            }
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (extension != ".xlsx" && extension != ".csv")
+            {
+                return BadRequest("Formato de arquivo inválido. Por favor envie um arquivo .xlsx ou .csv.");
+            }
+
+            List<Dictionary<string, string>> rows;
+            try
+            {
+                rows = await _fileParserService.ParseFileAsync(file);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Erro ao ler o arquivo: {ex.Message}");
+            }
+
+            if (rows == null || rows.Count == 0)
+            {
+                return Ok(new DetectDateRangeResponseDto
+                {
+                    StartDate = null,
+                    EndDate = null,
+                    DetectedFormat = null,
+                    TotalRows = 0
+                });
+            }
+
+            var contractNumAliases = new[] { "contractnumber", "contrato", "numerocontrato", "numero do contrato", "número do contrato", "proposta", "codigo", "código", "number" };
+            var dateAliases = new[] { "date", "salestartdate", "datavenda", "data da venda", "data", "createdat" };
+
+            var contractNumbersInSheet = rows
+                .Select(r => GetColumnValue(r, contractNumAliases)?.Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var relevantContracts = await _context.Contracts
+                .AsNoTracking()
+                .Where(c => contractNumbersInSheet.Contains(c.ContractNumber))
+                .ToListAsync();
+
+            var systemContractsMap = new Dictionary<string, Contract>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sc in relevantContracts)
+            {
+                if (!string.IsNullOrWhiteSpace(sc.ContractNumber))
+                {
+                    systemContractsMap[sc.ContractNumber.Trim()] = sc;
+                }
+            }
+
+            using var fileStream = file.OpenReadStream();
+            var (minDate, maxDate, detectedFormat) = ReconciliationDateDetector.DetectDateRange(
+                rows,
+                fileStream,
+                dateAliases,
+                contractNumAliases,
+                systemContractsMap,
+                GetColumnValue);
+
+            return Ok(new DetectDateRangeResponseDto
+            {
+                StartDate = minDate?.ToString("yyyy-MM-dd"),
+                EndDate = maxDate?.ToString("yyyy-MM-dd"),
+                DetectedFormat = detectedFormat,
+                TotalRows = rows.Count
+            });
         }
 
         private static string NormalizeName(string? name)

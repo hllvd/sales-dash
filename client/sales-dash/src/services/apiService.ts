@@ -1625,6 +1625,28 @@ export const apiService = {
     return response.blob()
   },
 
+  async detectReconciliationDateRange(file: File): Promise<DetectDateRangeResult> {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    const token = localStorage.getItem("token")
+    const response = await authenticatedFetch(`${API_BASE_URL}/contractreconciliation/detect-date-range`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Erro ao analisar datas do arquivo")
+      throw new Error(errorText || "Erro ao analisar datas do arquivo")
+    }
+
+    return response.json()
+  },
+
+
   async previewRetentionFilter(fileA: File, fileB: File): Promise<ApiResponse<RetentionFilterProcessResponse>> {
     const formData = new FormData()
     formData.append("fileA", fileA)
@@ -2273,6 +2295,13 @@ export interface ContractReconciliationResult {
   statusMismatches: StatusMismatchItem[]
   unassignedUserContracts: ReconciledContractItem[]
   userComparisons?: UserComparisonItem[]
+}
+
+export interface DetectDateRangeResult {
+  startDate: string | null
+  endDate: string | null
+  detectedFormat: string | null
+  totalRows: number
 }
 
 export interface RetentionFilterStats {

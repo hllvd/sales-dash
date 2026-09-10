@@ -247,5 +247,89 @@ namespace SalesApp.IntegrationTests.Contracts
             sheet!.Cells[1, 1].Value.Should().Be("Número do Contrato");
             sheet.Cells[2, 1].Value.Should().Be("REC-001");
         }
+
+        [Fact]
+        public async Task DetectDateRange_ShouldDetectDayFirst_WhenValueOver12InDayPosition()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            byte[] xlsxBytes;
+            using (var package = new ExcelPackage())
+            {
+                var ws = package.Workbook.Worksheets.Add("Sheet1");
+                ws.Cells[1, 1].Value = "Contrato";
+                ws.Cells[1, 2].Value = "Data da Venda";
+                ws.Cells[1, 3].Value = "Valor";
+
+                ws.Cells[2, 1].Value = "CNT-001";
+                ws.Cells[2, 2].Value = "04/03/2025";
+                ws.Cells[2, 3].Value = 1000.00;
+
+                ws.Cells[3, 1].Value = "CNT-002";
+                ws.Cells[3, 2].Value = "28/04/2025";
+                ws.Cells[3, 3].Value = 2000.00;
+
+                xlsxBytes = package.GetAsByteArray();
+            }
+
+            using var content = new MultipartFormDataContent();
+            content.Add(new ByteArrayContent(xlsxBytes), "file", "test_dates.xlsx");
+
+            // Act
+            var response = await _client.PostAsync("/api/contractreconciliation/detect-date-range", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<DetectDateRangeResponseDto>();
+            result.Should().NotBeNull();
+            result!.DetectedFormat.Should().Be("dd/MM/yyyy");
+            result.StartDate.Should().Be("2025-03-04");
+            result.EndDate.Should().Be("2025-04-28");
+            result.TotalRows.Should().Be(2);
+        }
+
+        [Fact]
+        public async Task DetectDateRange_ShouldDetectMonthFirst_WhenValueOver12InMonthPosition()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            byte[] xlsxBytes;
+            using (var package = new ExcelPackage())
+            {
+                var ws = package.Workbook.Worksheets.Add("Sheet1");
+                ws.Cells[1, 1].Value = "Contrato";
+                ws.Cells[1, 2].Value = "Data da Venda";
+                ws.Cells[1, 3].Value = "Valor";
+
+                ws.Cells[2, 1].Value = "CNT-001";
+                ws.Cells[2, 2].Value = "03/04/2025";
+                ws.Cells[2, 3].Value = 1000.00;
+
+                ws.Cells[3, 1].Value = "CNT-002";
+                ws.Cells[3, 2].Value = "04/28/2025";
+                ws.Cells[3, 3].Value = 2000.00;
+
+                xlsxBytes = package.GetAsByteArray();
+            }
+
+            using var content = new MultipartFormDataContent();
+            content.Add(new ByteArrayContent(xlsxBytes), "file", "test_dates_us.xlsx");
+
+            // Act
+            var response = await _client.PostAsync("/api/contractreconciliation/detect-date-range", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<DetectDateRangeResponseDto>();
+            result.Should().NotBeNull();
+            result!.DetectedFormat.Should().Be("MM/dd/yyyy");
+            result.StartDate.Should().Be("2025-03-04");
+            result.EndDate.Should().Be("2025-04-28");
+            result.TotalRows.Should().Be(2);
+        }
     }
 }

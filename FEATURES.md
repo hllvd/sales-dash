@@ -1196,13 +1196,23 @@ Adiciona a aba **"Comparação por Usuário"** na tela de Reconciliação de Con
   - **Divergência de Vendedor (`sellerMismatches`)**: Contratos existentes em ambas as fontes onde o usuário no sistema difere do vendedor da planilha, exibindo lado a lado o vendedor no sistema e no XLSX.
   - **No XLSX / Não Cadastrados (`missingInSystem`)**: Contratos presentes na planilha que não existem na base de dados do sistema.
   - Agregação financeira fidedigna no `Total Planilha` da tabela de comparação de usuários sem descartes prematuros.
+- **Detecção Inteligente de Padrão de Data (`Data da Venda`)**:
+  - Resolução determinística e global do padrão do arquivo (`dd/MM/yyyy` vs `MM/dd/yyyy`) seguindo 4 níveis de precedência:
+    1. **Valores Impossíveis (> 12)**: Identificação por dia/mês inválido na coluna (ex: `28/04/2025` define `dd/MM/yyyy`; `04/28/2025` define `MM/dd/yyyy`).
+    2. **Cruzamento com o Sistema**: Desempate de datas ambíguas confrontando diretamente com a data real dos mesmos contratos no banco de dados.
+    3. **Metadados do Excel**: Leitura da máscara numérica de data da célula via `EPPlus` (`worksheet.Cells[r, c].Style.Numberformat.Format`).
+    4. **Fallback Brasil**: `dd/MM/yyyy` como padrão em caso de empate total.
+  - O padrão é descoberto uma única vez para a planilha e aplicado uniformemente em todas as linhas.
+- **Preenchimento Automático do Período de Venda**:
+  - Endpoint `POST /api/contractreconciliation/detect-date-range`: ao carregar o arquivo na interface, analisa as datas da planilha e preenche automaticamente os inputs `Data Inicial (Venda)` e `Data Final (Venda)` com a data mais antiga e mais recente encontradas.
 - **Card de KPI dedicado "Comparação por Usuário"** exibindo o total de usuários analisados.
 - **Toggle opcional** para permitir correspondência parcial de nomes quando único.
 
 ### Key Files Created/Modified
-- `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs` — DTOs `UserComparisonItemDto`, `ExportReconciliationTabRequestDto` e lista em `ContractReconciliationResultDto`.
-- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Lógica de reconciliação por usuário, categorização precisa de contratos (sem usuário no sistema vs divergência de vendedor), endpoint `POST /api/contractreconciliation/export-xlsx`, `GetColumnValue` de duas fases com exclusões, `ParseDecimal` multi-formato e agregação financeira.
-- `client/sales-dash/src/services/apiService.ts` — Tipagens de `UserComparisonItem`, `exportReconciliationXlsx` e parâmetro `allowPartialNameMatch`.
-- `client/sales-dash/src/components/ContractReconciliationPage.tsx` & `.css` — Aba "user-comparison", KPI card, tabela com badges, `handleExportXlsx` com nomenclatura descritiva de problemas e exportação XLSX nativa.
+- `SalesApp.Api/Services/ReconciliationDateDetector.cs` — Lógica pura e estática de detecção em 4 níveis de formato de data e extração de intervalo (`minDate`/`maxDate`).
+- `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs` — DTOs `DetectDateRangeResponseDto`, `UserComparisonItemDto`, `ExportReconciliationTabRequestDto`.
+- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Endpoint `POST /api/contractreconciliation/detect-date-range`, uso do detector na leitura de datas da reconciliação, categorização precisa de contratos e endpoint `POST /api/contractreconciliation/export-xlsx`.
+- `client/sales-dash/src/services/apiService.ts` — Métodos `detectReconciliationDateRange`, `exportReconciliationXlsx` e tipos TypeScript.
+- `client/sales-dash/src/components/ContractReconciliationPage.tsx` & `.css` — Auto-preenchimento de período no upload de arquivo, indicador de padrão de data detectado, aba "user-comparison", KPI card, tabela com badges e exportação XLSX nativa.
 
 
