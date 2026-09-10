@@ -477,9 +477,120 @@ namespace SalesApp.ReportFilters.Services
                 }
             }
 
+            // ── Push-down Pre-Filtering for Maximum Performance ──────────────────
+            // Instead of loading all contracts across the entire company for the date range
+            // and filtering in memory, we resolve user internal IDs and team IDs upfront and
+            // pass them to the database query, leveraging SQLite composite indexes (IX_Contracts_UserInternalId_SaleStartDate).
+            List<int>? teamIdsFilter = null;
+            List<int>? userInternalIdsFilter = null;
 
-            // Reuse existing GetAllAsync — same logic as /api/contracts, no duplication
-            var contracts = await _contractRepository.GetAllAsync(
+            var isHistoricalMode = string.Equals(
+                fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+
+            if (fc.Teams?.Count > 0)
+            {
+                teamIdsFilter = fc.Teams;
+
+                if (!isHistoricalMode && teamsList.Count > 0)
+                {
+                    var now = DateTime.UtcNow;
+                    var activeMemberInternalIds = memberTeamMapping
+                        .Where(x => x.StartDate <= now && (x.EndDate == null || x.EndDate > now) && fc.Teams.Contains(x.TeamId))
+                        .Select(x => x.UserInternalId)
+                        .Distinct()
+                        .ToList();
+
+                    if (activeMemberInternalIds.Count > 0)
+                    {
+                        userInternalIdsFilter = activeMemberInternalIds;
+                    }
+                    else if (teamsList.Any(x => fc.Teams.Contains(x.Id)))
+                    {
+                        // Team exists in the database, but has no active members
+                        return new ServiceResult<ReportResultsResponse>(true, CreateEmptyResultsResponse(report, page, pageSize));
+                    }
+                }
+            }
+
+            if (fc.Stores?.Count > 0)
+            {
+                var storeTeams = memberTeamMapping
+                    .Where(x => x.StoreId.HasValue && fc.Stores.Contains(x.StoreId.Value))
+                    .Select(x => x.TeamId)
+                    .Distinct()
+                    .ToList();
+
+                if (storeTeams.Count > 0)
+                {
+                    if (teamIdsFilter != null)
+                        teamIdsFilter = teamIdsFilter.Intersect(storeTeams).ToList();
+                    else
+                        teamIdsFilter = storeTeams;
+                }
+
+                if (!isHistoricalMode && memberTeamMapping.Count > 0)
+                {
+                    var now = DateTime.UtcNow;
+                    var activeStoreMemberIds = memberTeamMapping
+                        .Where(x => x.StartDate <= now && (x.EndDate == null || x.EndDate > now) && x.StoreId.HasValue && fc.Stores.Contains(x.StoreId.Value))
+                        .Select(x => x.UserInternalId)
+                        .Distinct()
+                        .ToList();
+
+                    if (activeStoreMemberIds.Count > 0)
+                    {
+                        if (userInternalIdsFilter != null)
+                            userInternalIdsFilter = userInternalIdsFilter.Intersect(activeStoreMemberIds).ToList();
+                        else
+                            userInternalIdsFilter = activeStoreMemberIds;
+                    }
+                }
+            }
+
+            if (fc.Emails?.Count > 0 && memberTeamMapping.Count > 0)
+            {
+                var emailSet = fc.Emails.Select(e => e.Trim().ToLower()).ToHashSet();
+                var emailInternalIds = teamsList
+                    .SelectMany(t => t.UserTeams)
+                    .Where(ut => ut.User != null && emailSet.Contains(ut.User.Email.ToLower()))
+                    .Select(ut => ut.UserInternalId)
+                    .Distinct()
+                    .ToList();
+
+                if (emailInternalIds.Count > 0)
+                {
+                    if (userInternalIdsFilter != null)
+                        userInternalIdsFilter = userInternalIdsFilter.Intersect(emailInternalIds).ToList();
+                    else
+                        userInternalIdsFilter = emailInternalIds;
+                }
+            }
+
+            // Reuse existing GetAllAsync with database-level push-down filters and asNoTracking: true
+            List<Contract>? contracts = null;
+            if (userInternalIdsFilter != null)
+            {
+                contracts = await _contractRepository.GetAllAsync(
+                    userIdFilter,
+                    groupIdFilter,
+                    resolvedStartDate,
+                    resolvedEndDate,
+                    null,
+                    null,
+                    !string.IsNullOrEmpty(matriculaFilter) ? new List<string> { matriculaFilter } : null,
+                    emailFilter,
+                    null,
+                    teamIdsFilter,
+                    null,
+                    null,
+                    false,
+                    null,
+                    userInternalIdsFilter,
+                    true
+                );
+            }
+
+            contracts ??= await _contractRepository.GetAllAsync(
                 userId: userIdFilter,
                 groupId: groupIdFilter,
                 startDate: resolvedStartDate,
@@ -488,8 +599,11 @@ namespace SalesApp.ReportFilters.Services
                 showUnassigned: null,
                 matriculaNumbers: !string.IsNullOrEmpty(matriculaFilter) ? new List<string> { matriculaFilter } : null,
                 userEmail: emailFilter,
-                scope: null // No scope restriction for superadmin-executed reports
+                scope: null,
+                teamIds: teamIdsFilter
             );
+
+            contracts ??= new List<Contract>();
 
             // Filter PVs in memory since IContractRepository does not support PvId lists
             if (fc.Pvs?.Count > 0)
@@ -1528,6 +1642,56 @@ namespace SalesApp.ReportFilters.Services
                 Order  = c.Order,
                 Format = c.Format
             }).ToList();
+
+        private static ReportResultsResponse CreateEmptyResultsResponse(
+            ReportFilterResponse report, int page, int pageSize)
+        {
+            var columns = report.OutputColumns.OrderBy(c => c.Order).ToList();
+            var response = new ReportResultsResponse
+            {
+                Page = Math.Max(1, page),
+                PageSize = Math.Clamp(pageSize, 1, 200),
+                TotalCount = 0,
+                TotalPages = 0,
+                TotalSum = report.SumTotal ? 0m : null,
+                OverallRetention = report.SumTotal ? 0m : null,
+                ActiveUsersCount = report.CountActiveUsers ? 0 : null,
+                InactiveUsersCount = report.CountActiveUsers ? 0 : null,
+                Columns = columns.Select(col => new OutputColumnResponse
+                {
+                    Source = col.Source,
+                    Field = col.Field,
+                    Label = col.Label,
+                    Order = col.Order,
+                    Format = col.Format
+                }).ToList(),
+                Rows = new List<Dictionary<string, object?>>()
+            };
+
+            if (report.GroupByEmail && !response.Columns.Any(c => c.Source == "Users_Contract" && c.Field == "email"))
+            {
+                response.Columns.Insert(0, new OutputColumnResponse
+                {
+                    Source = "Users_Contract",
+                    Field = "email",
+                    Label = "Email",
+                    Order = 0
+                });
+            }
+
+            if (report.GroupByTeam && !response.Columns.Any(c => c.Source == "Users_Contract" && c.Field == "team"))
+            {
+                response.Columns.Insert(0, new OutputColumnResponse
+                {
+                    Source = "Users_Contract",
+                    Field = "team",
+                    Label = "Equipe",
+                    Order = 0
+                });
+            }
+
+            return response;
+        }
 
         /// <summary>
         /// Generates a time-ordered unique ID suitable for use as a filterId.

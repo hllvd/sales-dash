@@ -453,17 +453,6 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         } else {
           setGroupingType('none');
         }
-
-        // Auto-run preview for existing reports on load
-        try {
-          setPreviewLoading(true);
-          const results = await getReportResults(localFilterId, 1, 10);
-          setPreviewData(results);
-        } catch (err: any) {
-          setPreviewError(err.message || 'Falha ao carregar prévia inicial');
-        } finally {
-          setPreviewLoading(false);
-        }
       }
     } catch (err: any) {
       notifications.show({ title: 'Erro', message: err.message || 'Falha ao carregar dados do formulário', color: 'red' });
@@ -1787,7 +1776,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                 disabled={!name || outputColumns.length === 0}
                 size="sm"
               >
-                Atualizar Prévia
+                {previewData ? 'Atualizar Prévia' : 'Carregar Prévia'}
               </Button>
             </Group>
 
@@ -1807,16 +1796,17 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                 <Center style={{ height: '260px', padding: '24px' }}>
                   <Stack align="center" gap="md" style={{ textAlign: 'center', maxWidth: '400px' }}>
                     <Text size="sm" c="dimmed" style={{ lineHeight: 1.5 }}>
-                      Defina o nome do relatório, selecione colunas e clique no botão acima para rodar a prévia em tempo real com dados reais.
+                      Defina o nome do relatório, selecione colunas e clique no botão abaixo para rodar a prévia sob demanda.
                     </Text>
                     <Button 
                       variant="outline" 
                       color="indigo"
+                      leftSection={<IconRefresh size={16} />}
                       onClick={handleRunPreview} 
                       disabled={!name || outputColumns.length === 0}
                       size="sm"
                     >
-                      Carregar Dados de Prévia
+                      Carregar Prévia
                     </Button>
                   </Stack>
                 </Center>

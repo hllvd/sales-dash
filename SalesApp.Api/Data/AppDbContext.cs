@@ -113,6 +113,7 @@ namespace SalesApp.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).ValueGeneratedOnAdd();
                 entity.HasIndex(e => e.ContractNumber).IsUnique();
+                entity.HasIndex(e => e.SaleStartDate).HasDatabaseName("IX_Contracts_SaleStartDate");
                 entity.HasIndex(e => new { e.IsActive, e.SaleStartDate }).HasDatabaseName("IX_Contracts_IsActive_SaleStartDate");
                 entity.HasIndex(e => e.UserInternalId).HasDatabaseName("IX_Contracts_UserInternalId");
                 entity.HasIndex(e => new { e.UserInternalId, e.SaleStartDate }).HasDatabaseName("IX_Contracts_UserInternalId_SaleStartDate");

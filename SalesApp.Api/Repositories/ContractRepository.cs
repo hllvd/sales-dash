@@ -57,7 +57,7 @@ namespace SalesApp.Repositories
             Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null,
             string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null,
             string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null,
-            List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
+            List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null, List<int>? userInternalIds = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -173,6 +173,11 @@ namespace SalesApp.Repositories
                 }
             }
 
+            if (userInternalIds != null && userInternalIds.Count > 0)
+            {
+                query = query.Where(c => c.UserInternalId != null && userInternalIds.Contains(c.UserInternalId.Value));
+            }
+
             return query;
         }
 
@@ -199,11 +204,22 @@ namespace SalesApp.Repositories
                 .ThenByDescending(c => c.SaleStartDate);
         }
 
-        public async Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
+        public Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
         {
-            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
+            return GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, userInternalIds: null, asNoTracking: false);
+        }
+
+        public async Task<List<Contract>> GetAllAsync(Guid? userId, int? groupId, DateTime? startDate, DateTime? endDate, string? contractNumber, bool? showUnassigned, List<string>? matriculaNumbers, string? userEmail, UserScopeContext? scope, List<int>? teamIds, List<Guid>? userIds, List<string>? statuses, bool isSuperAdmin, bool? awaitingPayment, List<int>? userInternalIds, bool asNoTracking = false)
+        {
+            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, userInternalIds);
             
+            if (asNoTracking)
+            {
+                query = query.AsNoTracking();
+            }
+
             return await ApplyOrphanPriority(query, scope)
+                .AsSplitQuery()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
                 .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
                 .Include(c => c.Group)

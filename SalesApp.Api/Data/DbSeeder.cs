@@ -18,6 +18,16 @@ namespace SalesApp.Data
             {
                 // Column already exists or table handles it
             }
+
+            // Self-healing migration guard: ensure index on Contracts.SaleStartDate exists for high-performance reports
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync("CREATE INDEX IF NOT EXISTS \"IX_Contracts_SaleStartDate\" ON \"Contracts\" (\"SaleStartDate\");");
+            }
+            catch
+            {
+                // Index already exists or table handles it
+            }
             
             // Check if admin user exists by email
             var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Email == "admin@salesapp.com");

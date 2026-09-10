@@ -1,5 +1,39 @@
 # Features
 
+## Otimização de Performance de Relatórios e Prévia Sob Demanda na Edição (`/#/reports`)
+
+Remoção da execução automática de consultas ao abrir a tela de edição de relatórios e otimização profunda no backend para execução de queries analíticas de relatórios em milissegundos (reduzindo o tempo de até 2 minutos em relatórios com períodos longos e filtros de equipe).
+
+### Comportamento e Regras
+- **Edição Instantânea (Sem Auto-Query)**:
+  - Ao acessar a tela de edição de qualquer relatório (`/#/reports/:id/edit`), a página carrega instantaneamente apenas com os dados e configurações do relatório.
+  - A execução de query da prévia inicial foi totalmente removida do ciclo de carregamento (`loadData`).
+- **Prévia Exclusivamente Sob Demanda**:
+  - A prévia dos dados só é gerada quando o usuário clica explicitamente no botão de prévia na Seção 7 (*"Carregar Prévia"* ou *"Atualizar Prévia"*).
+- **Push-down de Filtros de Equipe e Vendedores para o Banco de Dados (SQL)**:
+  - Filtro de equipe no modo padrão (*"Membros atuais"*) pré-resolve os identificadores internos (`UserInternalId`) dos membros ativos e filtra diretamente via SQL com o índice composto `IX_Contracts_UserInternalId_SaleStartDate`.
+  - Filtro de equipe no modo histórico (*"Histórico do período"*) repassa os `teamIds` para a cláusula point-in-time indexada no banco (`IX_UserTeams_TeamId_Dates_UserInternalId`).
+  - Caso a equipe selecionada não possua membros ativos, o sistema realiza um *early return* imediato com contagem zerada sem varrer a tabela de contratos.
+- **Desativação de Change Tracking (`AsNoTracking`) e Prevenção de Explosão Cartesiana (`AsSplitQuery`)**:
+  - Leitura puramente analítica desvinculada do `ChangeTracker` do Entity Framework Core, poupando CPU e alocação de memória.
+  - Junção de coleções filhas (`UserMatriculas`) executada com split queries, eliminando a duplicação cartesiana de linhas no SQLite.
+- **Índice Direto em Data de Venda**:
+  - Criação e garantia do índice `IX_Contracts_SaleStartDate` na tabela `Contracts` via `AppDbContext` e `DbSeeder` (auto-executável), acelerando buscas por períodos longos (ex: últimos 15 meses).
+
+### Arquivos alterados
+- **Frontend**:
+  - `client/sales-dash/src/components/Reports/ReportFormPage.tsx`: remoção do disparo automático no `loadData` e ajuste nos botões da Seção 7.
+- **Backend**:
+  - `SalesApp.Api/Repositories/IContractRepository.cs`: adição de sobrecarga e suporte a `userInternalIds` e `asNoTracking`.
+  - `SalesApp.Api/Repositories/ContractRepository.cs`: filtro `userInternalIds` em `BuildFilteredQuery`, `AsNoTracking` e `AsSplitQuery` em `GetAllAsync`.
+  - `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs`: push-down de equipe, lojas e emails para o banco, early return e fallback robusto.
+  - `SalesApp.Api/Data/AppDbContext.cs`: índice `IX_Contracts_SaleStartDate`.
+  - `SalesApp.Api/Data/DbSeeder.cs`: criação idempotente do índice `IX_Contracts_SaleStartDate`.
+- **Testes**:
+  - `SalesApp.Tests/Services/ReportFilterServiceTests.cs`: testes unitários cobrindo push-down de membros atuais, histórico de equipe e early return para equipe vazia.
+
+---
+
 ## Autocomplete MultiSelect no Filtro de Matrícula e Botão "Atualizar" em Meus Contratos (`/#/my-contracts`)
 
 Substituição do campo de texto simples de matrícula na página `/#/my-contracts` por um componente `MultiSelect` com autocomplete, restrito às matrículas ativas do usuário atual, com suporte a persistência no `localStorage` e adição de botão para atualização completa da página.
