@@ -298,7 +298,7 @@ namespace SalesApp.Repositories
             };
         }
         
-        public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null, List<int>? teamIds = null)
+        public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null, List<int>? teamIds = null, List<string>? matriculaNumbers = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -315,7 +315,22 @@ namespace SalesApp.Repositories
             if (endDate.HasValue)
                 query = query.Where(c => c.SaleStartDate <= endDate.Value);
 
-            if (!string.IsNullOrWhiteSpace(matriculaNumber))
+            if (matriculaNumbers != null && matriculaNumbers.Any())
+            {
+                var normalizedList = matriculaNumbers
+                    .Where(m => !string.IsNullOrWhiteSpace(m))
+                    .Select(m => m.Trim().ToLower())
+                    .ToList();
+
+                if (normalizedList.Any())
+                {
+                    query = query.Where(c => 
+                        (c.Matricula != null && normalizedList.Contains(c.Matricula.MatriculaNumber.ToLower())) ||
+                        (!string.IsNullOrEmpty(c.TempMatricula) && normalizedList.Contains(c.TempMatricula.ToLower()))
+                    );
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(matriculaNumber))
             {
                 var normalizedMatricula = matriculaNumber.Trim().ToLower();
                 query = query.Where(c => 

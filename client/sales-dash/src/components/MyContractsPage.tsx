@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Title, Button, Table, TextInput, Select, Alert, Badge, MultiSelect } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { normalizeNumber, normalizeName } from '../utils/normalization';
@@ -28,7 +28,7 @@ import { apiService, UserMatricula } from '../services/apiService';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
 
 const MyContractsPage: React.FC = () => {
-  const { currentUser } = useCurrentUser();
+  const { currentUser, refreshCurrentUser } = useCurrentUser();
   // Track latest API request to prevent race conditions
   const requestCountRef = useRef(0);
 
@@ -47,12 +47,34 @@ const MyContractsPage: React.FC = () => {
   // Date filter state
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [matriculaFilter, setMatriculaFilter] = useState<string>('');
-  const [debouncedMatricula, setDebouncedMatricula] = useState<string>('');
+  const [filterMatriculas, setFilterMatriculas] = useState<string[]>([]);
 
   // Team filter state — always resets to "Todos" (empty) on mount
   const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]);
   const [myTeams, setMyTeams] = useState<Array<{ value: string; label: string }>>([]);
+
+  // Active matricula options from currentUser
+  const matriculaSelectData = useMemo(() => {
+    const user = currentUser || JSON.parse(localStorage.getItem('user') || '{}');
+    const raw: any[] = user?.activeMatriculas || [];
+    const now = new Date();
+    const active = raw.filter(m => (m.status === 'active' || m.isActive !== false) && (!m.endDate || new Date(m.endDate) > now));
+    const optionMap = new Map<string, string>();
+    active
+      .sort((a, b) => (b.isOwner ? 1 : 0) - (a.isOwner ? 1 : 0))
+      .forEach(m => {
+        optionMap.set(m.matriculaNumber, m.isOwner ? `${m.matriculaNumber} (Titular)` : m.matriculaNumber);
+      });
+    // Ensure any persisted values are also in the options so Mantine renders them
+    filterMatriculas.forEach(val => {
+      if (!optionMap.has(val)) {
+        optionMap.set(val, val);
+      }
+    });
+    return Array.from(optionMap.entries()).map(([value, label]) => ({ value, label }));
+  }, [currentUser, filterMatriculas]);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Contract assignment state
   const [contractNumber, setContractNumber] = useState('');
@@ -82,14 +104,15 @@ const MyContractsPage: React.FC = () => {
         return;
       }
 
-      // Load contracts for current user with date and team filters
+      // Load contracts for current user with date, team, and matriculas filters
       const teamIdsAsNumbers = filterTeamIds.map(id => parseInt(id, 10));
       const { contracts: data, aggregation: aggData } = await getUserContracts(
         userId,
         startDate || undefined,
         endDate || undefined,
-        debouncedMatricula || undefined,
-        teamIdsAsNumbers.length > 0 ? teamIdsAsNumbers : undefined
+        undefined,
+        teamIdsAsNumbers.length > 0 ? teamIdsAsNumbers : undefined,
+        filterMatriculas.length > 0 ? filterMatriculas : undefined
       );
       if (requestId !== requestCountRef.current) return;
       setContracts(data);
@@ -102,25 +125,37 @@ const MyContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [startDate, endDate, debouncedMatricula, filterTeamIds, currentUser]);
+  }, [startDate, endDate, filterMatriculas, filterTeamIds, currentUser]);
 
-  // Load saved date filters from localStorage
+  // Load saved date and matriculas filters from localStorage
   useEffect(() => {
     const savedStart = localStorage.getItem('myContracts_startDate');
     const savedEnd = localStorage.getItem('myContracts_endDate');
-    const savedMatricula = localStorage.getItem('myContracts_matricula');
+    const savedMatriculas = localStorage.getItem('myContracts_matriculas');
     if (savedStart) setStartDate(savedStart);
     if (savedEnd) setEndDate(savedEnd);
-    if (savedMatricula) setMatriculaFilter(savedMatricula);
+    if (savedMatriculas) {
+      try {
+        const parsed = JSON.parse(savedMatriculas);
+        if (Array.isArray(parsed)) setFilterMatriculas(parsed);
+      } catch (e) {
+        console.error('Failed to parse myContracts_matriculas:', e);
+      }
+    } else {
+      const savedMatricula = localStorage.getItem('myContracts_matricula');
+      if (savedMatricula) setFilterMatriculas([savedMatricula]);
+    }
   }, []);
 
-  // Debounce effect for matricula filter
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedMatricula(matriculaFilter.trim());
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [matriculaFilter]);
+  const handleMatriculasChange = (vals: string[]) => {
+    setFilterMatriculas(vals);
+    if (vals.length > 0) {
+      localStorage.setItem('myContracts_matriculas', JSON.stringify(vals));
+    } else {
+      localStorage.removeItem('myContracts_matriculas');
+      localStorage.removeItem('myContracts_matricula');
+    }
+  };
 
   // Load the current user's team history (for the Equipe filter options)
   useEffect(() => {
@@ -321,14 +356,44 @@ const MyContractsPage: React.FC = () => {
   const handleClearFilters = () => {
     setStartDate('');
     setEndDate('');
-    setMatriculaFilter('');
-    setDebouncedMatricula('');
+    setFilterMatriculas([]);
     setFilterTeamIds([]);
     localStorage.removeItem('myContracts_startDate');
     localStorage.removeItem('myContracts_endDate');
+    localStorage.removeItem('myContracts_matriculas');
     localStorage.removeItem('myContracts_matricula');
     // Reload without filters
     setTimeout(() => loadMyContracts(), 0);
+  };
+
+  const handleRefreshAll = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        refreshCurrentUser ? refreshCurrentUser() : Promise.resolve(),
+        apiService.getMyTeams().then(res => {
+          if (res.success && res.data) {
+            setMyTeams(res.data.map(t => ({ value: String(t.id), label: t.name })));
+          }
+        }),
+        loadPendingClaims(),
+        loadMyContracts(),
+      ]);
+      notifications.show({
+        title: 'Atualizado',
+        message: 'Dados atualizados com sucesso',
+        color: 'green',
+      });
+    } catch (err: any) {
+      console.error('Failed to refresh data:', err);
+      notifications.show({
+        title: 'Erro',
+        message: err.message || 'Falha ao atualizar dados',
+        color: 'red',
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
 
@@ -377,6 +442,14 @@ const MyContractsPage: React.FC = () => {
             <InfoHelper label="Como Atribuir um contrato?">
               {helperContent}
             </InfoHelper>
+            <Button
+              onClick={handleRefreshAll}
+              loading={isRefreshing}
+              variant="default"
+              leftSection="🔄"
+            >
+              Atualizar
+            </Button>
             <ExportButton
               onExport={async () => {
                 setIsExporting(true);
@@ -388,6 +461,7 @@ const MyContractsPage: React.FC = () => {
                     startDate: startDate || undefined,
                     endDate: endDate || undefined,
                     teamIds: teamIdsForExport,
+                    matriculas: filterMatriculas.length > 0 ? filterMatriculas : undefined,
                   });
                   setExportJobId(job.jobId);
                 } catch (e: any) {
@@ -437,17 +511,15 @@ const MyContractsPage: React.FC = () => {
             </div>
             <div className="filter-group">
               <label htmlFor="matriculaFilter">Filtrar por matrícula:</label>
-              <input
+              <MultiSelect
                 id="matriculaFilter"
-                type="text"
-                placeholder="Ex: 123456"
-                value={matriculaFilter}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setMatriculaFilter(val);
-                  if (val) localStorage.setItem('myContracts_matricula', val);
-                  else localStorage.removeItem('myContracts_matricula');
-                }}
+                placeholder={matriculaSelectData.length === 0 ? 'Nenhuma matrícula disponível' : 'Selecionar matrículas...'}
+                value={filterMatriculas}
+                onChange={handleMatriculasChange}
+                data={matriculaSelectData}
+                clearable
+                searchable
+                styles={{ input: { minHeight: '36px' } }}
               />
             </div>
             {myTeams.length > 0 && (
@@ -464,7 +536,7 @@ const MyContractsPage: React.FC = () => {
               </div>
             )}
             <div className="filter-actions">
-              {(startDate || endDate || matriculaFilter || filterTeamIds.length > 0) && (
+              {(startDate || endDate || filterMatriculas.length > 0 || filterTeamIds.length > 0) && (
                 <Button onClick={handleClearFilters} variant="subtle" size="sm">
                   Limpar Filtros
                 </Button>
@@ -480,7 +552,7 @@ const MyContractsPage: React.FC = () => {
           </div>
         ) : contracts.length === 0 ? (
           <div className="my-contracts-empty">
-            {startDate || endDate || matriculaFilter || filterTeamIds.length > 0 ? (
+            {startDate || endDate || filterMatriculas.length > 0 || filterTeamIds.length > 0 ? (
               <>
                 <p>Nenhum contrato correspondente aos filtros aplicados foi encontrado. Você pode limpar os filtros para tentar novamente.</p>
                 <Button onClick={handleClearFilters}>

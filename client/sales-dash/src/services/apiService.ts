@@ -1065,6 +1065,7 @@ export const apiService = {
     startDate?: string;
     endDate?: string;
     teamIds?: number[];
+    matriculas?: string[];
   }): Promise<{ jobId: string; status: string; totalRows: number; processedRows: number }> {
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/contracts/export`, {
       method: 'POST',

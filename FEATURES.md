@@ -1,6 +1,43 @@
 # Features
 
-## Comparação por Usuário na Reconciliação de Contratos (`/#/contract-reconciliation`)
+## Autocomplete MultiSelect no Filtro de Matrícula e Botão "Atualizar" em Meus Contratos (`/#/my-contracts`)
+
+Substituição do campo de texto simples de matrícula na página `/#/my-contracts` por um componente `MultiSelect` com autocomplete, restrito às matrículas ativas do usuário atual, com suporte a persistência no `localStorage` e adição de botão para atualização completa da página.
+
+### Comportamento e Regras
+- **MultiSelect com Autocomplete**:
+  - Exibe as matrículas ativas do próprio usuário logado (`currentUser.activeMatriculas`).
+  - Indica `(Titular)` para a matrícula da qual o usuário é proprietário/titular.
+  - Suporta seleção múltipla com chips removíveis, busca interna e limpeza rápida (`clearable`).
+  - `id="matriculaFilter"` mantido para acessibilidade e consistência.
+- **Suporte no Backend e Exportação**:
+  - `GET /api/contracts/user/{userId}` e `ContractRepository.GetByUserIdAsync` atualizados para aceitar `[FromQuery] List<string>? matriculas`, filtrando múltiplos números de matrícula com suporte tanto a `c.Matricula.MatriculaNumber` quanto `c.TempMatricula`.
+  - Mantido fallback retrocompatível para o parâmetro singular `matricula`.
+  - Exportação Excel (`startMyContractExport`) inclui as matrículas selecionadas.
+- **Persistência**:
+  - Seleções de matrícula salvas em `localStorage` (`myContracts_matriculas`).
+  - O botão "Limpar Filtros" limpa as seleções em tela e remove a chave do `localStorage`.
+- **Botão "Atualizar"**:
+  - Novo botão posicionado no cabeçalho ao lado das ações principais da página.
+  - Recarrega simultaneamente o perfil e matrículas do usuário atual (`refreshCurrentUser`), histórico de equipes (`getMyTeams`), solicitações pendentes e a listagem filtrada de contratos.
+  - Notificação de feedback de atualização com estado de loading.
+
+### Arquivos alterados
+- **Backend**:
+  - `SalesApp.Api/Repositories/IContractRepository.cs`: adição de `List<string>? matriculaNumbers` em `GetByUserIdAsync`.
+  - `SalesApp.Api/Repositories/ContractRepository.cs`: filtro para múltiplos números de matrícula.
+  - `SalesApp.Api/Controllers/ContractsController.cs`: recepção de `[FromQuery] List<string>? matriculas` no endpoint do usuário.
+- **Frontend**:
+  - `client/sales-dash/src/services/contractService.ts`: parâmetro `matriculas?: string[]` em `getUserContracts`.
+  - `client/sales-dash/src/services/apiService.ts`: parâmetro `matriculas?: string[]` em `startMyContractExport`.
+  - `client/sales-dash/src/components/MyContractsPage.tsx`: substituição de input por `MultiSelect`, useMemo de opções ativas, persistência no `localStorage` e botão "Atualizar".
+- **E2E Tests**:
+  - `client/e2e-test/e2e/contracts_ui_enhancements.spec.ts`: adaptação do teste de empty state.
+  - `client/e2e-test/e2e/my_contracts_matricula_autocomplete.spec.ts`: suíte E2E cobrindo renderização das opções, filtragem simples e múltipla, botão Atualizar e Limpar Filtros.
+  - `client/e2e-test/playwright.config.ts`: registro em `tear-3a-hierarchy`.
+
+---
+
 
 Adicionada nova análise e aba **"Comparação por Usuário"** na ferramenta de Reconciliação de Contratos (`/#/contract-reconciliation`), permitindo cruzar a produção e quantidade de contratos entre a planilha de auditoria (XLSX) e o banco de dados do sistema, por vendedor/usuário.
 

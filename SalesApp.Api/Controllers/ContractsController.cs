@@ -178,6 +178,7 @@ namespace SalesApp.Controllers
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
             [FromQuery] string? matricula = null,
+            [FromQuery] List<string>? matriculas = null,
             [FromQuery] List<int>? teamIds = null)
         {
             var currentUserId = GetCurrentUserId();
@@ -188,7 +189,7 @@ namespace SalesApp.Controllers
                 return Forbid();
             }
             
-            var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate, matricula, teamIds);
+            var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate, matricula, teamIds, matriculas);
             
             var contractResponses = contracts.Select(MapToContractResponse).ToList();
             

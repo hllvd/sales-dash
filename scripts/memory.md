@@ -381,3 +381,15 @@ Each entry records a fix attempt — past entries must be consulted before retry
 5. Added integration tests in ContractReconciliationTests.cs validating dd/MM/yyyy and MM/dd/yyyy format detection.
 6. Updated FEATURES.md Section 43.
 **Result:** ✅ Green (Build PASSED, 296/296 Integration tests PASSED, 163/163 Playwright E2E PASSED)
+
+## [2026-09-10] e2e — Attempt 3
+**Failure:** None — added Matricula MultiSelect Autocomplete filter and "Atualizar" refresh button to `/#/my-contracts`.
+**Root cause:** N/A.
+**Fix applied:**
+1. Backend: updated `IContractRepository.cs`, `ContractRepository.cs`, and `ContractsController.cs` to support `[FromQuery] List<string>? matriculas` in `GET /api/contracts/user/{userId}` (filtering either `c.Matricula.MatriculaNumber` or `c.TempMatricula`, maintaining backward compatibility with singular `matricula`).
+2. Frontend: updated `contractService.ts` and `apiService.ts` to serialize multiple `matriculas`.
+3. UI: in `MyContractsPage.tsx`, replaced text input with Mantine `MultiSelect` (`searchable`, `clearable`, `id="matriculaFilter"`) populated with current user's active matriculas (`(Titular)` indicator for owner), persisted selections in `localStorage` (`myContracts_matriculas`), added "Atualizar" button in header syncing context, teams, pending claims, and contracts.
+4. E2E: adapted empty state test in `contracts_ui_enhancements.spec.ts` and created `my_contracts_matricula_autocomplete.spec.ts` in `tear-3a-hierarchy`. Rebuilt Docker images (`./test.sh build`) and ran `./test.sh rm-db && ./test.sh e2e`.
+5. Updated `FEATURES.md`.
+**Result:** ✅ Green (169/169 Playwright E2E PASSED)
+

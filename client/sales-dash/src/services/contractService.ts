@@ -340,12 +340,16 @@ export const getUserContracts = async (
   startDate?: string,
   endDate?: string,
   matricula?: string,
-  teamIds?: number[]
+  teamIds?: number[],
+  matriculas?: string[]
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
   const params = new URLSearchParams();
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
   if (matricula) params.append('matricula', matricula);
+  if (matriculas && matriculas.length > 0) {
+    matriculas.forEach(m => params.append('matriculas', m));
+  }
   if (teamIds && teamIds.length > 0) {
     teamIds.forEach(id => params.append('teamIds', String(id)));
   }
