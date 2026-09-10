@@ -109,7 +109,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await expect(adminParentOpt).toBeVisible({ timeout: 5000 });
     await adminParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Admin User ID
@@ -136,7 +136,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await expect(childParentOpt).toBeVisible({ timeout: 5000 });
     await childParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Child User ID
@@ -161,7 +161,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await expect(otherParentOpt).toBeVisible({ timeout: 5000 });
     await otherParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Other User ID
@@ -186,7 +186,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await expect(noparentParentOpt).toBeVisible({ timeout: 5000 });
     await noparentParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Noparent User ID
@@ -211,7 +211,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await expect(noteamParentOpt).toBeVisible({ timeout: 5000 });
     await noteamParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Noteam User ID
@@ -236,7 +236,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await expect(ineligibleParentOpt).toBeVisible({ timeout: 5000 });
     await ineligibleParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Resolve Ineligible User ID

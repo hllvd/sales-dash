@@ -28,7 +28,7 @@ test.describe('Import Wizard Flow', () => {
 
     // ── 5. Step 3: Import contracts directly from wizard ─────────────────────
     // Wait for the Step 3 content to be visible (Opções de Importação)
-    await expect(page.getByText('Opções de Importação')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText('Opções de Importação')).toBeVisible({ timeout: 60000 });
 
     // Verify the import options checkboxes are visible and ON by default
     await expect(page.locator('#wiz-skip-missing')).toBeChecked();

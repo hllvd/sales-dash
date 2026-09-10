@@ -1191,12 +1191,18 @@ Adiciona a aba **"Comparação por Usuário"** na tela de Reconciliação de Con
     7. *Sem Usuário Atribuído*: `Contratos na planilha sem consultor identificado no sistema - {ESCOPO}.xlsx`
     8. *Comparação por Consultor*: `Comparação financeira e contratos por consultor - {ESCOPO}.xlsx`
   - Sanitização automática de caracteres especiais inválidos para nomes de arquivos.
-  - Card de KPI dedicado "Comparação por Usuário" exibindo o total de usuários analisados.
-  - Toggle opcional para permitir correspondência parcial de nomes quando único.
+- **Classificação Precisa de Contratos por Divergência e Atribuição de Usuário**:
+  - **Importados sem Usuário (`unassignedUserContracts`)**: Contratos presentes no XLSX com consultor informado cujo contrato correspondente no sistema possui `UserInternalId == null`. Contratos sem identificação de vendedor na planilha não são classificados como sem usuário.
+  - **Divergência de Vendedor (`sellerMismatches`)**: Contratos existentes em ambas as fontes onde o usuário no sistema difere do vendedor da planilha, exibindo lado a lado o vendedor no sistema e no XLSX.
+  - **No XLSX / Não Cadastrados (`missingInSystem`)**: Contratos presentes na planilha que não existem na base de dados do sistema.
+  - Agregação financeira fidedigna no `Total Planilha` da tabela de comparação de usuários sem descartes prematuros.
+- **Card de KPI dedicado "Comparação por Usuário"** exibindo o total de usuários analisados.
+- **Toggle opcional** para permitir correspondência parcial de nomes quando único.
 
 ### Key Files Created/Modified
 - `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs` — DTOs `UserComparisonItemDto`, `ExportReconciliationTabRequestDto` e lista em `ContractReconciliationResultDto`.
-- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Lógica de reconciliação por usuário, endpoint `POST /api/contractreconciliation/export-xlsx`, `GetColumnValue` de duas fases com exclusões, `ParseDecimal` multi-formato e agregação financeira.
+- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Lógica de reconciliação por usuário, categorização precisa de contratos (sem usuário no sistema vs divergência de vendedor), endpoint `POST /api/contractreconciliation/export-xlsx`, `GetColumnValue` de duas fases com exclusões, `ParseDecimal` multi-formato e agregação financeira.
 - `client/sales-dash/src/services/apiService.ts` — Tipagens de `UserComparisonItem`, `exportReconciliationXlsx` e parâmetro `allowPartialNameMatch`.
 - `client/sales-dash/src/components/ContractReconciliationPage.tsx` & `.css` — Aba "user-comparison", KPI card, tabela com badges, `handleExportXlsx` com nomenclatura descritiva de problemas e exportação XLSX nativa.
+
 

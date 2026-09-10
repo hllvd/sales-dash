@@ -127,25 +127,6 @@ namespace SalesApp.Controllers
             var startDateTime = startDate.Date;
             var endDateTime = endDate.Date.AddDays(1).AddTicks(-1);
 
-            var contractsQuery = _context.Contracts
-                .AsNoTracking()
-                .Include(c => c.ContractStatus)
-                .Where(c => c.SaleStartDate >= startDateTime && c.SaleStartDate <= endDateTime);
-
-            if (targetUser != null)
-            {
-                contractsQuery = contractsQuery.Where(c => c.UserInternalId == targetUser.InternalId);
-            }
-            else if (activeTeamMemberInternalIds != null)
-            {
-                contractsQuery = contractsQuery.Where(c => c.UserInternalId.HasValue && activeTeamMemberInternalIds.Contains(c.UserInternalId.Value));
-            }
-
-            var systemContracts = await contractsQuery.ToListAsync();
-
-            // Map user internal IDs to system user names
-            var userIdToUserMap = allUsers.ToDictionary(u => u.InternalId);
-
             // Setup Column Headers Aliases
             var contractNumAliases = new[] { "contractnumber", "contrato", "numerocontrato", "numero do contrato", "número do contrato", "proposta", "codigo", "código", "number" };
             // Give top priority to "valor" (exact match first)
@@ -160,26 +141,54 @@ namespace SalesApp.Controllers
             var dateAliases = new[] { "date", "salestartdate", "datavenda", "data da venda", "data", "createdat" };
             var statusAliases = new[] { "status", "situacao", "situação", "estado", "rawstatus", "raw stats", "raw_status" };
 
+            var contractNumbersInSheet = rows
+                .Select(r => GetColumnValue(r, contractNumAliases)?.Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var allRelevantContracts = await _context.Contracts
+                .AsNoTracking()
+                .Include(c => c.ContractStatus)
+                .Where(c => (c.SaleStartDate >= startDateTime && c.SaleStartDate <= endDateTime)
+                         || contractNumbersInSheet.Contains(c.ContractNumber))
+                .ToListAsync();
+
+            // Map user internal IDs to system user names
+            var userIdToUserMap = allUsers.ToDictionary(u => u.InternalId);
+
             // Result sets
             var missingInSystem = new List<ReconciledContractItemDto>();
             var missingInImport = new List<ReconciledContractItemDto>();
             var amountMismatches = new List<AmountMismatchItemDto>();
-            var dateMismatches = new List<DateMismatchItemDto>();
+            var dateMismatches = new DateMismatchItemDto[] { }.ToList();
             var sellerMismatches = new List<SellerMismatchItemDto>();
             var statusMismatches = new List<StatusMismatchItemDto>();
             var unassignedUserContracts = new List<ReconciledContractItemDto>();
             var userComparisonsMap = new Dictionary<string, (string displayName, decimal xlsxTotal, decimal sysTotal, int xlsxCount, int sysCount)>(StringComparer.OrdinalIgnoreCase);
 
-            // System contract matching lookup
-            // Key: ContractNumber (Trim + Lower) -> Contract entity
+            // System contract matching lookup across all relevant contracts in DB
             var systemContractsMap = new Dictionary<string, Contract>(StringComparer.OrdinalIgnoreCase);
-            foreach (var sc in systemContracts)
+            foreach (var sc in allRelevantContracts)
             {
                 if (!string.IsNullOrWhiteSpace(sc.ContractNumber))
                 {
                     systemContractsMap[sc.ContractNumber.Trim()] = sc;
                 }
             }
+
+            // Scoped system contracts for Missing In Import and system user comparisons
+            var systemContracts = allRelevantContracts
+                .Where(c => c.SaleStartDate >= startDateTime && c.SaleStartDate <= endDateTime)
+                .Where(c => {
+                    if (targetUser != null)
+                        return c.UserInternalId == targetUser.InternalId;
+                    if (activeTeamMemberInternalIds != null)
+                        return c.UserInternalId.HasValue && activeTeamMemberInternalIds.Contains(c.UserInternalId.Value);
+                    return true;
+                })
+                .ToList();
 
             var matchedSystemContractNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -225,50 +234,33 @@ namespace SalesApp.Controllers
                     }
                 }
 
-                // Unassigned / Unmatched User check
-                if (rowUser == null && !string.IsNullOrWhiteSpace(userVal))
-                {
-                    unassignedUserContracts.Add(new ReconciledContractItemDto
-                    {
-                        ContractNumber = contractNum,
-                        TotalAmount = amountVal,
-                        UserIdentifier = userVal,
-                        SystemUserName = null,
-                        Date = dateVal,
-                        Source = "XLSX"
-                    });
+                // Check system contract existence
+                systemContractsMap.TryGetValue(contractNum, out var systemContract);
 
-                    var unassignedDisplayName = $"Não atribuído ({userVal})";
-                    var unassignedKey = NormalizeName(unassignedDisplayName);
-                    userComparisonsMap.TryGetValue(unassignedKey, out var currentUnassigned);
-                    userComparisonsMap[unassignedKey] = (
-                        string.IsNullOrWhiteSpace(currentUnassigned.displayName) ? unassignedDisplayName : currentUnassigned.displayName,
-                        currentUnassigned.xlsxTotal + amountVal,
-                        currentUnassigned.sysTotal,
-                        currentUnassigned.xlsxCount + 1,
-                        currentUnassigned.sysCount
-                    );
-
-                    continue; // Skip further matching if explicitly assigned to unknown user
-                }
-
-                // If user filter is applied (targetUser != null):
-                // If row has no user specified, assume it belongs to targetUser.
-                // If row has user specified and it matches targetUser, process it.
-                // If row has user specified and it matches a DIFFERENT user, ignore for targetUser audit.
+                // Scope filtering: check if this row or its corresponding system contract belongs to the targeted scope
                 if (targetUser != null)
                 {
-                    if (rowUser != null && rowUser.Id != targetUser.Id)
+                    bool rowMatchesUser = (rowUser != null && rowUser.Id == targetUser.Id)
+                        || (rowUser == null && !string.IsNullOrWhiteSpace(userVal) && NormalizeName(userVal) == NormalizeName(targetUser.Name))
+                        || (rowUser == null && string.IsNullOrWhiteSpace(userVal));
+
+                    bool systemMatchesUser = systemContract != null && systemContract.UserInternalId == targetUser.InternalId;
+
+                    if (!rowMatchesUser && !systemMatchesUser)
                     {
-                        // Belongs to another user, skip for Target User scope
                         continue;
                     }
                 }
                 else if (activeTeamMemberInternalIds != null)
                 {
-                    if (rowUser != null && !activeTeamMemberInternalIds.Contains(rowUser.InternalId))
+                    bool rowMatchesTeam = (rowUser != null && activeTeamMemberInternalIds.Contains(rowUser.InternalId))
+                        || (rowUser == null && !string.IsNullOrWhiteSpace(userVal) && activeTeamMemberInternalIds.Any(id => userIdToUserMap.TryGetValue(id, out var tm) && NormalizeName(tm.Name) == NormalizeName(userVal)))
+                        || (rowUser == null && string.IsNullOrWhiteSpace(userVal));
+
+                    bool systemMatchesTeam = systemContract != null && systemContract.UserInternalId.HasValue && activeTeamMemberInternalIds.Contains(systemContract.UserInternalId.Value);
+
+                    if (!rowMatchesTeam && !systemMatchesTeam)
                     {
-                        // Belongs to a user outside the target Team, skip for Target Team scope
                         continue;
                     }
                 }
@@ -285,10 +277,54 @@ namespace SalesApp.Controllers
                     currentXlsx.sysCount
                 );
 
-                if (systemContractsMap.TryGetValue(contractNum, out var systemContract))
+                if (systemContract != null)
                 {
                     matchedSystemContractNumbers.Add(contractNum);
-                    var sysUser = systemContract.UserInternalId.HasValue && userIdToUserMap.TryGetValue(systemContract.UserInternalId.Value, out var u) ? u.Name : resolvedUserName;
+                    var sysUser = systemContract.UserInternalId.HasValue && userIdToUserMap.TryGetValue(systemContract.UserInternalId.Value, out var u) ? u.Name : null;
+
+                    // Unassigned user in system check:
+                    // If contract exists in system but has no user assigned, and spreadsheet specified a seller/consultant
+                    if (!systemContract.UserInternalId.HasValue || string.IsNullOrWhiteSpace(sysUser))
+                    {
+                        if (!string.IsNullOrWhiteSpace(userVal))
+                        {
+                            unassignedUserContracts.Add(new ReconciledContractItemDto
+                            {
+                                ContractNumber = contractNum,
+                                TotalAmount = systemContract.TotalAmount > 0 ? systemContract.TotalAmount : amountVal,
+                                UserIdentifier = userVal,
+                                SystemUserName = null,
+                                Date = dateVal ?? systemContract.SaleStartDate,
+                                Source = "XLSX"
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // System HAS an assigned user
+                        // Check seller mismatch (XLSX seller differs from system user)
+                        bool sellerMismatch = false;
+                        if (rowUser != null)
+                        {
+                            sellerMismatch = (rowUser.InternalId != systemContract.UserInternalId.Value);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(userVal))
+                        {
+                            sellerMismatch = !string.Equals(NormalizeName(userVal), NormalizeName(sysUser), StringComparison.OrdinalIgnoreCase);
+                        }
+
+                        if (sellerMismatch)
+                        {
+                            sellerMismatches.Add(new SellerMismatchItemDto
+                            {
+                                ContractNumber = contractNum,
+                                TotalAmount = systemContract.TotalAmount,
+                                SystemUserName = sysUser,
+                                XlsxUserIdentifier = rowUser?.Name ?? userVal,
+                                SaleStartDate = systemContract.SaleStartDate
+                            });
+                        }
+                    }
 
                     // Check amount mismatch
                     if (Math.Abs(systemContract.TotalAmount - amountVal) > 0.01m)
@@ -299,7 +335,7 @@ namespace SalesApp.Controllers
                             SystemAmount = systemContract.TotalAmount,
                             XlsxAmount = amountVal,
                             UserIdentifier = userVal ?? resolvedUserName,
-                            SystemUserName = sysUser,
+                            SystemUserName = sysUser ?? resolvedUserName,
                             SaleStartDate = systemContract.SaleStartDate
                         });
                     }
@@ -313,20 +349,7 @@ namespace SalesApp.Controllers
                             TotalAmount = systemContract.TotalAmount,
                             SystemDate = systemContract.SaleStartDate,
                             XlsxDate = dateVal.Value,
-                            SystemUserName = sysUser
-                        });
-                    }
-
-                    // Check seller mismatch (when XLSX resolved a user and it differs from system user)
-                    if (rowUser != null && (!systemContract.UserInternalId.HasValue || systemContract.UserInternalId.Value != rowUser.InternalId))
-                    {
-                        sellerMismatches.Add(new SellerMismatchItemDto
-                        {
-                            ContractNumber = contractNum,
-                            TotalAmount = systemContract.TotalAmount,
-                            SystemUserName = sysUser,
-                            XlsxUserIdentifier = rowUser.Name ?? userVal,
-                            SaleStartDate = systemContract.SaleStartDate
+                            SystemUserName = sysUser ?? resolvedUserName
                         });
                     }
 
@@ -348,7 +371,7 @@ namespace SalesApp.Controllers
                                 TotalAmount = systemContract.TotalAmount,
                                 SystemStatus = systemStatus,
                                 XlsxStatus = statusVal,
-                                SystemUserName = sysUser,
+                                SystemUserName = sysUser ?? resolvedUserName,
                                 SaleStartDate = systemContract.SaleStartDate
                             });
                         }

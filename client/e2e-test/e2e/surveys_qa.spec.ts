@@ -21,8 +21,8 @@ test.describe('Surveys / QA Feature (TEAR 3B)', () => {
     await questionInput.fill(surveyQuestion);
 
     // 3. Filter and select superadmin user as recipient
-    const nameFilterInput = page.locator('input[placeholder="Buscar por nome..."]');
-    await nameFilterInput.fill('Super');
+    const emailFilterInput = page.locator('input[placeholder="Buscar por email..."]');
+    await emailFilterInput.fill('superadmin@salesapp.com');
 
     // Wait for filtered users in table
     await page.waitForTimeout(500);

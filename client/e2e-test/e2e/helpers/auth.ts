@@ -48,6 +48,12 @@ export async function loginAs(page: Page, email: string = SUPERADMIN_EMAIL, pass
 
   // Verify successful login navigation
   await expect(page.locator('button:has-text("Logout"), a[href="#/my-contracts"], .mantine-AppShell-main').first()).toBeVisible({ timeout: 15000 });
+
+  // Dismiss survey modal if it pops up upon login
+  const responderDepois = page.locator('button:has-text("Responder depois")');
+  if (await responderDepois.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await responderDepois.click().catch(() => {});
+  }
 }
 
 

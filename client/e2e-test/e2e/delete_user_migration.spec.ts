@@ -253,6 +253,11 @@ test.describe('Delete User without Mandatory Migration E2E Flow', () => {
     await loginAs(page);
     await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 20000 });
 
+    const responderDepois = page.locator('button:has-text("Responder depois")');
+    if (await responderDepois.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await responderDepois.click().catch(() => {});
+    }
+
     await page.click('a[href="#/users"]');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Usuários' })).toBeVisible();
 

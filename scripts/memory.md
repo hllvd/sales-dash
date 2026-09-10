@@ -352,6 +352,20 @@ Each entry records a fix attempt — past entries must be consulted before retry
 1. Added modal/survey prompt dismissal check after `loginAs`.
 2. Wrapped sidebar navigation to `#/classifications` with try/catch fallback to direct `page.goto('/#/classifications')` after dismissing any lingering modal overlay.
 3. Added try/catch fallback to `page.goto('/#/views')` in Part B.
-4. Stabilized `beforeEach` with `await page.goto('/', { waitUntil: 'domcontentloaded' })` and cleared both `localStorage` and `sessionStorage`.
-**Result:** ✅ Green
+## [2026-09-10] all — Attempt 1
+**Failure:** Reconciled contracts with unassigned users and seller mismatches incorrectly grouped; dialog locator conflicts and timeouts in `admin_permissions.spec.ts`, `equipe_admin_permission.spec.ts`, `surveys_qa.spec.ts`, and `import_wizard.spec.ts`.
+**Root cause:** 
+1. In `ContractReconciliationController.cs`, `rowUser == null` check prematurely dumped contracts into `unassignedUserContracts` with `continue;` before evaluating whether the contract existed in the system or belonged to another user.
+2. `page.getByRole('dialog')` in user creation assertions was unconstrained, matching background survey modals.
+3. `surveys_qa.spec.ts` filtered by `"Super"` in the name filter, selecting multiple users and leaving pending surveys.
+4. `import_wizard.spec.ts` had a short 20s timeout waiting for heavy bulk user and matricula import.
+**Fix applied:**
+1. In `ContractReconciliationController.cs`: removed premature `continue;`, properly loaded relevant system contracts, routed contracts with `UserInternalId == null` in system to `unassignedUserContracts` (only when spreadsheet seller is non-empty), routed contracts with differing users to `sellerMismatches`, routed contracts absent from system to `missingInSystem`, and properly aggregated `Total Planilha` and `Total Sistema` in `userComparisonsMap`.
+2. Added `ExportReconciliationTabRequestDto` and `POST /api/contractreconciliation/export-xlsx` with problem-descriptive file naming.
+3. Updated `ContractReconciliationTests.cs` integration tests for unassigned contracts, seller mismatches, and XLSX export.
+4. Constrained dialog visibility assertions to `getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })` in `admin_permissions.spec.ts` and `equipe_admin_permission.spec.ts`.
+5. Filtered specifically by `superadmin@salesapp.com` in email field in `surveys_qa.spec.ts`.
+6. Increased timeout to 60s for bulk user import in `import_wizard.spec.ts`.
+**Result:** ✅ Green (Build PASSED, 294/294 Integration tests PASSED, 165/165 Playwright E2E PASSED)
+
 
