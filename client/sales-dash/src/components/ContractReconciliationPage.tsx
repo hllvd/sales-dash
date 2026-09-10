@@ -117,7 +117,7 @@ const ContractReconciliationPage: React.FC = () => {
       try {
         const [teamsRes, usersRes] = await Promise.allSettled([
           apiService.getTeams(),
-          apiService.getUsers(1, 500, undefined, undefined, false, true, 'active'),
+          apiService.getUsers(1, 1000, undefined, undefined, false, true, 'active'),
         ]);
 
         if (teamsRes.status === 'fulfilled' && teamsRes.value.success && teamsRes.value.data) {

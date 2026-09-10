@@ -331,5 +331,83 @@ namespace SalesApp.IntegrationTests.Contracts
             result.EndDate.Should().Be("2025-04-28");
             result.TotalRows.Should().Be(2);
         }
+
+        [Fact]
+        public async Task Reconcile_ShouldResolveUserByMatricula_WhenMatriculaHasLeadingZeros()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var userGuid = Guid.NewGuid();
+            var matriculaUser = new User
+            {
+                Id = userGuid,
+                Name = "Matricula Test User",
+                Email = $"mat_user_{Guid.NewGuid():N}@test.com",
+                RoleId = 3,
+                InternalId = 9991
+            };
+
+            var matricula = new Matricula
+            {
+                MatriculaNumber = "3650"
+            };
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.Users.Add(matriculaUser);
+                db.Matriculas.Add(matricula);
+                await db.SaveChangesAsync();
+
+                db.UserMatriculas.Add(new UserMatricula
+                {
+                    UserInternalId = matriculaUser.InternalId,
+                    MatriculaId = matricula.Id,
+                    IsActive = true,
+                    IsOwner = true
+                });
+                await db.SaveChangesAsync();
+            }
+
+            byte[] xlsxBytes;
+            using (var package = new ExcelPackage())
+            {
+                var ws = package.Workbook.Worksheets.Add("Sheet1");
+                ws.Cells[1, 1].Value = "Contrato";
+                ws.Cells[1, 2].Value = "Data da Venda";
+                ws.Cells[1, 3].Value = "Valor";
+                ws.Cells[1, 4].Value = "Matrícula";
+                ws.Cells[1, 5].Value = "Consultor";
+
+                ws.Cells[2, 1].Value = "CNT-MAT-001";
+                ws.Cells[2, 2].Value = "04/03/2026";
+                ws.Cells[2, 3].Value = 150000.00;
+                ws.Cells[2, 4].Value = "003650"; // Leading zeros in sheet
+                ws.Cells[2, 5].Value = "Nome Incompleto Consultor";
+
+                xlsxBytes = package.GetAsByteArray();
+            }
+
+            using var content = new MultipartFormDataContent();
+            content.Add(new ByteArrayContent(xlsxBytes), "file", "reconcile_matricula.xlsx");
+            content.Add(new StringContent("2026-03-01"), "startDate");
+            content.Add(new StringContent("2026-03-31"), "endDate");
+
+            // Act
+            var response = await _client.PostAsync("/api/contractreconciliation/reconcile", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ContractReconciliationResultDto>();
+            result.Should().NotBeNull();
+            
+            // Should resolve user comparison under "Matricula Test User"
+            var comparison = result!.UserComparisons.FirstOrDefault(u => u.UserName.Equals("Matricula Test User", StringComparison.OrdinalIgnoreCase));
+            comparison.Should().NotBeNull();
+            comparison!.XlsxTotal.Should().Be(150000.00m);
+            comparison.XlsxCount.Should().Be(1);
+        }
     }
 }

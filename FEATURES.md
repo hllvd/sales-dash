@@ -1242,14 +1242,23 @@ Adiciona a aba **"Comparação por Usuário"** na tela de Reconciliação de Con
   - O padrão é descoberto uma única vez para a planilha e aplicado uniformemente em todas as linhas.
 - **Preenchimento Automático do Período de Venda**:
   - Endpoint `POST /api/contractreconciliation/detect-date-range`: ao carregar o arquivo na interface, analisa as datas da planilha e preenche automaticamente os inputs `Data Inicial (Venda)` e `Data Final (Venda)` com a data mais antiga e mais recente encontradas.
+- **Resolução Inteligente de Consultores e Normalização de Matrícula**:
+  - Leitura dedicada da coluna `Matrícula` da planilha através de aliases (`matricula`, `matrícula`, `matriculanumber`, `codigoconsultor`, etc.).
+  - Indexação dupla de usuários por matrícula no sistema (número original e número normalizado via `NormalizationUtils.NormalizeNumber`, removendo zeros à esquerda, ex: `003650` -> `3650`).
+  - Resolução combinada de vendedor na reconciliação: busca por email/nome/matrícula do consultor, pela coluna de matrícula normalizada da linha e, caso o contrato já exista no sistema com vendedor atribuído, associa o consultor do sistema quando os nomes forem compatíveis.
+  - Na aba **"Comparação por Usuário"**, consolida a produção financeira e contagem de contratos (`Total Planilha` e `Total Sistema`) sob a mesma chave do consultor, eliminando a ocorrência de produção zerada no sistema para consultores existentes.
+- **Escopo Global de Usuários para SuperAdmin no Filtro de Contratos**:
+  - `UsersController.cs` e `ContractsPage.tsx` identificam SuperAdmin de forma robusta (`role_id == "1"`, role `SuperAdmin` ou permissão `system:superadmin`), liberando a visualização de todos os usuários no dropdown de filtros de Contratos sem restrição pela árvore hierárquica (`scopeToDescendants`), enquanto preserva a restrição por descendentes para usuários e papéis subordinados.
 - **Card de KPI dedicado "Comparação por Usuário"** exibindo o total de usuários analisados.
 - **Toggle opcional** para permitir correspondência parcial de nomes quando único.
 
 ### Key Files Created/Modified
 - `SalesApp.Api/Services/ReconciliationDateDetector.cs` — Lógica pura e estática de detecção em 4 níveis de formato de data e extração de intervalo (`minDate`/`maxDate`).
 - `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs` — DTOs `DetectDateRangeResponseDto`, `UserComparisonItemDto`, `ExportReconciliationTabRequestDto`.
-- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Endpoint `POST /api/contractreconciliation/detect-date-range`, uso do detector na leitura de datas da reconciliação, categorização precisa de contratos e endpoint `POST /api/contractreconciliation/export-xlsx`.
+- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Endpoint `POST /api/contractreconciliation/detect-date-range`, extração de matrícula normalizada, resolução inteligente de vendedores e endpoint `POST /api/contractreconciliation/export-xlsx`.
+- `SalesApp.Api/Controllers/UsersController.cs` — Validação de SuperAdmin ampla para ignorar restrição de descendentes.
 - `client/sales-dash/src/services/apiService.ts` — Métodos `detectReconciliationDateRange`, `exportReconciliationXlsx` e tipos TypeScript.
+- `client/sales-dash/src/components/ContractsPage.tsx` — Carregamento irrestrito de usuários no filtro para SuperAdmin.
 - `client/sales-dash/src/components/ContractReconciliationPage.tsx` & `.css` — Auto-preenchimento de período no upload de arquivo, indicador de padrão de data detectado, aba "user-comparison", KPI card, tabela com badges e exportação XLSX nativa.
 
 

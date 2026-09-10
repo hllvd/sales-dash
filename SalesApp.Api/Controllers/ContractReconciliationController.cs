@@ -17,6 +17,7 @@ using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Services;
+using SalesApp.Utils;
 
 namespace SalesApp.Controllers
 {
@@ -119,9 +120,24 @@ namespace SalesApp.Controllers
                 .Where(u => !string.IsNullOrWhiteSpace(u.Name))
                 .ToLookup(u => NormalizeName(u.Name));
 
-            var usersByMatricula = allMatriculas
-                .Where(m => m.User != null && m.Matricula != null && !string.IsNullOrWhiteSpace(m.Matricula.MatriculaNumber))
-                .ToLookup(m => m.Matricula.MatriculaNumber.Trim().ToLowerInvariant(), m => m.User!);
+            var usersByMatricula = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+            foreach (var m in allMatriculas)
+            {
+                if (m.User != null && m.Matricula != null && !string.IsNullOrWhiteSpace(m.Matricula.MatriculaNumber))
+                {
+                    var rawNum = m.Matricula.MatriculaNumber.Trim();
+                    var normNum = NormalizationUtils.NormalizeNumber(rawNum);
+
+                    if (!string.IsNullOrEmpty(rawNum) && !usersByMatricula.ContainsKey(rawNum))
+                    {
+                        usersByMatricula[rawNum] = m.User;
+                    }
+                    if (!string.IsNullOrEmpty(normNum) && !usersByMatricula.ContainsKey(normNum))
+                    {
+                        usersByMatricula[normNum] = m.User;
+                    }
+                }
+            }
 
             // Query System Contracts for date range
             var startDateTime = startDate.Date;
@@ -137,6 +153,8 @@ namespace SalesApp.Controllers
             var sellerNameAliases = new[] { "consultor", "consultora", "vendedor", "vendedora", "comissionado", "comissionada", "assessor", "assessora", "corretor", "corretora" };
             var sellerSecondaryAliases = new[] { "useremail", "email", "e-mail", "matricula", "matrícula", "cpf", "userinternalid", "usuario", "usuário", "nome" };
             var sellerExcludedSubstrings = new[] { "nomepv", "nomedopv", "cliente", "nomedocliente", "pv" };
+
+            var matriculaAliases = new[] { "matricula", "matrícula", "matriculanumber", "codigoconsultor", "código consultor", "matricula consultor", "matrícula consultor", "matricula do consultor", "matrícula do consultor" };
 
             var dateAliases = new[] { "date", "salestartdate", "datavenda", "data da venda", "data", "createdat" };
             var statusAliases = new[] { "status", "situacao", "situação", "estado", "rawstatus", "raw stats", "raw_status" };
@@ -211,7 +229,12 @@ namespace SalesApp.Controllers
                 var amountVal = ParseDecimal(GetColumnValue(row, amountAliases, amountExcludedSubstrings));
                 var userVal = (GetColumnValue(row, sellerNameAliases, sellerExcludedSubstrings)
                                ?? GetColumnValue(row, sellerSecondaryAliases, sellerExcludedSubstrings))?.Trim();
+                var matriculaVal = GetColumnValue(row, matriculaAliases)?.Trim();
+                var normalizedMatricula = !string.IsNullOrWhiteSpace(matriculaVal) ? NormalizationUtils.NormalizeNumber(matriculaVal) : null;
                 var dateVal = ReconciliationDateDetector.TryParseDateWithPattern(GetColumnValue(row, dateAliases), detectedDateFormat);
+
+                // Check system contract existence early so it can aid in resolving user
+                systemContractsMap.TryGetValue(contractNum, out var systemContract);
 
                 // Resolve User for row
                 User? rowUser = null;
@@ -219,9 +242,11 @@ namespace SalesApp.Controllers
                 {
                     var userKey = userVal.Trim().ToLowerInvariant();
                     var normalizedUserVal = NormalizeName(userVal);
+                    var normalizedUserNumber = NormalizationUtils.NormalizeNumber(userVal);
 
                     rowUser = usersByEmail[userKey].FirstOrDefault()
-                              ?? usersByMatricula[userKey].FirstOrDefault()
+                              ?? (usersByMatricula.TryGetValue(userKey, out var um1) ? um1 : null)
+                              ?? (!string.IsNullOrEmpty(normalizedUserNumber) && usersByMatricula.TryGetValue(normalizedUserNumber, out var um2) ? um2 : null)
                               ?? usersByNormalizedName[normalizedUserVal].FirstOrDefault();
 
                     if (rowUser == null && int.TryParse(userVal, out int parsedInternalId))
@@ -243,8 +268,32 @@ namespace SalesApp.Controllers
                     }
                 }
 
-                // Check system contract existence
-                systemContractsMap.TryGetValue(contractNum, out var systemContract);
+                // If user not resolved yet by userVal, try resolving via the row's matricula column
+                if (rowUser == null)
+                {
+                    if (!string.IsNullOrWhiteSpace(normalizedMatricula) && usersByMatricula.TryGetValue(normalizedMatricula, out var matUserNorm))
+                    {
+                        rowUser = matUserNorm;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(matriculaVal) && usersByMatricula.TryGetValue(matriculaVal, out var matUserRaw))
+                    {
+                        rowUser = matUserRaw;
+                    }
+                }
+
+                // If user is still not resolved, but contract exists in the system with an assigned user:
+                // Fall back to system user if no spreadsheet seller was provided, or if the spreadsheet seller name is compatible
+                if (rowUser == null && systemContract != null && systemContract.UserInternalId.HasValue && userIdToUserMap.TryGetValue(systemContract.UserInternalId.Value, out var sysContractUser))
+                {
+                    var sysUserNameNorm = NormalizeName(sysContractUser.Name);
+                    var userValNorm = !string.IsNullOrWhiteSpace(userVal) ? NormalizeName(userVal) : null;
+                    if (string.IsNullOrWhiteSpace(userValNorm) ||
+                        userValNorm.Contains(sysUserNameNorm) ||
+                        sysUserNameNorm.Contains(userValNorm))
+                    {
+                        rowUser = sysContractUser;
+                    }
+                }
 
                 // Scope filtering: check if this row or its corresponding system contract belongs to the targeted scope
                 if (targetUser != null)

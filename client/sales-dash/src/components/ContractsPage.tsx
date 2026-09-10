@@ -131,8 +131,13 @@ const ContractsPage: React.FC = () => {
 
   const loadFilters = useCallback(async () => {
     try {
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin' ||
+                           currentUser?.roleName?.toLowerCase() === 'superadmin' ||
+                           (currentUser?.permissions && currentUser.permissions.includes('system:superadmin'));
+
       const [usersData, groupsData, teamsData] = await Promise.all([
-        getUsers(true),
+        getUsers(!isSuperAdmin),
         getGroups(),
         fetchTeams(),
       ]);

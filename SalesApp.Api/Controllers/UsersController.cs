@@ -681,9 +681,12 @@ namespace SalesApp.Controllers
             [FromQuery] string status = "active")
         {
             HashSet<Guid>? allowedUserIds = null;
-            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            var isSuperAdmin = User.FindFirst("role_id")?.Value == "1"
+                || User.IsInRole("SuperAdmin")
+                || User.IsInRole("superadmin")
+                || User.HasClaim("perm", "system:superadmin");
 
-            if (scopeToDescendants && roleIdClaim != "1") // Scoped and not a Superadmin
+            if (scopeToDescendants && !isSuperAdmin)
             {
                 var currentUserId = GetCurrentUserId();
                 allowedUserIds = await _hierarchyService.GetDescendantIdsAsync(currentUserId);

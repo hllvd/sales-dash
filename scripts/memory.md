@@ -393,3 +393,15 @@ Each entry records a fix attempt — past entries must be consulted before retry
 5. Updated `FEATURES.md`.
 **Result:** ✅ Green (169/169 Playwright E2E PASSED)
 
+
+## [2026-09-10] all — Attempt 4
+**Failure:** None — full verification run for SuperAdmin global user scope in Contracts filter and Smart User/Matricula resolution in Contract Reconciliation.
+**Root cause:** N/A.
+**Fix applied:**
+1. Backend `UsersController.cs`: broadened SuperAdmin identification in `GetUsers` (`role_id == "1"`, role `SuperAdmin`/`superadmin` or `perm: system:superadmin`) so SuperAdmin callers are never restricted by `scopeToDescendants`.
+2. Backend `ContractReconciliationController.cs`: added dedicated `matriculaAliases`, dual-indexed `usersByMatricula` with raw and leading-zero normalized numbers (`003650` -> `3650`), enabled user resolution via row matricula, and resolved user via existing system contract (`systemContract.UserInternalId`) when names are compatible, consolidating `Total Planilha` and `Total Sistema` under the same user in `userComparisonsMap`.
+3. Frontend `ContractsPage.tsx`: dynamically passed `!isSuperAdmin` to `getUsers` so SuperAdmin never requests descendant scoping and loads all users for searching by Name and Email.
+4. Frontend `ContractReconciliationPage.tsx`: increased user fetch limit to 1000.
+5. Added integration test `Reconcile_ShouldResolveUserByMatricula_WhenMatriculaHasLeadingZeros` in `ContractReconciliationTests.cs`.
+6. Updated `FEATURES.md` Section 43.
+**Result:** ✅ Green (Build PASSED, 297/297 Integration tests PASSED, 171/171 Playwright E2E PASSED)
