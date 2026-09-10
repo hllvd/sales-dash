@@ -1295,4 +1295,37 @@ Adiciona a aba **"Comparação por Usuário"** na tela de Reconciliação de Con
 - `client/sales-dash/src/components/ContractsPage.tsx` — Carregamento irrestrito de usuários no filtro para SuperAdmin.
 - `client/sales-dash/src/components/ContractReconciliationPage.tsx` & `.css` — Auto-preenchimento de período no upload de arquivo, indicador de padrão de data detectado, aba "user-comparison", KPI card, tabela com badges e exportação XLSX nativa.
 
+## [2026-09-10] — Separação de Cancelado vs Desistente e Regras de Retenção com Todos os Filtros
+
+### Contexto & Motivação
+- No formulário de relatórios (`ReportFormPage.tsx`), o status `Defaulted` estava incorretamente rotulado como `"Desistente/Excluído"`, misturando os conceitos de cancelamento e desistência.
+- O usuário desejava não contar o estado "Desistente" nas métricas de retenção, enquanto o estado "Cancelado" (`Defaulted`) deve ser computado no denominador para refletir a taxa real de retenção da carteira.
+- Contratos com status `Active` e `HasPayment == false` ("Aguardando Pagamento") não eram detectados como pendentes nas fórmulas de retenção devido à checagem restrita a `ContractStatus.AwaitingPayment`, inflando indevidamente as taxas de retenção.
+
+### Mudanças Realizadas
+1. **Separação de Estados**:
+   - `Defaulted` agora é rotulado e tratado explicitamente como **Cancelado**.
+   - `Desistente` é tratado como **Desistente**.
+2. **Seleção Padrão de Status**:
+   - Novos relatórios vêm por padrão com todos os status selecionados exceto `Desistente`:
+     `['Active', 'Late1', 'Late2', 'Late3', 'Defaulted', 'Transferred', 'AwaitingPayment']`.
+3. **Regras de Cálculo de Retenção**:
+   - Contratos **Desistentes** nunca são computados na retenção (excluídos do numerador e do denominador).
+   - Contratos **Cancelados** (`Defaulted`) entram no denominador da retenção (`totalAmount`), reduzindo a taxa de retenção como esperado para inadimplência/cancelamento.
+   - Contratos em **Aguardando Pagamento** (`Active` com `HasPayment == false` ou status literal `AwaitingPayment`):
+     - Quando o filtro for `Aguardando Pagamento = Não`: contratos são excluídos da lista e não refletem na retenção.
+     - Quando o filtro for `Aguardando Pagamento = Sim`: contratos são listados e incluídos na retenção (`includeAwaitingPayment = true`).
+     - Quando o filtro for `Todos`: contratos são listados na tabela, mas ignorados das fórmulas de retenção.
+   - Todos os filtros configurados (Datas, Equipes, Lojas, Vendedores, Grupos, Matrículas, PVs, Classificações, Desempenho e Status) são aplicados de forma consistente.
+4. **Unificação via `ReportRetentionCalculator`**:
+   - As retenções por vendedor (`_retentionByEmail`), por equipe (`_retentionByTeam`), por classificação (`_retentionByClassification`) e geral (`overallRetention`) utilizam o mesmo motor estático puro, garantindo total coerência entre as colunas da tabela e o card de sumário.
+
+### Arquivos Modificados
+- `SalesApp.Api/ReportFilters/Services/ReportRetentionCalculator.cs` — Adição dos métodos puros `IsAwaitingPayment` e `IsDesistente`; atualização de `CalculateOverallRetention` para excluir `Desistente` e tratar `AwaitingPayment`.
+- `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs` — Unificação dos cálculos de retenção chamando `ReportRetentionCalculator.CalculateOverallRetention`; adição do helper `MatchesStatus` para suporte correto a `AwaitingPayment` e `Desistente`; aplicação de filtros de desempenho com as novas regras.
+- `client/sales-dash/src/components/Reports/ReportFormPage.tsx` — Separação das opções `Cancelado` (`Defaulted`) e `Desistente` no multiselect; definição da constante `DEFAULT_REPORT_STATUSES` com todos os status exceto `Desistente`.
+- `SalesApp.Tests/Services/ReportRetentionCalculatorTests.cs` — Testes unitários para `IsAwaitingPayment`, `IsDesistente`, exclusão de desistentes e impacto de cancelados/aguardando pagamento.
+- `SalesApp.Tests/Services/ReportFilterServiceTests.cs` — Testes de integração unitária para `ExecuteAsync` cobrindo retenção com cancelados, exclusão de desistentes e variações do filtro `AwaitingPayment`.
+
+
 

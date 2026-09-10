@@ -927,5 +927,183 @@ namespace SalesApp.Tests.Services
                 It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()), Times.Never);
         }
+
+        [Fact]
+        public async Task ExecuteAsync_WithDefaultedAndDesistente_ShouldExcludeDesistenteAndIncludeDefaultedInRetention()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "filter-retention-test";
+
+            var report = new ReportFilter
+            {
+                FilterId = filterId,
+                UserId = callerId,
+                Name = "Retention Report",
+                Scope = "private",
+                SumTotal = true,
+                SummaryRetentionType = "standard",
+                FilterConfig = new FilterConfig
+                {
+                    Statuses = new List<string> { "Active", "Defaulted" }
+                },
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contract #", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(report);
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+                .ReturnsAsync(new List<Team>());
+
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "C1", TotalAmount = 800m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = true },
+                new Contract { ContractNumber = "C2", TotalAmount = 200m, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } },
+                new Contract { ContractNumber = "C3", TotalAmount = 500m, ContractStatus = new ContractStatusEntity { Name = "Desistente" } }
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            // Desistente is excluded by Statuses filter ["Active", "Defaulted"]
+            result.Data!.TotalCount.Should().Be(2);
+            result.Data.TotalSum.Should().Be(1000m); // 800 + 200
+            // Overall retention: 800 / (800 + 200) = 80% (Desistente is excluded from retention)
+            result.Data.OverallRetention.Should().Be(0.8m);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithAwaitingPaymentFilterFalse_ShouldExcludeAwaitingPaymentContracts()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "filter-awaiting-false-test";
+
+            var report = new ReportFilter
+            {
+                FilterId = filterId,
+                UserId = callerId,
+                Name = "Paid Only Report",
+                Scope = "private",
+                SumTotal = true,
+                SummaryRetentionType = "standard",
+                FilterConfig = new FilterConfig
+                {
+                    AwaitingPayment = false
+                },
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contract #", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(report);
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+                .ReturnsAsync(new List<Team>());
+
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "C1", TotalAmount = 800m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = true },
+                new Contract { ContractNumber = "C2", TotalAmount = 200m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = false }
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.TotalCount.Should().Be(1);
+            result.Data.TotalSum.Should().Be(800m);
+            result.Data.OverallRetention.Should().Be(1.0m);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithAwaitingPaymentFilterTrue_ShouldIncludeOnlyAwaitingPaymentContracts()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "filter-awaiting-true-test";
+
+            var report = new ReportFilter
+            {
+                FilterId = filterId,
+                UserId = callerId,
+                Name = "Awaiting Only Report",
+                Scope = "private",
+                SumTotal = true,
+                SummaryRetentionType = "standard",
+                FilterConfig = new FilterConfig
+                {
+                    AwaitingPayment = true
+                },
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contract #", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(report);
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+                .ReturnsAsync(new List<Team>());
+
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "C1", TotalAmount = 800m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = true },
+                new Contract { ContractNumber = "C2", TotalAmount = 200m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = false }
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.TotalCount.Should().Be(1);
+            result.Data.TotalSum.Should().Be(200m);
+            // With AwaitingPayment = true, awaiting contracts count in retention
+            result.Data.OverallRetention.Should().Be(1.0m);
+        }
     }
 }

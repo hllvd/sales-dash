@@ -405,3 +405,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 5. Added integration test `Reconcile_ShouldResolveUserByMatricula_WhenMatriculaHasLeadingZeros` in `ContractReconciliationTests.cs`.
 6. Updated `FEATURES.md` Section 43.
 **Result:** ✅ Green (Build PASSED, 297/297 Integration tests PASSED, 171/171 Playwright E2E PASSED)
+
+## [2026-09-10] e2e — Attempt 5
+**Failure:** `user_classification_and_views.spec.ts` failed with navigation interruption error and timeout waiting on modal dismissal.
+**Root cause:** `beforeEach` used `await page.goto('/', { waitUntil: 'domcontentloaded' })`, which collided with `loginAs` immediately calling `page.goto('/')` before page resources finished loading; `.mantine-Modal-close` locator was not scoped with `.first()`.
+**Fix applied:** In `client/e2e-test/e2e/user_classification_and_views.spec.ts`, updated `page.goto('/')` in `beforeEach` to standard navigation and scoped `modalCloseBtn` to `.first()`. Ran `./test.sh rm-db && ./test.sh e2e`.
+**Result:** ✅ Green (171/171 Playwright E2E PASSED)
+

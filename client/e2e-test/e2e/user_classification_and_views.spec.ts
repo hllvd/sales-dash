@@ -18,7 +18,7 @@ test.describe('User Classification Levels & Custom Views E2E Tests', () => {
 
   test.beforeEach(async ({ page }) => {
     // Navigate first to have a valid domain context, then clear storage
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.goto('/');
     await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
@@ -32,10 +32,9 @@ test.describe('User Classification Levels & Custom Views E2E Tests', () => {
     await loginAs(page, adminEmail, adminPassword);
 
     // Dismiss any modal/survey prompt that might have appeared on login
-    const modalCloseBtn = page.locator('.mantine-Modal-close');
+    const modalCloseBtn = page.locator('.mantine-Modal-close').first();
     if (await modalCloseBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await modalCloseBtn.click().catch(() => {});
-      await page.waitForTimeout(500);
     }
 
     // ────────────────────────────────────────────────────────────────────────

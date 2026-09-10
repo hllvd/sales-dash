@@ -124,5 +124,109 @@ namespace SalesApp.Tests.Services
             ReportRetentionCalculator.CalculateOverallRetention(contracts, "standard").Should().Be(1500m / 1700m);
             ReportRetentionCalculator.CalculateOverallRetention(contracts, "strict").Should().Be(1500m / 1700m);
         }
+
+        [Fact]
+        public void IsAwaitingPayment_WhenContractHasActiveStatusAndHasPaymentFalse_ShouldReturnTrue()
+        {
+            var contract = new Contract
+            {
+                ContractStatus = new ContractStatusEntity { Name = "Active" },
+                HasPayment = false
+            };
+
+            ReportRetentionCalculator.IsAwaitingPayment(contract).Should().BeTrue();
+        }
+
+        [Fact]
+        public void IsAwaitingPayment_WhenContractHasActiveStatusAndHasPaymentTrue_ShouldReturnFalse()
+        {
+            var contract = new Contract
+            {
+                ContractStatus = new ContractStatusEntity { Name = "Active" },
+                HasPayment = true
+            };
+
+            ReportRetentionCalculator.IsAwaitingPayment(contract).Should().BeFalse();
+        }
+
+        [Fact]
+        public void IsAwaitingPayment_WhenContractHasAwaitingPaymentStatus_ShouldReturnTrue()
+        {
+            var contract = new Contract
+            {
+                ContractStatus = new ContractStatusEntity { Name = "AwaitingPayment" },
+                HasPayment = null
+            };
+
+            ReportRetentionCalculator.IsAwaitingPayment(contract).Should().BeTrue();
+        }
+
+        [Fact]
+        public void IsDesistente_WhenContractHasDesistenteStatus_ShouldReturnTrue()
+        {
+            var contract = new Contract
+            {
+                ContractStatus = new ContractStatusEntity { Name = "Desistente" }
+            };
+
+            ReportRetentionCalculator.IsDesistente(contract).Should().BeTrue();
+        }
+
+        [Fact]
+        public void CalculateOverallRetention_WithDesistenteContracts_ShouldNeverCountInDenominatorOrNumerator()
+        {
+            // Arrange: 1000 Active, 200 Defaulted (Cancelado), 800 Desistente
+            // Desistente must be completely ignored. Total = 1000 + 200 = 1200. Active = 1000.
+            var contracts = new List<Contract>
+            {
+                new Contract { TotalAmount = 1000m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = true },
+                new Contract { TotalAmount = 200m, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } },
+                new Contract { TotalAmount = 800m, ContractStatus = new ContractStatusEntity { Name = "Desistente" } }
+            };
+
+            // Act
+            var result = ReportRetentionCalculator.CalculateOverallRetention(contracts, "standard");
+
+            // Assert: 1000 / 1200 = 83.33%
+            result.Should().Be(1000m / 1200m);
+        }
+
+        [Fact]
+        public void CalculateOverallRetention_WithAwaitingPaymentContracts_WhenIncludeAwaitingPaymentFalse_ShouldExcludeThem()
+        {
+            // Arrange: 800 Active (paid), 200 Active (HasPayment = false => AwaitingPayment), 200 Defaulted
+            // Total should exclude AwaitingPayment: 800 + 200 = 1000. Active = 800.
+            var contracts = new List<Contract>
+            {
+                new Contract { TotalAmount = 800m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = true },
+                new Contract { TotalAmount = 200m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = false },
+                new Contract { TotalAmount = 200m, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } }
+            };
+
+            // Act
+            var result = ReportRetentionCalculator.CalculateOverallRetention(contracts, "standard", includeAwaitingPayment: false);
+
+            // Assert: 800 / 1000 = 80%
+            result.Should().Be(0.8m);
+        }
+
+        [Fact]
+        public void CalculateOverallRetention_WithAwaitingPaymentContracts_WhenIncludeAwaitingPaymentTrue_ShouldIncludeThem()
+        {
+            // Arrange: 800 Active (paid), 200 Active (HasPayment = false => AwaitingPayment), 200 Defaulted
+            // Total includes AwaitingPayment: 800 + 200 + 200 = 1200. Active = 800 + 200 = 1000.
+            var contracts = new List<Contract>
+            {
+                new Contract { TotalAmount = 800m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = true },
+                new Contract { TotalAmount = 200m, ContractStatus = new ContractStatusEntity { Name = "Active" }, HasPayment = false },
+                new Contract { TotalAmount = 200m, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } }
+            };
+
+            // Act
+            var result = ReportRetentionCalculator.CalculateOverallRetention(contracts, "standard", includeAwaitingPayment: true);
+
+            // Assert: 1000 / 1200 = 83.33%
+            result.Should().Be(1000m / 1200m);
+        }
     }
 }
