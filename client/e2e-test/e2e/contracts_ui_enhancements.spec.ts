@@ -62,15 +62,15 @@ test.describe('Contracts UI Enhancements', () => {
     await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
 
-    // 3. Verify 'Colunas' button is present and click it
-    const colBtn = page.getByRole('button', { name: 'Colunas' });
+    // 3. Verify 'Colunas'/'Configurações' button is present and click it
+    const colBtn = page.getByRole('button', { name: /Colunas|Configurações/ });
     await expect(colBtn).toBeVisible();
     await colBtn.click();
 
     // 4. Check if Selection Modal opens
     const modalTitle = page.locator('.mantine-Modal-title');
     await expect(modalTitle).toBeVisible();
-    await expect(modalTitle).toHaveText('Selecionar Colunas');
+    await expect(modalTitle).toHaveText(/Selecionar Colunas|Configurações/);
 
     // Verify Checkboxes are shown
     const modal = page.locator('.mantine-Modal-content');
@@ -114,7 +114,7 @@ test.describe('Contracts UI Enhancements', () => {
     // 6. Click 'Colunas' again and click 'Restaurar Padrão'
     await colBtn.click();
     await expect(modalTitle).toBeVisible();
-    await modal.getByRole('button', { name: 'Restaurar Padrão' }).click();
+    await modal.getByRole('button', { name: /Restaurar Padrão/ }).click();
     
     // Check that checkbox states are restored
     await expect(quotaCheckbox).not.toBeChecked();

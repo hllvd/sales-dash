@@ -5,7 +5,7 @@ namespace SalesApp.Services
 {
     public class ContractAggregationService : IContractAggregationService
     {
-        public ContractAggregation CalculateAggregation(List<Contract> contracts)
+        public ContractAggregation CalculateAggregation(List<Contract> contracts, bool treatUnpaidAsAwaiting = false)
         {
             if (contracts == null || !contracts.Any())
             {
@@ -25,7 +25,8 @@ namespace SalesApp.Services
                 (acc, c) =>
                 {
                     if (c.ContractStatus.Name.Equals(ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase) ||
-                        c.ContractStatus.Name.Equals(ContractStatus.NaoDefinido.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                        c.ContractStatus.Name.Equals(ContractStatus.NaoDefinido.ToApiString(), StringComparison.OrdinalIgnoreCase) ||
+                        (treatUnpaidAsAwaiting && c.ContractStatus.Name.Equals(ContractStatus.Active.ToApiString(), StringComparison.OrdinalIgnoreCase) && c.HasPayment == false))
                     {
                         return acc;
                     }

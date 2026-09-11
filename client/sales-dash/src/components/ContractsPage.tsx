@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Title, Button, Table, ActionIcon, Group, Text, MultiSelect, Checkbox } from '@mantine/core';
+import { Title, Button, Table, ActionIcon, Group, Text, MultiSelect, Checkbox, Switch, Divider } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconUpload, IconSettings } from '@tabler/icons-react';
 import './ContractsPage.css';
 import Menu from './Menu';
@@ -102,8 +102,9 @@ const ContractsPage: React.FC = () => {
   const [filterAwaitingPayment, setFilterAwaitingPayment] = useState<string>('all');
   const [debouncedAwaitingPayment, setDebouncedAwaitingPayment] = useState<string>('all');
 
-  // Columns visibility state
-  const [showColumnsModal, setShowColumnsModal] = useState(false);
+  // Settings modal and retention preference state
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [treatUnpaidAsAwaiting, setTreatUnpaidAsAwaiting] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>(() => {
     const saved = localStorage.getItem('contracts_visibleColumns');
     if (saved) {
@@ -181,7 +182,8 @@ const ContractsPage: React.FC = () => {
         currentPage,
         pageSize,
         debouncedStatuses.length > 0 ? debouncedStatuses : undefined,
-        debouncedAwaitingPayment === 'yes' ? true : debouncedAwaitingPayment === 'no' ? false : undefined
+        debouncedAwaitingPayment === 'yes' ? true : debouncedAwaitingPayment === 'no' ? false : undefined,
+        treatUnpaidAsAwaiting
       );
       if (requestId !== requestCountRef.current) return;
       setContracts(data);
@@ -199,7 +201,7 @@ const ContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedUserIds, debouncedStatuses, debouncedAwaitingPayment, currentPage, pageSize, setCachedContracts]);
+  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedUserIds, debouncedStatuses, debouncedAwaitingPayment, treatUnpaidAsAwaiting, currentPage, pageSize, setCachedContracts]);
 
   // Load saved filters from localStorage
   useEffect(() => {
@@ -228,6 +230,13 @@ const ContractsPage: React.FC = () => {
     }
 
     loadFilters();
+    apiService.getUserPreferences()
+      .then(res => {
+        if (res.success && res.data) {
+          setTreatUnpaidAsAwaiting(res.data.treatUnpaidActiveAsAwaitingPayment);
+        }
+      })
+      .catch(err => console.error('Failed to load user preferences:', err));
     setIsInitializing(false);
   }, [loadFilters]);
   
@@ -417,8 +426,8 @@ const ContractsPage: React.FC = () => {
                 }}
                 isExporting={isExporting}
               />
-              <Button onClick={() => setShowColumnsModal(true)} variant="default" leftSection={<IconSettings size={16} />}>
-                Colunas
+              <Button onClick={() => setShowSettingsModal(true)} variant="default" leftSection={<IconSettings size={16} />}>
+                Configurações
               </Button>
               <Button onClick={() => setShowImportModal(true)} leftSection={<IconUpload size={16} />}>
                 Importar
@@ -677,7 +686,11 @@ const ContractsPage: React.FC = () => {
                   {visibleColumns.totalAmount && <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>}
                   {visibleColumns.status && (
                     <Table.Td>
-                      <ContractStatusBadge status={contract.status} rawStatus={contract.rawStatus} />
+                      <ContractStatusBadge
+                        status={contract.status}
+                        rawStatus={contract.rawStatus}
+                        isRemappedToAwaitingPayment={contract.isRemappedToAwaitingPayment}
+                      />
                     </Table.Td>
                   )}
                   {visibleColumns.startDate && <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>}
@@ -744,11 +757,11 @@ const ContractsPage: React.FC = () => {
         />
       )}
 
-      {/* Select Columns Modal */}
+      {/* Settings Modal */}
       <StandardModal
-        isOpen={showColumnsModal}
-        onClose={() => setShowColumnsModal(false)}
-        title="Selecionar Colunas"
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        title="Configurações"
         size="md"
         footer={
           <>
@@ -756,69 +769,93 @@ const ContractsPage: React.FC = () => {
               setVisibleColumns(DEFAULT_COLUMNS);
               localStorage.setItem('contracts_visibleColumns', JSON.stringify(DEFAULT_COLUMNS));
             }}>
-              Restaurar Padrão
+              Restaurar Padrão de Colunas
             </Button>
-            <Button onClick={() => setShowColumnsModal(false)}>
+            <Button onClick={() => setShowSettingsModal(false)}>
               Concluir
             </Button>
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Checkbox
-            label="Número do Contrato"
-            checked={visibleColumns.contractNumber}
-            onChange={(e) => handleColumnToggle('contractNumber', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Usuário"
-            checked={visibleColumns.user}
-            onChange={(e) => handleColumnToggle('user', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Matrícula"
-            checked={visibleColumns.matricula}
-            onChange={(e) => handleColumnToggle('matricula', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Grupo"
-            checked={visibleColumns.group}
-            onChange={(e) => handleColumnToggle('group', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Cliente"
-            checked={visibleColumns.customer}
-            onChange={(e) => handleColumnToggle('customer', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Valor Total"
-            checked={visibleColumns.totalAmount}
-            onChange={(e) => handleColumnToggle('totalAmount', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Status"
-            checked={visibleColumns.status}
-            onChange={(e) => handleColumnToggle('status', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Data Início"
-            checked={visibleColumns.startDate}
-            onChange={(e) => handleColumnToggle('startDate', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Cota"
-            checked={visibleColumns.quota}
-            onChange={(e) => handleColumnToggle('quota', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Data da Última Atualização"
-            checked={visibleColumns.lastUpdated}
-            onChange={(e) => handleColumnToggle('lastUpdated', e.currentTarget.checked)}
-          />
-          <Checkbox
-            label="Aguardando Pagamento"
-            checked={visibleColumns.awaitingPayment}
-            onChange={(e) => handleColumnToggle('awaitingPayment', e.currentTarget.checked)}
+        <div>
+          <Text fw={600} size="sm" mb="xs">Colunas</Text>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <Checkbox
+              label="Número do Contrato"
+              checked={visibleColumns.contractNumber}
+              onChange={(e) => handleColumnToggle('contractNumber', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Usuário"
+              checked={visibleColumns.user}
+              onChange={(e) => handleColumnToggle('user', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Matrícula"
+              checked={visibleColumns.matricula}
+              onChange={(e) => handleColumnToggle('matricula', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Grupo"
+              checked={visibleColumns.group}
+              onChange={(e) => handleColumnToggle('group', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Cliente"
+              checked={visibleColumns.customer}
+              onChange={(e) => handleColumnToggle('customer', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Valor Total"
+              checked={visibleColumns.totalAmount}
+              onChange={(e) => handleColumnToggle('totalAmount', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Status"
+              checked={visibleColumns.status}
+              onChange={(e) => handleColumnToggle('status', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Data Início"
+              checked={visibleColumns.startDate}
+              onChange={(e) => handleColumnToggle('startDate', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Cota"
+              checked={visibleColumns.quota}
+              onChange={(e) => handleColumnToggle('quota', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Data da Última Atualização"
+              checked={visibleColumns.lastUpdated}
+              onChange={(e) => handleColumnToggle('lastUpdated', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Aguardando Pagamento"
+              checked={visibleColumns.awaitingPayment}
+              onChange={(e) => handleColumnToggle('awaitingPayment', e.currentTarget.checked)}
+            />
+          </div>
+
+          <Divider my="md" />
+
+          <Text fw={600} size="sm" mb="xs">Retenção</Text>
+          <Switch
+            checked={treatUnpaidAsAwaiting}
+            onChange={async (e) => {
+              const val = e.currentTarget.checked;
+              setTreatUnpaidAsAwaiting(val);
+              try {
+                await apiService.updateUserPreferences({ treatUnpaidActiveAsAwaitingPayment: val });
+                toast.success('Preferência de retenção atualizada');
+              } catch (err: any) {
+                console.error('Failed to update retention preference:', err);
+                toast.error(err.message || 'Falha ao salvar preferência');
+                setTreatUnpaidAsAwaiting(!val);
+              }
+            }}
+            label="Mostrar contratos como não pago, como 'Aguardando pagamento'"
+            description="Esse contrato tem status NORMAL(ativo) mas ainda não foi confirmado o pagamento"
           />
         </div>
       </StandardModal>

@@ -254,6 +254,35 @@ export const apiService = {
     return response.json()
   },
 
+  async getUserPreferences(): Promise<ApiResponse<{ treatUnpaidActiveAsAwaitingPayment: boolean }>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/preferences`, {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch user preferences")
+    }
+
+    return response.json()
+  },
+
+  async updateUserPreferences(data: { treatUnpaidActiveAsAwaitingPayment: boolean }): Promise<ApiResponse<{ treatUnpaidActiveAsAwaitingPayment: boolean }>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/preferences`, {
+      method: 'PUT',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to update user preferences")
+    }
+
+    return response.json()
+  },
+
   async requestMatricula(matriculaNumber: string): Promise<ApiResponse<any>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/request-matricula`, {
       method: 'POST',

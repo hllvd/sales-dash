@@ -421,4 +421,11 @@ Each entry records a fix attempt — past entries must be consulted before retry
 3. Documentation: updated `FEATURES.md`.
 **Result:** ✅ Green (Build PASSED, 298/298 Integration tests PASSED, E2E Run 1: 170/170 PASSED, E2E Run 2: 171/171 PASSED — idempotent)
 
+## [2026-09-11] e2e — Attempt 2
+**Failure:** `import_dashboard_cota_field.spec.ts` failed on `expect(page.getByRole('button', { name: 'Colunas' })).toBeVisible()`
+**Root cause:** The "Colunas" button on `ContractsPage.tsx` was renamed to "Configurações" to house both column selection and retention configuration sections.
+**Fix applied:** Updated Playwright locators in `client/e2e-test/e2e/import_dashboard_cota_field.spec.ts` and `client/e2e-test/e2e/contracts_ui_enhancements.spec.ts` to accept either button label `/Colunas|Configurações/` and modal title `/Selecionar Colunas|Configurações/`.
+**Result:** ✅ Green (170/170 Playwright E2E PASSED)
+
+
 

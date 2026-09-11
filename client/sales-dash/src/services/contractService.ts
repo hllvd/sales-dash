@@ -41,6 +41,7 @@ export interface Contract {
   rawStatus?: string;
   hasPayment?: boolean | null;
   isAwaitingPayment?: boolean;
+  isRemappedToAwaitingPayment?: boolean;
 }
 
 export interface CreateContractRequest {
@@ -280,7 +281,8 @@ export const getContracts = async (
   page?: number,
   pageSize?: number,
   statuses?: string[],
-  awaitingPayment?: boolean
+  awaitingPayment?: boolean,
+  treatUnpaidAsAwaiting?: boolean
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation; totalCount: number }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
@@ -302,6 +304,7 @@ export const getContracts = async (
   if (userIds && userIds.length > 0) userIds.forEach(id => params.append('userIds', id));
   if (statuses && statuses.length > 0) statuses.forEach(s => params.append('statuses', s));
   if (awaitingPayment !== undefined) params.append('awaitingPayment', awaitingPayment.toString());
+  if (treatUnpaidAsAwaiting !== undefined) params.append('treatUnpaidAsAwaiting', treatUnpaidAsAwaiting.toString());
   if (page !== undefined) params.append('page', page.toString());
   if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
 
@@ -341,7 +344,8 @@ export const getUserContracts = async (
   endDate?: string,
   matricula?: string,
   teamIds?: number[],
-  matriculas?: string[]
+  matriculas?: string[],
+  treatUnpaidAsAwaiting?: boolean
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
   const params = new URLSearchParams();
   if (startDate) params.append('startDate', startDate);
@@ -352,6 +356,9 @@ export const getUserContracts = async (
   }
   if (teamIds && teamIds.length > 0) {
     teamIds.forEach(id => params.append('teamIds', String(id)));
+  }
+  if (treatUnpaidAsAwaiting !== undefined) {
+    params.append('treatUnpaidAsAwaiting', treatUnpaidAsAwaiting.toString());
   }
 
   const queryString = params.toString();

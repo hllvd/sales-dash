@@ -826,6 +826,11 @@ namespace SalesApp.Api.Migrations
                     b.Property<DateTime?>("LastAccessedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("TreatUnpaidActiveAsAwaitingPayment")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")

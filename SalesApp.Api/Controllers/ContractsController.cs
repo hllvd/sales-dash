@@ -123,11 +123,24 @@ namespace SalesApp.Controllers
             [FromQuery] List<Guid>? userIds = null,
             [FromQuery] List<string>? statuses = null,
             [FromQuery] bool? awaitingPayment = null,
+            [FromQuery] bool? treatUnpaidAsAwaiting = null,
             [FromQuery] int? page = null,
             [FromQuery] int? pageSize = null)
         {
             var scope = await _userScopeService.GetContractScopeAsync(User);
             var isSuperAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("superadmin") || User.HasClaim("perm", "system:superadmin") || scope.IsGlobal;
+
+            bool effectiveTreatUnpaid = false;
+            if (treatUnpaidAsAwaiting.HasValue)
+            {
+                effectiveTreatUnpaid = treatUnpaidAsAwaiting.Value;
+            }
+            else
+            {
+                var currentUserId = GetCurrentUserId();
+                var currentUser = await _userRepository.GetByIdAsync(currentUserId);
+                effectiveTreatUnpaid = currentUser?.TreatUnpaidActiveAsAwaitingPayment ?? false;
+            }
 
             if (page.HasValue && pageSize.HasValue)
             {
@@ -135,10 +148,10 @@ namespace SalesApp.Controllers
                     page.Value, pageSize.Value, userId, groupId, startDate, endDate,
                     contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
 
-                var contractResponses = contracts.Select(MapToContractResponse).ToList();
+                var contractResponses = contracts.Select(c => MapToContractResponse(c, effectiveTreatUnpaid)).ToList();
                 var aggregation = await _contractRepository.GetAggregationAsync(
                     userId, groupId, startDate, endDate, contractNumber, showUnassigned,
-                    matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
+                    matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, effectiveTreatUnpaid);
 
                 return Ok(new ApiResponse<PagedContractResponse>
                 {
@@ -158,8 +171,8 @@ namespace SalesApp.Controllers
             else
             {
                 var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
-                var contractResponses = contracts.Select(MapToContractResponse).ToList();
-                var aggregation = _aggregationService.CalculateAggregation(contracts);
+                var contractResponses = contracts.Select(c => MapToContractResponse(c, effectiveTreatUnpaid)).ToList();
+                var aggregation = _aggregationService.CalculateAggregation(contracts, effectiveTreatUnpaid);
 
                 return Ok(new ApiResponse<List<ContractResponse>>
                 {
@@ -179,7 +192,8 @@ namespace SalesApp.Controllers
             [FromQuery] DateTime? endDate = null,
             [FromQuery] string? matricula = null,
             [FromQuery] List<string>? matriculas = null,
-            [FromQuery] List<int>? teamIds = null)
+            [FromQuery] List<int>? teamIds = null,
+            [FromQuery] bool? treatUnpaidAsAwaiting = null)
         {
             var currentUserId = GetCurrentUserId();
             var hasReadPermission = User.HasClaim("perm", "contracts:read") || User.HasClaim("perm", "system:superadmin");
@@ -188,13 +202,24 @@ namespace SalesApp.Controllers
             {
                 return Forbid();
             }
+
+            bool effectiveTreatUnpaid = false;
+            if (treatUnpaidAsAwaiting.HasValue)
+            {
+                effectiveTreatUnpaid = treatUnpaidAsAwaiting.Value;
+            }
+            else
+            {
+                var targetUser = await _userRepository.GetByIdAsync(userId);
+                effectiveTreatUnpaid = targetUser?.TreatUnpaidActiveAsAwaitingPayment ?? false;
+            }
             
             var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate, matricula, teamIds, matriculas);
             
-            var contractResponses = contracts.Select(MapToContractResponse).ToList();
+            var contractResponses = contracts.Select(c => MapToContractResponse(c, effectiveTreatUnpaid)).ToList();
             
             // Calculate aggregations using service
-            var aggregation = _aggregationService.CalculateAggregation(contracts);
+            var aggregation = _aggregationService.CalculateAggregation(contracts, effectiveTreatUnpaid);
             
             return Ok(new ApiResponse<List<ContractResponse>>
             {
@@ -883,6 +908,11 @@ namespace SalesApp.Controllers
         
         private ContractResponse MapToContractResponse(Contract contract)
         {
+            return MapToContractResponse(contract, false);
+        }
+
+        private ContractResponse MapToContractResponse(Contract contract, bool treatUnpaidAsAwaiting)
+        {
             // Resolve the most appropriate matricula number for the response
             var matriculaNumber = contract.Matricula?.MatriculaNumber 
                 ?? contract.TempMatricula
@@ -898,6 +928,8 @@ namespace SalesApp.Controllers
 
             var statusName = contract.ContractStatus?.Name ?? "";
             var isAwaitingPayment = statusName.Equals("Active", StringComparison.OrdinalIgnoreCase) && contract.HasPayment == false;
+            var isRemapped = treatUnpaidAsAwaiting && isAwaitingPayment;
+            var finalStatus = isRemapped ? "AwaitingPayment" : statusName;
 
             return new ContractResponse
             {
@@ -908,7 +940,7 @@ namespace SalesApp.Controllers
                 TotalAmount = contract.TotalAmount,
                 GroupId = contract.GroupId,
                 GroupName = contract.Group?.Name ?? "",
-                Status = statusName,
+                Status = finalStatus,
                 ContractStartDate = contract.SaleStartDate,
                 IsActive = contract.IsActive,
                 CreatedAt = contract.CreatedAt,
@@ -921,7 +953,8 @@ namespace SalesApp.Controllers
                 MatriculaNumber = matriculaNumber,
                 RawStatus = contract.RawStatus,
                 HasPayment = contract.HasPayment,
-                IsAwaitingPayment = isAwaitingPayment
+                IsAwaitingPayment = isAwaitingPayment,
+                IsRemappedToAwaitingPayment = isRemapped
             };
         }
         
