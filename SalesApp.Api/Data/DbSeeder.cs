@@ -8,15 +8,6 @@ namespace SalesApp.Data
         public static async Task SeedAsync(AppDbContext context)
         {
             await context.Database.MigrateAsync();
-            // Self-healing migration guard: ensure DefaultStartMonth column exists in SQLite ScrapeConfigs table
-            try
-            {
-                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"ScrapeConfigs\" ADD COLUMN \"DefaultStartMonth\" TEXT;");
-            }
-            catch
-            {
-                // Column already exists or table handles it
-            }
 
             // Self-healing migration guard: ensure index on Contracts.SaleStartDate exists for high-performance reports
             try

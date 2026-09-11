@@ -453,3 +453,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** In `client/e2e-test/e2e/user_classification_and_views.spec.ts`, updated `page.goto('/')` in `beforeEach` to standard navigation and scoped `modalCloseBtn` to `.first()`. Ran `./test.sh rm-db && ./test.sh e2e`.
 **Result:** ✅ Green (171/171 Playwright E2E PASSED)
 
+## [2026-09-11] all — Attempt 1
+**Failure:** Container startup failed with `[ERR] Failed executing DbCommand` on `ALTER TABLE "ScrapeConfigs" ADD COLUMN "DefaultStartMonth" TEXT;`.
+**Root cause:** SQLite threw duplicate column name because migration `20260821180000_MakeScrapeConfigStoreNullable` already created `DefaultStartMonth`. EF Core logged `[ERR]` to console before C# caught the exception, triggering `./test.sh` critical startup error check.
+**Fix applied:** Removed redundant `ALTER TABLE "ScrapeConfigs" ADD COLUMN "DefaultStartMonth" TEXT;` block from `SalesApp.Api/Data/DbSeeder.cs`.
+**Result:** 🔄 Retrying `./test.sh all`
+
