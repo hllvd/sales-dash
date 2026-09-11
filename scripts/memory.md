@@ -380,3 +380,76 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Clicks on parent option autocomplete item were omitted for noteam and ineligible users, triggering root user validation and keeping modal open.
 **Fix applied:** Restored `await noteamParentOpt.click()` and `await ineligibleParentOpt.click()` in `client/e2e-test/e2e/admin_permissions.spec.ts`.
 **Result:** ✅ Green (160/160 E2E tests passed)
+## [2026-09-09] all — Attempt 1
+**Failure:** None — full verification run for Survey responses filter feature.
+**Root cause:** N/A.
+**Fix applied:** Added response filter tabs (dinâmicas com contadores) and name/email search input in `SurveyResultModal.tsx`, updated `FEATURES.md`, and validated full suite.
+**Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 166/166, E2E Run 2: 165/165 — idempotent)
+
+## [2026-09-09] e2e — Attempt 1
+**Failure:** `user_classification_and_views.spec.ts` timeout on `classificationsLink.click()` due to Mantine modal overlay intercepting pointer events; on retry, `page.goto('/')` interrupted in `loginAs`.
+**Root cause:** A lingering modal overlay (e.g. `SurveyModal` prompt triggered on login for pending questions) blocked pointer events to the sidebar nav link. On retry, `beforeEach` called `page.goto('/')` without waiting for DOMContentLoaded before `loginAs` triggered another `page.goto('/')`.
+**Fix applied:** 
+1. Added modal/survey prompt dismissal check after `loginAs`.
+2. Wrapped sidebar navigation to `#/classifications` with try/catch fallback to direct `page.goto('/#/classifications')` after dismissing any lingering modal overlay.
+3. Added try/catch fallback to `page.goto('/#/views')` in Part B.
+## [2026-09-10] all — Attempt 1
+**Failure:** Reconciled contracts with unassigned users and seller mismatches incorrectly grouped; dialog locator conflicts and timeouts in `admin_permissions.spec.ts`, `equipe_admin_permission.spec.ts`, `surveys_qa.spec.ts`, and `import_wizard.spec.ts`.
+**Root cause:** 
+1. In `ContractReconciliationController.cs`, `rowUser == null` check prematurely dumped contracts into `unassignedUserContracts` with `continue;` before evaluating whether the contract existed in the system or belonged to another user.
+2. `page.getByRole('dialog')` in user creation assertions was unconstrained, matching background survey modals.
+3. `surveys_qa.spec.ts` filtered by `"Super"` in the name filter, selecting multiple users and leaving pending surveys.
+4. `import_wizard.spec.ts` had a short 20s timeout waiting for heavy bulk user and matricula import.
+**Fix applied:**
+1. In `ContractReconciliationController.cs`: removed premature `continue;`, properly loaded relevant system contracts, routed contracts with `UserInternalId == null` in system to `unassignedUserContracts` (only when spreadsheet seller is non-empty), routed contracts with differing users to `sellerMismatches`, routed contracts absent from system to `missingInSystem`, and properly aggregated `Total Planilha` and `Total Sistema` in `userComparisonsMap`.
+2. Added `ExportReconciliationTabRequestDto` and `POST /api/contractreconciliation/export-xlsx` with problem-descriptive file naming.
+3. Updated `ContractReconciliationTests.cs` integration tests for unassigned contracts, seller mismatches, and XLSX export.
+4. Constrained dialog visibility assertions to `getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })` in `admin_permissions.spec.ts` and `equipe_admin_permission.spec.ts`.
+5. Filtered specifically by `superadmin@salesapp.com` in email field in `surveys_qa.spec.ts`.
+6. Increased timeout to 60s for bulk user import in `import_wizard.spec.ts`.
+**Result:** ✅ Green (Build PASSED, 294/294 Integration tests PASSED, 165/165 Playwright E2E PASSED)
+
+
+
+## [2026-09-10] all — Attempt 2
+**Failure:** None — full verification run for Smart Date Detection (Data da Venda) and Auto Date Range Fill in Contract Reconciliation.
+**Root cause:** N/A.
+**Fix applied:**
+1. Created pure deterministic service ReconciliationDateDetector.cs with 4-tier date pattern detection: impossible day/month values (>12), system contract cross-referencing, Excel EPPlus number format metadata, and fallback to Brazilian standard dd/MM/yyyy.
+2. Added DetectDateRange method and POST /api/contractreconciliation/detect-date-range endpoint returning min/max sale dates and detected format.
+3. Updated ContractReconciliationController.Reconcile to detect format once per file and parse all row dates consistently using the detected format.
+4. Updated ContractReconciliationPage.tsx with handleFileChange to automatically populate startDate (Data Inicial) and endDate (Data Final) on file upload, displaying format badge and notification.
+5. Added integration tests in ContractReconciliationTests.cs validating dd/MM/yyyy and MM/dd/yyyy format detection.
+6. Updated FEATURES.md Section 43.
+**Result:** ✅ Green (Build PASSED, 296/296 Integration tests PASSED, 163/163 Playwright E2E PASSED)
+
+## [2026-09-10] e2e — Attempt 3
+**Failure:** None — added Matricula MultiSelect Autocomplete filter and "Atualizar" refresh button to `/#/my-contracts`.
+**Root cause:** N/A.
+**Fix applied:**
+1. Backend: updated `IContractRepository.cs`, `ContractRepository.cs`, and `ContractsController.cs` to support `[FromQuery] List<string>? matriculas` in `GET /api/contracts/user/{userId}` (filtering either `c.Matricula.MatriculaNumber` or `c.TempMatricula`, maintaining backward compatibility with singular `matricula`).
+2. Frontend: updated `contractService.ts` and `apiService.ts` to serialize multiple `matriculas`.
+3. UI: in `MyContractsPage.tsx`, replaced text input with Mantine `MultiSelect` (`searchable`, `clearable`, `id="matriculaFilter"`) populated with current user's active matriculas (`(Titular)` indicator for owner), persisted selections in `localStorage` (`myContracts_matriculas`), added "Atualizar" button in header syncing context, teams, pending claims, and contracts.
+4. E2E: adapted empty state test in `contracts_ui_enhancements.spec.ts` and created `my_contracts_matricula_autocomplete.spec.ts` in `tear-3a-hierarchy`. Rebuilt Docker images (`./test.sh build`) and ran `./test.sh rm-db && ./test.sh e2e`.
+5. Updated `FEATURES.md`.
+**Result:** ✅ Green (169/169 Playwright E2E PASSED)
+
+
+## [2026-09-10] all — Attempt 4
+**Failure:** None — full verification run for SuperAdmin global user scope in Contracts filter and Smart User/Matricula resolution in Contract Reconciliation.
+**Root cause:** N/A.
+**Fix applied:**
+1. Backend `UsersController.cs`: broadened SuperAdmin identification in `GetUsers` (`role_id == "1"`, role `SuperAdmin`/`superadmin` or `perm: system:superadmin`) so SuperAdmin callers are never restricted by `scopeToDescendants`.
+2. Backend `ContractReconciliationController.cs`: added dedicated `matriculaAliases`, dual-indexed `usersByMatricula` with raw and leading-zero normalized numbers (`003650` -> `3650`), enabled user resolution via row matricula, and resolved user via existing system contract (`systemContract.UserInternalId`) when names are compatible, consolidating `Total Planilha` and `Total Sistema` under the same user in `userComparisonsMap`.
+3. Frontend `ContractsPage.tsx`: dynamically passed `!isSuperAdmin` to `getUsers` so SuperAdmin never requests descendant scoping and loads all users for searching by Name and Email.
+4. Frontend `ContractReconciliationPage.tsx`: increased user fetch limit to 1000.
+5. Added integration test `Reconcile_ShouldResolveUserByMatricula_WhenMatriculaHasLeadingZeros` in `ContractReconciliationTests.cs`.
+6. Updated `FEATURES.md` Section 43.
+**Result:** ✅ Green (Build PASSED, 297/297 Integration tests PASSED, 171/171 Playwright E2E PASSED)
+
+## [2026-09-10] e2e — Attempt 5
+**Failure:** `user_classification_and_views.spec.ts` failed with navigation interruption error and timeout waiting on modal dismissal.
+**Root cause:** `beforeEach` used `await page.goto('/', { waitUntil: 'domcontentloaded' })`, which collided with `loginAs` immediately calling `page.goto('/')` before page resources finished loading; `.mantine-Modal-close` locator was not scoped with `.first()`.
+**Fix applied:** In `client/e2e-test/e2e/user_classification_and_views.spec.ts`, updated `page.goto('/')` in `beforeEach` to standard navigation and scoped `modalCloseBtn` to `.first()`. Ran `./test.sh rm-db && ./test.sh e2e`.
+**Result:** ✅ Green (171/171 Playwright E2E PASSED)
+

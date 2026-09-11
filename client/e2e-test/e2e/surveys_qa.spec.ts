@@ -21,8 +21,8 @@ test.describe('Surveys / QA Feature (TEAR 3B)', () => {
     await questionInput.fill(surveyQuestion);
 
     // 3. Filter and select superadmin user as recipient
-    const nameFilterInput = page.locator('input[placeholder="Buscar por nome..."]');
-    await nameFilterInput.fill('Super');
+    const emailFilterInput = page.locator('input[placeholder="Buscar por email..."]');
+    await emailFilterInput.fill('superadmin@salesapp.com');
 
     // Wait for filtered users in table
     await page.waitForTimeout(500);
@@ -100,6 +100,24 @@ test.describe('Surveys / QA Feature (TEAR 3B)', () => {
     // Verify response registered in table and aggregate
     await expect(resultModal.locator('td', { hasText: 'Sim' })).toBeVisible({ timeout: 10000 });
     await expect(resultModal.getByText('1 voto(s)')).toBeVisible();
+
+    // 10. Test filter tabs and search query inside resultModal
+    // Click "Não" tab - user responded "Sim", so table should be empty
+    await resultModal.getByRole('tab', { name: /Não \(/i }).click();
+    await expect(resultModal.getByText('Nenhuma resposta encontrada para os filtros selecionados.')).toBeVisible();
+
+    // Click "Sim" tab - user should be visible
+    await resultModal.getByRole('tab', { name: /Sim \(/i }).click();
+    await expect(resultModal.locator('td', { hasText: 'Sim' })).toBeVisible();
+
+    // Test search input - search non-existent name
+    const searchInput = resultModal.getByPlaceholder('Buscar por nome ou email...');
+    await searchInput.fill('NonExistentUserXYZ');
+    await expect(resultModal.getByText('Nenhuma resposta encontrada para os filtros selecionados.')).toBeVisible();
+
+    // Clear search input
+    await searchInput.fill('Super');
+    await expect(resultModal.locator('td', { hasText: 'Sim' })).toBeVisible();
 
     // Close result modal
     await resultModal.locator('.mantine-Modal-close').click();

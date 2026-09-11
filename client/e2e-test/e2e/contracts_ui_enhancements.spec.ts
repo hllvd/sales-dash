@@ -140,24 +140,25 @@ test.describe('Contracts UI Enhancements', () => {
     await expect(page.getByRole('heading', { name: 'Meus Contratos' })).toBeVisible({ timeout: 10000 });
 
 
-    // 3. Set a filter that returns no results (e.g. matricula filter to '9999999999999')
+    // 3. Set a filter that returns no results (e.g. future date)
+    const startDateInput = page.locator('input#startDate');
+    await expect(startDateInput).toBeVisible();
+    await page.fill('input#startDate', '2099-01-01');
+
+    // Also verify matricula MultiSelect input is present
     const matriculaFilterInput = page.locator('input#matriculaFilter');
     await expect(matriculaFilterInput).toBeVisible();
-    await page.fill('input#matriculaFilter', '9999999999999');
-
-    // Wait for debounce and reload
-    await page.waitForTimeout(1000);
 
     // 4. Verify empty state message is shown
     const emptyStateText = page.locator('.my-contracts-empty p');
-    await expect(emptyStateText).toBeVisible();
+    await expect(emptyStateText).toBeVisible({ timeout: 10000 });
     await expect(emptyStateText).toContainText('Nenhum contrato correspondente aos filtros aplicados foi encontrado');
 
     const clearFiltersBtn = page.locator('.my-contracts-empty').getByRole('button', { name: 'Limpar Filtros' });
     await expect(clearFiltersBtn).toBeVisible();
 
-    // 5. Click Limpar Filtros and check that matricula input gets cleared
+    // 5. Click Limpar Filtros and check that filters get cleared
     await clearFiltersBtn.click();
-    await expect(matriculaFilterInput).toHaveValue('');
+    await expect(startDateInput).toHaveValue('');
   });
 });

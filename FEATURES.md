@@ -14,6 +14,144 @@ This feature automatically detects and populates `ScrapeConfig.DefaultStartMonth
 
 ---
 
+## Otimização de Performance de Relatórios e Prévia Sob Demanda na Edição (`/#/reports`)
+
+Remoção da execução automática de consultas ao abrir a tela de edição de relatórios e otimização profunda no backend para execução de queries analíticas de relatórios em milissegundos (reduzindo o tempo de até 2 minutos em relatórios com períodos longos e filtros de equipe).
+
+### Comportamento e Regras
+- **Edição Instantânea (Sem Auto-Query)**:
+  - Ao acessar a tela de edição de qualquer relatório (`/#/reports/:id/edit`), a página carrega instantaneamente apenas com os dados e configurações do relatório.
+  - A execução de query da prévia inicial foi totalmente removida do ciclo de carregamento (`loadData`).
+- **Prévia Exclusivamente Sob Demanda**:
+  - A prévia dos dados só é gerada quando o usuário clica explicitamente no botão de prévia na Seção 7 (*"Carregar Prévia"* ou *"Atualizar Prévia"*).
+- **Push-down de Filtros de Equipe e Vendedores para o Banco de Dados (SQL)**:
+  - Filtro de equipe no modo padrão (*"Membros atuais"*) pré-resolve os identificadores internos (`UserInternalId`) dos membros ativos e filtra diretamente via SQL com o índice composto `IX_Contracts_UserInternalId_SaleStartDate`.
+  - Filtro de equipe no modo histórico (*"Histórico do período"*) repassa os `teamIds` para a cláusula point-in-time indexada no banco (`IX_UserTeams_TeamId_Dates_UserInternalId`).
+  - Caso a equipe selecionada não possua membros ativos, o sistema realiza um *early return* imediato com contagem zerada sem varrer a tabela de contratos.
+- **Desativação de Change Tracking (`AsNoTracking`) e Prevenção de Explosão Cartesiana (`AsSplitQuery`)**:
+  - Leitura puramente analítica desvinculada do `ChangeTracker` do Entity Framework Core, poupando CPU e alocação de memória.
+  - Junção de coleções filhas (`UserMatriculas`) executada com split queries, eliminando a duplicação cartesiana de linhas no SQLite.
+- **Índice Direto em Data de Venda**:
+  - Criação e garantia do índice `IX_Contracts_SaleStartDate` na tabela `Contracts` via `AppDbContext` e `DbSeeder` (auto-executável), acelerando buscas por períodos longos (ex: últimos 15 meses).
+
+### Arquivos alterados
+- **Frontend**:
+  - `client/sales-dash/src/components/Reports/ReportFormPage.tsx`: remoção do disparo automático no `loadData` e ajuste nos botões da Seção 7.
+- **Backend**:
+  - `SalesApp.Api/Repositories/IContractRepository.cs`: adição de sobrecarga e suporte a `userInternalIds` e `asNoTracking`.
+  - `SalesApp.Api/Repositories/ContractRepository.cs`: filtro `userInternalIds` em `BuildFilteredQuery`, `AsNoTracking` e `AsSplitQuery` em `GetAllAsync`.
+  - `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs`: push-down de equipe, lojas e emails para o banco, early return e fallback robusto.
+  - `SalesApp.Api/Data/AppDbContext.cs`: índice `IX_Contracts_SaleStartDate`.
+  - `SalesApp.Api/Data/DbSeeder.cs`: criação idempotente do índice `IX_Contracts_SaleStartDate`.
+- **Testes**:
+  - `SalesApp.Tests/Services/ReportFilterServiceTests.cs`: testes unitários cobrindo push-down de membros atuais, histórico de equipe e early return para equipe vazia.
+
+---
+
+## Autocomplete MultiSelect no Filtro de Matrícula e Botão "Atualizar" em Meus Contratos (`/#/my-contracts`)
+
+Substituição do campo de texto simples de matrícula na página `/#/my-contracts` por um componente `MultiSelect` com autocomplete, restrito às matrículas ativas do usuário atual, com suporte a persistência no `localStorage` e adição de botão para atualização completa da página.
+
+### Comportamento e Regras
+- **MultiSelect com Autocomplete**:
+  - Exibe as matrículas ativas do próprio usuário logado (`currentUser.activeMatriculas`).
+  - Indica `(Titular)` para a matrícula da qual o usuário é proprietário/titular.
+  - Suporta seleção múltipla com chips removíveis, busca interna e limpeza rápida (`clearable`).
+  - `id="matriculaFilter"` mantido para acessibilidade e consistência.
+- **Suporte no Backend e Exportação**:
+  - `GET /api/contracts/user/{userId}` e `ContractRepository.GetByUserIdAsync` atualizados para aceitar `[FromQuery] List<string>? matriculas`, filtrando múltiplos números de matrícula com suporte tanto a `c.Matricula.MatriculaNumber` quanto `c.TempMatricula`.
+  - Mantido fallback retrocompatível para o parâmetro singular `matricula`.
+  - Exportação Excel (`startMyContractExport`) inclui as matrículas selecionadas.
+- **Persistência**:
+  - Seleções de matrícula salvas em `localStorage` (`myContracts_matriculas`).
+  - O botão "Limpar Filtros" limpa as seleções em tela e remove a chave do `localStorage`.
+- **Botão "Atualizar"**:
+  - Novo botão posicionado no cabeçalho ao lado das ações principais da página.
+  - Recarrega simultaneamente o perfil e matrículas do usuário atual (`refreshCurrentUser`), histórico de equipes (`getMyTeams`), solicitações pendentes e a listagem filtrada de contratos.
+  - Notificação de feedback de atualização com estado de loading.
+
+### Arquivos alterados
+- **Backend**:
+  - `SalesApp.Api/Repositories/IContractRepository.cs`: adição de `List<string>? matriculaNumbers` em `GetByUserIdAsync`.
+  - `SalesApp.Api/Repositories/ContractRepository.cs`: filtro para múltiplos números de matrícula.
+  - `SalesApp.Api/Controllers/ContractsController.cs`: recepção de `[FromQuery] List<string>? matriculas` no endpoint do usuário.
+- **Frontend**:
+  - `client/sales-dash/src/services/contractService.ts`: parâmetro `matriculas?: string[]` em `getUserContracts`.
+  - `client/sales-dash/src/services/apiService.ts`: parâmetro `matriculas?: string[]` em `startMyContractExport`.
+  - `client/sales-dash/src/components/MyContractsPage.tsx`: substituição de input por `MultiSelect`, useMemo de opções ativas, persistência no `localStorage` e botão "Atualizar".
+- **E2E Tests**:
+  - `client/e2e-test/e2e/contracts_ui_enhancements.spec.ts`: adaptação do teste de empty state.
+  - `client/e2e-test/e2e/my_contracts_matricula_autocomplete.spec.ts`: suíte E2E cobrindo renderização das opções, filtragem simples e múltipla, botão Atualizar e Limpar Filtros.
+  - `client/e2e-test/playwright.config.ts`: registro em `tear-3a-hierarchy`.
+
+---
+
+## Comparação por Usuário na Reconciliação de Contratos (`/#/contract-reconciliation`)
+
+Adicionada nova análise e aba **"Comparação por Usuário"** na ferramenta de Reconciliação de Contratos (`/#/contract-reconciliation`), permitindo cruzar a produção e quantidade de contratos entre a planilha de auditoria (XLSX) e o banco de dados do sistema, por vendedor/usuário.
+
+### Comportamento e Regras
+- **Filtros Respeitados**: Todos os filtros de cabeçalho da reconciliação (Data Inicial, Data Final, Equipe e Usuário Específico) são rigorosamente respeitados:
+  - Se uma equipe for selecionada, apenas os membros e contratos pertencentes àquela equipe e período são computados, exibindo inclusive membros com 0 contratos em ambos os lados.
+  - Se um usuário específico for selecionado, os dados refletem apenas a produção desse usuário.
+  - O intervalo de datas de venda delimita os contratos do sistema e as linhas da planilha.
+- **Reconhecimento de Colunas (Aliases)**: Suporte a colunas como `"Consultor"`, `"Consultora"`, `"Vendedor"`, `"Vendedora"`, `"Usuário"`, `"Nome"`, além de e-mail e matrícula.
+- **Normalização de Nomes**:
+  - Sanitização com remoção de acentos/diacríticos (`FormD`), colapso de múltiplos espaços em branco e conversão para minúsculas (`ToLowerInvariant`), garantindo o cruzamento de nomes mesmo com pequenas divergências tipográficas entre planilha e sistema.
+  - Chaveamento consistente no agrupamento usando a identidade canônica do sistema para somar no mesmo registro a planilha e o sistema.
+- **Toggle de Correspondência Parcial Única**:
+  - Opção no formulário de filtros: *"Permitir correspondência parcial de nomes de consultor/vendedor (se único)"*.
+  - Quando habilitado, caso não haja match exato, busca candidatos que contenham o nome. Se encontrar **exatamente 1 consultor**, vincula; se houver ambiguidade (mais de 1) ou nenhum, mantém não atribuído.
+- **Tabela de 4 Colunas**:
+  1. **Nome do Usuário**: Identificação do vendedor ou indicação de "Não atribuído / Sem Usuário".
+  2. **Total Planilha**: Soma financeira (`totalAmount`) dos contratos do vendedor encontrados na planilha XLSX.
+  3. **Total Sistema**: Soma financeira (`totalAmount`) dos contratos do vendedor cadastrados no sistema dentro do período.
+  4. **Qtd Contratos**: Indicador da diferença de quantidade de contratos entre a planilha e o sistema (`XLSX - Sistema`), com badge dinâmica e detalhamento:
+     - `+N`: Badge verde quando o XLSX possui contratos a mais do que o sistema (`+N (X xlsx / Y sistema)`).
+     - `-N`: Badge vermelha quando o XLSX possui contratos a menos do que o sistema (`-N (X xlsx / Y sistema)`).
+     - `0`: Badge neutra quando a quantidade é idêntica (`0 (X contratos)`).
+- **KPI Card Dedicado**: Novo card azul no painel de resumo de reconciliação exibindo o número total de usuários analisados e quantos possuem divergência de contratos.
+- **Busca em Tempo Real**: Barra de pesquisa integrada para filtrar rapidamente os usuários da tabela.
+- **Exportação CSV**: Botão "Exportar Relatório CSV" exporta a relação completa com as 4 colunas formatadas para download (`reconciliacao_comparacao_usuarios_YYYY-MM-DD.csv`).
+
+### Arquivos alterados
+- **Backend**:
+  - `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs`: criação do DTO `UserComparisonItemDto` e adição da propriedade `UserComparisons` no `ContractReconciliationResultDto`.
+  - `SalesApp.Api/Controllers/ContractReconciliationController.cs`: normalização de nomes, inclusão de aliases `consultor`/`vendedor`, toggle `allowPartialNameMatch`, consolidação de totais financeiros e contagens de contratos por usuário tanto do XLSX quanto do sistema respeitando escopo de equipe e usuário.
+- **Frontend**:
+  - `client/sales-dash/src/services/apiService.ts`: adição da interface `UserComparisonItem`, campo `userComparisons` e parâmetro `allowPartialNameMatch` em `reconcileContracts`.
+  - `client/sales-dash/src/components/ContractReconciliationPage.tsx`: nova aba, card de KPI, tabela comparativa com badges de saldo, toggle de correspondência parcial e exportação CSV.
+  - `client/sales-dash/src/components/ContractReconciliationPage.css`: estilização do card de KPI azul.
+
+---
+
+## Filtro de Equipe em Meus Contratos (`/#/my-contracts`)
+
+Adicionado filtro MultiSelect de **Equipe** na página `/#/my-contracts`, permitindo que o usuário filtre seus contratos pela equipe à qual pertencia na época da venda.
+
+### Comportamento
+- O filtro exibe apenas as equipes às quais o usuário logado pertence ou pertenceu (históricas e atuais).
+- A filtragem considera a data de participação: um contrato é incluído se `UserTeam.StartDate ≤ SaleStartDate ≤ UserTeam.EndDate` (ou `EndDate` nulo = ainda ativo).
+- Suporta múltipla seleção (MultiSelect com busca e clear).
+- Exibe "Todos" por padrão — sem persistência em `localStorage`.
+- O filtro é incluído na exportação Excel (`startMyContractExport`).
+- O botão "Limpar Filtros" também reseta a seleção de equipes.
+
+### Arquivos alterados
+- **Backend**: `IContractRepository.cs`, `ContractRepository.cs`, `ContractsController.cs`, `UsersController.cs` (novo `GET /users/me/teams`)
+- **Frontend**: `apiService.ts` (`getMyTeams`, `startMyContractExport`), `contractService.ts` (`getUserContracts`), `MyContractsPage.tsx`
+- **E2E**: `my_contracts_team_filter.spec.ts` (tear-3a-hierarchy)
+
+### Cobertura E2E (`my_contracts_team_filter.spec.ts`)
+- `GET /users/me/teams` retorna apenas as equipes do vendedor (históricas + atuais)
+- MultiSelect renderiza com opções corretas na UI
+- Selecionar uma equipe dispara `teamIds` no request para `/contracts/user/{id}`
+- Filtro temporal: contrato do período Alpha visível com Alpha selecionado, Beta ausente
+- Filtro temporal inverso: contrato do período Beta visível com Beta selecionado, Alpha ausente
+- "Limpar Filtros" reseta o MultiSelect e esconde o botão
+
+---
+
 ## Desativação Direta de Usuário e Ferramenta Admin de Migração de Contratos (Direct User Deactivation & Admin Contract Migration Tool)
 
 Esta funcionalidade atualiza o ciclo de vida e desativação de usuários no sistema e introduz uma ferramenta administrativa dedicada para migração manual de contratos entre usuários.
@@ -1017,9 +1155,11 @@ Permite que superadministradores criem e distribuam perguntas rápidas (Sim/Não
   - Badge numérico vermelho no item `"QA"` do menu indicando a quantidade de perguntas pendentes.
   - Página dedicada de histórico (`#/qa`) disponível para todos os usuários com abas: Todas, Pendentes, Respondidas e Expiradas.
   - Botão de "Responder agora" diretamente pelo histórico.
-- **Relatório de Resultados e Reenvio**:
+- **Relatório de Resultados, Filtragem e Reenvio**:
   - Superadministradores visualizam estatísticas agregadas (gráfico de progresso percentual e total de votos por opção).
   - Tabela detalhada de respostas individuais por usuário com data e hora.
+  - **Filtro de Respostas por Abas**: Abas dinâmicas baseadas no tipo e opções da pergunta ("Todas", "Sim", "Não", "Não respondidas" ou opções customizadas), exibindo contadores em tempo real para isolar usuários por resposta.
+  - **Busca por Nome e Email**: Campo de texto com busca instantânea combinável com o filtro de abas.
   - Ação de **Reenviar para não respondidos**: redefine o status para pendente, reseta o TTL para mais 2 dias e reativa os avisos no cliente.
 
 ### Key Files Created/Modified
@@ -1105,6 +1245,104 @@ Adiciona o filtro "Aguardando Pagamento" nas configurações de relatórios (`Re
 - `SalesApp.Api/ReportFilters/DTOs/CreateReportFilterRequest.cs` & `ReportFilterResponse.cs` — Suporte a `AwaitingPayment` em requests/responses de relatórios.
 - `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs` — Mapeamento, serialização e filtragem em memória antes do cálculo de retenção.
 - `client/sales-dash/src/services/reportFilterService.ts` — Tipagem TypeScript com `awaitingPayment?: boolean`.
-- `client/sales-dash/src/components/Reports/ReportFormPage.tsx` — Estado, binding, UI de seleção e payload do filtro.
-- `SalesApp.Tests/Services/ReportFilterServiceTests.cs` — Testes unitários para `AwaitingPayment` (`true`, `false`, `null`).
+
+---
+
+## 43. Reconciliação de Contratos — Comparação por Usuário e Extração Inteligente de Planilhas
+
+### Overview
+Adiciona a aba **"Comparação por Usuário"** na tela de Reconciliação de Contratos (`/#/contract-reconciliation`), permitindo cruzar o total financeiro e contagem de contratos de cada consultor/vendedor entre a planilha externa enviada (XLSX/CSV) e o sistema interno, com suporte a múltiplos formatos monetários e identificação prioritária de colunas.
+
+### Key Capabilities
+- **Tabela Comparativa de 4 Colunas**:
+  - `Nome do Usuário`: Nome oficial do consultor/vendedor no sistema ou na planilha.
+  - `Total Planilha`: Soma financeira dos contratos atribuídos ao usuário na planilha.
+  - `Total Sistema`: Soma financeira dos contratos atribuídos ao usuário no sistema para o período/equipe selecionado.
+  - `Qtd Contratos`: Diferença de quantidade de contratos (`XLSX - Sistema`), exibida com badges coloridos (`+N` verde, `-N` vermelho, `0` cinza).
+- **Extração Inteligente de Colunas e Precedência Exata**:
+  - **Coluna de Valor**: Prioridade máxima para colunas exatamente nomeadas `Valor` (case-insensitive), com exclusão automática de colunas secundárias como `Valor da Parcela`, `Taxa`, `Entrada`.
+  - **Coluna de Consultor/Vendedor**: Detecção prioritária em duas fases:
+    1. Fase 1: Busca colunas específicas de vendedor (`Consultor`, `Consultora`, `Vendedor`, `Vendedora`, `Comissionado`, `Comissionada`, `Assessor`, `Corretor`) com precedência de correspondência exata.
+    2. Fase 2: Busca por identificadores alternativos (`Matrícula`, `Email`, etc.), excluindo expressamente colunas de terceiros como `Nome PV` e `Nome do Cliente`.
+- **Parser Monetário com Suporte a Múltiplos Separadores**:
+  - Detecção dinâmica de formato monetário em strings mistas (`R$ 140,000.00`, `R$ 140.000,00`, `140000.00`, `140000,00`).
+  - Se a string contiver ambos os separadores `,` e `.`, identifica qual é o milhar e qual é o decimal com base na posição do último separador, evitando truncamento para valores decimais baixos.
+- **Exportação Nativa XLSX com Nomenclatura Descritiva por Problema**:
+  - Exportação de arquivos `.xlsx` nativos gerados via `EPPlus` no backend com cabeçalhos estilizados, larguras automáticas e formatação numérica adequada.
+  - Nome do arquivo dinâmico e autoexplicativo baseado no problema da aba e no escopo selecionado (`{EQUIPE}`, `{USUARIO}` ou `Geral`):
+    1. *No XLSX (Não cadastrados no Sistema)*: `Contratos na planilha que não existem no sistema - {ESCOPO}.xlsx`
+    2. *No Sistema (Ausentes no XLSX)*: `Contratos no sistema que não existem na planilha ou consultor diferente - {ESCOPO}.xlsx`
+    3. *Divergência de Valor*: `Divergência de valor entre planilha e sistema - {ESCOPO}.xlsx`
+    4. *Divergência de Data*: `Divergência de data da venda entre planilha e sistema - {ESCOPO}.xlsx`
+    5. *Divergência de Consultor*: `Divergência de consultor entre planilha e sistema - {ESCOPO}.xlsx`
+    6. *Divergência de Status*: `Divergência de status entre planilha e sistema - {ESCOPO}.xlsx`
+    7. *Sem Usuário Atribuído*: `Contratos na planilha sem consultor identificado no sistema - {ESCOPO}.xlsx`
+    8. *Comparação por Consultor*: `Comparação financeira e contratos por consultor - {ESCOPO}.xlsx`
+  - Sanitização automática de caracteres especiais inválidos para nomes de arquivos.
+- **Classificação Precisa de Contratos por Divergência e Atribuição de Usuário**:
+  - **Importados sem Usuário (`unassignedUserContracts`)**: Contratos presentes no XLSX com consultor informado cujo contrato correspondente no sistema possui `UserInternalId == null`. Contratos sem identificação de vendedor na planilha não são classificados como sem usuário.
+  - **Divergência de Vendedor (`sellerMismatches`)**: Contratos existentes em ambas as fontes onde o usuário no sistema difere do vendedor da planilha, exibindo lado a lado o vendedor no sistema e no XLSX.
+  - **No XLSX / Não Cadastrados (`missingInSystem`)**: Contratos presentes na planilha que não existem na base de dados do sistema.
+  - Agregação financeira fidedigna no `Total Planilha` da tabela de comparação de usuários sem descartes prematuros.
+- **Detecção Inteligente de Padrão de Data (`Data da Venda`)**:
+  - Resolução determinística e global do padrão do arquivo (`dd/MM/yyyy` vs `MM/dd/yyyy`) seguindo 4 níveis de precedência:
+    1. **Valores Impossíveis (> 12)**: Identificação por dia/mês inválido na coluna (ex: `28/04/2025` define `dd/MM/yyyy`; `04/28/2025` define `MM/dd/yyyy`).
+    2. **Cruzamento com o Sistema**: Desempate de datas ambíguas confrontando diretamente com a data real dos mesmos contratos no banco de dados.
+    3. **Metadados do Excel**: Leitura da máscara numérica de data da célula via `EPPlus` (`worksheet.Cells[r, c].Style.Numberformat.Format`).
+    4. **Fallback Brasil**: `dd/MM/yyyy` como padrão em caso de empate total.
+  - O padrão é descoberto uma única vez para a planilha e aplicado uniformemente em todas as linhas.
+- **Preenchimento Automático do Período de Venda**:
+  - Endpoint `POST /api/contractreconciliation/detect-date-range`: ao carregar o arquivo na interface, analisa as datas da planilha e preenche automaticamente os inputs `Data Inicial (Venda)` e `Data Final (Venda)` com a data mais antiga e mais recente encontradas.
+- **Resolução Inteligente de Consultores e Normalização de Matrícula**:
+  - Leitura dedicada da coluna `Matrícula` da planilha através de aliases (`matricula`, `matrícula`, `matriculanumber`, `codigoconsultor`, etc.).
+  - Indexação dupla de usuários por matrícula no sistema (número original e número normalizado via `NormalizationUtils.NormalizeNumber`, removendo zeros à esquerda, ex: `003650` -> `3650`).
+  - Resolução combinada de vendedor na reconciliação: busca por email/nome/matrícula do consultor, pela coluna de matrícula normalizada da linha e, caso o contrato já exista no sistema com vendedor atribuído, associa o consultor do sistema quando os nomes forem compatíveis.
+  - Na aba **"Comparação por Usuário"**, consolida a produção financeira e contagem de contratos (`Total Planilha` e `Total Sistema`) sob a mesma chave do consultor, eliminando a ocorrência de produção zerada no sistema para consultores existentes.
+- **Escopo Global de Usuários para SuperAdmin no Filtro de Contratos**:
+  - `UsersController.cs` e `ContractsPage.tsx` identificam SuperAdmin de forma robusta (`role_id == "1"`, role `SuperAdmin` ou permissão `system:superadmin`), liberando a visualização de todos os usuários no dropdown de filtros de Contratos sem restrição pela árvore hierárquica (`scopeToDescendants`), enquanto preserva a restrição por descendentes para usuários e papéis subordinados.
+- **Card de KPI dedicado "Comparação por Usuário"** exibindo o total de usuários analisados.
+- **Toggle opcional** para permitir correspondência parcial de nomes quando único.
+
+### Key Files Created/Modified
+- `SalesApp.Api/Services/ReconciliationDateDetector.cs` — Lógica pura e estática de detecção em 4 níveis de formato de data e extração de intervalo (`minDate`/`maxDate`).
+- `SalesApp.Api/DTOs/ContractReconciliationDTOs.cs` — DTOs `DetectDateRangeResponseDto`, `UserComparisonItemDto`, `ExportReconciliationTabRequestDto`.
+- `SalesApp.Api/Controllers/ContractReconciliationController.cs` — Endpoint `POST /api/contractreconciliation/detect-date-range`, extração de matrícula normalizada, resolução inteligente de vendedores e endpoint `POST /api/contractreconciliation/export-xlsx`.
+- `SalesApp.Api/Controllers/UsersController.cs` — Validação de SuperAdmin ampla para ignorar restrição de descendentes.
+- `client/sales-dash/src/services/apiService.ts` — Métodos `detectReconciliationDateRange`, `exportReconciliationXlsx` e tipos TypeScript.
+- `client/sales-dash/src/components/ContractsPage.tsx` — Carregamento irrestrito de usuários no filtro para SuperAdmin.
+- `client/sales-dash/src/components/ContractReconciliationPage.tsx` & `.css` — Auto-preenchimento de período no upload de arquivo, indicador de padrão de data detectado, aba "user-comparison", KPI card, tabela com badges e exportação XLSX nativa.
+
+## [2026-09-10] — Separação de Cancelado vs Desistente e Regras de Retenção com Todos os Filtros
+
+### Contexto & Motivação
+- No formulário de relatórios (`ReportFormPage.tsx`), o status `Defaulted` estava incorretamente rotulado como `"Desistente/Excluído"`, misturando os conceitos de cancelamento e desistência.
+- O usuário desejava não contar o estado "Desistente" nas métricas de retenção, enquanto o estado "Cancelado" (`Defaulted`) deve ser computado no denominador para refletir a taxa real de retenção da carteira.
+- Contratos com status `Active` e `HasPayment == false` ("Aguardando Pagamento") não eram detectados como pendentes nas fórmulas de retenção devido à checagem restrita a `ContractStatus.AwaitingPayment`, inflando indevidamente as taxas de retenção.
+
+### Mudanças Realizadas
+1. **Separação de Estados**:
+   - `Defaulted` agora é rotulado e tratado explicitamente como **Cancelado**.
+   - `Desistente` é tratado como **Desistente**.
+2. **Seleção Padrão de Status**:
+   - Novos relatórios vêm por padrão com todos os status selecionados exceto `Desistente`:
+     `['Active', 'Late1', 'Late2', 'Late3', 'Defaulted', 'Transferred', 'AwaitingPayment']`.
+3. **Regras de Cálculo de Retenção**:
+   - Contratos **Desistentes** nunca são computados na retenção (excluídos do numerador e do denominador).
+   - Contratos **Cancelados** (`Defaulted`) entram no denominador da retenção (`totalAmount`), reduzindo a taxa de retenção como esperado para inadimplência/cancelamento.
+   - Contratos em **Aguardando Pagamento** (`Active` com `HasPayment == false` ou status literal `AwaitingPayment`):
+     - Quando o filtro for `Aguardando Pagamento = Não`: contratos são excluídos da lista e não refletem na retenção.
+     - Quando o filtro for `Aguardando Pagamento = Sim`: contratos são listados e incluídos na retenção (`includeAwaitingPayment = true`).
+     - Quando o filtro for `Todos`: contratos são listados na tabela, mas ignorados das fórmulas de retenção.
+   - Todos os filtros configurados (Datas, Equipes, Lojas, Vendedores, Grupos, Matrículas, PVs, Classificações, Desempenho e Status) são aplicados de forma consistente.
+4. **Unificação via `ReportRetentionCalculator`**:
+   - As retenções por vendedor (`_retentionByEmail`), por equipe (`_retentionByTeam`), por classificação (`_retentionByClassification`) e geral (`overallRetention`) utilizam o mesmo motor estático puro, garantindo total coerência entre as colunas da tabela e o card de sumário.
+
+### Arquivos Modificados
+- `SalesApp.Api/ReportFilters/Services/ReportRetentionCalculator.cs` — Adição dos métodos puros `IsAwaitingPayment` e `IsDesistente`; atualização de `CalculateOverallRetention` para excluir `Desistente` e tratar `AwaitingPayment`.
+- `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs` — Unificação dos cálculos de retenção chamando `ReportRetentionCalculator.CalculateOverallRetention`; adição do helper `MatchesStatus` para suporte correto a `AwaitingPayment` e `Desistente`; aplicação de filtros de desempenho com as novas regras.
+- `client/sales-dash/src/components/Reports/ReportFormPage.tsx` — Separação das opções `Cancelado` (`Defaulted`) e `Desistente` no multiselect; definição da constante `DEFAULT_REPORT_STATUSES` com todos os status exceto `Desistente`.
+- `SalesApp.Tests/Services/ReportRetentionCalculatorTests.cs` — Testes unitários para `IsAwaitingPayment`, `IsDesistente`, exclusão de desistentes e impacto de cancelados/aguardando pagamento.
+- `SalesApp.Tests/Services/ReportFilterServiceTests.cs` — Testes de integração unitária para `ExecuteAsync` cobrindo retenção com cancelados, exclusão de desistentes e variações do filtro `AwaitingPayment`.
+
+
 

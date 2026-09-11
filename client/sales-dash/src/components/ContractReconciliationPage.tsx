@@ -10,6 +10,7 @@ import {
   Tabs,
   Alert,
   Loader,
+  Switch,
 } from '@mantine/core';
 import {
   IconTools,
@@ -24,12 +25,15 @@ import {
   IconCalendarTime,
   IconUserExclamation,
   IconTags,
+  IconUsers,
 } from '@tabler/icons-react';
 import {
   apiService,
   ContractReconciliationResult,
   Team,
+  UserComparisonItem,
 } from '../services/apiService';
+import { notifications } from '@mantine/notifications';
 import Menu from './Menu';
 import './ContractReconciliationPage.css';
 
@@ -57,6 +61,36 @@ const ContractReconciliationPage: React.FC = () => {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [allowPartialNameMatch, setAllowPartialNameMatch] = useState(false);
+  const [detectingDates, setDetectingDates] = useState(false);
+  const [detectedFormatInfo, setDetectedFormatInfo] = useState<string | null>(null);
+
+  const handleFileChange = async (selectedFile: File | null) => {
+    setFile(selectedFile);
+    setDetectedFormatInfo(null);
+    if (!selectedFile) return;
+
+    try {
+      setDetectingDates(true);
+      const res = await apiService.detectReconciliationDateRange(selectedFile);
+      if (res.startDate && res.endDate) {
+        setStartDate(res.startDate);
+        setEndDate(res.endDate);
+        const formatLabel = res.detectedFormat || 'dd/MM/yyyy';
+        setDetectedFormatInfo(`Padrão detectado: ${formatLabel}`);
+        notifications.show({
+          title: 'Período preenchido automaticamente',
+          message: `Datas ajustadas para ${formatDate(res.startDate)} até ${formatDate(res.endDate)} (Padrão: ${formatLabel}).`,
+          color: 'teal',
+          icon: <IconCheck size={18} />,
+        });
+      }
+    } catch (err: any) {
+      console.warn('Não foi possível autodetectar período das datas:', err);
+    } finally {
+      setDetectingDates(false);
+    }
+  };
 
   // Teams & Users list for dropdowns
   const [teams, setTeams] = useState<Team[]>([]);
@@ -72,6 +106,7 @@ const ContractReconciliationPage: React.FC = () => {
   // Active tab & search filter
   const [activeTab, setActiveTab] = useState<string | null>('missing-in-system');
   const [searchQuery, setSearchQuery] = useState('');
+  const [exportingXlsx, setExportingXlsx] = useState(false);
 
   // Fetch teams and users on mount
   useEffect(() => {
@@ -82,7 +117,7 @@ const ContractReconciliationPage: React.FC = () => {
       try {
         const [teamsRes, usersRes] = await Promise.allSettled([
           apiService.getTeams(),
-          apiService.getUsers(1, 500, undefined, undefined, false, true, 'active'),
+          apiService.getUsers(1, 1000, undefined, undefined, false, true, 'active'),
         ]);
 
         if (teamsRes.status === 'fulfilled' && teamsRes.value.success && teamsRes.value.data) {
@@ -111,6 +146,11 @@ const ContractReconciliationPage: React.FC = () => {
   const selectedTeam = useMemo(
     () => teams.find((t) => t.id.toString() === selectedTeamId),
     [teams, selectedTeamId]
+  );
+
+  const selectedUser = useMemo(
+    () => users.find((u) => u.value === selectedUserId),
+    [users, selectedUserId]
   );
 
   const teamFilteredUsers = useMemo(() => {
@@ -153,7 +193,8 @@ const ContractReconciliationPage: React.FC = () => {
         startDate,
         endDate,
         selectedUserId || undefined,
-        selectedTeamId ? parseInt(selectedTeamId, 10) : undefined
+        selectedTeamId ? parseInt(selectedTeamId, 10) : undefined,
+        allowPartialNameMatch
       );
       setResult(res);
       setActiveTab('missing-in-system');
@@ -164,87 +205,144 @@ const ContractReconciliationPage: React.FC = () => {
     }
   };
 
-  // CSV Export for active tab
-  const handleExportCSV = () => {
+  const sanitizeFilename = (name: string) => {
+    return name.replace(/[/\\?%*:|"<>]/g, '-').trim();
+  };
+
+  const getExportScope = () => {
+    if (selectedTeam?.name) {
+      return sanitizeFilename(selectedTeam.name);
+    }
+    if (selectedUser?.label) {
+      const cleanName = selectedUser.label.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      return sanitizeFilename(cleanName);
+    }
+    return 'Geral';
+  };
+
+  // XLSX Export for active tab with problem-descriptive naming
+  const handleExportXlsx = async () => {
     if (!result) return;
 
+    const scope = getExportScope();
+    let title = '';
+    let filename = '';
     let headers: string[] = [];
     let rows: string[][] = [];
-    let filename = `reconciliacao_${activeTab}_${todayStr}.csv`;
 
     if (activeTab === 'missing-in-system') {
+      title = 'Não cadastrados no Sistema';
+      filename = `Contratos na planilha que não existem no sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Valor (XLSX)', 'Usuário', 'Data'];
       rows = filteredMissingInSystem.map((item) => [
-        `"${item.contractNumber}"`,
+        item.contractNumber,
         item.totalAmount.toFixed(2),
-        `"${item.systemUserName || item.userIdentifier || ''}"`,
-        `"${formatDate(item.date)}"`,
+        item.systemUserName || item.userIdentifier || '',
+        formatDate(item.date),
       ]);
     } else if (activeTab === 'missing-in-import') {
+      title = 'Ausentes no XLSX';
+      filename = `Contratos no sistema que não existem na planilha ou consultor diferente - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Valor (Sistema)', 'Usuário no Sistema', 'Data de Venda'];
       rows = filteredMissingInImport.map((item) => [
-        `"${item.contractNumber}"`,
+        item.contractNumber,
         item.totalAmount.toFixed(2),
-        `"${item.systemUserName || item.userIdentifier || ''}"`,
-        `"${formatDate(item.date)}"`,
+        item.systemUserName || item.userIdentifier || '',
+        formatDate(item.date),
       ]);
     } else if (activeTab === 'amount-mismatches') {
+      title = 'Divergência de Valor';
+      filename = `Divergência de valor entre planilha e sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Valor Sistema', 'Valor XLSX', 'Diferença', 'Usuário', 'Data de Venda'];
       rows = filteredAmountMismatches.map((item) => [
-        `"${item.contractNumber}"`,
+        item.contractNumber,
         item.systemAmount.toFixed(2),
         item.xlsxAmount.toFixed(2),
         item.difference.toFixed(2),
-        `"${item.systemUserName || item.userIdentifier || ''}"`,
-        `"${formatDate(item.saleStartDate)}"`,
+        item.systemUserName || item.userIdentifier || '',
+        formatDate(item.saleStartDate),
       ]);
     } else if (activeTab === 'date-mismatches') {
+      title = 'Divergência de Data';
+      filename = `Divergência de data da venda entre planilha e sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Data no Sistema', 'Data no XLSX', 'Valor Total', 'Usuário no Sistema'];
       rows = filteredDateMismatches.map((item) => [
-        `"${item.contractNumber}"`,
-        `"${formatDate(item.systemDate)}"`,
-        `"${formatDate(item.xlsxDate)}"`,
+        item.contractNumber,
+        formatDate(item.systemDate),
+        formatDate(item.xlsxDate),
         item.totalAmount.toFixed(2),
-        `"${item.systemUserName || ''}"`,
+        item.systemUserName || '',
       ]);
     } else if (activeTab === 'seller-mismatches') {
+      title = 'Divergência de Consultor';
+      filename = `Divergência de consultor entre planilha e sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Vendedor no Sistema', 'Vendedor no XLSX', 'Valor Total', 'Data de Venda'];
       rows = filteredSellerMismatches.map((item) => [
-        `"${item.contractNumber}"`,
-        `"${item.systemUserName || ''}"`,
-        `"${item.xlsxUserIdentifier || ''}"`,
+        item.contractNumber,
+        item.systemUserName || '',
+        item.xlsxUserIdentifier || '',
         item.totalAmount.toFixed(2),
-        `"${formatDate(item.saleStartDate)}"`,
+        formatDate(item.saleStartDate),
       ]);
     } else if (activeTab === 'status-mismatches') {
+      title = 'Divergência de Status';
+      filename = `Divergência de status entre planilha e sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Status no Sistema', 'Status no XLSX', 'Valor Total', 'Usuário no Sistema', 'Data de Venda'];
       rows = filteredStatusMismatches.map((item) => [
-        `"${item.contractNumber}"`,
-        `"${item.systemStatus || ''}"`,
-        `"${item.xlsxStatus || ''}"`,
+        item.contractNumber,
+        item.systemStatus || '',
+        item.xlsxStatus || '',
         item.totalAmount.toFixed(2),
-        `"${item.systemUserName || ''}"`,
-        `"${formatDate(item.saleStartDate)}"`,
+        item.systemUserName || '',
+        formatDate(item.saleStartDate),
       ]);
     } else if (activeTab === 'unassigned-users') {
+      title = 'Sem Usuário Atribuído';
+      filename = `Contratos na planilha sem consultor identificado no sistema - ${scope}.xlsx`;
       headers = ['Número do Contrato', 'Valor (XLSX)', 'Identificador de Usuário (XLSX)', 'Data'];
       rows = filteredUnassigned.map((item) => [
-        `"${item.contractNumber}"`,
+        item.contractNumber,
         item.totalAmount.toFixed(2),
-        `"${item.userIdentifier || ''}"`,
-        `"${formatDate(item.date)}"`,
+        item.userIdentifier || '',
+        formatDate(item.date),
+      ]);
+    } else if (activeTab === 'user-comparison') {
+      title = 'Comparação por Consultor';
+      filename = `Comparação financeira e contratos por consultor - ${scope}.xlsx`;
+      headers = ['Nome do Usuário', 'Total Planilha', 'Total Sistema', 'Qtd Contratos'];
+      rows = filteredUserComparisons.map((item) => [
+        item.userName,
+        item.xlsxTotal.toFixed(2),
+        item.systemTotal.toFixed(2),
+        item.contractDiff > 0 ? `+${item.contractDiff}` : `${item.contractDiff}`,
       ]);
     }
 
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      setExportingXlsx(true);
+      const blob = await apiService.exportReconciliationXlsx({
+        title,
+        headers,
+        rows,
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro na exportação',
+        message: err.message || 'Falha ao gerar arquivo XLSX.',
+        color: 'red',
+      });
+    } finally {
+      setExportingXlsx(false);
+    }
   };
 
   // Filtered lists by searchQuery
@@ -279,6 +377,83 @@ const ContractReconciliationPage: React.FC = () => {
 
   const filteredUnassigned =
     result?.unassignedUserContracts.filter((i) => filterItem(i.contractNumber, i.userIdentifier)) || [];
+
+  const userComparisonData = useMemo<UserComparisonItem[]>(() => {
+    if (!result) return [];
+    if (result.userComparisons && result.userComparisons.length > 0) {
+      return result.userComparisons;
+    }
+
+    // Helper to normalize names
+    const normalizeName = (str?: string) => {
+      if (!str) return '';
+      return str
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+    };
+
+    // Fallback if backend does not supply userComparisons directly
+    const userMap = new Map<string, { displayName: string; xlsxTotal: number; systemTotal: number; xlsxCount: number; systemCount: number }>();
+    const getAcc = (name: string) => {
+      const key = normalizeName(name);
+      let acc = userMap.get(key);
+      if (!acc) {
+        acc = { displayName: name, xlsxTotal: 0, systemTotal: 0, xlsxCount: 0, systemCount: 0 };
+        userMap.set(key, acc);
+      }
+      return acc;
+    };
+
+    result.missingInSystem.forEach((item) => {
+      const u = item.systemUserName || item.userIdentifier || 'Sem Usuário Atribuído';
+      const acc = getAcc(u);
+      acc.xlsxTotal += item.totalAmount;
+      acc.xlsxCount += 1;
+    });
+
+    result.missingInImport.forEach((item) => {
+      const u = item.systemUserName || item.userIdentifier || 'Sem Usuário Atribuído';
+      const acc = getAcc(u);
+      acc.systemTotal += item.totalAmount;
+      acc.systemCount += 1;
+    });
+
+    result.amountMismatches.forEach((item) => {
+      const u = item.systemUserName || item.userIdentifier || 'Sem Usuário Atribuído';
+      const acc = getAcc(u);
+      acc.xlsxTotal += item.xlsxAmount;
+      acc.systemTotal += item.systemAmount;
+      acc.xlsxCount += 1;
+      acc.systemCount += 1;
+    });
+
+    result.unassignedUserContracts.forEach((item) => {
+      const u = item.userIdentifier ? `Não atribuído (${item.userIdentifier})` : 'Sem Usuário Atribuído';
+      const acc = getAcc(u);
+      acc.xlsxTotal += item.totalAmount;
+      acc.xlsxCount += 1;
+    });
+
+    return Array.from(userMap.values())
+      .map((data) => ({
+        userName: data.displayName,
+        xlsxTotal: data.xlsxTotal,
+        systemTotal: data.systemTotal,
+        xlsxCount: data.xlsxCount,
+        systemCount: data.systemCount,
+        contractDiff: data.xlsxCount - data.systemCount,
+      }))
+      .sort((a, b) => b.xlsxTotal - a.xlsxTotal || b.systemTotal - a.systemTotal);
+  }, [result]);
+
+  const filteredUserComparisons = useMemo(() => {
+    if (!searchQuery.trim()) return userComparisonData;
+    const q = searchQuery.toLowerCase().trim();
+    return userComparisonData.filter((item) => item.userName.toLowerCase().includes(q));
+  }, [userComparisonData, searchQuery]);
 
   return (
     <Menu>
@@ -336,15 +511,27 @@ const ContractReconciliationPage: React.FC = () => {
                 disabled={loadingUsers}
               />
 
-              <FileInput
-                label="Planilha XLSX do Cliente"
-                placeholder="Selecione o arquivo (.xlsx)"
-                leftSection={<IconFileSpreadsheet size={18} />}
-                accept=".xlsx,.csv"
-                value={file}
-                onChange={setFile}
-                required
-              />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <FileInput
+                  label="Planilha XLSX do Cliente"
+                  placeholder="Selecione o arquivo (.xlsx)"
+                  leftSection={<IconFileSpreadsheet size={18} />}
+                  accept=".xlsx,.csv"
+                  value={file}
+                  onChange={handleFileChange}
+                  required
+                />
+                {detectingDates && (
+                  <Text size="xs" c="dimmed" mt={4}>
+                    Analisando datas do arquivo...
+                  </Text>
+                )}
+                {detectedFormatInfo && (
+                  <Text size="xs" c="teal" mt={4}>
+                    ✓ {detectedFormatInfo}
+                  </Text>
+                )}
+              </div>
 
               <Button
                 type="submit"
@@ -355,6 +542,15 @@ const ContractReconciliationPage: React.FC = () => {
               >
                 Executar Reconciliação
               </Button>
+            </div>
+
+            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Switch
+                label="Permitir correspondência parcial de nomes de consultor/vendedor (se único)"
+                checked={allowPartialNameMatch}
+                onChange={(e) => setAllowPartialNameMatch(e.currentTarget.checked)}
+                color="blue"
+              />
             </div>
           </form>
         </div>
@@ -499,6 +695,25 @@ const ContractReconciliationPage: React.FC = () => {
                   Total XLSX: {formatCurrency(result.unassignedUserSummary.totalAmount)}
                 </div>
               </div>
+
+              {/* Card 8: User Comparison */}
+              <div
+                className={`kpi-card blue ${activeTab === 'user-comparison' ? 'active' : ''}`}
+                onClick={() => setActiveTab('user-comparison')}
+              >
+                <div className="kpi-header">
+                  <span className="kpi-label">Comparação por Usuário</span>
+                  <div className="kpi-icon-wrapper">
+                    <IconUsers size={20} />
+                  </div>
+                </div>
+                <div className="kpi-count">{userComparisonData.length}</div>
+                <div className="kpi-amount">
+                  {userComparisonData.filter(u => u.contractDiff !== 0).length > 0
+                    ? `${userComparisonData.filter(u => u.contractDiff !== 0).length} com divergência`
+                    : 'Todos equalizados'}
+                </div>
+              </div>
             </div>
 
             {/* Interactive Detailed Table Card */}
@@ -590,6 +805,18 @@ const ContractReconciliationPage: React.FC = () => {
                   >
                     Importados sem Usuário
                   </Tabs.Tab>
+
+                  <Tabs.Tab
+                    value="user-comparison"
+                    leftSection={<IconUsers size={16} />}
+                    rightSection={
+                      <Badge size="xs" color="blue" variant="filled">
+                        {userComparisonData.length}
+                      </Badge>
+                    }
+                  >
+                    Comparação por Usuário
+                  </Tabs.Tab>
                 </Tabs.List>
 
                 {/* Table Toolbar */}
@@ -605,10 +832,11 @@ const ContractReconciliationPage: React.FC = () => {
                   <Button
                     variant="light"
                     color="blue"
-                    leftSection={<IconDownload size={16} />}
-                    onClick={handleExportCSV}
+                    leftSection={exportingXlsx ? <Loader size="xs" color="blue" /> : <IconDownload size={16} />}
+                    onClick={handleExportXlsx}
+                    disabled={exportingXlsx}
                   >
-                    Exportar Relatório CSV
+                    {exportingXlsx ? 'Gerando XLSX...' : 'Exportar Planilha (XLSX)'}
                   </Button>
                 </div>
 
@@ -913,6 +1141,56 @@ const ContractReconciliationPage: React.FC = () => {
                                 <Text size="sm" color="dimmed">
                                   Usuário não localizado no banco de dados
                                 </Text>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    </div>
+                  )}
+                </Tabs.Panel>
+
+                {/* Tab 8: User Comparison */}
+                <Tabs.Panel value="user-comparison">
+                  {filteredUserComparisons.length === 0 ? (
+                    <div className="empty-state">
+                      <IconCheck className="empty-icon" color="green" />
+                      <Text fw={600}>Nenhum usuário encontrado para os filtros selecionados!</Text>
+                      <Text size="sm">Não há dados de produção para comparar entre a planilha e o sistema.</Text>
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <Table striped highlightOnHover>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Nome do Usuário</Table.Th>
+                            <Table.Th>Total Planilha</Table.Th>
+                            <Table.Th>Total Sistema</Table.Th>
+                            <Table.Th>Qtd Contratos</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {filteredUserComparisons.map((item, index) => (
+                            <Table.Tr key={index}>
+                              <Table.Td>
+                                <Text fw={600}>{item.userName}</Text>
+                              </Table.Td>
+                              <Table.Td>{formatCurrency(item.xlsxTotal)}</Table.Td>
+                              <Table.Td>{formatCurrency(item.systemTotal)}</Table.Td>
+                              <Table.Td>
+                                {item.contractDiff > 0 ? (
+                                  <Badge color="green" variant="light">
+                                    +{item.contractDiff} ({item.xlsxCount} xlsx / {item.systemCount} sistema)
+                                  </Badge>
+                                ) : item.contractDiff < 0 ? (
+                                  <Badge color="red" variant="light">
+                                    {item.contractDiff} ({item.xlsxCount} xlsx / {item.systemCount} sistema)
+                                  </Badge>
+                                ) : (
+                                  <Badge color="gray" variant="light">
+                                    0 ({item.xlsxCount} contratos)
+                                  </Badge>
+                                )}
                               </Table.Td>
                             </Table.Tr>
                           ))}

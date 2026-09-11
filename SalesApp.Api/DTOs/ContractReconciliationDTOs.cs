@@ -82,5 +82,32 @@ namespace SalesApp.DTOs
         public List<SellerMismatchItemDto> SellerMismatches { get; set; } = new();
         public List<StatusMismatchItemDto> StatusMismatches { get; set; } = new();
         public List<ReconciledContractItemDto> UnassignedUserContracts { get; set; } = new();
+        public List<UserComparisonItemDto> UserComparisons { get; set; } = new();
+    }
+
+    public class UserComparisonItemDto
+    {
+        public string UserName { get; set; } = string.Empty;
+        public decimal XlsxTotal { get; set; }
+        public decimal SystemTotal { get; set; }
+        public int XlsxCount { get; set; }
+        public int SystemCount { get; set; }
+        public int ContractDiff => XlsxCount - SystemCount;
+    }
+
+    public class ExportReconciliationTabRequestDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public List<string> Headers { get; set; } = new();
+        public List<List<string>> Rows { get; set; } = new();
+    }
+
+    public class DetectDateRangeResponseDto
+    {
+        public string? StartDate { get; set; }
+        public string? EndDate { get; set; }
+        public string? DetectedFormat { get; set; }
+        public int TotalRows { get; set; }
     }
 }
+

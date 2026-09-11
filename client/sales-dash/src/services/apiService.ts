@@ -1074,6 +1074,8 @@ export const apiService = {
   async startMyContractExport(filters: {
     startDate?: string;
     endDate?: string;
+    teamIds?: number[];
+    matriculas?: string[];
   }): Promise<{ jobId: string; status: string; totalRows: number; processedRows: number }> {
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/contracts/export`, {
       method: 'POST',
@@ -1093,6 +1095,15 @@ export const apiService = {
     return `${API_BASE_URL}/users/me/contracts/export/${jobId}`;
   },
 
+  // Returns the teams the current user belongs to or has belonged to
+  async getMyTeams(): Promise<ApiResponse<Array<{ id: number; name: string }>>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/teams`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to fetch my teams')
+    return response.json()
+  },
+
   // Teams Management methods
   async getTeams(): Promise<ApiResponse<Team[]>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams`, {
@@ -1101,6 +1112,7 @@ export const apiService = {
     if (!response.ok) throw new Error("Failed to fetch teams")
     return response.json()
   },
+
 
   async getTeam(id: number): Promise<ApiResponse<Team>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}`, {
@@ -1561,7 +1573,8 @@ export const apiService = {
     startDate: string,
     endDate: string,
     userId?: string,
-    teamId?: number
+    teamId?: number,
+    allowPartialNameMatch?: boolean
   ): Promise<ContractReconciliationResult> {
     const formData = new FormData()
     formData.append("file", file)
@@ -1572,6 +1585,9 @@ export const apiService = {
     }
     if (teamId) {
       formData.append("teamId", teamId.toString())
+    }
+    if (allowPartialNameMatch !== undefined) {
+      formData.append("allowPartialNameMatch", allowPartialNameMatch.toString())
     }
 
     const token = localStorage.getItem("token")
@@ -1596,6 +1612,51 @@ export const apiService = {
 
     return response.json()
   },
+
+  async exportReconciliationXlsx(data: {
+    title: string;
+    headers: string[];
+    rows: string[][];
+  }): Promise<Blob> {
+    const token = localStorage.getItem("token")
+    const response = await authenticatedFetch(`${API_BASE_URL}/contractreconciliation/export-xlsx`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Erro no download do arquivo")
+      throw new Error(errorText || "Erro ao gerar arquivo XLSX")
+    }
+
+    return response.blob()
+  },
+
+  async detectReconciliationDateRange(file: File): Promise<DetectDateRangeResult> {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    const token = localStorage.getItem("token")
+    const response = await authenticatedFetch(`${API_BASE_URL}/contractreconciliation/detect-date-range`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Erro ao analisar datas do arquivo")
+      throw new Error(errorText || "Erro ao analisar datas do arquivo")
+    }
+
+    return response.json()
+  },
+
 
   async previewRetentionFilter(fileA: File, fileB: File): Promise<ApiResponse<RetentionFilterProcessResponse>> {
     const formData = new FormData()
@@ -2214,6 +2275,15 @@ export interface ReconciliationCategorySummary {
   totalAmount: number
 }
 
+export interface UserComparisonItem {
+  userName: string
+  xlsxTotal: number
+  systemTotal: number
+  xlsxCount: number
+  systemCount: number
+  contractDiff: number
+}
+
 export interface ContractReconciliationResult {
   startDate: string
   endDate: string
@@ -2235,6 +2305,14 @@ export interface ContractReconciliationResult {
   sellerMismatches: SellerMismatchItem[]
   statusMismatches: StatusMismatchItem[]
   unassignedUserContracts: ReconciledContractItem[]
+  userComparisons?: UserComparisonItem[]
+}
+
+export interface DetectDateRangeResult {
+  startDate: string | null
+  endDate: string | null
+  detectedFormat: string | null
+  totalRows: number
 }
 
 export interface RetentionFilterStats {

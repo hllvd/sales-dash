@@ -199,6 +199,15 @@ const toISOStringSafe = (val: any): string | undefined => {
 
 const CURRENT_USER_TEAM_SENTINEL = '__current_user_team__';
 const CURRENT_USER_MATRICULA_SENTINEL = '★ Matrícula do usuário atual';
+const DEFAULT_REPORT_STATUSES = [
+  'Active',
+  'Late1',
+  'Late2',
+  'Late3',
+  'Defaulted',
+  'Transferred',
+  'AwaitingPayment'
+];
 
 const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [localFilterId, setLocalFilterId] = useState<string | undefined>(filterId);
@@ -233,7 +242,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [teamMembershipMode, setTeamMembershipMode] = useState<'current' | 'historical'>('current');
   const [stores, setStores] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
-  const [statuses, setStatuses] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>(DEFAULT_REPORT_STATUSES);
   const [awaitingPayment, setAwaitingPayment] = useState<boolean | null>(null);
 
   // Classification & Performance Filters
@@ -369,7 +378,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setTeamMembershipMode(fc.teamMembershipMode || 'current');
         setStores((fc.stores || []).map(s => s.toString()));
         setPvs((fc.pvs || []).map(p => p.toString()));
-        setStatuses(fc.statuses || []);
+        setStatuses(fc.statuses && fc.statuses.length > 0 ? fc.statuses : (fc.statuses !== undefined ? fc.statuses : DEFAULT_REPORT_STATUSES));
         setStatusOperator(fc.statusOperator || 'or');
         setAwaitingPayment(fc.awaitingPayment ?? null);
 
@@ -452,17 +461,6 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
           setGroupingType('classification');
         } else {
           setGroupingType('none');
-        }
-
-        // Auto-run preview for existing reports on load
-        try {
-          setPreviewLoading(true);
-          const results = await getReportResults(localFilterId, 1, 10);
-          setPreviewData(results);
-        } catch (err: any) {
-          setPreviewError(err.message || 'Falha ao carregar prévia inicial');
-        } finally {
-          setPreviewLoading(false);
         }
       }
     } catch (err: any) {
@@ -1180,7 +1178,8 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                       { value: 'Late1', label: 'Atraso 1' },
                       { value: 'Late2', label: 'Atraso 2' },
                       { value: 'Late3', label: 'Atraso 3' },
-                      { value: 'Defaulted', label: 'Desistente/Excluído' },
+                      { value: 'Defaulted', label: 'Cancelado' },
+                      { value: 'Desistente', label: 'Desistente' },
                       { value: 'Transferred', label: 'Transferido' },
                       { value: 'AwaitingPayment', label: 'Aguardando Pagamento' }
                     ]}
@@ -1787,7 +1786,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                 disabled={!name || outputColumns.length === 0}
                 size="sm"
               >
-                Atualizar Prévia
+                {previewData ? 'Atualizar Prévia' : 'Carregar Prévia'}
               </Button>
             </Group>
 
@@ -1807,16 +1806,17 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                 <Center style={{ height: '260px', padding: '24px' }}>
                   <Stack align="center" gap="md" style={{ textAlign: 'center', maxWidth: '400px' }}>
                     <Text size="sm" c="dimmed" style={{ lineHeight: 1.5 }}>
-                      Defina o nome do relatório, selecione colunas e clique no botão acima para rodar a prévia em tempo real com dados reais.
+                      Defina o nome do relatório, selecione colunas e clique no botão abaixo para rodar a prévia sob demanda.
                     </Text>
                     <Button 
                       variant="outline" 
                       color="indigo"
+                      leftSection={<IconRefresh size={16} />}
                       onClick={handleRunPreview} 
                       disabled={!name || outputColumns.length === 0}
                       size="sm"
                     >
-                      Carregar Dados de Prévia
+                      Carregar Prévia
                     </Button>
                   </Stack>
                 </Center>

@@ -477,9 +477,120 @@ namespace SalesApp.ReportFilters.Services
                 }
             }
 
+            // ── Push-down Pre-Filtering for Maximum Performance ──────────────────
+            // Instead of loading all contracts across the entire company for the date range
+            // and filtering in memory, we resolve user internal IDs and team IDs upfront and
+            // pass them to the database query, leveraging SQLite composite indexes (IX_Contracts_UserInternalId_SaleStartDate).
+            List<int>? teamIdsFilter = null;
+            List<int>? userInternalIdsFilter = null;
 
-            // Reuse existing GetAllAsync — same logic as /api/contracts, no duplication
-            var contracts = await _contractRepository.GetAllAsync(
+            var isHistoricalMode = string.Equals(
+                fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+
+            if (fc.Teams?.Count > 0)
+            {
+                teamIdsFilter = fc.Teams;
+
+                if (!isHistoricalMode && teamsList.Count > 0)
+                {
+                    var now = DateTime.UtcNow;
+                    var activeMemberInternalIds = memberTeamMapping
+                        .Where(x => x.StartDate <= now && (x.EndDate == null || x.EndDate > now) && fc.Teams.Contains(x.TeamId))
+                        .Select(x => x.UserInternalId)
+                        .Distinct()
+                        .ToList();
+
+                    if (activeMemberInternalIds.Count > 0)
+                    {
+                        userInternalIdsFilter = activeMemberInternalIds;
+                    }
+                    else if (teamsList.Any(x => fc.Teams.Contains(x.Id)))
+                    {
+                        // Team exists in the database, but has no active members
+                        return new ServiceResult<ReportResultsResponse>(true, CreateEmptyResultsResponse(report, page, pageSize));
+                    }
+                }
+            }
+
+            if (fc.Stores?.Count > 0)
+            {
+                var storeTeams = memberTeamMapping
+                    .Where(x => x.StoreId.HasValue && fc.Stores.Contains(x.StoreId.Value))
+                    .Select(x => x.TeamId)
+                    .Distinct()
+                    .ToList();
+
+                if (storeTeams.Count > 0)
+                {
+                    if (teamIdsFilter != null)
+                        teamIdsFilter = teamIdsFilter.Intersect(storeTeams).ToList();
+                    else
+                        teamIdsFilter = storeTeams;
+                }
+
+                if (!isHistoricalMode && memberTeamMapping.Count > 0)
+                {
+                    var now = DateTime.UtcNow;
+                    var activeStoreMemberIds = memberTeamMapping
+                        .Where(x => x.StartDate <= now && (x.EndDate == null || x.EndDate > now) && x.StoreId.HasValue && fc.Stores.Contains(x.StoreId.Value))
+                        .Select(x => x.UserInternalId)
+                        .Distinct()
+                        .ToList();
+
+                    if (activeStoreMemberIds.Count > 0)
+                    {
+                        if (userInternalIdsFilter != null)
+                            userInternalIdsFilter = userInternalIdsFilter.Intersect(activeStoreMemberIds).ToList();
+                        else
+                            userInternalIdsFilter = activeStoreMemberIds;
+                    }
+                }
+            }
+
+            if (fc.Emails?.Count > 0 && memberTeamMapping.Count > 0)
+            {
+                var emailSet = fc.Emails.Select(e => e.Trim().ToLower()).ToHashSet();
+                var emailInternalIds = teamsList
+                    .SelectMany(t => t.UserTeams)
+                    .Where(ut => ut.User != null && emailSet.Contains(ut.User.Email.ToLower()))
+                    .Select(ut => ut.UserInternalId)
+                    .Distinct()
+                    .ToList();
+
+                if (emailInternalIds.Count > 0)
+                {
+                    if (userInternalIdsFilter != null)
+                        userInternalIdsFilter = userInternalIdsFilter.Intersect(emailInternalIds).ToList();
+                    else
+                        userInternalIdsFilter = emailInternalIds;
+                }
+            }
+
+            // Reuse existing GetAllAsync with database-level push-down filters and asNoTracking: true
+            List<Contract>? contracts = null;
+            if (userInternalIdsFilter != null)
+            {
+                contracts = await _contractRepository.GetAllAsync(
+                    userIdFilter,
+                    groupIdFilter,
+                    resolvedStartDate,
+                    resolvedEndDate,
+                    null,
+                    null,
+                    !string.IsNullOrEmpty(matriculaFilter) ? new List<string> { matriculaFilter } : null,
+                    emailFilter,
+                    null,
+                    teamIdsFilter,
+                    null,
+                    null,
+                    false,
+                    null,
+                    userInternalIdsFilter,
+                    true
+                );
+            }
+
+            contracts ??= await _contractRepository.GetAllAsync(
                 userId: userIdFilter,
                 groupId: groupIdFilter,
                 startDate: resolvedStartDate,
@@ -488,8 +599,11 @@ namespace SalesApp.ReportFilters.Services
                 showUnassigned: null,
                 matriculaNumbers: !string.IsNullOrEmpty(matriculaFilter) ? new List<string> { matriculaFilter } : null,
                 userEmail: emailFilter,
-                scope: null // No scope restriction for superadmin-executed reports
+                scope: null,
+                teamIds: teamIdsFilter
             );
+
+            contracts ??= new List<Contract>();
 
             // Filter PVs in memory since IContractRepository does not support PvId lists
             if (fc.Pvs?.Count > 0)
@@ -609,6 +723,7 @@ namespace SalesApp.ReportFilters.Services
 
             if (hasMetricFilter)
             {
+                var includeAwaiting = fc.AwaitingPayment == true;
                 // Single-pass GroupBy to calculate production and retention metrics per user
                 var metricsByUser = contracts
                     .GroupBy(c => c.UserInternalId ?? -1)
@@ -617,19 +732,21 @@ namespace SalesApp.ReportFilters.Services
                         g =>
                         {
                             var total = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Where(c => !ReportRetentionCalculator.IsDesistente(c) && (includeAwaiting || !ReportRetentionCalculator.IsAwaitingPayment(c)))
                                 .Sum(c => c.TotalAmount);
                             var activeSum = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase)
-                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                .Where(c => !ReportRetentionCalculator.IsDesistente(c)
+                                         && (includeAwaiting || !ReportRetentionCalculator.IsAwaitingPayment(c))
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
                             
                             var strictActiveSum = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase)
+                                .Where(c => !ReportRetentionCalculator.IsDesistente(c)
+                                         && (includeAwaiting || !ReportRetentionCalculator.IsAwaitingPayment(c))
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Defaulted.ToApiString(), StringComparison.OrdinalIgnoreCase)
                                          && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late1.ToApiString(), StringComparison.OrdinalIgnoreCase)
                                          && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late2.ToApiString(), StringComparison.OrdinalIgnoreCase)
-                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late3.ToApiString(), StringComparison.OrdinalIgnoreCase)
-                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                                         && !string.Equals(c.ContractStatus?.Name, ContractStatus.Late3.ToApiString(), StringComparison.OrdinalIgnoreCase))
                                 .Sum(c => c.TotalAmount);
 
                             return new
@@ -661,15 +778,11 @@ namespace SalesApp.ReportFilters.Services
             // ── AwaitingPayment Filter ────────────────────────────────────────────
             // Applied BEFORE retention calculation so that, when this filter is active,
             // the excluded contracts are not counted in retention metrics.
-            // NOTE: If "AwaitingPayment" ever becomes an official ContractStatus, this
-            // block should be removed and callers should use the Statuses filter instead.
             if (fc.AwaitingPayment.HasValue)
             {
                 contracts = contracts.Where(c =>
                 {
-                    bool isAwaiting = string.Equals(
-                        c.ContractStatus?.Name, "Active", StringComparison.OrdinalIgnoreCase)
-                        && c.HasPayment == false;
+                    bool isAwaiting = ReportRetentionCalculator.IsAwaitingPayment(c);
                     return fc.AwaitingPayment.Value ? isAwaiting : !isAwaiting;
                 }).ToList();
             }
@@ -677,65 +790,21 @@ namespace SalesApp.ReportFilters.Services
             // ── Compute per-user/team retention BEFORE status filtering ───────
             // Retention must reflect a user's/team's FULL portfolio (all statuses), not just
             // the subset visible after a status filter is applied.
+            var includeAwaitingInRetention = fc.AwaitingPayment == true;
+
             if (report.GroupByEmail)
             {
                 _retentionByEmail = contracts
                     .GroupBy(c => c.User?.Email ?? "(Sem usuário)")
                     .ToDictionary(
                         g => g.Key,
-                        g =>
-                        {
-                            var total = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            if (total <= 0) return 0m;
-                            var active = g
-                                .Where(c => !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Defaulted.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.AwaitingPayment.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            return active / total;
-                        });
+                        g => ReportRetentionCalculator.CalculateOverallRetention(g.ToList(), "standard", includeAwaitingInRetention));
 
                 _strictRetentionByEmail = contracts
                     .GroupBy(c => c.User?.Email ?? "(Sem usuário)")
                     .ToDictionary(
                         g => g.Key,
-                        g =>
-                        {
-                            var total = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            if (total <= 0) return 0m;
-                            var strictActive = g
-                                .Where(c => !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Defaulted.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Late1.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Late2.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Late3.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.AwaitingPayment.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            return strictActive / total;
-                        });
+                        g => ReportRetentionCalculator.CalculateOverallRetention(g.ToList(), "strict", includeAwaitingInRetention));
             }
             else
             {
@@ -749,59 +818,13 @@ namespace SalesApp.ReportFilters.Services
                     .GroupBy(getTeamName)
                     .ToDictionary(
                         g => g.Key,
-                        g =>
-                        {
-                            var total = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            if (total <= 0) return 0m;
-                            var active = g
-                                .Where(c => !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Defaulted.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.AwaitingPayment.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            return active / total;
-                        });
+                        g => ReportRetentionCalculator.CalculateOverallRetention(g.ToList(), "standard", includeAwaitingInRetention));
 
                 _strictRetentionByTeam = contracts
                     .GroupBy(getTeamName)
                     .ToDictionary(
                         g => g.Key,
-                        g =>
-                        {
-                            var total = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            if (total <= 0) return 0m;
-                            var strictActive = g
-                                .Where(c => !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Defaulted.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Late1.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Late2.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Late3.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.AwaitingPayment.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            return strictActive / total;
-                        });
+                        g => ReportRetentionCalculator.CalculateOverallRetention(g.ToList(), "strict", includeAwaitingInRetention));
             }
             else
             {
@@ -815,64 +838,25 @@ namespace SalesApp.ReportFilters.Services
                     .GroupBy(getClassification)
                     .ToDictionary(
                         g => g.Key,
-                        g =>
-                        {
-                            var total = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            if (total <= 0) return 0m;
-                            var active = g
-                                .Where(c => !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Defaulted.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.AwaitingPayment.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            return active / total;
-                        });
+                        g => ReportRetentionCalculator.CalculateOverallRetention(g.ToList(), "standard", includeAwaitingInRetention));
 
                 _strictRetentionByClassification = contracts
                     .GroupBy(getClassification)
                     .ToDictionary(
                         g => g.Key,
-                        g =>
-                        {
-                            var total = g
-                                .Where(c => !string.Equals(c.ContractStatus?.Name, ContractStatus.AwaitingPayment.ToApiString(), StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            if (total <= 0) return 0m;
-                            var strictActive = g
-                                .Where(c => !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Defaulted.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Late1.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Late2.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.Late3.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase) &&
-                                            !string.Equals(
-                                    c.ContractStatus?.Name,
-                                    ContractStatus.AwaitingPayment.ToApiString(),
-                                    StringComparison.OrdinalIgnoreCase))
-                                .Sum(c => c.TotalAmount);
-                            return strictActive / total;
-                        });
+                        g => ReportRetentionCalculator.CalculateOverallRetention(g.ToList(), "strict", includeAwaitingInRetention));
             }
             else
             {
                 _retentionByClassification = null;
                 _strictRetentionByClassification = null;
+            }
+
+            // Calculate overall retention across full query portfolio (before status filtering removes defaulted contracts)
+            decimal? overallRetention = null;
+            if (report.SumTotal)
+            {
+                overallRetention = ReportRetentionCalculator.CalculateOverallRetention(contracts, report.SummaryRetentionType, includeAwaitingInRetention);
             }
 
             // Filter by status in memory (same pattern as PV filter)
@@ -881,23 +865,21 @@ namespace SalesApp.ReportFilters.Services
                 var op = (fc.StatusOperator ?? "or").ToLower();
                 if (op == "and")
                     contracts = contracts.Where(c =>
-                        fc.Statuses.All(s => string.Equals(c.ContractStatus?.Name, s, StringComparison.OrdinalIgnoreCase))
+                        fc.Statuses.All(s => MatchesStatus(c, s))
                     ).ToList();
                 else // "or" (default)
                     contracts = contracts.Where(c =>
-                        fc.Statuses.Any(s => string.Equals(c.ContractStatus?.Name, s, StringComparison.OrdinalIgnoreCase))
+                        fc.Statuses.Any(s => MatchesStatus(c, s))
                     ).ToList();
             }
 
             decimal? totalSum = null;
-            decimal? overallRetention = null;
             int? activeUsersCount = null;
             int? inactiveUsersCount = null;
 
             if (report.SumTotal)
             {
                 totalSum = contracts.Sum(c => c.TotalAmount);
-                overallRetention = ReportRetentionCalculator.CalculateOverallRetention(contracts, report.SummaryRetentionType);
             }
 
             if (report.CountActiveUsers)
@@ -1529,6 +1511,56 @@ namespace SalesApp.ReportFilters.Services
                 Format = c.Format
             }).ToList();
 
+        private static ReportResultsResponse CreateEmptyResultsResponse(
+            ReportFilterResponse report, int page, int pageSize)
+        {
+            var columns = report.OutputColumns.OrderBy(c => c.Order).ToList();
+            var response = new ReportResultsResponse
+            {
+                Page = Math.Max(1, page),
+                PageSize = Math.Clamp(pageSize, 1, 200),
+                TotalCount = 0,
+                TotalPages = 0,
+                TotalSum = report.SumTotal ? 0m : null,
+                OverallRetention = report.SumTotal ? 0m : null,
+                ActiveUsersCount = report.CountActiveUsers ? 0 : null,
+                InactiveUsersCount = report.CountActiveUsers ? 0 : null,
+                Columns = columns.Select(col => new OutputColumnResponse
+                {
+                    Source = col.Source,
+                    Field = col.Field,
+                    Label = col.Label,
+                    Order = col.Order,
+                    Format = col.Format
+                }).ToList(),
+                Rows = new List<Dictionary<string, object?>>()
+            };
+
+            if (report.GroupByEmail && !response.Columns.Any(c => c.Source == "Users_Contract" && c.Field == "email"))
+            {
+                response.Columns.Insert(0, new OutputColumnResponse
+                {
+                    Source = "Users_Contract",
+                    Field = "email",
+                    Label = "Email",
+                    Order = 0
+                });
+            }
+
+            if (report.GroupByTeam && !response.Columns.Any(c => c.Source == "Users_Contract" && c.Field == "team"))
+            {
+                response.Columns.Insert(0, new OutputColumnResponse
+                {
+                    Source = "Users_Contract",
+                    Field = "team",
+                    Label = "Equipe",
+                    Order = 0
+                });
+            }
+
+            return response;
+        }
+
         /// <summary>
         /// Generates a time-ordered unique ID suitable for use as a filterId.
         /// Format: {YYYYMMDDHHmmssfff}-{guid-suffix} — lexicographically sortable by creation time.
@@ -1539,6 +1571,27 @@ namespace SalesApp.ReportFilters.Services
             var ts = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
             var suffix = Guid.NewGuid().ToString("N")[..12];
             return $"{ts}{suffix}";
+        }
+
+        /// <summary>
+        /// Pure predicate to check if a contract matches a specific status filter string.
+        /// Handles AwaitingPayment, Desistente, Active, and other canonical statuses.
+        /// </summary>
+        private static bool MatchesStatus(Contract c, string statusFilter)
+        {
+            if (string.Equals(statusFilter, "AwaitingPayment", StringComparison.OrdinalIgnoreCase))
+            {
+                return ReportRetentionCalculator.IsAwaitingPayment(c);
+            }
+            if (string.Equals(statusFilter, "Desistente", StringComparison.OrdinalIgnoreCase))
+            {
+                return ReportRetentionCalculator.IsDesistente(c);
+            }
+            if (string.Equals(statusFilter, "Active", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Equals(c.ContractStatus?.Name, ContractStatus.Active.ToApiString(), StringComparison.OrdinalIgnoreCase);
+            }
+            return string.Equals(c.ContractStatus?.Name, statusFilter, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

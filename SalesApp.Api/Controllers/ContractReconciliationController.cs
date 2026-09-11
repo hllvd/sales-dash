@@ -1,17 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
 using SalesApp.Services;
+using SalesApp.Utils;
 
 namespace SalesApp.Controllers
 {
@@ -41,7 +47,8 @@ namespace SalesApp.Controllers
             [FromForm] DateTime startDate,
             [FromForm] DateTime endDate,
             [FromForm] Guid? userId,
-            [FromForm] int? teamId)
+            [FromForm] int? teamId,
+            [FromForm] bool allowPartialNameMatch = false)
         {
             if (file == null || file.Length == 0)
             {
@@ -109,63 +116,106 @@ namespace SalesApp.Controllers
             var usersByInternalId = allUsers
                 .ToLookup(u => u.InternalId);
 
-            var usersByName = allUsers
+            var usersByNormalizedName = allUsers
                 .Where(u => !string.IsNullOrWhiteSpace(u.Name))
-                .ToLookup(u => u.Name.Trim().ToLowerInvariant());
+                .ToLookup(u => NormalizeName(u.Name));
 
-            var usersByMatricula = allMatriculas
-                .Where(m => m.User != null && m.Matricula != null && !string.IsNullOrWhiteSpace(m.Matricula.MatriculaNumber))
-                .ToLookup(m => m.Matricula.MatriculaNumber.Trim().ToLowerInvariant(), m => m.User!);
+            var usersByMatricula = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+            foreach (var m in allMatriculas)
+            {
+                if (m.User != null && m.Matricula != null && !string.IsNullOrWhiteSpace(m.Matricula.MatriculaNumber))
+                {
+                    var rawNum = m.Matricula.MatriculaNumber.Trim();
+                    var normNum = NormalizationUtils.NormalizeNumber(rawNum);
+
+                    if (!string.IsNullOrEmpty(rawNum) && !usersByMatricula.ContainsKey(rawNum))
+                    {
+                        usersByMatricula[rawNum] = m.User;
+                    }
+                    if (!string.IsNullOrEmpty(normNum) && !usersByMatricula.ContainsKey(normNum))
+                    {
+                        usersByMatricula[normNum] = m.User;
+                    }
+                }
+            }
 
             // Query System Contracts for date range
             var startDateTime = startDate.Date;
             var endDateTime = endDate.Date.AddDays(1).AddTicks(-1);
 
-            var contractsQuery = _context.Contracts
+            // Setup Column Headers Aliases
+            var contractNumAliases = new[] { "contractnumber", "contrato", "numerocontrato", "numero do contrato", "número do contrato", "proposta", "codigo", "código", "number" };
+            // Give top priority to "valor" (exact match first)
+            var amountAliases = new[] { "valor", "valortotal", "valor total", "totalamount", "amount", "preco", "preço", "valor_total", "total" };
+            var amountExcludedSubstrings = new[] { "parcela", "taxa", "entrada", "comissao", "comissão" };
+
+            // Prioritize explicit seller/consultant columns before generic/matricula/email fields
+            var sellerNameAliases = new[] { "consultor", "consultora", "vendedor", "vendedora", "comissionado", "comissionada", "assessor", "assessora", "corretor", "corretora" };
+            var sellerSecondaryAliases = new[] { "useremail", "email", "e-mail", "matricula", "matrícula", "cpf", "userinternalid", "usuario", "usuário", "nome" };
+            var sellerExcludedSubstrings = new[] { "nomepv", "nomedopv", "cliente", "nomedocliente", "pv" };
+
+            var matriculaAliases = new[] { "matricula", "matrícula", "matriculanumber", "codigoconsultor", "código consultor", "matricula consultor", "matrícula consultor", "matricula do consultor", "matrícula do consultor" };
+
+            var dateAliases = new[] { "date", "salestartdate", "datavenda", "data da venda", "data", "createdat" };
+            var statusAliases = new[] { "status", "situacao", "situação", "estado", "rawstatus", "raw stats", "raw_status" };
+
+            var contractNumbersInSheet = rows
+                .Select(r => GetColumnValue(r, contractNumAliases)?.Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var allRelevantContracts = await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.ContractStatus)
-                .Where(c => c.SaleStartDate >= startDateTime && c.SaleStartDate <= endDateTime);
-
-            if (targetUser != null)
-            {
-                contractsQuery = contractsQuery.Where(c => c.UserInternalId == targetUser.InternalId);
-            }
-            else if (activeTeamMemberInternalIds != null)
-            {
-                contractsQuery = contractsQuery.Where(c => c.UserInternalId.HasValue && activeTeamMemberInternalIds.Contains(c.UserInternalId.Value));
-            }
-
-            var systemContracts = await contractsQuery.ToListAsync();
+                .Where(c => (c.SaleStartDate >= startDateTime && c.SaleStartDate <= endDateTime)
+                         || contractNumbersInSheet.Contains(c.ContractNumber))
+                .ToListAsync();
 
             // Map user internal IDs to system user names
             var userIdToUserMap = allUsers.ToDictionary(u => u.InternalId);
-
-            // Setup Column Headers Aliases
-            var contractNumAliases = new[] { "contractnumber", "contrato", "numerocontrato", "numero do contrato", "número do contrato", "proposta", "codigo", "código", "number" };
-            var amountAliases = new[] { "totalamount", "valor", "valortotal", "valor total", "amount", "preco", "preço", "valor_total" };
-            var userAliases = new[] { "useremail", "email", "e-mail", "matricula", "matrícula", "cpf", "userinternalid", "usuario", "usuário", "vendedor", "nome" };
-            var dateAliases = new[] { "date", "salestartdate", "datavenda", "data da venda", "data", "createdat" };
-            var statusAliases = new[] { "status", "situacao", "situação", "estado", "rawstatus", "raw stats", "raw_status" };
 
             // Result sets
             var missingInSystem = new List<ReconciledContractItemDto>();
             var missingInImport = new List<ReconciledContractItemDto>();
             var amountMismatches = new List<AmountMismatchItemDto>();
-            var dateMismatches = new List<DateMismatchItemDto>();
+            var dateMismatches = new DateMismatchItemDto[] { }.ToList();
             var sellerMismatches = new List<SellerMismatchItemDto>();
             var statusMismatches = new List<StatusMismatchItemDto>();
             var unassignedUserContracts = new List<ReconciledContractItemDto>();
+            var userComparisonsMap = new Dictionary<string, (string displayName, decimal xlsxTotal, decimal sysTotal, int xlsxCount, int sysCount)>(StringComparer.OrdinalIgnoreCase);
 
-            // System contract matching lookup
-            // Key: ContractNumber (Trim + Lower) -> Contract entity
+            // System contract matching lookup across all relevant contracts in DB
             var systemContractsMap = new Dictionary<string, Contract>(StringComparer.OrdinalIgnoreCase);
-            foreach (var sc in systemContracts)
+            foreach (var sc in allRelevantContracts)
             {
                 if (!string.IsNullOrWhiteSpace(sc.ContractNumber))
                 {
                     systemContractsMap[sc.ContractNumber.Trim()] = sc;
                 }
             }
+
+            // Scoped system contracts for Missing In Import and system user comparisons
+            var systemContracts = allRelevantContracts
+                .Where(c => c.SaleStartDate >= startDateTime && c.SaleStartDate <= endDateTime)
+                .Where(c => {
+                    if (targetUser != null)
+                        return c.UserInternalId == targetUser.InternalId;
+                    if (activeTeamMemberInternalIds != null)
+                        return c.UserInternalId.HasValue && activeTeamMemberInternalIds.Contains(c.UserInternalId.Value);
+                    return true;
+                })
+                .ToList();
+
+            using var fileStream = file.OpenReadStream();
+            var detectedDateFormat = ReconciliationDateDetector.DetectDateFormat(
+                rows,
+                fileStream,
+                dateAliases,
+                contractNumAliases,
+                systemContractsMap,
+                GetColumnValue);
 
             var matchedSystemContractNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -176,67 +226,163 @@ namespace SalesApp.Controllers
                     continue;
 
                 contractNum = contractNum.Trim();
-                var amountVal = ParseDecimal(GetColumnValue(row, amountAliases));
-                var userVal = GetColumnValue(row, userAliases)?.Trim();
-                var dateVal = ParseDateTime(GetColumnValue(row, dateAliases));
+                var amountVal = ParseDecimal(GetColumnValue(row, amountAliases, amountExcludedSubstrings));
+                var userVal = (GetColumnValue(row, sellerNameAliases, sellerExcludedSubstrings)
+                               ?? GetColumnValue(row, sellerSecondaryAliases, sellerExcludedSubstrings))?.Trim();
+                var matriculaVal = GetColumnValue(row, matriculaAliases)?.Trim();
+                var normalizedMatricula = !string.IsNullOrWhiteSpace(matriculaVal) ? NormalizationUtils.NormalizeNumber(matriculaVal) : null;
+                var dateVal = ReconciliationDateDetector.TryParseDateWithPattern(GetColumnValue(row, dateAliases), detectedDateFormat);
+
+                // Check system contract existence early so it can aid in resolving user
+                systemContractsMap.TryGetValue(contractNum, out var systemContract);
 
                 // Resolve User for row
                 User? rowUser = null;
                 if (!string.IsNullOrWhiteSpace(userVal))
                 {
-                    var userKey = userVal.ToLowerInvariant();
+                    var userKey = userVal.Trim().ToLowerInvariant();
+                    var normalizedUserVal = NormalizeName(userVal);
+                    var normalizedUserNumber = NormalizationUtils.NormalizeNumber(userVal);
+
                     rowUser = usersByEmail[userKey].FirstOrDefault()
-                              ?? usersByMatricula[userKey].FirstOrDefault()
-                              ?? usersByName[userKey].FirstOrDefault();
+                              ?? (usersByMatricula.TryGetValue(userKey, out var um1) ? um1 : null)
+                              ?? (!string.IsNullOrEmpty(normalizedUserNumber) && usersByMatricula.TryGetValue(normalizedUserNumber, out var um2) ? um2 : null)
+                              ?? usersByNormalizedName[normalizedUserVal].FirstOrDefault();
 
                     if (rowUser == null && int.TryParse(userVal, out int parsedInternalId))
                     {
                         rowUser = usersByInternalId[parsedInternalId].FirstOrDefault();
                     }
-                }
 
-                // Unassigned / Unmatched User check
-                if (rowUser == null && !string.IsNullOrWhiteSpace(userVal))
-                {
-                    unassignedUserContracts.Add(new ReconciledContractItemDto
+                    if (rowUser == null && allowPartialNameMatch && !string.IsNullOrWhiteSpace(normalizedUserVal))
                     {
-                        ContractNumber = contractNum,
-                        TotalAmount = amountVal,
-                        UserIdentifier = userVal,
-                        SystemUserName = null,
-                        Date = dateVal,
-                        Source = "XLSX"
-                    });
-                    continue; // Skip further matching if explicitly assigned to unknown user
+                        var candidateMatches = allUsers
+                            .Where(u => !string.IsNullOrWhiteSpace(u.Name) &&
+                                        (NormalizeName(u.Name).Contains(normalizedUserVal) || normalizedUserVal.Contains(NormalizeName(u.Name))))
+                            .ToList();
+
+                        if (candidateMatches.Count == 1)
+                        {
+                            rowUser = candidateMatches[0];
+                        }
+                    }
                 }
 
-                // If user filter is applied (targetUser != null):
-                // If row has no user specified, assume it belongs to targetUser.
-                // If row has user specified and it matches targetUser, process it.
-                // If row has user specified and it matches a DIFFERENT user, ignore for targetUser audit.
+                // If user not resolved yet by userVal, try resolving via the row's matricula column
+                if (rowUser == null)
+                {
+                    if (!string.IsNullOrWhiteSpace(normalizedMatricula) && usersByMatricula.TryGetValue(normalizedMatricula, out var matUserNorm))
+                    {
+                        rowUser = matUserNorm;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(matriculaVal) && usersByMatricula.TryGetValue(matriculaVal, out var matUserRaw))
+                    {
+                        rowUser = matUserRaw;
+                    }
+                }
+
+                // If user is still not resolved, but contract exists in the system with an assigned user:
+                // Fall back to system user if no spreadsheet seller was provided, or if the spreadsheet seller name is compatible
+                if (rowUser == null && systemContract != null && systemContract.UserInternalId.HasValue && userIdToUserMap.TryGetValue(systemContract.UserInternalId.Value, out var sysContractUser))
+                {
+                    var sysUserNameNorm = NormalizeName(sysContractUser.Name);
+                    var userValNorm = !string.IsNullOrWhiteSpace(userVal) ? NormalizeName(userVal) : null;
+                    if (string.IsNullOrWhiteSpace(userValNorm) ||
+                        userValNorm.Contains(sysUserNameNorm) ||
+                        sysUserNameNorm.Contains(userValNorm))
+                    {
+                        rowUser = sysContractUser;
+                    }
+                }
+
+                // Scope filtering: check if this row or its corresponding system contract belongs to the targeted scope
                 if (targetUser != null)
                 {
-                    if (rowUser != null && rowUser.Id != targetUser.Id)
+                    bool rowMatchesUser = (rowUser != null && rowUser.Id == targetUser.Id)
+                        || (rowUser == null && !string.IsNullOrWhiteSpace(userVal) && NormalizeName(userVal) == NormalizeName(targetUser.Name))
+                        || (rowUser == null && string.IsNullOrWhiteSpace(userVal));
+
+                    bool systemMatchesUser = systemContract != null && systemContract.UserInternalId == targetUser.InternalId;
+
+                    if (!rowMatchesUser && !systemMatchesUser)
                     {
-                        // Belongs to another user, skip for Target User scope
                         continue;
                     }
                 }
                 else if (activeTeamMemberInternalIds != null)
                 {
-                    if (rowUser != null && !activeTeamMemberInternalIds.Contains(rowUser.InternalId))
+                    bool rowMatchesTeam = (rowUser != null && activeTeamMemberInternalIds.Contains(rowUser.InternalId))
+                        || (rowUser == null && !string.IsNullOrWhiteSpace(userVal) && activeTeamMemberInternalIds.Any(id => userIdToUserMap.TryGetValue(id, out var tm) && NormalizeName(tm.Name) == NormalizeName(userVal)))
+                        || (rowUser == null && string.IsNullOrWhiteSpace(userVal));
+
+                    bool systemMatchesTeam = systemContract != null && systemContract.UserInternalId.HasValue && activeTeamMemberInternalIds.Contains(systemContract.UserInternalId.Value);
+
+                    if (!rowMatchesTeam && !systemMatchesTeam)
                     {
-                        // Belongs to a user outside the target Team, skip for Target Team scope
                         continue;
                     }
                 }
 
                 var resolvedUserName = rowUser?.Name ?? targetUser?.Name ?? (string.IsNullOrWhiteSpace(userVal) ? null : userVal);
+                var xlsxDisplayName = resolvedUserName ?? "Sem Usuário Atribuído";
+                var xlsxUserKey = NormalizeName(xlsxDisplayName);
+                userComparisonsMap.TryGetValue(xlsxUserKey, out var currentXlsx);
+                userComparisonsMap[xlsxUserKey] = (
+                    string.IsNullOrWhiteSpace(currentXlsx.displayName) ? xlsxDisplayName : currentXlsx.displayName,
+                    currentXlsx.xlsxTotal + amountVal,
+                    currentXlsx.sysTotal,
+                    currentXlsx.xlsxCount + 1,
+                    currentXlsx.sysCount
+                );
 
-                if (systemContractsMap.TryGetValue(contractNum, out var systemContract))
+                if (systemContract != null)
                 {
                     matchedSystemContractNumbers.Add(contractNum);
-                    var sysUser = systemContract.UserInternalId.HasValue && userIdToUserMap.TryGetValue(systemContract.UserInternalId.Value, out var u) ? u.Name : resolvedUserName;
+                    var sysUser = systemContract.UserInternalId.HasValue && userIdToUserMap.TryGetValue(systemContract.UserInternalId.Value, out var u) ? u.Name : null;
+
+                    // Unassigned user in system check:
+                    // If contract exists in system but has no user assigned, and spreadsheet specified a seller/consultant
+                    if (!systemContract.UserInternalId.HasValue || string.IsNullOrWhiteSpace(sysUser))
+                    {
+                        if (!string.IsNullOrWhiteSpace(userVal))
+                        {
+                            unassignedUserContracts.Add(new ReconciledContractItemDto
+                            {
+                                ContractNumber = contractNum,
+                                TotalAmount = systemContract.TotalAmount > 0 ? systemContract.TotalAmount : amountVal,
+                                UserIdentifier = userVal,
+                                SystemUserName = null,
+                                Date = dateVal ?? systemContract.SaleStartDate,
+                                Source = "XLSX"
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // System HAS an assigned user
+                        // Check seller mismatch (XLSX seller differs from system user)
+                        bool sellerMismatch = false;
+                        if (rowUser != null)
+                        {
+                            sellerMismatch = (rowUser.InternalId != systemContract.UserInternalId.Value);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(userVal))
+                        {
+                            sellerMismatch = !string.Equals(NormalizeName(userVal), NormalizeName(sysUser), StringComparison.OrdinalIgnoreCase);
+                        }
+
+                        if (sellerMismatch)
+                        {
+                            sellerMismatches.Add(new SellerMismatchItemDto
+                            {
+                                ContractNumber = contractNum,
+                                TotalAmount = systemContract.TotalAmount,
+                                SystemUserName = sysUser,
+                                XlsxUserIdentifier = rowUser?.Name ?? userVal,
+                                SaleStartDate = systemContract.SaleStartDate
+                            });
+                        }
+                    }
 
                     // Check amount mismatch
                     if (Math.Abs(systemContract.TotalAmount - amountVal) > 0.01m)
@@ -247,7 +393,7 @@ namespace SalesApp.Controllers
                             SystemAmount = systemContract.TotalAmount,
                             XlsxAmount = amountVal,
                             UserIdentifier = userVal ?? resolvedUserName,
-                            SystemUserName = sysUser,
+                            SystemUserName = sysUser ?? resolvedUserName,
                             SaleStartDate = systemContract.SaleStartDate
                         });
                     }
@@ -261,20 +407,7 @@ namespace SalesApp.Controllers
                             TotalAmount = systemContract.TotalAmount,
                             SystemDate = systemContract.SaleStartDate,
                             XlsxDate = dateVal.Value,
-                            SystemUserName = sysUser
-                        });
-                    }
-
-                    // Check seller mismatch (when XLSX resolved a user and it differs from system user)
-                    if (rowUser != null && (!systemContract.UserInternalId.HasValue || systemContract.UserInternalId.Value != rowUser.InternalId))
-                    {
-                        sellerMismatches.Add(new SellerMismatchItemDto
-                        {
-                            ContractNumber = contractNum,
-                            TotalAmount = systemContract.TotalAmount,
-                            SystemUserName = sysUser,
-                            XlsxUserIdentifier = rowUser.Name ?? userVal,
-                            SaleStartDate = systemContract.SaleStartDate
+                            SystemUserName = sysUser ?? resolvedUserName
                         });
                     }
 
@@ -296,7 +429,7 @@ namespace SalesApp.Controllers
                                 TotalAmount = systemContract.TotalAmount,
                                 SystemStatus = systemStatus,
                                 XlsxStatus = statusVal,
-                                SystemUserName = sysUser,
+                                SystemUserName = sysUser ?? resolvedUserName,
                                 SaleStartDate = systemContract.SaleStartDate
                             });
                         }
@@ -317,13 +450,23 @@ namespace SalesApp.Controllers
                 }
             }
 
-            // Contracts in System but NOT in XLSX
+            // Contracts in System (all tracked for user comparison, plus missingInImport check)
             foreach (var sc in systemContracts)
             {
+                var sysUser = sc.UserInternalId.HasValue && userIdToUserMap.TryGetValue(sc.UserInternalId.Value, out var u) ? u.Name : (targetUser?.Name ?? "Sem Usuário Atribuído");
+                var sysUserKey = NormalizeName(sysUser);
+
+                userComparisonsMap.TryGetValue(sysUserKey, out var currentSys);
+                userComparisonsMap[sysUserKey] = (
+                    string.IsNullOrWhiteSpace(currentSys.displayName) ? sysUser : currentSys.displayName,
+                    currentSys.xlsxTotal,
+                    currentSys.sysTotal + sc.TotalAmount,
+                    currentSys.xlsxCount,
+                    currentSys.sysCount + 1
+                );
+
                 if (!string.IsNullOrWhiteSpace(sc.ContractNumber) && !matchedSystemContractNumbers.Contains(sc.ContractNumber.Trim()))
                 {
-                    var sysUser = sc.UserInternalId.HasValue && userIdToUserMap.TryGetValue(sc.UserInternalId.Value, out var u) ? u.Name : targetUser?.Name;
-
                     missingInImport.Add(new ReconciledContractItemDto
                     {
                         ContractNumber = sc.ContractNumber,
@@ -333,6 +476,30 @@ namespace SalesApp.Controllers
                         Date = sc.SaleStartDate,
                         Source = "System"
                     });
+                }
+            }
+
+            // Ensure all members of selected team or specific user are in user comparison (even with 0 contracts)
+            if (activeTeamMemberInternalIds != null)
+            {
+                foreach (var memberId in activeTeamMemberInternalIds)
+                {
+                    if (userIdToUserMap.TryGetValue(memberId, out var memberUser) && !string.IsNullOrWhiteSpace(memberUser.Name))
+                    {
+                        var memberKey = NormalizeName(memberUser.Name);
+                        if (!userComparisonsMap.ContainsKey(memberKey))
+                        {
+                            userComparisonsMap[memberKey] = (memberUser.Name, 0m, 0m, 0, 0);
+                        }
+                    }
+                }
+            }
+            else if (targetUser != null && !string.IsNullOrWhiteSpace(targetUser.Name))
+            {
+                var targetKey = NormalizeName(targetUser.Name);
+                if (!userComparisonsMap.ContainsKey(targetKey))
+                {
+                    userComparisonsMap[targetKey] = (targetUser.Name, 0m, 0m, 0, 0);
                 }
             }
 
@@ -387,30 +554,244 @@ namespace SalesApp.Controllers
                 DateMismatches = dateMismatches,
                 SellerMismatches = sellerMismatches,
                 StatusMismatches = statusMismatches,
-                UnassignedUserContracts = unassignedUserContracts
+                UnassignedUserContracts = unassignedUserContracts,
+
+                UserComparisons = userComparisonsMap.Values
+                    .Select(v => new UserComparisonItemDto
+                    {
+                        UserName = v.displayName,
+                        XlsxTotal = v.xlsxTotal,
+                        SystemTotal = v.sysTotal,
+                        XlsxCount = v.xlsxCount,
+                        SystemCount = v.sysCount
+                    })
+                    .OrderByDescending(x => x.XlsxTotal)
+                    .ThenByDescending(x => x.SystemTotal)
+                    .ToList()
             };
 
             return Ok(result);
         }
 
-        private static string? GetColumnValue(Dictionary<string, string> row, string[] aliases)
+        [HttpPost("export-xlsx")]
+        public IActionResult ExportTabXlsx([FromBody] ExportReconciliationTabRequestDto request)
         {
-            foreach (var kvp in row)
+            if (request == null || request.Headers == null || request.Headers.Count == 0)
             {
-                var normalizedKey = kvp.Key.Trim().ToLowerInvariant()
-                    .Replace("_", "")
-                    .Replace("-", "")
-                    .Replace(" ", "");
+                return BadRequest("Dados inválidos para exportação.");
+            }
 
-                foreach (var alias in aliases)
+            ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
+            using var package = new ExcelPackage();
+            var rawTitle = string.IsNullOrWhiteSpace(request.Title) ? "Reconciliação" : request.Title;
+            var cleanTitle = Regex.Replace(rawTitle, @"[\\/?*:[\]]", " ").Trim();
+            if (cleanTitle.Length > 30) cleanTitle = cleanTitle.Substring(0, 30);
+            if (string.IsNullOrWhiteSpace(cleanTitle)) cleanTitle = "Reconciliação";
+
+            var worksheet = package.Workbook.Worksheets.Add(cleanTitle);
+
+            // Header row
+            for (int col = 0; col < request.Headers.Count; col++)
+            {
+                var cell = worksheet.Cells[1, col + 1];
+                cell.Value = request.Headers[col];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(243, 244, 246));
+                cell.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+            }
+
+            // Data rows
+            if (request.Rows != null)
+            {
+                for (int r = 0; r < request.Rows.Count; r++)
                 {
-                    var normalizedAlias = alias.Replace("_", "").Replace("-", "").Replace(" ", "");
-                    if (normalizedKey == normalizedAlias || normalizedKey.Contains(normalizedAlias))
+                    var row = request.Rows[r];
+                    for (int c = 0; c < row.Count && c < request.Headers.Count; c++)
                     {
-                        return kvp.Value;
+                        var cell = worksheet.Cells[r + 2, c + 1];
+                        var header = request.Headers[c].ToLowerInvariant();
+                        var valStr = row[c]?.Trim();
+
+                        if (string.IsNullOrWhiteSpace(valStr))
+                        {
+                            cell.Value = string.Empty;
+                            continue;
+                        }
+
+                        // Identifier / code columns should remain text to preserve leading zeros
+                        bool isCodeOrId = header.Contains("número") || header.Contains("numero") ||
+                                         header.Contains("contrato") || header.Contains("matrícula") ||
+                                         header.Contains("matricula") || header.Contains("código") ||
+                                         header.Contains("codigo") || header.Contains("cota") ||
+                                         header.Contains("grupo");
+
+                        if (!isCodeOrId && decimal.TryParse(valStr, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal numVal))
+                        {
+                            cell.Value = numVal;
+                            if (numVal % 1 == 0 && !valStr.Contains("."))
+                            {
+                                cell.Style.Numberformat.Format = "#,##0";
+                            }
+                            else
+                            {
+                                cell.Style.Numberformat.Format = "#,##0.00";
+                            }
+                        }
+                        else
+                        {
+                            cell.Value = valStr;
+                        }
                     }
                 }
             }
+
+            worksheet.Cells.AutoFitColumns();
+            var fileBytes = package.GetAsByteArray();
+            return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        [HttpPost("detect-date-range")]
+        public async Task<IActionResult> DetectDateRange([FromForm] IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("Nenhum arquivo enviado.");
+            }
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (extension != ".xlsx" && extension != ".csv")
+            {
+                return BadRequest("Formato de arquivo inválido. Por favor envie um arquivo .xlsx ou .csv.");
+            }
+
+            List<Dictionary<string, string>> rows;
+            try
+            {
+                rows = await _fileParserService.ParseFileAsync(file);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Erro ao ler o arquivo: {ex.Message}");
+            }
+
+            if (rows == null || rows.Count == 0)
+            {
+                return Ok(new DetectDateRangeResponseDto
+                {
+                    StartDate = null,
+                    EndDate = null,
+                    DetectedFormat = null,
+                    TotalRows = 0
+                });
+            }
+
+            var contractNumAliases = new[] { "contractnumber", "contrato", "numerocontrato", "numero do contrato", "número do contrato", "proposta", "codigo", "código", "number" };
+            var dateAliases = new[] { "date", "salestartdate", "datavenda", "data da venda", "data", "createdat" };
+
+            var contractNumbersInSheet = rows
+                .Select(r => GetColumnValue(r, contractNumAliases)?.Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var relevantContracts = await _context.Contracts
+                .AsNoTracking()
+                .Where(c => contractNumbersInSheet.Contains(c.ContractNumber))
+                .ToListAsync();
+
+            var systemContractsMap = new Dictionary<string, Contract>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sc in relevantContracts)
+            {
+                if (!string.IsNullOrWhiteSpace(sc.ContractNumber))
+                {
+                    systemContractsMap[sc.ContractNumber.Trim()] = sc;
+                }
+            }
+
+            using var fileStream = file.OpenReadStream();
+            var (minDate, maxDate, detectedFormat) = ReconciliationDateDetector.DetectDateRange(
+                rows,
+                fileStream,
+                dateAliases,
+                contractNumAliases,
+                systemContractsMap,
+                GetColumnValue);
+
+            return Ok(new DetectDateRangeResponseDto
+            {
+                StartDate = minDate?.ToString("yyyy-MM-dd"),
+                EndDate = maxDate?.ToString("yyyy-MM-dd"),
+                DetectedFormat = detectedFormat,
+                TotalRows = rows.Count
+            });
+        }
+
+        private static string NormalizeName(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return string.Empty;
+
+            var normalizedString = name.Trim().Normalize(NormalizationForm.FormD);
+            var stringBuilder = new StringBuilder();
+            foreach (var c in normalizedString)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    stringBuilder.Append(c);
+                }
+            }
+
+            var text = stringBuilder.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
+            return Regex.Replace(text, @"\s+", " ").Trim();
+        }
+
+        private static string? GetColumnValue(Dictionary<string, string> row, string[] aliases, string[]? excludedSubstrings = null)
+        {
+            var normalizedRow = new List<(string originalKey, string normalizedKey, string value)>();
+            foreach (var kvp in row)
+            {
+                if (string.IsNullOrWhiteSpace(kvp.Key)) continue;
+
+                var normKey = kvp.Key.Trim().ToLowerInvariant()
+                    .Replace("_", "")
+                    .Replace("-", "")
+                    .Replace(" ", "");
+                normalizedRow.Add((kvp.Key, normKey, kvp.Value));
+            }
+
+            // 1st Pass: EXACT MATCH (aliases in prioritized order)
+            foreach (var alias in aliases)
+            {
+                var normAlias = alias.ToLowerInvariant().Replace("_", "").Replace("-", "").Replace(" ", "");
+                foreach (var item in normalizedRow)
+                {
+                    if (item.normalizedKey == normAlias)
+                    {
+                        if (excludedSubstrings != null && excludedSubstrings.Any(exc => item.normalizedKey.Contains(exc)))
+                            continue;
+                        return item.value;
+                    }
+                }
+            }
+
+            // 2nd Pass: SUBSTRING MATCH (aliases in prioritized order)
+            foreach (var alias in aliases)
+            {
+                var normAlias = alias.ToLowerInvariant().Replace("_", "").Replace("-", "").Replace(" ", "");
+                foreach (var item in normalizedRow)
+                {
+                    if (item.normalizedKey.Contains(normAlias))
+                    {
+                        if (excludedSubstrings != null && excludedSubstrings.Any(exc => item.normalizedKey.Contains(exc)))
+                            continue;
+                        return item.value;
+                    }
+                }
+            }
+
             return null;
         }
 
@@ -421,13 +802,26 @@ namespace SalesApp.Controllers
 
             var clean = rawValue.Trim().Replace("R$", "").Replace("$", "").Trim();
 
-            // Support Brazilian currency format: 1.250,50 -> 1250.50
+            // Detect separator formats when both ',' and '.' exist
             if (clean.Contains(",") && clean.Contains("."))
             {
-                clean = clean.Replace(".", "").Replace(",", ".");
+                int lastDot = clean.LastIndexOf('.');
+                int lastComma = clean.LastIndexOf(',');
+
+                if (lastDot > lastComma)
+                {
+                    // e.g. "140,000.00" -> comma is thousand separator, dot is decimal separator
+                    clean = clean.Replace(",", "");
+                }
+                else
+                {
+                    // e.g. "140.000,00" -> dot is thousand separator, comma is decimal separator
+                    clean = clean.Replace(".", "").Replace(",", ".");
+                }
             }
             else if (clean.Contains(","))
             {
+                // e.g. "140000,00" or "140,50" -> comma is decimal separator
                 clean = clean.Replace(",", ".");
             }
 
@@ -444,11 +838,11 @@ namespace SalesApp.Controllers
             if (string.IsNullOrWhiteSpace(rawValue))
                 return null;
 
-            if (DateTime.TryParse(rawValue, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
-                return dt;
-
             if (DateTime.TryParse(rawValue, new CultureInfo("pt-BR"), DateTimeStyles.None, out var dtPt))
                 return dtPt;
+
+            if (DateTime.TryParse(rawValue, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+                return dt;
 
             return null;
         }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   Stack,
@@ -13,9 +13,12 @@ import {
   Divider,
   Loader,
   Center,
+  Tabs,
+  TextInput,
+  CloseButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconRefresh, IconCheck, IconX } from '@tabler/icons-react';
+import { IconRefresh, IconCheck, IconX, IconSearch } from '@tabler/icons-react';
 import { SurveyResultDto } from '../../types/Survey';
 import { apiService } from '../../services/apiService';
 
@@ -28,6 +31,101 @@ export const SurveyResultModal: React.FC<SurveyResultModalProps> = ({ surveyId, 
   const [loading, setLoading] = useState<boolean>(false);
   const [resending, setResending] = useState<boolean>(false);
   const [results, setResults] = useState<SurveyResultDto | null>(null);
+  const [activeResponseFilter, setActiveResponseFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Helper to parse individual response into normalized array of string answers
+  const parseAnswerValues = (rawAnswer?: string): string[] => {
+    if (!rawAnswer) return [];
+    if (rawAnswer.startsWith('[') && rawAnswer.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(rawAnswer);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item) => String(item).trim()).filter(Boolean);
+        }
+      } catch {
+        // fallback
+      }
+    }
+    return [rawAnswer.trim()];
+  };
+
+  // Helper to format displayed answer text
+  const formatAnswerText = (rawAnswer?: string): string => {
+    const values = parseAnswerValues(rawAnswer);
+    return values.length > 0 ? values.join(', ') : '—';
+  };
+
+  // Derive all possible response categories for tabs based on question type & options
+  const responseTabs = useMemo(() => {
+    if (!results) return [];
+
+    const tabs: { key: string; label: string }[] = [{ key: 'all', label: 'Todas' }];
+
+    if (results.summary.questionType === 'yesno') {
+      tabs.push({ key: 'Sim', label: 'Sim' });
+      tabs.push({ key: 'Não', label: 'Não' });
+    } else if (results.summary.options && results.summary.options.length > 0) {
+      results.summary.options.forEach((opt) => {
+        tabs.push({ key: opt, label: opt });
+      });
+    } else if (results.aggregateCounts) {
+      Object.keys(results.aggregateCounts).forEach((key) => {
+        tabs.push({ key, label: key });
+      });
+    }
+
+    tabs.push({ key: 'unanswered', label: 'Não respondidas' });
+    return tabs;
+  }, [results]);
+
+  // Compute counts per tab
+  const tabCounts = useMemo(() => {
+    if (!results) return {};
+    const counts: Record<string, number> = { all: results.responses.length };
+
+    responseTabs.forEach((tab) => {
+      if (tab.key === 'all') return;
+      if (tab.key === 'unanswered') {
+        counts[tab.key] = results.responses.filter((r) => r.status !== 'answered').length;
+      } else {
+        counts[tab.key] = results.responses.filter((r) => {
+          if (r.status !== 'answered') return false;
+          const answers = parseAnswerValues(r.answer);
+          return answers.includes(tab.key);
+        }).length;
+      }
+    });
+
+    return counts;
+  }, [results, responseTabs]);
+
+  // Filter responses by active tab AND search query (name / email)
+  const filteredResponses = useMemo(() => {
+    if (!results) return [];
+
+    const query = searchQuery.trim().toLowerCase();
+
+    return results.responses.filter((resp) => {
+      // 1. Filter by response tab
+      if (activeResponseFilter === 'unanswered') {
+        if (resp.status === 'answered') return false;
+      } else if (activeResponseFilter !== 'all') {
+        if (resp.status !== 'answered') return false;
+        const answers = parseAnswerValues(resp.answer);
+        if (!answers.includes(activeResponseFilter)) return false;
+      }
+
+      // 2. Filter by search query (name / email)
+      if (query) {
+        const matchName = resp.userName.toLowerCase().includes(query);
+        const matchEmail = resp.userEmail.toLowerCase().includes(query);
+        if (!matchName && !matchEmail) return false;
+      }
+
+      return true;
+    });
+  }, [results, activeResponseFilter, searchQuery]);
 
   const fetchResults = async (id: string) => {
     try {
@@ -55,6 +153,8 @@ export const SurveyResultModal: React.FC<SurveyResultModalProps> = ({ surveyId, 
 
   useEffect(() => {
     if (surveyId) {
+      setActiveResponseFilter('all');
+      setSearchQuery('');
       fetchResults(surveyId);
     } else {
       setResults(null);
@@ -242,11 +342,15 @@ export const SurveyResultModal: React.FC<SurveyResultModalProps> = ({ surveyId, 
 
           <Divider />
 
-          {/* Individual Responses Table */}
+          {/* Individual Responses Section with Filters */}
           <div>
             <Group justify="space-between" mb="xs">
               <Text fw={600} size="md">
-                Respostas Individuais ({results.responses.length})
+                Respostas Individuais (
+                {filteredResponses.length !== results.responses.length
+                  ? `${filteredResponses.length} de ${results.responses.length}`
+                  : results.responses.length}
+                )
               </Text>
               <Button
                 leftSection={<IconRefresh size={16} />}
@@ -261,6 +365,41 @@ export const SurveyResultModal: React.FC<SurveyResultModalProps> = ({ surveyId, 
               </Button>
             </Group>
 
+            {/* Filter Tabs by Response & Search Input by Name/Email */}
+            <Stack gap="xs" mb="sm">
+              <Tabs
+                value={activeResponseFilter}
+                onChange={(val) => setActiveResponseFilter(val || 'all')}
+                color="red"
+                variant="pills"
+              >
+                <Tabs.List>
+                  {responseTabs.map((tab) => (
+                    <Tabs.Tab key={tab.key} value={tab.key}>
+                      {tab.label} ({tabCounts[tab.key] ?? 0})
+                    </Tabs.Tab>
+                  ))}
+                </Tabs.List>
+              </Tabs>
+
+              <TextInput
+                placeholder="Buscar por nome ou email..."
+                leftSection={<IconSearch size={16} />}
+                rightSection={
+                  searchQuery ? (
+                    <CloseButton
+                      size="sm"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Limpar busca"
+                    />
+                  ) : null
+                }
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                size="xs"
+              />
+            </Stack>
+
             <Table.ScrollContainer minWidth={600}>
               <Table striped highlightOnHover withTableBorder withColumnBorders>
                 <Table.Thead>
@@ -273,25 +412,17 @@ export const SurveyResultModal: React.FC<SurveyResultModalProps> = ({ surveyId, 
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {results.responses.length === 0 ? (
+                  {filteredResponses.length === 0 ? (
                     <Table.Tr>
                       <Table.Td colSpan={5} ta="center">
-                        Nenhum usuário atribuído.
+                        {results.responses.length === 0
+                          ? 'Nenhum usuário atribuído.'
+                          : 'Nenhuma resposta encontrada para os filtros selecionados.'}
                       </Table.Td>
                     </Table.Tr>
                   ) : (
-                    results.responses.map((resp) => {
-                      let formattedAnswer = resp.answer || '—';
-                      if (resp.answer && resp.answer.startsWith('[') && resp.answer.endsWith(']')) {
-                        try {
-                          const parsed = JSON.parse(resp.answer);
-                          if (Array.isArray(parsed)) {
-                            formattedAnswer = parsed.join(', ');
-                          }
-                        } catch {
-                          // keep raw
-                        }
-                      }
+                    filteredResponses.map((resp) => {
+                      const formattedAnswer = formatAnswerText(resp.answer);
 
                       return (
                         <Table.Tr key={resp.assignmentId}>

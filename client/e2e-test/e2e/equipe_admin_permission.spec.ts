@@ -116,7 +116,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await expect(adminAParentOpt).toBeVisible({ timeout: 5000 });
     await adminAParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(500);
 
     // Get Admin A user ID
@@ -142,7 +142,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await expect(adminBParentOpt).toBeVisible({ timeout: 5000 });
     await adminBParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(500);
 
     // Get Admin B user ID
@@ -166,7 +166,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await expect(childAParentOpt).toBeVisible({ timeout: 5000 });
     await childAParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(500);
 
     childAUserId = await page.evaluate(async (email) => {
@@ -189,7 +189,7 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await expect(childBParentOpt).toBeVisible({ timeout: 5000 });
     await childBParentOpt.click();
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(500);
 
     childBUserId = await page.evaluate(async (email) => {
