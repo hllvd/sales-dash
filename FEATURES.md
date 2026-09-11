@@ -1,5 +1,28 @@
 # Features
 
+## Filtragem Restritiva de "No Sistema (Ausentes no XLSX)" por Usuários Encontrados na Planilha (`/#/contract-reconciliation`)
+
+Restrição do resultado da aba e do card **"No Sistema (Ausentes no XLSX)"** (`MissingInImport`) para exibir exclusivamente os contratos de usuários que foram identificados em pelo menos uma linha da planilha importada (por matrícula com ou sem zeros à esquerda, e-mail, nome normalizado ou correspondência parcial).
+
+### Comportamento e Regras
+- **Usuários Encontrados na Planilha**:
+  - Durante o processamento das linhas do arquivo XLSX, o sistema mapeia e registra todos os usuários do sistema que foram identificados (`spreadsheetFoundUserInternalIds`).
+  - Um contrato do sistema que não tenha seu número de contrato presente no XLSX só é incluído em `MissingInImport` se estiver atribuído a um usuário presente nesse conjunto (`sc.UserInternalId.HasValue && spreadsheetFoundUserInternalIds.Contains(sc.UserInternalId.Value)`).
+- **Exclusão de Contratos Sem Usuário Atribuído**:
+  - Contratos no sistema com `UserInternalId == null` são excluídos da lista e do sumário de `MissingInImport`.
+- **Exclusão de Usuários Ausentes na Planilha**:
+  - Contratos pertencentes a consultores/vendedores que não possuem nenhum contrato ou menção na planilha XLSX não poluem a lista de ausentes.
+- **Isolamento de Escopo**:
+  - A regra se aplica estritamente a `MissingInImport` e `MissingInImportSummary`. A aba de *Comparação por Usuário* (`UserComparisons`) e as demais divergências preservam seus escopos analíticos integrais.
+
+### Arquivos alterados
+- **Backend**:
+  - `SalesApp.Api/Controllers/ContractReconciliationController.cs`: coleta de `spreadsheetFoundUserInternalIds` no loop de linhas e filtro condicional no loop de contratos do sistema para `missingInImport`.
+- **Testes**:
+  - `SalesApp.IntegrationTests/Contracts/ContractReconciliationTests.cs`: teste de integração `Reconcile_ShouldOnlyIncludeMissingInImport_ForUsersFoundInSpreadsheet`.
+
+---
+
 ## Otimização de Performance de Relatórios e Prévia Sob Demanda na Edição (`/#/reports`)
 
 Remoção da execução automática de consultas ao abrir a tela de edição de relatórios e otimização profunda no backend para execução de queries analíticas de relatórios em milissegundos (reduzindo o tempo de até 2 minutos em relatórios com períodos longos e filtros de equipe).

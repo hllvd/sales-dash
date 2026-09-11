@@ -412,3 +412,13 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** In `client/e2e-test/e2e/user_classification_and_views.spec.ts`, updated `page.goto('/')` in `beforeEach` to standard navigation and scoped `modalCloseBtn` to `.first()`. Ran `./test.sh rm-db && ./test.sh e2e`.
 **Result:** ✅ Green (171/171 Playwright E2E PASSED)
 
+## [2026-09-11] all — Attempt 1
+**Failure:** None — full verification run for restricting "No Sistema (Ausentes no XLSX)" (`MissingInImport`) to users found in the spreadsheet.
+**Root cause:** N/A.
+**Fix applied:**
+1. Backend `ContractReconciliationController.cs`: collected `spreadsheetFoundUserInternalIds` during spreadsheet row iteration (via matricula, email, normalized name, or partial match), and conditioned `MissingInImport` inclusion on `sc.UserInternalId.HasValue && spreadsheetFoundUserInternalIds.Contains(sc.UserInternalId.Value)`.
+2. Integration test: added `Reconcile_ShouldOnlyIncludeMissingInImport_ForUsersFoundInSpreadsheet` in `ContractReconciliationTests.cs`.
+3. Documentation: updated `FEATURES.md`.
+**Result:** ✅ Green (Build PASSED, 298/298 Integration tests PASSED, E2E Run 1: 170/170 PASSED, E2E Run 2: 171/171 PASSED — idempotent)
+
+

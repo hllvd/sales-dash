@@ -218,6 +218,7 @@ namespace SalesApp.Controllers
                 GetColumnValue);
 
             var matchedSystemContractNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var spreadsheetFoundUserInternalIds = new HashSet<int>();
 
             foreach (var row in rows)
             {
@@ -321,6 +322,15 @@ namespace SalesApp.Controllers
                     {
                         continue;
                     }
+                }
+
+                if (rowUser != null)
+                {
+                    spreadsheetFoundUserInternalIds.Add(rowUser.InternalId);
+                }
+                else if (targetUser != null && !string.IsNullOrWhiteSpace(userVal) && NormalizeName(userVal) == NormalizeName(targetUser.Name))
+                {
+                    spreadsheetFoundUserInternalIds.Add(targetUser.InternalId);
                 }
 
                 var resolvedUserName = rowUser?.Name ?? targetUser?.Name ?? (string.IsNullOrWhiteSpace(userVal) ? null : userVal);
@@ -467,15 +477,18 @@ namespace SalesApp.Controllers
 
                 if (!string.IsNullOrWhiteSpace(sc.ContractNumber) && !matchedSystemContractNumbers.Contains(sc.ContractNumber.Trim()))
                 {
-                    missingInImport.Add(new ReconciledContractItemDto
+                    if (sc.UserInternalId.HasValue && spreadsheetFoundUserInternalIds.Contains(sc.UserInternalId.Value))
                     {
-                        ContractNumber = sc.ContractNumber,
-                        TotalAmount = sc.TotalAmount,
-                        UserIdentifier = sysUser,
-                        SystemUserName = sysUser,
-                        Date = sc.SaleStartDate,
-                        Source = "System"
-                    });
+                        missingInImport.Add(new ReconciledContractItemDto
+                        {
+                            ContractNumber = sc.ContractNumber,
+                            TotalAmount = sc.TotalAmount,
+                            UserIdentifier = sysUser,
+                            SystemUserName = sysUser,
+                            Date = sc.SaleStartDate,
+                            Source = "System"
+                        });
+                    }
                 }
             }
 
