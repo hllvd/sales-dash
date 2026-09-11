@@ -457,5 +457,5 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Failure:** Container startup failed with `[ERR] Failed executing DbCommand` on `ALTER TABLE "ScrapeConfigs" ADD COLUMN "DefaultStartMonth" TEXT;`.
 **Root cause:** SQLite threw duplicate column name because migration `20260821180000_MakeScrapeConfigStoreNullable` already created `DefaultStartMonth`. EF Core logged `[ERR]` to console before C# caught the exception, triggering `./test.sh` critical startup error check.
 **Fix applied:** Removed redundant `ALTER TABLE "ScrapeConfigs" ADD COLUMN "DefaultStartMonth" TEXT;` block from `SalesApp.Api/Data/DbSeeder.cs`.
-**Result:** 🔄 Retrying `./test.sh all`
+**Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 172/172 PASSED, E2E Run 2: 173/173 PASSED — idempotent)
 
