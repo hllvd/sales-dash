@@ -16,14 +16,6 @@ test.describe('User Classification Levels & Custom Views E2E Tests', () => {
 
   const testDashboardName = `E2E Test Dashboard ${timestamp}`;
 
-  test.beforeEach(async ({ page }) => {
-    // Navigate first to have a valid domain context, then clear storage
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
-  });
 
   test('should manage user classification assignments and verify views execution', async ({ page }) => {
     test.setTimeout(100000);

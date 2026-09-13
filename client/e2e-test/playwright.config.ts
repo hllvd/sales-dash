@@ -66,7 +66,8 @@ export default defineConfig({
         'import_dashboard_update_options.spec.ts',
         'import_dashboard_missing_total_amount.spec.ts',
         'import_dashboard_cota_field.spec.ts',
-        'import_dashboard_upsert_robustness.spec.ts'
+        'import_dashboard_upsert_robustness.spec.ts',
+        'contract_retention_unpaid_toggle.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-1-setup-and-import']

@@ -427,5 +427,14 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated Playwright locators in `client/e2e-test/e2e/import_dashboard_cota_field.spec.ts` and `client/e2e-test/e2e/contracts_ui_enhancements.spec.ts` to accept either button label `/Colunas|Configurações/` and modal title `/Selecionar Colunas|Configurações/`.
 **Result:** ✅ Green (170/170 Playwright E2E PASSED)
 
-
-
+## [2026-09-13] e2e — Attempt 1
+**Failure:** `equipe_admin_permission.spec.ts` timeout waiting for modal to close during user creation in retry; `contracts_filtering.spec.ts` failed expecting 14 results (got 13); `admin_permissions.spec.ts` flaky on user creation.
+**Root cause:**
+1. In `equipe_admin_permission.spec.ts` and `admin_permissions.spec.ts`, creating users in sequential tests left dirty state on retry without a preliminary cleanup call in test 1, causing unique constraint collisions, and autocomplete selections did not wait for React state to settle before clicking "Criar Usuário".
+2. In `contracts_filtering.spec.ts`, test 2 relied on the default 15-month rolling start date filter (`now - 15 months`). When the date rolled into September 12, 2026 UTC, the default filter became `2025-06-12`, which cut off contract `873469` (dated `2025-06-11`) by 1 day.
+**Fix applied:**
+1. In `equipe_admin_permission.spec.ts` and `admin_permissions.spec.ts`: added `cleanup`/`cleanupUsers` at the beginning of test 1, added `.first()` to autocomplete options, added `page.waitForTimeout(500)` settle delays and awaited `/api/users/register` responses.
+2. In `contracts_filtering.spec.ts`: explicitly set start date filter to `2024-01-01` before selecting Carlos Mendes, ensuring all fixture contracts are included regardless of current date.
+3. In `test.sh`: added `rm` as an alias for `rm-db`.
+4. Executed `./test.sh rm && ./test.sh e2e`.
+**Result:** ✅ Green (172/172 Playwright E2E PASSED)

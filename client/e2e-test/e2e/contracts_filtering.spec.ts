@@ -56,6 +56,17 @@ test.describe('Contracts Filtering', () => {
     await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
 
+    // Ensure start date covers all fixture contracts
+    const startDatePromise = page.waitForRequest(request =>
+      request.url().includes('/api/contracts') &&
+      !request.url().includes('/user/') &&
+      request.url().includes('startDate=2024-01-01') &&
+      request.method() === 'GET',
+      { timeout: 10000 }
+    );
+    await page.fill('input#filterStartDate', '2024-01-01');
+    await startDatePromise;
+
     // 3. Filter by User
     const userFilterInput = page.locator('input[placeholder="Selecionar usuários..."], input[placeholder="Nenhum usuário disponível"]').first();
     await userFilterInput.click();
