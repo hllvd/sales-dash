@@ -16,12 +16,16 @@ Modalidade especializada e independente de scraping implementada no microsservi�
   - Aplica rolagem contínua via `mouse.wheel` e injeção de scroll com intervalo de 2 segundos.
 - **Critério de Término por Inatividade**:
   - Monitora continuamente as requisições bem-sucedidas em `/query`.
-  - Encerra automaticamente a rolagem assim que transcorrerem **20 segundos consecutivos** sem qualquer nova resposta interceptada.
+  - Encerra automaticamente a rolagem assim que transcorrerem **30 segundos consecutivos** sem qualquer nova resposta interceptada.
+- **Decodificação DSR de 64 bits (BigInt) e Filtragem de Queries**:
+  - A tabela do Consultor contém 55 colunas; utiliza operações bitwise de 64 bits (`BigInt`) para decodificar corretamente a máscara de repetição `R` e a máscara de nulos `Ø` do PowerBI, evitando truncamento em 32 bits e desalinhamento de colunas.
+  - Ignora automaticamente consultas auxiliares com menos de 5 colunas (títulos e datas de atualização).
+  - Sanitiza e formata todas as colunas de data/timestamp para o padrão `YYYY-MM-DD`.
 - **Concatenação e Exportação Dupla**:
   - Consolida as queries em um arquivo **JSON** bruto com metadados (`outputs/consultor_<matricula>_<timestamp>.json`).
-  - Processa os dados DSR do PowerBI e gera um arquivo **CSV** unificado e deduplicado (`outputs/consultor_<matricula>_<timestamp>.csv`).
+  - Processa os dados DSR do PowerBI e gera um arquivo **CSV** unificado e deduplicado por cota/contrato (`outputs/consultor_<matricula>_<timestamp>.csv`).
 - **Execução**:
-  - Disparável diretamente via `npm run scrape:consultor` (ou passando argumentos `node test-scrape-consultor.js <matricula> <senha>`).
+  - Disparável diretamente via `npm run scrape:consultor` ou `node test.js <matricula> <senha>`.
   - Padrão `headless: false` para visualização ao vivo, alternável facilmente para headless via `HEADLESS=true`.
 
 ---

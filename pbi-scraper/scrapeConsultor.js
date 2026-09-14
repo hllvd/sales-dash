@@ -18,7 +18,7 @@ const DASHBOARD_CONSULTOR_URL = 'https://avapro.ademicon.com.br/dashboard/consul
 
 /**
  * Pure helper to convert DSR semantic query result into normalized rows.
- * Reuses PowerBI SemanticQuery response structure parser.
+ * Supports PowerBI 64-bit repeat bitmask (R), null bitmask (Ø), and ValueDicts.
  */
 function parseDSR(data) {
   const result = data?.results?.[0]?.result?.data;
@@ -29,21 +29,20 @@ function parseDSR(data) {
   if (!ds) return [];
 
   const selectItems = descriptor?.Select || [];
-  const friendlyName = {};
-  const selectIndexMap = {};
+  // Ignore single-column / title queries (like '0 Medidas.Atualização' or 'RELATÓRIOS DO CONSULTOR')
+  if (selectItems.length < 5) return [];
 
-  selectItems.forEach((item, idx) => {
+  const friendlyName = {};
+  selectItems.forEach((item) => {
     friendlyName[item.Value] = item.NativeReferenceName || item.Name;
-    selectIndexMap[item.Value] = idx;
   });
 
   const dicts = ds.ValueDicts || {};
   const ph = ds.PH || [];
-
   const allRows = [];
 
   for (const group of ph) {
-    const dmKey = group.DM1 ? 'DM1' : group.DM0 ? 'DM0' : null;
+    const dmKey = group.DM1 ? 'DM1' : (group.DM0 && group.DM0[0]?.S?.length >= 5 ? 'DM0' : null);
     if (!dmKey) continue;
 
     const entries = group[dmKey];
@@ -61,7 +60,7 @@ function parseDSR(data) {
             const alias = s.N;
             const dictKey = s.DN;
             let val = entry[alias] ?? null;
-            if (dictKey && dicts[dictKey] !== undefined && val !== null) {
+            if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
               val = dicts[dictKey][val] ?? val;
             }
             row[friendlyName[alias] || alias] = val;
@@ -78,7 +77,7 @@ function parseDSR(data) {
           const alias = s.N;
           const dictKey = s.DN;
           let val = entry[alias] ?? prev[i];
-          if (dictKey && dicts[dictKey] !== undefined && val !== null) {
+          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
             val = dicts[dictKey][val] ?? val;
           }
           row[friendlyName[alias] || alias] = val;
@@ -90,13 +89,21 @@ function parseDSR(data) {
 
       if (entry.C && schemaRow) {
         const C = entry.C;
-        const R = entry.R || 0;
+        // 64-bit bitmasks for repeated values and explicit null values
+        const R_big = entry.R !== undefined ? BigInt(entry.R) : 0n;
+        const nullBitmask = (entry['Ø'] !== undefined) ? BigInt(entry['Ø']) : 0n;
+
         const resolved = [...prev];
         let ci = 0;
 
         for (let pos = 0; pos < schemaRow.length; pos++) {
-          const repeated = (R >> pos) & 1;
-          if (!repeated) {
+          const bit = 1n << BigInt(pos);
+          const isRepeated = (R_big & bit) !== 0n;
+          const isExplicitNull = (nullBitmask & bit) !== 0n;
+
+          if (isExplicitNull) {
+            resolved[pos] = null;
+          } else if (!isRepeated) {
             resolved[pos] = C[ci] !== undefined ? C[ci] : null;
             ci++;
           }
@@ -109,7 +116,7 @@ function parseDSR(data) {
           const alias = s.N;
           const dictKey = s.DN;
           let val = resolved[i];
-          if (dictKey && dicts[dictKey] !== undefined && val !== null) {
+          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
             val = dicts[dictKey][val] ?? val;
           }
           row[friendlyName[alias] || alias] = val;
@@ -118,6 +125,31 @@ function parseDSR(data) {
       }
     }
   }
+
+  // Format valid timestamps (between 2010 and 2035) to YYYY-MM-DD
+  const MIN_VALID_TIMESTAMP = 1262304000000;
+  const MAX_VALID_TIMESTAMP = 2051222400000;
+  const toYyyyMmDd = (val) => {
+    if (val === null || val === undefined) return null;
+    const num = Number(val);
+    if (!isNaN(num) && num >= MIN_VALID_TIMESTAMP && num <= MAX_VALID_TIMESTAMP) {
+      const d = new Date(num);
+      return d.toISOString().split('T')[0];
+    }
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
+      return val.trim();
+    }
+    return val;
+  };
+
+  allRows.forEach(row => {
+    Object.keys(row).forEach(k => {
+      const lower = k.toLowerCase();
+      if (lower.includes('data') || lower.includes('dt_') || lower.includes('vigência') || lower.includes('pagto')) {
+        row[k] = toYyyyMmDd(row[k]);
+      }
+    });
+  });
 
   return allRows;
 }
@@ -494,13 +526,12 @@ async function runConsultorScrape(options) {
     const seenRowKeys = new Set();
 
     allRowsCombined.forEach(row => {
-      // Cria uma chave única baseada em contrato/cota ou conteúdo da linha
-      const uniqueKey = row['Cota'] ||
-                        row['Contrato'] ||
-                        row['tbl_cotas.id_cota'] ||
-                        row['id_cota'] ||
-                        row['CNPJ'] ||
-                        JSON.stringify(row);
+      // Cria uma chave única baseada em cota, contrato ou identificador de cota
+      const uniqueKey = (row['2 Rel Carteira.Identificador.Cota'] !== undefined && row['2 Rel Carteira.Identificador.Cota'] !== null)
+        ? `cota_${row['2 Rel Carteira.Identificador.Cota']}`
+        : (row['2 Rel Carteira.Grupo'] && row['Sum(2 Rel Carteira.Cota)'] && row['Sum(2 Rel Carteira.Versão)'])
+          ? `${row['2 Rel Carteira.Grupo']}_${row['Sum(2 Rel Carteira.Cota)']}_${row['Sum(2 Rel Carteira.Versão)']}`
+          : (row['Cota'] || row['Contrato'] || row['tbl_cotas.id_cota'] || row['id_cota'] || row['CNPJ'] || JSON.stringify(row));
 
       if (!seenRowKeys.has(uniqueKey)) {
         seenRowKeys.add(uniqueKey);
