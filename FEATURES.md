@@ -1,5 +1,31 @@
 # Features
 
+## Scrape Tipo "Consultor" com Rolagem Contínua e Captura de Queries (pbi-scraper)
+
+Modalidade especializada e independente de scraping implementada no microsserviço Node (`pbi-scraper`). Em vez de navegar no fluxo padrão da visualização "Geral", este fluxo acessa a visualização "Consultor", posiciona o mouse no centro exato da tela e dispara eventos periódicos de scrolldown, interceptando e consolidando todas as respostas da rota de dados do PowerBI (`.../workloads/QES/QueryExecutionService/automatic/public/query`).
+
+### Comportamento e Regras
+- **Isolamento Total**:
+  - Implementado em módulo dedicado (`pbi-scraper/scrapeConsultor.js`) e CLI de testes (`pbi-scraper/test-scrape-consultor.js`).
+  - Não altera o fluxo existente de scraping ("Geral") e não afeta o app principal.
+- **Navegação e Seleção de Menu**:
+  - Realiza login autenticado no AVA PRO (`https://avapro.ademicon.com.br/`).
+  - No menu lateral do dashboard, localiza e clica especificamente no item **"Consultor"**.
+- **Posicionamento e Scroll Periódico**:
+  - Move o ponteiro do mouse para o centro exato da viewport (`width / 2`, `height / 2`).
+  - Aplica rolagem contínua via `mouse.wheel` e injeção de scroll com intervalo de 2 segundos.
+- **Critério de Término por Inatividade**:
+  - Monitora continuamente as requisições bem-sucedidas em `/query`.
+  - Encerra automaticamente a rolagem assim que transcorrerem **20 segundos consecutivos** sem qualquer nova resposta interceptada.
+- **Concatenação e Exportação Dupla**:
+  - Consolida as queries em um arquivo **JSON** bruto com metadados (`outputs/consultor_<matricula>_<timestamp>.json`).
+  - Processa os dados DSR do PowerBI e gera um arquivo **CSV** unificado e deduplicado (`outputs/consultor_<matricula>_<timestamp>.csv`).
+- **Execução**:
+  - Disparável diretamente via `npm run scrape:consultor` (ou passando argumentos `node test-scrape-consultor.js <matricula> <senha>`).
+  - Padrão `headless: false` para visualização ao vivo, alternável facilmente para headless via `HEADLESS=true`.
+
+---
+
 ## Automatic Start Date Discovery via 15-Month Scraper Probe
 
 This feature automatically detects and populates `ScrapeConfig.DefaultStartMonth` when a user validates credentials (`Validar credenciais ao salvar` is on during `SaveConfig` or `TestAuth`) without specifying an explicit start month.
