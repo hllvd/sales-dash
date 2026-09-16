@@ -205,9 +205,13 @@ async function runConsultorScrape(options) {
     fs.mkdirSync(outPath, { recursive: true });
   }
 
+  const startDate = new Date();
+  const startTimeMs = Date.now();
+
   console.log('====================================================');
   console.log('🚀 Iniciando Scrape Tipo Consultor');
   console.log(`👤 Matrícula: ${matricula}`);
+  console.log(`🕒 Início: ${startDate.toLocaleString('pt-BR')}`);
   console.log(`🖥️  Headless: ${headless}`);
   console.log(`⏱️  Inatividade para término: ${timeoutNoQueryMs / 1000}s`);
   console.log(`⏳ Intervalo de scroll: ${scrollIntervalMs / 1000}s`);
@@ -289,12 +293,43 @@ async function runConsultorScrape(options) {
 
     page.on('response', handleResponse);
 
+    // Monitor requests to capture the exact QES semantic query template
+    const handleRequest = (req) => {
+      try {
+        const url = req.url();
+        const method = req.method();
+        const isQesQuery = (url.includes('windows.net') || url.includes('pbidedicated')) &&
+                           url.includes('workloads/QES/QueryExecutionService') &&
+                           url.includes('/query');
+
+        if (isQesQuery && method === 'POST') {
+          const postData = req.postData();
+          if (postData) {
+            try {
+              const parsed = JSON.parse(postData);
+              const sel = parsed?.queries?.[0]?.Query?.Commands?.[0]?.SemanticQueryDataShapeCommand?.Query?.Select;
+              if (Array.isArray(sel) && sel.length >= 50) {
+                const tplDir = path.resolve(__dirname, 'templates');
+                if (!fs.existsSync(tplDir)) fs.mkdirSync(tplDir, { recursive: true });
+                const tplFile = path.join(tplDir, 'consultorQueryTemplate.json');
+                fs.writeFileSync(tplFile, postData, 'utf8');
+                console.log(`[Template] 🎯 Query template da tabela (55 colunas) capturado e salvo em: ${tplFile}`);
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    };
+
+    page.on('request', handleRequest);
+
     // Also attach to new target pages/popups if created
     browser.on('targetcreated', async (target) => {
       try {
         const targetPage = await target.page();
         if (targetPage && targetPage !== page) {
           targetPage.on('response', handleResponse);
+          targetPage.on('request', handleRequest);
         }
       } catch (_) {}
     });
@@ -506,13 +541,6 @@ async function runConsultorScrape(options) {
     // ── 5. Processamento e Consolidação dos Resultados ───────────────────
     console.log('\n[5/5] Consolidando resultados e gerando saídas...');
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const jsonFileName = `consultor_${matricula}_${timestamp}.json`;
-    const csvFileName = `consultor_${matricula}_${timestamp}.csv`;
-
-    const jsonFilePath = path.join(outPath, jsonFileName);
-    const csvFilePath = path.join(outPath, csvFileName);
-
     // Consolidação de todas as linhas de todas as queries
     const allRowsCombined = [];
     capturedQueries.forEach(q => {
@@ -539,13 +567,34 @@ async function runConsultorScrape(options) {
       }
     });
 
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const jsonFileName = `consultor_${matricula}_${timestamp}.json`;
+    const csvFileName = `consultor_${matricula}_${timestamp}.csv`;
+
+    const jsonFilePath = path.join(outPath, jsonFileName);
+    const csvFilePath = path.join(outPath, csvFileName);
+
+    const endDate = new Date();
+    const elapsedMs = Date.now() - startTimeMs;
+    const elapsedSecTotal = Math.floor(elapsedMs / 1000);
+    const elapsedMinutes = Math.floor(elapsedSecTotal / 60);
+    const elapsedSeconds = elapsedSecTotal % 60;
+    const durationFormatted = elapsedMinutes > 0
+      ? `${elapsedMinutes}m ${elapsedSeconds}s`
+      : `${elapsedSecTotal}s`;
+
     // 1. Salva JSON consolidado (com queries brutas e metadata)
     const jsonPayload = {
       matricula,
-      scrapedAt: new Date().toISOString(),
+      startedAt: startDate.toISOString(),
+      finishedAt: endDate.toISOString(),
+      durationSeconds: elapsedSecTotal,
+      durationFormatted,
+      scrapedAt: endDate.toISOString(),
       totalQueriesCaptured: capturedQueries.length,
       totalRawRows: allRowsCombined.length,
       totalUniqueRows: uniqueRows.length,
+      rows: uniqueRows,
       queries: capturedQueries
     };
 
@@ -553,12 +602,15 @@ async function runConsultorScrape(options) {
     console.log(`✅ Arquivo JSON salvo com sucesso: ${jsonFilePath}`);
 
     // 2. Salva CSV consolidado
-    const csvText = toCsv(uniqueRows.length > 0 ? uniqueRows : allRowsCombined);
+    const csvText = toCsv(uniqueRows);
     fs.writeFileSync(csvFilePath, csvText, 'utf8');
     console.log(`✅ Arquivo CSV salvo com sucesso: ${csvFilePath}`);
 
     console.log('\n====================================================');
     console.log('🎉 Scrape Tipo Consultor Concluído!');
+    console.log(`🕒 Início: ${startDate.toLocaleString('pt-BR')}`);
+    console.log(`🏁 Fim:    ${endDate.toLocaleString('pt-BR')}`);
+    console.log(`⏱️  Tempo de Execução: ${durationFormatted} (${elapsedSecTotal}s)`);
     console.log(`📊 Queries capturadas: ${capturedQueries.length}`);
     console.log(`📋 Total de registros brutos: ${allRowsCombined.length}`);
     console.log(`✨ Total de registros únicos: ${uniqueRows.length}`);
@@ -568,6 +620,11 @@ async function runConsultorScrape(options) {
 
     return {
       status: 'Succeeded',
+      matricula,
+      startedAt: startDate.toISOString(),
+      finishedAt: endDate.toISOString(),
+      durationFormatted,
+      durationSeconds: elapsedSecTotal,
       totalQueries: capturedQueries.length,
       totalRows: uniqueRows.length,
       jsonFile: jsonFilePath,

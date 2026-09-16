@@ -21,11 +21,22 @@ Modalidade especializada e independente de scraping implementada no microsservi�
   - A tabela do Consultor contém 55 colunas; utiliza operações bitwise de 64 bits (`BigInt`) para decodificar corretamente a máscara de repetição `R` e a máscara de nulos `Ø` do PowerBI, evitando truncamento em 32 bits e desalinhamento de colunas.
   - Ignora automaticamente consultas auxiliares com menos de 5 colunas (títulos e datas de atualização).
   - Sanitiza e formata todas as colunas de data/timestamp para o padrão `YYYY-MM-DD`.
-- **Concatenação e Exportação Dupla**:
-  - Consolida as queries em um arquivo **JSON** bruto com metadados (`outputs/consultor_<matricula>_<timestamp>.json`).
+- **Concatenação e Exportação Dupla com Métricas de Execução**:
+  - Registra data/hora exatas de início e fim, bem como o tempo total de execução formatado (ex: `1m 45s`) e em segundos.
+  - Consolida as queries em um arquivo **JSON** bruto com metadados de execução (`outputs/consultor_<matricula>_<timestamp>.json`).
   - Processa os dados DSR do PowerBI e gera um arquivo **CSV** unificado e deduplicado por cota/contrato (`outputs/consultor_<matricula>_<timestamp>.csv`).
+- **Filtragem por Conjunto de Meses (`SCRAPE_DATES`)**:
+  - Permite especificar um conjunto de meses (ex: `2024-06,2024-07`) via variável de ambiente `SCRAPE_DATES` ou 3º argumento na CLI.
+  - Normaliza os valores de entrada e filtra os registros consolidados com base na coluna **`2 Rel Carteira.Data.Venda`**.
+  - Metadados de meses filtrados e contagem antes/depois do filtro são gravados no JSON e exibidos no resumo final do terminal.
+  - Gera arquivos identificados com os meses selecionados (ex: `consultor_<matricula>_2024-06_2024-07_<timestamp>.csv`).
 - **Execução**:
-  - Disparável diretamente via `npm run scrape:consultor` ou `node test.js <matricula> <senha>`.
+  - Disparável diretamente via `npm run scrape:consultor` ou:
+    ```bash
+    SCRAPE_DATES="2024-06,2024-07" node test.js <matricula> <senha>
+    # ou passando argumento:
+    node test.js <matricula> <senha> 2024-06,2024-07
+    ```
   - Padrão `headless: false` para visualização ao vivo, alternável facilmente para headless via `HEADLESS=true`.
 
 ---
