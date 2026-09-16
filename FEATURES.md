@@ -1,5 +1,29 @@
 # Features
 
+## Correção e Resiliência na Decodificação DSR de 64 bits (PowerBI Scraper)
+
+Aprimoramento crítico e unificação dos parsers DSR (`parseDSR`) nos módulos de scraping (`scrapeConsultor.js` e `extractor.js`) para garantir a extração fidedigna e completa de todas as linhas e colunas dos relatórios do PowerBI, corrigindo a perda de linhas baseline e campos repetidos (`Cod.Ponto de Venda`, `Ponto de Venda`, `Comissionado`, etc.).
+
+### Comportamento e Regras
+- **Decodificação de Linhas Baseline com Schema (`entry.S`)**:
+  - Elimina o descarte prematuro (`continue`) quando o PowerBI envia o schema estrutural (`entry.S`) acompanhado dos dados completos da primeira linha em `entry.C` e máscara de nulos em `entry.Ø`.
+  - Processa a linha inicial em sua integridade e popula o buffer de repetição `prev` com os valores resolvidos para todas as colunas.
+- **Propagação Precisa de Colunas Repetidas (`R`) e Nulos Explícitos (`Ø`)**:
+  - Operações bitwise de 64 bits (`BigInt`) em `R` e `Ø` garantem que colunas repetidas (como ponto de venda e comissionado) herdem os valores imediatamente anteriores sem propagar valores nulos indesejados.
+- **Preservação de Estado entre Páginas (`paginationContext`)**:
+  - No scraping direto com paginação (`RestartTokens` via HTTP POST em `extractorConsultor.js`), o parser aceita um contexto de paginação (`paginationContext`) preservando o buffer `prev` e `schemaRow` entre requisições consecutivas.
+  - Elimina lacunas e perda de atributos contextuais nas transições de página (a cada ~500 registros).
+- **Consistência entre Scrapers**:
+  - Atualização síncrona de `parseDSR` em `scrapeConsultor.js` e `extractor.js`, mantendo compatibilidade com as regras de sanitização de datas, fallback de produção analítica e status.
+
+### Arquivos Alterados
+- `pbi-scraper/scrapeConsultor.js`: suporte a baseline em `entry.S`, bitmask BigInt de 64 bits e parâmetro `context`.
+- `pbi-scraper/extractor.js`: eliminação de truncamento de 32 bits (`R >> pos`), suporte a `entry.Ø`, baseline e exportação de `parseDSR`.
+- `pbi-scraper/extractorConsultor.js`: passagem de `paginationContext` no loop de paginação.
+- `pbi-scraper/test-extractorConsultor.js`: testes unitários automatizados validando linhas baseline, repetição de bits e continuidade entre páginas.
+
+---
+
 ## Scrape Tipo "Consultor" com Rolagem Contínua e Captura de Queries (pbi-scraper)
 
 Modalidade especializada e independente de scraping implementada no microsserviço Node (`pbi-scraper`). Em vez de navegar no fluxo padrão da visualização "Geral", este fluxo acessa a visualização "Consultor", posiciona o mouse no centro exato da tela e dispara eventos periódicos de scrolldown, interceptando e consolidando todas as respostas da rota de dados do PowerBI (`.../workloads/QES/QueryExecutionService/automatic/public/query`).

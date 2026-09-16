@@ -245,6 +245,7 @@ async function scrapeConsultorDirect(options) {
   let isComplete = false;
   let restartTokens = null;
   let lastRawData = null;
+  const paginationContext = { prev: [] };
 
   while (!isComplete) {
     pageCount++;
@@ -276,7 +277,7 @@ async function scrapeConsultorDirect(options) {
       throw new Error(`Erro retornado pelo PowerBI: ${msg}`);
     }
 
-    const pageRows = parseDSR(res.data);
+    const pageRows = parseDSR(res.data, paginationContext);
     allRows.push(...pageRows);
     console.log(`[Direct] Página ${pageCount}: ${pageRows.length} registros recebidos (Total acumulado: ${allRows.length}).`);
 

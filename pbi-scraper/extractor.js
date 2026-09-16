@@ -239,7 +239,7 @@ function buildPayload2(store, matricula, scrapeDate) {
   };
 }
 
-function parseDSR(data) {
+function parseDSR(data, context = null) {
   const result = data?.results?.[0]?.result?.data;
   if (!result) return [];
 
@@ -260,62 +260,64 @@ function parseDSR(data) {
   const ph    = ds.PH || [];
 
   const allRows = [];
+  let prev = (context?.prev && Array.isArray(context.prev)) ? [...context.prev] : [];
+  let schemaRow = context?.schemaRow || null;
 
   for (const group of ph) {
     const dmKey  = group.DM1 ? 'DM1' : group.DM0 ? 'DM0' : null;
     if (!dmKey) continue;
 
     const entries = group[dmKey];
-    let schemaRow = null;
-    let prev      = [];
 
     for (const entry of entries) {
       if (entry.S) {
         schemaRow = entry.S;
-        prev = new Array(schemaRow.length).fill(null);
-        const hasDirectData = schemaRow.some(s => entry[s.N] !== undefined);
-        if (hasDirectData) {
-          const row = {};
-          schemaRow.forEach(s => {
-            const alias = s.N;
-            const dictKey = s.DN;
-            let val = entry[alias] ?? null;
-            if (dictKey && dicts[dictKey] !== undefined && val !== null) {
-              val = dicts[dictKey][val] ?? val;
-            }
-            row[friendlyName[alias] || alias] = val;
-          });
-          allRows.push(row);
-          schemaRow.forEach((s, i) => { prev[i] = entry[s.N] ?? null; });
+        if (context && typeof context === 'object') {
+          context.schemaRow = schemaRow;
         }
-        continue;
+        if (!prev || prev.length !== schemaRow.length) {
+          prev = new Array(schemaRow.length).fill(null);
+        }
       }
 
-      if (!entry.C && schemaRow) {
+      if (!schemaRow) continue;
+
+      const hasDirectData = schemaRow.some(s => entry[s.N] !== undefined);
+      if (hasDirectData) {
         const row = {};
         schemaRow.forEach((s, i) => {
-          const alias   = s.N;
+          const alias = s.N;
           const dictKey = s.DN;
-          let val = entry[alias] ?? prev[i];
-          if (dictKey && dicts[dictKey] !== undefined && val !== null) {
+          let val = entry[alias] ?? prev[i] ?? null;
+          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
             val = dicts[dictKey][val] ?? val;
           }
           row[friendlyName[alias] || alias] = val;
-          prev[i] = entry[alias] !== undefined ? entry[alias] : prev[i];
+          if (entry[alias] !== undefined) {
+            prev[i] = entry[alias];
+          }
         });
         allRows.push(row);
         continue;
       }
 
-      if (entry.C && schemaRow) {
-        const C        = entry.C;
-        const R        = entry.R || 0;
+      if (entry.C) {
+        const C = entry.C;
+        // 64-bit bitmasks for repeated values and explicit null values
+        const R_big = entry.R !== undefined ? BigInt(entry.R) : 0n;
+        const nullBitmask = (entry['Ø'] !== undefined) ? BigInt(entry['Ø']) : 0n;
+
         const resolved = [...prev];
-        let   ci       = 0;
+        let ci = 0;
 
         for (let pos = 0; pos < schemaRow.length; pos++) {
-          const repeated = (R >> pos) & 1;
-          if (!repeated) {
+          const bit = 1n << BigInt(pos);
+          const isRepeated = (R_big & bit) !== 0n;
+          const isExplicitNull = (nullBitmask & bit) !== 0n;
+
+          if (isExplicitNull) {
+            resolved[pos] = null;
+          } else if (!isRepeated) {
             resolved[pos] = C[ci] !== undefined ? C[ci] : null;
             ci++;
           }
@@ -328,7 +330,41 @@ function parseDSR(data) {
           const alias   = s.N;
           const dictKey = s.DN;
           let val = resolved[i];
-          if (dictKey && dicts[dictKey] !== undefined && val !== null) {
+          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
+            val = dicts[dictKey][val] ?? val;
+          }
+          row[friendlyName[alias] || alias] = val;
+        });
+        allRows.push(row);
+        continue;
+      }
+
+      if (entry.R !== undefined || entry['Ø'] !== undefined) {
+        const R_big = entry.R !== undefined ? BigInt(entry.R) : 0n;
+        const nullBitmask = (entry['Ø'] !== undefined) ? BigInt(entry['Ø']) : 0n;
+
+        const resolved = [...prev];
+
+        for (let pos = 0; pos < schemaRow.length; pos++) {
+          const bit = 1n << BigInt(pos);
+          const isRepeated = (R_big & bit) !== 0n;
+          const isExplicitNull = (nullBitmask & bit) !== 0n;
+
+          if (isExplicitNull) {
+            resolved[pos] = null;
+          } else if (!isRepeated) {
+            resolved[pos] = entry[schemaRow[pos].N] ?? null;
+          }
+        }
+
+        for (let i = 0; i < schemaRow.length; i++) prev[i] = resolved[i];
+
+        const row = {};
+        schemaRow.forEach((s, i) => {
+          const alias   = s.N;
+          const dictKey = s.DN;
+          let val = resolved[i];
+          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
             val = dicts[dictKey][val] ?? val;
           }
           row[friendlyName[alias] || alias] = val;
@@ -336,6 +372,10 @@ function parseDSR(data) {
         allRows.push(row);
       }
     }
+  }
+
+  if (context && typeof context === 'object') {
+    context.prev = prev;
   }
 
   // Post-process rows: sanitize dates, status, and fallback Produção Analitica
@@ -630,4 +670,4 @@ async function probeStartDate(store, matricula, token) {
   };
 }
 
-module.exports = { scrape, scrapeWithReauth, isAuthErrorStatus, probeStartDate };
+module.exports = { scrape, scrapeWithReauth, isAuthErrorStatus, probeStartDate, parseDSR };
