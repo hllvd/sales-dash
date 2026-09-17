@@ -459,3 +459,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Removed redundant `ALTER TABLE "ScrapeConfigs" ADD COLUMN "DefaultStartMonth" TEXT;` block from `SalesApp.Api/Data/DbSeeder.cs`.
 **Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 172/172 PASSED, E2E Run 2: 173/173 PASSED — idempotent)
 
+## [2026-09-16] e2e — Attempt 1
+**Failure:** `contracts_filtering.spec.ts:52` failed on `expect(locator).toHaveCount(14)` returning 13 rows instead of 14.
+**Root cause:** The contracts page initializes with a default 15-month rolling start date filter (`Data Início`). As calendar days advanced to 2026-09-16, the earliest contract for Carlos Mendes (`873469`, dated `2025-06-11`) fell just outside the default 15-month window (`2025-06-16`), displaying only 13 contracts.
+**Fix applied:** In `client/e2e-test/e2e/contracts_filtering.spec.ts`, explicitly set `input#filterStartDate` to `'2025-01-01'` and awaited request completion before filtering by Carlos Mendes, ensuring all 14 historical contracts are included in the query.
+**Result:** ✅ Green (173/173 Playwright E2E PASSED)
+

@@ -31,6 +31,9 @@ namespace SalesApp.Services
 
         [JsonProperty("scrapeDate")]
         public string? ScrapeDate { get; set; }
+
+        [JsonProperty("scrapeType")]
+        public string? ScrapeType { get; set; }
     }
 
     public class PbiScraperClient
@@ -45,7 +48,7 @@ namespace SalesApp.Services
             _callbackBaseUrl = configuration["PbiScraper:CallbackBaseUrl"] ?? "http://salesapp-api:5000";
         }
 
-        public async Task<string> EnqueueJobAsync(string jobId, string userId, string store, string matricula, string? avaproUsername = null, string? avaproPassword = null, string? runId = null, string? scrapeDate = null)
+        public async Task<string> EnqueueJobAsync(string jobId, string userId, string store, string matricula, string? avaproUsername = null, string? avaproPassword = null, string? runId = null, string? scrapeDate = null, string? scrapeType = null)
         {
             var request = new ScrapeJobRequest
             {
@@ -57,7 +60,8 @@ namespace SalesApp.Services
                 CallbackUrl = $"{_callbackBaseUrl}/api/scrape/callback",
                 AvaproUsername = avaproUsername,
                 AvaproPassword = avaproPassword,
-                ScrapeDate = scrapeDate
+                ScrapeDate = scrapeDate,
+                ScrapeType = scrapeType
             };
 
             var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");

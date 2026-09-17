@@ -13,6 +13,19 @@ const { captureTemplate } = require('./captureTemplate');
 const ENDPOINT = '7a8110990e16404daec259c355434bc6.pbidedicated.windows.net';
 const PATH     = '/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query';
 const URL      = `https://${ENDPOINT}${PATH}`;
+const SCRAPE_TIMEOUT_MS = parseInt(process.env.SCRAPE_TIMEOUT_MS || '300000', 10); // 5 minutos por padrão
+
+let captureTemplatePromise = null;
+async function getOrCaptureTemplate(matricula, password, stepLogger = null) {
+  if (captureTemplatePromise) {
+    if (typeof stepLogger === 'function') stepLogger('[Capture] Aguardando captura de template/token já em andamento...');
+    return captureTemplatePromise;
+  }
+  captureTemplatePromise = captureTemplate(matricula, password, stepLogger).finally(() => {
+    captureTemplatePromise = null;
+  });
+  return captureTemplatePromise;
+}
 
 /**
  * Normalizes input date parameter into an array of cleaned 'YYYY-MM' strings.
@@ -179,198 +192,225 @@ async function scrapeConsultorDirect(options) {
     fs.mkdirSync(outPath, { recursive: true });
   }
 
-  const startDate = new Date();
-  const startTimeMs = Date.now();
-
-  console.log('====================================================');
-  console.log('🚀 Iniciando Scrape Consultor (Modo Direto HTTP POST)');
-  console.log(`👤 Matrícula: ${matricula}`);
-  console.log(`📅 Meses solicitados: ${targetMonths.length > 0 ? targetMonths.join(', ') : 'Todos os meses'}`);
-  console.log(`🕒 Início: ${startDate.toLocaleString('pt-BR')}`);
-  console.log('====================================================');
-
-  const tplDir = path.resolve(__dirname, 'templates');
-  const tplFile = path.join(tplDir, 'consultorQueryTemplate.json');
-  const tokenFile = path.join(tplDir, 'consultorToken.json');
-
-  // 1. Obtém o token específico de Consultor e o template
-  console.log('[Direct] Obtendo MWCToken específico de Consultor...');
-  let consultorToken = null;
-
-  // Verifica cache em memória
-  const mem = tokenManager.getTokens(`${matricula}_consultor`);
-  if (mem && mem.pbiToken) {
-    console.log('[Direct] Reutilizando MWCToken de Consultor em memória.');
-    consultorToken = mem.pbiToken;
-  }
-
-  // Verifica cache em disco (consultorToken.json) válido por 40 minutos
-  if (!consultorToken && fs.existsSync(tokenFile)) {
-    try {
-      const disk = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
-      const ageMs = Date.now() - (disk.capturedAt || 0);
-      if (disk.token && ageMs < 40 * 60 * 1000) {
-        console.log(`[Direct] Reutilizando MWCToken de Consultor salvo em disco (${Math.round(ageMs / 60000)}m atrás).`);
-        consultorToken = disk.token;
-        tokenManager.setTokens(`${matricula}_consultor`, { pbiToken: consultorToken });
-      }
-    } catch (_) {}
-  }
-
-  // Se não tem token ou não tem template, captura via /dashboard/consultor
-  if (!consultorToken || !fs.existsSync(tplFile)) {
-    console.log('[Direct] MWCToken de Consultor ausente ou expirado. Capturando novo token via /dashboard/consultor...');
-    const resCapture = await captureTemplate(matricula, password);
-    consultorToken = resCapture.token;
-  }
-
-  if (!consultorToken) {
-    throw new Error('Falha ao obter MWCToken de Consultor para execução da consulta.');
-  }
-
-  // 2. Prepara o payload com os filtros de data e matrícula
-  const payload = prepareConsultorPayload(tplFile, targetMonths, matricula);
-
-  const headers = {
-    'Authorization': consultorToken,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json, text/plain, */*',
-    'Origin': 'https://dashboardbi.ademicon.com.br',
-    'Referer': 'https://dashboardbi.ademicon.com.br/'
+  const steps = [];
+  const addStep = (msg) => {
+    const line = `[${new Date().toLocaleTimeString('pt-BR')}] ${msg}`;
+    console.log(line);
+    steps.push(line);
   };
 
-  // 3. Loop de Paginação via RestartTokens (equivalente ao scrolldown, mas via HTTP em segundos)
-  const allRows = [];
-  let pageCount = 0;
-  let isComplete = false;
-  let restartTokens = null;
-  let lastRawData = null;
-  const paginationContext = { prev: [] };
+  try {
+    const startDate = new Date();
+    const startTimeMs = Date.now();
 
-  while (!isComplete) {
-    pageCount++;
-    console.log(`[Direct] Disparando requisição HTTP (Página ${pageCount})...`);
+    console.log('====================================================');
+    console.log('🚀 Iniciando Scrape Consultor (Modo Direto HTTP POST)');
+    console.log(`👤 Matrícula: ${matricula}`);
+    console.log(`📅 Meses solicitados: ${targetMonths.length > 0 ? targetMonths.join(', ') : 'Todos os meses'}`);
+    console.log(`🕒 Início: ${startDate.toLocaleString('pt-BR')}`);
+    console.log('====================================================');
 
-    // Injeta RestartTokens no Window da página 2 em diante
-    const windowObj = payload?.queries?.[0]?.Query?.Commands?.[0]?.SemanticQueryDataShapeCommand?.Binding?.DataReduction?.Primary?.Window;
-    if (windowObj) {
-      if (restartTokens) {
-        windowObj.RestartTokens = restartTokens;
+    addStep(`[Consultor] Início da extração direta (Matrícula: ${matricula}, Meses: ${targetMonths.length > 0 ? targetMonths.join(', ') : 'Todos'})`);
+
+    const tplDir = path.resolve(__dirname, 'templates');
+    const tplFile = path.join(tplDir, 'consultorQueryTemplate.json');
+    const tokenFile = path.join(tplDir, 'consultorToken.json');
+
+    // 1. Obtém o token específico de Consultor e o template
+    let consultorToken = null;
+
+    // Verifica cache em memória
+    const mem = tokenManager.getTokens(`${matricula}_consultor`);
+    if (mem && mem.pbiToken) {
+      addStep('[Auth] MWCToken de Consultor reutilizado do cache em memória.');
+      consultorToken = mem.pbiToken;
+    }
+
+    // Verifica cache em disco (consultorToken.json) válido por 40 minutos
+    if (!consultorToken && fs.existsSync(tokenFile)) {
+      try {
+        const disk = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
+        const ageMs = Date.now() - (disk.capturedAt || 0);
+        if (disk.token && ageMs < 40 * 60 * 1000) {
+          addStep(`[Auth] MWCToken de Consultor reutilizado do cache em disco (${Math.round(ageMs / 60000)}m atrás).`);
+          consultorToken = disk.token;
+          tokenManager.setTokens(`${matricula}_consultor`, { pbiToken: consultorToken });
+        }
+      } catch (_) {}
+    }
+
+    // Se não tem token ou não tem template, captura via /dashboard/consultor
+    if (!consultorToken || !fs.existsSync(tplFile)) {
+      addStep('[Auth] MWCToken de Consultor ausente ou expirado. Abrindo navegador para login no AVA PRO...');
+      const resCapture = await getOrCaptureTemplate(matricula, password, addStep);
+      consultorToken = resCapture.token;
+      addStep('[Auth] MWCToken e template de Consultor obtidos com sucesso.');
+    }
+
+    if (!consultorToken) {
+      throw new Error('Falha ao obter MWCToken de Consultor para execução da consulta.');
+    }
+
+    // 2. Prepara o payload com os filtros de data e matrícula
+    const payload = prepareConsultorPayload(tplFile, targetMonths, matricula);
+
+    const headers = {
+      'Authorization': consultorToken,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/plain, */*',
+      'Origin': 'https://dashboardbi.ademicon.com.br',
+      'Referer': 'https://dashboardbi.ademicon.com.br/'
+    };
+
+    // 3. Loop de Paginação via RestartTokens
+    const allRows = [];
+    let pageCount = 0;
+    let isComplete = false;
+    let restartTokens = null;
+    let lastRawData = null;
+    const paginationContext = { prev: [] };
+
+    while (!isComplete) {
+      pageCount++;
+      const pageStart = Date.now();
+      addStep(`[PowerBI] Disparando requisição HTTP POST (Página ${pageCount}, limite: ${Math.round(SCRAPE_TIMEOUT_MS / 1000)}s)...`);
+
+      // Injeta RestartTokens no Window da página 2 em diante
+      const windowObj = payload?.queries?.[0]?.Query?.Commands?.[0]?.SemanticQueryDataShapeCommand?.Binding?.DataReduction?.Primary?.Window;
+      if (windowObj) {
+        if (restartTokens) {
+          windowObj.RestartTokens = restartTokens;
+        } else {
+          delete windowObj.RestartTokens;
+        }
+      }
+
+      let res;
+      try {
+        res = await axios.post(URL, payload, {
+          headers,
+          timeout: SCRAPE_TIMEOUT_MS
+        });
+      } catch (err) {
+        const elapsedSec = ((Date.now() - pageStart) / 1000).toFixed(1);
+        const isTimeout = err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'));
+        const timeoutDesc = isTimeout
+          ? `Timeout de ${Math.round(SCRAPE_TIMEOUT_MS / 1000)}s excedido na consulta PowerBI (Página ${pageCount}, Meses: ${targetMonths.join(', ') || 'Todos'}) após ${elapsedSec}s de espera.`
+          : `Erro na requisição PowerBI (Página ${pageCount}, após ${elapsedSec}s): ${err.message}`;
+        
+        addStep(`[PowerBI ❌ Falha] ${timeoutDesc}`);
+        const customErr = new Error(timeoutDesc);
+        customErr.steps = steps;
+        customErr.originalError = err;
+        throw customErr;
+      }
+
+      const elapsedSec = ((Date.now() - pageStart) / 1000).toFixed(1);
+      lastRawData = res.data;
+
+      if (!res.data) {
+        const emptyErr = new Error(`Resposta vazia da API do PowerBI na Página ${pageCount} após ${elapsedSec}s.`);
+        addStep(`[PowerBI ❌ Falha] ${emptyErr.message}`);
+        emptyErr.steps = steps;
+        throw emptyErr;
+      }
+
+      const dsrError = res.data?.results?.[0]?.result?.data?.dsr?.DataShapes?.[0]?.['odata.error'];
+      if (dsrError) {
+        const msg = dsrError.message?.value || JSON.stringify(dsrError);
+        const pbiErr = new Error(`Erro retornado pelo PowerBI (Página ${pageCount}): ${msg}`);
+        addStep(`[PowerBI ❌ Falha] ${pbiErr.message}`);
+        pbiErr.steps = steps;
+        throw pbiErr;
+      }
+
+      const pageRows = parseDSR(res.data, paginationContext);
+      allRows.push(...pageRows);
+      addStep(`[PowerBI] Página ${pageCount} recebida em ${elapsedSec}s: ${pageRows.length} registros (Total acumulado: ${allRows.length}).`);
+
+      const ds = res.data?.results?.[0]?.result?.data?.dsr?.DS?.[0];
+      const isFinished = ds?.IC === true;
+      const nextRt = ds?.RT;
+
+      if (isFinished || !nextRt || nextRt.length === 0 || pageRows.length === 0) {
+        isComplete = true;
+        addStep(`[PowerBI] Paginação concluída após ${pageCount} página(s).`);
       } else {
-        delete windowObj.RestartTokens;
+        restartTokens = nextRt;
+        await new Promise(r => setTimeout(r, 200));
       }
     }
 
-    const res = await axios.post(URL, payload, {
-      headers,
-      timeout: 120000
-    });
-    lastRawData = res.data;
-
-    if (!res.data) {
-      throw new Error('Resposta vazia da API do PowerBI.');
+    // Deduplicação com base em Identificador.Cota ou chave única de contrato
+    const seenKeys = new Set();
+    const rows = [];
+    for (const row of allRows) {
+      const key = row['2 Rel Carteira.Identificador.Cota'] ?? 
+                  (row['2 Rel Carteira.Grupo'] && row['Sum(2 Rel Carteira.Cota)'] && row['Sum(2 Rel Carteira.Versão)']
+                    ? `${row['2 Rel Carteira.Grupo']}_${row['Sum(2 Rel Carteira.Cota)']}_${row['Sum(2 Rel Carteira.Versão)']}`
+                    : JSON.stringify(row));
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        rows.push(row);
+      }
     }
+    addStep(`[Consultor] Consolidação e deduplicação: ${rows.length} registros únicos obtidos.`);
 
-    const dsrError = res.data?.results?.[0]?.result?.data?.dsr?.DataShapes?.[0]?.['odata.error'];
-    if (dsrError) {
-      const msg = dsrError.message?.value || JSON.stringify(dsrError);
-      throw new Error(`Erro retornado pelo PowerBI: ${msg}`);
-    }
+    // 4. Salva JSON e CSV
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const datesTag = targetMonths.length > 0 ? `_${targetMonths.join('_')}` : '';
+    const jsonFileName = `consultor_direct_${matricula}${datesTag}_${timestamp}.json`;
+    const csvFileName = `consultor_direct_${matricula}${datesTag}_${timestamp}.csv`;
 
-    const pageRows = parseDSR(res.data, paginationContext);
-    allRows.push(...pageRows);
-    console.log(`[Direct] Página ${pageCount}: ${pageRows.length} registros recebidos (Total acumulado: ${allRows.length}).`);
+    const jsonFilePath = path.join(outPath, jsonFileName);
+    const csvFilePath = path.join(outPath, csvFileName);
 
-    const ds = res.data?.results?.[0]?.result?.data?.dsr?.DS?.[0];
-    const isFinished = ds?.IC === true;
-    const nextRt = ds?.RT;
+    const endDate = new Date();
+    const elapsedMs = Date.now() - startTimeMs;
+    const elapsedSecTotal = Math.floor(elapsedMs / 1000);
+    const elapsedMinutes = Math.floor(elapsedSecTotal / 60);
+    const elapsedSeconds = elapsedSecTotal % 60;
+    const durationFormatted = elapsedMinutes > 0
+      ? `${elapsedMinutes}m ${elapsedSeconds}s`
+      : `${elapsedSecTotal}s`;
 
-    if (isFinished || !nextRt || nextRt.length === 0 || pageRows.length === 0) {
-      isComplete = true;
-      console.log(`[Direct] Paginação concluída em ${pageCount} página(s).`);
-    } else {
-      restartTokens = nextRt;
-      // Intervalo de 200ms entre requisições
-      await new Promise(r => setTimeout(r, 200));
-    }
+    const jsonPayload = {
+      matricula,
+      targetMonths: targetMonths.length > 0 ? targetMonths : null,
+      startedAt: startDate.toISOString(),
+      finishedAt: endDate.toISOString(),
+      durationSeconds: elapsedSecTotal,
+      durationFormatted,
+      scrapedAt: endDate.toISOString(),
+      totalRows: rows.length,
+      rows,
+      rawData: lastRawData
+    };
+
+    fs.writeFileSync(jsonFilePath, JSON.stringify(jsonPayload, null, 2), 'utf8');
+    const csvText = toCsv(rows);
+    fs.writeFileSync(csvFilePath, csvText, 'utf8');
+    addStep(`[Consultor] Arquivos salvos: CSV (${csvFileName}) e JSON (${jsonFileName}) em ${durationFormatted}.`);
+
+    return {
+      status: 'Succeeded',
+      matricula,
+      targetMonths: targetMonths.length > 0 ? targetMonths : null,
+      startedAt: startDate.toISOString(),
+      finishedAt: endDate.toISOString(),
+      durationFormatted,
+      durationSeconds: elapsedSecTotal,
+      totalRows: rows.length,
+      rows,
+      csv: csvText,
+      jsonFile: jsonFilePath,
+      csvFile: csvFilePath,
+      steps
+    };
+  } catch (err) {
+    if (!err.steps) err.steps = steps;
+    throw err;
   }
-
-  // Deduplicação com base em Identificador.Cota ou chave única de contrato
-  const seenKeys = new Set();
-  const rows = [];
-  for (const row of allRows) {
-    const key = row['2 Rel Carteira.Identificador.Cota'] ?? 
-                (row['2 Rel Carteira.Grupo'] && row['Sum(2 Rel Carteira.Cota)'] && row['Sum(2 Rel Carteira.Versão)']
-                  ? `${row['2 Rel Carteira.Grupo']}_${row['Sum(2 Rel Carteira.Cota)']}_${row['Sum(2 Rel Carteira.Versão)']}`
-                  : JSON.stringify(row));
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      rows.push(row);
-    }
-  }
-  console.log(`[Direct] Total de registros únicos consolidados: ${rows.length}.`);
-
-  // 4. Salva JSON e CSV
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const datesTag = targetMonths.length > 0 ? `_${targetMonths.join('_')}` : '';
-  const jsonFileName = `consultor_direct_${matricula}${datesTag}_${timestamp}.json`;
-  const csvFileName = `consultor_direct_${matricula}${datesTag}_${timestamp}.csv`;
-
-  const jsonFilePath = path.join(outPath, jsonFileName);
-  const csvFilePath = path.join(outPath, csvFileName);
-
-  const endDate = new Date();
-  const elapsedMs = Date.now() - startTimeMs;
-  const elapsedSecTotal = Math.floor(elapsedMs / 1000);
-  const elapsedMinutes = Math.floor(elapsedSecTotal / 60);
-  const elapsedSeconds = elapsedSecTotal % 60;
-  const durationFormatted = elapsedMinutes > 0
-    ? `${elapsedMinutes}m ${elapsedSeconds}s`
-    : `${elapsedSecTotal}s`;
-
-  const jsonPayload = {
-    matricula,
-    targetMonths: targetMonths.length > 0 ? targetMonths : null,
-    startedAt: startDate.toISOString(),
-    finishedAt: endDate.toISOString(),
-    durationSeconds: elapsedSecTotal,
-    durationFormatted,
-    scrapedAt: endDate.toISOString(),
-    totalRows: rows.length,
-    rows,
-    rawData: lastRawData
-  };
-
-  fs.writeFileSync(jsonFilePath, JSON.stringify(jsonPayload, null, 2), 'utf8');
-  console.log(`✅ Arquivo JSON salvo: ${jsonFilePath}`);
-
-  const csvText = toCsv(rows);
-  fs.writeFileSync(csvFilePath, csvText, 'utf8');
-  console.log(`✅ Arquivo CSV salvo: ${csvFilePath}`);
-
-  console.log('\n====================================================');
-  console.log('🎉 Scrape Consultor Direto Concluído com Sucesso!');
-  console.log(`🕒 Início: ${startDate.toLocaleString('pt-BR')}`);
-  console.log(`🏁 Fim:    ${endDate.toLocaleString('pt-BR')}`);
-  console.log(`⏱️  Tempo de Execução: ${durationFormatted} (${elapsedSecTotal}s)`);
-  console.log(`📅 Meses filtrados: ${targetMonths.length > 0 ? targetMonths.join(', ') : 'Todos'}`);
-  console.log(`✨ Total de registros extraídos: ${rows.length}`);
-  console.log(`📁 JSON: ${jsonFileName}`);
-  console.log(`📁 CSV:  ${csvFileName}`);
-  console.log('====================================================\n');
-
-  return {
-    status: 'Succeeded',
-    matricula,
-    targetMonths: targetMonths.length > 0 ? targetMonths : null,
-    startedAt: startDate.toISOString(),
-    finishedAt: endDate.toISOString(),
-    durationFormatted,
-    durationSeconds: elapsedSecTotal,
-    totalRows: rows.length,
-    jsonFile: jsonFilePath,
-    csvFile: csvFilePath
-  };
 }
 
 module.exports = {

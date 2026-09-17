@@ -10,20 +10,36 @@ const puppeteer = require('puppeteer');
 const AVA_URL = 'https://avapro.ademicon.com.br/';
 const DASHBOARD_CONSULTOR_URL = 'https://avapro.ademicon.com.br/dashboard/consultor';
 
-async function captureTemplate(matricula, password) {
+async function captureTemplate(matricula, password, stepLogger = null) {
+  const addStep = (msg) => {
+    const line = `[${new Date().toLocaleTimeString('pt-BR')}] ${msg}`;
+    console.log(line);
+    if (typeof stepLogger === 'function') stepLogger(line);
+    else if (Array.isArray(stepLogger)) stepLogger.push(line);
+  };
+
   const tplDir = path.resolve(__dirname, 'templates');
   if (!fs.existsSync(tplDir)) fs.mkdirSync(tplDir, { recursive: true });
   const tplFile = path.join(tplDir, 'consultorQueryTemplate.json');
 
-  const isHeadless = process.env.HEADLESS === 'true' || process.env.HEADLESS === '1';
-
+  const isHeadless = process.env.HEADLESS === 'false' || process.env.HEADLESS === '0' ? false : true;
   const tokenFile = path.join(tplDir, 'consultorToken.json');
 
-  console.log(`[Capture] Launching browser (Headless: ${isHeadless})...`);
+  addStep(`[Capture] Iniciando Puppeteer (Headless: ${isHeadless})...`);
   const browser = await puppeteer.launch({
-    headless: isHeadless,
+    headless: isHeadless ? 'new' : false,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     defaultViewport: { width: 1440, height: 900 },
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--allow-running-insecure-content',
+    ]
   });
 
   let capturedTemplate = fs.existsSync(tplFile);
@@ -96,10 +112,10 @@ async function captureTemplate(matricula, password) {
       } catch (_) {}
     });
 
-    console.log(`[Capture] Acessando tela de login: ${AVA_URL}...`);
+    addStep(`[Capture] Acessando tela de login: ${AVA_URL}...`);
     await page.goto(AVA_URL, { waitUntil: 'networkidle2', timeout: 35000 });
 
-    console.log('[Capture] Preenchendo credenciais...');
+    addStep('[Capture] Preenchendo credenciais...');
     await page.waitForSelector('input[type="text"]', { timeout: 15000 });
     await page.type('input[type="text"]', matricula, { delay: 25 });
     await page.waitForSelector('input[type="password"]', { timeout: 15000 });
@@ -123,7 +139,7 @@ async function captureTemplate(matricula, password) {
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
     }
 
-    console.log('[Capture] Login efetuado. Navegando para Consultor...');
+    addStep('[Capture] Login efetuado com sucesso. Navegando para /dashboard/consultor...');
     await page.goto(DASHBOARD_CONSULTOR_URL, { waitUntil: 'networkidle2', timeout: 35000 }).catch(() => {});
 
     // Token postMessage loop into iframe
@@ -142,7 +158,7 @@ async function captureTemplate(matricula, password) {
     }, 1000);
 
     // Aguarda até capturar token e template ou timeout de 35s
-    console.log('[Capture] Aguardando MWCToken e template de Consultor...');
+    addStep('[Capture] Aguardando MWCToken e template de Consultor (limite 35s)...');
     const startWait = Date.now();
     while ((!capturedToken || !capturedTemplate) && (Date.now() - startWait) < 35000) {
       await new Promise(r => setTimeout(r, 500));
@@ -154,13 +170,15 @@ async function captureTemplate(matricula, password) {
       throw new Error('Timeout: Não foi possível interceptar o MWCToken de Consultor em 35s.');
     }
 
+    addStep('[Capture] MWCToken e template interceptados com sucesso.');
+
     return {
       templatePath: tplFile,
       token: capturedToken
     };
   } finally {
     await browser.close();
-    console.log('[Capture] Navegador fechado.');
+    addStep('[Capture] Navegador Puppeteer fechado.');
   }
 }
 

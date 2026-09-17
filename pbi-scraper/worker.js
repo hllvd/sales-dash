@@ -246,9 +246,11 @@ async function processMessage(rawMessage) {
   const matricula = payload.matricula || '';
   const store = payload.store || null;
   const scrapeDate = payload.scrapeDate || null;
+  const scrapeDates = payload.scrapeDates || null;
+  const scrapeType = (payload.scrapeType || 'geral').toLowerCase();
   const callbackUrl = payload.callbackUrl || `${CALLBACK_BASE_URL}/api/scrape/callback`;
 
-  log('INFO', `Starting scrape processing for job ${jobId}`, { jobId, runId, matricula, store, scrapeDate });
+  log('INFO', `Starting ${scrapeType} scrape processing for job ${jobId}`, { jobId, runId, matricula, store, scrapeDate, scrapeType });
 
   let credentials;
   try {
@@ -289,6 +291,9 @@ async function processMessage(rawMessage) {
       matricula: credentials.username,
       password: credentials.password,
       scrapeDate,
+      scrapeDates,
+      scrapeType,
+      outputDir: OUTPUT_DIR,
       maxReauthRetries: 3
     });
   } catch (err) {

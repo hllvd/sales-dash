@@ -23,6 +23,7 @@ import {
   Divider,
   Code,
   Box,
+  SegmentedControl,
 } from '@mantine/core';
 import { 
   IconRefresh, 
@@ -110,6 +111,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const [matricula, setMatricula] = useState('');
   const [password, setPassword] = useState('');
   const [configDefaultStartMonth, setConfigDefaultStartMonth] = useState('');
+  const [scrapeType, setScrapeType] = useState<'geral' | 'consultor'>('geral');
   const [validateOnSave, setValidateOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
@@ -157,12 +159,14 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       setMatricula(config.matricula);
       setPassword(''); // Don't show existing password
       setConfigDefaultStartMonth(config.defaultStartMonth || '');
+      setScrapeType(config.scrapeType === 'consultor' ? 'consultor' : 'geral');
     } else {
       setEditingConfig(null);
       setStore('');
       setMatricula('');
       setPassword('');
       setConfigDefaultStartMonth('');
+      setScrapeType('geral');
     }
     setModalOpen(true);
   };
@@ -185,6 +189,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
         matricula,
         powerBiPassword: password || undefined,
         defaultStartMonth: configDefaultStartMonth || undefined,
+        scrapeType,
         testOnSave: validateOnSave
       });
       
@@ -313,9 +318,10 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const handleTrigger = async (configId: number) => {
     const targetConfig = configs.find(c => c.id === configId);
     const startM = targetConfig?.defaultStartMonth;
+    const sType = targetConfig?.scrapeType || 'geral';
     try {
       setTriggering(configId);
-      await scrapeService.triggerScrape(configId, startM, 3);
+      await scrapeService.triggerScrape(configId, startM, 3, sType);
       notifications.show({
         title: 'Extração Iniciada',
         message: startM 
@@ -394,6 +400,13 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
     const startInfo = formatStartMonth(config.defaultStartMonth);
     return (
       <Table.Tr key={config.id}>
+        <Table.Td>
+          {config.scrapeType === 'consultor' ? (
+            <Badge color="violet" variant="light">Consultor</Badge>
+          ) : (
+            <Badge color="blue" variant="light">Geral</Badge>
+          )}
+        </Table.Td>
         <Table.Td>
           {config.store ? (
             <Text size="sm" fw={500}>{config.store}</Text>
@@ -575,6 +588,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
                 <Table striped highlightOnHover verticalSpacing="sm">
                   <Table.Thead>
                     <Table.Tr>
+                      <Table.Th>Tipo</Table.Th>
                       <Table.Th>Unidade</Table.Th>
                       <Table.Th>Matrícula (Username)</Table.Th>
                       <Table.Th>Início da Extração</Table.Th>
@@ -673,6 +687,24 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
             }} 
           />
           <Stack gap="md" pt="xs">
+            <div>
+              <Text size="sm" fw={500} mb={4}>Tipo de Relatório / Scraping</Text>
+              <SegmentedControl
+                fullWidth
+                value={scrapeType}
+                onChange={(val) => setScrapeType(val as 'geral' | 'consultor')}
+                data={[
+                  { label: 'Relatório Geral (Loja/PV)', value: 'geral' },
+                  { label: 'Relatório Consultor (Individual)', value: 'consultor' },
+                ]}
+              />
+              <Text size="xs" c="dimmed" mt={4}>
+                {scrapeType === 'consultor' 
+                  ? 'Modo direto e rápido via API dedicada PowerBI, focado na carteira de contratos da matrícula.'
+                  : 'Modo padrão por unidade/loja no dashboard Geral.'}
+              </Text>
+            </div>
+
             <Select
               label="Unidade (Store)"
               placeholder="Tentar selecionar automaticamente"
@@ -684,7 +716,8 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
               onChange={(val) => setStore(val || '')}
               searchable
               clearable
-              description="Opcional. Caso vazia, o robô identificará a unidade automaticamente no portal."
+              disabled={scrapeType === 'consultor'}
+              description={scrapeType === 'consultor' ? 'Não aplicável para relatório de consultor.' : 'Opcional. Caso vazia, o robô identificará a unidade automaticamente no portal.'}
             />
             <TextInput
               label="Matrícula"

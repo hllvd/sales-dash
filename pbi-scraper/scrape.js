@@ -1,6 +1,8 @@
 // scrape.js
+const path = require('path');
 const { scrapeWithReauth } = require('./extractor');
 const { getOrFetchTokens, AuthError } = require('./auth');
+const { scrapeConsultorDirect } = require('./extractorConsultor');
 
 /**
  * Normalizes input date parameter into an array of date strings (YYYY-MM or YYYY-MM-DD or null).
@@ -110,6 +112,8 @@ async function runScrapeJob(params) {
     password,
     scrapeDate,
     scrapeDates: reqScrapeDates,
+    scrapeType = 'geral',
+    outputDir = './outputs',
     maxReauthRetries = 3
   } = params;
 
@@ -135,6 +139,44 @@ async function runScrapeJob(params) {
     retryCount: 0,
     scrapeDate: targetDates.filter(Boolean).join(',') || null
   };
+
+  // Branch for Consultor direct extraction
+  if (String(scrapeType).toLowerCase() === 'consultor') {
+    try {
+      const consultorRes = await scrapeConsultorDirect({
+        matricula,
+        password,
+        scrapeDates: targetDates,
+        outputDir
+      });
+
+      result.status = consultorRes.status || 'Succeeded';
+      result.rowCount = consultorRes.totalRows;
+      result.rows = consultorRes.rows || [];
+      result.csv = consultorRes.csv || '';
+      result.fileRelativePath = consultorRes.csvFile ? path.basename(consultorRes.csvFile) : null;
+      result.detectedStore = store || 'Consultor';
+      result.authStatus = 'success';
+      result.authMessage = 'Autenticação bem-sucedida';
+      result.powerbiLoaded = true;
+      result.loginSuccess = true;
+
+      if (consultorRes.totalRows === 0) {
+        result.status = 'Failed';
+        result.error = 'Nenhum registro retornado pelo relatório PowerBI Consultor';
+      }
+
+      return result;
+    } catch (err) {
+      result.status = 'Failed';
+      result.error = err.message || 'Falha no scrape de Consultor';
+      result.authStatus = 'error';
+      result.authMessage = err.message;
+      result.powerbiLoaded = false;
+      result.loginSuccess = false;
+      return result;
+    }
+  }
 
   const combinedRows = [];
   const csvParts = [];

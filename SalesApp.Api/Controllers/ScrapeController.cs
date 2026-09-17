@@ -17,6 +17,7 @@ namespace SalesApp.Controllers
         public string Matricula { get; set; } = string.Empty;
         public string? CredentialStatus { get; set; }
         public string? DefaultStartMonth { get; set; }
+        public string ScrapeType { get; set; } = "geral";
         public bool IsEnabled { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
@@ -29,6 +30,7 @@ namespace SalesApp.Controllers
         public string Matricula { get; set; } = string.Empty;
         public string? PowerBiPassword { get; set; }
         public string? DefaultStartMonth { get; set; }
+        public string? ScrapeType { get; set; }
         public bool TestOnSave { get; set; } = true;
     }
 
@@ -36,6 +38,7 @@ namespace SalesApp.Controllers
     {
         public string? StartMonth { get; set; }
         public int MonthsCount { get; set; } = 3;
+        public string? ScrapeType { get; set; }
     }
 
     [ApiController]
@@ -124,6 +127,7 @@ namespace SalesApp.Controllers
 
             config.Matricula = request.Matricula.Trim();
             config.DefaultStartMonth = string.IsNullOrWhiteSpace(request.DefaultStartMonth) ? null : request.DefaultStartMonth.Trim();
+            config.ScrapeType = string.IsNullOrWhiteSpace(request.ScrapeType) ? "geral" : request.ScrapeType.Trim().ToLowerInvariant();
             config.UpdatedAt = DateTime.UtcNow;
 
             if (!string.IsNullOrEmpty(request.PowerBiPassword))
@@ -298,13 +302,14 @@ namespace SalesApp.Controllers
             var runId = Guid.NewGuid().ToString();
             var monthsCount = request?.MonthsCount > 0 ? request.MonthsCount : 3;
             var effectiveStartMonth = !string.IsNullOrWhiteSpace(request?.StartMonth) ? request.StartMonth : config.DefaultStartMonth;
+            var effectiveScrapeType = !string.IsNullOrWhiteSpace(request?.ScrapeType) ? request.ScrapeType : config.ScrapeType;
             var maxMonthsAgo = _configuration.GetValue<int>("PbiScraper:MaxMonthsAgo", 15);
             var scrapeDates = CalculateScrapeDates(effectiveStartMonth, monthsCount, maxMonthsAgo);
 
             var jobIds = new List<string>();
             foreach (var date in scrapeDates)
             {
-                var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail, scrapeDate: date);
+                var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail, scrapeDate: date, scrapeType: effectiveScrapeType);
                 jobIds.Add(jobId);
             }
 
@@ -421,6 +426,7 @@ namespace SalesApp.Controllers
                 Matricula = config.Matricula,
                 CredentialStatus = config.CredentialStatus,
                 DefaultStartMonth = config.DefaultStartMonth,
+                ScrapeType = config.ScrapeType ?? "geral",
                 IsEnabled = config.IsEnabled,
                 CreatedAt = config.CreatedAt,
                 UpdatedAt = config.UpdatedAt

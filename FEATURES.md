@@ -1,5 +1,57 @@
 # Features
 
+## Integração do Scrape Consultor ao Sistema Principal, Seletor de Tipo e Mapeamento de Contratos
+
+Integração de ponta a ponta da modalidade de extração direta do dashboard **Consultor** (`extractorConsultor.js`) ao sistema principal (microsserviço `pbi-scraper`, API .NET e Frontend React), permitindo configurar e alternar o tipo de scraping por conta e mapeando os dados extraídos diretamente para a entidade `Contract`.
+
+### Comportamento e Regras
+- **Seletor de Tipo na UX (React / Mantine)**:
+  - No modal de cadastro e edição de contas PowerBI (`ScrapeDashboard.tsx`), inclusão de um componente `SegmentedControl` permitindo escolher entre:
+    - `geral`: **Relatório Geral (Loja/PV)** — fluxo padrão de extração por loja.
+    - `consultor`: **Relatório Consultor (Individual)** — fluxo direto e rápido via API dedicada PowerBI, focado na carteira de contratos da matrícula.
+  - A coluna de seleção de unidade (Store) é desabilitada de forma inteligente no modo Consultor, já que o relatório é específico da matrícula.
+  - A listagem de contas configuradas agora exibe um `Badge` indicando o tipo configurado da conta (`Geral` em azul ou `Consultor` em violeta).
+  - O disparo da extração repassa o tipo configurado para o job.
+- **Persistência e Orquestração (.NET Backend)**:
+  - Adicionado o campo `ScrapeType` (com valor padrão `"geral"`) na entidade `ScrapeConfig`, `ScrapeConfigDto`, `ScrapeConfigRequest` e `TriggerScrapeJobRequest`.
+  - Migration EF Core criada (`AddScrapeConfigScrapeType`) adicionando a coluna na tabela `ScrapeConfigs`.
+  - O `ScrapeOrchestrator` e o `PbiScraperClient` repassam `ScrapeType` para o payload do job enviado ao `pbi-scraper`.
+- **Roteamento de Execução (pbi-scraper)**:
+  - No servidor Express (`server.js`) e no Worker SQS/local (`worker.js` / `scrape.js`), o parâmetro `scrapeType` é validado e roteado:
+    - Se `scrapeType === 'consultor'`, dispara `scrapeConsultorDirect` com paginação automática via `RestartTokens` HTTP, consolidando o CSV e salvando na pasta `outputs/`.
+    - No modo consultor, o campo `store` deixa de ser obrigatório na validação inicial da requisição.
+    - O caminho relativo do CSV gerado é enviado no callback para a API .NET.
+- **Mapeamento de Colunas para a Entidade `Contract`**:
+  - Atualização do dicionário `ScrapeImportMappings` em `SalesApp.Api/appsettings.json` com as colunas do relatório Consultor:
+    - `"Sum(2 Rel Carteira.n_contrato)"` ➡️ `ContractNumber`
+    - `"Sum(2 Rel Carteira.R$ Bem Venda)"` e `"2 Rel Carteira.Descrição"` ➡️ `TotalAmount`
+    - `"2 Rel Carteira.Data.Venda"` ➡️ `SaleStartDate`
+    - `"2 Rel Carteira.Grupo"` ➡️ `GroupId`
+    - `"Sum(2 Rel Carteira.Cota)"` ➡️ `Quota`
+    - `"2 Rel Carteira.Consorciado"` ➡️ `CustomerName`
+    - `"2 Rel Carteira.Cod.Comissionado"` ➡️ `MatriculaNumber`
+    - `"2 Rel Carteira.Definição.Situação"` ➡️ `Status`
+    - `"2 Rel Carteira.Cod.Ponto de Venda"` ➡️ `PvId`
+    - `"2 Rel Carteira.Ponto de Venda"` ➡️ `PvName`
+    - `"Sum(2 Rel Carteira.Versão)"` ➡️ `Version`
+    - `"2 Rel Carteira.Bem"` ➡️ `Category`
+  - Inclusão dos termos `"Contemplado"` e `"CONTEMPLADO"` no grupo de status `Active` em `ContractStatusMappings`.
+
+### Arquivos Alterados
+- `SalesApp.Api/appsettings.json`: mapeamentos de colunas do relatório Consultor e status Contemplado.
+- `SalesApp.Api/Models/ScrapeConfig.cs`: propriedade `ScrapeType`.
+- `SalesApp.Api/Migrations/20260916180000_AddScrapeConfigScrapeType.cs`: migration EF Core.
+- `SalesApp.Api/Controllers/ScrapeController.cs`: suporte a `ScrapeType` nos DTOs, cadastro e disparo de jobs.
+- `SalesApp.Api/Services/ScrapeOrchestrator.cs` & `Services/PbiScraperClient.cs`: propagação do parâmetro de tipo de scraping.
+- `pbi-scraper/scrape.js`: suporte a `scrapeType` em `runScrapeJob`.
+- `pbi-scraper/server.js`: validação e execução dedicada para `consultor` na rota `/jobs`.
+- `pbi-scraper/worker.js`: propagação de `scrapeType` no processamento de mensagens.
+- `pbi-scraper/extractorConsultor.js`: inclusão de `csv` e `rows` no objeto retornado por `scrapeConsultorDirect`.
+- `client/sales-dash/src/services/scrapeService.ts`: adição de `scrapeType` nas interfaces e método de disparo.
+- `client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx`: componente de switch no modal e coluna/badge de tipo na tabela.
+
+---
+
 ## Correção e Resiliência na Decodificação DSR de 64 bits (PowerBI Scraper)
 
 Aprimoramento crítico e unificação dos parsers DSR (`parseDSR`) nos módulos de scraping (`scrapeConsultor.js` e `extractor.js`) para garantir a extração fidedigna e completa de todas as linhas e colunas dos relatórios do PowerBI, corrigindo a perda de linhas baseline e campos repetidos (`Cod.Ponto de Venda`, `Ponto de Venda`, `Comissionado`, etc.).

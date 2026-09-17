@@ -6,6 +6,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { scrapeWithReauth, probeStartDate } = require('./extractor');
+const { scrapeConsultorDirect } = require('./extractorConsultor');
 const { getOrFetchTokens, AuthError } = require('./auth');
 const tokenManager = require('./tokenManager');
 
@@ -47,8 +48,9 @@ if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
-// Queue for concurrency control (max 3 concurrent jobs)
-const queue = new PQueue({ concurrency: 3 });
+// Queue for concurrency control (default concurrency: 1 to avoid competing browser sessions)
+const scraperConcurrency = parseInt(process.env.SCRAPER_CONCURRENCY || '1', 10);
+const queue = new PQueue({ concurrency: scraperConcurrency });
 
 app.post('/jobs', (req, res) => {
   const {
@@ -59,11 +61,18 @@ app.post('/jobs', (req, res) => {
     avaproUsername,
     avaproPassword,
     scrapeDate: reqScrapeDate,
-    scrapeDates: reqScrapeDates
+    scrapeDates: reqScrapeDates,
+    scrapeType: reqScrapeType
   } = req.body;
 
-  if (!store || !matricula || !callbackUrl) {
-    return res.status(400).json({ error: 'Missing store, matricula, or callbackUrl' });
+  const scrapeType = (reqScrapeType || 'geral').toLowerCase();
+
+  if (!matricula || !callbackUrl) {
+    return res.status(400).json({ error: 'Missing matricula or callbackUrl' });
+  }
+
+  if (scrapeType !== 'consultor' && !store) {
+    return res.status(400).json({ error: 'Missing store for geral scrape' });
   }
 
   const scrapeDates = normalizeScrapeDates(reqScrapeDate, reqScrapeDates);
@@ -71,7 +80,7 @@ app.post('/jobs', (req, res) => {
 
   // Enqueue the work but respond immediately
   queue.add(async () => {
-    console.log(`[Job ${jobId}] Starting batch scrape for ${store} - ${matricula} (Dates: ${scrapeDates.join(', ')})`);
+    console.log(`[Job ${jobId}] Starting ${scrapeType} scrape for ${store || 'Consultor'} - ${matricula} (Dates: ${scrapeDates.join(', ')})`);
     
     let result = {
       jobId, 
@@ -82,7 +91,9 @@ app.post('/jobs', (req, res) => {
       authStatus: 'success',
       authMessage: 'Autenticação bem-sucedida',
       powerbiLoaded: true,
-      authSteps: []
+      authSteps: [],
+      scrapeDate: scrapeDates.filter(Boolean).join(',') || null,
+      detectedStore: store || (scrapeType === 'consultor' ? 'Consultor' : null)
     };
 
     const combinedRows = [];
@@ -93,68 +104,90 @@ app.post('/jobs', (req, res) => {
     let totalRetryCount = 0;
 
     try {
-      for (const targetDate of scrapeDates) {
-        console.log(`[Job ${jobId}] Scraping date ${targetDate}...`);
+      if (scrapeType === 'consultor') {
+        console.log(`[Job ${jobId}] Executing Consultor direct scrape for ${matriculaToUse}...`);
+        const consultorRes = await scrapeConsultorDirect({
+          matricula: matriculaToUse,
+          password: passwordToUse,
+          scrapeDates,
+          outputDir: OUTPUT_DIR
+        });
 
-        const scrapeRes = await scrapeWithReauth(
-          store,
-          matriculaToUse,
-          passwordToUse,
-          targetDate,
-          getOrFetchTokens,
-          3 // max 3 automatic re-auth retries
-        );
+        result.status = consultorRes.status || 'Succeeded';
+        result.rowCount = consultorRes.totalRows;
+        result.fileRelativePath = consultorRes.csvFile ? path.basename(consultorRes.csvFile) : null;
+        result.detectedStore = store || 'Consultor';
+        result.scrapeDate = scrapeDates.filter(Boolean).join(',');
+        result.authSteps = consultorRes.steps || [];
 
-        if (scrapeRes.detectedStore) {
-          result.detectedStore = scrapeRes.detectedStore;
+        if (consultorRes.totalRows === 0) {
+          result.status = 'Failed';
+          result.error = 'Nenhum registro retornado pelo relatório PowerBI Consultor';
         }
-
-        if (scrapeRes.retryCount) {
-          totalRetryCount += scrapeRes.retryCount;
-        }
-
-        if (scrapeRes.authSteps && scrapeRes.authSteps.length > 0) {
-          result.authSteps = [...(result.authSteps || []), ...scrapeRes.authSteps];
-        }
-
-        if (scrapeRes.rows) combinedRows.push(...scrapeRes.rows);
-        if (scrapeRes.csv) csvParts.push(scrapeRes.csv);
-      }
-
-      result.retryCount = totalRetryCount;
-      result.scrapeDate = scrapeDates.join(',');
-
-      // Merge CSV outputs from multiple dates if applicable
-      let mergedCsv = '';
-      if (csvParts.length > 0) {
-        const lines = csvParts[0].split('\n').filter(Boolean);
-        const header = lines[0];
-        const dataRows = [lines.slice(1).join('\n')];
-
-        for (let i = 1; i < csvParts.length; i++) {
-          const pLines = csvParts[i].split('\n').filter(Boolean);
-          if (pLines.length > 1) {
-            dataRows.push(pLines.slice(1).join('\n'));
-          }
-        }
-        mergedCsv = [header, ...dataRows].filter(Boolean).join('\n');
-      }
-
-      const csvRowCount = mergedCsv ? mergedCsv.split('\n').filter(Boolean).length - 1 : 0;
-      const effectiveCount = csvRowCount > 0 ? csvRowCount : combinedRows.length;
-
-      if (effectiveCount > 0) {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `scrape_${jobId}_${timestamp}.csv`;
-        const filePath = path.join(OUTPUT_DIR, filename);
-        
-        fs.writeFileSync(filePath, mergedCsv, 'utf8');
-        
-        result.rowCount = effectiveCount;
-        result.fileRelativePath = filename;
       } else {
-        result.status = 'Failed';
-        result.error = 'Nenhum registro retornado pelo relatório PowerBI';
+        for (const targetDate of scrapeDates) {
+          console.log(`[Job ${jobId}] Scraping date ${targetDate}...`);
+
+          const scrapeRes = await scrapeWithReauth(
+            store,
+            matriculaToUse,
+            passwordToUse,
+            targetDate,
+            getOrFetchTokens,
+            3 // max 3 automatic re-auth retries
+          );
+
+          if (scrapeRes.detectedStore) {
+            result.detectedStore = scrapeRes.detectedStore;
+          }
+
+          if (scrapeRes.retryCount) {
+            totalRetryCount += scrapeRes.retryCount;
+          }
+
+          if (scrapeRes.authSteps && scrapeRes.authSteps.length > 0) {
+            result.authSteps = [...(result.authSteps || []), ...scrapeRes.authSteps];
+          }
+
+          if (scrapeRes.rows) combinedRows.push(...scrapeRes.rows);
+          if (scrapeRes.csv) csvParts.push(scrapeRes.csv);
+        }
+
+        result.retryCount = totalRetryCount;
+        result.scrapeDate = scrapeDates.join(',');
+
+        // Merge CSV outputs from multiple dates if applicable
+        let mergedCsv = '';
+        if (csvParts.length > 0) {
+          const lines = csvParts[0].split('\n').filter(Boolean);
+          const header = lines[0];
+          const dataRows = [lines.slice(1).join('\n')];
+
+          for (let i = 1; i < csvParts.length; i++) {
+            const pLines = csvParts[i].split('\n').filter(Boolean);
+            if (pLines.length > 1) {
+              dataRows.push(pLines.slice(1).join('\n'));
+            }
+          }
+          mergedCsv = [header, ...dataRows].filter(Boolean).join('\n');
+        }
+
+        const csvRowCount = mergedCsv ? mergedCsv.split('\n').filter(Boolean).length - 1 : 0;
+        const effectiveCount = csvRowCount > 0 ? csvRowCount : combinedRows.length;
+
+        if (effectiveCount > 0) {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const filename = `scrape_${jobId}_${timestamp}.csv`;
+          const filePath = path.join(OUTPUT_DIR, filename);
+          
+          fs.writeFileSync(filePath, mergedCsv, 'utf8');
+          
+          result.rowCount = effectiveCount;
+          result.fileRelativePath = filename;
+        } else {
+          result.status = 'Failed';
+          result.error = 'Nenhum registro retornado pelo relatório PowerBI';
+        }
       }
     } catch (err) {
       console.error(`[Job ${jobId}] Failed:`, err.message);

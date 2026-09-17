@@ -35,6 +35,9 @@ namespace SalesApp.Models
         [MaxLength(20)]
         public string? DefaultStartMonth { get; set; }
 
+        [MaxLength(50)]
+        public string ScrapeType { get; set; } = "geral";
+
         public bool IsEnabled { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

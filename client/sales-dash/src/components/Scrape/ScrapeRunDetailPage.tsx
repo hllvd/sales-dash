@@ -176,7 +176,7 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
             <Text size="xs" c="dimmed">-</Text>
           )}
 
-          {job.authSteps && job.authSteps.length > 0 && (
+          {job.authSteps && job.authSteps.length > 0 ? (
             <Tooltip label="Ver passos detalhados da execução">
               <Button
                 variant="subtle"
@@ -188,7 +188,25 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
                 Ver Passos ({job.authSteps.length})
               </Button>
             </Tooltip>
-          )}
+          ) : job.status === 'Failed' ? (
+            <Tooltip label="Ver detalhes do erro ocorrido">
+              <Button
+                variant="subtle"
+                size="compact-xs"
+                color="red"
+                leftSection={<IconAlertTriangle size={12} />}
+                onClick={() => setSelectedJobSteps({
+                  job,
+                  steps: [
+                    `[Erro Registrado] ${job.errorMessage || job.authMessage || 'Falha na extração'}`,
+                    'Nenhum passo a passo individual foi registrado para este processo anterior (o rastreamento detalhado foi ativado para as novas execuções).'
+                  ]
+                })}
+              >
+                Ver Detalhes do Erro
+              </Button>
+            </Tooltip>
+          ) : null}
         </Stack>
       </Table.Td>
     </Table.Tr>

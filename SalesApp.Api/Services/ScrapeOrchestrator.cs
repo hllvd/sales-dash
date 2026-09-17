@@ -7,7 +7,7 @@ namespace SalesApp.Services
 {
     public interface IScrapeOrchestrator
     {
-        Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null);
+        Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null, string? scrapeType = null);
         Task HandleCallbackAsync(ScrapeResult result);
     }
 
@@ -36,7 +36,7 @@ namespace SalesApp.Services
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
         }
 
-        public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null)
+        public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null, string? scrapeType = null)
         {
             var config = await _context.ScrapeConfigs
                 .Include(c => c.User)
@@ -47,6 +47,7 @@ namespace SalesApp.Services
             var jobId = Guid.NewGuid().ToString();
             var effectiveRunId = string.IsNullOrEmpty(runId) ? Guid.NewGuid().ToString() : runId;
             var effectiveUserEmail = userEmail;
+            var effectiveScrapeType = !string.IsNullOrWhiteSpace(scrapeType) ? scrapeType : (config.ScrapeType ?? "geral");
 
             if (string.IsNullOrEmpty(effectiveUserEmail))
             {
@@ -67,7 +68,7 @@ namespace SalesApp.Services
                 matricula: config.Matricula,
                 runId: effectiveRunId,
                 userEmail: effectiveUserEmail,
-                additionalData: new { ScrapeDate = scrapeDate }
+                additionalData: new { ScrapeDate = scrapeDate, ScrapeType = effectiveScrapeType }
             );
 
             try
@@ -80,7 +81,8 @@ namespace SalesApp.Services
                     matricula: config.Matricula,
                     avaproUsername: config.Matricula,
                     avaproPassword: config.PowerBiPassword,
-                    scrapeDate: scrapeDate
+                    scrapeDate: scrapeDate,
+                    scrapeType: effectiveScrapeType
                 );
                 
                 // Update status to Running
@@ -92,7 +94,7 @@ namespace SalesApp.Services
                     matricula: config.Matricula,
                     runId: effectiveRunId,
                     userEmail: effectiveUserEmail,
-                    additionalData: new { ScrapeDate = scrapeDate }
+                    additionalData: new { ScrapeDate = scrapeDate, ScrapeType = effectiveScrapeType }
                 );
             }
             catch (Exception ex)
@@ -105,7 +107,7 @@ namespace SalesApp.Services
                     matricula: config.Matricula,
                     runId: effectiveRunId,
                     userEmail: effectiveUserEmail,
-                    additionalData: new { ErrorMessage = ex.Message, ScrapeDate = scrapeDate }
+                    additionalData: new { ErrorMessage = ex.Message, ScrapeDate = scrapeDate, ScrapeType = effectiveScrapeType }
                 );
                 throw;
             }
