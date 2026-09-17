@@ -592,7 +592,11 @@ const MyContractsPage: React.FC = () => {
                       <Table.Td>{contract.groupName}</Table.Td>
                       <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
                       <Table.Td>
-                        <ContractStatusBadge status={contract.status} rawStatus={contract.rawStatus} />
+                        <ContractStatusBadge
+                          status={contract.status}
+                          rawStatus={contract.rawStatus}
+                          isRemappedToAwaitingPayment={contract.isRemappedToAwaitingPayment}
+                        />
                       </Table.Td>
                       <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
                     </Table.Tr>
@@ -796,7 +800,11 @@ const MyContractsPage: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '0.6rem' }}>
                     <span style={{ color: '#6b7280', fontSize: '13px' }}>Status:</span>
-                    <ContractStatusBadge status={retrievedContract.status} rawStatus={retrievedContract.rawStatus} />
+                    <ContractStatusBadge
+                      status={retrievedContract.status}
+                      rawStatus={retrievedContract.rawStatus}
+                      isRemappedToAwaitingPayment={retrievedContract.isRemappedToAwaitingPayment}
+                    />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#6b7280', fontSize: '13px' }}>Data Início:</span>

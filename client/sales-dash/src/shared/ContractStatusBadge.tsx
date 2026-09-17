@@ -4,6 +4,7 @@ import { Badge, Tooltip } from '@mantine/core';
 interface ContractStatusBadgeProps {
   status: string;
   rawStatus?: string;
+  isRemappedToAwaitingPayment?: boolean;
 }
 
 export const getStatusLabel = (status: string): string => {
@@ -79,7 +80,7 @@ export const CONTRACT_STATUS_OPTIONS = [
   { value: 'Desistente', label: 'Desistente' },
 ];
 
-const ContractStatusBadge: React.FC<ContractStatusBadgeProps> = ({ status, rawStatus }) => {
+const ContractStatusBadge: React.FC<ContractStatusBadgeProps> = ({ status, rawStatus, isRemappedToAwaitingPayment }) => {
   const isAwaitingPayment = status.toLowerCase() === 'awaitingpayment';
   const isNaoDefinido = status.toLowerCase() === 'naodefinido';
   
@@ -94,9 +95,13 @@ const ContractStatusBadge: React.FC<ContractStatusBadgeProps> = ({ status, rawSt
   );
 
   if (isAwaitingPayment) {
+    const tooltipText = isRemappedToAwaitingPayment
+      ? "Esse contrato tem status NORMAL(ativo) mas ainda não foi confirmado o pagamento"
+      : "Este contrato não é utilizado para calcular qualquer retenção ou somar ao total";
+
     return (
       <Tooltip 
-        label="Este contrato não é utilizado para calcular qualquer retenção ou somar ao total" 
+        label={tooltipText} 
         withArrow 
         position="top"
       >

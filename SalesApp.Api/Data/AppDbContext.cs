@@ -68,6 +68,7 @@ namespace SalesApp.Data
                     .HasForeignKey(e => e.RoleId)
                     .OnDelete(DeleteBehavior.Restrict);
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
+                entity.Property(e => e.TreatUnpaidActiveAsAwaitingPayment).HasDefaultValue(false);
                 
                 entity.HasOne(e => e.ParentUser)
                     .WithMany(e => e.ChildUsers)

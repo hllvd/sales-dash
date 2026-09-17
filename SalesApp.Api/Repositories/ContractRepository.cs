@@ -247,15 +247,20 @@ namespace SalesApp.Repositories
             return (items, totalCount);
         }
 
-        public async Task<ContractAggregation> GetAggregationAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
+        public async Task<ContractAggregation> GetAggregationAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null, bool treatUnpaidAsAwaiting = false)
         {
             var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
 
             var groupings = await query
-                .GroupBy(c => c.ContractStatus.Name)
+                .GroupBy(c => new
+                {
+                    StatusName = c.ContractStatus.Name,
+                    HasPayment = c.HasPayment
+                })
                 .Select(g => new
                 {
-                    StatusName = g.Key,
+                    StatusName = g.Key.StatusName,
+                    HasPayment = g.Key.HasPayment,
                     TotalAmount = g.Sum(c => c.TotalAmount)
                 })
                 .ToListAsync();
@@ -270,13 +275,19 @@ namespace SalesApp.Repositories
             var late2Name = ContractStatus.Late2.ToApiString();
             var late3Name = ContractStatus.Late3.ToApiString();
             var awaitingPaymentName = ContractStatus.AwaitingPayment.ToApiString();
+            var naoDefinidoName = ContractStatus.NaoDefinido.ToApiString();
 
             foreach (var g in groupings)
             {
                 var amount = g.TotalAmount;
                 var status = g.StatusName;
+                var isUnpaidActive = treatUnpaidAsAwaiting &&
+                                     status.Equals("Active", StringComparison.OrdinalIgnoreCase) &&
+                                     g.HasPayment == false;
 
-                if (status.Equals(awaitingPaymentName, StringComparison.OrdinalIgnoreCase))
+                if (status.Equals(awaitingPaymentName, StringComparison.OrdinalIgnoreCase) ||
+                    status.Equals(naoDefinidoName, StringComparison.OrdinalIgnoreCase) ||
+                    isUnpaidActive)
                 {
                     continue;
                 }

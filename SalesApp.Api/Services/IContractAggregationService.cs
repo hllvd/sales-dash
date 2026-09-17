@@ -5,6 +5,6 @@ namespace SalesApp.Services
 {
     public interface IContractAggregationService
     {
-        ContractAggregation CalculateAggregation(List<Contract> contracts);
+        ContractAggregation CalculateAggregation(List<Contract> contracts, bool treatUnpaidAsAwaiting = false);
     }
 }

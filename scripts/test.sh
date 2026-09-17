@@ -472,7 +472,7 @@ case "$1" in
   prune)
     prune
     ;;
-  rm-db)
+  rm|rm-db)
     rm_db
     ;;
   docker-errors)

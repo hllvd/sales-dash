@@ -40,6 +40,8 @@ namespace SalesApp.Models
 
         public DateTime? LastAccessedAt { get; set; }
         
+        public bool TreatUnpaidActiveAsAwaitingPayment { get; set; } = false;
+        
         public int? ImportSessionId { get; set; } // Tracks if this user was created via import
         
         // Navigation properties

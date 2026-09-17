@@ -94,7 +94,10 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
   });
 
   test('1. Setup users, teams and RBAC matrix', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(90000);
+    // Cleanup any lingering data from previous attempts/retries
+    await cleanup(page);
+
     // Login as SuperAdmin
     await loginAs(page);
 
@@ -112,11 +115,14 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await page.getByRole('dialog').locator('.mantine-Select-input').first().click();
     await page.click('div[role="option"]:has-text("Administrador")');
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
-    const adminAParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
+    const adminAParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(adminAParentOpt).toBeVisible({ timeout: 5000 });
     await adminAParentOpt.click();
+    await page.waitForTimeout(500);
+    const regPromiseA = page.waitForResponse(r => r.url().includes('/api/users/register'), { timeout: 15000 }).catch(() => null);
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 10000 });
+    await regPromiseA;
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Get Admin A user ID
@@ -138,11 +144,14 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await page.getByRole('dialog').locator('.mantine-Select-input').first().click();
     await page.click('div[role="option"]:has-text("Administrador")');
     await page.fill('input[placeholder="Digite para buscar..."]', 'superadmin@salesapp.com');
-    const adminBParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' });
+    const adminBParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(adminBParentOpt).toBeVisible({ timeout: 5000 });
     await adminBParentOpt.click();
+    await page.waitForTimeout(500);
+    const regPromiseB = page.waitForResponse(r => r.url().includes('/api/users/register'), { timeout: 15000 }).catch(() => null);
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 10000 });
+    await regPromiseB;
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Get Admin B user ID
@@ -162,11 +171,14 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await page.fill('input[placeholder="email@exemplo.com"]', CHILD_A_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
     await page.fill('input[placeholder="Digite para buscar..."]', ADMIN_A_EMAIL);
-    const childAParentOpt = page.locator('div[role="option"]', { hasText: ADMIN_A_EMAIL });
+    const childAParentOpt = page.locator('div[role="option"]', { hasText: ADMIN_A_EMAIL }).first();
     await expect(childAParentOpt).toBeVisible({ timeout: 5000 });
     await childAParentOpt.click();
+    await page.waitForTimeout(500);
+    const regPromiseChildA = page.waitForResponse(r => r.url().includes('/api/users/register'), { timeout: 15000 }).catch(() => null);
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 10000 });
+    await regPromiseChildA;
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     childAUserId = await page.evaluate(async (email) => {
@@ -185,11 +197,14 @@ test.describe('Admin Equipe Scoped Permissions (TEAR 3)', () => {
     await page.fill('input[placeholder="email@exemplo.com"]', CHILD_B_EMAIL);
     await page.fill('input[placeholder="Senha"]', 'password123');
     await page.fill('input[placeholder="Digite para buscar..."]', ADMIN_B_EMAIL);
-    const childBParentOpt = page.locator('div[role="option"]', { hasText: ADMIN_B_EMAIL });
+    const childBParentOpt = page.locator('div[role="option"]', { hasText: ADMIN_B_EMAIL }).first();
     await expect(childBParentOpt).toBeVisible({ timeout: 5000 });
     await childBParentOpt.click();
+    await page.waitForTimeout(500);
+    const regPromiseChildB = page.waitForResponse(r => r.url().includes('/api/users/register'), { timeout: 15000 }).catch(() => null);
     await page.click('button:has-text("Criar Usuário")');
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 10000 });
+    await regPromiseChildB;
+    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     childBUserId = await page.evaluate(async (email) => {

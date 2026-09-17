@@ -23,5 +23,6 @@ namespace SalesApp.DTOs
         public string? RawStatus { get; set; }
         public bool? HasPayment { get; set; }
         public bool IsAwaitingPayment { get; set; }
+        public bool IsRemappedToAwaitingPayment { get; set; }
     }
 }

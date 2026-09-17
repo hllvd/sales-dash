@@ -15,6 +15,7 @@ namespace SalesApp.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public DateTime? LastAccessedAt { get; set; }
+        public bool TreatUnpaidActiveAsAwaitingPayment { get; set; }
         
         // Matricula information (primary/owner matricula)
         public int? MatriculaId { get; set; }

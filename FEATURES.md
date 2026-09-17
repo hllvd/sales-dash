@@ -130,6 +130,76 @@ This feature automatically detects and populates `ScrapeConfig.DefaultStartMonth
 - Automatically saves the detected `DefaultStartMonth` to `ScrapeConfig` when `DefaultStartMonth` was previously blank.
 
 ---
+## Configurações de Retenção e Visualização de Contratos Não Pagos como "Aguardando Pagamento" (`/#/contracts`, `/#/my-contracts`, `/#/profile`)
+
+Possibilidade de configurar, por usuário e persistido no backend, se contratos com status `NORMAL` (ativo) que possuem a coluna `Tem Pagamento = Não` (`HasPayment = false`) devem ser exibidos e computados como `Aguardando Pagamento` tanto na interface quanto nas métricas de retenção e produção.
+
+### Comportamento e Regras
+- **Botão "Configurações" e Modal de Configurações**:
+  - O antigo botão "Colunas" foi promovido a um botão **"Configurações"** com ícone de engrenagem.
+  - O modal agora possui duas seções bem definidas:
+    - **Colunas**: visibilidade das colunas da tabela de contratos com opção de restaurar padrão.
+    - **Retenção**: botão do tipo switch *"Mostrar contratos como não pago, como 'Aguardando pagamento'"* (por padrão desligado / `off`).
+- **Persistência de Preferência por Usuário no Backend**:
+  - A preferência do usuário é persistida no banco de dados (`Users.TreatUnpaidActiveAsAwaitingPayment`) e exposta via endpoints `GET /api/users/me/preferences` e `PUT /api/users/me/preferences`.
+  - Ao alternar o switch, a preferência é imediatamente atualizada no backend e recarrega os contratos e agregações.
+- **Tratamento de Contratos como Aguardando Pagamento**:
+  - Quando a opção está ativada:
+    - Todo contrato com status `Normal/Active` e `Tem Pagamento = Não` tem seu status mapeado para `Aguardando Pagamento` (badge laranja).
+    - Exibe tooltip explicativo customizado: *"Esse contrato tem status NORMAL(ativo) mas ainda não foi confirmado o pagamento"*.
+    - É excluído de `Total`, `TotalActive` e do cálculo de retenção (`retention` e `strictRetention`), contando apenas pagamentos comprovados.
+  - Quando a opção está desligada (padrão):
+    - Comportamento padrão preservado: contratos `Normal/Active` permanecem com status `Ativo` e somam normalmente ao total ativo e retenção.
+- **Consistência em Múltiplas Telas**:
+  - A regra se reflete na tela de Gerenciamento de Contratos (`ContractsPage`), na visão do vendedor (`MyContractsPage`) e no perfil do usuário (`UserProfile` / `GetUserStats`).
+
+### Arquivos alterados
+- **Backend**:
+  - `SalesApp.Api/Models/User.cs`: adicionada propriedade `TreatUnpaidActiveAsAwaitingPayment`.
+  - `SalesApp.Api/Data/AppDbContext.cs`: configuração da propriedade com valor padrão `false`.
+  - `SalesApp.Api/Migrations/20260911160000_AddTreatUnpaidActiveAsAwaitingPaymentToUser.cs` & `.Designer.cs`: migração do Entity Framework Core.
+  - `SalesApp.Api/Migrations/AppDbContextModelSnapshot.cs`: snapshot atualizado.
+  - `SalesApp.Api/DTOs/UserResponse.cs`: adicionada propriedade `TreatUnpaidActiveAsAwaitingPayment`.
+  - `SalesApp.Api/DTOs/UserPreferencesDTOs.cs`: novos DTOs `UserPreferencesResponse` e `UpdateUserPreferencesRequest`.
+  - `SalesApp.Api/DTOs/ContractResponse.cs`: adicionada propriedade `IsRemappedToAwaitingPayment`.
+  - `SalesApp.Api/Services/IContractAggregationService.cs` & `ContractAggregationService.cs`: suporte a `treatUnpaidAsAwaiting` na agregação.
+  - `SalesApp.Api/Repositories/IContractRepository.cs` & `ContractRepository.cs`: suporte a `treatUnpaidAsAwaiting` no agrupamento SQL/memória em `GetAggregationAsync`.
+  - `SalesApp.Api/Controllers/UsersController.cs`: endpoints `me/preferences` e atualização de `GetUserStats` e `MapToUserResponse`.
+  - `SalesApp.Api/Controllers/ContractsController.cs`: suporte ao parâmetro e preferência de usuário em `GetContracts`, `GetUserContracts` e `MapToContractResponse`.
+- **Frontend**:
+  - `client/sales-dash/src/services/apiService.ts`: métodos `getUserPreferences` e `updateUserPreferences`.
+  - `client/sales-dash/src/services/contractService.ts`: propriedade `isRemappedToAwaitingPayment` em `Contract` e suporte ao parâmetro em `getContracts` e `getUserContracts`.
+  - `client/sales-dash/src/shared/ContractStatusBadge.tsx`: suporte a `isRemappedToAwaitingPayment` com tooltip customizado.
+  - `client/sales-dash/src/components/ContractsPage.tsx`: botão "Configurações", modal com seções "Colunas" e "Retenção", switch com persistência no backend.
+  - `client/sales-dash/src/components/MyContractsPage.tsx`: passagem de `isRemappedToAwaitingPayment` ao badge de status.
+- **Testes**:
+  - `SalesApp.Tests/Services/ContractAggregationServiceTests.cs`: testes unitários para agregação com `treatUnpaidAsAwaiting` (true/false).
+  - `SalesApp.Tests/ContractsControllerTests.cs`: ajuste no matcher de `GetAggregationAsync`.
+
+---
+
+## Filtragem Restritiva de "No Sistema (Ausentes no XLSX)" por Usuários Encontrados na Planilha (`/#/contract-reconciliation`)
+
+Restrição do resultado da aba e do card **"No Sistema (Ausentes no XLSX)"** (`MissingInImport`) para exibir exclusivamente os contratos de usuários que foram identificados em pelo menos uma linha da planilha importada (por matrícula com ou sem zeros à esquerda, e-mail, nome normalizado ou correspondência parcial).
+
+### Comportamento e Regras
+- **Usuários Encontrados na Planilha**:
+  - Durante o processamento das linhas do arquivo XLSX, o sistema mapeia e registra todos os usuários do sistema que foram identificados (`spreadsheetFoundUserInternalIds`).
+  - Um contrato do sistema que não tenha seu número de contrato presente no XLSX só é incluído em `MissingInImport` se estiver atribuído a um usuário presente nesse conjunto (`sc.UserInternalId.HasValue && spreadsheetFoundUserInternalIds.Contains(sc.UserInternalId.Value)`).
+- **Exclusão de Contratos Sem Usuário Atribuído**:
+  - Contratos no sistema com `UserInternalId == null` são excluídos da lista e do sumário de `MissingInImport`.
+- **Exclusão de Usuários Ausentes na Planilha**:
+  - Contratos pertencentes a consultores/vendedores que não possuem nenhum contrato ou menção na planilha XLSX não poluem a lista de ausentes.
+- **Isolamento de Escopo**:
+  - A regra se aplica estritamente a `MissingInImport` e `MissingInImportSummary`. A aba de *Comparação por Usuário* (`UserComparisons`) e as demais divergências preservam seus escopos analíticos integrais.
+
+### Arquivos alterados
+- **Backend**:
+  - `SalesApp.Api/Controllers/ContractReconciliationController.cs`: coleta de `spreadsheetFoundUserInternalIds` no loop de linhas e filtro condicional no loop de contratos do sistema para `missingInImport`.
+- **Testes**:
+  - `SalesApp.IntegrationTests/Contracts/ContractReconciliationTests.cs`: teste de integração `Reconcile_ShouldOnlyIncludeMissingInImport_ForUsersFoundInSpreadsheet`.
+
+---
 
 ## Otimização de Performance de Relatórios e Prévia Sob Demanda na Edição (`/#/reports`)
 

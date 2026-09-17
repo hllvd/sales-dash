@@ -56,15 +56,15 @@ test.describe('Contracts Filtering', () => {
     await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
 
-    // Set Start Date to 2025-01-01 to ensure all historical contracts for Carlos Mendes are included (earliest is 2025-06-11)
+    // Ensure start date covers all fixture contracts
     const startDatePromise = page.waitForRequest(request =>
       request.url().includes('/api/contracts') &&
-      !request.url().includes('/user/') && 
-      request.url().includes('startDate=2025-01-01') && 
+      !request.url().includes('/user/') &&
+      request.url().includes('startDate=2024-01-01') &&
       request.method() === 'GET',
       { timeout: 10000 }
     );
-    await page.fill('input#filterStartDate', '2025-01-01');
+    await page.fill('input#filterStartDate', '2024-01-01');
     await startDatePromise;
 
     // 3. Filter by User

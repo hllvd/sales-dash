@@ -153,5 +153,45 @@ namespace SalesApp.Tests.Services
             result.Retention.Should().Be(1500m / 1700m);
             result.StrictRetention.Should().Be(1500m / 1700m);
         }
+
+        [Fact]
+        public void CalculateAggregation_WithTreatUnpaidAsAwaitingFalse_ShouldIncludeUnpaidActiveInTotalAndActive()
+        {
+            // Arrange
+            var contracts = new List<Contract>
+            {
+                new Contract { TotalAmount = 1000, HasPayment = false, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { TotalAmount = 2000, HasPayment = true, ContractStatus = new ContractStatusEntity { Name = "Active" } }
+            };
+
+            // Act
+            var result = _service.CalculateAggregation(contracts, treatUnpaidAsAwaiting: false);
+
+            // Assert
+            result.Total.Should().Be(3000);
+            result.TotalActive.Should().Be(3000);
+            result.Retention.Should().Be(1.0m);
+        }
+
+        [Fact]
+        public void CalculateAggregation_WithTreatUnpaidAsAwaitingTrue_ShouldExcludeUnpaidActiveFromTotalAndActive()
+        {
+            // Arrange - 1 unpaid active (1000) should be skipped, leaving 2000 active and 500 defaulted
+            var contracts = new List<Contract>
+            {
+                new Contract { TotalAmount = 1000, HasPayment = false, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { TotalAmount = 2000, HasPayment = true, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { TotalAmount = 500, HasPayment = null, ContractStatus = new ContractStatusEntity { Name = "Defaulted" } }
+            };
+
+            // Act
+            var result = _service.CalculateAggregation(contracts, treatUnpaidAsAwaiting: true);
+
+            // Assert
+            result.Total.Should().Be(2500); // Only 2000 + 500
+            result.TotalActive.Should().Be(2000);
+            result.TotalCancel.Should().Be(500);
+            result.Retention.Should().Be(2000m / 2500m);
+        }
     }
 }

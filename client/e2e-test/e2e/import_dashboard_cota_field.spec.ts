@@ -71,7 +71,7 @@ test.describe('Contract Dashboard Import — Cota Field Extraction & Upsert', ()
     await page.fill('input#filterContractNumber', contractNum);
     
     // Open column selection modal to enable Cota column
-    const colBtn = page.getByRole('button', { name: 'Colunas' });
+    const colBtn = page.getByRole('button', { name: /Colunas|Configurações/ });
     await expect(colBtn).toBeVisible({ timeout: 10_000 });
     await colBtn.click();
 

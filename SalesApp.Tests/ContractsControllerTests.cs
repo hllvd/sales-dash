@@ -373,7 +373,8 @@ namespace SalesApp.Tests
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool?>()))
+                It.IsAny<bool?>(),
+                It.IsAny<bool>()))
                 .ReturnsAsync(new ContractAggregation());
 
             // Act

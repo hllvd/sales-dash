@@ -965,6 +965,61 @@ namespace SalesApp.Controllers
                     : _messageService.Get(AppMessage.UserDeletedSuccessfully)
             });
         }
+
+        [HttpGet("me/preferences")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserPreferencesResponse>>> GetMyPreferences()
+        {
+            var currentUserId = GetCurrentUserId();
+            var user = await _userRepository.GetByIdAsync(currentUserId);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<UserPreferencesResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+
+            return Ok(new ApiResponse<UserPreferencesResponse>
+            {
+                Success = true,
+                Data = new UserPreferencesResponse
+                {
+                    TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment
+                },
+                Message = "Preferências obtidas com sucesso"
+            });
+        }
+
+        [HttpPut("me/preferences")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserPreferencesResponse>>> UpdateMyPreferences([FromBody] UpdateUserPreferencesRequest request)
+        {
+            var currentUserId = GetCurrentUserId();
+            var user = await _userRepository.GetByIdAsync(currentUserId);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<UserPreferencesResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+
+            user.TreatUnpaidActiveAsAwaitingPayment = request.TreatUnpaidActiveAsAwaitingPayment;
+            await _userRepository.UpdateAsync(user);
+
+            return Ok(new ApiResponse<UserPreferencesResponse>
+            {
+                Success = true,
+                Data = new UserPreferencesResponse
+                {
+                    TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment
+                },
+                Message = "Preferências atualizadas com sucesso"
+            });
+        }
         
         [HttpGet("{id}/stats")]
         [Authorize]
@@ -998,14 +1053,18 @@ namespace SalesApp.Controllers
                 .Where(c => c.UserInternalId == user.InternalId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente" && c.ContractStatus.Name.ToLower() != "naodefinido")
                 .ToListAsync();
             
+            bool treatUnpaidAsAwaiting = user.TreatUnpaidActiveAsAwaitingPayment;
+
             decimal totalProduction = userContracts
-                .Where(c => !c.ContractStatus.Name.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase))
+                .Where(c => !c.ContractStatus.Name.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase) &&
+                            !(treatUnpaidAsAwaiting && c.ContractStatus.Name.Equals("Active", StringComparison.OrdinalIgnoreCase) && c.HasPayment == false))
                 .Sum(c => c.TotalAmount);
             
             // Calculate active vs total for retention
             decimal activeAmount = userContracts
                 .Where(c => !c.ContractStatus.Name.Equals("Defaulted", StringComparison.OrdinalIgnoreCase) &&
-                            !c.ContractStatus.Name.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase))
+                            !c.ContractStatus.Name.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase) &&
+                            !(treatUnpaidAsAwaiting && c.ContractStatus.Name.Equals("Active", StringComparison.OrdinalIgnoreCase) && c.HasPayment == false))
                 .Sum(c => c.TotalAmount);
 
             decimal strictActiveAmount = userContracts
@@ -1013,7 +1072,8 @@ namespace SalesApp.Controllers
                             !c.ContractStatus.Name.Equals("Late1", StringComparison.OrdinalIgnoreCase) &&
                             !c.ContractStatus.Name.Equals("Late2", StringComparison.OrdinalIgnoreCase) &&
                             !c.ContractStatus.Name.Equals("Late3", StringComparison.OrdinalIgnoreCase) &&
-                            !c.ContractStatus.Name.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase))
+                            !c.ContractStatus.Name.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase) &&
+                            !(treatUnpaidAsAwaiting && c.ContractStatus.Name.Equals("Active", StringComparison.OrdinalIgnoreCase) && c.HasPayment == false))
                 .Sum(c => c.TotalAmount);
                 
             decimal totalRetention = totalProduction > 0 ? (activeAmount / totalProduction) * 100 : 0m;
@@ -1095,6 +1155,7 @@ namespace SalesApp.Controllers
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt,
                 LastAccessedAt = user.LastAccessedAt,
+                TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment,
                 
                 // Matricula information
                 MatriculaId = primaryMatricula?.MatriculaId,

@@ -409,5 +409,118 @@ namespace SalesApp.IntegrationTests.Contracts
             comparison!.XlsxTotal.Should().Be(150000.00m);
             comparison.XlsxCount.Should().Be(1);
         }
+
+        [Fact]
+        public async Task Reconcile_ShouldOnlyIncludeMissingInImport_ForUsersFoundInSpreadsheet()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var userInSheet = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Present User",
+                Email = "present_user@test.com",
+                RoleId = 3,
+                InternalId = 9981
+            };
+
+            var userNotInSheet = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Absent User",
+                Email = "absent_user@test.com",
+                RoleId = 3,
+                InternalId = 9982
+            };
+
+            var saleDate = new DateTime(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
+
+            // Contracts:
+            // 1. CNT-FOUND-01: UserInSheet -> in sheet
+            // 2. CNT-FOUND-02: UserInSheet -> MISSING in sheet (SHOULD be in MissingInImport)
+            // 3. CNT-ABSENT-01: UserNotInSheet -> MISSING in sheet (SHOULD NOT be in MissingInImport because user is absent from sheet)
+            // 4. CNT-NOUSER-01: No user (UserInternalId = null) -> MISSING in sheet (SHOULD NOT be in MissingInImport)
+            var c1 = new Contract
+            {
+                ContractNumber = "CNT-FOUND-01",
+                TotalAmount = 1000.00m,
+                UserInternalId = userInSheet.InternalId,
+                SaleStartDate = saleDate,
+                ContractStatusId = 1
+            };
+            var c2 = new Contract
+            {
+                ContractNumber = "CNT-FOUND-02",
+                TotalAmount = 2000.00m,
+                UserInternalId = userInSheet.InternalId,
+                SaleStartDate = saleDate,
+                ContractStatusId = 1
+            };
+            var c3 = new Contract
+            {
+                ContractNumber = "CNT-ABSENT-01",
+                TotalAmount = 3000.00m,
+                UserInternalId = userNotInSheet.InternalId,
+                SaleStartDate = saleDate,
+                ContractStatusId = 1
+            };
+            var c4 = new Contract
+            {
+                ContractNumber = "CNT-NOUSER-01",
+                TotalAmount = 4000.00m,
+                UserInternalId = null,
+                SaleStartDate = saleDate,
+                ContractStatusId = 1
+            };
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                context.Users.AddRange(userInSheet, userNotInSheet);
+                context.Contracts.AddRange(c1, c2, c3, c4);
+                await context.SaveChangesAsync();
+            }
+
+            // Create XLSX containing ONLY CNT-FOUND-01 with Present User
+            byte[] xlsxBytes;
+            using (var package = new ExcelPackage())
+            {
+                var ws = package.Workbook.Worksheets.Add("Sheet1");
+                ws.Cells[1, 1].Value = "Contrato";
+                ws.Cells[1, 2].Value = "Data";
+                ws.Cells[1, 3].Value = "Valor";
+                ws.Cells[1, 4].Value = "Consultor";
+
+                ws.Cells[2, 1].Value = "CNT-FOUND-01";
+                ws.Cells[2, 2].Value = "15/07/2026";
+                ws.Cells[2, 3].Value = 1000.00;
+                ws.Cells[2, 4].Value = "Present User";
+
+                xlsxBytes = package.GetAsByteArray();
+            }
+
+            using var content = new MultipartFormDataContent();
+            content.Add(new ByteArrayContent(xlsxBytes), "file", "filter_missing_test.xlsx");
+            content.Add(new StringContent("2026-07-01"), "startDate");
+            content.Add(new StringContent("2026-07-31"), "endDate");
+
+            // Act
+            var response = await _client.PostAsync("/api/contractreconciliation/reconcile", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ContractReconciliationResultDto>();
+            result.Should().NotBeNull();
+
+            // MissingInImport MUST only contain CNT-FOUND-02 (UserInSheet's contract)
+            // It MUST NOT contain CNT-ABSENT-01 or CNT-NOUSER-01
+            result!.MissingInImportSummary.Count.Should().Be(1);
+            result.MissingInImport.Should().HaveCount(1);
+            result.MissingInImport[0].ContractNumber.Should().Be("CNT-FOUND-02");
+            result.MissingInImport[0].TotalAmount.Should().Be(2000.00m);
+            result.MissingInImport[0].SystemUserName.Should().Be("Present User");
+        }
     }
 }
