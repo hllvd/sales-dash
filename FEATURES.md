@@ -1345,6 +1345,7 @@ Permite que superadministradores criem e distribuam perguntas rápidas (Sim/Não
 - **Relatório de Resultados, Filtragem e Reenvio**:
   - Superadministradores visualizam estatísticas agregadas (gráfico de progresso percentual e total de votos por opção).
   - Tabela detalhada de respostas individuais por usuário com data e hora.
+  - **Ordenação Cronológica Decrescente**: as respostas individuais são exibidas da mais recente para a mais velha (respondidos mais recentes por `AnsweredAt` desc no topo, seguidos de não respondidos por `SentAt` desc, com desempate por nome alfabético), refletindo na visão geral e nos filtros.
   - **Filtro de Respostas por Abas**: Abas dinâmicas baseadas no tipo e opções da pergunta ("Todas", "Sim", "Não", "Não respondidas" ou opções customizadas), exibindo contadores em tempo real para isolar usuários por resposta.
   - **Busca por Nome e Email**: Campo de texto com busca instantânea combinável com o filtro de abas.
   - Ação de **Reenviar para não respondidos**: redefine o status para pendente, reseta o TTL para mais 2 dias e reativa os avisos no cliente.
@@ -1530,6 +1531,22 @@ Adiciona a aba **"Comparação por Usuário"** na tela de Reconciliação de Con
 - `client/sales-dash/src/components/Reports/ReportFormPage.tsx` — Separação das opções `Cancelado` (`Defaulted`) e `Desistente` no multiselect; definição da constante `DEFAULT_REPORT_STATUSES` com todos os status exceto `Desistente`.
 - `SalesApp.Tests/Services/ReportRetentionCalculatorTests.cs` — Testes unitários para `IsAwaitingPayment`, `IsDesistente`, exclusão de desistentes e impacto de cancelados/aguardando pagamento.
 - `SalesApp.Tests/Services/ReportFilterServiceTests.cs` — Testes de integração unitária para `ExecuteAsync` cobrindo retenção com cancelados, exclusão de desistentes e variações do filtro `AwaitingPayment`.
+## [2026-09-17] — Ordenação Cronológica Decrescente de Respostas de Pesquisas (QA)
 
+### Contexto & Motivação
+Ao abrir os detalhes de uma pesquisa em `Gerenciamento de Perguntas / QA > Perguntas Enviadas`, a listagem de respostas individuais estava ordenada alfabeticamente por nome de usuário. O usuário solicitou que as respostas apareçam sempre da mais recente para a mais velha, tanto na listagem geral quanto ao utilizar os filtros de abas e a busca por nome/email.
 
+### Mudanças Realizadas
+1. **Ordenação na API (`SurveyService.cs`)**:
+   - `GetSurveyResultsAsync`: alterada a ordenação das respostas individuais para:
+     - Respostas já respondidas (`status == 'answered'`) ordenadas por data de resposta (`AnsweredAt`) decrescente no topo.
+     - Respostas não respondidas (`pending` e `expired`) ordenadas por data de envio (`SentAt`) decrescente.
+     - Critério de desempate alfabético por nome do usuário (`UserName`).
+2. **Propagação Automática no Frontend**:
+   - Como o frontend (`SurveyResultModal.tsx`) realiza filtros preservando a ordem dos dados recebidos da API, as respostas filtradas por abas e por campo de busca herdam diretamente essa ordem cronológica decrescente.
+3. **Testes Unitários**:
+   - `SalesApp.Tests/Services/SurveyServiceTests.cs` validando o ordenamento esperado com múltiplos cenários (respondidos recentes, pendentes recentes, expirados e desempate por nome).
 
+### Arquivos Modificados / Criados
+- `SalesApp.Api/Services/SurveyService.cs` — Atualização da ordenação de respostas individuais em `GetSurveyResultsAsync`.
+- `SalesApp.Tests/Services/SurveyServiceTests.cs` — Teste unitário para garantia da ordenação.

@@ -101,7 +101,12 @@ namespace SalesApp.Services
                 AnsweredAt = a.Response?.AnsweredAt,
                 SentAt = a.SentAt,
                 ExpiresAt = a.ExpiresAt
-            }).OrderBy(r => r.UserName).ToList();
+            })
+            .OrderByDescending(r => r.Status == "answered")
+            .ThenByDescending(r => r.AnsweredAt)
+            .ThenByDescending(r => r.SentAt)
+            .ThenBy(r => r.UserName)
+            .ToList();
 
             var aggregateCounts = CalculateAggregateCounts(survey.QuestionType, summary.Options, responses);
 
