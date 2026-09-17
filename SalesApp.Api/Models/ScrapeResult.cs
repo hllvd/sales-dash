@@ -19,5 +19,9 @@ namespace SalesApp.Models
         public int RetryCount { get; set; }
         public string? ScrapeDate { get; set; }
         public string? DetectedStore { get; set; }
+        public int DurationSeconds { get; set; }
+        public string? DurationFormatted { get; set; }
+        public string? StartedAt { get; set; }
+        public string? CompletedAt { get; set; }
     }
 }

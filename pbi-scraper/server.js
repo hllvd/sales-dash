@@ -82,6 +82,9 @@ app.post('/jobs', (req, res) => {
   queue.add(async () => {
     console.log(`[Job ${jobId}] Starting ${scrapeType} scrape for ${store || 'Consultor'} - ${matricula} (Dates: ${scrapeDates.join(', ')})`);
     
+    const jobStartTime = Date.now();
+    const jobStartDate = new Date(jobStartTime);
+
     let result = {
       jobId, 
       status: 'Succeeded',
@@ -93,7 +96,11 @@ app.post('/jobs', (req, res) => {
       powerbiLoaded: true,
       authSteps: [],
       scrapeDate: scrapeDates.filter(Boolean).join(',') || null,
-      detectedStore: store || (scrapeType === 'consultor' ? 'Consultor' : null)
+      detectedStore: store || (scrapeType === 'consultor' ? 'Consultor' : null),
+      durationSeconds: 0,
+      durationFormatted: '0s',
+      startedAt: jobStartDate.toISOString(),
+      completedAt: null
     };
 
     const combinedRows = [];
@@ -119,6 +126,10 @@ app.post('/jobs', (req, res) => {
         result.detectedStore = store || 'Consultor';
         result.scrapeDate = scrapeDates.filter(Boolean).join(',');
         result.authSteps = consultorRes.steps || [];
+        result.durationSeconds = consultorRes.durationSeconds || Math.round((Date.now() - jobStartTime) / 1000);
+        result.durationFormatted = consultorRes.durationFormatted || `${result.durationSeconds}s`;
+        result.startedAt = consultorRes.startedAt || jobStartDate.toISOString();
+        result.completedAt = consultorRes.finishedAt || new Date().toISOString();
 
         if (consultorRes.totalRows === 0) {
           result.status = 'Failed';
@@ -184,14 +195,29 @@ app.post('/jobs', (req, res) => {
           
           result.rowCount = effectiveCount;
           result.fileRelativePath = filename;
+
+          const elapsedSec = Math.round((Date.now() - jobStartTime) / 1000);
+          result.durationSeconds = elapsedSec;
+          result.durationFormatted = elapsedSec >= 60 ? `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s` : `${elapsedSec}s`;
+          result.startedAt = jobStartDate.toISOString();
+          result.completedAt = new Date().toISOString();
         } else {
           result.status = 'Failed';
           result.error = 'Nenhum registro retornado pelo relatório PowerBI';
+          const elapsedSec = Math.round((Date.now() - jobStartTime) / 1000);
+          result.durationSeconds = elapsedSec;
+          result.durationFormatted = elapsedSec >= 60 ? `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s` : `${elapsedSec}s`;
+          result.completedAt = new Date().toISOString();
         }
       }
     } catch (err) {
       console.error(`[Job ${jobId}] Failed:`, err.message);
       
+      const elapsedSec = Math.round((Date.now() - jobStartTime) / 1000);
+      result.durationSeconds = result.durationSeconds || elapsedSec;
+      result.durationFormatted = result.durationFormatted || (elapsedSec >= 60 ? `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s` : `${elapsedSec}s`);
+      result.completedAt = new Date().toISOString();
+
       if (err instanceof AuthError) {
         result.authStatus = err.authStatus;
         result.authMessage = err.authMessage;

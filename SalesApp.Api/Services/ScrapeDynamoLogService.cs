@@ -103,9 +103,10 @@ namespace SalesApp.Services
             
             var effectiveRunId = runId;
             var effectiveUserEmail = userEmail;
+            var originalCreatedAt = timestamp;
 
-            // If updating job status and runId/userEmail were not supplied, retrieve from existing job record
-            if ((string.IsNullOrEmpty(effectiveRunId) || string.IsNullOrEmpty(effectiveUserEmail)) && Guid.TryParse(userId, out var userGuid))
+            // If updating job status, retrieve runId/userEmail/CreatedAt from existing job record
+            if (Guid.TryParse(userId, out var userGuid))
             {
                 var existingJobs = await GetJobsByUserAsync(userGuid, 100);
                 var existing = existingJobs.FirstOrDefault(j => j.JobId == jobId);
@@ -113,6 +114,7 @@ namespace SalesApp.Services
                 {
                     if (string.IsNullOrEmpty(effectiveRunId) && !string.IsNullOrEmpty(existing.RunId)) effectiveRunId = existing.RunId;
                     if (string.IsNullOrEmpty(effectiveUserEmail) && !string.IsNullOrEmpty(existing.UserEmail)) effectiveUserEmail = existing.UserEmail;
+                    if (existing.CreatedAt != DateTime.MinValue) originalCreatedAt = existing.CreatedAt.ToString("O");
                 }
             }
 
@@ -130,7 +132,7 @@ namespace SalesApp.Services
                 { "Status", new AttributeValue { S = status } },
                 { "Store", new AttributeValue { S = store } },
                 { "Matricula", new AttributeValue { S = matricula } },
-                { "CreatedAt", new AttributeValue { S = timestamp } }
+                { "CreatedAt", new AttributeValue { S = originalCreatedAt } }
             };
 
             // Global Secondary Index entry for SuperAdmin listing
@@ -284,9 +286,13 @@ namespace SalesApp.Services
             var finalStatus = ComputeFinalStatus(deduplicatedJobs);
             var userEmail = deduplicatedJobs.Select(j => j.UserEmail).FirstOrDefault(e => !string.IsNullOrEmpty(e)) ?? first.UserEmail;
 
-            var minStart = deduplicatedJobs.Min(j => j.CreatedAt);
-            var maxEnd = deduplicatedJobs.Max(j => j.CompletedAt ?? j.CreatedAt);
+            var minStart = deduplicatedJobs.Select(j => j.CreatedAt).Where(d => d != DateTime.MinValue).DefaultIfEmpty(first.CreatedAt).Min();
+            var maxEnd = deduplicatedJobs.Select(j => j.CompletedAt ?? j.CreatedAt).Where(d => d != DateTime.MinValue).DefaultIfEmpty(first.CompletedAt ?? first.CreatedAt).Max();
             var durationSpan = (maxEnd > minStart) ? (maxEnd - minStart) : TimeSpan.Zero;
+            if (durationSpan.TotalSeconds < 1 && deduplicatedJobs.Any(j => j.DurationSeconds > 0))
+            {
+                durationSpan = TimeSpan.FromSeconds(deduplicatedJobs.Sum(j => j.DurationSeconds));
+            }
             var durationSecs = (int)Math.Round(durationSpan.TotalSeconds);
 
             return new ScrapeRunDetail
@@ -329,9 +335,38 @@ namespace SalesApp.Services
         {
             return jobs
                 .GroupBy(j => j.JobId)
-                .Select(g => g.OrderByDescending(j => j.RowCount > 0 ? 1 : 0)
-                             .ThenByDescending(j => j.CompletedAt ?? j.CreatedAt)
-                             .First())
+                .Select(g =>
+                {
+                    var entry = g.OrderByDescending(j => j.RowCount > 0 ? 1 : 0)
+                                 .ThenByDescending(j => j.CompletedAt ?? j.CreatedAt)
+                                 .First();
+
+                    var validStarts = g.Select(j => j.CreatedAt).Where(d => d != DateTime.MinValue).ToList();
+                    if (validStarts.Any())
+                    {
+                        entry.CreatedAt = validStarts.Min();
+                    }
+
+                    var validCompletions = g.Select(j => j.CompletedAt).Where(c => c.HasValue).Select(c => c!.Value).ToList();
+                    if (validCompletions.Any())
+                    {
+                        var maxComp = validCompletions.Max();
+                        if (!entry.CompletedAt.HasValue || maxComp > entry.CompletedAt.Value)
+                        {
+                            entry.CompletedAt = maxComp;
+                        }
+                    }
+
+                    // If explicit duration wasn't stored or is 0, calculate from CompletedAt - CreatedAt
+                    if (entry.DurationSeconds <= 0 && entry.CompletedAt.HasValue && entry.CompletedAt.Value > entry.CreatedAt)
+                    {
+                        var span = entry.CompletedAt.Value - entry.CreatedAt;
+                        entry.DurationSeconds = (int)Math.Round(span.TotalSeconds);
+                        entry.DurationFormatted = ScrapeDurationFormatter.FormatDuration(span);
+                    }
+
+                    return entry;
+                })
                 .ToList();
         }
 
@@ -349,9 +384,13 @@ namespace SalesApp.Services
                     var first = deduplicated.First();
                     var userEmail = deduplicated.Select(j => j.UserEmail).FirstOrDefault(e => !string.IsNullOrEmpty(e)) ?? first.UserEmail;
 
-                    var minStart = deduplicated.Min(j => j.CreatedAt);
-                    var maxEnd = deduplicated.Max(j => j.CompletedAt ?? j.CreatedAt);
+                    var minStart = deduplicated.Select(j => j.CreatedAt).Where(d => d != DateTime.MinValue).DefaultIfEmpty(first.CreatedAt).Min();
+                    var maxEnd = deduplicated.Select(j => j.CompletedAt ?? j.CreatedAt).Where(d => d != DateTime.MinValue).DefaultIfEmpty(first.CompletedAt ?? first.CreatedAt).Max();
                     var durationSpan = (maxEnd > minStart) ? (maxEnd - minStart) : TimeSpan.Zero;
+                    if (durationSpan.TotalSeconds < 1 && deduplicated.Any(j => j.DurationSeconds > 0))
+                    {
+                        durationSpan = TimeSpan.FromSeconds(deduplicated.Sum(j => j.DurationSeconds));
+                    }
                     var durationSecs = (int)Math.Round(durationSpan.TotalSeconds);
 
                     return new ScrapeRunSummary
@@ -435,8 +474,21 @@ namespace SalesApp.Services
                             ?? item.GetValueOrDefault("retryCount")?.S;
             var retryCount = int.TryParse(retryCountStr, out var r) ? r : 0;
 
-            var jobDurationSpan = (completedAt.HasValue && completedAt.Value > createdAt) ? (completedAt.Value - createdAt) : TimeSpan.Zero;
-            var jobDurationSecs = (int)Math.Round(jobDurationSpan.TotalSeconds);
+            var durSecsStr = item.GetValueOrDefault("DurationSeconds")?.N
+                          ?? item.GetValueOrDefault("DurationSeconds")?.S
+                          ?? item.GetValueOrDefault("durationSeconds")?.N
+                          ?? item.GetValueOrDefault("durationSeconds")?.S;
+            var explicitDuration = int.TryParse(durSecsStr, out var eds) ? eds : 0;
+            var explicitDurFormatted = item.GetValueOrDefault("DurationFormatted")?.S
+                                    ?? item.GetValueOrDefault("durationFormatted")?.S;
+
+            var jobDurationSpan = explicitDuration > 0 
+                ? TimeSpan.FromSeconds(explicitDuration)
+                : (completedAt.HasValue && completedAt.Value > createdAt) ? (completedAt.Value - createdAt) : TimeSpan.Zero;
+            var jobDurationSecs = explicitDuration > 0 ? explicitDuration : (int)Math.Round(jobDurationSpan.TotalSeconds);
+            var finalDurationFormatted = !string.IsNullOrEmpty(explicitDurFormatted) && explicitDurFormatted != "0s"
+                ? explicitDurFormatted
+                : ScrapeDurationFormatter.FormatDuration(jobDurationSpan);
 
             return new ScrapeLogEntry
             {
@@ -459,7 +511,7 @@ namespace SalesApp.Services
                 ScrapeDate = scrapeDate,
                 RetryCount = retryCount,
                 DurationSeconds = jobDurationSecs,
-                DurationFormatted = ScrapeDurationFormatter.FormatDuration(jobDurationSpan)
+                DurationFormatted = finalDurationFormatted
             };
         }
     }
