@@ -86,7 +86,7 @@ namespace SalesApp.Controllers
                     {
                         "ApproximateNumberOfMessages",
                         "ApproximateNumberOfMessagesNotVisible",
-                        "ApproximateAgeOfOldestMessage"
+                        "ApproximateNumberOfMessagesDelayed"
                     }
                 });
 
@@ -95,7 +95,7 @@ namespace SalesApp.Controllers
                     IsConfigured = true,
                     ApproximateMessageCount = int.TryParse(attrs.ApproximateNumberOfMessages.ToString(), out var count) ? count : 0,
                     ApproximateInFlightCount = int.TryParse(attrs.ApproximateNumberOfMessagesNotVisible.ToString(), out var inflight) ? inflight : 0,
-                    OldestMessageAgeSeconds = attrs.Attributes.TryGetValue("ApproximateAgeOfOldestMessage", out var age) ? age : null
+                    OldestMessageAgeSeconds = null
                 });
             }
             catch (Exception ex)

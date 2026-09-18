@@ -66,16 +66,16 @@ export const SqsQueuePanel: React.FC = () => {
     }
   }, [])
 
-  const handleRefreshAll = () => {
+  const handleRefreshAll = useCallback(() => {
     fetchStats()
     fetchMessages()
-  }
+  }, [fetchStats, fetchMessages])
 
   useEffect(() => {
     handleRefreshAll()
     const interval = setInterval(fetchStats, 30000)
     return () => clearInterval(interval)
-  }, [fetchStats, fetchMessages])
+  }, [handleRefreshAll, fetchStats])
 
   const handleProcess = async (msg: SqsMessageItem) => {
     setProcessingReceipt(msg.receiptHandle)
@@ -109,214 +109,280 @@ export const SqsQueuePanel: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex' }}>
-      <Menu />
-      <div style={{ flex: 1, padding: '24px 32px', maxWidth: 1200 }}>
-        <Group justify="space-between" mb="xl">
-          <div>
-            <Group gap="xs">
-              <IconCloud size={28} color="#228be6" />
-              <Title order={2}>Fila de Scraping AWS (SQS / S3)</Title>
-              {stats?.isConfigured ? (
-                <Badge color="green" variant="filled">
-                  SQS Conectado
-                </Badge>
-              ) : (
-                <Badge color="gray" variant="outline">
-                  Não Configurado
-                </Badge>
-              )}
-            </Group>
-            <Text c="dimmed" size="sm" mt={4}>
-              Monitore os resultados de scraping enviados para a Amazon Queue (SQS) e importe os CSVs do S3 sob demanda.
-            </Text>
-          </div>
-          <Button
-            leftSection={<IconRefresh size={16} />}
-            variant="light"
-            onClick={handleRefreshAll}
-            loading={loadingStats || loadingMessages}
-          >
-            Atualizar
-          </Button>
-        </Group>
-
-        {errorMessage && (
-          <Alert icon={<IconAlertCircle size={16} />} color="red" mb="lg">
-            {errorMessage}
-          </Alert>
-        )}
-
-        {/* Métricas da Fila */}
-        <SimpleGrid cols={{ base: 1, sm: 3 }} mb="xl">
-          <Paper withBorder p="md" radius="md">
-            <Group justify="space-between">
-              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
-                Mensagens na Fila
-              </Text>
-              <IconInbox size={20} color="#228be6" />
-            </Group>
-            <Group align="flex-end" gap="xs" mt={10}>
-              <Text size="xl" fw={700}>
-                {loadingStats ? <Loader size="sm" /> : stats?.approximateMessageCount ?? 0}
-              </Text>
-              <Text size="xs" c="dimmed" mb={4}>
-                disponíveis para importação
-              </Text>
-            </Group>
-          </Paper>
-
-          <Paper withBorder p="md" radius="md">
-            <Group justify="space-between">
-              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
-                Em Processamento
-              </Text>
-              <IconLayersLinked size={20} color="#fab005" />
-            </Group>
-            <Group align="flex-end" gap="xs" mt={10}>
-              <Text size="xl" fw={700}>
-                {loadingStats ? <Loader size="sm" /> : stats?.approximateInFlightCount ?? 0}
-              </Text>
-              <Text size="xs" c="dimmed" mb={4}>
-                em andamento (in-flight)
-              </Text>
-            </Group>
-          </Paper>
-
-          <Paper withBorder p="md" radius="md">
-            <Group justify="space-between">
-              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
-                Idade Mais Antiga
-              </Text>
-              <IconClock size={20} color="#fa5252" />
-            </Group>
-            <Group align="flex-end" gap="xs" mt={10}>
-              <Text size="xl" fw={700}>
-                {loadingStats ? (
-                  <Loader size="sm" />
-                ) : stats?.oldestMessageAgeSeconds ? (
-                  `${Math.round(parseInt(stats.oldestMessageAgeSeconds, 10) / 60)} min`
-                ) : (
-                  '0'
-                )}
-              </Text>
-              <Text size="xs" c="dimmed" mb={4}>
-                tempo de espera
-              </Text>
-            </Group>
-          </Paper>
-        </SimpleGrid>
-
-        {/* Tabela de Mensagens Disponíveis */}
-        <Card withBorder radius="md" p="lg">
-          <Group justify="space-between" mb="md">
+    <Menu>
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          minHeight: 'calc(100vh - 60px)',
+          padding: '28px 36px',
+        }}
+      >
+        <div style={{ maxWidth: 1300, margin: '0 auto' }}>
+          {/* Header */}
+          <Group justify="space-between" align="flex-start" mb="xl">
             <div>
-              <Title order={4}>Mensagens Pendentes na Fila</Title>
-              <Text size="xs" c="dimmed">
-                Visualização das últimas mensagens aguardando processamento.
+              <Group gap="xs" align="center" mb={6}>
+                <IconCloud size={30} color="#2563eb" />
+                <Title order={2} style={{ color: '#111827', fontWeight: 700, margin: 0 }}>
+                  Fila de Scraping AWS (SQS / S3)
+                </Title>
+                {stats?.isConfigured ? (
+                  <Badge color="green" variant="light" size="md">
+                    SQS Conectado
+                  </Badge>
+                ) : (
+                  <Badge color="gray" variant="light" size="md">
+                    Não Configurado
+                  </Badge>
+                )}
+              </Group>
+              <Text style={{ color: '#6b7280' }} size="sm">
+                Monitore os resultados de scraping enviados para a Amazon Queue (SQS) e importe os arquivos CSV do S3 sob demanda.
               </Text>
             </div>
             <Button
-              size="xs"
+              leftSection={<IconRefresh size={16} />}
               variant="default"
-              leftSection={<IconRefresh size={14} />}
-              onClick={fetchMessages}
-              loading={loadingMessages}
+              onClick={handleRefreshAll}
+              loading={loadingStats || loadingMessages}
             >
-              Consultar Mensagens
+              Atualizar
             </Button>
           </Group>
 
-          {loadingMessages ? (
-            <Group justify="center" py="xl">
-              <Loader />
-              <Text size="sm" c="dimmed">
-                Buscando mensagens da fila SQS...
-              </Text>
-            </Group>
-          ) : messages.length === 0 ? (
-            <Alert icon={<IconCheck size={16} />} color="blue" variant="light">
-              Nenhuma mensagem pendente na fila no momento.
+          {errorMessage && (
+            <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" mb="lg">
+              {errorMessage}
             </Alert>
-          ) : (
-            <Table highlightOnHover verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Matrícula</Table.Th>
-                  <Table.Th>Loja</Table.Th>
-                  <Table.Th>Período</Table.Th>
-                  <Table.Th>Linhas</Table.Th>
-                  <Table.Th>Arquivo S3</Table.Th>
-                  <Table.Th>Recebido em</Table.Th>
-                  <Table.Th style={{ textAlign: 'right' }}>Ações</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {messages.map((msg) => (
-                  <Table.Tr key={msg.receiptHandle}>
-                    <Table.Td>
-                      <Badge variant="outline" color="indigo">
-                        {msg.matricula || 'N/A'}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{msg.store || 'Geral'}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {msg.scrapeDate || 'Todos'}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={500}>
-                        {msg.rowCount ?? '—'}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Tooltip label={`s3://${msg.s3Bucket || ''}/${msg.s3Key || ''}`}>
-                        <Text size="xs" c="dimmed" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {msg.s3Key ? msg.s3Key.split('/').pop() : '—'}
-                        </Text>
-                      </Tooltip>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {msg.sentAt ? new Date(msg.sentAt).toLocaleString('pt-BR') : '—'}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td style={{ textAlign: 'right' }}>
-                      <Group gap="xs" justify="flex-end">
-                        <Button
-                          size="xs"
-                          color="green"
-                          leftSection={<IconDownload size={14} />}
-                          loading={processingReceipt === msg.receiptHandle}
-                          disabled={discardingReceipt === msg.receiptHandle}
-                          onClick={() => handleProcess(msg)}
-                        >
-                          Importar
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          color="red"
-                          leftSection={<IconTrash size={14} />}
-                          loading={discardingReceipt === msg.receiptHandle}
-                          disabled={processingReceipt === msg.receiptHandle}
-                          onClick={() => handleDiscard(msg.receiptHandle)}
-                        >
-                          Descartar
-                        </Button>
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
           )}
-        </Card>
+
+          {/* Cards de Métricas (KPIs) */}
+          <SimpleGrid cols={{ base: 1, sm: 3 }} mb="xl">
+            <Paper
+              withBorder
+              p="lg"
+              radius="md"
+              style={{
+                backgroundColor: '#ffffff',
+                borderColor: '#e5e7eb',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+              }}
+            >
+              <Group justify="space-between" mb="xs">
+                <Text size="xs" fw={700} style={{ color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Mensagens na Fila
+                </Text>
+                <div style={{ padding: 8, borderRadius: 8, backgroundColor: '#eff6ff' }}>
+                  <IconInbox size={20} color="#2563eb" />
+                </div>
+              </Group>
+              <Group align="baseline" gap="xs" mt={6}>
+                <Text style={{ color: '#111827', fontSize: '2rem', fontWeight: 700, lineHeight: 1 }}>
+                  {loadingStats ? <Loader size="sm" /> : stats?.approximateMessageCount ?? 0}
+                </Text>
+                <Text size="xs" style={{ color: '#6b7280' }}>
+                  disponíveis para importação
+                </Text>
+              </Group>
+            </Paper>
+
+            <Paper
+              withBorder
+              p="lg"
+              radius="md"
+              style={{
+                backgroundColor: '#ffffff',
+                borderColor: '#e5e7eb',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+              }}
+            >
+              <Group justify="space-between" mb="xs">
+                <Text size="xs" fw={700} style={{ color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Em Processamento
+                </Text>
+                <div style={{ padding: 8, borderRadius: 8, backgroundColor: '#fefce8' }}>
+                  <IconLayersLinked size={20} color="#ca8a04" />
+                </div>
+              </Group>
+              <Group align="baseline" gap="xs" mt={6}>
+                <Text style={{ color: '#111827', fontSize: '2rem', fontWeight: 700, lineHeight: 1 }}>
+                  {loadingStats ? <Loader size="sm" /> : stats?.approximateInFlightCount ?? 0}
+                </Text>
+                <Text size="xs" style={{ color: '#6b7280' }}>
+                  em andamento (in-flight)
+                </Text>
+              </Group>
+            </Paper>
+
+            <Paper
+              withBorder
+              p="lg"
+              radius="md"
+              style={{
+                backgroundColor: '#ffffff',
+                borderColor: '#e5e7eb',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+              }}
+            >
+              <Group justify="space-between" mb="xs">
+                <Text size="xs" fw={700} style={{ color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Estado da Conexão
+                </Text>
+                <div style={{ padding: 8, borderRadius: 8, backgroundColor: stats?.isConfigured ? '#f0fdf4' : '#f3f4f6' }}>
+                  <IconClock size={20} color={stats?.isConfigured ? '#16a34a' : '#9ca3af'} />
+                </div>
+              </Group>
+              <Group align="baseline" gap="xs" mt={6}>
+                <Text style={{ color: '#111827', fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.2 }}>
+                  {stats?.isConfigured ? 'Ativa' : 'Desconectada'}
+                </Text>
+                <Text size="xs" style={{ color: '#6b7280' }}>
+                  polling 20s
+                </Text>
+              </Group>
+            </Paper>
+          </SimpleGrid>
+
+          {/* Tabela de Mensagens Disponíveis */}
+          <Card
+            withBorder
+            radius="md"
+            p="xl"
+            style={{
+              backgroundColor: '#ffffff',
+              borderColor: '#e5e7eb',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+            }}
+          >
+            <Group justify="space-between" mb="lg">
+              <div>
+                <Title order={4} style={{ color: '#111827', fontWeight: 600 }}>
+                  Mensagens Pendentes na Fila
+                </Title>
+                <Text size="xs" style={{ color: '#6b7280' }} mt={2}>
+                  Listagem das mensagens aguardando processamento pelo worker local ou por importação manual.
+                </Text>
+              </div>
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconRefresh size={14} />}
+                onClick={fetchMessages}
+                loading={loadingMessages}
+              >
+                Consultar Mensagens
+              </Button>
+            </Group>
+
+            {loadingMessages ? (
+              <Group justify="center" py="xl">
+                <Loader size="md" color="blue" />
+                <Text size="sm" style={{ color: '#6b7280' }}>
+                  Buscando mensagens da fila SQS...
+                </Text>
+              </Group>
+            ) : messages.length === 0 ? (
+              <Alert icon={<IconCheck size={16} />} color="blue" variant="light">
+                Nenhuma mensagem pendente na fila no momento.
+              </Alert>
+            ) : (
+              <Table
+                highlightOnHover
+                verticalSpacing="sm"
+                horizontalSpacing="md"
+                style={{ borderCollapse: 'collapse', width: '100%' }}
+              >
+                <Table.Thead style={{ backgroundColor: '#f8fafc' }}>
+                  <Table.Tr>
+                    <Table.Th style={{ color: '#475569', fontWeight: 600, fontSize: '0.85rem' }}>Matrícula</Table.Th>
+                    <Table.Th style={{ color: '#475569', fontWeight: 600, fontSize: '0.85rem' }}>Loja / Tipo</Table.Th>
+                    <Table.Th style={{ color: '#475569', fontWeight: 600, fontSize: '0.85rem' }}>Período</Table.Th>
+                    <Table.Th style={{ color: '#475569', fontWeight: 600, fontSize: '0.85rem' }}>Linhas</Table.Th>
+                    <Table.Th style={{ color: '#475569', fontWeight: 600, fontSize: '0.85rem' }}>Arquivo S3</Table.Th>
+                    <Table.Th style={{ color: '#475569', fontWeight: 600, fontSize: '0.85rem' }}>Recebido em</Table.Th>
+                    <Table.Th style={{ textAlign: 'right', color: '#475569', fontWeight: 600, fontSize: '0.85rem' }}>Ações</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {messages.map((msg) => (
+                    <Table.Tr key={msg.receiptHandle} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <Table.Td>
+                        <Badge variant="light" color="indigo" size="sm">
+                          {msg.matricula || 'N/A'}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={500} style={{ color: '#1f2937' }}>
+                          {msg.store || 'Geral'}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" style={{ color: '#6b7280' }}>
+                          {msg.scrapeDate || 'Todos'}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={600} style={{ color: '#111827' }}>
+                          {msg.rowCount != null ? msg.rowCount.toLocaleString('pt-BR') : '—'}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Tooltip label={`s3://${msg.s3Bucket || ''}/${msg.s3Key || ''}`} withArrow>
+                          <Text
+                            size="xs"
+                            style={{
+                              color: '#6b7280',
+                              maxWidth: 220,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {msg.s3Key ? msg.s3Key.split('/').pop() : '—'}
+                          </Text>
+                        </Tooltip>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" style={{ color: '#6b7280' }}>
+                          {msg.sentAt ? new Date(msg.sentAt).toLocaleString('pt-BR') : '—'}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: 'right' }}>
+                        <Group gap="xs" justify="flex-end">
+                          <Button
+                            size="xs"
+                            color="teal"
+                            variant="light"
+                            leftSection={<IconDownload size={14} />}
+                            loading={processingReceipt === msg.receiptHandle}
+                            disabled={discardingReceipt === msg.receiptHandle}
+                            onClick={() => handleProcess(msg)}
+                          >
+                            Importar
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="subtle"
+                            color="red"
+                            leftSection={<IconTrash size={14} />}
+                            loading={discardingReceipt === msg.receiptHandle}
+                            disabled={processingReceipt === msg.receiptHandle}
+                            onClick={() => handleDiscard(msg.receiptHandle)}
+                          >
+                            Descartar
+                          </Button>
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            )}
+          </Card>
+        </div>
       </div>
-    </div>
+    </Menu>
   )
 }
 

@@ -111,7 +111,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const [matricula, setMatricula] = useState('');
   const [password, setPassword] = useState('');
   const [configDefaultStartMonth, setConfigDefaultStartMonth] = useState('');
-  const [scrapeType, setScrapeType] = useState<'geral' | 'consultor'>('geral');
+  const [scrapeType, setScrapeType] = useState<'geral' | 'consultor'>('consultor');
   const [outputMode, setOutputMode] = useState<'direct' | 'sqs'>('direct');
   const [validateOnSave, setValidateOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -168,7 +168,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       setMatricula('');
       setPassword('');
       setConfigDefaultStartMonth('');
-      setScrapeType('geral');
+      setScrapeType('consultor');
       setOutputMode('direct');
     }
     setModalOpen(true);
