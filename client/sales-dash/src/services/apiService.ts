@@ -1767,6 +1767,52 @@ export const apiService = {
     return response.json()
   },
 
+  async getSqsQueueStats(): Promise<SqsQueueStats> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/stats`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao buscar estatísticas da fila SQS"))
+    }
+    return response.json()
+  },
+
+  async peekSqsMessages(max: number = 10): Promise<SqsMessageItem[]> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/messages?max=${max}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao consultar mensagens da fila SQS"))
+    }
+    return response.json()
+  },
+
+  async processSqsMessage(receiptHandle: string, messageBody: string): Promise<ProcessSqsMessageResponse> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/messages/process`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ receiptHandle, messageBody }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao processar mensagem"))
+    }
+    return response.json()
+  },
+
+  async discardSqsMessage(receiptHandle: string): Promise<{ success: boolean; message: string }> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/messages`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ receiptHandle }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao descartar mensagem"))
+    }
+    return response.json()
+  },
+
   async createSurvey(dto: CreateSurveyDto): Promise<ApiResponse<SurveySummaryDto>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/surveys`, {
       method: "POST",
@@ -2379,6 +2425,36 @@ export interface AdminMigrateContractsResult {
   fromUser: string
   toUser: string
 }
+
+export interface SqsQueueStats {
+  approximateMessageCount: number
+  approximateInFlightCount: number
+  oldestMessageAgeSeconds: string | null
+  isConfigured: boolean
+}
+
+export interface SqsMessageItem {
+  receiptHandle: string
+  messageId: string
+  jobId: string | null
+  s3Key: string | null
+  s3Bucket: string | null
+  rowCount: number | null
+  matricula: string | null
+  store: string | null
+  scrapeDate: string | null
+  completedAt: string | null
+  durationFormatted: string | null
+  userId: string | null
+  sentAt: string
+}
+
+export interface ProcessSqsMessageResponse {
+  success: boolean
+  importedCount: number
+  message: string
+}
+
 
 
 

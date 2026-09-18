@@ -38,6 +38,10 @@ namespace SalesApp.Models
         [MaxLength(50)]
         public string ScrapeType { get; set; } = "geral";
 
+        [MaxLength(20)]
+        public string OutputMode { get; set; } = "direct"; // "direct" | "sqs"
+
+
         public bool IsEnabled { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

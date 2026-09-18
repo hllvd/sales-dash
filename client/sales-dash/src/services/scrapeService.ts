@@ -8,6 +8,7 @@ export interface ScrapeConfig {
     credentialStatus?: 'ok' | 'wrong-password' | null;
     defaultStartMonth?: string;
     scrapeType?: 'geral' | 'consultor';
+    outputMode?: 'direct' | 'sqs';
     isEnabled: boolean;
     createdAt: string;
     updatedAt: string;
@@ -20,6 +21,7 @@ export interface ScrapeConfigRequest {
     powerBiPassword?: string;
     defaultStartMonth?: string;
     scrapeType?: 'geral' | 'consultor';
+    outputMode?: 'direct' | 'sqs';
     testOnSave?: boolean;
 }
 

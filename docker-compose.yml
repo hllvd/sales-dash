@@ -13,6 +13,9 @@ services:
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - CW_ERROR_LOG=${CW_ERROR_LOG:-false}
       - CW_LOG_GROUP=${CW_LOG_GROUP:-/salesapp/api/errors}
+      - AWS__SqsQueueUrl=${SQS_QUEUE_URL:-}
+      - AWS__ScrapeResultsBucket=${SCRAPE_S3_BUCKET:-hdev-sales-dash}
+      - AWS__ScrapeResultsPrefix=${SCRAPE_S3_PREFIX:-scrape-results/}
     ports:
       - "5001:5000"
     deploy:
@@ -40,6 +43,12 @@ services:
       - AVAPRO_PASSWORD=${AVAPRO_PASSWORD:-}
       - PORT=3001
       - OUTPUT_DIR=/app/outputs
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - SQS_QUEUE_URL=${SQS_QUEUE_URL:-}
+      - SCRAPE_S3_BUCKET=${SCRAPE_S3_BUCKET:-hdev-sales-dash}
+      - SCRAPE_S3_PREFIX=${SCRAPE_S3_PREFIX:-scrape-results/}
     volumes:
       - scrape-data:/app/outputs
     logging:

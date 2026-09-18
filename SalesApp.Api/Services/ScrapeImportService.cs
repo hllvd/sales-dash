@@ -8,12 +8,15 @@ using SalesApp.Data;
 using SalesApp.Models;
 using SalesApp.Models.Configuration;
 using SalesApp.Repositories;
+using Amazon.S3;
+using Amazon.S3.Model;
 
 namespace SalesApp.Services
 {
     public interface IScrapeImportService
     {
-        Task<ImportResult> AutoImportAsync(string filePath, Guid userId);
+        Task<ImportResult> AutoImportAsync(string filePath, Guid? userId);
+        Task<ImportResult> AutoImportFromS3Async(string bucket, string s3Key, Guid? userId);
     }
 
     public class ScrapeImportService : IScrapeImportService
@@ -23,22 +26,25 @@ namespace SalesApp.Services
         private readonly IImportExecutionService _importService;
         private readonly IImportSessionRepository _sessionRepository;
         private readonly ScrapeImportOptions _options;
+        private readonly IAmazonS3 _s3;
 
         public ScrapeImportService(
             AppDbContext context,
             IUserRepository userRepository,
             IImportExecutionService importService,
             IImportSessionRepository sessionRepository,
-            IOptions<ScrapeImportOptions> options)
+            IOptions<ScrapeImportOptions> options,
+            IAmazonS3 s3)
         {
             _context = context;
             _userRepository = userRepository;
             _importService = importService;
             _sessionRepository = sessionRepository;
             _options = options.Value;
+            _s3 = s3;
         }
 
-        public async Task<ImportResult> AutoImportAsync(string filePath, Guid userId)
+        public async Task<ImportResult> AutoImportAsync(string filePath, Guid? userId)
         {
             var result = new ImportResult();
             
@@ -48,20 +54,63 @@ namespace SalesApp.Services
                 return result;
             }
 
-            var user = await _userRepository.GetByIdAsync(userId);
-            if (user == null)
+            User? user = null;
+            if (userId.HasValue)
             {
-                result.Errors.Add($"User {userId} not found");
-                return result;
+                user = await _userRepository.GetByIdAsync(userId.Value);
+                if (user == null)
+                {
+                    result.Errors.Add($"User {userId} not found");
+                    return result;
+                }
             }
+
+            return await RunImportFromFileAsync(filePath, Path.GetFileName(filePath), user);
+        }
+
+        public async Task<ImportResult> AutoImportFromS3Async(string bucket, string s3Key, Guid? userId)
+        {
+            var result = new ImportResult();
+
+            User? user = null;
+            if (userId.HasValue)
+            {
+                user = await _userRepository.GetByIdAsync(userId.Value);
+                if (user == null)
+                {
+                    result.Errors.Add($"User {userId} not found");
+                    return result;
+                }
+            }
+
+            // Download CSV from S3 to a temp file
+            var tmpPath = Path.Combine(Path.GetTempPath(), $"s3import_{Guid.NewGuid()}.csv");
+            try
+            {
+                var getRequest = new GetObjectRequest { BucketName = bucket, Key = s3Key };
+                using var response = await _s3.GetObjectAsync(getRequest);
+                await response.WriteResponseStreamToFileAsync(tmpPath, false, CancellationToken.None);
+
+                return await RunImportFromFileAsync(tmpPath, Path.GetFileName(s3Key), user);
+            }
+            finally
+            {
+                if (File.Exists(tmpPath))
+                    File.Delete(tmpPath);
+            }
+        }
+
+        private async Task<ImportResult> RunImportFromFileAsync(string filePath, string fileName, User? user)
+        {
+            var result = new ImportResult();
 
             // Create an import session for tracking
             var session = new ImportSession
             {
                 UploadId = $"scrape-{DateTime.UtcNow:yyyyMMddHHmmss}",
-                FileName = Path.GetFileName(filePath),
+                FileName = fileName,
                 FileType = "csv",
-                UploadedByUserInternalId = user.InternalId,
+                UploadedByUserInternalId = user?.InternalId ?? 0,
                 Status = "Processing",
                 CreatedAt = DateTime.UtcNow
             };
@@ -92,8 +141,6 @@ namespace SalesApp.Services
                             rowDict[kvp.Key] = kvp.Value?.ToString() ?? string.Empty;
                         }
                         
-                        // UserEmail is no longer injected; we will dynamically resolve ownership via Matricula
-                        
                         rows.Add(rowDict);
                     }
                 }
@@ -111,26 +158,23 @@ namespace SalesApp.Services
                     importSessionId: session.Id,
                     rows: rows,
                     mappings: _options.Mappings,
-                    dateFormat: "dd/MM/yyyy", // Standard Brazilian format often used in PBI exports
+                    dateFormat: "dd/MM/yyyy",
                     skipMissingContractNumber: true,
                     allowAutoCreateGroups: true,
                     allowAutoCreatePVs: true
                 );
 
-                // Add robust logging to catch missing mappings or silent skips
                 if (importResult.ProcessedRows == 0 && rows.Count > 0)
                 {
                     var keys = string.Join(", ", rows.First().Keys);
                     result.Errors.Add($"All {rows.Count} rows were skipped! Possible mapping mismatch. Available columns in CSV: {keys}");
                 }
 
-                // Append any inner errors to the main result so they get saved to DynamoDB
                 if (importResult.Errors.Any())
                 {
                     result.Errors.AddRange(importResult.Errors);
                 }
 
-                // Finalize session status
                 session.Status = importResult.Errors.Any() ? "Failed" : "Completed";
                 await _sessionRepository.UpdateAsync(session);
 

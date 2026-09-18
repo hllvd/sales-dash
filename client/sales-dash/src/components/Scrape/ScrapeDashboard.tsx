@@ -112,6 +112,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const [password, setPassword] = useState('');
   const [configDefaultStartMonth, setConfigDefaultStartMonth] = useState('');
   const [scrapeType, setScrapeType] = useState<'geral' | 'consultor'>('geral');
+  const [outputMode, setOutputMode] = useState<'direct' | 'sqs'>('direct');
   const [validateOnSave, setValidateOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
@@ -160,6 +161,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       setPassword(''); // Don't show existing password
       setConfigDefaultStartMonth(config.defaultStartMonth || '');
       setScrapeType(config.scrapeType === 'consultor' ? 'consultor' : 'geral');
+      setOutputMode(config.outputMode === 'sqs' ? 'sqs' : 'direct');
     } else {
       setEditingConfig(null);
       setStore('');
@@ -167,6 +169,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       setPassword('');
       setConfigDefaultStartMonth('');
       setScrapeType('geral');
+      setOutputMode('direct');
     }
     setModalOpen(true);
   };
@@ -190,6 +193,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
         powerBiPassword: password || undefined,
         defaultStartMonth: configDefaultStartMonth || undefined,
         scrapeType,
+        outputMode,
         testOnSave: validateOnSave
       });
       
@@ -401,11 +405,18 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
     return (
       <Table.Tr key={config.id}>
         <Table.Td>
-          {config.scrapeType === 'consultor' ? (
-            <Badge color="violet" variant="light">Consultor</Badge>
-          ) : (
-            <Badge color="blue" variant="light">Geral</Badge>
-          )}
+          <Group gap="xs">
+            {config.scrapeType === 'consultor' ? (
+              <Badge color="violet" variant="light">Consultor</Badge>
+            ) : (
+              <Badge color="blue" variant="light">Geral</Badge>
+            )}
+            {config.outputMode === 'sqs' ? (
+              <Badge color="teal" variant="outline">SQS / S3</Badge>
+            ) : (
+              <Badge color="gray" variant="outline">Direto</Badge>
+            )}
+          </Group>
         </Table.Td>
         <Table.Td>
           {config.store ? (
@@ -702,6 +713,24 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
                 {scrapeType === 'consultor' 
                   ? 'Modo direto e rápido via API dedicada PowerBI, focado na carteira de contratos da matrícula.'
                   : 'Modo padrão por unidade/loja no dashboard Geral.'}
+              </Text>
+            </div>
+
+            <div>
+              <Text size="sm" fw={500} mb={4}>Destino dos Resultados</Text>
+              <SegmentedControl
+                fullWidth
+                value={outputMode}
+                onChange={(val) => setOutputMode(val as 'direct' | 'sqs')}
+                data={[
+                  { label: 'Importação Direta (Padrão)', value: 'direct' },
+                  { label: 'Fila AWS SQS / S3 (Worker Local)', value: 'sqs' },
+                ]}
+              />
+              <Text size="xs" c="dimmed" mt={4}>
+                {outputMode === 'sqs'
+                  ? 'O scraper subirá o CSV no S3 e notificará a fila SQS. Um worker local ou o painel admin fará a importação.'
+                  : 'O scraper salva o CSV no volume compartilhado e a API importa automaticamente ao concluir.'}
               </Text>
             </div>
 

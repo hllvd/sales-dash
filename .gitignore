@@ -433,3 +433,6 @@ test-output.txt
 # Wizard temporary files
 wizard-temp/
 
+# Scraper local outputs
+pbi-scraper/outputs/
+

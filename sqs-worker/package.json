@@ -1,0 +1,16 @@
+{
+  "name": "sales-dash-sqs-worker",
+  "version": "1.0.0",
+  "description": "Local SQS Worker for consuming scrape results and triggering imports",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/client-sqs": "^3.758.0",
+    "axios": "^1.6.7",
+    "dotenv": "^16.4.7"
+  }
+}

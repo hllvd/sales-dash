@@ -29,6 +29,7 @@ import BatchPage from './components/BatchPage';
 import ContractReconciliationPage from './components/ContractReconciliationPage';
 import RetentionFilterPage from './components/RetentionFilterPage';
 import ContractMigrationTool from './components/AdminTools/ContractMigrationTool';
+import SqsQueuePanel from './components/AdminTools/SqsQueuePanel';
 import RequestsPage from './components/RequestsPage';
 import SurveyPage from './components/Survey/SurveyPage';
 import MyQAPage from './components/Survey/MyQAPage';
@@ -151,6 +152,8 @@ function App() {
         return <RetentionFilterPage />;
       case '#/admin-tools/migrate-contracts':
         return <ContractMigrationTool />;
+      case '#/admin-tools/sqs-queue':
+        return <SqsQueuePanel />;
       case '#/requests':
         return <RequestsPage />;
       case '#/surveys':

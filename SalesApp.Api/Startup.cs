@@ -18,6 +18,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Amazon;
 using Amazon.DynamoDBv2;
+using Amazon.SQS;
+using Amazon.S3;
 using SalesApp.ReportFilters.Repositories;
 using SalesApp.ReportFilters.Services;
 using SalesApp.ReportFilters.Settings;
@@ -132,11 +134,40 @@ namespace SalesApp
             // AWS DynamoDB
             services.AddSingleton<IAmazonDynamoDB>(sp => {
                 var config = sp.GetRequiredService<IConfiguration>();
-                var dynamoDbConfig = new AmazonDynamoDBConfig
+                var region = RegionEndpoint.GetBySystemName(config["AWS:Region"] ?? "us-east-1");
+                var accessKey = config["AWS:AccessKeyId"] ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+                var secretKey = config["AWS:SecretAccessKey"] ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+                if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
                 {
-                    RegionEndpoint = RegionEndpoint.GetBySystemName(config["AWS:Region"] ?? "us-east-1")
-                };
-                return new AmazonDynamoDBClient(dynamoDbConfig);
+                    return new AmazonDynamoDBClient(accessKey, secretKey, region);
+                }
+                return new AmazonDynamoDBClient(new AmazonDynamoDBConfig { RegionEndpoint = region });
+            });
+
+            // AWS SQS
+            services.AddSingleton<IAmazonSQS>(sp => {
+                var config = sp.GetRequiredService<IConfiguration>();
+                var region = RegionEndpoint.GetBySystemName(config["AWS:Region"] ?? "us-east-1");
+                var accessKey = config["AWS:AccessKeyId"] ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+                var secretKey = config["AWS:SecretAccessKey"] ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+                if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
+                {
+                    return new AmazonSQSClient(accessKey, secretKey, region);
+                }
+                return new AmazonSQSClient(new AmazonSQSConfig { RegionEndpoint = region });
+            });
+
+            // AWS S3
+            services.AddSingleton<IAmazonS3>(sp => {
+                var config = sp.GetRequiredService<IConfiguration>();
+                var region = RegionEndpoint.GetBySystemName(config["AWS:Region"] ?? "us-east-1");
+                var accessKey = config["AWS:AccessKeyId"] ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+                var secretKey = config["AWS:SecretAccessKey"] ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+                if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
+                {
+                    return new AmazonS3Client(accessKey, secretKey, region);
+                }
+                return new AmazonS3Client(new AmazonS3Config { RegionEndpoint = region });
             });
 
             // DynamoDb typed settings

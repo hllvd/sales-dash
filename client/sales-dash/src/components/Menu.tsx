@@ -589,8 +589,15 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconTools size={20} />}
               childrenOffset={28}
               styles={navLinkStyles('')}
-              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts'}
+              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts' || currentPath === '#/admin-tools/sqs-queue'}
             >
+              <NavLink
+                href="#/admin-tools/sqs-queue"
+                label="Fila de Scrape (SQS)"
+                active={isActive('#/admin-tools/sqs-queue')}
+                styles={navLinkStyles('#/admin-tools/sqs-queue')}
+                onClick={() => { if (opened) close(); }}
+              />
               <NavLink
                 href="#/admin-tools/migrate-contracts"
                 label="Migração de Contratos"

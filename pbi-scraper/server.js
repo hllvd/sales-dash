@@ -9,6 +9,8 @@ const { scrapeWithReauth, probeStartDate } = require('./extractor');
 const { scrapeConsultorDirect } = require('./extractorConsultor');
 const { getOrFetchTokens, AuthError } = require('./auth');
 const tokenManager = require('./tokenManager');
+const { uploadToS3 } = require('./s3Uploader');
+const { publishToQueue } = require('./sqsPublisher');
 
 const app = express();
 app.use(express.json());
@@ -62,10 +64,12 @@ app.post('/jobs', (req, res) => {
     avaproPassword,
     scrapeDate: reqScrapeDate,
     scrapeDates: reqScrapeDates,
-    scrapeType: reqScrapeType
+    scrapeType: reqScrapeType,
+    outputMode: reqOutputMode
   } = req.body;
 
   const scrapeType = (reqScrapeType || 'geral').toLowerCase();
+  const outputMode = (reqOutputMode || 'direct').toLowerCase();
 
   if (!matricula || !callbackUrl) {
     return res.status(400).json({ error: 'Missing matricula or callbackUrl' });
@@ -230,6 +234,49 @@ app.post('/jobs', (req, res) => {
 
       result.status = 'Failed';
       result.error = err.authMessage || err.message;
+    }
+
+    // If successful and outputMode === 'sqs', upload CSV to S3 and publish to SQS
+    if (result.status === 'Succeeded' && outputMode === 'sqs' && result.fileRelativePath) {
+      try {
+        const localFilePath = path.join(OUTPUT_DIR, result.fileRelativePath);
+        const s3Bucket = process.env.SCRAPE_S3_BUCKET || 'hdev-sales-dash';
+        const s3Prefix = (process.env.SCRAPE_S3_PREFIX || 'scrape-results/').replace(/^\/+/, '');
+        const s3Key = `${s3Prefix}${result.fileRelativePath}`;
+
+        console.log(`[Job ${jobId}] Modo SQS ativado. Fazendo upload para S3: s3://${s3Bucket}/${s3Key}`);
+        await uploadToS3(localFilePath, s3Key, s3Bucket, 'text/csv');
+
+        const sqsQueueUrl = process.env.SQS_QUEUE_URL;
+        if (sqsQueueUrl) {
+          const sqsPayload = {
+            jobId,
+            runId: req.body.runId,
+            userId: req.body.userId,
+            s3Bucket,
+            s3Key,
+            rowCount: result.rowCount,
+            matricula,
+            store: result.detectedStore || store,
+            scrapeDate: result.scrapeDate,
+            completedAt: result.completedAt || new Date().toISOString(),
+            durationSeconds: result.durationSeconds,
+            durationFormatted: result.durationFormatted
+          };
+          console.log(`[Job ${jobId}] Publicando notificação no SQS...`);
+          await publishToQueue(sqsQueueUrl, sqsPayload);
+        } else {
+          console.warn(`[Job ${jobId}] SQS_QUEUE_URL não configurada; arquivo subiu para S3 mas notificação SQS não foi enviada.`);
+        }
+
+        result.outputMode = 'sqs';
+        result.s3Key = s3Key;
+        result.s3Bucket = s3Bucket;
+      } catch (sqsErr) {
+        console.error(`[Job ${jobId}] Falha no upload S3 ou publicação SQS:`, sqsErr.message);
+        result.status = 'Failed';
+        result.error = `Falha no upload S3 / publicação SQS: ${sqsErr.message}`;
+      }
     }
 
     // Call back to C# API

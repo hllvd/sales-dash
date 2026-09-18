@@ -1,5 +1,37 @@
 # Features
 
+## Entrega de Resultados de Scraping via AWS SQS e S3 com Worker Local e Painel de Monitoramento
+
+Permite ao sistema, de forma configurável por conta (`ScrapeConfig.OutputMode`), enviar os arquivos CSV extraídos diretamente para um bucket Amazon S3 e enfileirar notificações em uma fila AWS SQS (`salesapp-scrape-results`). O usuário pode optar entre o fluxo local direto (importação automática pelo container da API) ou a ingestão assíncrona descentralizada (via worker local standalone ou painel administrativo de gestão de fila).
+
+### Comportamento e Regras
+- **Seletor de Modo de Saída (OutputMode)**:
+  - No modal de criação/edição de contas PowerBI (`ScrapeDashboard.tsx`), foi adicionado o controle `Destino dos Resultados`:
+    - `direct` (**Importação Direta - Padrão**): o CSV é salvo no volume compartilhado e a API efetua o auto-import imediato ao concluir.
+    - `sqs` (**Fila AWS SQS / S3**): o scraper faz o upload do CSV para o bucket S3 (prefixo `scrape-results/`) e publica uma notificação contendo os metadados na fila SQS da Amazon.
+  - A tabela de contas exibe badges informativos: `Geral` ou `Consultor` junto a `Direto` ou `SQS / S3`.
+- **Persistência no Backend (.NET)**:
+  - Propriedade `OutputMode` (padrão `"direct"`, tamanho 20) adicionada à entidade `ScrapeConfig`, aos DTOs de configuração e snapshot do EF Core.
+  - Migration EF Core criada (`20260917120000_AddScrapeConfigOutputMode`).
+  - O `ScrapeOrchestrator` repassa o modo para o `PbiScraperClient`, e ao receber o callback de conclusão no modo `sqs`, registra o job com status `AwaitingImport` sem disparar a importação local síncrona.
+- **Upload S3 e Notificação SQS no `pbi-scraper`**:
+  - Módulos `s3Uploader.js` e `sqsPublisher.js` utilizando o SDK oficial `@aws-sdk/client-s3` e `@aws-sdk/client-sqs`.
+  - Ao finalizar com sucesso no modo `sqs`, o arquivo CSV é transmitido para `s3://${SCRAPE_S3_BUCKET}/${SCRAPE_S3_PREFIX}${fileName}` e a notificação é enviada para `SQS_QUEUE_URL`.
+  - O payload SQS inclui `jobId`, `runId`, `userId`, `s3Bucket`, `s3Key`, `rowCount`, `matricula`, `store`, `scrapeDate`, `durationFormatted` e `completedAt`.
+- **Worker Local Standalone (`sqs-worker/`)**:
+  - Novo projeto Node.js independente na pasta `sqs-worker/` com `.env.example`, `package.json`, `README.md` e `index.js`.
+  - Executa long-polling na fila AWS SQS (janela de 20s, visibilidade configurável).
+  - Ao receber a mensagem, aciona o endpoint `POST /api/scrape/import-from-s3` da API local informando `s3Bucket` e `s3Key`.
+  - Em caso de sucesso (HTTP 200), remove a mensagem da fila SQS via `DeleteMessageCommand`. Em caso de erro, mantém a mensagem para retry automático após o visibility timeout.
+- **Painel Administrativo da Fila em Ferramentas Admin (`#/admin-tools/sqs-queue`)**:
+  - Endpoint `GET /api/admin/sqs/stats`: exibe total de mensagens na fila, mensagens em processamento (in-flight) e idade da mensagem mais antiga.
+  - Endpoint `GET /api/admin/sqs/messages`: permite visualizar (peek) as mensagens pendentes na fila sem removê-las prematuramente.
+  - Endpoint `POST /api/admin/sqs/messages/process`: importa manualmente sob demanda qualquer mensagem da fila baixando o CSV do S3 e deletando da fila após o sucesso.
+  - Endpoint `DELETE /api/admin/sqs/messages`: descarta mensagens inválidas ou indesejadas da fila.
+  - Nova página `SqsQueuePanel.tsx` e item no menu lateral em *Ferramentas Admin* acessível para superadmin.
+
+---
+
 ## Integração do Scrape Consultor ao Sistema Principal, Seletor de Tipo e Mapeamento de Contratos
 
 Integração de ponta a ponta da modalidade de extração direta do dashboard **Consultor** (`extractorConsultor.js`) ao sistema principal (microsserviço `pbi-scraper`, API .NET e Frontend React), permitindo configurar e alternar o tipo de scraping por conta e mapeando os dados extraídos diretamente para a entidade `Contract`.

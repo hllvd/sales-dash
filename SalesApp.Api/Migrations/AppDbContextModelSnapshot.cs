@@ -723,6 +723,11 @@ namespace SalesApp.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OutputMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PowerBiPassword")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");

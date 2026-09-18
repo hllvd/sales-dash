@@ -18,6 +18,7 @@ namespace SalesApp.Controllers
         public string? CredentialStatus { get; set; }
         public string? DefaultStartMonth { get; set; }
         public string ScrapeType { get; set; } = "geral";
+        public string OutputMode { get; set; } = "direct";
         public bool IsEnabled { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
@@ -31,6 +32,7 @@ namespace SalesApp.Controllers
         public string? PowerBiPassword { get; set; }
         public string? DefaultStartMonth { get; set; }
         public string? ScrapeType { get; set; }
+        public string? OutputMode { get; set; }
         public bool TestOnSave { get; set; } = true;
     }
 
@@ -40,6 +42,17 @@ namespace SalesApp.Controllers
         public int MonthsCount { get; set; } = 3;
         public string? ScrapeType { get; set; }
     }
+
+    public class ImportFromS3Request
+    {
+        public string S3Key { get; set; } = string.Empty;
+        public string S3Bucket { get; set; } = string.Empty;
+        public string? UserId { get; set; }
+        public string? JobId { get; set; }
+        public string? RunId { get; set; }
+        public string? Matricula { get; set; }
+    }
+
 
     [ApiController]
     [Route("api/[controller]")]
@@ -128,7 +141,9 @@ namespace SalesApp.Controllers
             config.Matricula = request.Matricula.Trim();
             config.DefaultStartMonth = string.IsNullOrWhiteSpace(request.DefaultStartMonth) ? null : request.DefaultStartMonth.Trim();
             config.ScrapeType = string.IsNullOrWhiteSpace(request.ScrapeType) ? "geral" : request.ScrapeType.Trim().ToLowerInvariant();
+            config.OutputMode = string.IsNullOrWhiteSpace(request.OutputMode) ? "direct" : request.OutputMode.Trim().ToLowerInvariant();
             config.UpdatedAt = DateTime.UtcNow;
+
 
             if (!string.IsNullOrEmpty(request.PowerBiPassword))
             {
@@ -416,6 +431,49 @@ namespace SalesApp.Controllers
             return Ok();
         }
 
+        [HttpPost("import-from-s3")]
+        public async Task<IActionResult> ImportFromS3([FromBody] ImportFromS3Request request)
+        {
+            // Validate shared secret header to prevent unauthorized use
+            var expectedSecret = _configuration["PbiScraper:WorkerSecret"];
+            if (!string.IsNullOrEmpty(expectedSecret))
+            {
+                var providedSecret = Request.Headers["X-Worker-Secret"].FirstOrDefault();
+                if (providedSecret != expectedSecret)
+                    return Unauthorized(new { message = "Invalid worker secret." });
+            }
+
+            if (string.IsNullOrEmpty(request.S3Key) || string.IsNullOrEmpty(request.S3Bucket))
+                return BadRequest(new { message = "S3Key and S3Bucket are required." });
+
+            try
+            {
+                Guid? userId = null;
+                if (!string.IsNullOrEmpty(request.UserId) && Guid.TryParse(request.UserId, out Guid parsedUid))
+                {
+                    userId = parsedUid;
+                }
+
+                var importResult = await _importService.AutoImportFromS3Async(
+                    request.S3Bucket,
+                    request.S3Key,
+                    userId
+                );
+
+                return Ok(new
+                {
+                    success = !importResult.Errors.Any(),
+                    importedCount = importResult.ProcessedRows,
+                    warnings = importResult.Warnings,
+                    errors = importResult.Errors
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Import failed: {ex.Message}" });
+            }
+        }
+
         private static ScrapeConfigDto MapToDto(ScrapeConfig config)
         {
             return new ScrapeConfigDto
@@ -427,6 +485,7 @@ namespace SalesApp.Controllers
                 CredentialStatus = config.CredentialStatus,
                 DefaultStartMonth = config.DefaultStartMonth,
                 ScrapeType = config.ScrapeType ?? "geral",
+                OutputMode = config.OutputMode ?? "direct",
                 IsEnabled = config.IsEnabled,
                 CreatedAt = config.CreatedAt,
                 UpdatedAt = config.UpdatedAt

@@ -23,5 +23,10 @@ namespace SalesApp.Models
         public string? DurationFormatted { get; set; }
         public string? StartedAt { get; set; }
         public string? CompletedAt { get; set; }
+
+        // SQS/S3 mode fields
+        public string? OutputMode { get; set; }  // "direct" | "sqs"
+        public string? S3Key { get; set; }
+        public string? S3Bucket { get; set; }
     }
 }
