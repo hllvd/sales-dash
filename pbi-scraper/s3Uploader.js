@@ -34,11 +34,14 @@ async function uploadToS3(localFilePath, s3Key, bucket, contentType = 'text/csv'
   const client = getS3Client();
   const fileStream = fs.createReadStream(localFilePath);
 
+  const expiresDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: s3Key,
     Body: fileStream,
     ContentType: contentType,
+    Expires: expiresDate,
   });
 
   await client.send(command);
