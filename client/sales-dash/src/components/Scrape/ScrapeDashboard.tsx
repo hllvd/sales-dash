@@ -24,6 +24,7 @@ import {
   Code,
   Box,
   SegmentedControl,
+  Accordion,
 } from '@mantine/core';
 import { 
   IconRefresh, 
@@ -35,8 +36,7 @@ import {
   IconTrash, 
   IconFingerprint,
   IconHistory,
-  IconUserCheck,
-  IconListDetails
+  IconUserCheck
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { scrapeService, ScrapeConfig, ScrapeRunSummary } from '../../services/scrapeService';
@@ -106,13 +106,56 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
   const [filterStore, setFilterStore] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
 
+type DateSelectionMode = '1' | '3' | '12' | '15' | 'custom' | 'all';
+
+function calculateRelativeMonth(months: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - (months - 1));
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function resolveDateMode(startMonth?: string | null): DateSelectionMode {
+  if (!startMonth || !startMonth.trim()) return 'all';
+  const trimmed = startMonth.trim();
+  if (trimmed === calculateRelativeMonth(1)) return '1';
+  if (trimmed === calculateRelativeMonth(3)) return '3';
+  if (trimmed === calculateRelativeMonth(12)) return '12';
+  if (trimmed === calculateRelativeMonth(15)) return '15';
+  return 'custom';
+}
+
+function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): string {
+  if (mode === 'all') {
+    return 'Sem filtro de data: o robô buscará todos os contratos disponíveis no portal.';
+  }
+  if (!startMonth) {
+    return 'Nenhum mês selecionado.';
+  }
+  const parts = startMonth.split('-');
+  if (parts.length === 2) {
+    const [y, m] = parts;
+    return `Extrairá dados a partir de 01/${m}/${y} até o mês atual.`;
+  }
+  return `Mês inicial: ${startMonth}`;
+}
+
   // Form state
   const [store, setStore] = useState<string | null>(null);
   const [matricula, setMatricula] = useState('');
   const [password, setPassword] = useState('');
+  const [dateMode, setDateMode] = useState<DateSelectionMode>('all');
   const [configDefaultStartMonth, setConfigDefaultStartMonth] = useState('');
   const [scrapeType, setScrapeType] = useState<'geral' | 'consultor'>('consultor');
   const [outputMode, setOutputMode] = useState<'direct' | 'sqs'>('direct');
+  const [autoImportSqs, setAutoImportSqs] = useState(true);
+  const [skipMissingContractNumber, setSkipMissingContractNumber] = useState(true);
+  const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState(true);
+  const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState(true);
+  const [updateMatriculaOnExisting, setUpdateMatriculaOnExisting] = useState(false);
+  const [updateTotalAmountOnExisting, setUpdateTotalAmountOnExisting] = useState(true);
+  const [updateStartDateOnExisting, setUpdateStartDateOnExisting] = useState(true);
   const [validateOnSave, setValidateOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
@@ -159,17 +202,34 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
       setStore(config.store || '');
       setMatricula(config.matricula);
       setPassword(''); // Don't show existing password
-      setConfigDefaultStartMonth(config.defaultStartMonth || '');
+      const initialMonth = config.defaultStartMonth || '';
+      setConfigDefaultStartMonth(initialMonth);
+      setDateMode(resolveDateMode(initialMonth));
       setScrapeType(config.scrapeType === 'consultor' ? 'consultor' : 'geral');
       setOutputMode(config.outputMode === 'sqs' ? 'sqs' : 'direct');
+      setAutoImportSqs(config.autoImportSqs ?? true);
+      setSkipMissingContractNumber(config.skipMissingContractNumber ?? true);
+      setAllowAutoCreateGroups(config.allowAutoCreateGroups ?? true);
+      setAllowAutoCreatePVs(config.allowAutoCreatePVs ?? true);
+      setUpdateMatriculaOnExisting(config.updateMatriculaOnExisting ?? false);
+      setUpdateTotalAmountOnExisting(config.updateTotalAmountOnExisting ?? true);
+      setUpdateStartDateOnExisting(config.updateStartDateOnExisting ?? true);
     } else {
       setEditingConfig(null);
       setStore('');
       setMatricula('');
       setPassword('');
       setConfigDefaultStartMonth('');
+      setDateMode('all');
       setScrapeType('consultor');
       setOutputMode('direct');
+      setAutoImportSqs(true);
+      setSkipMissingContractNumber(true);
+      setAllowAutoCreateGroups(true);
+      setAllowAutoCreatePVs(true);
+      setUpdateMatriculaOnExisting(false);
+      setUpdateTotalAmountOnExisting(true);
+      setUpdateStartDateOnExisting(true);
     }
     setModalOpen(true);
   };
@@ -194,6 +254,13 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
         defaultStartMonth: configDefaultStartMonth || undefined,
         scrapeType,
         outputMode,
+        autoImportSqs,
+        skipMissingContractNumber,
+        allowAutoCreateGroups,
+        allowAutoCreatePVs,
+        updateMatriculaOnExisting,
+        updateTotalAmountOnExisting,
+        updateStartDateOnExisting,
         testOnSave: validateOnSave
       });
       
@@ -321,6 +388,17 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
 
   const handleTrigger = async (configId: number) => {
     const targetConfig = configs.find(c => c.id === configId);
+    if (targetConfig?.credentialStatus === 'wrong-password') {
+      notifications.show({
+        title: 'Extração Bloqueada',
+        message: 'Esta conta está com falha de autenticação ("wrong-password"). Atualize e teste a senha para evitar bloqueio no AVA PRO.',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />,
+        autoClose: 8000,
+      });
+      return;
+    }
+
     const startM = targetConfig?.defaultStartMonth;
     const sType = targetConfig?.scrapeType || 'geral';
     try {
@@ -334,12 +412,15 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
         color: 'green',
       });
       fetchData();
-    } catch (error) {
-        notifications.show({
-            title: 'Erro',
-            message: 'Falha ao iniciar extração',
-            color: 'red',
-        });
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || 'Falha ao iniciar extração';
+      notifications.show({
+        title: 'Erro ao Iniciar Extração',
+        message: errMsg,
+        color: 'red',
+        autoClose: 10000,
+        icon: <IconAlertCircle size={16} />
+      });
     } finally {
       setTriggering(null);
     }
@@ -412,7 +493,9 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
               <Badge color="blue" variant="light">Geral</Badge>
             )}
             {config.outputMode === 'sqs' ? (
-              <Badge color="teal" variant="outline">SQS / S3</Badge>
+              <Badge color="teal" variant="outline">
+                {config.autoImportSqs === false ? 'SQS / S3 (Manual)' : 'SQS / S3 (Auto)'}
+              </Badge>
             ) : (
               <Badge color="gray" variant="outline">Direto</Badge>
             )}
@@ -450,7 +533,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
               </ActionIcon>
             </Tooltip>
             <Tooltip label="Editar">
-              <ActionIcon variant="light" color="gray" onClick={() => handleOpenModal(config)}>
+              <ActionIcon data-testid="edit-scrape-config-btn" aria-label="Editar" variant="light" color="gray" onClick={() => handleOpenModal(config)}>
                 <IconSettings size={18} />
               </ActionIcon>
             </Tooltip>
@@ -460,6 +543,7 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
               </ActionIcon>
             </Tooltip>
             <Button 
+              data-testid="trigger-scrape-btn"
               size="compact-xs" 
               variant="filled" 
               color="indigo"
@@ -729,9 +813,18 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
               />
               <Text size="xs" c="dimmed" mt={4}>
                 {outputMode === 'sqs'
-                  ? 'O scraper subirá o CSV no S3 e notificará a fila SQS. Um worker local ou o painel admin fará a importação.'
+                  ? 'O scraper subirá o CSV no S3 e notificará a fila SQS. Um worker local ou o backend fará a importação.'
                   : 'O scraper salva o CSV no volume compartilhado e a API importa automaticamente ao concluir.'}
               </Text>
+              {outputMode === 'sqs' && (
+                <Checkbox
+                  mt="xs"
+                  label="Importar SQS automaticamente no backend"
+                  description="A API processará os arquivos do S3 em segundo plano assim que chegarem na fila SQS."
+                  checked={autoImportSqs}
+                  onChange={(e) => setAutoImportSqs(e.currentTarget.checked)}
+                />
+              )}
             </div>
 
             <Select
@@ -764,13 +857,97 @@ const ScrapeDashboard: React.FC<{ initialTab?: string }> = ({ initialTab = 'link
               required={!editingConfig}
             />
 
-            <TextInput
-              label="Mês Inicial Padrão (Opcional)"
-              type="month"
-              value={configDefaultStartMonth}
-              onChange={(e) => setConfigDefaultStartMonth(e.currentTarget.value)}
-              description="Define o mês inicial padrão pré-selecionado ao solicitar extração desta conta."
+            <Select
+              label="Período de Extração Padrão"
+              description="Define o período retroativo ou mês inicial pré-selecionado para esta conta."
+              value={dateMode}
+              onChange={(val) => {
+                const mode = (val || 'all') as DateSelectionMode;
+                setDateMode(mode);
+                if (mode === '1') setConfigDefaultStartMonth(calculateRelativeMonth(1));
+                else if (mode === '3') setConfigDefaultStartMonth(calculateRelativeMonth(3));
+                else if (mode === '12') setConfigDefaultStartMonth(calculateRelativeMonth(12));
+                else if (mode === '15') setConfigDefaultStartMonth(calculateRelativeMonth(15));
+                else if (mode === 'all') setConfigDefaultStartMonth('');
+                else if (mode === 'custom' && !configDefaultStartMonth) {
+                  setConfigDefaultStartMonth(calculateRelativeMonth(1));
+                }
+              }}
+              data={[
+                { value: '1', label: 'Último 1 mês (Mês atual)' },
+                { value: '3', label: 'Últimos 3 meses' },
+                { value: '12', label: 'Últimos 12 meses (1 ano)' },
+                { value: '15', label: 'Últimos 15 meses (Máximo)' },
+                { value: 'custom', label: 'Mês Específico (Personalizado)' },
+                { value: 'all', label: 'Todas as datas (Sem filtro)' },
+              ]}
             />
+
+            {dateMode === 'custom' && (
+              <TextInput
+                label="Mês Inicial Personalizado"
+                type="month"
+                value={configDefaultStartMonth}
+                onChange={(e) => setConfigDefaultStartMonth(e.currentTarget.value)}
+                description="Escolha livremente o ano e mês inicial (ex: 2026-05)."
+              />
+            )}
+
+            <Text size="xs" c="dimmed" mt={-4}>
+              {formatMonthRangeHelper(dateMode, configDefaultStartMonth)}
+            </Text>
+
+            <Accordion variant="separated" radius="md">
+              <Accordion.Item value="advanced-options" style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb' }}>
+                <Accordion.Control>
+                  <Group gap="xs">
+                    <IconSettings size={18} color="#4b5563" />
+                    <Text size="sm" fw={600} c="#374151">Opções Avançadas</Text>
+                  </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <Stack gap="sm" pt="xs">
+                    <Text size="sm" fw={600} c="#374151">Opções de Importação:</Text>
+                    
+                    <Checkbox
+                      checked={skipMissingContractNumber}
+                      onChange={(e) => setSkipMissingContractNumber(e.currentTarget.checked)}
+                      label="Pular linhas sem número de contrato (útil para arquivos com subtotais ou lixo)"
+                    />
+                    
+                    <Checkbox
+                      checked={allowAutoCreateGroups}
+                      onChange={(e) => setAllowAutoCreateGroups(e.currentTarget.checked)}
+                      label="Permitir criação automática de grupos"
+                    />
+                    
+                    <Checkbox
+                      checked={allowAutoCreatePVs}
+                      onChange={(e) => setAllowAutoCreatePVs(e.currentTarget.checked)}
+                      label="Permitir criação automática de PV"
+                    />
+                    
+                    <Checkbox
+                      checked={updateMatriculaOnExisting}
+                      onChange={(e) => setUpdateMatriculaOnExisting(e.currentTarget.checked)}
+                      label="Atualizar matrícula em contratos existentes"
+                    />
+                    
+                    <Checkbox
+                      checked={updateTotalAmountOnExisting}
+                      onChange={(e) => setUpdateTotalAmountOnExisting(e.currentTarget.checked)}
+                      label="Atualizar valor total em contratos existentes"
+                    />
+                    
+                    <Checkbox
+                      checked={updateStartDateOnExisting}
+                      onChange={(e) => setUpdateStartDateOnExisting(e.currentTarget.checked)}
+                      label="Atualizar data do contrato"
+                    />
+                  </Stack>
+                </Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>
             
             <Divider mt="xs" label="Segurança" labelPosition="center" />
             

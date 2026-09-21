@@ -9,6 +9,13 @@ export interface ScrapeConfig {
     defaultStartMonth?: string;
     scrapeType?: 'geral' | 'consultor';
     outputMode?: 'direct' | 'sqs';
+    autoImportSqs?: boolean;
+    skipMissingContractNumber?: boolean;
+    allowAutoCreateGroups?: boolean;
+    allowAutoCreatePVs?: boolean;
+    updateMatriculaOnExisting?: boolean;
+    updateTotalAmountOnExisting?: boolean;
+    updateStartDateOnExisting?: boolean;
     isEnabled: boolean;
     createdAt: string;
     updatedAt: string;
@@ -22,6 +29,13 @@ export interface ScrapeConfigRequest {
     defaultStartMonth?: string;
     scrapeType?: 'geral' | 'consultor';
     outputMode?: 'direct' | 'sqs';
+    autoImportSqs?: boolean;
+    skipMissingContractNumber?: boolean;
+    allowAutoCreateGroups?: boolean;
+    allowAutoCreatePVs?: boolean;
+    updateMatriculaOnExisting?: boolean;
+    updateTotalAmountOnExisting?: boolean;
+    updateStartDateOnExisting?: boolean;
     testOnSave?: boolean;
 }
 

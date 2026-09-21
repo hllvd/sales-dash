@@ -41,6 +41,15 @@ namespace SalesApp.Models
         [MaxLength(20)]
         public string OutputMode { get; set; } = "direct"; // "direct" | "sqs"
 
+        public bool AutoImportSqs { get; set; } = true;
+
+        // Import / Update Options
+        public bool SkipMissingContractNumber { get; set; } = true;
+        public bool AllowAutoCreateGroups { get; set; } = true;
+        public bool AllowAutoCreatePVs { get; set; } = true;
+        public bool UpdateMatriculaOnExisting { get; set; } = false;
+        public bool UpdateTotalAmountOnExisting { get; set; } = true;
+        public bool UpdateStartDateOnExisting { get; set; } = true;
 
         public bool IsEnabled { get; set; } = true;
 

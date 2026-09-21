@@ -491,3 +491,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** The contracts page initializes with a default 15-month rolling start date filter (`Data Início`). As calendar days advanced to 2026-09-16, the earliest contract for Carlos Mendes (`873469`, dated `2025-06-11`) fell just outside the default 15-month window (`2025-06-16`), displaying only 13 contracts.
 **Fix applied:** In `client/e2e-test/e2e/contracts_filtering.spec.ts`, explicitly set `input#filterStartDate` to `'2024-01-01'` and awaited request completion before filtering by Carlos Mendes, ensuring all 14 historical contracts are included in the query.
 **Result:** ✅ Green (173/173 Playwright E2E PASSED)
+
+## [2026-09-21] e2e — Attempt 1
+**Failure:** `scrape_credentials.spec.ts` timed out (60000ms) on `storeInput.click()` in `should add a new scrape credential without testing auth, then remove it`.
+**Root cause:** The default scrape type in the "Nova Conta" modal was updated to "Relatório Consultor (Individual)", which disables the "Unidade (Store)" input. Test 1 and Test 3 interact with the store input for "Relatório Geral (Loja/PV)" but did not select the Geral option first.
+**Fix applied:** Updated `client/e2e-test/e2e/scrape_credentials.spec.ts` to explicitly click `Relatório Geral (Loja/PV)` before interacting with the store input in Test 1 and Test 3.
+**Result:** ✅ Green (174/174 Playwright E2E tests passed)
+

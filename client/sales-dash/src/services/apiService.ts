@@ -1767,8 +1767,8 @@ export const apiService = {
     return response.json()
   },
 
-  async getSqsQueueStats(): Promise<SqsQueueStats> {
-    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/stats`, {
+  async getSqsQueueStats(queueType: 'jobs' | 'results' = 'results'): Promise<SqsQueueStats> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/stats?queue=${queueType}`, {
       method: "GET",
       headers: getAuthHeaders(),
     })
@@ -1778,8 +1778,8 @@ export const apiService = {
     return response.json()
   },
 
-  async peekSqsMessages(max: number = 10): Promise<SqsMessageItem[]> {
-    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/messages?max=${max}`, {
+  async peekSqsMessages(max: number = 10, queueType: 'jobs' | 'results' = 'results'): Promise<SqsMessageItem[]> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/messages?max=${max}&queue=${queueType}`, {
       method: "GET",
       headers: getAuthHeaders(),
     })
@@ -1789,11 +1789,11 @@ export const apiService = {
     return response.json()
   },
 
-  async processSqsMessage(receiptHandle: string, messageBody: string): Promise<ProcessSqsMessageResponse> {
+  async processSqsMessage(receiptHandle: string, messageBody: string, queueType: 'jobs' | 'results' = 'results'): Promise<ProcessSqsMessageResponse> {
     const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/messages/process`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ receiptHandle, messageBody }),
+      body: JSON.stringify({ receiptHandle, messageBody, queue: queueType }),
     })
     if (!response.ok) {
       throw new Error(await extractErrorMessage(response, "Falha ao processar mensagem"))
@@ -1801,14 +1801,14 @@ export const apiService = {
     return response.json()
   },
 
-  async discardSqsMessage(receiptHandle: string): Promise<{ success: boolean; message: string }> {
-    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/messages`, {
+  async discardSqsMessage(receiptHandle: string, queueType: 'jobs' | 'results' = 'results'): Promise<{ success: boolean; message: string }> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/messages?queue=${queueType}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ receiptHandle }),
+      body: JSON.stringify({ receiptHandle, queue: queueType }),
     })
     if (!response.ok) {
-      throw new Error(await extractErrorMessage(response, "Falha ao descartar mensagem"))
+      throw new Error(await extractErrorMessage(response, "Falha ao descartar mensagem da fila"))
     }
     return response.json()
   },
@@ -2431,21 +2431,29 @@ export interface SqsQueueStats {
   approximateInFlightCount: number
   oldestMessageAgeSeconds: string | null
   isConfigured: boolean
+  queueType?: string
+  queueName?: string | null
 }
 
 export interface SqsMessageItem {
   receiptHandle: string
   messageId: string
   jobId: string | null
+  runId?: string | null
+  userId: string | null
+  url?: string | null
+  matricula: string | null
+  store: string | null
+  scrapeType?: string | null
+  scrapeDates?: string[] | null
+  scrapeDate: string | null
+  isEncrypted?: boolean
+  status?: string | null
   s3Key: string | null
   s3Bucket: string | null
   rowCount: number | null
-  matricula: string | null
-  store: string | null
-  scrapeDate: string | null
   completedAt: string | null
   durationFormatted: string | null
-  userId: string | null
   sentAt: string
 }
 

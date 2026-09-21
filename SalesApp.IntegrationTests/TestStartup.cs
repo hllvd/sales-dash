@@ -78,8 +78,10 @@ namespace SalesApp.IntegrationTests
             services.AddScoped<IClassificationLevelRepository, ClassificationLevelRepository>();
             services.AddScoped<IUserClassificationRepository, UserClassificationRepository>();
             
-            // AWS DynamoDB Mock/Placeholder for activation
+            // AWS Mocks/Placeholders for activation
             services.AddSingleton<IAmazonDynamoDB>(new Mock<IAmazonDynamoDB>().Object);
+            services.AddSingleton<Amazon.SQS.IAmazonSQS>(new Mock<Amazon.SQS.IAmazonSQS>().Object);
+            services.AddSingleton<Amazon.S3.IAmazonS3>(new Mock<Amazon.S3.IAmazonS3>().Object);
 
             // Scraping Services
             services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();

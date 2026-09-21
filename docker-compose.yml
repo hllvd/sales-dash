@@ -57,6 +57,35 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  pbi-worker:
+    build:
+      context: ./pbi-scraper
+      dockerfile: Dockerfile
+    container_name: pbi-worker
+    command: ["node", "worker.js"]
+    profiles:
+      - worker
+    environment:
+      - NODE_ENV=production
+      - SQS_JOBS_QUEUE_URL=${SQS_JOBS_QUEUE_URL:-${SQS_QUEUE_URL:-}}
+      - SQS_RESULTS_QUEUE_URL=${SQS_RESULTS_QUEUE_URL:-}
+      - SCRAPER_ENCRYPTION_KEY=${SCRAPER_ENCRYPTION_KEY:-}
+      - SCRAPE_S3_BUCKET=${SCRAPE_S3_BUCKET:-hdev-sales-dash}
+      - SCRAPE_S3_PREFIX=${SCRAPE_S3_PREFIX:-scrape-results/}
+      - IDLE_TIMEOUT_MS=${IDLE_TIMEOUT_MS:-300000}
+      - SCALE_TO_ZERO=${SCALE_TO_ZERO:-true}
+      - OUTPUT_DIR=/app/outputs
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+    volumes:
+      - scrape-data:/app/outputs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   client:
     build:
       context: .

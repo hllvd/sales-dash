@@ -15,6 +15,8 @@ namespace SalesApp.Controllers
         public int ApproximateInFlightCount { get; set; }
         public string? OldestMessageAgeSeconds { get; set; }
         public bool IsConfigured { get; set; }
+        public string QueueType { get; set; } = "results";
+        public string? QueueName { get; set; }
     }
 
     public class SqsMessageDto
@@ -22,15 +24,21 @@ namespace SalesApp.Controllers
         public string ReceiptHandle { get; set; } = string.Empty;
         public string MessageId { get; set; } = string.Empty;
         public string? JobId { get; set; }
+        public string? RunId { get; set; }
+        public string? UserId { get; set; }
+        public string? Url { get; set; }
+        public string? Matricula { get; set; }
+        public string? Store { get; set; }
+        public string? ScrapeType { get; set; }
+        public List<string>? ScrapeDates { get; set; }
+        public string? ScrapeDate { get; set; }
+        public bool IsEncrypted { get; set; }
         public string? S3Key { get; set; }
         public string? S3Bucket { get; set; }
         public int? RowCount { get; set; }
-        public string? Matricula { get; set; }
-        public string? Store { get; set; }
-        public string? ScrapeDate { get; set; }
         public string? CompletedAt { get; set; }
         public string? DurationFormatted { get; set; }
-        public string? UserId { get; set; }
+        public string? Status { get; set; }
         public DateTime SentAt { get; set; }
     }
 
@@ -38,18 +46,20 @@ namespace SalesApp.Controllers
     {
         public string ReceiptHandle { get; set; } = string.Empty;
         public string MessageBody { get; set; } = string.Empty;
+        public string? Queue { get; set; }
     }
 
     [ApiController]
     [Route("api/admin/sqs")]
-    [Authorize(Roles = "superadmin")]
+    [Authorize(Roles = "SuperAdmin,superadmin")]
     public class AdminSqsController : ControllerBase
     {
         private readonly IAmazonSQS _sqs;
         private readonly IAmazonS3 _s3;
         private readonly IScrapeImportService _importService;
         private readonly IConfiguration _configuration;
-        private readonly string? _queueUrl;
+        private readonly string? _jobsQueueUrl;
+        private readonly string? _resultsQueueUrl;
         private readonly ILogger<AdminSqsController> _logger;
 
         public AdminSqsController(
@@ -63,25 +73,63 @@ namespace SalesApp.Controllers
             _s3 = s3;
             _importService = importService;
             _configuration = configuration;
-            _queueUrl = configuration["AWS:SqsQueueUrl"] 
-                     ?? configuration["AWS__SqsQueueUrl"] 
-                     ?? configuration["SQS_QUEUE_URL"] 
-                     ?? Environment.GetEnvironmentVariable("SQS_QUEUE_URL")
-                     ?? Environment.GetEnvironmentVariable("AWS__SqsQueueUrl");
+            
+            _jobsQueueUrl = configuration["AWS:SqsJobsQueueUrl"]
+                         ?? configuration["AWS__SqsJobsQueueUrl"]
+                         ?? configuration["SQS_JOBS_QUEUE_URL"]
+                         ?? Environment.GetEnvironmentVariable("SQS_JOBS_QUEUE_URL")
+                         ?? Environment.GetEnvironmentVariable("AWS__SqsJobsQueueUrl");
+
+            _resultsQueueUrl = configuration["AWS:SqsResultsQueueUrl"]
+                            ?? configuration["AWS__SqsResultsQueueUrl"]
+                            ?? configuration["SQS_RESULTS_QUEUE_URL"]
+                            ?? configuration["AWS:SqsQueueUrl"] 
+                            ?? configuration["AWS__SqsQueueUrl"] 
+                            ?? configuration["SQS_QUEUE_URL"] 
+                            ?? Environment.GetEnvironmentVariable("SQS_RESULTS_QUEUE_URL")
+                            ?? Environment.GetEnvironmentVariable("SQS_QUEUE_URL")
+                            ?? Environment.GetEnvironmentVariable("AWS__SqsQueueUrl");
+
             _logger = logger;
         }
 
-        [HttpGet("stats")]
-        public async Task<IActionResult> GetStats()
+        private string? ResolveQueueUrl(string? queue)
         {
-            if (string.IsNullOrEmpty(_queueUrl))
-                return Ok(new SqsQueueStats { IsConfigured = false });
+            if (string.Equals(queue, "jobs", StringComparison.OrdinalIgnoreCase))
+            {
+                return _jobsQueueUrl ?? _resultsQueueUrl;
+            }
+            return _resultsQueueUrl ?? _jobsQueueUrl;
+        }
+
+        private string GetQueueName(string? url)
+        {
+            if (string.IsNullOrEmpty(url)) return "N/A";
+            var parts = url.TrimEnd('/').Split('/');
+            return parts.Length > 0 ? parts[^1] : url;
+        }
+
+        [HttpGet("stats")]
+        public async Task<IActionResult> GetStats([FromQuery] string? queue = "results")
+        {
+            var targetQueue = queue?.ToLower() ?? "results";
+            var queueUrl = ResolveQueueUrl(targetQueue);
+
+            if (string.IsNullOrEmpty(queueUrl))
+            {
+                return Ok(new SqsQueueStats
+                {
+                    IsConfigured = false,
+                    QueueType = targetQueue,
+                    QueueName = null
+                });
+            }
 
             try
             {
                 var attrs = await _sqs.GetQueueAttributesAsync(new GetQueueAttributesRequest
                 {
-                    QueueUrl = _queueUrl,
+                    QueueUrl = queueUrl,
                     AttributeNames = new List<string>
                     {
                         "ApproximateNumberOfMessages",
@@ -90,25 +138,43 @@ namespace SalesApp.Controllers
                     }
                 });
 
+                if (attrs == null)
+                {
+                    return Ok(new SqsQueueStats
+                    {
+                        IsConfigured = true,
+                        QueueType = targetQueue,
+                        QueueName = GetQueueName(queueUrl),
+                        ApproximateMessageCount = 0,
+                        ApproximateInFlightCount = 0,
+                        OldestMessageAgeSeconds = null
+                    });
+                }
+
                 return Ok(new SqsQueueStats
                 {
                     IsConfigured = true,
-                    ApproximateMessageCount = int.TryParse(attrs.ApproximateNumberOfMessages.ToString(), out var count) ? count : 0,
-                    ApproximateInFlightCount = int.TryParse(attrs.ApproximateNumberOfMessagesNotVisible.ToString(), out var inflight) ? inflight : 0,
+                    QueueType = targetQueue,
+                    QueueName = GetQueueName(queueUrl),
+                    ApproximateMessageCount = attrs.ApproximateNumberOfMessages,
+                    ApproximateInFlightCount = attrs.ApproximateNumberOfMessagesNotVisible,
                     OldestMessageAgeSeconds = null
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching SQS queue stats");
-                return StatusCode(500, new { message = $"Erro ao consultar fila SQS: {ex.Message}" });
+                _logger.LogError(ex, "Error fetching SQS queue stats for {Queue}", targetQueue);
+                return StatusCode(500, new { message = $"Erro ao consultar fila SQS ({targetQueue}): {ex.Message}" });
             }
         }
 
         [HttpGet("messages")]
-        public async Task<IActionResult> PeekMessages([FromQuery] int max = 10)
+        public async Task<IActionResult> PeekMessages([FromQuery] int max = 10, [FromQuery] string? queue = "results")
         {
-            if (string.IsNullOrEmpty(_queueUrl))
+            var targetQueue = queue?.ToLower() ?? "results";
+            var queueUrl = ResolveQueueUrl(targetQueue);
+
+            if (string.IsNullOrEmpty(queueUrl))
                 return Ok(new List<SqsMessageDto>());
 
             try
@@ -116,7 +182,7 @@ namespace SalesApp.Controllers
                 var effectiveMax = Math.Min(max, 10); // SQS max per receive is 10
                 var receiveRequest = new ReceiveMessageRequest
                 {
-                    QueueUrl = _queueUrl,
+                    QueueUrl = queueUrl,
                     MaxNumberOfMessages = effectiveMax,
                     VisibilityTimeout = 30, // 30s — short window to "peek" without long lock
                     WaitTimeSeconds = 0,    // no long-poll for peek
@@ -124,6 +190,9 @@ namespace SalesApp.Controllers
                 };
 
                 var response = await _sqs.ReceiveMessageAsync(receiveRequest);
+
+                if (response?.Messages == null)
+                    return Ok(new List<SqsMessageDto>());
 
                 var messages = response.Messages.Select(m =>
                 {
@@ -140,15 +209,34 @@ namespace SalesApp.Controllers
                     {
                         var body = JsonConvert.DeserializeObject<dynamic>(m.Body);
                         dto.JobId = body?.jobId?.ToString();
+                        dto.RunId = body?.runId?.ToString();
+                        dto.UserId = body?.userId?.ToString();
+                        dto.Url = body?.url?.ToString();
+                        dto.Matricula = body?.matricula?.ToString();
+                        dto.Store = body?.store?.ToString() ?? body?.unit?.ToString();
+                        dto.ScrapeType = body?.scrapeType?.ToString();
+                        dto.Status = body?.status?.ToString();
+
+                        if (body?.scrapeDates != null)
+                        {
+                            try
+                            {
+                                dto.ScrapeDates = JsonConvert.DeserializeObject<List<string>>(body.scrapeDates.ToString());
+                            }
+                            catch
+                            {
+                                dto.ScrapeDates = new List<string> { body.scrapeDates.ToString() };
+                            }
+                        }
+                        dto.ScrapeDate = body?.scrapeDate?.ToString();
+
+                        dto.IsEncrypted = body?.encryptedPassword != null || body?.encryptedUsername != null;
+
                         dto.S3Key = body?.s3Key?.ToString();
                         dto.S3Bucket = body?.s3Bucket?.ToString();
                         dto.RowCount = body?.rowCount != null ? (int?)body.rowCount : null;
-                        dto.Matricula = body?.matricula?.ToString();
-                        dto.Store = body?.store?.ToString();
-                        dto.ScrapeDate = body?.scrapeDate?.ToString();
                         dto.CompletedAt = body?.completedAt?.ToString();
                         dto.DurationFormatted = body?.durationFormatted?.ToString();
-                        dto.UserId = body?.userId?.ToString();
                     }
                     catch { /* body parse error — return raw info only */ }
 
@@ -159,15 +247,16 @@ namespace SalesApp.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error peeking SQS messages");
-                return StatusCode(500, new { message = $"Erro ao ler mensagens da fila: {ex.Message}" });
+                _logger.LogError(ex, "Error peeking SQS messages from {Queue}", targetQueue);
+                return StatusCode(500, new { message = $"Erro ao ler mensagens da fila ({targetQueue}): {ex.Message}" });
             }
         }
 
         [HttpPost("messages/process")]
         public async Task<IActionResult> ProcessMessage([FromBody] ProcessMessageRequest request)
         {
-            if (string.IsNullOrEmpty(_queueUrl))
+            var queueUrl = ResolveQueueUrl(request.Queue ?? "results");
+            if (string.IsNullOrEmpty(queueUrl))
                 return BadRequest(new { message = "SQS não configurado." });
 
             if (string.IsNullOrEmpty(request.ReceiptHandle) || string.IsNullOrEmpty(request.MessageBody))
@@ -205,7 +294,7 @@ namespace SalesApp.Controllers
                 }
 
                 // Delete from SQS only on success
-                await _sqs.DeleteMessageAsync(_queueUrl, request.ReceiptHandle);
+                await _sqs.DeleteMessageAsync(queueUrl, request.ReceiptHandle);
 
                 var importedCount = importResult.ProcessedRows;
                 return Ok(new
@@ -223,9 +312,12 @@ namespace SalesApp.Controllers
         }
 
         [HttpDelete("messages")]
-        public async Task<IActionResult> DiscardMessage([FromBody] ProcessMessageRequest request)
+        public async Task<IActionResult> DiscardMessage([FromBody] ProcessMessageRequest request, [FromQuery] string? queue = null)
         {
-            if (string.IsNullOrEmpty(_queueUrl))
+            var targetQueue = queue ?? request.Queue ?? "results";
+            var queueUrl = ResolveQueueUrl(targetQueue);
+
+            if (string.IsNullOrEmpty(queueUrl))
                 return BadRequest(new { message = "SQS não configurado." });
 
             if (string.IsNullOrEmpty(request.ReceiptHandle))
@@ -233,12 +325,12 @@ namespace SalesApp.Controllers
 
             try
             {
-                await _sqs.DeleteMessageAsync(_queueUrl, request.ReceiptHandle);
-                return Ok(new { success = true, message = "Mensagem descartada da fila." });
+                await _sqs.DeleteMessageAsync(queueUrl, request.ReceiptHandle);
+                return Ok(new { success = true, message = $"Mensagem descartada da fila ({targetQueue})." });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error discarding SQS message");
+                _logger.LogError(ex, "Error discarding SQS message from {Queue}", targetQueue);
                 return StatusCode(500, new { message = $"Erro ao descartar mensagem: {ex.Message}" });
             }
         }

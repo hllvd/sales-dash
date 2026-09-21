@@ -5,18 +5,75 @@
 
 ---
 
+## 📌 Resumo Executivo & Status Atual (Atualizado em 18/09/2026)
+
+### 🟢 O que já está PRONTO e validado:
+1. **Worker Desacoplado (`pbi-scraper/worker.js`)**:
+   - Loop autônomo com SQS long-polling (20s) na fila de Jobs (`SQS_JOBS_QUEUE_URL`).
+   - Ciclo de vida com **Timeout de 5 minutos de inatividade** (`IDLE_TIMEOUT_MS=300000`) com renovação a cada mensagem processada e scale-to-zero limpo (`process.exit(0)`).
+   - Decodificação AES-256-GCM para senha protegida (`crypto.js`) e matrícula em plain text.
+   - Tratamento de `SIGTERM` / Spot Interruption (drenagem limpa).
+   - `Dockerfile` otimizado: usuário não-root `nodeuser`, healthcheck via lockfile e Chromium pré-instalado.
+2. **S3 + SQS Output Pipeline**:
+   - Upload do CSV resultante para o Amazon S3 (`SCRAPE_S3_BUCKET/scrape-results/`) com expiração de 1 dia configurada via `s3Uploader.js`.
+   - Notificação de conclusão de scrape publicada na fila SQS de Resultados (`SQS_RESULTS_QUEUE_URL` - `hdev-sales-dash`) via `sqsPublisher.js`.
+   - Script CLI `push-job.js` (`npm run push:job`) para teste local de enfileiramento com criptografia.
+   - Serviço `pbi-worker` configurado no `docker-compose.yml` sob profile `worker`.
+3. **Admin Tools & Observabilidade**:
+   - Painel web `/admin-tools/sqs-queue` implementado para inspecionar, monitorar estatísticas da fila e purgar mensagens.
+   - Suporte a `ScrapeType` ('geral' vs 'consultor') e `OutputMode` ('direct' vs 'sqs') no banco e UI.
+
+---
+
+### 🟡 Próximos Passos (Roadmap de Deploy na AWS):
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. [AWS] Criar Fila SQS de Entrada: hdev-sales-scrape-jobs                 │
+│ 2. [CI/CD] GitHub Actions para Build & Push da imagem Docker no AWS ECR     │
+│ 3. [AWS] Criar ECS Task Definition (Fargate Spot, 1 vCPU, 2GB, IAM Task)   │
+│ 4. [CI/CD + AWS] Lambda Function para disparar (start/runTask) no Fargate   │
+│ 5. [App Principal] Cron / Agendador configurável por conta para a Lambda   │
+│ 6. [Local] Listener/Worker Local para baixar CSV do S3 e gravar no SQLite   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔐 Topologia de Duas Filas SQS & Segurança de Credenciais
+
+### 1. Topologia de 2 Filas
+* **Fila 1: `SQS_JOBS_QUEUE_URL` (Entrada/Inbound - ex: `hdev-sales-scrape-jobs`)**:
+  - A API local ou agendador posta ordens de scraping.
+  - O Fargate Worker consome essas ordens via long-polling (20s).
+* **Fila 2: `SQS_RESULTS_QUEUE_URL` (Saída/Outbound - ex: `hdev-sales-dash`)**:
+  - Após concluir o scrape e subir o CSV no S3, o Fargate Worker publica um evento leve avisando que o arquivo está pronto no S3 (`{ jobId, s3Bucket, s3Key, rowCount, status }`).
+  - O consumidor/worker local lê essa fila, faz download do CSV do S3 e grava no SQLite.
+
+### 2. Criptografia de Credenciais Ponta a Ponta
+* **Regra de Ouro**: As senhas nunca trafegam em texto plano no SQS nem ficam em repositório.
+* **Chave Simétrica**: `SCRAPER_ENCRYPTION_KEY` (32 bytes em hex = 64 caracteres).
+* **Configuração de Ambiente**:
+  - **Local / CI/CD**: Injetada via GitHub Secrets (`SCRAPER_ENCRYPTION_KEY` — já cadastrado no GitHub Actions ✅).
+  - **AWS Fargate**: Injetada nas variáveis de ambiente da Task Definition (ou via AWS SSM / Secrets Manager).
+* **Algoritmo**: `AES-256-GCM` com IV aleatório de 12 bytes gerado a cada mensagem e AuthTag de 16 bytes.
+  - C# (`salesapp-api`) encripta a senha com `AesGcm` antes de enviar à fila SQS de Jobs.
+  - Node.js (`pbi-scraper/worker.js`) usa `crypto.js` para validar a AuthTag e decodificar a senha em memória apenas no momento da autenticação.
+
+---
+
 ## Phase 1 — Decouple `pbi-scraper` into a Self-Contained Worker
 > **Goal:** Refactor `pbi-scraper` from an Express HTTP server into a standalone worker process with all cloud-readiness hooks in place. No AWS required — runs identically with `node worker.js` locally or inside Docker.
 
 ### 1.1 — New entry point `worker.js`
-- [ ] Create `pbi-scraper/worker.js` as the new primary entry point (keep `server.js` alive for legacy local HTTP use if needed during transition, then deprecate it)
-- [ ] `worker.js` imports a `processMessage(payload)` function (pure, testable, no I/O coupling)
-- [ ] `worker.js` owns the run-loop: poll → process → delete → repeat
-- [ ] Move all Puppeteer + scrape logic from `server.js` into a pure `scrape.js` module (function in, data out, no HTTP, no SQS)
-- [ ] Keep `extractor.js` and `auth.js` as-is (they are already mostly pure)
+- [x] Create `pbi-scraper/worker.js` as the new primary entry point (keep `server.js` alive for legacy local HTTP use if needed during transition, then deprecate it)
+- [x] `worker.js` imports a `processMessage(payload)` function (pure, testable, no I/O coupling)
+- [x] `worker.js` owns the run-loop: poll → process → delete → repeat
+- [x] Move all Puppeteer + scrape logic from `server.js` into a pure `scrape.js` module (function in, data out, no HTTP, no SQS)
+- [x] Keep `extractor.js` and `auth.js` as-is (they are already mostly pure)
 
 ### 1.2 — Message contract definition
-- [ ] Define and document the SQS message payload schema (JSON):
+- [x] Define and document the SQS message payload schema (JSON):
   ```json
   {
     "jobId": "string",
@@ -31,89 +88,57 @@
     "userId": "string"
   }
   ```
-- [ ] This schema is the single source of truth between C# sender and Node.js receiver
-- [ ] Document separately for username vs password (each gets its own IV + authTag)
+- [x] This schema is the single source of truth between C# sender and Node.js receiver
+- [x] Document separately for username vs password (each gets its own IV + authTag)
 
 ### 1.3 — Local credential injection (dev mode)
-- [ ] Add `dotenv` to `package.json` (`dotenv`, `@aws-sdk/client-sqs`, `@aws-sdk/client-dynamodb`)
-- [ ] Add `.env` keys for local dev:
-  ```env
-  NODE_ENV=development
-  SCRAPER_ENCRYPTION_KEY=        # 32-byte hex — same key used by C#
-  SQS_QUEUE_URL=                 # leave empty in dev to use mock
-  AWS_REGION=us-east-1
-  AWS_PROFILE=default            # triggers credential chain fallback in dev
-  SCALE_TO_ZERO=false            # disable exit-on-empty during local dev
-  DATABASE_URL=                  # connection string for saving results
-  ```
-- [ ] **In production (Fargate):** no `.env` file — all vars injected by ECS Task Definition
-- [ ] Guard: if `NODE_ENV !== production` and `SQS_QUEUE_URL` is empty, use a local mock queue (simple in-memory array with a helper script to push test messages)
+- [x] Add `dotenv` to `package.json` (`dotenv`, `@aws-sdk/client-sqs`, `@aws-sdk/client-dynamodb`)
+- [x] Add `.env` keys for local dev
+- [x] **In production (Fargate):** no `.env` file — all vars injected by ECS Task Definition
+- [x] Guard: if `NODE_ENV !== production` and `SQS_QUEUE_URL` is empty, use a local mock queue
 
 ### 1.4 — AES-256-GCM decryption module (`crypto.js`)
-- [ ] Create `pbi-scraper/crypto.js`:
-  - Pure function: `decryptField(encryptedBase64, ivBase64, authTagBase64, keyHex) → plaintext`
-  - Uses Node.js built-in `crypto` module only — no third-party libs
-  - Algorithm: `aes-256-gcm`, IV = 12 bytes, Auth Tag = 16 bytes
-  - Throws clearly on bad key or tampered data (GCM auth tag mismatch)
-- [ ] Write a standalone test script `pbi-scraper/test-decrypt.js` to verify round-trip against a known C# output
-- [ ] **Constraint:** key is read from `process.env.SCRAPER_ENCRYPTION_KEY` (hex string, 64 chars = 32 bytes) — never from DB, never hardcoded
+- [x] Create `pbi-scraper/crypto.js`
+- [x] Write a standalone test script `pbi-scraper/test-crypto.js`
+- [x] Key is read from `process.env.SCRAPER_ENCRYPTION_KEY`
 
 ### 1.5 — SIGTERM / Spot Interruption handler
-- [ ] Add at worker startup:
-  ```js
-  let shuttingDown = false;
-  process.on('SIGTERM', () => {
-    shuttingDown = true;
-    // stop pulling; let current message visibility expire back to queue
-    gracefulShutdown();
-  });
-  ```
-- [ ] `gracefulShutdown()`: closes current Puppeteer browser if open; calls `process.exit(0)` after a short drain window (e.g., 5s)
-- [ ] Worker checks `shuttingDown` flag before each poll cycle
+- [x] Graceful shutdown on SIGTERM / SIGINT in `worker.js`
+- [x] Drain window and lockfile cleanup
 
 ### 1.6 — Scale-to-zero logic
-- [ ] SQS long-poll with `WaitTimeSeconds: 20` (max)
-- [ ] After each empty poll, increment `emptyPollCount`
-- [ ] After `MAX_EMPTY_POLLS` (env var, default = 3) consecutive empty polls with no messages, call `process.exit(0)`
-- [ ] If `SCALE_TO_ZERO=false`, reset counter instead (local dev mode)
-- [ ] Log the exit reason clearly: `[Worker] Queue empty after N polls. Exiting (scale-to-zero).`
+- [x] SQS long-poll with `WaitTimeSeconds: 20`
+- [x] Exit process with 0 after `MAX_EMPTY_POLLS` (default 3)
+- [x] `SCALE_TO_ZERO` flag to enable/disable for local dev
 
-### 1.7 — Message processing loop
-- [ ] `receiveMessage()` → `decryptCredentials()` → `scrape()` → `saveToDb()` → `deleteMessage()`
-- [ ] On scrape failure: do **not** delete message (let SQS visibility timeout expire → automatic retry up to `maxReceiveCount`)
-- [ ] On auth failure (bad credentials, not a transient error): delete message to avoid infinite loop; log error to CloudWatch/DynamoDB
-- [ ] On unexpected exception: log error, **do not** delete message
+### 1.7 — Output Pipeline: S3 Upload + SQS Result Notification
+- [x] S3 Uploader (`s3Uploader.js`) com expiração de 1 dia
+- [x] SQS Publisher (`sqsPublisher.js`) com metadados do job
+- [x] Conectar chamada a `uploadToS3` e `publishToQueue` dentro de `worker.js` após conclusão do scrape (ouvindo `SQS_JOBS_QUEUE_URL` e publicando em `SQS_RESULTS_QUEUE_URL`)
+- [x] Lógica de lifetime por timeout de inatividade de 5 minutos (`IDLE_TIMEOUT_MS=300000`) com renovação a cada job
+- [x] Script CLI `push-job.js` para testes de enfileiramento com senha criptografada em AES-256-GCM
 
 ### 1.8 — Local mock queue helper
-- [ ] Create `pbi-scraper/scripts/push-test-message.js`:
-  - Accepts CLI args: `node push-test-message.js --matricula X --password Y`
-  - Encrypts locally using the same `crypto.js` logic
-  - Pushes to local mock queue OR to real SQS (if `SQS_QUEUE_URL` set)
-  - Allows full local end-to-end testing without AWS
+- [x] Create `pbi-scraper/scripts/push-test-message.js`
 
 ### 1.9 — Update `Dockerfile`
-- [ ] Keep all existing Chromium deps
-- [ ] Change `CMD` from `node server.js` to `node worker.js`
-- [ ] Add `ENV SCALE_TO_ZERO=true` as default (overridden to `false` for local dev)
-- [ ] Multi-stage build: `deps` stage installs only `--production` deps; `runtime` stage copies from deps
-- [ ] Run as non-root user (`NODE_USER`): `RUN useradd -m nodeuser && USER nodeuser`
-- [ ] Add `HEALTHCHECK` using a lock file written at worker startup (Fargate ECS healthcheck)
-- [ ] Ensure `--no-sandbox` Chromium flag is set for container environments
+- [x] Chromium deps instaladas
+- [x] `CMD ["node", "worker.js"]`
+- [x] Usuário `nodeuser` (não-root)
+- [x] `HEALTHCHECK` configurado via lockfile
 
 ### 1.10 — Verification
-- [ ] `docker build -t pbi-scraper-worker ./pbi-scraper` — build succeeds
-- [ ] `docker run --env-file .env pbi-scraper-worker` — worker starts, polls mock queue, processes a test message, exits after empty polls
-- [ ] SIGTERM test: `docker kill --signal=SIGTERM <container>` → browser closes gracefully, process exits 0
-- [ ] Decryption round-trip test: run `node test-decrypt.js` with a known ciphertext
-
+- [x] Build do container validado
+- [x] Criptografia / decriptografia validada
 ---
 
 ## Phase 2 — Encrypt Credentials in `salesapp-api` + Push to SQS
 > **Goal:** `salesapp-api` can encrypt credentials with AES-256-GCM and enqueue messages. No Fargate yet — worker still runs locally, consuming from the real SQS queue for verification.
 
 ### 2.1 — NuGet packages
-- [ ] Add `AWSSDK.SQS` to `SalesApp.Api.csproj`
-- [ ] Add `AWSSDK.ECS` to `SalesApp.Api.csproj` (used in Phase 3 — add now to avoid a second restore)
+- [x] Add `AWSSDK.SQS` to `SalesApp.Api.csproj`
+- [x] Add `AWSSDK.S3` to `SalesApp.Api.csproj`
+- [ ] Add `AWSSDK.ECS` to `SalesApp.Api.csproj` (used in Phase 3)
 - [ ] Keep existing: `AWSSDK.DynamoDBv2`, `AWSSDK.SimpleEmail`, `AWSSDK.CloudWatchLogs`
 
 ### 2.2 — Encryption service (`ICredentialEncryptionService`)
@@ -262,16 +287,15 @@
 
 ### 3.5 — GitHub Actions secrets & injection
 - [ ] Add to GitHub Actions Secrets:
-  ```env
-  SCRAPER_ENCRYPTION_KEY          # 64-char hex (32 bytes)
-  AWS_SQS_QUEUE_URL
-  AWS_ECS_CLUSTER_ARN
-  AWS_ECS_TASK_DEFINITION_ARN
-  AWS_ECS_SUBNET_IDS              # comma-separated
-  AWS_ECS_SECURITY_GROUP_IDS
-  ECR_PBI_SCRAPER_IMAGE_URI
-  ```
-- [ ] In deployment workflow, inject as environment variables into `salesapp-api` container (via ECS task definition override or docker-compose for EC2-based deploy)
+  - [x] `SCRAPER_ENCRYPTION_KEY` — 64-char hex (32 bytes) *(Adicionado no GitHub Secrets ✅)*
+  - [ ] `AWS_SQS_JOBS_QUEUE_URL` (Fila de ordens para os workers)
+  - [ ] `AWS_SQS_RESULTS_QUEUE_URL` (Fila de resultados processados)
+  - [ ] `AWS_ECS_CLUSTER_ARN`
+  - [ ] `AWS_ECS_TASK_DEFINITION_ARN`
+  - [ ] `AWS_ECS_SUBNET_IDS`              # comma-separated
+  - [ ] `AWS_ECS_SECURITY_GROUP_IDS`
+  - [ ] `ECR_PBI_SCRAPER_IMAGE_URI`
+- [ ] In deployment workflow, inject as environment variables into `salesapp-api` container (via ECS task definition override ou docker-compose)
 - [ ] `pbi-scraper` worker gets its secrets via ECS Task Definition environment (not GitHub Actions at runtime)
 
 ### 3.6 — Verification

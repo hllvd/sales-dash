@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using CsvHelper;
 using CsvHelper.Configuration;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SalesApp.Data;
 using SalesApp.Models;
@@ -93,6 +94,16 @@ namespace SalesApp.Services
 
                 return await RunImportFromFileAsync(tmpPath, Path.GetFileName(s3Key), user);
             }
+            catch (AmazonS3Exception s3Ex)
+            {
+                result.Errors.Add($"Amazon S3 Error ({s3Ex.ErrorCode}): {s3Ex.Message}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add($"Error downloading or importing from S3 ({s3Key}): {ex.Message}");
+                return result;
+            }
             finally
             {
                 if (File.Exists(tmpPath))
@@ -152,16 +163,34 @@ namespace SalesApp.Services
                     return result;
                 }
 
-                // Handoff to the standard ImportExecutionService
-                var importResult = await _importService.ExecuteContractImportAsync(
+                ScrapeConfig? scrapeConfig = null;
+                if (user != null)
+                {
+                    scrapeConfig = await _context.ScrapeConfigs
+                        .Where(c => c.UserInternalId == user.InternalId)
+                        .OrderByDescending(c => c.UpdatedAt)
+                        .FirstOrDefaultAsync();
+                }
+
+                bool skipMissingContractNumber = scrapeConfig?.SkipMissingContractNumber ?? true;
+                bool allowAutoCreateGroups = scrapeConfig?.AllowAutoCreateGroups ?? true;
+                bool allowAutoCreatePVs = scrapeConfig?.AllowAutoCreatePVs ?? true;
+                bool updateMatriculaOnExisting = scrapeConfig?.UpdateMatriculaOnExisting ?? false;
+                bool updateTotalAmountOnExisting = scrapeConfig?.UpdateTotalAmountOnExisting ?? true;
+                bool updateStartDateOnExisting = scrapeConfig?.UpdateStartDateOnExisting ?? true;
+
+                // Handoff to the dashboard contract import execution service
+                var importResult = await _importService.ExecuteContractDashboardImportAsync(
                     uploadId: $"pbi-scrape-{DateTime.UtcNow:yyyyMMddHHmmss}",
                     importSessionId: session.Id,
                     rows: rows,
                     mappings: _options.Mappings,
-                    dateFormat: "dd/MM/yyyy",
-                    skipMissingContractNumber: true,
-                    allowAutoCreateGroups: true,
-                    allowAutoCreatePVs: true
+                    skipMissingContractNumber: skipMissingContractNumber,
+                    allowAutoCreateGroups: allowAutoCreateGroups,
+                    allowAutoCreatePVs: allowAutoCreatePVs,
+                    updateMatriculaOnExisting: updateMatriculaOnExisting,
+                    updateTotalAmountOnExisting: updateTotalAmountOnExisting,
+                    updateStartDateOnExisting: updateStartDateOnExisting
                 );
 
                 if (importResult.ProcessedRows == 0 && rows.Count > 0)
@@ -176,6 +205,10 @@ namespace SalesApp.Services
                 }
 
                 session.Status = importResult.Errors.Any() ? "Failed" : "Completed";
+                session.TotalRows = importResult.TotalRows;
+                session.ProcessedRows = importResult.ProcessedRows;
+                session.FailedRows = importResult.FailedRows;
+                session.CompletedAt = DateTime.UtcNow;
                 await _sessionRepository.UpdateAsync(session);
 
                 return importResult;

@@ -88,6 +88,51 @@ app.post('/jobs', (req, res) => {
     
     const jobStartTime = Date.now();
     const jobStartDate = new Date(jobStartTime);
+    const passwordToUse = avaproPassword;
+    const matriculaToUse = avaproUsername || matricula;
+
+    // Circuit Breaker check: abort immediately if account failed or run is aborted to prevent Ava Pro lockout
+    const isLocked = tokenManager.isAuthLocked(matriculaToUse);
+    const isBatchAborted = req.body.runId && tokenManager.isRunAborted(req.body.runId);
+
+    if (isLocked || isBatchAborted) {
+      const lockInfo = tokenManager.getAuthFailureReason(matriculaToUse);
+      const abortReason = isLocked 
+        ? `Disjuntor de segurança ativo para matrícula ${matriculaToUse}: ${lockInfo?.reason || 'Senha incorreta detectada anteriormente'}. Execução abortada para evitar bloqueio da conta no AVA PRO.`
+        : `Lote ${req.body.runId} abortado por falha de autenticação anterior. Execução abortada para evitar bloqueio da conta no AVA PRO.`;
+
+      console.warn(`[Job ${jobId}] ABORTADO PELO DISJUNTOR: ${abortReason}`);
+
+      const abortedResult = {
+        jobId,
+        userId: req.body.userId,
+        runId: req.body.runId,
+        status: 'Failed',
+        rowCount: 0,
+        fileRelativePath: null,
+        error: abortReason,
+        authStatus: 'wrong-password',
+        authMessage: abortReason,
+        powerbiLoaded: false,
+        loginSuccess: false,
+        authSteps: ['[Disjuntor] Execução cancelada preventivamente para evitar bloqueio da conta no AVA PRO.'],
+        scrapeDate: scrapeDates.filter(Boolean).join(',') || null,
+        store: store || (scrapeType === 'consultor' ? 'Consultor' : null),
+        matricula: matriculaToUse,
+        durationSeconds: 0,
+        durationFormatted: '0s',
+        startedAt: jobStartDate.toISOString(),
+        completedAt: new Date().toISOString()
+      };
+
+      try {
+        console.log(`[Job ${jobId}] Sending circuit breaker abort callback to ${callbackUrl}`);
+        await axios.put(callbackUrl, abortedResult);
+      } catch (cbErr) {
+        console.error(`[Job ${jobId}] Abort callback failed:`, cbErr.message);
+      }
+      return;
+    }
 
     let result = {
       jobId, 
@@ -109,8 +154,6 @@ app.post('/jobs', (req, res) => {
 
     const combinedRows = [];
     const csvParts = [];
-    const passwordToUse = avaproPassword;
-    const matriculaToUse = avaproUsername || matricula;
 
     let totalRetryCount = 0;
 
@@ -228,6 +271,14 @@ app.post('/jobs', (req, res) => {
         result.powerbiLoaded = err.powerbiLoaded;
         result.loginSuccess = err.loginSuccess || false;
         result.authSteps = err.steps;
+
+        if (err.authStatus === 'wrong-password') {
+          console.warn(`[Job ${jobId}] Senha incorreta detectada ('wrong-password'). Acionando disjuntor para matrícula ${matriculaToUse}...`);
+          tokenManager.markAuthFailure(matriculaToUse, err.authMessage || err.message);
+          if (req.body.runId) {
+            tokenManager.abortRun(req.body.runId, err.authMessage || err.message);
+          }
+        }
       } else if (err.steps) {
         result.authSteps = [...(result.authSteps || []), ...err.steps];
       }
@@ -298,6 +349,16 @@ app.post('/jobs', (req, res) => {
   res.status(202).json({ jobId, status: 'Accepted' });
 });
 
+app.post('/reset-auth-lock', (req, res) => {
+  const { matricula } = req.body;
+  if (matricula) {
+    tokenManager.resetAuthLock(matricula);
+  } else {
+    tokenManager.clearAllAuthLocks();
+  }
+  return res.json({ success: true, message: `Disjuntor resetado para ${matricula || 'todas as contas'}.` });
+});
+
 app.post('/test-auth', async (req, res) => {
   const { matricula, password, store } = req.body;
 
@@ -309,6 +370,9 @@ app.post('/test-auth', async (req, res) => {
       steps: ['[Server] Matrícula ou Senha ausentes.']
     });
   }
+
+  // Reset circuit breaker lock for explicit testing with new or current credentials
+  tokenManager.resetAuthLock(matricula);
 
   console.log(`[Test Auth] Testing credentials for ${matricula}...`);
   try {

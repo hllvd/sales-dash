@@ -9,6 +9,7 @@
     "dev": "nodemon server.js",
     "dev:worker": "SCALE_TO_ZERO=false nodemon worker.js",
     "test": "node test.js",
+    "push:job": "node scripts/push-job.js",
     "scrape:consultor": "node test-scrape-consultor.js"
   },
   "dependencies": {

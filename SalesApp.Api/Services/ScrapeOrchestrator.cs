@@ -134,6 +134,18 @@ namespace SalesApp.Services
                 }
             }
 
+            // If authentication failed with wrong-password, trip the circuit breaker in DB
+            if (string.Equals(result.AuthStatus, "wrong-password", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(result.Matricula))
+            {
+                var configToLock = await _context.ScrapeConfigs.FirstOrDefaultAsync(c => c.Matricula == result.Matricula);
+                if (configToLock != null && configToLock.CredentialStatus != "wrong-password")
+                {
+                    configToLock.CredentialStatus = "wrong-password";
+                    configToLock.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             // 1. Update DynamoDB status
             await _logService.WriteJobStatusAsync(
                 jobId: result.JobId,

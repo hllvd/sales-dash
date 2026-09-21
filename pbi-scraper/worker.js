@@ -13,20 +13,26 @@ const axios = require('axios');
 const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = require('@aws-sdk/client-sqs');
 const { runScrapeJob } = require('./scrape');
 const { decryptField } = require('./crypto');
+const { uploadToS3 } = require('./s3Uploader');
+const { publishToQueue } = require('./sqsPublisher');
+const tokenManager = require('./tokenManager');
 
 // Configuration
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
-const SQS_QUEUE_URL = process.env.SQS_QUEUE_URL ? process.env.SQS_QUEUE_URL.trim() : '';
-const SCRAPER_ENCRYPTION_KEY = process.env.SCRAPER_ENCRYPTION_KEY ? process.env.SCRAPER_ENCRYPTION_KEY.trim() : '';
-const CALLBACK_BASE_URL = process.env.CALLBACK_BASE_URL ? process.env.CALLBACK_BASE_URL.replace(/\/+$/, '') : 'http://salesapp-api:5000';
+const SQS_JOBS_QUEUE_URL = (process.env.SQS_JOBS_QUEUE_URL || process.env.SQS_QUEUE_URL || '').trim();
+const SQS_RESULTS_QUEUE_URL = (process.env.SQS_RESULTS_QUEUE_URL || '').trim();
+const SCRAPER_ENCRYPTION_KEY = (process.env.SCRAPER_ENCRYPTION_KEY || '').trim();
+const SCRAPE_S3_BUCKET = process.env.SCRAPE_S3_BUCKET || 'hdev-sales-dash';
+const SCRAPE_S3_PREFIX = (process.env.SCRAPE_S3_PREFIX || 'scrape-results/').replace(/^\/+/, '');
+const CALLBACK_BASE_URL = process.env.CALLBACK_BASE_URL ? process.env.CALLBACK_BASE_URL.replace(/\/+$/, '') : '';
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './outputs';
 const SCALE_TO_ZERO = process.env.SCALE_TO_ZERO !== 'false';
-const MAX_EMPTY_POLLS = parseInt(process.env.MAX_EMPTY_POLLS || '3', 10);
+const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || '300000', 10); // 5 minutes default (300,000 ms)
 const LOCK_FILE_PATH = process.env.LOCK_FILE_PATH || '/tmp/worker.lock';
 const MOCK_QUEUE_FILE = path.join(OUTPUT_DIR, 'mock_queue.json');
 
 let shuttingDown = false;
-let emptyPollCount = 0;
+let isProcessing = false;
 let sqsClient = null;
 
 // Ensure output directory exists
@@ -97,14 +103,14 @@ function setupSignalHandlers() {
 }
 
 /**
- * Initializes SQS Client if SQS_QUEUE_URL is provided.
+ * Initializes SQS Client if SQS_JOBS_QUEUE_URL is provided.
  */
 function initSqsClient() {
-  if (SQS_QUEUE_URL) {
+  if (SQS_JOBS_QUEUE_URL) {
     sqsClient = new SQSClient({ region: AWS_REGION });
-    log('INFO', `SQS client initialized for queue: ${SQS_QUEUE_URL}`);
+    log('INFO', `SQS client initialized for jobs queue: ${SQS_JOBS_QUEUE_URL}`);
   } else {
-    log('INFO', `No SQS_QUEUE_URL configured. Using local mock queue at ${MOCK_QUEUE_FILE}`);
+    log('INFO', `No SQS_JOBS_QUEUE_URL configured. Using local mock queue at ${MOCK_QUEUE_FILE}`);
   }
 }
 
@@ -134,7 +140,7 @@ function pollMockQueue() {
 }
 
 /**
- * Polls for one message from SQS or mock queue.
+ * Polls for one message from SQS jobs queue or mock queue.
  */
 async function receiveNextMessage() {
   if (!sqsClient) {
@@ -148,7 +154,7 @@ async function receiveNextMessage() {
   }
 
   const command = new ReceiveMessageCommand({
-    QueueUrl: SQS_QUEUE_URL,
+    QueueUrl: SQS_JOBS_QUEUE_URL,
     MaxNumberOfMessages: 1,
     WaitTimeSeconds: 20, // Long-polling
     VisibilityTimeout: 900 // 15 minutes visibility window for scrape execution
@@ -162,7 +168,7 @@ async function receiveNextMessage() {
 }
 
 /**
- * Deletes a processed message from SQS or mock queue.
+ * Deletes a processed message from SQS jobs queue or mock queue.
  */
 async function deleteMessage(receiptHandle) {
   if (!sqsClient || receiptHandle.startsWith('mock-')) {
@@ -171,17 +177,17 @@ async function deleteMessage(receiptHandle) {
   }
 
   const command = new DeleteMessageCommand({
-    QueueUrl: SQS_QUEUE_URL,
+    QueueUrl: SQS_JOBS_QUEUE_URL,
     ReceiptHandle: receiptHandle
   });
 
   await sqsClient.send(command);
-  log('DEBUG', 'Message successfully deleted from SQS');
+  log('DEBUG', 'Message successfully deleted from SQS jobs queue');
 }
 
 /**
  * Decrypts credentials from payload.
- * Pure/deterministic function.
+ * Plain text matrícula is standard; password is encrypted with AES-256-GCM.
  * 
  * @param {object} payload
  * @param {string} [encryptionKey]
@@ -191,7 +197,7 @@ function resolveCredentials(payload, encryptionKey = (process.env.SCRAPER_ENCRYP
   let plainUsername = payload.matricula || '';
   let plainPassword = payload.password || payload.avaproPassword || '';
 
-  // If encrypted username is present
+  // Legacy support if encrypted username is present
   if (payload.encryptedUsername && payload.usernameIv && payload.usernameAuthTag) {
     if (!encryptionKey) {
       throw new Error('SCRAPER_ENCRYPTION_KEY is required to decrypt username');
@@ -204,7 +210,7 @@ function resolveCredentials(payload, encryptionKey = (process.env.SCRAPER_ENCRYP
     );
   }
 
-  // If encrypted password is present
+  // Decrypt password with AES-256-GCM
   if (payload.encryptedPassword && payload.passwordIv && payload.passwordAuthTag) {
     if (!encryptionKey) {
       throw new Error('SCRAPER_ENCRYPTION_KEY is required to decrypt password');
@@ -244,11 +250,11 @@ async function processMessage(rawMessage) {
   const runId = payload.runId || null;
   const userId = payload.userId || null;
   const matricula = payload.matricula || '';
-  const store = payload.store || null;
+  const store = payload.store || payload.unit || null;
   const scrapeDate = payload.scrapeDate || null;
   const scrapeDates = payload.scrapeDates || null;
   const scrapeType = (payload.scrapeType || 'geral').toLowerCase();
-  const callbackUrl = payload.callbackUrl || `${CALLBACK_BASE_URL}/api/scrape/callback`;
+  const callbackUrl = payload.callbackUrl || (CALLBACK_BASE_URL ? `${CALLBACK_BASE_URL}/api/scrape/callback` : null);
 
   log('INFO', `Starting ${scrapeType} scrape processing for job ${jobId}`, { jobId, runId, matricula, store, scrapeDate, scrapeType });
 
@@ -258,26 +264,88 @@ async function processMessage(rawMessage) {
   } catch (credErr) {
     log('ERROR', `Credential resolution failed for job ${jobId}: ${credErr.message}`, { jobId });
     
-    // Notify backend callback about failure
-    try {
-      await axios.put(callbackUrl, {
-        jobId,
-        runId,
-        userId,
-        matricula,
-        store,
-        status: 'Failed',
-        error: `Falha nas credenciais: ${credErr.message}`,
-        authStatus: 'error',
-        authMessage: credErr.message,
-        powerbiLoaded: false,
-        loginSuccess: false
-      });
-    } catch (cbErr) {
-      log('ERROR', `Failed to send callback for bad credentials: ${cbErr.message}`, { jobId });
+    // Notify backend callback if configured
+    if (callbackUrl) {
+      try {
+        await axios.put(callbackUrl, {
+          jobId,
+          runId,
+          userId,
+          matricula,
+          store,
+          status: 'Failed',
+          error: `Falha nas credenciais: ${credErr.message}`,
+          authStatus: 'error',
+          authMessage: credErr.message,
+          powerbiLoaded: false,
+          loginSuccess: false
+        });
+      } catch (cbErr) {
+        log('ERROR', `Failed to send callback for bad credentials: ${cbErr.message}`, { jobId });
+      }
+    }
+
+    // Publish failure notification to results queue if configured
+    if (SQS_RESULTS_QUEUE_URL) {
+      try {
+        await publishToQueue(SQS_RESULTS_QUEUE_URL, {
+          jobId,
+          runId,
+          userId,
+          matricula,
+          store,
+          status: 'Failed',
+          error: `Falha nas credenciais: ${credErr.message}`,
+          timestamp: new Date().toISOString()
+        });
+      } catch (sqsErr) {
+        log('ERROR', `Failed to publish credential failure to results queue: ${sqsErr.message}`, { jobId });
+      }
     }
 
     // Invalid credentials payload is permanent failure - delete message
+    await deleteMessage(receiptHandle);
+    return;
+  }
+
+  const matriculaToUse = credentials.username || matricula;
+
+  // Circuit Breaker check: abort immediately if account failed or run is aborted to prevent Ava Pro lockout
+  const isLocked = tokenManager.isAuthLocked(matriculaToUse);
+  const isBatchAborted = runId && tokenManager.isRunAborted(runId);
+
+  if (isLocked || isBatchAborted) {
+    const lockInfo = tokenManager.getAuthFailureReason(matriculaToUse);
+    const abortReason = isLocked
+      ? `Disjuntor de segurança ativo para matrícula ${matriculaToUse}: ${lockInfo?.reason || 'Senha incorreta detectada anteriormente'}. Execução cancelada para evitar bloqueio no AVA PRO.`
+      : `Lote ${runId} abortado por falha anterior. Execução cancelada para evitar bloqueio no AVA PRO.`;
+
+    log('WARN', `Job ${jobId} abortado pelo disjuntor de segurança: ${abortReason}`, { jobId, matricula: matriculaToUse, runId });
+
+    if (callbackUrl) {
+      try {
+        await axios.put(callbackUrl, {
+          jobId,
+          runId,
+          userId,
+          matricula: matriculaToUse,
+          store,
+          status: 'Failed',
+          rowCount: 0,
+          error: abortReason,
+          authStatus: 'wrong-password',
+          authMessage: abortReason,
+          powerbiLoaded: false,
+          loginSuccess: false,
+          authSteps: ['[Disjuntor SQS] Mensagem descartada para proteção contra bloqueio no AVA PRO.'],
+          scrapeDate: scrapeDate || (scrapeDates ? scrapeDates.join(',') : null)
+        }, { timeout: 30000 });
+      } catch (cbErr) {
+        log('WARN', `Abort callback failed for ${jobId}: ${cbErr.message}`, { jobId });
+      }
+    }
+
+    // Delete message from SQS queue to avoid poison loops and failed retries
     await deleteMessage(receiptHandle);
     return;
   }
@@ -302,57 +370,112 @@ async function processMessage(rawMessage) {
     return;
   }
 
+  if (scrapeResult.authStatus === 'wrong-password') {
+    log('WARN', `Senha incorreta detectada ('wrong-password'). Acionando disjuntor para matrícula ${matriculaToUse}...`, { jobId, matricula: matriculaToUse, runId });
+    tokenManager.markAuthFailure(matriculaToUse, scrapeResult.authMessage || scrapeResult.error);
+    if (runId) {
+      tokenManager.abortRun(runId, scrapeResult.authMessage || scrapeResult.error);
+    }
+  }
+
   // Save CSV output to file if rows were returned
   let fileRelativePath = null;
+  let fullFilePath = null;
   if (scrapeResult.rowCount > 0 && scrapeResult.csv) {
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `scrape_${jobId}_${timestamp}.csv`;
-      const fullFilePath = path.join(OUTPUT_DIR, filename);
+      fullFilePath = path.join(OUTPUT_DIR, filename);
       fs.writeFileSync(fullFilePath, scrapeResult.csv, 'utf8');
       fileRelativePath = filename;
       log('INFO', `CSV saved to ${fullFilePath}`, { jobId, filename, rowCount: scrapeResult.rowCount });
     } catch (fsErr) {
       log('ERROR', `Failed to write CSV file for job ${jobId}: ${fsErr.message}`, { jobId });
     }
+  } else if (scrapeResult.fileRelativePath) {
+    fileRelativePath = scrapeResult.fileRelativePath;
+    fullFilePath = path.join(OUTPUT_DIR, fileRelativePath);
   }
 
-  // Build callback payload
-  const callbackPayload = {
-    jobId,
-    runId,
-    userId,
-    matricula,
-    store: scrapeResult.detectedStore || store,
-    detectedStore: scrapeResult.detectedStore,
-    status: scrapeResult.status,
-    rowCount: scrapeResult.rowCount,
-    fileRelativePath,
-    error: scrapeResult.error,
-    authStatus: scrapeResult.authStatus,
-    authMessage: scrapeResult.authMessage,
-    powerbiLoaded: scrapeResult.powerbiLoaded,
-    loginSuccess: scrapeResult.loginSuccess,
-    authSteps: scrapeResult.authSteps,
-    retryCount: scrapeResult.retryCount,
-    scrapeDate: scrapeResult.scrapeDate
-  };
-
-  // Send callback to API
-  try {
-    log('INFO', `Sending callback to ${callbackUrl}`, { jobId, status: callbackPayload.status });
-    await axios.put(callbackUrl, callbackPayload, { timeout: 30000 });
-  } catch (cbErr) {
-    log('ERROR', `Callback to ${callbackUrl} failed: ${cbErr.message}`, { jobId });
-    // If callback fails, do NOT delete message so it can be retried
-    return;
+  // Upload to S3 if successful and file exists
+  let s3Key = null;
+  if (scrapeResult.status === 'Succeeded' && fullFilePath && fs.existsSync(fullFilePath)) {
+    try {
+      s3Key = `${SCRAPE_S3_PREFIX}${fileRelativePath}`;
+      log('INFO', `Uploading CSV to S3: s3://${SCRAPE_S3_BUCKET}/${s3Key}`, { jobId, bucket: SCRAPE_S3_BUCKET, key: s3Key });
+      await uploadToS3(fullFilePath, s3Key, SCRAPE_S3_BUCKET, 'text/csv');
+      log('INFO', `Upload to S3 completed: s3://${SCRAPE_S3_BUCKET}/${s3Key}`, { jobId });
+    } catch (s3Err) {
+      log('ERROR', `Failed to upload CSV to S3: ${s3Err.message}`, { jobId, bucket: SCRAPE_S3_BUCKET, key: s3Key });
+      // If S3 upload fails, do not mark completed - let message retry
+      return;
+    }
   }
 
-  // If scrape succeeded or failed cleanly with AuthError, delete message
+  // Publish notification to SQS Results Queue if configured
+  if (SQS_RESULTS_QUEUE_URL && scrapeResult.status === 'Succeeded') {
+    try {
+      const resultsPayload = {
+        jobId,
+        runId,
+        userId,
+        s3Bucket: SCRAPE_S3_BUCKET,
+        s3Key: s3Key,
+        rowCount: scrapeResult.rowCount,
+        matricula,
+        store: scrapeResult.detectedStore || store,
+        scrapeDate: scrapeResult.scrapeDate,
+        scrapeType,
+        status: scrapeResult.status,
+        timestamp: new Date().toISOString()
+      };
+      log('INFO', `Publishing result to SQS queue: ${SQS_RESULTS_QUEUE_URL}`, { jobId, resultsPayload });
+      await publishToQueue(SQS_RESULTS_QUEUE_URL, resultsPayload);
+      log('INFO', `Result notification published to SQS results queue`, { jobId });
+    } catch (sqsErr) {
+      log('ERROR', `Failed to publish result to SQS results queue: ${sqsErr.message}`, { jobId });
+      // If SQS publishing fails, do not delete message so it can be retried
+      return;
+    }
+  }
+
+  // Optional HTTP callback fallback
+  if (callbackUrl) {
+    const callbackPayload = {
+      jobId,
+      runId,
+      userId,
+      matricula,
+      store: scrapeResult.detectedStore || store,
+      detectedStore: scrapeResult.detectedStore,
+      status: scrapeResult.status,
+      rowCount: scrapeResult.rowCount,
+      fileRelativePath,
+      s3Bucket: SCRAPE_S3_BUCKET,
+      s3Key,
+      error: scrapeResult.error,
+      authStatus: scrapeResult.authStatus,
+      authMessage: scrapeResult.authMessage,
+      powerbiLoaded: scrapeResult.powerbiLoaded,
+      loginSuccess: scrapeResult.loginSuccess,
+      authSteps: scrapeResult.authSteps,
+      retryCount: scrapeResult.retryCount,
+      scrapeDate: scrapeResult.scrapeDate
+    };
+
+    try {
+      log('INFO', `Sending callback to ${callbackUrl}`, { jobId, status: callbackPayload.status });
+      await axios.put(callbackUrl, callbackPayload, { timeout: 30000 });
+    } catch (cbErr) {
+      log('WARN', `Optional callback to ${callbackUrl} failed: ${cbErr.message}`, { jobId });
+    }
+  }
+
+  // If scrape succeeded or failed cleanly with AuthError, delete message from jobs queue
   if (scrapeResult.status === 'Succeeded' || scrapeResult.authStatus === 'error' || scrapeResult.loginSuccess === false) {
     try {
       await deleteMessage(receiptHandle);
-      log('INFO', `Job ${jobId} finished and message deleted`, { jobId });
+      log('INFO', `Job ${jobId} finished and message deleted from jobs queue`, { jobId });
     } catch (delErr) {
       log('ERROR', `Failed to delete message for job ${jobId}: ${delErr.message}`, { jobId });
     }
@@ -362,38 +485,51 @@ async function processMessage(rawMessage) {
 }
 
 /**
- * Main worker loop.
+ * Main worker loop with 5-minute idle timeout lifetime.
  */
 async function runWorker() {
   log('INFO', 'Starting PBI Scraper Worker...', {
     scaleToZero: SCALE_TO_ZERO,
-    maxEmptyPolls: MAX_EMPTY_POLLS,
+    idleTimeoutMs: IDLE_TIMEOUT_MS,
+    idleTimeoutMinutes: IDLE_TIMEOUT_MS / 60000,
     awsRegion: AWS_REGION,
-    hasSqsUrl: Boolean(SQS_QUEUE_URL),
-    callbackBaseUrl: CALLBACK_BASE_URL
+    jobsQueueUrl: SQS_JOBS_QUEUE_URL || '(local mock queue)',
+    resultsQueueUrl: SQS_RESULTS_QUEUE_URL || '(none)',
+    s3Bucket: SCRAPE_S3_BUCKET,
+    s3Prefix: SCRAPE_S3_PREFIX
   });
 
   createHealthLockFile();
   setupSignalHandlers();
   initSqsClient();
 
+  let idleDeadline = Date.now() + IDLE_TIMEOUT_MS;
+  log('INFO', `Worker active. Idle deadline set to ${new Date(idleDeadline).toISOString()} (${IDLE_TIMEOUT_MS / 1000}s).`);
+
   while (!shuttingDown) {
     try {
       const message = await receiveNextMessage();
 
       if (message) {
-        emptyPollCount = 0;
+        isProcessing = true;
+        log('INFO', 'Message received. Processing job...');
         await processMessage(message);
-      } else {
-        emptyPollCount++;
-        log('DEBUG', `No message received. Empty poll count: ${emptyPollCount}/${MAX_EMPTY_POLLS}`);
+        isProcessing = false;
 
-        if (SCALE_TO_ZERO && emptyPollCount >= MAX_EMPTY_POLLS) {
-          log('INFO', `Queue empty after ${emptyPollCount} consecutive polls. Exiting (scale-to-zero).`);
+        // Renew idle deadline for another 5 minutes after completing a job
+        idleDeadline = Date.now() + IDLE_TIMEOUT_MS;
+        log('INFO', `Job processing complete. Idle deadline renewed to ${new Date(idleDeadline).toISOString()}`);
+      } else {
+        const remainingSeconds = Math.max(0, Math.round((idleDeadline - Date.now()) / 1000));
+        log('DEBUG', `No message in queue. Remaining idle time: ${remainingSeconds}s`);
+
+        if (SCALE_TO_ZERO && !isProcessing && Date.now() >= idleDeadline) {
+          log('INFO', `No messages received for ${IDLE_TIMEOUT_MS / 1000}s and no active processing. Exiting cleanly (scale-to-zero).`);
           break;
         }
       }
     } catch (err) {
+      isProcessing = false;
       log('ERROR', `Worker loop error: ${err.message}`);
       if (!shuttingDown) {
         await new Promise(resolve => setTimeout(resolve, 2000));

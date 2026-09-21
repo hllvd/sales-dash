@@ -1,6 +1,77 @@
 # Features
 
-## Entrega de Resultados de Scraping via AWS SQS e S3 com Worker Local e Painel de Monitoramento
+## Consumo Automático de Resultados SQS/S3 em Background e Opção no Modal de Scrape
+
+Permite ao backend .NET monitorar de forma contínua e assíncrona a fila SQS de resultados (`SQS_RESULTS_QUEUE_URL`) através de um Hosted Service dedicado (`SqsResultBackgroundConsumerService`), realizando o download automático dos arquivos CSV/XLSX gerados pelos scrapers no Amazon S3 e efetuando a importação direta de contratos sem requerer ação manual no painel administrativo. A funcionalidade também disponibiliza a opção configurável "Importar SQS automaticamente no backend" no modal de criação e edição de contas (`ScrapeDashboard.tsx`).
+
+### Comportamento e Regras
+- **Consumidor em Background (`SqsResultBackgroundConsumerService.cs`)**:
+  - Implementa `BackgroundService` com long-polling (janela de 20 segundos) na fila AWS SQS configurada (`SQS_RESULTS_QUEUE_URL` / `SQS_QUEUE_URL`).
+  - Pode ser ativado/desativado via configuração `AWS:EnableSqsBackgroundConsumer` no `appsettings.json` ou variável de ambiente.
+  - Ao receber mensagens contendo metadados de conclusão (`s3Bucket`, `s3Key`, `userId`, `jobId`, `runId`, `matricula`):
+    - Verifica se a conta correspondente tem `AutoImportSqs` habilitado (padrão: `true`). Caso esteja desabilitado, mantém a mensagem na fila para processamento manual.
+    - Aciona `IScrapeImportService.AutoImportFromS3Async(s3Bucket, s3Key, userId)`.
+    - Em caso de sucesso, deleta a mensagem da fila SQS via `DeleteMessageAsync` e atualiza o log de execução no DynamoDB com status `Succeeded`.
+    - Em caso de erro na importação, registra log detalhado com as falhas, atualiza o job para `Failed` no DynamoDB e mantém a mensagem na fila para análise ou retry.
+- **Interface e Configuração no Modal (`ScrapeDashboard.tsx`)**:
+  - Ao selecionar a opção de destino "Fila AWS SQS / S3 (Worker Local)", é exibido o checkbox "Importar SQS automaticamente no backend" com valor padrão marcado (`true`).
+  - A listagem de contas exibe badges atualizados refletindo o status da fila (`SQS / S3 (Auto)` ou `SQS / S3 (Manual)`).
+- **Persistência no Banco de Dados (.NET / EF Core)**:
+  - Adicionada a coluna `AutoImportSqs` (tipo booleano, padrão `true`) na tabela `ScrapeConfigs` via migration EF Core `20260921153000_AddScrapeConfigAutoImportSqs`.
+  - Mapeamento e serialização atualizados em `ScrapeConfigDto`, `ScrapeConfigRequest` e `ScrapeController`.
+- **Compatibilidade com Painel Administrativo**:
+  - O painel `/admin-tools/sqs-queue` permanece 100% operacional para monitorar estatísticas das filas, inspecionar mensagens pendentes, forçar processamento manual sob demanda ou descartar mensagens.
+
+---
+
+## Opções Avançadas de Importação e Atualização no Scrape (Accordion & Matching Rules)
+
+Permite aos usuários configurarem regras customizadas de importação e atualização de contratos ao criar ou editar credenciais de extração automática (`ScrapeConfig`). A interface disponibiliza uma seção recolhível em Accordion ("Opções Avançadas") com 6 opções com padrões pré-definidos de importação.
+
+### Comportamento e Regras
+- **Interface Mantine com Accordion no Modal (`ScrapeDashboard.tsx`)**:
+  - Seção expansível `<Accordion>` com cabeçalho "Opções Avançadas" e ícone de engrenagem.
+  - Subtítulo "Opções de Importação:" e 6 checkboxes de controle com seus respectivos valores padrões:
+    - `skipMissingContractNumber`: Pular linhas sem número de contrato (útil para arquivos com subtotais ou lixo) — **Padrão: Marcado (`true`)**
+    - `allowAutoCreateGroups`: Permitir criação automática de grupos — **Padrão: Marcado (`true`)**
+    - `allowAutoCreatePVs`: Permitir criação automática de PV — **Padrão: Marcado (`true`)**
+    - `updateMatriculaOnExisting`: Atualizar matrícula em contratos existentes — **Padrão: Desmarcado (`false`)**
+    - `updateTotalAmountOnExisting`: Atualizar valor total em contratos existentes — **Padrão: Marcado (`true`)**
+    - `updateStartDateOnExisting`: Atualizar data do contrato — **Padrão: Marcado (`true`)**
+  - Ao editar uma conta existente, o formulário inicializa os checkboxes com os valores previamente salvos no banco.
+- **Persistência no Backend (.NET / SQLite / EF Core)**:
+  - Adicionadas 6 colunas booleanas à tabela `ScrapeConfigs` através da migration `20260921140000_AddScrapeConfigImportOptions`.
+  - Atualização dos DTOs `ScrapeConfigDto` e `ScrapeConfigRequest` para suportar leitura e gravação das opções.
+- **Execução da Importação com Respeito às Opções (`ScrapeImportService.cs`)**:
+  - Tanto no fluxo de auto-import direto quanto na importação de arquivos do S3, o serviço recupera a configuração da conta e aciona `ExecuteContractDashboardImportAsync` repassando os 6 parâmetros booleanos.
+
+---
+
+## Worker Fargate-Ready de Scraping com SQS Long-Polling, Criptografia AES-256-GCM e Auto Shutdown
+
+Worker autônomo desacoplado (`pbi-scraper/worker.js`) preparado para execução local via Docker e deploy no AWS ECS Fargate Spot. Executa long-polling na fila SQS de Jobs (`hdev-sales-scrape-jobs`), descriptografa a senha protegida com AES-256-GCM, executa o scraping (Geral ou Consultor), envia o CSV resultante para o Amazon S3 com expiração de 1 dia, publica a notificação de conclusão na fila SQS de Resultados (`hdev-sales-dash`), e desliga automaticamente (scale-to-zero) após 5 minutos de inatividade sem processamento.
+
+### Comportamento e Regras
+- **Topologia de Duas Filas SQS**:
+  - `SQS_JOBS_QUEUE_URL`: Fila de entrada contendo as ordens de scrape enfileiradas (`hdev-sales-scrape-jobs`).
+  - `SQS_RESULTS_QUEUE_URL`: Fila de saída onde o worker publica o resultado com ponteiro do S3 (`hdev-sales-dash`).
+- **Segurança e Criptografia**:
+  - A matrícula trafega em texto plano no payload para identificação.
+  - A senha trafega criptografada com `AES-256-GCM` (`encryptedPassword`, `passwordIv`, `passwordAuthTag`), decodificada em memória através da chave simétrica de 32 bytes `SCRAPER_ENCRYPTION_KEY`.
+- **Pipeline de Saída**:
+  - Upload automático do CSV gerado para `s3://${SCRAPE_S3_BUCKET}/${SCRAPE_S3_PREFIX}${fileName}` com cabeçalho de expiração de 1 dia (`Expires`).
+  - Publicação de evento de conclusão na fila de resultados com metadados: `jobId`, `runId`, `userId`, `s3Bucket`, `s3Key`, `rowCount`, `matricula`, `store`, `scrapeDate`, `scrapeType`, `status`, `timestamp`.
+  - Exclusão da mensagem da fila de jobs após sucesso ou falha definitiva de autenticação.
+- **Ciclo de Vida com Timeout de 5 Minutos (Idle Lifetime)**:
+  - Ao iniciar, o worker registra um deadline de inatividade (`Date.now() + IDLE_TIMEOUT_MS`, padrão 300.000 ms / 5 minutos).
+  - Cada mensagem processada com sucesso renova o deadline por mais 5 minutos.
+  - Se a fila estiver vazia por 5 minutos consecutivos e não houver processamento em andamento, o processo finaliza com `exit(0)`, encerrando a task do Fargate sem custo residual.
+  - `SCALE_TO_ZERO=false` desativa o shutdown automático para ambiente de desenvolvimento local.
+- **Ferramentas de Teste e Docker**:
+  - Script CLI `push-job.js` (`npm run push:job`) para enviar mensagens com payload estruturado e senha criptografada para a fila SQS real ou mock local.
+  - Serviço `pbi-worker` registrado no `docker-compose.yml` sob profile `worker` (`docker compose --profile worker up pbi-worker`).
+
+---
 
 Permite ao sistema, de forma configurável por conta (`ScrapeConfig.OutputMode`), enviar os arquivos CSV extraídos diretamente para um bucket Amazon S3 e enfileirar notificações em uma fila AWS SQS (`salesapp-scrape-results`). O usuário pode optar entre o fluxo local direto (importação automática pelo container da API) ou a ingestão assíncrona descentralizada (via worker local standalone ou painel administrativo de gestão de fila).
 
@@ -1582,3 +1653,41 @@ Ao abrir os detalhes de uma pesquisa em `Gerenciamento de Perguntas / QA > Pergu
 ### Arquivos Modificados / Criados
 - `SalesApp.Api/Services/SurveyService.cs` — Atualização da ordenação de respostas individuais em `GetSurveyResultsAsync`.
 - `SalesApp.Tests/Services/SurveyServiceTests.cs` — Teste unitário para garantia da ordenação.
+
+## [2026-09-21] — Seletor de Datas Relativas no Modal de Scrape e Disjuntor de Autenticação Anti-Bloqueio (AVA PRO)
+
+### Contexto & Motivação
+1. **Datas Relativas**: Facilitar a configuração do período retroativo padrão nas contas de extração (`ScrapeDashboard.tsx`), substituindo a digitação manual de mês por opções rápidas baseadas no mês atual (1, 3, 12 e 15 meses), além de mês específico e todas as datas (sem filtro).
+2. **Disjuntor de Autenticação (Circuit Breaker)**: O AVA PRO bloqueia contas que realizam 3 tentativas com senha errada. Ao submeter lotes multi-mês (ex: 15 meses gerando 15 jobs sequenciais), uma alteração de senha no portal pelo usuário ou senha incorreta provocaria o bloqueio imediato da matrícula. O disjuntor interrompe o lote e cancela os jobs restantes logo na primeira falha de senha (`wrong-password`), protegendo a conta do consultor.
+
+### Funcionalidades & Arquitetura
+1. **Seletor de Período Relativo (`ScrapeDashboard.tsx`)**:
+   - Opções configuráveis:
+     - *Último 1 mês (Mês atual)*: `calculateRelativeMonth(1)`
+     - *Últimos 3 meses*: `calculateRelativeMonth(3)`
+     - *Últimos 12 meses (1 ano)*: `calculateRelativeMonth(12)`
+     - *Últimos 15 meses (Máximo)*: `calculateRelativeMonth(15)`
+     - *Mês Específico (Personalizado)*: exibe o campo `type="month"` para escolha livre.
+     - *Todas as datas (Sem filtro)*: define `defaultStartMonth` como vazio/nulo.
+   - Resumo dinâmico exibindo a data inicial e o escopo até o mês corrente.
+2. **Disjuntor de Autenticação (Circuit Breaker) no Scraper (`tokenManager.js`, `server.js`, `worker.js`)**:
+   - Ao capturar `AuthError('wrong-password')`:
+     - Dispara `tokenManager.markAuthFailure(matricula, reason)` e `tokenManager.abortRun(runId, reason)`.
+     - Invalida os tokens em cache (`invalidateTokens`).
+   - Jobs subsequentes da fila em memória (`server.js`) ou da fila SQS (`worker.js`):
+     - Ao iniciar, verificam `isAuthLocked(matricula)` ou `isRunAborted(runId)`.
+     - Se ativo, abortam imediatamente sem abrir o navegador Puppeteer e sem submeter login ao AVA PRO, retornando falha explicativa e deletando a mensagem da fila para evitar loops venenosos.
+   - Rearme do disjuntor via `/test-auth` ou `/reset-auth-lock` assim que novas credenciais forem enviadas para teste.
+3. **Bloqueio Preventivo na API (`ScrapeController.cs` e `ScrapeOrchestrator.cs`)**:
+   - Ao receber callback com `authStatus == 'wrong-password'`, o backend marca imediatamente `ScrapeConfig.CredentialStatus = "wrong-password"`.
+   - `POST /api/scrape/jobs/{configId}` rejeita disparos para contas marcadas com `wrong-password` até que a senha seja atualizada e validada.
+   - Frontend bloqueia o botão de disparo manual com aviso orientando o usuário a atualizar as credenciais.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx` — Adição do `<Select>` de datas relativas, helper `calculateRelativeMonth`, suporte a mês customizado e guarda de `credentialStatus` em `handleTrigger`.
+- `pbi-scraper/tokenManager.js` — Implementação do estado e métodos de Circuit Breaker (`markAuthFailure`, `isAuthLocked`, `getAuthFailureReason`, `resetAuthLock`, `abortRun`, `isRunAborted`, `clearAllAuthLocks`).
+- `pbi-scraper/server.js` — Verificação de circuit breaker no início de jobs da fila, acionamento do disjuntor no catch de `wrong-password`, reset em `/test-auth` e novo endpoint `/reset-auth-lock`.
+- `pbi-scraper/worker.js` — Verificação de circuit breaker no consumidor SQS e marcação no catch de `wrong-password`.
+- `SalesApp.Api/Controllers/ScrapeController.cs` — Validação impeditiva de disparo para contas com `CredentialStatus == "wrong-password"`.
+- `SalesApp.Api/Services/ScrapeOrchestrator.cs` — Atualização do `CredentialStatus` para `"wrong-password"` no callback da API.
+
