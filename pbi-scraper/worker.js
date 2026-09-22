@@ -26,7 +26,8 @@ const SCRAPE_S3_BUCKET = process.env.SCRAPE_S3_BUCKET || 'hdev-sales-dash';
 const SCRAPE_S3_PREFIX = (process.env.SCRAPE_S3_PREFIX || 'scrape-results/').replace(/^\/+/, '');
 const CALLBACK_BASE_URL = process.env.CALLBACK_BASE_URL ? process.env.CALLBACK_BASE_URL.replace(/\/+$/, '') : '';
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './outputs';
-const SCALE_TO_ZERO = process.env.SCALE_TO_ZERO !== 'false';
+const RESULTS_CONSUMER_MODE = process.env.RESULTS_CONSUMER_MODE === 'true';
+const SCALE_TO_ZERO = RESULTS_CONSUMER_MODE ? false : process.env.SCALE_TO_ZERO !== 'false';
 const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || '300000', 10); // 5 minutes default (300,000 ms)
 const LOCK_FILE_PATH = process.env.LOCK_FILE_PATH || '/tmp/worker.lock';
 const MOCK_QUEUE_FILE = path.join(OUTPUT_DIR, 'mock_queue.json');
@@ -143,6 +144,8 @@ function pollMockQueue() {
  * Polls for one message from SQS jobs queue or mock queue.
  */
 async function receiveNextMessage() {
+  const targetQueueUrl = RESULTS_CONSUMER_MODE ? SQS_RESULTS_QUEUE_URL : SQS_JOBS_QUEUE_URL;
+
   if (!sqsClient) {
     // Local mock queue mode
     const msg = pollMockQueue();
@@ -154,10 +157,10 @@ async function receiveNextMessage() {
   }
 
   const command = new ReceiveMessageCommand({
-    QueueUrl: SQS_JOBS_QUEUE_URL,
+    QueueUrl: targetQueueUrl,
     MaxNumberOfMessages: 1,
     WaitTimeSeconds: 20, // Long-polling
-    VisibilityTimeout: 900 // 15 minutes visibility window for scrape execution
+    VisibilityTimeout: RESULTS_CONSUMER_MODE ? 60 : 900 // 1 minute for results ingestion vs 15 min for scrape
   });
 
   const response = await sqsClient.send(command);
@@ -170,19 +173,21 @@ async function receiveNextMessage() {
 /**
  * Deletes a processed message from SQS jobs queue or mock queue.
  */
-async function deleteMessage(receiptHandle) {
+async function deleteMessage(receiptHandle, customQueueUrl = null) {
   if (!sqsClient || receiptHandle.startsWith('mock-')) {
     log('DEBUG', `Mock message ${receiptHandle} marked as deleted`);
     return;
   }
 
+  const targetQueueUrl = customQueueUrl || (RESULTS_CONSUMER_MODE ? SQS_RESULTS_QUEUE_URL : SQS_JOBS_QUEUE_URL);
+
   const command = new DeleteMessageCommand({
-    QueueUrl: SQS_JOBS_QUEUE_URL,
+    QueueUrl: targetQueueUrl,
     ReceiptHandle: receiptHandle
   });
 
   await sqsClient.send(command);
-  log('DEBUG', 'Message successfully deleted from SQS jobs queue');
+  log('DEBUG', `Message successfully deleted from SQS queue (${targetQueueUrl})`);
 }
 
 /**
@@ -231,6 +236,60 @@ function resolveCredentials(payload, encryptionKey = (process.env.SCRAPER_ENCRYP
 }
 
 /**
+ * Processes a message from the results queue (RESULTS_CONSUMER_MODE = true).
+ * Downloads CSV from S3 and calls API import callback.
+ */
+async function processResultMessage(payload, receiptHandle) {
+  const { s3Bucket, s3Key, jobId, runId, userId, matricula } = payload;
+  const targetCallbackUrl = CALLBACK_BASE_URL ? `${CALLBACK_BASE_URL}/api/scrape/import-s3` : null;
+
+  log('INFO', `[Results Consumer] Recebida notificação de conclusão para job ${jobId}`, {
+    s3Bucket,
+    s3Key,
+    matricula,
+    runId
+  });
+
+  if (!s3Key) {
+    log('WARN', `[Results Consumer] Mensagem ${jobId} sem s3Key. Descartando mensagem.`, { payload });
+    await deleteMessage(receiptHandle, SQS_RESULTS_QUEUE_URL);
+    return;
+  }
+
+  if (!targetCallbackUrl) {
+    log('ERROR', `[Results Consumer] CALLBACK_BASE_URL não configurado. Não é possível acionar a importação da API.`);
+    return;
+  }
+
+  try {
+    const response = await axios.post(targetCallbackUrl, {
+      s3Bucket: s3Bucket || SCRAPE_S3_BUCKET,
+      s3Key,
+      jobId,
+      runId,
+      userId,
+      matricula
+    }, { timeout: 120000 });
+
+    log('INFO', `[Results Consumer] Importação concluída com sucesso para job ${jobId}`, {
+      status: response.status,
+      data: response.data
+    });
+
+    await deleteMessage(receiptHandle, SQS_RESULTS_QUEUE_URL);
+  } catch (err) {
+    log('ERROR', `[Results Consumer] Falha ao acionar importação da API para job ${jobId}: ${err.message}`, {
+      response: err.response?.data
+    });
+    // Se a chave não existir no S3, remove a mensagem para não travar
+    if (err.response?.status === 404 || (err.response?.data?.message && err.response.data.message.includes('NoSuchKey'))) {
+      log('WARN', `[Results Consumer] Arquivo no S3 inexistente para job ${jobId}. Deletando mensagem órfã.`);
+      await deleteMessage(receiptHandle, SQS_RESULTS_QUEUE_URL);
+    }
+  }
+}
+
+/**
  * Processes a single scrape job message.
  */
 async function processMessage(rawMessage) {
@@ -243,6 +302,11 @@ async function processMessage(rawMessage) {
     log('ERROR', `Invalid JSON in message body: ${err.message}`, { body: rawMessage.Body });
     // Corrupted message format - delete to avoid poison loop
     await deleteMessage(receiptHandle);
+    return;
+  }
+
+  if (RESULTS_CONSUMER_MODE) {
+    await processResultMessage(payload, receiptHandle);
     return;
   }
 

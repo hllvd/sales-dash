@@ -1,5 +1,29 @@
 # Features
 
+## Agendamento por Intervalo de Horas (Cron) e Deploy Fargate Scraper em Produção
+
+Permite configurar a periodicidade de extração automática para cada conta cadastrada no modal de Scrape (`ScrapeIntervalHours`), com execução autônoma através de um hosted service no backend (`ScrapeSchedulerService`). O ecossistema suporta a arquitetura de container Fargate Spot disparado sob demanda via AWS Lambda Function URL, processando jobs da fila SQS e encerrando-se automaticamente (`SCALE_TO_ZERO`), enquanto um worker local no VPS consome a fila de resultados (`RESULTS_CONSUMER_MODE`) e efetua a ingestão dos contratos para a base de dados.
+
+### Comportamento e Regras
+- **Agendamento por Conta (`ScrapeConfig.ScrapeIntervalHours` & `LastTriggeredAt`)**:
+  - Usuários podem selecionar a periodicidade: Desativada, a cada 1h, 3h, 6h, 12h, 24h (diário), 48h (2 dias) ou 168h (semanal).
+  - Regra de validação: intervalo mínimo permitido de 1 hora.
+  - O painel exibe um badge visual `Auto Xh` nos registros que possuem periodicidade configurada.
+- **Hosted Service de Agendamento (`ScrapeSchedulerService.cs`)**:
+  - Executa loop de verificação a cada 60 segundos no backend.
+  - Dispara requisições apenas para contas ativas (`IsEnabled == true`) e sem trava de erro de credencial (`CredentialStatus != "wrong-password"`).
+  - Atualiza `LastTriggeredAt` e calcula os períodos retroativos relativos à data de execução.
+- **Disparo Remoto do Fargate via Lambda Function (`infra/lambda/scraper-launcher`)**:
+  - Função serverless em Node.js que recebe notificações de jobs enfileirados e invoca `ecs:RunTask` com capacidade `FARGATE_SPOT` na rede padrão da AWS (`assignPublicIp: ENABLED`, sem custo de NAT Gateway).
+- **Consumo Nativo de Resultados no Backend (`salesapp-api`)**:
+  - A própria API .NET monitora a fila `SQS_RESULTS_QUEUE_URL` via `SqsResultBackgroundConsumerService` em segundo plano com custo de memória marginal quase nulo.
+  - Baixa os arquivos CSV do S3 e efetua a ingestão dos contratos diretamente na base SQLite, dispensando containers adicionais na VPS.
+- **Pipeline CI/CD (GitHub Actions)**:
+  - Workflow `.github/workflows/deploy-scraper.yml` para compilação e publicação automática no AWS ECR.
+  - Matriz de build e deploy do `.github/workflows/deploy.yml` unificada com o serviço `pbi-scraper`.
+
+---
+
 ## Consumo Automático de Resultados SQS/S3 em Background e Opção no Modal de Scrape
 
 Permite ao backend .NET monitorar de forma contínua e assíncrona a fila SQS de resultados (`SQS_RESULTS_QUEUE_URL`) através de um Hosted Service dedicado (`SqsResultBackgroundConsumerService`), realizando o download automático dos arquivos CSV/XLSX gerados pelos scrapers no Amazon S3 e efetuando a importação direta de contratos sem requerer ação manual no painel administrativo. A funcionalidade também disponibiliza a opção configurável "Importar SQS automaticamente no backend" no modal de criação e edição de contas (`ScrapeDashboard.tsx`).

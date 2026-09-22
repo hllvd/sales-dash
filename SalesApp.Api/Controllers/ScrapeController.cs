@@ -20,6 +20,8 @@ namespace SalesApp.Controllers
         public string ScrapeType { get; set; } = "geral";
         public string OutputMode { get; set; } = "direct";
         public bool AutoImportSqs { get; set; } = true;
+        public int? ScrapeIntervalHours { get; set; }
+        public DateTime? LastTriggeredAt { get; set; }
         public bool SkipMissingContractNumber { get; set; } = true;
         public bool AllowAutoCreateGroups { get; set; } = true;
         public bool AllowAutoCreatePVs { get; set; } = true;
@@ -41,6 +43,7 @@ namespace SalesApp.Controllers
         public string? ScrapeType { get; set; }
         public string? OutputMode { get; set; }
         public bool? AutoImportSqs { get; set; }
+        public int? ScrapeIntervalHours { get; set; }
         public bool? SkipMissingContractNumber { get; set; }
         public bool? AllowAutoCreateGroups { get; set; }
         public bool? AllowAutoCreatePVs { get; set; }
@@ -157,6 +160,20 @@ namespace SalesApp.Controllers
             config.ScrapeType = string.IsNullOrWhiteSpace(request.ScrapeType) ? "geral" : request.ScrapeType.Trim().ToLowerInvariant();
             config.OutputMode = string.IsNullOrWhiteSpace(request.OutputMode) ? "direct" : request.OutputMode.Trim().ToLowerInvariant();
             if (request.AutoImportSqs.HasValue) config.AutoImportSqs = request.AutoImportSqs.Value;
+
+            if (request.ScrapeIntervalHours.HasValue)
+            {
+                if (request.ScrapeIntervalHours.Value < 1)
+                {
+                    return BadRequest(new { message = "O intervalo mínimo de extração automática é de 1 hora." });
+                }
+                config.ScrapeIntervalHours = request.ScrapeIntervalHours.Value;
+            }
+            else
+            {
+                config.ScrapeIntervalHours = null;
+            }
+
             if (request.SkipMissingContractNumber.HasValue) config.SkipMissingContractNumber = request.SkipMissingContractNumber.Value;
             if (request.AllowAutoCreateGroups.HasValue) config.AllowAutoCreateGroups = request.AllowAutoCreateGroups.Value;
             if (request.AllowAutoCreatePVs.HasValue) config.AllowAutoCreatePVs = request.AllowAutoCreatePVs.Value;
@@ -514,6 +531,8 @@ namespace SalesApp.Controllers
                 ScrapeType = config.ScrapeType ?? "geral",
                 OutputMode = config.OutputMode ?? "direct",
                 AutoImportSqs = config.AutoImportSqs,
+                ScrapeIntervalHours = config.ScrapeIntervalHours,
+                LastTriggeredAt = config.LastTriggeredAt,
                 SkipMissingContractNumber = config.SkipMissingContractNumber,
                 AllowAutoCreateGroups = config.AllowAutoCreateGroups,
                 AllowAutoCreatePVs = config.AllowAutoCreatePVs,

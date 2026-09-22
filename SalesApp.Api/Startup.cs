@@ -187,6 +187,7 @@ namespace SalesApp
             services.AddScoped<IScrapeImportService, ScrapeImportService>();
             services.AddScoped<IScrapeOrchestrator, ScrapeOrchestrator>();
             services.AddHostedService<SqsResultBackgroundConsumerService>();
+            services.AddHostedService<ScrapeSchedulerService>();
 
             // Typed HttpClient for pbi-scraper
             services.AddHttpClient<PbiScraperClient>(client =>

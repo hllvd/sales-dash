@@ -150,6 +150,7 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
   const [scrapeType, setScrapeType] = useState<'geral' | 'consultor'>('consultor');
   const [outputMode, setOutputMode] = useState<'direct' | 'sqs'>('direct');
   const [autoImportSqs, setAutoImportSqs] = useState(true);
+  const [scrapeIntervalHours, setScrapeIntervalHours] = useState<string>('0');
   const [skipMissingContractNumber, setSkipMissingContractNumber] = useState(true);
   const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState(true);
   const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState(true);
@@ -208,6 +209,7 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
       setScrapeType(config.scrapeType === 'consultor' ? 'consultor' : 'geral');
       setOutputMode(config.outputMode === 'sqs' ? 'sqs' : 'direct');
       setAutoImportSqs(config.autoImportSqs ?? true);
+      setScrapeIntervalHours(config.scrapeIntervalHours ? String(config.scrapeIntervalHours) : '0');
       setSkipMissingContractNumber(config.skipMissingContractNumber ?? true);
       setAllowAutoCreateGroups(config.allowAutoCreateGroups ?? true);
       setAllowAutoCreatePVs(config.allowAutoCreatePVs ?? true);
@@ -224,6 +226,7 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
       setScrapeType('consultor');
       setOutputMode('direct');
       setAutoImportSqs(true);
+      setScrapeIntervalHours('0');
       setSkipMissingContractNumber(true);
       setAllowAutoCreateGroups(true);
       setAllowAutoCreatePVs(true);
@@ -246,6 +249,7 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
 
     try {
       setSaving(true);
+      const parsedInterval = parseInt(scrapeIntervalHours, 10);
       await scrapeService.saveConfig({
         id: editingConfig?.id,
         store: store || undefined,
@@ -255,6 +259,7 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
         scrapeType,
         outputMode,
         autoImportSqs,
+        scrapeIntervalHours: parsedInterval > 0 ? parsedInterval : null,
         skipMissingContractNumber,
         allowAutoCreateGroups,
         allowAutoCreatePVs,
@@ -498,6 +503,11 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
               </Badge>
             ) : (
               <Badge color="gray" variant="outline">Direto</Badge>
+            )}
+            {config.scrapeIntervalHours && config.scrapeIntervalHours >= 1 && (
+              <Badge color="cyan" variant="dot" size="sm">
+                {`Auto ${config.scrapeIntervalHours}h`}
+              </Badge>
             )}
           </Group>
         </Table.Td>
@@ -896,6 +906,23 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
             <Text size="xs" c="dimmed" mt={-4}>
               {formatMonthRangeHelper(dateMode, configDefaultStartMonth)}
             </Text>
+
+            <Select
+              label="Extração Automática (Cron / Agendador)"
+              description="Define a frequência de disparo automático em background para esta conta."
+              value={scrapeIntervalHours}
+              onChange={(val) => setScrapeIntervalHours(val || '0')}
+              data={[
+                { value: '0', label: 'Desativada (Apenas manual)' },
+                { value: '1', label: 'A cada 1 hora' },
+                { value: '3', label: 'A cada 3 horas' },
+                { value: '6', label: 'A cada 6 horas' },
+                { value: '12', label: 'A cada 12 horas' },
+                { value: '24', label: 'A cada 24 horas (Diário)' },
+                { value: '48', label: 'A cada 48 horas (A cada 2 dias)' },
+                { value: '168', label: 'A cada 7 dias (Semanal)' },
+              ]}
+            />
 
             <Accordion variant="separated" radius="md">
               <Accordion.Item value="advanced-options" style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb' }}>

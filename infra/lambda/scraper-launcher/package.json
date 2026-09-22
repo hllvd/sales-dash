@@ -1,0 +1,9 @@
+{
+  "name": "pbi-scraper-launcher",
+  "version": "1.0.0",
+  "description": "AWS Lambda function to trigger Fargate Spot tasks for scraping",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-ecs": "^3.758.0"
+  }
+}

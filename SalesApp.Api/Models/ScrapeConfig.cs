@@ -43,6 +43,10 @@ namespace SalesApp.Models
 
         public bool AutoImportSqs { get; set; } = true;
 
+        public int? ScrapeIntervalHours { get; set; }
+
+        public DateTime? LastTriggeredAt { get; set; }
+
         // Import / Update Options
         public bool SkipMissingContractNumber { get; set; } = true;
         public bool AllowAutoCreateGroups { get; set; } = true;

@@ -1,0 +1,37 @@
+{
+  "family": "pbi-scraper-worker",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/pbi-scraper-task-role",
+  "containerDefinitions": [
+    {
+      "name": "pbi-scraper-worker",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/pbi-scraper-worker:latest",
+      "essential": true,
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "AWS_REGION", "value": "us-east-1" },
+        { "name": "SCALE_TO_ZERO", "value": "true" },
+        { "name": "IDLE_TIMEOUT_MS", "value": "300000" },
+        { "name": "SQS_JOBS_QUEUE_URL", "value": "https://sqs.us-east-1.amazonaws.com/ACCOUNT_ID/hdev-sales-scrape-jobs" },
+        { "name": "SQS_RESULTS_QUEUE_URL", "value": "https://sqs.us-east-1.amazonaws.com/ACCOUNT_ID/hdev-sales-dash" },
+        { "name": "SCRAPE_S3_BUCKET", "value": "hdev-sales-dash" },
+        { "name": "SCRAPE_S3_PREFIX", "value": "scrape-results/" },
+        { "name": "SCRAPER_ENCRYPTION_KEY", "value": "64_CHAR_HEX_KEY_AQUI" },
+        { "name": "CALLBACK_BASE_URL", "value": "" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/pbi-scraper-worker",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "fargate",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}

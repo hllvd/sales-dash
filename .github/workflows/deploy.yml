@@ -58,6 +58,11 @@ jobs:
             context: .
             dockerfile: Dockerfile.client 
             image: ghcr.io/${{ github.repository_owner }}/salesapp-client
+          - service: scraper
+            context: pbi-scraper
+            dockerfile: pbi-scraper/Dockerfile
+            image: ghcr.io/${{ github.repository_owner }}/pbi-scraper
+
 
     steps:
       - uses: actions/checkout@v4
@@ -125,8 +130,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || 'salesapp-client' }}:latest
-            ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || 'salesapp-client' }}:${{ github.sha }}
+            ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || (matrix.service == 'frontend' && 'salesapp-client' || 'pbi-scraper') }}:latest
+            ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.service == 'backend' && 'salesapp-api' || (matrix.service == 'frontend' && 'salesapp-client' || 'pbi-scraper') }}:${{ github.sha }}
           build-args: |
             BUILD_ID=${{ steps.build_id.outputs.value }}
             REACT_APP_BUILD_ID=${{ steps.build_id.outputs.value }}
@@ -189,7 +194,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const owner = '${{ steps.owner.outputs.owner }}';
-            const packages = ['salesapp-api', 'salesapp-client'];
+            const packages = ['salesapp-api', 'salesapp-client', 'pbi-scraper'];
             
             for (const pkgName of packages) {
               try {

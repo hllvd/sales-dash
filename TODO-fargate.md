@@ -11,6 +11,7 @@
 1. **Worker Desacoplado (`pbi-scraper/worker.js`)**:
    - Loop autônomo com SQS long-polling (20s) na fila de Jobs (`SQS_JOBS_QUEUE_URL`).
    - Ciclo de vida com **Timeout de 5 minutos de inatividade** (`IDLE_TIMEOUT_MS=300000`) com renovação a cada mensagem processada e scale-to-zero limpo (`process.exit(0)`).
+   - Modo `RESULTS_CONSUMER_MODE` implementado para download S3 e importação no backend sem precisar de Chromium.
    - Decodificação AES-256-GCM para senha protegida (`crypto.js`) e matrícula em plain text.
    - Tratamento de `SIGTERM` / Spot Interruption (drenagem limpa).
    - `Dockerfile` otimizado: usuário não-root `nodeuser`, healthcheck via lockfile e Chromium pré-instalado.
@@ -19,22 +20,34 @@
    - Notificação de conclusão de scrape publicada na fila SQS de Resultados (`SQS_RESULTS_QUEUE_URL` - `hdev-sales-dash`) via `sqsPublisher.js`.
    - Script CLI `push-job.js` (`npm run push:job`) para teste local de enfileiramento com criptografia.
    - Serviço `pbi-worker` configurado no `docker-compose.yml` sob profile `worker`.
-3. **Admin Tools & Observabilidade**:
+   - Consumo contínuo de resultados no VPS unificado nativamente na API .NET (`SqsResultBackgroundConsumerService`), eliminando container extra.
+3. **Agendamento por Intervalo (Cron) & Disparo Fargate**:
+   - Campo `ScrapeIntervalHours` e `LastTriggeredAt` na entidade `ScrapeConfig` (com migration EF Core).
+   - Hosted Service `ScrapeSchedulerService` rodando em background no backend a cada 60s.
+   - Seletor de intervalo de horas na UI (`ScrapeDashboard.tsx`) com badge visual na tabela.
+   - Chamada opcional da Lambda launcher via HTTP em `ScrapeOrchestrator.cs` ao enfileirar no SQS.
+4. **Deploy & Infraestrutura Cloud**:
+   - Workflow `.github/workflows/deploy-scraper.yml` para build e push ao AWS ECR.
+   - Imagem do `pbi-scraper` integrada à matriz de deploy do `.github/workflows/deploy.yml`.
+   - Código da Lambda Function (`infra/lambda/scraper-launcher/index.js`) para `RunTask` Fargate Spot sob demanda.
+   - Guia passo a passo `infra/aws-setup.md` e template `infra/task-definition.json`.
+5. **Admin Tools & Observabilidade**:
    - Painel web `/admin-tools/sqs-queue` implementado para inspecionar, monitorar estatísticas da fila e purgar mensagens.
    - Suporte a `ScrapeType` ('geral' vs 'consultor') e `OutputMode` ('direct' vs 'sqs') no banco e UI.
 
 ---
 
-### 🟡 Próximos Passos (Roadmap de Deploy na AWS):
+### 🟢 Checklist de Deploy na AWS (Pronto para Execução):
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 1. [AWS] Criar Fila SQS de Entrada: hdev-sales-scrape-jobs                 │
-│ 2. [CI/CD] GitHub Actions para Build & Push da imagem Docker no AWS ECR     │
-│ 3. [AWS] Criar ECS Task Definition (Fargate Spot, 1 vCPU, 2GB, IAM Task)   │
-│ 4. [CI/CD + AWS] Lambda Function para disparar (start/runTask) no Fargate   │
-│ 5. [App Principal] Cron / Agendador configurável por conta para a Lambda   │
-│ 6. [Local] Listener/Worker Local para baixar CSV do S3 e gravar no SQLite   │
+│ [x] 1. [App] Campo ScrapeIntervalHours + ScrapeSchedulerService no backend   │
+│ [x] 2. [UI] Seletor de Frequência de Extração Automática na tela de Scrapes │
+│ [x] 3. [CI/CD] GitHub Actions para Build & Push no AWS ECR e GHCR           │
+│ [x] 4. [Código] Lambda Function para ligar Fargate Spot sob demanda         │
+│ [x] 5. [App] Consumo nativo de resultados no .NET (SqsResultBackgroundConsumer) │
+│ [x] 6. [Doc] Guia de setup AWS detalhado (infra/aws-setup.md)               │
+│ [ ] 7. [AWS Console/CLI] Executar comandos únicos do guia infra/aws-setup.md │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 

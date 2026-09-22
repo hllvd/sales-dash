@@ -19,6 +19,8 @@ namespace SalesApp.Services
         private readonly IScrapeImportService _importService;
         private readonly IDataProtector _protector;
         private readonly string _outputDir;
+        private readonly IConfiguration _configuration;
+        private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
         public ScrapeOrchestrator(
             AppDbContext context,
@@ -33,6 +35,7 @@ namespace SalesApp.Services
             _logService = logService;
             _importService = importService;
             _protector = dataProtectionProvider.CreateProtector("ScrapeConfig.PowerBiPassword");
+            _configuration = configuration;
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
         }
 
@@ -86,6 +89,12 @@ namespace SalesApp.Services
                     scrapeType: effectiveScrapeType,
                     outputMode: effectiveOutputMode
                 );
+
+                // If outputMode is SQS, optionally invoke AWS Lambda launcher to spin up Fargate Spot task
+                if (string.Equals(effectiveOutputMode, "sqs", StringComparison.OrdinalIgnoreCase))
+                {
+                    await TryInvokeScraperLauncherLambdaAsync(jobId, effectiveRunId, config.Matricula);
+                }
                 
                 // Update status to Running
                 await _logService.WriteJobStatusAsync(
@@ -230,6 +239,39 @@ namespace SalesApp.Services
                     runId: result.RunId,
                     additionalData: new { S3Key = result.S3Key, S3Bucket = result.S3Bucket, Message = "CSV enfileirado no SQS. Aguardando worker local importar." }
                 );
+            }
+        }
+
+        private async Task TryInvokeScraperLauncherLambdaAsync(string jobId, string runId, string matricula)
+        {
+            var lambdaUrl = _configuration["AWS:ScraperLauncherLambdaUrl"];
+            if (string.IsNullOrWhiteSpace(lambdaUrl))
+            {
+                return;
+            }
+
+            try
+            {
+                var payload = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    jobId,
+                    runId,
+                    matricula,
+                    workerCount = 1,
+                    useSpot = true,
+                    timestamp = DateTime.UtcNow.ToString("o")
+                });
+
+                using var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync(lambdaUrl, content);
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"[ScrapeOrchestrator] Aviso: Lambda de launcher retornou status {response.StatusCode} para job {jobId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ScrapeOrchestrator] Aviso: Falha ao acionar Lambda de launcher para job {jobId}: {ex.Message}");
             }
         }
     }

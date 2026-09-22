@@ -398,4 +398,67 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     }
     await expect(row).toHaveCount(0, { timeout: 15000 });
   });
+
+  test('should configure automatic scrape schedule interval and display badge', async ({ page }) => {
+    test.setTimeout(60000);
+    console.log(`>>> [Tear 2] Testing Automatic Scrape Schedule Interval in Scrape modal`);
+    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    page.on('dialog', dialog => dialog.accept().catch(() => {}));
+
+    await page.goto('/#/scrapes');
+    await expect(page.getByRole('heading', { name: 'Extração PowerBI' })).toBeVisible({ timeout: 15000 });
+
+    const schedMatricula = '654321';
+    const existingRows = page.locator('tr').filter({ has: page.getByText(schedMatricula, { exact: true }) });
+    while (await existingRows.count() > 0 && await existingRows.first().isVisible().catch(() => false)) {
+      const trash = existingRows.first().getByTestId('delete-scrape-config-btn');
+      if (await trash.isVisible().catch(() => false)) {
+        await trash.click();
+        await page.waitForTimeout(1000);
+      } else {
+        break;
+      }
+    }
+
+    // 1. Create a config with 6h interval
+    await page.getByRole('button', { name: 'Nova Conta' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+
+    await page.getByPlaceholder('Ex: 99999').fill(schedMatricula);
+    await page.getByPlaceholder('Digite sua senha').fill('secretpass');
+    await page.getByLabel('Validar credenciais ao salvar').uncheck();
+
+    // Select schedule interval "A cada 6 horas"
+    const scheduleSelect = page.getByRole('textbox', { name: 'Extração Automática (Cron / Agendador)' });
+    await scheduleSelect.click();
+    await page.getByRole('option', { name: 'A cada 6 horas' }).click();
+
+    await page.getByRole('button', { name: 'Salvar Configuração' }).click();
+    await expect(page.getByText('Configuração salva com sucesso').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+
+    // Verify row appeared with "Auto 6h" badge
+    const row = page.locator('tr').filter({ has: page.getByText(schedMatricula, { exact: true }) }).first();
+    await expect(row).toBeVisible({ timeout: 15000 });
+    await expect(row).toContainText('Auto 6h');
+
+    // 2. Edit config and change to 12h
+    const editBtn = row.getByTestId('edit-scrape-config-btn');
+    await editBtn.click();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+
+    await scheduleSelect.click();
+    await page.getByRole('option', { name: 'A cada 12 horas' }).click();
+
+    await page.getByRole('button', { name: 'Salvar Configuração' }).click();
+    await expect(page.getByText('Configuração salva com sucesso').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+
+    // Cleanup
+    const deleteBtn = row.getByTestId('delete-scrape-config-btn').first();
+    await deleteBtn.click();
+    await expect(page.getByText('Vínculo de conta removido')).toBeVisible({ timeout: 15000 });
+    await expect(row).not.toBeVisible({ timeout: 15000 });
+  });
 });
