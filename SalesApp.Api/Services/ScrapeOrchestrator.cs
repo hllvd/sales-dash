@@ -2,6 +2,8 @@ using SalesApp.Data;
 using Microsoft.EntityFrameworkCore;
 using SalesApp.Models;
 using Microsoft.AspNetCore.DataProtection;
+using Amazon.SQS;
+using Amazon.SQS.Model;
 
 namespace SalesApp.Services
 {
@@ -20,6 +22,8 @@ namespace SalesApp.Services
         private readonly IDataProtector _protector;
         private readonly string _outputDir;
         private readonly IConfiguration _configuration;
+        private readonly IAmazonSQS? _sqs;
+        private readonly string? _jobsQueueUrl;
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
         public ScrapeOrchestrator(
@@ -28,7 +32,8 @@ namespace SalesApp.Services
             IScrapeDynamoLogService logService,
             IScrapeImportService importService,
             IDataProtectionProvider dataProtectionProvider,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IAmazonSQS? sqs = null)
         {
             _context = context;
             _scraperClient = scraperClient;
@@ -37,6 +42,18 @@ namespace SalesApp.Services
             _protector = dataProtectionProvider.CreateProtector("ScrapeConfig.PowerBiPassword");
             _configuration = configuration;
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
+            _sqs = sqs;
+
+            _jobsQueueUrl = configuration["AWS:SqsJobsQueueUrl"]
+                         ?? configuration["AWS__SqsJobsQueueUrl"]
+                         ?? configuration["SQS_JOBS_QUEUE_URL"]
+                         ?? configuration["AWS:SqsQueueUrl"]
+                         ?? configuration["AWS__SqsQueueUrl"]
+                         ?? configuration["SQS_QUEUE_URL"]
+                         ?? Environment.GetEnvironmentVariable("SQS_JOBS_QUEUE_URL")
+                         ?? Environment.GetEnvironmentVariable("SQS_QUEUE_URL")
+                         ?? Environment.GetEnvironmentVariable("AWS__SqsJobsQueueUrl")
+                         ?? Environment.GetEnvironmentVariable("AWS__SqsQueueUrl");
         }
 
         public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null, string? scrapeType = null, string? outputMode = null)
@@ -77,23 +94,27 @@ namespace SalesApp.Services
 
             try
             {
-                await _scraperClient.EnqueueJobAsync(
-                    jobId: jobId,
-                    runId: effectiveRunId,
-                    userId: config.UserId?.ToString() ?? string.Empty,
-                    store: config.Store ?? string.Empty,
-                    matricula: config.Matricula,
-                    avaproUsername: config.Matricula,
-                    avaproPassword: config.PowerBiPassword,
-                    scrapeDate: scrapeDate,
-                    scrapeType: effectiveScrapeType,
-                    outputMode: effectiveOutputMode
-                );
-
-                // If outputMode is SQS, optionally invoke AWS Lambda launcher to spin up Fargate Spot task
                 if (string.Equals(effectiveOutputMode, "sqs", StringComparison.OrdinalIgnoreCase))
                 {
+                    // Modo Remoto (AWS Fargate Spot via SQS): enfileira na fila de entrada e aciona a Lambda
+                    await EnqueueRemoteFargateJobAsync(config, jobId, effectiveRunId, scrapeDate, effectiveScrapeType);
                     await TryInvokeScraperLauncherLambdaAsync(jobId, effectiveRunId, config.Matricula);
+                }
+                else
+                {
+                    // Modo Local: container local pbi-scraper na VPS
+                    await _scraperClient.EnqueueJobAsync(
+                        jobId: jobId,
+                        runId: effectiveRunId,
+                        userId: config.UserId?.ToString() ?? string.Empty,
+                        store: config.Store ?? string.Empty,
+                        matricula: config.Matricula,
+                        avaproUsername: config.Matricula,
+                        avaproPassword: config.PowerBiPassword,
+                        scrapeDate: scrapeDate,
+                        scrapeType: effectiveScrapeType,
+                        outputMode: effectiveOutputMode
+                    );
                 }
                 
                 // Update status to Running
@@ -273,6 +294,63 @@ namespace SalesApp.Services
             {
                 Console.WriteLine($"[ScrapeOrchestrator] Aviso: Falha ao acionar Lambda de launcher para job {jobId}: {ex.Message}");
             }
+        }
+
+        private async Task EnqueueRemoteFargateJobAsync(ScrapeConfig config, string jobId, string runId, string? scrapeDate, string scrapeType)
+        {
+            if (_sqs == null || string.IsNullOrWhiteSpace(_jobsQueueUrl))
+            {
+                throw new InvalidOperationException("Fila SQS de jobs não configurada ou serviço SQS indisponível para execução remota no Fargate.");
+            }
+
+            string plainPassword = config.PowerBiPassword ?? string.Empty;
+            if (string.IsNullOrEmpty(plainPassword))
+            {
+                try
+                {
+                    plainPassword = _protector.Unprotect(config.PowerBiPassword);
+                }
+                catch
+                {
+                    plainPassword = config.PowerBiPassword ?? string.Empty;
+                }
+            }
+
+            var encryptionKey = _configuration["SCRAPER_ENCRYPTION_KEY"]
+                             ?? Environment.GetEnvironmentVariable("SCRAPER_ENCRYPTION_KEY");
+
+            var payload = new Dictionary<string, object?>
+            {
+                ["jobId"] = jobId,
+                ["runId"] = runId,
+                ["userId"] = config.UserId?.ToString() ?? string.Empty,
+                ["matricula"] = config.Matricula,
+                ["store"] = config.Store ?? string.Empty,
+                ["scrapeDate"] = scrapeDate,
+                ["scrapeType"] = scrapeType,
+                ["outputMode"] = "sqs",
+                ["callbackUrl"] = "" // O Fargate notifica via fila SQS_RESULTS_QUEUE_URL
+            };
+
+            if (!string.IsNullOrWhiteSpace(encryptionKey) && encryptionKey.Trim().Length == 64)
+            {
+                var (cipherTextB64, ivB64, authTagB64) = ScraperCredentialEncryption.Encrypt(plainPassword, encryptionKey);
+                payload["encryptedPassword"] = cipherTextB64;
+                payload["passwordIv"] = ivB64;
+                payload["passwordAuthTag"] = authTagB64;
+            }
+            else
+            {
+                payload["avaproPassword"] = plainPassword;
+                payload["password"] = plainPassword;
+            }
+
+            var messageBody = System.Text.Json.JsonSerializer.Serialize(payload);
+            await _sqs.SendMessageAsync(new SendMessageRequest
+            {
+                QueueUrl = _jobsQueueUrl,
+                MessageBody = messageBody
+            });
         }
     }
 }

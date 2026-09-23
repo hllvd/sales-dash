@@ -498,11 +498,11 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
               <Badge color="blue" variant="light">Geral</Badge>
             )}
             {config.outputMode === 'sqs' ? (
-              <Badge color="teal" variant="outline">
-                {config.autoImportSqs === false ? 'SQS / S3 (Manual)' : 'SQS / S3 (Auto)'}
+              <Badge color="violet" variant="light">
+                {config.autoImportSqs === false ? 'Remoto (Manual)' : 'Remoto (Fargate)'}
               </Badge>
             ) : (
-              <Badge color="gray" variant="outline">Direto</Badge>
+              <Badge color="gray" variant="light">Local (VPS)</Badge>
             )}
             {config.scrapeIntervalHours && config.scrapeIntervalHours >= 1 && (
               <Badge color="cyan" variant="dot" size="sm">
@@ -811,26 +811,26 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
             </div>
 
             <div>
-              <Text size="sm" fw={500} mb={4}>Destino dos Resultados</Text>
+              <Text size="sm" fw={500} mb={4}>Tipo de Worker de Extração</Text>
               <SegmentedControl
                 fullWidth
                 value={outputMode}
                 onChange={(val) => setOutputMode(val as 'direct' | 'sqs')}
                 data={[
-                  { label: 'Importação Direta (Padrão)', value: 'direct' },
-                  { label: 'Fila AWS SQS / S3 (Worker Local)', value: 'sqs' },
+                  { label: '🖥 Local (Servidor VPS)', value: 'direct' },
+                  { label: '☁ Remoto (AWS Fargate Spot)', value: 'sqs' },
                 ]}
               />
               <Text size="xs" c="dimmed" mt={4}>
                 {outputMode === 'sqs'
-                  ? 'O scraper subirá o CSV no S3 e notificará a fila SQS. Um worker local ou o backend fará a importação.'
-                  : 'O scraper salva o CSV no volume compartilhado e a API importa automaticamente ao concluir.'}
+                  ? 'O robô sobe sob demanda na nuvem AWS Fargate Spot, poupando CPU e RAM do servidor. O CSV é importado localmente ao término.'
+                  : 'O robô navega e extrai os dados diretamente no container local deste servidor.'}
               </Text>
               {outputMode === 'sqs' && (
                 <Checkbox
                   mt="xs"
-                  label="Importar SQS automaticamente no backend"
-                  description="A API processará os arquivos do S3 em segundo plano assim que chegarem na fila SQS."
+                  label="Importar resultados automaticamente no backend"
+                  description="A API local processará os arquivos do S3 em segundo plano assim que o Fargate concluir."
                   checked={autoImportSqs}
                   onChange={(e) => setAutoImportSqs(e.currentTarget.checked)}
                 />

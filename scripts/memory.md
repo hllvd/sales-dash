@@ -504,5 +504,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Configured `AWS__SqsResultsQueueUrl` and `AWS__EnableSqsBackgroundConsumer=true` in `salesapp-api` service in `docker-compose.prod.yml`. Removed the dedicated Node.js `pbi-results-worker` container to reduce VPS RAM overhead. Updated `FEATURES.md`, `TODO-fargate.md`, and `infra/aws-setup.md`.
 **Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 177/177 PASSED, E2E Run 2: 176/176 PASSED — idempotent)
 
+## [2026-09-22] all — Attempt 2
+**Failure:** None — Verification run for explicit selection of Local VPS Scrape Worker vs Remote AWS Fargate Spot Scrape Worker.
+**Root cause:** N/A.
+**Fix applied:** Implemented `ScraperCredentialEncryption.cs` (AES-256-GCM), updated `ScrapeOrchestrator.cs` to publish job messages to `SQS_JOBS_QUEUE_URL` without triggering local worker when `outputMode == "sqs"`, added `AWS__SqsJobsQueueUrl` and `SCRAPER_ENCRYPTION_KEY` to compose files, and updated UI segmented controls/badges in `ScrapeDashboard.tsx`.
+**Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 176/176 PASSED, E2E Run 2: 175/175 PASSED — idempotent)
+
+
 
 

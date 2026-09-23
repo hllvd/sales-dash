@@ -1,5 +1,27 @@
 # Features
 
+## Seleção Explícita de Worker de Scrape: Local (VPS) vs Remoto (AWS Fargate Spot)
+
+Permite aos administradores definirem de forma granular e visual para cada credencial cadastrada se o robô de extração de dados executará no ambiente local da VPS ou remotamente na nuvem gerenciada da AWS via Fargate Spot. Em ambos os cenários, o processo de importação dos dados para o banco de dados é sempre executado localmente pela própria API .NET na VPS.
+
+### Comportamento e Regras
+- **Worker Local (Servidor VPS — `outputMode: "direct"`)**:
+  - A API encaminha a ordem de scraping diretamente ao container local `pbi-scraper` via HTTP.
+  - O Chromium roda localmente na VPS, grava o CSV no diretório compartilhado e a API importa os dados diretamente ao concluir.
+  - Ideal para ambientes de teste, desenvolvimento local ou servidores com folga de recursos.
+- **Worker Remoto (Nuvem AWS Fargate Spot — `outputMode: "sqs"`)**:
+  - A API .NET criptografa as credenciais usando o algoritmo seguro AES-256-GCM (`ScraperCredentialEncryption.cs`) com a chave `SCRAPER_ENCRYPTION_KEY`.
+  - Enfileira o payload do job diretamente na fila de entrada da AWS (`SQS_JOBS_QUEUE_URL`) via `IAmazonSQS`.
+  - Dispara uma requisição HTTP para a Lambda Launcher (`SCRAPER_LAUNCHER_LAMBDA_URL`), que inicia sob demanda uma tarefa ECS Fargate Spot na subnet pública padrão (`assignPublicIp: ENABLED`).
+  - O container local `pbi-scraper` na VPS não é acionado, liberando 100% de CPU e RAM no servidor durante a extração.
+  - O Fargate sobe na nuvem, processa o scrape no AVA PRO, salva o CSV no Amazon S3 e envia notificação para a fila de resultados `SQS_RESULTS_QUEUE_URL`.
+  - O `SqsResultBackgroundConsumerService` nativo na API .NET consome o resultado, faz o download do CSV do S3 e grava os contratos no SQLite local.
+- **Interface e Experiência do Usuário (`ScrapeDashboard.tsx`)**:
+  - Campo "Tipo de Worker de Extração" no modal com opções explícitas: `🖥 Local (Servidor VPS)` e `☁ Remoto (AWS Fargate Spot)`.
+  - Badges na listagem de credenciais diferenciando claramente os modos: `Local (VPS)` (cinza) e `Remoto (Fargate)` (violeta).
+
+---
+
 ## Agendamento por Intervalo de Horas (Cron) e Deploy Fargate Scraper em Produção
 
 Permite configurar a periodicidade de extração automática para cada conta cadastrada no modal de Scrape (`ScrapeIntervalHours`), com execução autônoma através de um hosted service no backend (`ScrapeSchedulerService`). O ecossistema suporta a arquitetura de container Fargate Spot disparado sob demanda via AWS Lambda Function URL, processando jobs da fila SQS e encerrando-se automaticamente (`SCALE_TO_ZERO`), enquanto um worker local no VPS consome a fila de resultados (`RESULTS_CONSUMER_MODE`) e efetua a ingestão dos contratos para a base de dados.

@@ -14,8 +14,10 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS__SqsQueueUrl=${SQS_QUEUE_URL:-}
+      - AWS__SqsJobsQueueUrl=${SQS_JOBS_QUEUE_URL:-${SQS_QUEUE_URL:-}}
       - AWS__SqsResultsQueueUrl=${SQS_RESULTS_QUEUE_URL:-}
       - AWS__EnableSqsBackgroundConsumer=${ENABLE_SQS_BACKGROUND_CONSUMER:-true}
+      - SCRAPER_ENCRYPTION_KEY=${SCRAPER_ENCRYPTION_KEY:-}
       - AWS__ScrapeResultsBucket=${SCRAPE_S3_BUCKET:-hdev-sales-dash}
       - AWS__ScrapeResultsPrefix=${SCRAPE_S3_PREFIX:-scrape-results/}
       - AWS__ScraperLauncherLambdaUrl=${SCRAPER_LAUNCHER_LAMBDA_URL:-}
