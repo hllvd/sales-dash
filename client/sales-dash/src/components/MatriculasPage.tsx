@@ -36,6 +36,22 @@ const isActive = (matricula: UserMatricula) => {
   return new Date(matricula.endDate) > new Date()
 }
 
+export const sortFilteredMatriculas = (items: UserMatricula[]): UserMatricula[] => {
+  return [...items].sort((a, b) => {
+    // 1. Prioritize Owners / Managers (isOwner === true first)
+    if (a.isOwner !== b.isOwner) {
+      return a.isOwner ? -1 : 1
+    }
+    // 2. Secondary criterion: matriculaNumber alphanumeric sort
+    const matCompare = (a.matriculaNumber || '').localeCompare(b.matriculaNumber || '', 'pt-BR', { numeric: true })
+    if (matCompare !== 0) {
+      return matCompare
+    }
+    // 3. Secondary criterion: userName alphabetical sort
+    return (a.userName || '').localeCompare(b.userName || '', 'pt-BR')
+  })
+}
+
 const MatriculasPage: React.FC = () => {
   const { currentUser, refreshCurrentUser } = useCurrentUser();
   const { fetchAllMatriculas: getCachedMatriculas, invalidateAllMatriculas, invalidateAllUsers } = useReferenceData()
@@ -109,6 +125,7 @@ const MatriculasPage: React.FC = () => {
           m.userName.toLowerCase().includes(token)
         )
       )
+      return sortFilteredMatriculas(filtered)
     }
 
     return filtered

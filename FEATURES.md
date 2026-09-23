@@ -1737,3 +1737,19 @@ Ao abrir os detalhes de uma pesquisa em `Gerenciamento de Perguntas / QA > Pergu
 - `SalesApp.Api/Controllers/ScrapeController.cs` — Validação impeditiva de disparo para contas com `CredentialStatus == "wrong-password"`.
 - `SalesApp.Api/Services/ScrapeOrchestrator.cs` — Atualização do `CredentialStatus` para `"wrong-password"` no callback da API.
 
+## [2026-09-23] — Priorização de Proprietários/Gestores ao Filtrar Matrículas na UI
+
+### Contexto & Motivação
+Na tela de Gerenciamento de Matrículas (`/#/matriculas`), ao pesquisar ou filtrar por número de matrícula / usuário, é essencial que o proprietário/gestor da matrícula (`isOwner === true`) apareça em primeiro lugar para facilitar a identificação imediata do responsável titular, seguido dos demais usuários e matrículas associadas.
+
+### Funcionalidades & Arquitetura
+1. **Ordenação Condicional de Filtro (`MatriculasPage.tsx`)**:
+   - Quando o campo de pesquisa possuir tokens ativos, a lista filtrada é ordenada usando a função pura `sortFilteredMatriculas`:
+     - **1º Critério**: Registros onde `isOwner === true` vêm antes dos demais (`isOwner === false`).
+     - **2º Critério**: Ordenação alfanumérica pelo número da matrícula (`matriculaNumber`).
+     - **3º Critério**: Ordenação alfabética pelo nome do usuário (`userName`).
+   - Quando não houver busca ativa, a ordenação padrão original da listagem é preservada intacta.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/MatriculasPage.tsx` — Implementação da função `sortFilteredMatriculas` e aplicação no `useMemo` da listagem ao realizar busca.
+
