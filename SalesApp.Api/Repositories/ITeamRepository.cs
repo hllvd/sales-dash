@@ -9,10 +9,11 @@ namespace SalesApp.Repositories
     {
         Task<Team?> GetByIdAsync(int id);
         Task<Team?> GetByNameAsync(string name);
-        Task<List<Team>> GetAllAsync(HashSet<int>? allowedOwnerInternalIds = null);
+        Task<List<Team>> GetAllAsync(HashSet<int>? allowedOwnerInternalIds = null, string status = "active");
         Task<Team> CreateAsync(Team team);
         Task<Team> UpdateAsync(Team team);
         Task DeleteAsync(int id);
+        Task ReactivateAsync(int id);
         Task<bool> NameExistsAsync(string name, int? excludeId = null);
         
         Task<List<UserTeam>> GetActiveMembershipsForUserAsync(int userInternalId, DateTime at);

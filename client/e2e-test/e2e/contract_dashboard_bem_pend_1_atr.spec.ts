@@ -139,8 +139,8 @@ test.describe('Dashboard Import — CONT BEM PEND 1 ATR Status', () => {
       await expect(rowBemPend).toBeVisible({ timeout: 10_000 });
 
       // The Status cell must show "Atrasado 1" (the Late1 label) — not Cancelado or Ativo
-      const statusCell = rowBemPend.locator('td').nth(6); // Status is the 7th column (0-indexed: 6)
-      await expect(statusCell).toContainText('Atrasado 1', { timeout: 5_000 });
+      const statusBadge = rowBemPend.locator('.mantine-Badge-root');
+      await expect(statusBadge).toContainText('Atrasado 1', { timeout: 5_000 });
     }
   );
 });

@@ -13,7 +13,7 @@ interface ReferenceDataContextType {
   allMatriculas: CacheEntry<UserMatricula[]> | null
   allUsers: CacheEntry<User[]> | null
 
-  fetchTeams: (forceRefresh?: boolean) => Promise<Team[]>
+  fetchTeams: (forceRefresh?: boolean, status?: string) => Promise<Team[]>
   fetchPVs: (forceRefresh?: boolean) => Promise<PV[]>
   fetchClassificationLevels: (forceRefresh?: boolean) => Promise<ClassificationLevel[]>
   fetchAllMatriculas: (forceRefresh?: boolean) => Promise<UserMatricula[]>
@@ -35,16 +35,19 @@ export const ReferenceDataProvider: React.FC<{ children: ReactNode }> = ({ child
   const [allMatriculas, setAllMatriculas] = useState<CacheEntry<UserMatricula[]> | null>(null)
   const [allUsers, setAllUsers] = useState<CacheEntry<User[]> | null>(null)
 
-  const fetchTeams = useCallback(async (forceRefresh?: boolean) => {
-    if (!forceRefresh && teams) {
+  const fetchTeams = useCallback(async (forceRefresh?: boolean, status?: string) => {
+    const isDefault = !status || status === 'active'
+    if (!forceRefresh && isDefault && teams) {
       return teams.data
     }
-    const response = await apiService.getTeams()
+    const response = await apiService.getTeams(status)
     if (!response.success || !response.data) {
       throw new Error(response.message || 'Falha ao carregar equipes')
     }
     const freshData = response.data
-    setTeams({ data: freshData, fetchedAt: Date.now() })
+    if (isDefault) {
+      setTeams({ data: freshData, fetchedAt: Date.now() })
+    }
     return freshData
   }, [teams])
 

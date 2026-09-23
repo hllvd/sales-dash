@@ -41,7 +41,7 @@ namespace SalesApp.Controllers
 
         [HttpGet]
         [HasPermission("teams:manage")]
-        public async Task<ActionResult<ApiResponse<List<TeamResponse>>>> GetTeams()
+        public async Task<ActionResult<ApiResponse<List<TeamResponse>>>> GetTeams([FromQuery] string status = "active")
         {
             var roleIdClaim = User.FindFirst("role_id")?.Value;
             HashSet<int>? allowedOwnerInternalIds = null;
@@ -63,7 +63,7 @@ namespace SalesApp.Controllers
                 }
             }
 
-            var teams = await _teamRepository.GetAllAsync(allowedOwnerInternalIds);
+            var teams = await _teamRepository.GetAllAsync(allowedOwnerInternalIds, status);
             var responses = teams.Select(MapToTeamResponse).ToList();
 
             return Ok(new ApiResponse<List<TeamResponse>>
@@ -333,6 +333,41 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Message = _messageService.Get(AppMessage.TeamDeletedSuccessfully)
+            });
+        }
+
+        [HttpPut("{id:int}/reactivate")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<TeamResponse>>> ReactivateTeam(int id)
+        {
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim != "1") // Only Superadmin
+            {
+                return StatusCode(403, new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = "Apenas superadministradores podem reativar equipes."
+                });
+            }
+
+            var team = await _teamRepository.GetByIdAsync(id);
+            if (team == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.TeamNotFound)
+                });
+            }
+
+            await _teamRepository.ReactivateAsync(id);
+            var reloadedTeam = await _teamRepository.GetByIdAsync(id);
+
+            return Ok(new ApiResponse<TeamResponse>
+            {
+                Success = true,
+                Data = MapToTeamResponse(reloadedTeam ?? team),
+                Message = "Equipe reativada com sucesso"
             });
         }
 
@@ -887,6 +922,7 @@ namespace SalesApp.Controllers
                 StoreState = t.Store?.State,
                 Owner = owner,
                 Members = members,
+                IsActive = t.IsActive,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt
             };

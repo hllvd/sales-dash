@@ -1753,3 +1753,45 @@ Na tela de Gerenciamento de Matrículas (`/#/matriculas`), ao pesquisar ou filtr
 ### Arquivos Modificados
 - `client/sales-dash/src/components/MatriculasPage.tsx` — Implementação da função `sortFilteredMatriculas` e aplicação no `useMemo` da listagem ao realizar busca.
 
+## [2026-09-23] — Inclusão de Usuários Inativos no Filtro, Coluna Equipe em Contratos e Reativação de Equipes
+
+### Contexto & Motivação
+Aprimoramento da gestão operacional e relatórios:
+1. **Filtro de Usuários em Contratos**: Gestores precisam auditar ou filtrar contratos pertencentes a vendedores desligados/inativos sem poluir a lista padrão de seleção.
+2. **Identificação da Equipe do Contrato**: Cada contrato agora evidencia a qual equipe o vendedor pertencia no exato momento da venda (`SaleStartDate`), mantendo consistência histórica de transferências de equipe.
+3. **Reativação e Ciclo de Vida de Equipes**: Superadministradores podem filtrar equipes por status (ativas, inativas, todas) e reativar equipes que foram desativadas via soft delete, preservando o histórico de associações de membros.
+
+### Funcionalidades & Arquitetura
+1. **Preferência "Incluir usuários desativados no filtro Usuário" (`/#/contracts`)**:
+   - Preferência persistida no servidor por usuário (`User.IncludeInactiveUsersInFilter`), acessível nas configurações da página de contratos.
+   - Ao ativar, a lista do filtro de usuários traz ativos e desativados (`status=all`).
+   - Usuários inativos recebem destaque visual no dropdown com sufixo `(Inativo)` e badge vermelha.
+2. **Coluna "Equipe" na Tabela de Contratos (`/#/contracts`)**:
+   - DTO `ContractResponse` enriquecido com o campo `TeamName`.
+   - Backend calcula o time histórico através de `UserTeams` ativo no intervalo de `contract.SaleStartDate`.
+   - Nova coluna `Equipe` exibida na tabela (visível por padrão) e gerenciável no modal de configuração de colunas.
+3. **Filtro de Status e Reativação de Equipes (`/#/teams`)**:
+   - Campo `IsActive` adicionado ao modelo `Team` e persistido via migration EF Core.
+   - Endpoint `DELETE /teams/{id}` adaptado para soft delete (`team.IsActive = false`), mantendo o histórico de vínculos de vendedores.
+   - Endpoint `PUT /teams/{id}/reactivate` exclusivo para superadministradores (`roleId == 1`), reativando a equipe.
+   - Seletor de status (`Ativas`, `Inativas`, `Todas`) na tela de equipes com badge visual e botão de reativação para superadmin.
+
+### Arquivos Modificados
+- `SalesApp.Api/Models/User.cs` — Adição de `IncludeInactiveUsersInFilter`.
+- `SalesApp.Api/Models/Team.cs` — Adição de `IsActive`.
+- `SalesApp.Api/DTOs/ContractResponse.cs` — Adição de `TeamName`.
+- `SalesApp.Api/DTOs/UserPreferencesDTOs.cs` — Suporte a `IncludeInactiveUsersInFilter`.
+- `SalesApp.Api/DTOs/TeamDTOs.cs` — Adição de `IsActive` ao `TeamResponse`.
+- `SalesApp.Api/Migrations/20260923170000_AddInactiveUserFilterAndTeamIsActive.cs` — Migration das novas colunas.
+- `SalesApp.Api/Repositories/ITeamRepository.cs` e `TeamRepository.cs` — Suporte a status em `GetAllAsync`, soft delete em `DeleteAsync` e novo método `ReactivateAsync`.
+- `SalesApp.Api/Repositories/ContractRepository.cs` — `Include` de `UserTeams.Team` nas consultas de contratos.
+- `SalesApp.Api/Controllers/ContractsController.cs` — Mapeamento histórico de `TeamName` por data de início de contrato.
+- `SalesApp.Api/Controllers/UsersController.cs` — Persistência da preferência `IncludeInactiveUsersInFilter`.
+- `SalesApp.Api/Controllers/TeamsController.cs` — Filtro de status em `GetTeams` e novo endpoint `PUT /teams/{id}/reactivate`.
+- `client/sales-dash/src/services/contractService.ts` — Propriedade `teamName` em `Contract` e parâmetro `includeInactive` em `getUsers`.
+- `client/sales-dash/src/services/apiService.ts` — Tipos atualizados, `status` em `getTeams` e novo método `reactivateTeam`.
+- `client/sales-dash/src/contexts/ReferenceDataContext.tsx` — Suporte a `status` em `fetchTeams`.
+- `client/sales-dash/src/components/ContractsPage.tsx` — Coluna Equipe, configuração de visibilidade, switch de preferência no servidor e estilização de usuários inativos no filtro.
+- `client/sales-dash/src/components/TeamsPage.tsx` — Filtro de status (ativas, inativas, todas), badge inativa e botão de reativar para superadmin.
+
+

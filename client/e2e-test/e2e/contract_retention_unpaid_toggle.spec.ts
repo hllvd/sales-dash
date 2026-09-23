@@ -141,7 +141,7 @@ test.describe('Contract Retention — Unpaid Contracts as Awaiting Payment Toggl
     await expect(modal).toBeVisible({ timeout: 10_000 });
     await expect(modal.getByText('Retenção')).toBeVisible();
 
-    const retentionSwitch = modal.getByRole('switch');
+    const retentionSwitch = modal.getByRole('switch', { name: /não pago|Aguardando pagamento/i });
     await expect(retentionSwitch).not.toBeChecked();
 
     // Toggle switch ON by clicking the label text

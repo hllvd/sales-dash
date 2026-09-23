@@ -38,7 +38,7 @@ namespace SalesApp.Repositories
                 .FirstOrDefaultAsync(t => t.Name.ToLower() == name.Trim().ToLower());
         }
 
-        public async Task<List<Team>> GetAllAsync(HashSet<int>? allowedOwnerInternalIds = null)
+        public async Task<List<Team>> GetAllAsync(HashSet<int>? allowedOwnerInternalIds = null, string status = "active")
         {
             var query = _context.Teams
                 .Include(t => t.Owner)
@@ -46,6 +46,16 @@ namespace SalesApp.Repositories
                 .Include(t => t.UserTeams)
                     .ThenInclude(ut => ut.User)
                 .AsQueryable();
+
+            if (status.Equals("active", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(t => t.IsActive);
+            }
+            else if (status.Equals("inactive", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(t => !t.IsActive);
+            }
+            // If "all", do not filter by IsActive
 
             if (allowedOwnerInternalIds != null)
             {
@@ -77,8 +87,21 @@ namespace SalesApp.Repositories
             var team = await _context.Teams.FindAsync(id);
             if (team != null)
             {
-                // If this team is being deleted, remove it. EF will cascade delete UserTeams.
-                _context.Teams.Remove(team);
+                team.IsActive = false;
+                team.UpdatedAt = DateTime.UtcNow;
+                _context.Teams.Update(team);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task ReactivateAsync(int id)
+        {
+            var team = await _context.Teams.FindAsync(id);
+            if (team != null)
+            {
+                team.IsActive = true;
+                team.UpdatedAt = DateTime.UtcNow;
+                _context.Teams.Update(team);
                 await _context.SaveChangesAsync();
             }
         }

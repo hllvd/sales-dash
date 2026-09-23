@@ -986,7 +986,8 @@ namespace SalesApp.Controllers
                 Success = true,
                 Data = new UserPreferencesResponse
                 {
-                    TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment
+                    TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment,
+                    IncludeInactiveUsersInFilter = user.IncludeInactiveUsersInFilter
                 },
                 Message = "Preferências obtidas com sucesso"
             });
@@ -1007,7 +1008,16 @@ namespace SalesApp.Controllers
                 });
             }
 
-            user.TreatUnpaidActiveAsAwaitingPayment = request.TreatUnpaidActiveAsAwaitingPayment;
+            if (request.TreatUnpaidActiveAsAwaitingPayment.HasValue)
+            {
+                user.TreatUnpaidActiveAsAwaitingPayment = request.TreatUnpaidActiveAsAwaitingPayment.Value;
+            }
+
+            if (request.IncludeInactiveUsersInFilter.HasValue)
+            {
+                user.IncludeInactiveUsersInFilter = request.IncludeInactiveUsersInFilter.Value;
+            }
+
             await _userRepository.UpdateAsync(user);
 
             return Ok(new ApiResponse<UserPreferencesResponse>
@@ -1015,7 +1025,8 @@ namespace SalesApp.Controllers
                 Success = true,
                 Data = new UserPreferencesResponse
                 {
-                    TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment
+                    TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment,
+                    IncludeInactiveUsersInFilter = user.IncludeInactiveUsersInFilter
                 },
                 Message = "Preferências atualizadas com sucesso"
             });

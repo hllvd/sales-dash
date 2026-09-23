@@ -42,6 +42,7 @@ export interface Contract {
   hasPayment?: boolean | null;
   isAwaitingPayment?: boolean;
   isRemappedToAwaitingPayment?: boolean;
+  teamName?: string | null;
 }
 
 export interface CreateContractRequest {
@@ -463,10 +464,13 @@ export const deleteContract = async (id: number): Promise<void> => {
 };
 
 // Helper functions to fetch users and groups for dropdowns
-export const getUsers = async (scopeToDescendants?: boolean): Promise<User[]> => {
+export const getUsers = async (scopeToDescendants?: boolean, includeInactive?: boolean): Promise<User[]> => {
   const params = new URLSearchParams({ page: '1', pageSize: '1000' });
   if (scopeToDescendants) {
     params.append('scopeToDescendants', 'true');
+  }
+  if (includeInactive) {
+    params.append('status', 'all');
   }
   const response = await authenticatedFetch(`${API_BASE_URL}/users?${params.toString()}`, {
     method: 'GET',
@@ -478,7 +482,7 @@ export const getUsers = async (scopeToDescendants?: boolean): Promise<User[]> =>
   }
 
   const result: ApiResponse<{ items: User[]; totalCount: number }> = await response.json();
-  return result.data.items.filter(user => user.isActive);
+  return includeInactive ? result.data.items : result.data.items.filter(user => user.isActive);
 };
 
 export const getGroups = async (): Promise<Group[]> => {

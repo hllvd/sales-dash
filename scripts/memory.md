@@ -510,6 +510,8 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Implemented `ScraperCredentialEncryption.cs` (AES-256-GCM), updated `ScrapeOrchestrator.cs` to publish job messages to `SQS_JOBS_QUEUE_URL` without triggering local worker when `outputMode == "sqs"`, added `AWS__SqsJobsQueueUrl` and `SCRAPER_ENCRYPTION_KEY` to compose files, and updated UI segmented controls/badges in `ScrapeDashboard.tsx`.
 **Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 176/176 PASSED, E2E Run 2: 175/175 PASSED — idempotent)
 
-
-
-
+## [2026-09-23] e2e — Attempt 1
+**Failure:** Strict mode violation in `contract_retention_unpaid_toggle.spec.ts` finding 2 switches in settings modal; column index mismatch in `contract_dashboard_bem_pend_1_atr.spec.ts` using `nth(6)` for status column.
+**Root cause:** Settings modal now has 2 switches (retention and inactive users filter); adding 'Equipe' column shifted the status column from index 6 to 7.
+**Fix applied:** Filtered switch locator by name regex `/não pago|Aguardando pagamento/i` in `contract_retention_unpaid_toggle.spec.ts`; located status badge via `.mantine-Badge-root` instead of hardcoded column index in `contract_dashboard_bem_pend_1_atr.spec.ts`.
+**Result:** ❌ Retrying with ./test.sh rm-db && ./test.sh e2e

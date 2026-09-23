@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Title, Button, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Alert, Stack, Table, List, Modal } from '@mantine/core';
+import { Title, Button, ActionIcon, Group, Badge, Text, TextInput, MultiSelect, Select, Alert, Stack, Table, List, Modal } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconAlertTriangle, IconUser, IconCrown, IconTrashX, IconUsers, IconUsersGroup, IconRefresh } from '@tabler/icons-react';
 import Menu from "./Menu"
 import StyledModal from './StyledModal';
@@ -8,6 +8,7 @@ import TeamMembersModal from './TeamMembersModal';
 import { apiService, Team, User, Store } from "../services/apiService"
 import { useReferenceData } from "../contexts/ReferenceDataContext"
 import { normalizeTeamName, normalizeName } from "../utils/normalization"
+import { toast } from "../utils/toast"
 import "./TeamsPage.css"
 
 const TeamsPage: React.FC = () => {
@@ -21,6 +22,7 @@ const TeamsPage: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("active")
   const [warnings, setWarnings] = useState<string[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
@@ -57,18 +59,32 @@ const TeamsPage: React.FC = () => {
   const [filterStore, setFilterStore] = useState<string[]>([])
 
   // Fetch teams
-  const fetchTeams = useCallback(async (forceRefresh?: boolean) => {
+  const fetchTeams = useCallback(async (forceRefresh?: boolean, status?: string) => {
     try {
       setLoading(true)
       setError("")
-      const teamsData = await getCachedTeams(forceRefresh)
+      const currentStatus = status !== undefined ? status : statusFilter
+      const teamsData = await getCachedTeams(forceRefresh, currentStatus === 'active' ? undefined : currentStatus)
       setTeams(teamsData)
     } catch (err: any) {
       setError(err.message || "Falha ao carregar equipes")
     } finally {
       setLoading(false)
     }
-  }, [getCachedTeams])
+  }, [getCachedTeams, statusFilter])
+
+  const handleReactivateTeam = async (id: number) => {
+    try {
+      setError("")
+      await apiService.reactivateTeam(id)
+      toast.success("Equipe reativada com sucesso")
+      invalidateTeams()
+      fetchTeams(true)
+    } catch (err: any) {
+      setError(err.message || "Falha ao reativar equipe")
+      toast.error(err.message || "Falha ao reativar equipe")
+    }
+  }
 
   // Fetch all users once for member selection
   const fetchUsers = useCallback(async (forceRefresh?: boolean) => {
@@ -98,7 +114,8 @@ const TeamsPage: React.FC = () => {
     fetchTeams()
     fetchUsers()
     fetchStores()
-  }, [fetchTeams, fetchUsers, fetchStores])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Get 8 years ago today in YYYY-MM-DD
   const getEightYearsAgoDateString = () => {
@@ -428,6 +445,21 @@ const TeamsPage: React.FC = () => {
               onChange={(e) => setSearch(e.currentTarget.value)}
               style={{ minWidth: 280, flex: 1, maxWidth: 400 }}
             />
+            <Select
+              value={statusFilter}
+              onChange={(value) => {
+                const newStatus = value || "active"
+                setStatusFilter(newStatus)
+                fetchTeams(true, newStatus)
+              }}
+              data={[
+                { value: "active", label: "Ativas" },
+                { value: "inactive", label: "Inativas" },
+                { value: "all", label: "Todas" },
+              ]}
+              allowDeselect={false}
+              style={{ width: 130 }}
+            />
             {isSuperAdmin && (
               <>
                 <MultiSelect
@@ -486,7 +518,14 @@ const TeamsPage: React.FC = () => {
                     return (
                       <Table.Tr key={team.id}>
                         <Table.Td style={{ fontWeight: 600, fontSize: '15px' }}>
-                          <div>{team.name.toUpperCase()}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>{team.name.toUpperCase()}</span>
+                            {!team.isActive && (
+                              <Badge color="gray" size="xs" variant="filled">
+                                Inativa
+                              </Badge>
+                            )}
+                          </div>
                           {team.storeName && (
                             <div style={{ fontWeight: 400, fontSize: '12px', color: '#868e96', marginTop: '2px' }}>
                               {team.storeName}{team.storeState ? ` (${team.storeState})` : ''}
@@ -529,23 +568,38 @@ const TeamsPage: React.FC = () => {
                         <Table.Td>{formatDate(team.createdAt)}</Table.Td>
                         <Table.Td>
                           <Group gap="xs">
-                            <ActionIcon
-                              variant="subtle"
-                              color="blue"
-                              onClick={() => setManagingTeam(team)}
-                              title="Editar"
-                            >
-                              <IconEdit size={16} />
-                            </ActionIcon>
-                            {currentUserRole !== 'admin' && (
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                onClick={() => setDeleteConfirm(team.id)}
-                                title="Excluir"
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
+                            {team.isActive ? (
+                              <>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="blue"
+                                  onClick={() => setManagingTeam(team)}
+                                  title="Editar"
+                                >
+                                  <IconEdit size={16} />
+                                </ActionIcon>
+                                {currentUserRole !== 'admin' && (
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="red"
+                                    onClick={() => setDeleteConfirm(team.id)}
+                                    title="Excluir"
+                                  >
+                                    <IconTrash size={16} />
+                                  </ActionIcon>
+                                )}
+                              </>
+                            ) : (
+                              isSuperAdmin && (
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="green"
+                                  onClick={() => handleReactivateTeam(team.id)}
+                                  title="Reativar equipe"
+                                >
+                                  <IconRefresh size={16} />
+                                </ActionIcon>
+                              )
                             )}
                           </Group>
                         </Table.Td>
