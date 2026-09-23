@@ -10,6 +10,9 @@ export interface ScrapeConfig {
     scrapeType?: 'geral' | 'consultor';
     outputMode?: 'direct' | 'sqs';
     autoImportSqs?: boolean;
+    scheduleMode?: 'interval' | 'daily' | 'weekly' | null;
+    scheduleIntervalHours?: number | null;
+    scheduleTimes?: string | null;
     scrapeIntervalHours?: number | null;
     lastTriggeredAt?: string | null;
     skipMissingContractNumber?: boolean;
@@ -32,6 +35,9 @@ export interface ScrapeConfigRequest {
     scrapeType?: 'geral' | 'consultor';
     outputMode?: 'direct' | 'sqs';
     autoImportSqs?: boolean;
+    scheduleMode?: 'interval' | 'daily' | 'weekly' | null;
+    scheduleIntervalHours?: number | null;
+    scheduleTimes?: string | null;
     scrapeIntervalHours?: number | null;
     skipMissingContractNumber?: boolean;
     allowAutoCreateGroups?: boolean;

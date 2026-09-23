@@ -43,7 +43,15 @@ namespace SalesApp.Models
 
         public bool AutoImportSqs { get; set; } = true;
 
-        public int? ScrapeIntervalHours { get; set; }
+        [MaxLength(20)]
+        public string? ScheduleMode { get; set; } // "interval", "daily", "weekly", or null
+
+        public int? ScheduleIntervalHours { get; set; }
+
+        [MaxLength(1000)]
+        public string? ScheduleTimes { get; set; } // JSON array of "HH:mm" for daily, or JSON object for weekly
+
+        public int? ScrapeIntervalHours { get; set; } // Deprecated, kept in sync for backward compatibility
 
         public DateTime? LastTriggeredAt { get; set; }
 

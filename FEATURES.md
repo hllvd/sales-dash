@@ -22,27 +22,27 @@ Permite aos administradores definirem de forma granular e visual para cada crede
 
 ---
 
-## Agendamento por Intervalo de Horas (Cron) e Deploy Fargate Scraper em Produção
+## Agendamento por Horário Específico (Fuso de Brasília) e Worker Remoto Padrão
 
-Permite configurar a periodicidade de extração automática para cada conta cadastrada no modal de Scrape (`ScrapeIntervalHours`), com execução autônoma através de um hosted service no backend (`ScrapeSchedulerService`). O ecossistema suporta a arquitetura de container Fargate Spot disparado sob demanda via AWS Lambda Function URL, processando jobs da fila SQS e encerrando-se automaticamente (`SCALE_TO_ZERO`), enquanto um worker local no VPS consome a fila de resultados (`RESULTS_CONSUMER_MODE`) e efetua a ingestão dos contratos para a base de dados.
+Permite configurar a periodicidade e horários fixos de extração automática para cada conta cadastrada no modal de Scrape, com execução autônoma através de um hosted service no backend (`ScrapeSchedulerService`) sincronizado com o fuso horário oficial de Brasília (`America/Sao_Paulo` / UTC-3). Adicionalmente, novas contas agora vêm com o modo de extração `Remoto (AWS Fargate Spot)` pré-selecionado por padrão.
 
 ### Comportamento e Regras
-- **Agendamento por Conta (`ScrapeConfig.ScrapeIntervalHours` & `LastTriggeredAt`)**:
-  - Usuários podem selecionar a periodicidade: Desativada, a cada 1h, 3h, 6h, 12h, 24h (diário), 48h (2 dias) ou 168h (semanal).
-  - Regra de validação: intervalo mínimo permitido de 1 hora.
-  - O painel exibe um badge visual `Auto Xh` nos registros que possuem periodicidade configurada.
+- **Worker Remoto Padrão para Novas Contas**:
+  - Ao abrir o modal "Nova Conta", o campo *Tipo de Worker de Extração* vem pré-selecionado como `☁ Remoto (AWS Fargate Spot)` (`outputMode: 'sqs'`).
+  - Contas existentes preservam as configurações salvas anteriormente.
+- **Agendamento por Horário Fixo no Fuso de Brasília (`ScheduleMode`, `ScheduleTimes`, `ScheduleIntervalHours`)**:
+  - **Modo Diário (`daily`)**: Permite cadastrar múltiplos horários específicos ao longo do dia (ex: `08:00`, `14:30`, `20:00`). O backend avalia o fuso horário `America/Sao_Paulo` a cada 60s, executa no horário programado com janela de tolerância de 15 minutos e previne execuções duplicadas no mesmo slot.
+  - **Modo Semanal (`weekly`)**: Permite escolher o dia da semana (Segunda a Domingo) e os horários de execução naquele dia.
+  - **Modo Intervalo Recorrente (`interval`)**: Mantém a opção de intervalo a cada N horas (1h, 3h, 6h, 12h, 24h, 48h ou 168h).
+  - **Modo Desativado (`disabled`)**: Execuções ocorrem apenas sob demanda manual.
 - **Hosted Service de Agendamento (`ScrapeSchedulerService.cs`)**:
-  - Executa loop de verificação a cada 60 segundos no backend.
+  - Avaliação pura e determinística (`EvaluateSchedule`) isolada de side-effects.
   - Dispara requisições apenas para contas ativas (`IsEnabled == true`) e sem trava de erro de credencial (`CredentialStatus != "wrong-password"`).
-  - Atualiza `LastTriggeredAt` e calcula os períodos retroativos relativos à data de execução.
-- **Disparo Remoto do Fargate via Lambda Function (`infra/lambda/scraper-launcher`)**:
-  - Função serverless em Node.js que recebe notificações de jobs enfileirados e invoca `ecs:RunTask` com capacidade `FARGATE_SPOT` na rede padrão da AWS (`assignPublicIp: ENABLED`, sem custo de NAT Gateway).
-- **Consumo Nativo de Resultados no Backend (`salesapp-api`)**:
-  - A própria API .NET monitora a fila `SQS_RESULTS_QUEUE_URL` via `SqsResultBackgroundConsumerService` em segundo plano com custo de memória marginal quase nulo.
-  - Baixa os arquivos CSV do S3 e efetua a ingestão dos contratos diretamente na base SQLite, dispensando containers adicionais na VPS.
-- **Pipeline CI/CD (GitHub Actions)**:
-  - Workflow `.github/workflows/deploy-scraper.yml` para compilação e publicação automática no AWS ECR.
-  - Matriz de build e deploy do `.github/workflows/deploy.yml` unificada com o serviço `pbi-scraper`.
+  - Atualiza `LastTriggeredAt` imediatamente no banco para controle de idempotência.
+- **Interface e Experiência do Usuário (`ScrapeDashboard.tsx`)**:
+  - Segmented control intuitivo no modal permitindo alternar entre Desativada, Diária (Horários), Semanal e Intervalo.
+  - Seletor de horas (00-23) e minutos (00-55) com adição dinâmica de tags de horários removíveis com `X`.
+  - Badges informativos na listagem com tooltips detalhando os horários de Brasília agendados.
 
 ---
 

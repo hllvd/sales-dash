@@ -430,7 +430,8 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     await page.getByLabel('Validar credenciais ao salvar').uncheck();
 
     // Select schedule interval "A cada 6 horas"
-    const scheduleSelect = page.getByRole('textbox', { name: 'Extração Automática (Cron / Agendador)' });
+    await page.getByText('Intervalo', { exact: true }).click();
+    const scheduleSelect = page.getByRole('textbox', { name: 'Frequência do Intervalo' });
     await scheduleSelect.click();
     await page.getByRole('option', { name: 'A cada 6 horas' }).click();
 
@@ -454,6 +455,72 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     await page.getByRole('button', { name: 'Salvar Configuração' }).click();
     await expect(page.getByText('Configuração salva com sucesso').first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+
+    // Cleanup
+    const deleteBtn = row.getByTestId('delete-scrape-config-btn').first();
+    await deleteBtn.click();
+    await expect(page.getByText('Vínculo de conta removido')).toBeVisible({ timeout: 15000 });
+    await expect(row).not.toBeVisible({ timeout: 15000 });
+  });
+
+  test('should default worker to Remote and configure daily schedule with multiple times', async ({ page }) => {
+    test.setTimeout(60000);
+    console.log(`>>> [Tear 2] Testing Default Remote Worker and Daily Multiple Times Schedule`);
+    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    page.on('dialog', dialog => dialog.accept().catch(() => {}));
+
+    await page.goto('/#/scrapes');
+    await expect(page.getByRole('heading', { name: 'Extração PowerBI' })).toBeVisible({ timeout: 15000 });
+
+    const dailyMatricula = '777888';
+    const existingRows = page.locator('tr').filter({ has: page.getByText(dailyMatricula, { exact: true }) });
+    while (await existingRows.count() > 0 && await existingRows.first().isVisible().catch(() => false)) {
+      const trash = existingRows.first().getByTestId('delete-scrape-config-btn');
+      if (await trash.isVisible().catch(() => false)) {
+        await trash.click();
+        await page.waitForTimeout(1000);
+      } else {
+        break;
+      }
+    }
+
+    // 1. Open Nova Conta modal and verify Remote worker is selected by default
+    await page.getByRole('button', { name: 'Nova Conta' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+
+    // Verify Remote worker is active
+    const remoteWorker = page.getByText('☁ Remoto (AWS Fargate Spot)', { exact: true });
+    await expect(remoteWorker).toBeVisible();
+
+    await page.getByPlaceholder('Ex: 99999').fill(dailyMatricula);
+    await page.getByPlaceholder('Digite sua senha').fill('secretpass');
+    await page.getByLabel('Validar credenciais ao salvar').uncheck();
+
+    // Select "Diária (Horários)" mode
+    await page.getByText('Diária (Horários)', { exact: true }).click();
+    await expect(page.getByText('Horários de Execução no Dia (Brasília):')).toBeVisible();
+
+    // Default time 08:00 is present; let's add 14:30
+    await page.getByRole('textbox', { name: 'Hora' }).click();
+    await page.getByRole('option', { name: '14h' }).click();
+    await page.getByRole('textbox', { name: 'Minuto' }).click();
+    await page.getByRole('option', { name: '30 min' }).click();
+    await page.getByRole('button', { name: 'Adicionar Horário' }).click();
+
+    // Verify both badges 08:00 and 14:30 exist
+    await expect(page.getByText('08:00', { exact: true })).toBeVisible();
+    await expect(page.getByText('14:30', { exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Salvar Configuração' }).click();
+    await expect(page.getByText('Configuração salva com sucesso').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
+
+    // Verify row appeared with "Remoto (Fargate)" and "Diário (2x)" badges
+    const row = page.locator('tr').filter({ has: page.getByText(dailyMatricula, { exact: true }) }).first();
+    await expect(row).toBeVisible({ timeout: 15000 });
+    await expect(row).toContainText('Remoto (Fargate)');
+    await expect(row).toContainText('Diário (2x)');
 
     // Cleanup
     const deleteBtn = row.getByTestId('delete-scrape-config-btn').first();

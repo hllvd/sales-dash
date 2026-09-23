@@ -36,12 +36,43 @@ import {
   IconTrash, 
   IconFingerprint,
   IconHistory,
-  IconUserCheck
+  IconUserCheck,
+  IconX
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { scrapeService, ScrapeConfig, ScrapeRunSummary } from '../../services/scrapeService';
 import Menu from '../Menu';
 import './ScrapeDashboard.css';
+
+const DAYS_OF_WEEK = [
+  { value: '1', label: 'Segunda-feira' },
+  { value: '2', label: 'Terça-feira' },
+  { value: '3', label: 'Quarta-feira' },
+  { value: '4', label: 'Quinta-feira' },
+  { value: '5', label: 'Sexta-feira' },
+  { value: '6', label: 'Sábado' },
+  { value: '0', label: 'Domingo' },
+];
+
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => {
+  const val = String(i).padStart(2, '0');
+  return { value: val, label: `${val}h` };
+});
+
+const MINUTE_OPTIONS = [
+  { value: '00', label: '00 min' },
+  { value: '05', label: '05 min' },
+  { value: '10', label: '10 min' },
+  { value: '15', label: '15 min' },
+  { value: '20', label: '20 min' },
+  { value: '25', label: '25 min' },
+  { value: '30', label: '30 min' },
+  { value: '35', label: '35 min' },
+  { value: '40', label: '40 min' },
+  { value: '45', label: '45 min' },
+  { value: '50', label: '50 min' },
+  { value: '55', label: '55 min' },
+];
 
 const STORES = [
     'AHU - PR', 'ALMIRANTE TAMANDARE - PR', 'ALPHAVILLE BARUERI - SP', 'ALPHAVILLE I - BA',
@@ -148,9 +179,37 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
   const [dateMode, setDateMode] = useState<DateSelectionMode>('all');
   const [configDefaultStartMonth, setConfigDefaultStartMonth] = useState('');
   const [scrapeType, setScrapeType] = useState<'geral' | 'consultor'>('consultor');
-  const [outputMode, setOutputMode] = useState<'direct' | 'sqs'>('direct');
+  const [outputMode, setOutputMode] = useState<'direct' | 'sqs'>('sqs');
   const [autoImportSqs, setAutoImportSqs] = useState(true);
-  const [scrapeIntervalHours, setScrapeIntervalHours] = useState<string>('0');
+  const [scheduleMode, setScheduleMode] = useState<'disabled' | 'interval' | 'daily' | 'weekly'>('disabled');
+  const [scheduleIntervalHours, setScheduleIntervalHours] = useState<string>('24');
+  const [dailyTimes, setDailyTimes] = useState<string[]>(['08:00']);
+  const [selectedHour, setSelectedHour] = useState<string>('08');
+  const [selectedMinute, setSelectedMinute] = useState<string>('00');
+  const [weeklyDayOfWeek, setWeeklyDayOfWeek] = useState<string>('1');
+  const [weeklyTimes, setWeeklyTimes] = useState<string[]>(['08:00']);
+
+  const handleAddDailyTime = () => {
+    const formatted = `${selectedHour}:${selectedMinute}`;
+    if (!dailyTimes.includes(formatted)) {
+      setDailyTimes([...dailyTimes, formatted].sort());
+    }
+  };
+
+  const handleRemoveDailyTime = (timeToRemove: string) => {
+    setDailyTimes(dailyTimes.filter(t => t !== timeToRemove));
+  };
+
+  const handleAddWeeklyTime = () => {
+    const formatted = `${selectedHour}:${selectedMinute}`;
+    if (!weeklyTimes.includes(formatted)) {
+      setWeeklyTimes([...weeklyTimes, formatted].sort());
+    }
+  };
+
+  const handleRemoveWeeklyTime = (timeToRemove: string) => {
+    setWeeklyTimes(weeklyTimes.filter(t => t !== timeToRemove));
+  };
   const [skipMissingContractNumber, setSkipMissingContractNumber] = useState(true);
   const [allowAutoCreateGroups, setAllowAutoCreateGroups] = useState(true);
   const [allowAutoCreatePVs, setAllowAutoCreatePVs] = useState(true);
@@ -209,7 +268,38 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
       setScrapeType(config.scrapeType === 'consultor' ? 'consultor' : 'geral');
       setOutputMode(config.outputMode === 'sqs' ? 'sqs' : 'direct');
       setAutoImportSqs(config.autoImportSqs ?? true);
-      setScrapeIntervalHours(config.scrapeIntervalHours ? String(config.scrapeIntervalHours) : '0');
+
+      if (config.scheduleMode === 'daily') {
+        setScheduleMode('daily');
+        try {
+          const parsed = JSON.parse(config.scheduleTimes || '[]');
+          setDailyTimes(Array.isArray(parsed) && parsed.length > 0 ? parsed : ['08:00']);
+        } catch {
+          setDailyTimes(['08:00']);
+        }
+      } else if (config.scheduleMode === 'weekly') {
+        setScheduleMode('weekly');
+        try {
+          const parsed = JSON.parse(config.scheduleTimes || '{}');
+          setWeeklyDayOfWeek(String(parsed.dayOfWeek ?? 1));
+          setWeeklyTimes(Array.isArray(parsed.times) && parsed.times.length > 0 ? parsed.times : ['08:00']);
+        } catch {
+          setWeeklyDayOfWeek('1');
+          setWeeklyTimes(['08:00']);
+        }
+      } else if (config.scheduleMode === 'interval' || (config.scrapeIntervalHours && config.scrapeIntervalHours >= 1)) {
+        setScheduleMode('interval');
+        setScheduleIntervalHours(String(config.scheduleIntervalHours ?? config.scrapeIntervalHours ?? 24));
+      } else {
+        setScheduleMode('disabled');
+        setScheduleIntervalHours('24');
+        setDailyTimes(['08:00']);
+        setWeeklyTimes(['08:00']);
+        setWeeklyDayOfWeek('1');
+      }
+      setSelectedHour('08');
+      setSelectedMinute('00');
+
       setSkipMissingContractNumber(config.skipMissingContractNumber ?? true);
       setAllowAutoCreateGroups(config.allowAutoCreateGroups ?? true);
       setAllowAutoCreatePVs(config.allowAutoCreatePVs ?? true);
@@ -224,9 +314,15 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
       setConfigDefaultStartMonth('');
       setDateMode('all');
       setScrapeType('consultor');
-      setOutputMode('direct');
+      setOutputMode('sqs'); // Padrão: Remoto (AWS Fargate Spot)
       setAutoImportSqs(true);
-      setScrapeIntervalHours('0');
+      setScheduleMode('disabled');
+      setScheduleIntervalHours('24');
+      setDailyTimes(['08:00']);
+      setWeeklyTimes(['08:00']);
+      setWeeklyDayOfWeek('1');
+      setSelectedHour('08');
+      setSelectedMinute('00');
       setSkipMissingContractNumber(true);
       setAllowAutoCreateGroups(true);
       setAllowAutoCreatePVs(true);
@@ -249,7 +345,48 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
 
     try {
       setSaving(true);
-      const parsedInterval = parseInt(scrapeIntervalHours, 10);
+      
+      let scheduleModePayload: 'interval' | 'daily' | 'weekly' | null = null;
+      let scheduleIntervalHoursPayload: number | null = null;
+      let scheduleTimesPayload: string | null = null;
+      let scrapeIntervalHoursPayload: number | null = null;
+
+      if (scheduleMode === 'interval') {
+        const parsed = parseInt(scheduleIntervalHours, 10);
+        if (parsed >= 1) {
+          scheduleModePayload = 'interval';
+          scheduleIntervalHoursPayload = parsed;
+          scrapeIntervalHoursPayload = parsed;
+        }
+      } else if (scheduleMode === 'daily') {
+        if (dailyTimes.length === 0) {
+          notifications.show({
+            title: 'Aviso',
+            message: 'Adicione pelo menos um horário para o agendamento diário.',
+            color: 'orange',
+          });
+          setSaving(false);
+          return;
+        }
+        scheduleModePayload = 'daily';
+        scheduleTimesPayload = JSON.stringify(dailyTimes);
+      } else if (scheduleMode === 'weekly') {
+        if (weeklyTimes.length === 0) {
+          notifications.show({
+            title: 'Aviso',
+            message: 'Adicione pelo menos um horário para o agendamento semanal.',
+            color: 'orange',
+          });
+          setSaving(false);
+          return;
+        }
+        scheduleModePayload = 'weekly';
+        scheduleTimesPayload = JSON.stringify({
+          dayOfWeek: parseInt(weeklyDayOfWeek, 10),
+          times: weeklyTimes
+        });
+      }
+
       await scrapeService.saveConfig({
         id: editingConfig?.id,
         store: store || undefined,
@@ -259,7 +396,10 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
         scrapeType,
         outputMode,
         autoImportSqs,
-        scrapeIntervalHours: parsedInterval > 0 ? parsedInterval : null,
+        scheduleMode: scheduleModePayload,
+        scheduleIntervalHours: scheduleIntervalHoursPayload,
+        scheduleTimes: scheduleTimesPayload,
+        scrapeIntervalHours: scrapeIntervalHoursPayload,
         skipMissingContractNumber,
         allowAutoCreateGroups,
         allowAutoCreatePVs,
@@ -486,6 +626,56 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
     return { relative, dateFormatted };
   };
 
+  const renderScheduleBadge = (config: ScrapeConfig) => {
+    if (config.scheduleMode === 'daily' && config.scheduleTimes) {
+      try {
+        const times = JSON.parse(config.scheduleTimes) as string[];
+        if (Array.isArray(times) && times.length > 0) {
+          const label = times.length === 1 ? `Diário ${times[0]}` : `Diário (${times.length}x)`;
+          const tooltip = `Horários (Brasília): ${times.join(', ')}`;
+          return (
+            <Tooltip label={tooltip} withArrow>
+              <Badge color="cyan" variant="dot" size="sm">
+                {label}
+              </Badge>
+            </Tooltip>
+          );
+        }
+      } catch { }
+    }
+
+    if (config.scheduleMode === 'weekly' && config.scheduleTimes) {
+      try {
+        const weekly = JSON.parse(config.scheduleTimes) as { dayOfWeek: number; times: string[] };
+        const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const dayName = dayNames[weekly.dayOfWeek] || 'Seg';
+        const times = weekly.times || [];
+        const label = times.length === 1 ? `Semanal ${dayName} ${times[0]}` : `Semanal ${dayName} (${times.length}x)`;
+        const tooltip = `Toda ${DAYS_OF_WEEK.find(d => d.value === String(weekly.dayOfWeek))?.label || dayName} às ${times.join(', ')} (Brasília)`;
+        return (
+          <Tooltip label={tooltip} withArrow>
+            <Badge color="cyan" variant="dot" size="sm">
+              {label}
+            </Badge>
+          </Tooltip>
+        );
+      } catch { }
+    }
+
+    const hours = config.scheduleIntervalHours ?? config.scrapeIntervalHours;
+    if ((config.scheduleMode === 'interval' || !config.scheduleMode) && hours && hours >= 1) {
+      return (
+        <Tooltip label={`Extração automática a cada ${hours} horas`} withArrow>
+          <Badge color="cyan" variant="dot" size="sm">
+            {`Auto ${hours}h`}
+          </Badge>
+        </Tooltip>
+      );
+    }
+
+    return null;
+  };
+
   const configRows = configs.map((config) => {
     const startInfo = formatStartMonth(config.defaultStartMonth);
     return (
@@ -504,11 +694,7 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
             ) : (
               <Badge color="gray" variant="light">Local (VPS)</Badge>
             )}
-            {config.scrapeIntervalHours && config.scrapeIntervalHours >= 1 && (
-              <Badge color="cyan" variant="dot" size="sm">
-                {`Auto ${config.scrapeIntervalHours}h`}
-              </Badge>
-            )}
+            {renderScheduleBadge(config)}
           </Group>
         </Table.Td>
         <Table.Td>
@@ -907,22 +1093,171 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
               {formatMonthRangeHelper(dateMode, configDefaultStartMonth)}
             </Text>
 
-            <Select
-              label="Extração Automática (Cron / Agendador)"
-              description="Define a frequência de disparo automático em background para esta conta."
-              value={scrapeIntervalHours}
-              onChange={(val) => setScrapeIntervalHours(val || '0')}
-              data={[
-                { value: '0', label: 'Desativada (Apenas manual)' },
-                { value: '1', label: 'A cada 1 hora' },
-                { value: '3', label: 'A cada 3 horas' },
-                { value: '6', label: 'A cada 6 horas' },
-                { value: '12', label: 'A cada 12 horas' },
-                { value: '24', label: 'A cada 24 horas (Diário)' },
-                { value: '48', label: 'A cada 48 horas (A cada 2 dias)' },
-                { value: '168', label: 'A cada 7 dias (Semanal)' },
-              ]}
-            />
+            <Box style={{ border: '1px solid #e9ecef', borderRadius: 8, padding: 12, backgroundColor: '#fbfbfb' }}>
+              <Text size="sm" fw={500} mb={2}>Extração Automática (Cron / Agendador)</Text>
+              <Text size="xs" c="dimmed" mb={10}>
+                Dispara o robô em background nos períodos definidos (Fuso: Horário de Brasília - UTC-3).
+              </Text>
+              
+              <SegmentedControl
+                fullWidth
+                value={scheduleMode}
+                onChange={(val) => setScheduleMode(val as 'disabled' | 'interval' | 'daily' | 'weekly')}
+                data={[
+                  { label: 'Desativada', value: 'disabled' },
+                  { label: 'Diária (Horários)', value: 'daily' },
+                  { label: 'Semanal', value: 'weekly' },
+                  { label: 'Intervalo', value: 'interval' },
+                ]}
+                mb={scheduleMode !== 'disabled' ? 'sm' : 0}
+              />
+
+              {scheduleMode === 'interval' && (
+                <Stack gap="xs" mt="xs">
+                  <Select
+                    label="Frequência do Intervalo"
+                    description="O robô executará continuamente respeitando o intervalo de horas escolhido."
+                    value={scheduleIntervalHours}
+                    onChange={(val) => setScheduleIntervalHours(val || '24')}
+                    data={[
+                      { value: '1', label: 'A cada 1 hora' },
+                      { value: '3', label: 'A cada 3 horas' },
+                      { value: '6', label: 'A cada 6 horas' },
+                      { value: '12', label: 'A cada 12 horas' },
+                      { value: '24', label: 'A cada 24 horas (1 dia)' },
+                      { value: '48', label: 'A cada 48 horas (2 dias)' },
+                      { value: '168', label: 'A cada 168 horas (1 semana)' },
+                    ]}
+                  />
+                </Stack>
+              )}
+
+              {scheduleMode === 'daily' && (
+                <Stack gap="xs" mt="xs">
+                  <Text size="xs" fw={500}>Horários de Execução no Dia (Brasília):</Text>
+                  
+                  <Group gap="xs" wrap="wrap">
+                    {dailyTimes.map((time) => (
+                      <Badge 
+                        key={time} 
+                        size="lg" 
+                        variant="filled" 
+                        color="blue"
+                        rightSection={
+                          <ActionIcon 
+                            size="xs" 
+                            color="blue" 
+                            variant="transparent" 
+                            onClick={() => handleRemoveDailyTime(time)}
+                            style={{ color: '#fff' }}
+                          >
+                            <IconX size={12} />
+                          </ActionIcon>
+                        }
+                      >
+                        {time}
+                      </Badge>
+                    ))}
+                    {dailyTimes.length === 0 && (
+                      <Text size="xs" c="red">Nenhum horário adicionado. Adicione ao menos um horário abaixo.</Text>
+                    )}
+                  </Group>
+
+                  <Group gap="xs" align="flex-end" mt={4}>
+                    <Select
+                      label="Hora"
+                      style={{ width: 90 }}
+                      value={selectedHour}
+                      onChange={(val) => setSelectedHour(val || '08')}
+                      data={HOUR_OPTIONS}
+                    />
+                    <Select
+                      label="Minuto"
+                      style={{ width: 100 }}
+                      value={selectedMinute}
+                      onChange={(val) => setSelectedMinute(val || '00')}
+                      data={MINUTE_OPTIONS}
+                    />
+                    <Button 
+                      variant="light" 
+                      color="blue" 
+                      leftSection={<IconPlus size={16} />}
+                      onClick={handleAddDailyTime}
+                    >
+                      Adicionar Horário
+                    </Button>
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    Exemplo: Adicione 08:00, 14:00 e 20:00 para extrair três vezes ao dia nos horários de pico.
+                  </Text>
+                </Stack>
+              )}
+
+              {scheduleMode === 'weekly' && (
+                <Stack gap="xs" mt="xs">
+                  <Select
+                    label="Dia da Semana"
+                    description="O robô executará uma vez por semana no dia selecionado."
+                    value={weeklyDayOfWeek}
+                    onChange={(val) => setWeeklyDayOfWeek(val || '1')}
+                    data={DAYS_OF_WEEK}
+                  />
+
+                  <Text size="xs" fw={500} mt={4}>Horários de Execução no Dia Selecionado (Brasília):</Text>
+                  <Group gap="xs" wrap="wrap">
+                    {weeklyTimes.map((time) => (
+                      <Badge 
+                        key={time} 
+                        size="lg" 
+                        variant="filled" 
+                        color="violet"
+                        rightSection={
+                          <ActionIcon 
+                            size="xs" 
+                            color="violet" 
+                            variant="transparent" 
+                            onClick={() => handleRemoveWeeklyTime(time)}
+                            style={{ color: '#fff' }}
+                          >
+                            <IconX size={12} />
+                          </ActionIcon>
+                        }
+                      >
+                        {time}
+                      </Badge>
+                    ))}
+                    {weeklyTimes.length === 0 && (
+                      <Text size="xs" c="red">Nenhum horário adicionado. Adicione ao menos um horário abaixo.</Text>
+                    )}
+                  </Group>
+
+                  <Group gap="xs" align="flex-end" mt={4}>
+                    <Select
+                      label="Hora"
+                      style={{ width: 90 }}
+                      value={selectedHour}
+                      onChange={(val) => setSelectedHour(val || '08')}
+                      data={HOUR_OPTIONS}
+                    />
+                    <Select
+                      label="Minuto"
+                      style={{ width: 100 }}
+                      value={selectedMinute}
+                      onChange={(val) => setSelectedMinute(val || '00')}
+                      data={MINUTE_OPTIONS}
+                    />
+                    <Button 
+                      variant="light" 
+                      color="violet" 
+                      leftSection={<IconPlus size={16} />}
+                      onClick={handleAddWeeklyTime}
+                    >
+                      Adicionar Horário
+                    </Button>
+                  </Group>
+                </Stack>
+              )}
+            </Box>
 
             <Accordion variant="separated" radius="md">
               <Accordion.Item value="advanced-options" style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb' }}>
