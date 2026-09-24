@@ -7,6 +7,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-09-24] e2e — Attempt 1
+**Failure:** `FAILED to register user admin.a.iyvutt5840@test.com: status=400, Name cannot contain numbers`.
+**Root cause:** Generated `RUN_ID` contained numbers from `Date.now()`, which were appended to test user `Name` fields, violating backend name validation prohibiting numbers.
+**Fix applied:** Changed `RUN_ID` generation in `admin_assign_contract_matricula.spec.ts` to 12 pure alphabet characters (`[a-z]`), avoiding numbers in user names.
+**Result:** ✅ Green (177/177 passed on Run 1, 177/177 passed on Run 2 idempotency check)
+
 ## 2026-09-23 all — Attempt 1
 **Failure:** `team_report_setup.spec.ts` / `user_tree_hierarchy.spec.ts` failed when recreating "Equipe Alpha" after soft-delete; `contract_retention_unpaid_toggle.spec.ts` preference leaked into repeated runs; `hierarchy_sibling_isolation.spec.ts` date input clearing was inconsistent on datepicker in Chromium.
 **Root cause:** 

@@ -122,5 +122,43 @@ namespace SalesApp.Tests.Services
             scope.AdminLinkedMatriculas.Should().NotContain("MAT-002"); // Subordinate's matricula, not directly linked to admin
             scope.AdminLinkedMatriculas.Should().NotContain("MAT-EXP"); // Expired
         }
+
+        [Fact]
+        public async Task GetContractScopeAsync_AdminWithTeams_PopulatesAllowedTeamIds()
+        {
+            // Arrange
+            var adminId = Guid.NewGuid();
+            var subordinateId = Guid.NewGuid();
+            var unrelatedUserId = Guid.NewGuid();
+
+            var admin = new User { Id = adminId, InternalId = 10, Name = "Admin", Email = "admin@teams.com", RoleId = 2, IsActive = true };
+            var subordinate = new User { Id = subordinateId, InternalId = 20, Name = "Subordinate", Email = "sub@teams.com", RoleId = 3, IsActive = true, ParentUserId = adminId };
+            var unrelatedUser = new User { Id = unrelatedUserId, InternalId = 30, Name = "Other", Email = "other@teams.com", RoleId = 2, IsActive = true };
+
+            var adminTeam = new Team { Id = 101, Name = "Admin Team", OwnerUserInternalId = admin.InternalId, IsActive = true };
+            var subTeam = new Team { Id = 102, Name = "Subordinate Team", OwnerUserInternalId = subordinate.InternalId, IsActive = true };
+            var unrelatedTeam = new Team { Id = 103, Name = "Unrelated Team", OwnerUserInternalId = unrelatedUser.InternalId, IsActive = true };
+
+            _context.Users.AddRange(admin, subordinate, unrelatedUser);
+            _context.Teams.AddRange(adminTeam, subTeam, unrelatedTeam);
+            await _context.SaveChangesAsync();
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, adminId.ToString()),
+                new Claim("role_id", "2")
+            };
+            var identity = new ClaimsIdentity(claims, "TestAuth");
+            var principal = new ClaimsPrincipal(identity);
+
+            // Act
+            var scope = await _service.GetContractScopeAsync(principal);
+
+            // Assert
+            scope.IsGlobal.Should().BeFalse();
+            scope.AllowedTeamIds.Should().Contain(101);
+            scope.AllowedTeamIds.Should().Contain(102);
+            scope.AllowedTeamIds.Should().NotContain(103);
+        }
     }
 }

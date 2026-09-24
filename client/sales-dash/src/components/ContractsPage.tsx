@@ -63,7 +63,7 @@ const ContractsPage: React.FC = () => {
 
   // Get context for caching
   const { setContracts: setCachedContracts, setUsers: setCachedUsers, setGroups: setCachedGroups } = useContractsContext();
-  const { fetchTeams } = useReferenceData();
+  const { fetchTeams, fetchContractFilterUsers } = useReferenceData();
   
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -133,28 +133,26 @@ const ContractsPage: React.FC = () => {
     return saved ? parseInt(saved) : 100;
   });
 
-  const loadFilters = useCallback(async (includeInactive?: boolean) => {
+  const loadFilters = useCallback(async () => {
     try {
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin' ||
-                           currentUser?.roleName?.toLowerCase() === 'superadmin' ||
-                           (currentUser?.permissions && currentUser.permissions.includes('system:superadmin'));
-
-      const [usersData, groupsData, teamsData] = await Promise.all([
-        getUsers(!isSuperAdmin, includeInactive),
+      const [groupsData, teamsData] = await Promise.all([
         getGroups(),
         fetchTeams(),
       ]);
-      setUsers(usersData);
       setTeams(teamsData);
-      // Cache the data in context for use by ContractForm
-      setCachedUsers(usersData);
       setCachedGroups(groupsData);
+
+      // Lazy load users in background without blocking UI
+      fetchContractFilterUsers().then(usersData => {
+        setUsers(usersData);
+      }).catch(err => {
+        console.error('Failed to load filter candidate users in background:', err);
+      });
     } catch (err: any) {
       console.error('Failed to load filter options:', err);
       toast.error(err.message || 'Falha ao carregar opções de filtro');
     }
-  }, [setCachedUsers, setCachedGroups, fetchTeams]);
+  }, [setCachedUsers, setCachedGroups, fetchTeams, fetchContractFilterUsers]);
 
   const loadContracts = useCallback(async () => {
     // Local date validation: block api call if end date is before start date
@@ -238,14 +236,14 @@ const ContractsPage: React.FC = () => {
           setTreatUnpaidAsAwaiting(res.data.treatUnpaidActiveAsAwaitingPayment);
           const inc = !!res.data.includeInactiveUsersInFilter;
           setIncludeInactiveUsers(inc);
-          loadFilters(inc);
+          loadFilters();
         } else {
-          loadFilters(false);
+          loadFilters();
         }
       })
       .catch(err => {
         console.error('Failed to load user preferences:', err);
-        loadFilters(false);
+        loadFilters();
       });
     setIsInitializing(false);
   }, [loadFilters]);
@@ -467,12 +465,14 @@ const ContractsPage: React.FC = () => {
             placeholder={users.length === 0 ? 'Nenhum usuário disponível' : 'Selecionar usuários...'}
             value={filterUserIds}
             onChange={setFilterUserIds}
-            data={users.map(u => ({
-              value: u.id,
-              label: !u.isActive
-                ? (u.email ? `${normalizeName(u.name)} (${u.email}) (Inativo)` : `${normalizeName(u.name)} (Inativo)`)
-                : (u.email ? `${normalizeName(u.name)} (${u.email})` : normalizeName(u.name))
-            }))}
+            data={users
+              .filter(u => includeInactiveUsers || u.isActive)
+              .map(u => ({
+                value: u.id,
+                label: !u.isActive
+                  ? (u.email ? `${normalizeName(u.name)} (${u.email}) (Inativo)` : `${normalizeName(u.name)} (Inativo)`)
+                  : (u.email ? `${normalizeName(u.name)} (${u.email})` : normalizeName(u.name))
+              }))}
             renderOption={(item) => {
               const u = users.find(user => user.id === item.option.value);
               const isInactive = u && !u.isActive;
@@ -905,7 +905,7 @@ const ContractsPage: React.FC = () => {
               try {
                 await apiService.updateUserPreferences({ includeInactiveUsersInFilter: val });
                 toast.success('Preferência de filtro atualizada');
-                loadFilters(val);
+                loadFilters();
               } catch (err: any) {
                 console.error('Failed to update filter preference:', err);
                 toast.error(err.message || 'Falha ao salvar preferência');

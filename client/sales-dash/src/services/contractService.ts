@@ -89,11 +89,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role?: string;
   isActive: boolean;
   matriculaId?: number;
   matriculaNumber?: string;
-  isMatriculaOwner: boolean;
+  isMatriculaOwner?: boolean;
   activeMatriculas?: UserMatriculaInfo[];
 }
 
@@ -506,6 +506,20 @@ export const getUsers = async (scopeToDescendants?: boolean, includeInactive?: b
 
   const result: ApiResponse<{ items: User[]; totalCount: number }> = await response.json();
   return includeInactive ? result.data.items : result.data.items.filter(user => user.isActive);
+};
+
+export const getFilterCandidateUsers = async (): Promise<User[]> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/filter-candidates`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Falha ao carregar candidatos a filtro de usuários');
+  }
+
+  const result: ApiResponse<User[]> = await response.json();
+  return result.data;
 };
 
 export const getGroups = async (): Promise<Group[]> => {

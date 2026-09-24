@@ -564,5 +564,89 @@ namespace SalesApp.Tests.Repositories
             resultNumbers.Should().Contain("CTR-NOT-AP-PAID");
             resultNumbers.Should().Contain("CTR-NOT-AP-LATE");
         }
+
+        [Fact]
+        public async Task GetAllAsync_WhenConsultantTransitionedToAnotherTeamOutsideScope_ShouldStillReturnContractsClosedInAdminTeam()
+        {
+            // Arrange
+            var activeStatus = new ContractStatusEntity { Id = 401, Name = "Active" };
+            _context.ContractStatuses.Add(activeStatus);
+
+            var admin = new User { Id = Guid.NewGuid(), InternalId = 501, Name = "Admin A", Email = "adminA@test.com", RoleId = 2 };
+            // Consultant C is currently under a different admin outside the network
+            var consultantC = new User { Id = Guid.NewGuid(), InternalId = 502, Name = "Consultant C", Email = "consultantC@test.com", RoleId = 3, ParentUserId = Guid.NewGuid() };
+            _context.Users.AddRange(admin, consultantC);
+
+            var teamA = new Team { Id = 601, Name = "Team A", OwnerUserInternalId = admin.InternalId, IsActive = true };
+            var teamB = new Team { Id = 602, Name = "Team B (Other)", OwnerUserInternalId = 999, IsActive = true };
+            _context.Teams.AddRange(teamA, teamB);
+
+            // Consultant C was in Team A between Jan 1, 2026 and June 30, 2026
+            var utPast = new UserTeam
+            {
+                Id = 701,
+                UserInternalId = consultantC.InternalId,
+                TeamId = teamA.Id,
+                StartDate = new DateTime(2026, 1, 1),
+                EndDate = new DateTime(2026, 6, 30)
+            };
+            // Consultant C moved to Team B starting July 1, 2026
+            var utCurrent = new UserTeam
+            {
+                Id = 702,
+                UserInternalId = consultantC.InternalId,
+                TeamId = teamB.Id,
+                StartDate = new DateTime(2026, 7, 1),
+                EndDate = null
+            };
+            _context.UserTeams.AddRange(utPast, utCurrent);
+
+            // Contract 1: Closed in Team A on March 15, 2026
+            var c1 = new Contract
+            {
+                ContractNumber = "CTR-TEAM-A-HISTORIC",
+                UserInternalId = consultantC.InternalId,
+                User = consultantC,
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                SaleStartDate = new DateTime(2026, 3, 15),
+                TotalAmount = 5000,
+                IsActive = true
+            };
+
+            // Contract 2: Closed in Team B on August 10, 2026
+            var c2 = new Contract
+            {
+                ContractNumber = "CTR-TEAM-B-FUTURE",
+                UserInternalId = consultantC.InternalId,
+                User = consultantC,
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                SaleStartDate = new DateTime(2026, 8, 10),
+                TotalAmount = 7000,
+                IsActive = true
+            };
+            _context.Contracts.AddRange(c1, c2);
+            await _context.SaveChangesAsync();
+
+            // Admin scope contains admin's ID and teamA in AllowedTeamIds, but NOT consultant C in AllowedUserIds
+            var adminScope = new UserScopeContext
+            {
+                IsGlobal = false,
+                AllowedUserIds = new HashSet<Guid> { admin.Id },
+                AllowedTeamIds = new HashSet<int> { teamA.Id }
+            };
+
+            // Act: Admin filters by Team A
+            var results = await _repository.GetAllAsync(
+                scope: adminScope,
+                teamIds: new List<int> { teamA.Id }
+            );
+
+            // Assert
+            var contractNumbers = results.Select(c => c.ContractNumber).ToList();
+            contractNumbers.Should().Contain("CTR-TEAM-A-HISTORIC");
+            contractNumbers.Should().NotContain("CTR-TEAM-B-FUTURE");
+        }
     }
 }

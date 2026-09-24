@@ -86,6 +86,12 @@ namespace SalesApp.Repositories
                     (c.User != null && scope.AllowedUserIds.Contains(c.User.Id)) ||
                     (!string.IsNullOrEmpty(c.TempMatricula) && scope.AllowedMatriculas.Contains(c.TempMatricula)) ||
                     (c.Matricula != null && scope.AllowedMatriculas.Contains(c.Matricula.MatriculaNumber)) ||
+                    (scope.AllowedTeamIds.Count > 0 && c.UserInternalId != null && _context.UserTeams.Any(ut =>
+                        scope.AllowedTeamIds.Contains(ut.TeamId) &&
+                        ut.UserInternalId == c.UserInternalId.Value &&
+                        c.SaleStartDate.Date >= ut.StartDate.Date &&
+                        (ut.EndDate == null || c.SaleStartDate.Date <= ut.EndDate.Value.Date)
+                    )) ||
                     (scope.AdminLinkedMatriculas.Count > 0 && (
                         (!string.IsNullOrEmpty(c.TempMatricula) && scope.AdminLinkedMatriculas.Contains(c.TempMatricula)) ||
                         (c.Matricula != null && scope.AdminLinkedMatriculas.Contains(c.Matricula.MatriculaNumber))

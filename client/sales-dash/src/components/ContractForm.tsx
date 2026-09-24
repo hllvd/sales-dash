@@ -75,7 +75,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     const fetchDropdownData = async () => {
       try {
         let usersData = cachedUsers;
-        if (!usersData || usersData.length === 0) {
+        if (!usersData || usersData.length === 0 || !usersData.some(u => u.activeMatriculas !== undefined)) {
           usersData = await getUsers(isUserAdmin);
         }
 

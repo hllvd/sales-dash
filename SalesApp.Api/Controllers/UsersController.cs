@@ -35,6 +35,7 @@ namespace SalesApp.Controllers
         private readonly IUserClassificationRepository _userClassRepository;
         private readonly IUserMetadataRepository _userMetadataRepository;
         private readonly AdminInfoOptions _adminInfo;
+        private readonly IUserScopeService _userScopeService;
         
         public UsersController(
             IUserRepository userRepository,
@@ -52,7 +53,8 @@ namespace SalesApp.Controllers
             ITeamRepository teamRepository,
             IUserClassificationRepository userClassRepository,
             IUserMetadataRepository userMetadataRepository,
-            IOptions<AdminInfoOptions> adminInfoOptions)
+            IOptions<AdminInfoOptions> adminInfoOptions,
+            IUserScopeService userScopeService)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
@@ -70,6 +72,7 @@ namespace SalesApp.Controllers
             _userClassRepository = userClassRepository;
             _userMetadataRepository = userMetadataRepository;
             _adminInfo = adminInfoOptions.Value;
+            _userScopeService = userScopeService;
         }
 
         // ── My-Teams endpoint ─────────────────────────────────────────────────
@@ -719,6 +722,97 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Data = users.Select(MapToUserResponse).ToList(),
+                Message = _messageService.Get(AppMessage.UsersRetrievedSuccessfully)
+            });
+        }
+
+        [HttpGet("filter-candidates")]
+        [HasPermission("contracts:read")]
+        public async Task<ActionResult<ApiResponse<List<UserFilterCandidateDto>>>> GetFilterCandidates()
+        {
+            var isSuperAdmin = User.FindFirst("role_id")?.Value == "1"
+                || User.IsInRole("SuperAdmin")
+                || User.IsInRole("superadmin")
+                || User.HasClaim("perm", "system:superadmin");
+
+            if (isSuperAdmin)
+            {
+                var allUsers = await _context.Users
+                    .AsNoTracking()
+                    .Select(u => new UserFilterCandidateDto
+                    {
+                        Id = u.Id,
+                        Name = u.Name,
+                        Email = u.Email,
+                        IsActive = u.IsActive
+                    })
+                    .OrderBy(u => u.Name)
+                    .ToListAsync();
+
+                return Ok(new ApiResponse<List<UserFilterCandidateDto>>
+                {
+                    Success = true,
+                    Data = allUsers,
+                    Message = _messageService.Get(AppMessage.UsersRetrievedSuccessfully)
+                });
+            }
+
+            var scope = await _userScopeService.GetContractScopeAsync(User);
+
+            // 1. All descendant user internal IDs
+            var candidateInternalIds = new HashSet<int>();
+            if (scope.AllowedUserIds != null && scope.AllowedUserIds.Count > 0)
+            {
+                var descendantInternalIds = await _context.Users
+                    .AsNoTracking()
+                    .Where(u => scope.AllowedUserIds.Contains(u.Id))
+                    .Select(u => u.InternalId)
+                    .ToListAsync();
+
+                foreach (var id in descendantInternalIds)
+                {
+                    candidateInternalIds.Add(id);
+                }
+            }
+
+            // 2. Users whose contracts were closed in any team under admin's scope
+            if (scope.AllowedTeamIds != null && scope.AllowedTeamIds.Count > 0)
+            {
+                var teamUserInternalIds = await _context.Contracts
+                    .AsNoTracking()
+                    .Where(c => c.IsActive && c.UserInternalId != null && _context.UserTeams.Any(ut =>
+                        scope.AllowedTeamIds.Contains(ut.TeamId) &&
+                        ut.UserInternalId == c.UserInternalId.Value &&
+                        c.SaleStartDate.Date >= ut.StartDate.Date &&
+                        (ut.EndDate == null || c.SaleStartDate.Date <= ut.EndDate.Value.Date)
+                    ))
+                    .Select(c => c.UserInternalId!.Value)
+                    .Distinct()
+                    .ToListAsync();
+
+                foreach (var id in teamUserInternalIds)
+                {
+                    candidateInternalIds.Add(id);
+                }
+            }
+
+            var candidates = await _context.Users
+                .AsNoTracking()
+                .Where(u => candidateInternalIds.Contains(u.InternalId))
+                .Select(u => new UserFilterCandidateDto
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    Email = u.Email,
+                    IsActive = u.IsActive
+                })
+                .OrderBy(u => u.Name)
+                .ToListAsync();
+
+            return Ok(new ApiResponse<List<UserFilterCandidateDto>>
+            {
+                Success = true,
+                Data = candidates,
                 Message = _messageService.Get(AppMessage.UsersRetrievedSuccessfully)
             });
         }

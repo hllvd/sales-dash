@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
-import { Team, PV, ClassificationLevel, UserMatricula, User, apiService } from '../services/apiService'
+import { Team, PV, ClassificationLevel, UserMatricula, User as ApiUser, apiService } from '../services/apiService'
+import { getFilterCandidateUsers, User as ContractUser } from '../services/contractService'
 
 interface CacheEntry<T> {
   data: T
@@ -11,19 +12,22 @@ interface ReferenceDataContextType {
   pvs: CacheEntry<PV[]> | null
   classificationLevels: CacheEntry<ClassificationLevel[]> | null
   allMatriculas: CacheEntry<UserMatricula[]> | null
-  allUsers: CacheEntry<User[]> | null
+  allUsers: CacheEntry<ApiUser[]> | null
+  contractFilterUsers: CacheEntry<ContractUser[]> | null
 
   fetchTeams: (forceRefresh?: boolean, status?: string) => Promise<Team[]>
   fetchPVs: (forceRefresh?: boolean) => Promise<PV[]>
   fetchClassificationLevels: (forceRefresh?: boolean) => Promise<ClassificationLevel[]>
   fetchAllMatriculas: (forceRefresh?: boolean) => Promise<UserMatricula[]>
-  fetchAllUsers: (forceRefresh?: boolean) => Promise<User[]>
+  fetchAllUsers: (forceRefresh?: boolean) => Promise<ApiUser[]>
+  fetchContractFilterUsers: (forceRefresh?: boolean) => Promise<ContractUser[]>
 
   invalidateTeams: () => void
   invalidatePVs: () => void
   invalidateClassificationLevels: () => void
   invalidateAllMatriculas: () => void
   invalidateAllUsers: () => void
+  invalidateContractFilterUsers: () => void
 }
 
 const ReferenceDataContext = createContext<ReferenceDataContextType | undefined>(undefined)
@@ -33,7 +37,8 @@ export const ReferenceDataProvider: React.FC<{ children: ReactNode }> = ({ child
   const [pvs, setPvs] = useState<CacheEntry<PV[]> | null>(null)
   const [classificationLevels, setClassificationLevels] = useState<CacheEntry<ClassificationLevel[]> | null>(null)
   const [allMatriculas, setAllMatriculas] = useState<CacheEntry<UserMatricula[]> | null>(null)
-  const [allUsers, setAllUsers] = useState<CacheEntry<User[]> | null>(null)
+  const [allUsers, setAllUsers] = useState<CacheEntry<ApiUser[]> | null>(null)
+  const [contractFilterUsers, setContractFilterUsers] = useState<CacheEntry<ContractUser[]> | null>(null)
 
   const fetchTeams = useCallback(async (forceRefresh?: boolean, status?: string) => {
     const isDefault = !status || status === 'active'
@@ -98,7 +103,7 @@ export const ReferenceDataProvider: React.FC<{ children: ReactNode }> = ({ child
     // when total users exceed a single page boundary.
     const PAGE_SIZE = 1000
     let page = 1
-    let accumulated: User[] = []
+    let accumulated: ApiUser[] = []
     let totalCount = Infinity
 
     while (accumulated.length < totalCount) {
@@ -122,22 +127,39 @@ export const ReferenceDataProvider: React.FC<{ children: ReactNode }> = ({ child
   const invalidateAllMatriculas = useCallback(() => setAllMatriculas(null), [])
   const invalidateAllUsers = useCallback(() => setAllUsers(null), [])
 
+  const CONTRACT_FILTER_USERS_TTL_MS = 30 * 60 * 1000 // 30 minutes
+
+  const fetchContractFilterUsers = useCallback(async (forceRefresh?: boolean) => {
+    const now = Date.now()
+    if (!forceRefresh && contractFilterUsers && (now - contractFilterUsers.fetchedAt < CONTRACT_FILTER_USERS_TTL_MS)) {
+      return contractFilterUsers.data
+    }
+    const freshData = await getFilterCandidateUsers()
+    setContractFilterUsers({ data: freshData, fetchedAt: now })
+    return freshData
+  }, [contractFilterUsers])
+
+  const invalidateContractFilterUsers = useCallback(() => setContractFilterUsers(null), [])
+
   const value: ReferenceDataContextType = {
     teams,
     pvs,
     classificationLevels,
     allMatriculas,
     allUsers,
+    contractFilterUsers,
     fetchTeams,
     fetchPVs,
     fetchClassificationLevels,
     fetchAllMatriculas,
     fetchAllUsers,
+    fetchContractFilterUsers,
     invalidateTeams,
     invalidatePVs,
     invalidateClassificationLevels,
     invalidateAllMatriculas,
     invalidateAllUsers,
+    invalidateContractFilterUsers,
   }
 
   return (

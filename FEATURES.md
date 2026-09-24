@@ -1,5 +1,38 @@
 # Features
 
+## Visualização de Contratos por Equipe com Histórico e Cache de Candidatos a Filtro de Usuários
+
+Garante que administradores possam visualizar contratos gerados em suas equipes mesmo quando o consultor responsável migrou de equipe (passou a pertencer a outra rede fora da hierarquia do administrador), respeitando as datas de transição de equipe (`UserTeams`). Além disso, implementa um novo endpoint de candidatos a filtro de usuários (`GET /api/users/filter-candidates`) com cache em memória React (TTL de 30 minutos) e carregamento lazy/não-bloqueante na tela de Contratos.
+
+### Comportamento e Regras
+- **Preservação de Escopo de Contratos por Equipe (`UserScopeService` e `ContractRepository`)**:
+  - `UserScopeService` mapeia agora todas as equipes ativas vinculadas à rede do administrador (`AllowedTeamIds`), incluindo equipes pertencentes ao admin ou aos seus subordinados na hierarquia.
+  - No `ContractRepository.BuildFilteredQuery`, a cláusula de escopo permite contratos realizados por usuários durante o período de permanência em equipes sob o escopo do admin (`UserTeams.StartDate` e `UserTeams.EndDate`), mesmo que o usuário não faça mais parte da hierarquia atual de liderados diretos/indiretos do admin.
+  - Ao filtrar por equipe (`teamIds`), os contratos realizados na respectiva equipe durante o mandato do consultor continuam visíveis e computados normalmente.
+  - Para o Superadmin, o comportamento permanece irrestrito (`scope.IsGlobal == true`).
+- **Endpoint Dedicado de Usuários Candidatos a Filtro (`GET /api/users/filter-candidates`)**:
+  - Retorna uma lista otimizada (`UserFilterCandidateDto`) contendo os usuários relevantes para o filtro de usuários na tela de contratos:
+    - **Superadmin**: Todos os usuários cadastrados no sistema.
+    - **Admin**: Usuários na hierarquia do admin (descendentes) somados aos usuários que possuem contratos gerados em qualquer equipe da rede do admin (mesmo que tenham sido transferidos).
+- **Cache Local de Filtros em Memória React (`ReferenceDataContext` e `ContractsPage`)**:
+  - `fetchContractFilterUsers` armazena os dados em memória React com TTL de 30 minutos, evitando chamadas repetitivas e demoradas à API em navegações.
+  - Carregamento assíncrono em background (lazy): a tela de contratos carrega e exibe a tabela imediatamente sem esperar o carregamento da lista de usuários.
+  - Respeito à preferência de usuários desativados (`includeInactiveUsersInFilter`), filtrando dinamicamente na interface sem necessidade de refazer requisições de rede.
+
+### Arquivos Modificados
+- `SalesApp.Api/Models/UserScopeContext.cs`: Adicionada propriedade `AllowedTeamIds`.
+- `SalesApp.Api/Services/UserScopeService.cs`: População de `AllowedTeamIds` com as equipes sob a hierarquia do admin.
+- `SalesApp.Api/Repositories/ContractRepository.cs`: Atualização do filtro de escopo para aceitar contratos vinculados a `AllowedTeamIds` no período de vigência de equipe.
+- `SalesApp.Api/DTOs/UserFilterCandidateDto.cs`: DTO leve para candidatos a filtro de usuários.
+- `SalesApp.Api/Controllers/UsersController.cs`: Injeção de `IUserScopeService` e criação do endpoint `GET /api/users/filter-candidates`.
+- `SalesApp.Tests/Services/UserScopeServiceTests.cs`: Teste unitário para verificação de `AllowedTeamIds`.
+- `SalesApp.Tests/ContractRepositoryTests.cs`: Teste unitário validando a visualização de contratos de consultores que migraram para outra equipe.
+- `client/sales-dash/src/services/contractService.ts`: Função `getFilterCandidateUsers`.
+- `client/sales-dash/src/contexts/ReferenceDataContext.tsx`: Adicionados `contractFilterUsers`, `fetchContractFilterUsers` (TTL 30 min) e `invalidateContractFilterUsers`.
+- `client/sales-dash/src/components/ContractsPage.tsx`: Carregamento lazy de usuários via `fetchContractFilterUsers` e filtragem dinâmica de inativos.
+
+---
+
 ## Visualização Global de Usuários no Calendário de Equipe para Superadmin
 
 Permite que usuários com perfil **Superadmin** visualizem e gerenciem **todos os usuários ativos** da plataforma no Calendário de Equipes (`#/teams/calendar`), independentemente do nível de profundidade na árvore de hierarquia organizacional ou da ausência de supervisor vinculado.
