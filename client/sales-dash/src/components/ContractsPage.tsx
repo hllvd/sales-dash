@@ -45,7 +45,7 @@ interface VisibleColumns {
 const DEFAULT_COLUMNS: VisibleColumns = {
   contractNumber: true,
   user: true,
-  team: true,
+  team: false,
   matricula: true,
   group: true,
   customer: true,
