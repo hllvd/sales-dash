@@ -1,6 +1,29 @@
 # Features
 
-## Seleção Explícita de Worker de Scrape: Local (VPS) vs Remoto (AWS Fargate Spot)
+## Exportação em XLSX no Detalhamento dos Usuários de Licenciamento
+
+Substitui o download em formato CSV por geração e download de planilha Excel nativa (`.xlsx`) no botão "Exportar Planilha" da seção "Detalhamento dos Usuários" na página `#/monitoring/licensing`.
+
+### Comportamento e Regras
+- **Formato Excel Nativo (.xlsx)**:
+  - O download é gerado pelo backend via `EPPlus` (`ExcelPackage`) e devolvido com o Content-Type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+  - O arquivo é nomeado dinamicamente de acordo com o período selecionado: `licenciamento-[mês]-[ano].xlsx`.
+  - A planilha possui estilização de cabeçalho (fonte em negrito, fundo cinza claro `#F3F4F6`, borda inferior sutil) e ajuste automático de largura das colunas (`AutoFitColumns`).
+- **Colunas Exportadas**:
+  - `Nome`, `Email`, `Cargo`, `Equipe`, `Dias Ativos no Mês`, `Status Licenciamento`.
+- **Escopo dos Dados**:
+  - Exporta todos os usuários do mês selecionado respeitando o parâmetro de dias mínimos ativos (`minimumDays`).
+- **Feedback Visual na Interface**:
+  - O botão "Exportar Planilha" exibe estado de carregamento (`loading={exportingXlsx}`) durante a requisição e geração do arquivo.
+
+### Arquivos Modificados
+- `SalesApp.Api/Controllers/MonitoringController.cs`: Adição do endpoint `GET /api/monitoring/licensing/export-xlsx` com permissão `system:superadmin`.
+- `SalesApp.IntegrationTests/Contracts/MonitoringTests.cs`: Teste de integração validando o endpoint de exportação XLSX.
+- `client/sales-dash/src/services/contractService.ts`: Adição da função `exportLicensingXlsx`.
+- `client/sales-dash/src/components/Monitoring/LicensingPage.tsx`: Substituição de `handleExportCSV` por `handleExportXLSX` e adição de feedback visual no botão de exportação.
+
+---
+
 
 Permite aos administradores definirem de forma granular e visual para cada credencial cadastrada se o robô de extração de dados executará no ambiente local da VPS ou remotamente na nuvem gerenciada da AWS via Fargate Spot. Em ambos os cenários, o processo de importação dos dados para o banco de dados é sempre executado localmente pela própria API .NET na VPS.
 

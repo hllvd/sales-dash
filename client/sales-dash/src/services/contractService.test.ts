@@ -10,6 +10,7 @@ import {
   UpdateContractRequest,
   Contract,
   ContractStatus,
+  exportLicensingXlsx,
 } from './contractService';
 
 // Mock fetch globally
@@ -59,7 +60,8 @@ describe('contractService', () => {
           }),
         })
       );
-      expect(result).toEqual(mockContracts);
+      expect(result.contracts).toEqual(mockContracts);
+      expect(result.totalCount).toBe(1);
     });
 
     it('should fetch contracts with filters', async () => {
@@ -284,4 +286,58 @@ describe('contractService', () => {
       expect(result).toEqual([mockGroups[0], mockGroups[1]]);
     });
   });
+
+  describe('exportLicensingXlsx', () => {
+    it('should fetch licensing xlsx blob with year and month', async () => {
+      const mockBlob = new Blob(['mock-xlsx-content'], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        blob: async () => mockBlob,
+      });
+
+      const result = await exportLicensingXlsx(2026, 9);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/monitoring/licensing/export-xlsx?year=2026&month=9',
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer mock-token',
+          }),
+        })
+      );
+      expect(result).toBe(mockBlob);
+    });
+
+    it('should include minimumDays parameter when provided', async () => {
+      const mockBlob = new Blob(['mock-xlsx-content'], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        blob: async () => mockBlob,
+      });
+
+      await exportLicensingXlsx(2026, 9, 15);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/monitoring/licensing/export-xlsx?year=2026&month=9&minimumDays=15',
+        expect.any(Object)
+      );
+    });
+
+    it('should throw error when exportLicensingXlsx fails', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        text: async () => 'Falha no servidor',
+      });
+
+      await expect(exportLicensingXlsx(2026, 9)).rejects.toThrow('Falha no servidor');
+    });
+  });
 });
+

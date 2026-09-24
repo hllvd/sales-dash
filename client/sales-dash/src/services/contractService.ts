@@ -266,6 +266,29 @@ export const getLicensingReport = async (
   return result.data;
 };
 
+export const exportLicensingXlsx = async (
+  year: number,
+  month: number,
+  minimumDays?: number
+): Promise<Blob> => {
+  let url = `${API_BASE_URL}/monitoring/licensing/export-xlsx?year=${year}&month=${month}`;
+  if (minimumDays !== undefined) {
+    url += `&minimumDays=${minimumDays}`;
+  }
+
+  const response = await authenticatedFetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Erro no download do arquivo');
+    throw new Error(errorText || 'Falha ao exportar relatório de licenciamento em XLSX');
+  }
+
+  return response.blob();
+};
+
 
 // Contract CRUD Operations
 export const getContracts = async (
