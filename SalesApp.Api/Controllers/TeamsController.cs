@@ -110,22 +110,44 @@ namespace SalesApp.Controllers
                 });
             }
 
-            if (await _teamRepository.NameExistsAsync(request.Name))
+            var existingTeam = await _teamRepository.GetByNameAsync(request.Name);
+            Team createdTeam;
+            if (existingTeam != null)
             {
-                return BadRequest(new ApiResponse<TeamResponse>
+                if (existingTeam.IsActive)
                 {
-                    Success = false,
-                    Message = _messageService.Get(AppMessage.TeamNameAlreadyExists)
-                });
+                    return BadRequest(new ApiResponse<TeamResponse>
+                    {
+                        Success = false,
+                        Message = _messageService.Get(AppMessage.TeamNameAlreadyExists)
+                    });
+                }
+
+                existingTeam.IsActive = true;
+                existingTeam.StoreId = request.StoreId;
+                existingTeam.OwnerUserInternalId = null;
+                existingTeam.UpdatedAt = DateTime.UtcNow;
+
+                if (existingTeam.UserTeams != null && existingTeam.UserTeams.Any())
+                {
+                    _context.UserTeams.RemoveRange(existingTeam.UserTeams);
+                    await _context.SaveChangesAsync();
+                }
+
+                await _teamRepository.UpdateAsync(existingTeam);
+                createdTeam = existingTeam;
             }
-
-            var team = new Team
+            else
             {
-                Name = request.Name.Trim(),
-                StoreId = request.StoreId
-            };
+                var team = new Team
+                {
+                    Name = request.Name.Trim(),
+                    StoreId = request.StoreId,
+                    IsActive = true
+                };
 
-            var createdTeam = await _teamRepository.CreateAsync(team);
+                createdTeam = await _teamRepository.CreateAsync(team);
+            }
             var warnings = new List<string>();
 
             if (request.Members != null && request.Members.Any())

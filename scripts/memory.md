@@ -7,6 +7,18 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## 2026-09-23 all — Attempt 1
+**Failure:** `team_report_setup.spec.ts` / `user_tree_hierarchy.spec.ts` failed when recreating "Equipe Alpha" after soft-delete; `contract_retention_unpaid_toggle.spec.ts` preference leaked into repeated runs; `hierarchy_sibling_isolation.spec.ts` date input clearing was inconsistent on datepicker in Chromium.
+**Root cause:** 
+1. Soft deleting a team left the unique team name in the database. `POST /api/teams` rejected recreated team names with 400 (`TeamNameAlreadyExists`) instead of reactivating the inactive team.
+2. `contract_retention_unpaid_toggle.spec.ts` persisted `treatUnpaidActiveAsAwaitingPayment` to user preferences without resetting it before test execution.
+3. `hierarchy_sibling_isolation.spec.ts` used `fill('input#filterStartDate', '')` on an HTML5 `<input type="date">` to view a probe contract dated `2000-01-01`, which Chromium date inputs often do not clear.
+**Fix applied:**
+- Updated `TeamsController.cs` in `CreateTeam` to detect existing inactive teams with the same name, reactivate them, update `StoreId`, and reset memberships.
+- Reset `treatUnpaidActiveAsAwaitingPayment: false` via API at test start in `contract_retention_unpaid_toggle.spec.ts`.
+- Changed `filterStartDate` fill in `hierarchy_sibling_isolation.spec.ts` to `'1999-01-01'` to deterministically capture probe contracts from 2000.
+**Result:** ✅ Green (178/178 passed on Run 1, 178/178 passed on Run 2 idempotency check)
+
 ## 2026-08-24 e2e — Attempt 1
 **Failure:** `hierarchy_deep_visibility.spec.ts` failed on `expect(locator).toHaveCount(1)` due to race condition between contract number filter debounce and table render.
 **Root cause:** The test used a static 6s delay instead of waiting for `.contracts-loading` to disappear, causing it to assert table rows while the previous query results were still in-flight.

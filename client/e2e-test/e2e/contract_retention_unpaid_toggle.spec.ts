@@ -67,8 +67,21 @@ test.describe('Contract Retention — Unpaid Contracts as Awaiting Payment Toggl
     }
   });
 
-  test('should toggle unpaid contracts as awaiting payment and recalculate retention metrics', async ({ page }) => {
+  test('should toggle unpaid contracts as awaiting payment and recalculate retention metrics', async ({ page, request }) => {
     test.setTimeout(90_000);
+
+    // Ensure preference is reset to false before starting
+    const loginRes = await request.post('/api/users/login', {
+      data: { email: ADMIN.email, password: ADMIN.password }
+    });
+    if (loginRes.ok()) {
+      const { data } = await loginRes.json();
+      await request.put('/api/users/me/preferences', {
+        headers: { Authorization: `Bearer ${data.token}` },
+        data: { treatUnpaidActiveAsAwaitingPayment: false }
+      });
+    }
+
     await login(page);
 
     // 1. Navigate to Contracts Page
