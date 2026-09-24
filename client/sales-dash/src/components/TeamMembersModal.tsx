@@ -641,7 +641,7 @@ const TeamMembersModal: React.FC<Props> = ({
             size="sm"
             className="tmc-search"
           />
-          <ScrollArea className="tmc-scroll" type="scroll">
+          <ScrollArea className="tmc-scroll" type="hover">
             {filteredAvailable.length === 0 ? (
               <div className="tmc-empty">
                 <IconUser size={28} color="#adb5bd" />
@@ -678,7 +678,7 @@ const TeamMembersModal: React.FC<Props> = ({
             size="sm"
             className="tmc-search"
           />
-          <ScrollArea className="tmc-scroll" type="scroll">
+          <ScrollArea className="tmc-scroll" type="hover">
             {filteredMembers.length === 0 ? (
               <div className="tmc-empty">
                 <IconUsers size={28} color="#adb5bd" />

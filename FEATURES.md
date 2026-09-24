@@ -1,5 +1,19 @@
 # Features
 
+## Exibição de Scrollbar no Hover em Gerenciamento de Equipe
+
+Habilita a exibição da barra de rolagem (scrollbar) ao passar o cursor sobre as listas de "Usuários Disponíveis" e "Membros da Equipe" no modal de gerenciamento de membros da equipe (`TeamMembersModal`), permitindo identificar visualmente e rolar pelo conteúdo além do scroll via roda do mouse/trackpad.
+
+### Comportamento e Regras
+- **Visibilidade Sob Demanda (`type="hover"`)**:
+  - A scrollbar permanece oculta por padrão para preservar o design limpo do modal e torna-se visível automaticamente assim que o usuário passa o mouse sobre a lista correspondente ("Usuários Disponíveis" ou "Membros da Equipe").
+  - Mantém o estilo visual nativo do Mantine sem deslocamento ou reserva de espaço desnecessária (`offsetScrollbars`), garantindo consistência visual.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/TeamMembersModal.tsx`: Atualização de ambos os componentes `<ScrollArea>` para `type="hover"`.
+
+---
+
 ## Visualização de Contratos por Equipe com Histórico e Cache de Candidatos a Filtro de Usuários
 
 Garante que administradores possam visualizar contratos gerados em suas equipes mesmo quando o consultor responsável migrou de equipe (passou a pertencer a outra rede fora da hierarquia do administrador), respeitando as datas de transição de equipe (`UserTeams`). Além disso, implementa um novo endpoint de candidatos a filtro de usuários (`GET /api/users/filter-candidates`) com cache em memória React (TTL de 30 minutos) e carregamento lazy/não-bloqueante na tela de Contratos.
