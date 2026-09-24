@@ -1,5 +1,29 @@
 # Features
 
+## Visualização Global de Usuários no Calendário de Equipe para Superadmin
+
+Permite que usuários com perfil **Superadmin** visualizem e gerenciem **todos os usuários ativos** da plataforma no Calendário de Equipes (`#/teams/calendar`), independentemente do nível de profundidade na árvore de hierarquia organizacional ou da ausência de supervisor vinculado.
+
+### Comportamento e Regras
+- **Escopo Completo para Superadmin no Backend (`GET /api/teams/calendar`)**:
+  - Quando a requisição é realizada por um Superadmin (`role_id == 1`), o sistema não mais restringe o retorno estritamente aos nós entre os níveis 1 e 3 abaixo da raiz.
+  - A API mapeia toda a árvore organizacional via BFS a partir de todas as raízes detectadas, atribuindo `HierarchyLevel = 0` para usuários raiz/sem superior direto, e calculando o nível correspondente para todos os níveis descendentes (incluindo níveis 4 ou superiores).
+  - Todos os usuários ativos cadastrados no sistema são retornados, juntamente com seus históricos de equipe e contratos associados.
+- **Isolamento de Escopo para Administradores Comuns**:
+  - Usuários com perfil de **Admin** comum (`role_id == 2`) continuam com a restrição de segurança e escopo vigente, visualizando somente seus liderados diretos de níveis 1 a 3.
+- **Interface e Experiência do Usuário (`TeamCalendarPage.tsx`)**:
+  - **Lista Contínua**: Para o Superadmin, a lista de usuários é exibida de forma contínua e unificada, sem divisórias rígidas de "Nível 1, 2, 3".
+  - **Badge "Raiz"**: Usuários situados no topo da hierarquia ou sem supervisor direto recebem o badge com a identificação `"Raiz"` (com destaque em cor teal) em vez de "Nível X", tanto no card da lista quanto no cabeçalho de detalhes do membro selecionado. Usuários em outros níveis exibem `"Nível X"`.
+  - **Filtro Dinâmico de Nível**: O seletor `SegmentedControl` adapta suas opções dinamicamente para o Superadmin, apresentando `Todos`, `Raiz` (caso haja) e cada nível efetivamente presente na base, mantendo "Todos" selecionado por padrão.
+  - Para perfis não-superadmin, a interface mantém a estrutura original agrupada por blocos `Nível 1`, `Nível 2` e `Nível 3`.
+
+### Arquivos Modificados
+- `SalesApp.Api/Controllers/TeamsController.cs`: Atualização do método `GetTeamCalendar` para retornar todos os usuários ativos e calcular níveis sem corte em profundidade 3 para o Superadmin.
+- `SalesApp.IntegrationTests/Users/TeamCalendarIntegrationTests.cs`: Atualização de asserções e adição de novo teste de integração cobrindo usuários raiz (nível 0) e níveis profundos para o Superadmin.
+- `client/sales-dash/src/components/TeamCalendarPage.tsx`: Integração com `useCurrentUser`, renderização contínua para Superadmin, badges dinâmicos com "Raiz" e opções dinâmicas no seletor de níveis.
+
+---
+
 ## Exportação em XLSX no Detalhamento dos Usuários de Licenciamento
 
 Substitui o download em formato CSV por geração e download de planilha Excel nativa (`.xlsx`) no botão "Exportar Planilha" da seção "Detalhamento dos Usuários" na página `#/monitoring/licensing`.
