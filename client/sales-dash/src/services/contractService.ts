@@ -42,6 +42,7 @@ export interface Contract {
   hasPayment?: boolean | null;
   isAwaitingPayment?: boolean;
   isRemappedToAwaitingPayment?: boolean;
+  teamName?: string | null;
 }
 
 export interface CreateContractRequest {
@@ -88,11 +89,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role?: string;
   isActive: boolean;
   matriculaId?: number;
   matriculaNumber?: string;
-  isMatriculaOwner: boolean;
+  isMatriculaOwner?: boolean;
   activeMatriculas?: UserMatriculaInfo[];
 }
 
@@ -263,6 +264,29 @@ export const getLicensingReport = async (
 
   const result: ApiResponse<LicensingReport> = await response.json();
   return result.data;
+};
+
+export const exportLicensingXlsx = async (
+  year: number,
+  month: number,
+  minimumDays?: number
+): Promise<Blob> => {
+  let url = `${API_BASE_URL}/monitoring/licensing/export-xlsx?year=${year}&month=${month}`;
+  if (minimumDays !== undefined) {
+    url += `&minimumDays=${minimumDays}`;
+  }
+
+  const response = await authenticatedFetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Erro no download do arquivo');
+    throw new Error(errorText || 'Falha ao exportar relatório de licenciamento em XLSX');
+  }
+
+  return response.blob();
 };
 
 
@@ -463,10 +487,13 @@ export const deleteContract = async (id: number): Promise<void> => {
 };
 
 // Helper functions to fetch users and groups for dropdowns
-export const getUsers = async (scopeToDescendants?: boolean): Promise<User[]> => {
+export const getUsers = async (scopeToDescendants?: boolean, includeInactive?: boolean): Promise<User[]> => {
   const params = new URLSearchParams({ page: '1', pageSize: '1000' });
   if (scopeToDescendants) {
     params.append('scopeToDescendants', 'true');
+  }
+  if (includeInactive) {
+    params.append('status', 'all');
   }
   const response = await authenticatedFetch(`${API_BASE_URL}/users?${params.toString()}`, {
     method: 'GET',
@@ -478,7 +505,21 @@ export const getUsers = async (scopeToDescendants?: boolean): Promise<User[]> =>
   }
 
   const result: ApiResponse<{ items: User[]; totalCount: number }> = await response.json();
-  return result.data.items.filter(user => user.isActive);
+  return includeInactive ? result.data.items : result.data.items.filter(user => user.isActive);
+};
+
+export const getFilterCandidateUsers = async (): Promise<User[]> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/filter-candidates`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Falha ao carregar candidatos a filtro de usuários');
+  }
+
+  const result: ApiResponse<User[]> = await response.json();
+  return result.data;
 };
 
 export const getGroups = async (): Promise<Group[]> => {

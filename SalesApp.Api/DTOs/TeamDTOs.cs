@@ -57,6 +57,7 @@ namespace SalesApp.DTOs
         public TeamMemberResponse? Owner { get; set; }
         public List<TeamMemberResponse> Members { get; set; } = new List<TeamMemberResponse>();
         public List<string> Warnings { get; set; } = new List<string>();
+        public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

@@ -33,6 +33,15 @@ jest.mock('../contexts/ContractsContext', () => ({
   }),
 }));
 
+jest.mock('../services/apiService', () => ({
+  apiService: {
+    getUserPreferences: jest.fn().mockResolvedValue({
+      success: true,
+      data: { treatUnpaidActiveAsAwaitingPayment: false, includeInactiveUsersInFilter: false }
+    }),
+  }
+}));
+
 jest.mock('../contexts/ReferenceDataContext', () => ({
   useReferenceData: () => ({
     fetchPVs: jest.fn().mockResolvedValue([]),
@@ -63,6 +72,14 @@ const mockUsers = [
     email: 'jane@example.com',
     role: 'admin',
     isActive: true,
+    activeMatriculas: [],
+  },
+  {
+    id: 'user-3-inactive',
+    name: 'Inactive User',
+    email: 'inactive@example.com',
+    role: 'user',
+    isActive: false,
     activeMatriculas: [],
   },
 ];
@@ -318,6 +335,23 @@ describe('ContractForm', () => {
       await waitFor(() => {
         expect(screen.getByText('Número de contrato já existe')).toBeInTheDocument();
       }, { timeout: 3000 });
+    });
+
+    it('should include inactive users in seller dropdown when user preference is enabled', async () => {
+      const { apiService } = require('../services/apiService');
+      (apiService.getUserPreferences as jest.Mock).mockResolvedValueOnce({
+        success: true,
+        data: { treatUnpaidActiveAsAwaitingPayment: false, includeInactiveUsersInFilter: true },
+      });
+
+      renderWithMantine(<ContractForm onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Número do Contrato/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Verify getUsers was requested with includeInactive = true
+      expect(contractService.getUsers).toHaveBeenCalledWith(true, true);
     });
   });
 });

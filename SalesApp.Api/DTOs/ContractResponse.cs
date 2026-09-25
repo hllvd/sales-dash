@@ -24,5 +24,6 @@ namespace SalesApp.DTOs
         public bool? HasPayment { get; set; }
         public bool IsAwaitingPayment { get; set; }
         public bool IsRemappedToAwaitingPayment { get; set; }
+        public string? TeamName { get; set; }
     }
 }

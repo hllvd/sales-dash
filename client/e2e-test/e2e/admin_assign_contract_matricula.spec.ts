@@ -5,46 +5,14 @@ test.describe('[TEAR 3] Admin Assign Contract and Matricula Guards', () => {
 
   test.describe.configure({ mode: 'serial' });
 
-  const RUN_ID = Array.from({ length: 8 }, () =>
-    String.fromCharCode(97 + Math.floor(Math.random() * 26))
-  ).join('');
-
   const SA = { email: 'superadmin@salesapp.com', password: 'string' };
 
-  const adminA = {
-    name: `Admin A ${RUN_ID}`,
-    email: `admin.a.${RUN_ID}@test.com`,
-    password: 'Password123!',
-    role: 'admin',
-  };
-
-  const userB = {
-    name: `User B ZeroMat ${RUN_ID}`,
-    email: `user.b.${RUN_ID}@test.com`,
-    password: 'Password123!',
-    role: 'user',
-  };
-
-  const userC = {
-    name: `User C OneMat ${RUN_ID}`,
-    email: `user.c.${RUN_ID}@test.com`,
-    password: 'Password123!',
-    role: 'user',
-  };
-
-  const userD = {
-    name: `User D TwoMat ${RUN_ID}`,
-    email: `user.d.${RUN_ID}@test.com`,
-    password: 'Password123!',
-    role: 'user',
-  };
-
-  const userE = {
-    name: `User E Outer ${RUN_ID}`,
-    email: `user.e.${RUN_ID}@test.com`,
-    password: 'Password123!',
-    role: 'user',
-  };
+  let RUN_ID: string;
+  let adminA: { name: string; email: string; password: string; role: string };
+  let userB: { name: string; email: string; password: string; role: string };
+  let userC: { name: string; email: string; password: string; role: string };
+  let userD: { name: string; email: string; password: string; role: string };
+  let userE: { name: string; email: string; password: string; role: string };
 
   let superadminToken: string;
   let superadminId: string;
@@ -54,14 +22,57 @@ test.describe('[TEAR 3] Admin Assign Contract and Matricula Guards', () => {
   let userDId: string;
   let userEId: string;
 
-  const MAT_C = `MATC${RUN_ID}`;
-  const MAT_D1 = `MATD1${RUN_ID}`;
-  const MAT_D2 = `MATD2${RUN_ID}`;
-  const MAT_E = `MATE${RUN_ID}`;
+  let MAT_C: string;
+  let MAT_D1: string;
+  let MAT_D2: string;
+  let MAT_E: string;
 
   const settle = (ms = 300) => new Promise(r => setTimeout(r, ms));
 
   test.beforeAll(async ({ request }) => {
+    RUN_ID = Array.from({ length: 12 }, () =>
+      String.fromCharCode(97 + Math.floor(Math.random() * 26))
+    ).join('');
+
+    adminA = {
+      name: `Admin A ${RUN_ID}`,
+      email: `admin.a.${RUN_ID}@test.com`,
+      password: 'Password123!',
+      role: 'admin',
+    };
+
+    userB = {
+      name: `User B ZeroMat ${RUN_ID}`,
+      email: `user.b.${RUN_ID}@test.com`,
+      password: 'Password123!',
+      role: 'user',
+    };
+
+    userC = {
+      name: `User C OneMat ${RUN_ID}`,
+      email: `user.c.${RUN_ID}@test.com`,
+      password: 'Password123!',
+      role: 'user',
+    };
+
+    userD = {
+      name: `User D TwoMat ${RUN_ID}`,
+      email: `user.d.${RUN_ID}@test.com`,
+      password: 'Password123!',
+      role: 'user',
+    };
+
+    userE = {
+      name: `User E Outer ${RUN_ID}`,
+      email: `user.e.${RUN_ID}@test.com`,
+      password: 'Password123!',
+      role: 'user',
+    };
+
+    MAT_C = `MATC${RUN_ID}`;
+    MAT_D1 = `MATD1${RUN_ID}`;
+    MAT_D2 = `MATD2${RUN_ID}`;
+    MAT_E = `MATE${RUN_ID}`;
     // ── 1. Login as superadmin ──────────────────────────────────────────────
     const loginRes = await request.post('/api/users/login', {
       data: { email: SA.email, password: SA.password },

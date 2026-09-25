@@ -42,6 +42,8 @@ namespace SalesApp.Models
         
         public bool TreatUnpaidActiveAsAwaitingPayment { get; set; } = false;
         
+        public bool IncludeInactiveUsersInFilter { get; set; } = false;
+        
         public int? ImportSessionId { get; set; } // Tracks if this user was created via import
         
         // Navigation properties

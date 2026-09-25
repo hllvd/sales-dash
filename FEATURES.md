@@ -1,6 +1,124 @@
 # Features
 
-## Seleção Explícita de Worker de Scrape: Local (VPS) vs Remoto (AWS Fargate Spot)
+## Visualização de Contratos de Usuários Inativos e Preferência no Formulário de Contratos
+
+Garante que contratos fechados por usuários que foram desativados continuem visíveis na tela de Gerenciamento de Contratos (`#/contracts`) para administradores e superadministradores, preservando estritamente a árvore hierárquica (`ParentUserId`). Além disso, ajusta o formulário de contratos (`ContractForm`) para respeitar a preferência de exibição de inativos nas configurações do usuário.
+
+### Comportamento e Regras
+- **Inclusão de Usuários Inativos no Escopo de Hierarquia (`UserScopeService`)**:
+  - Removido o filtro `Where(u => u.IsActive)` da query de links hierárquicos em `UserScopeService.GetContractScopeAsync`.
+  - Usuários desativados agora são incluídos na travessia BFS de liderados (`AllowedUserIds`), garantindo que administradores mantenham a visibilidade histórica dos contratos realizados por membros de sua equipe mesmo após sua desativação.
+  - O isolamento hierárquico é estritamente mantido: usuários inativos fora da rede do administrador continuam invisíveis para ele.
+- **Respeito às Preferências no Dropdown de Vendedor (`ContractForm`)**:
+  - O formulário de criação/edição de contratos agora consulta as preferências do usuário logado (`IncludeInactiveUsersInFilter`).
+  - Se a preferência estiver ativa, o seletor de vendedor exibe tanto usuários ativos quanto inativos; se desativada, exibe apenas os usuários ativos.
+  - Ao editar um contrato pré-existente cujo vendedor esteja desativado, o vendedor continua selecionado e visível no formulário independentemente da preferência.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/UserScopeService.cs`: Inclusão de usuários inativos na construção do grafo BFS de escopo hierárquico.
+- `SalesApp.Tests/Services/UserScopeServiceTests.cs`: Teste unitário para validar que subordinado inativo é incluído em `AllowedUserIds`.
+- `SalesApp.Tests/ContractRepositoryTests.cs`: Teste unitário validando que contratos de usuários inativos no escopo são retornados em `GetAllAsync`.
+- `client/sales-dash/src/components/ContractForm.tsx`: Consulta e aplicação da preferência `IncludeInactiveUsersInFilter` no carregamento e filtragem de vendedores.
+- `client/sales-dash/src/components/ContractForm.test.tsx`: Testes unitários para o comportamento do formulário com vendedores ativos e inativos.
+- `client/e2e-test/e2e/delete_user_migration.spec.ts`: Teste E2E cobrindo a permanência da visibilidade dos contratos após a desativação do liderado pelo admin.
+- `client/e2e-test/e2e/inactive_user_contracts_visibility.spec.ts`: Suíte de testes E2E dedicada validando escopo de admin sobre inativos, isolamento de outras redes, visão global do superadmin e toggle de preferências no `ContractForm`.
+- `client/e2e-test/playwright.config.ts`: Registro do novo arquivo de teste no projeto `tear-3a-hierarchy`.
+
+---
+
+Habilita a exibição da barra de rolagem (scrollbar) ao passar o cursor sobre as listas de "Usuários Disponíveis" e "Membros da Equipe" no modal de gerenciamento de membros da equipe (`TeamMembersModal`), permitindo identificar visualmente e rolar pelo conteúdo além do scroll via roda do mouse/trackpad.
+
+### Comportamento e Regras
+- **Visibilidade Sob Demanda (`type="hover"`)**:
+  - A scrollbar permanece oculta por padrão para preservar o design limpo do modal e torna-se visível automaticamente assim que o usuário passa o mouse sobre a lista correspondente ("Usuários Disponíveis" ou "Membros da Equipe").
+  - Mantém o estilo visual nativo do Mantine sem deslocamento ou reserva de espaço desnecessária (`offsetScrollbars`), garantindo consistência visual.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/TeamMembersModal.tsx`: Atualização de ambos os componentes `<ScrollArea>` para `type="hover"`.
+
+---
+
+## Visualização de Contratos por Equipe com Histórico e Cache de Candidatos a Filtro de Usuários
+
+Garante que administradores possam visualizar contratos gerados em suas equipes mesmo quando o consultor responsável migrou de equipe (passou a pertencer a outra rede fora da hierarquia do administrador), respeitando as datas de transição de equipe (`UserTeams`). Além disso, implementa um novo endpoint de candidatos a filtro de usuários (`GET /api/users/filter-candidates`) com cache em memória React (TTL de 30 minutos) e carregamento lazy/não-bloqueante na tela de Contratos.
+
+### Comportamento e Regras
+- **Preservação de Escopo de Contratos por Equipe (`UserScopeService` e `ContractRepository`)**:
+  - `UserScopeService` mapeia agora todas as equipes ativas vinculadas à rede do administrador (`AllowedTeamIds`), incluindo equipes pertencentes ao admin ou aos seus subordinados na hierarquia.
+  - No `ContractRepository.BuildFilteredQuery`, a cláusula de escopo permite contratos realizados por usuários durante o período de permanência em equipes sob o escopo do admin (`UserTeams.StartDate` e `UserTeams.EndDate`), mesmo que o usuário não faça mais parte da hierarquia atual de liderados diretos/indiretos do admin.
+  - Ao filtrar por equipe (`teamIds`), os contratos realizados na respectiva equipe durante o mandato do consultor continuam visíveis e computados normalmente.
+  - Para o Superadmin, o comportamento permanece irrestrito (`scope.IsGlobal == true`).
+- **Endpoint Dedicado de Usuários Candidatos a Filtro (`GET /api/users/filter-candidates`)**:
+  - Retorna uma lista otimizada (`UserFilterCandidateDto`) contendo os usuários relevantes para o filtro de usuários na tela de contratos:
+    - **Superadmin**: Todos os usuários cadastrados no sistema.
+    - **Admin**: Usuários na hierarquia do admin (descendentes) somados aos usuários que possuem contratos gerados em qualquer equipe da rede do admin (mesmo que tenham sido transferidos).
+- **Cache Local de Filtros em Memória React (`ReferenceDataContext` e `ContractsPage`)**:
+  - `fetchContractFilterUsers` armazena os dados em memória React com TTL de 30 minutos, evitando chamadas repetitivas e demoradas à API em navegações.
+  - Carregamento assíncrono em background (lazy): a tela de contratos carrega e exibe a tabela imediatamente sem esperar o carregamento da lista de usuários.
+  - Respeito à preferência de usuários desativados (`includeInactiveUsersInFilter`), filtrando dinamicamente na interface sem necessidade de refazer requisições de rede.
+
+### Arquivos Modificados
+- `SalesApp.Api/Models/UserScopeContext.cs`: Adicionada propriedade `AllowedTeamIds`.
+- `SalesApp.Api/Services/UserScopeService.cs`: População de `AllowedTeamIds` com as equipes sob a hierarquia do admin.
+- `SalesApp.Api/Repositories/ContractRepository.cs`: Atualização do filtro de escopo para aceitar contratos vinculados a `AllowedTeamIds` no período de vigência de equipe.
+- `SalesApp.Api/DTOs/UserFilterCandidateDto.cs`: DTO leve para candidatos a filtro de usuários.
+- `SalesApp.Api/Controllers/UsersController.cs`: Injeção de `IUserScopeService` e criação do endpoint `GET /api/users/filter-candidates`.
+- `SalesApp.Tests/Services/UserScopeServiceTests.cs`: Teste unitário para verificação de `AllowedTeamIds`.
+- `SalesApp.Tests/ContractRepositoryTests.cs`: Teste unitário validando a visualização de contratos de consultores que migraram para outra equipe.
+- `client/sales-dash/src/services/contractService.ts`: Função `getFilterCandidateUsers`.
+- `client/sales-dash/src/contexts/ReferenceDataContext.tsx`: Adicionados `contractFilterUsers`, `fetchContractFilterUsers` (TTL 30 min) e `invalidateContractFilterUsers`.
+- `client/sales-dash/src/components/ContractsPage.tsx`: Carregamento lazy de usuários via `fetchContractFilterUsers` e filtragem dinâmica de inativos.
+
+---
+
+## Visualização Global de Usuários no Calendário de Equipe para Superadmin
+
+Permite que usuários com perfil **Superadmin** visualizem e gerenciem **todos os usuários ativos** da plataforma no Calendário de Equipes (`#/teams/calendar`), independentemente do nível de profundidade na árvore de hierarquia organizacional ou da ausência de supervisor vinculado.
+
+### Comportamento e Regras
+- **Escopo Completo para Superadmin no Backend (`GET /api/teams/calendar`)**:
+  - Quando a requisição é realizada por um Superadmin (`role_id == 1`), o sistema não mais restringe o retorno estritamente aos nós entre os níveis 1 e 3 abaixo da raiz.
+  - A API mapeia toda a árvore organizacional via BFS a partir de todas as raízes detectadas, atribuindo `HierarchyLevel = 0` para usuários raiz/sem superior direto, e calculando o nível correspondente para todos os níveis descendentes (incluindo níveis 4 ou superiores).
+  - Todos os usuários ativos cadastrados no sistema são retornados, juntamente com seus históricos de equipe e contratos associados.
+- **Isolamento de Escopo para Administradores Comuns**:
+  - Usuários com perfil de **Admin** comum (`role_id == 2`) continuam com a restrição de segurança e escopo vigente, visualizando somente seus liderados diretos de níveis 1 a 3.
+- **Interface e Experiência do Usuário (`TeamCalendarPage.tsx`)**:
+  - **Lista Contínua**: Para o Superadmin, a lista de usuários é exibida de forma contínua e unificada, sem divisórias rígidas de "Nível 1, 2, 3".
+  - **Badge "Raiz"**: Usuários situados no topo da hierarquia ou sem supervisor direto recebem o badge com a identificação `"Raiz"` (com destaque em cor teal) em vez de "Nível X", tanto no card da lista quanto no cabeçalho de detalhes do membro selecionado. Usuários em outros níveis exibem `"Nível X"`.
+  - **Filtro Dinâmico de Nível**: O seletor `SegmentedControl` adapta suas opções dinamicamente para o Superadmin, apresentando `Todos`, `Raiz` (caso haja) e cada nível efetivamente presente na base, mantendo "Todos" selecionado por padrão.
+  - Para perfis não-superadmin, a interface mantém a estrutura original agrupada por blocos `Nível 1`, `Nível 2` e `Nível 3`.
+
+### Arquivos Modificados
+- `SalesApp.Api/Controllers/TeamsController.cs`: Atualização do método `GetTeamCalendar` para retornar todos os usuários ativos e calcular níveis sem corte em profundidade 3 para o Superadmin.
+- `SalesApp.IntegrationTests/Users/TeamCalendarIntegrationTests.cs`: Atualização de asserções e adição de novo teste de integração cobrindo usuários raiz (nível 0) e níveis profundos para o Superadmin.
+- `client/sales-dash/src/components/TeamCalendarPage.tsx`: Integração com `useCurrentUser`, renderização contínua para Superadmin, badges dinâmicos com "Raiz" e opções dinâmicas no seletor de níveis.
+
+---
+
+## Exportação em XLSX no Detalhamento dos Usuários de Licenciamento
+
+Substitui o download em formato CSV por geração e download de planilha Excel nativa (`.xlsx`) no botão "Exportar Planilha" da seção "Detalhamento dos Usuários" na página `#/monitoring/licensing`.
+
+### Comportamento e Regras
+- **Formato Excel Nativo (.xlsx)**:
+  - O download é gerado pelo backend via `EPPlus` (`ExcelPackage`) e devolvido com o Content-Type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+  - O arquivo é nomeado dinamicamente de acordo com o período selecionado: `licenciamento-[mês]-[ano].xlsx`.
+  - A planilha possui estilização de cabeçalho (fonte em negrito, fundo cinza claro `#F3F4F6`, borda inferior sutil) e ajuste automático de largura das colunas (`AutoFitColumns`).
+- **Colunas Exportadas**:
+  - `Nome`, `Email`, `Cargo`, `Equipe`, `Dias Ativos no Mês`, `Status Licenciamento`.
+- **Escopo dos Dados**:
+  - Exporta todos os usuários do mês selecionado respeitando o parâmetro de dias mínimos ativos (`minimumDays`).
+- **Feedback Visual na Interface**:
+  - O botão "Exportar Planilha" exibe estado de carregamento (`loading={exportingXlsx}`) durante a requisição e geração do arquivo.
+
+### Arquivos Modificados
+- `SalesApp.Api/Controllers/MonitoringController.cs`: Adição do endpoint `GET /api/monitoring/licensing/export-xlsx` com permissão `system:superadmin`.
+- `SalesApp.IntegrationTests/Contracts/MonitoringTests.cs`: Teste de integração validando o endpoint de exportação XLSX.
+- `client/sales-dash/src/services/contractService.ts`: Adição da função `exportLicensingXlsx`.
+- `client/sales-dash/src/components/Monitoring/LicensingPage.tsx`: Substituição de `handleExportCSV` por `handleExportXLSX` e adição de feedback visual no botão de exportação.
+
+---
+
 
 Permite aos administradores definirem de forma granular e visual para cada credencial cadastrada se o robô de extração de dados executará no ambiente local da VPS ou remotamente na nuvem gerenciada da AWS via Fargate Spot. Em ambos os cenários, o processo de importação dos dados para o banco de dados é sempre executado localmente pela própria API .NET na VPS.
 
@@ -1736,4 +1854,62 @@ Ao abrir os detalhes de uma pesquisa em `Gerenciamento de Perguntas / QA > Pergu
 - `pbi-scraper/worker.js` — Verificação de circuit breaker no consumidor SQS e marcação no catch de `wrong-password`.
 - `SalesApp.Api/Controllers/ScrapeController.cs` — Validação impeditiva de disparo para contas com `CredentialStatus == "wrong-password"`.
 - `SalesApp.Api/Services/ScrapeOrchestrator.cs` — Atualização do `CredentialStatus` para `"wrong-password"` no callback da API.
+
+## [2026-09-23] — Priorização de Proprietários/Gestores ao Filtrar Matrículas na UI
+
+### Contexto & Motivação
+Na tela de Gerenciamento de Matrículas (`/#/matriculas`), ao pesquisar ou filtrar por número de matrícula / usuário, é essencial que o proprietário/gestor da matrícula (`isOwner === true`) apareça em primeiro lugar para facilitar a identificação imediata do responsável titular, seguido dos demais usuários e matrículas associadas.
+
+### Funcionalidades & Arquitetura
+1. **Ordenação Condicional de Filtro (`MatriculasPage.tsx`)**:
+   - Quando o campo de pesquisa possuir tokens ativos, a lista filtrada é ordenada usando a função pura `sortFilteredMatriculas`:
+     - **1º Critério**: Registros onde `isOwner === true` vêm antes dos demais (`isOwner === false`).
+     - **2º Critério**: Ordenação alfanumérica pelo número da matrícula (`matriculaNumber`).
+     - **3º Critério**: Ordenação alfabética pelo nome do usuário (`userName`).
+   - Quando não houver busca ativa, a ordenação padrão original da listagem é preservada intacta.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/MatriculasPage.tsx` — Implementação da função `sortFilteredMatriculas` e aplicação no `useMemo` da listagem ao realizar busca.
+
+## [2026-09-23] — Inclusão de Usuários Inativos no Filtro, Coluna Equipe em Contratos e Reativação de Equipes
+
+### Contexto & Motivação
+Aprimoramento da gestão operacional e relatórios:
+1. **Filtro de Usuários em Contratos**: Gestores precisam auditar ou filtrar contratos pertencentes a vendedores desligados/inativos sem poluir a lista padrão de seleção.
+2. **Identificação da Equipe do Contrato**: Cada contrato agora evidencia a qual equipe o vendedor pertencia no exato momento da venda (`SaleStartDate`), mantendo consistência histórica de transferências de equipe.
+3. **Reativação e Ciclo de Vida de Equipes**: Superadministradores podem filtrar equipes por status (ativas, inativas, todas) e reativar equipes que foram desativadas via soft delete, preservando o histórico de associações de membros.
+
+### Funcionalidades & Arquitetura
+1. **Preferência "Incluir usuários desativados no filtro Usuário" (`/#/contracts`)**:
+   - Preferência persistida no servidor por usuário (`User.IncludeInactiveUsersInFilter`), acessível nas configurações da página de contratos.
+   - Ao ativar, a lista do filtro de usuários traz ativos e desativados (`status=all`).
+   - Usuários inativos recebem destaque visual no dropdown com sufixo `(Inativo)` e badge vermelha.
+2. **Coluna "Equipe" na Tabela de Contratos (`/#/contracts`)**:
+   - DTO `ContractResponse` enriquecido com o campo `TeamName`.
+   - Backend calcula o time histórico através de `UserTeams` ativo no intervalo de `contract.SaleStartDate`.
+   - Nova coluna `Equipe` exibida na tabela (visível por padrão) e gerenciável no modal de configuração de colunas.
+3. **Filtro de Status e Reativação de Equipes (`/#/teams`)**:
+   - Campo `IsActive` adicionado ao modelo `Team` e persistido via migration EF Core.
+   - Endpoint `DELETE /teams/{id}` adaptado para soft delete (`team.IsActive = false`), mantendo o histórico de vínculos de vendedores.
+   - Endpoint `PUT /teams/{id}/reactivate` exclusivo para superadministradores (`roleId == 1`), reativando a equipe.
+   - Seletor de status (`Ativas`, `Inativas`, `Todas`) na tela de equipes com badge visual e botão de reativação para superadmin.
+
+### Arquivos Modificados
+- `SalesApp.Api/Models/User.cs` — Adição de `IncludeInactiveUsersInFilter`.
+- `SalesApp.Api/Models/Team.cs` — Adição de `IsActive`.
+- `SalesApp.Api/DTOs/ContractResponse.cs` — Adição de `TeamName`.
+- `SalesApp.Api/DTOs/UserPreferencesDTOs.cs` — Suporte a `IncludeInactiveUsersInFilter`.
+- `SalesApp.Api/DTOs/TeamDTOs.cs` — Adição de `IsActive` ao `TeamResponse`.
+- `SalesApp.Api/Migrations/20260923170000_AddInactiveUserFilterAndTeamIsActive.cs` — Migration das novas colunas.
+- `SalesApp.Api/Repositories/ITeamRepository.cs` e `TeamRepository.cs` — Suporte a status em `GetAllAsync`, soft delete em `DeleteAsync` e novo método `ReactivateAsync`.
+- `SalesApp.Api/Repositories/ContractRepository.cs` — `Include` de `UserTeams.Team` nas consultas de contratos.
+- `SalesApp.Api/Controllers/ContractsController.cs` — Mapeamento histórico de `TeamName` por data de início de contrato.
+- `SalesApp.Api/Controllers/UsersController.cs` — Persistência da preferência `IncludeInactiveUsersInFilter`.
+- `SalesApp.Api/Controllers/TeamsController.cs` — Filtro de status em `GetTeams` e novo endpoint `PUT /teams/{id}/reactivate`.
+- `client/sales-dash/src/services/contractService.ts` — Propriedade `teamName` em `Contract` e parâmetro `includeInactive` em `getUsers`.
+- `client/sales-dash/src/services/apiService.ts` — Tipos atualizados, `status` em `getTeams` e novo método `reactivateTeam`.
+- `client/sales-dash/src/contexts/ReferenceDataContext.tsx` — Suporte a `status` em `fetchTeams`.
+- `client/sales-dash/src/components/ContractsPage.tsx` — Coluna Equipe, configuração de visibilidade, switch de preferência no servidor e estilização de usuários inativos no filtro.
+- `client/sales-dash/src/components/TeamsPage.tsx` — Filtro de status (ativas, inativas, todas), badge inativa e botão de reativar para superadmin.
+
 

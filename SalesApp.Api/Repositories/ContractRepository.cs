@@ -19,7 +19,8 @@ namespace SalesApp.Repositories
             // NOTE: No AsNoTracking - used after create/update, needs tracked entities
             return await _context.Contracts
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
@@ -31,7 +32,8 @@ namespace SalesApp.Repositories
             return await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
@@ -84,6 +86,12 @@ namespace SalesApp.Repositories
                     (c.User != null && scope.AllowedUserIds.Contains(c.User.Id)) ||
                     (!string.IsNullOrEmpty(c.TempMatricula) && scope.AllowedMatriculas.Contains(c.TempMatricula)) ||
                     (c.Matricula != null && scope.AllowedMatriculas.Contains(c.Matricula.MatriculaNumber)) ||
+                    (scope.AllowedTeamIds.Count > 0 && c.UserInternalId != null && _context.UserTeams.Any(ut =>
+                        scope.AllowedTeamIds.Contains(ut.TeamId) &&
+                        ut.UserInternalId == c.UserInternalId.Value &&
+                        c.SaleStartDate.Date >= ut.StartDate.Date &&
+                        (ut.EndDate == null || c.SaleStartDate.Date <= ut.EndDate.Value.Date)
+                    )) ||
                     (scope.AdminLinkedMatriculas.Count > 0 && (
                         (!string.IsNullOrEmpty(c.TempMatricula) && scope.AdminLinkedMatriculas.Contains(c.TempMatricula)) ||
                         (c.Matricula != null && scope.AdminLinkedMatriculas.Contains(c.Matricula.MatriculaNumber))
@@ -221,7 +229,8 @@ namespace SalesApp.Repositories
             return await ApplyOrphanPriority(query, scope)
                 .AsSplitQuery()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
@@ -236,7 +245,8 @@ namespace SalesApp.Repositories
 
             var items = await ApplyOrphanPriority(query, scope)
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
@@ -330,7 +340,8 @@ namespace SalesApp.Repositories
             var query = _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
@@ -387,7 +398,8 @@ namespace SalesApp.Repositories
             return await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
                 .Include(c => c.Group)
                 .Include(c => c.PV)
                 .Include(c => c.ContractStatus)
@@ -430,7 +442,8 @@ namespace SalesApp.Repositories
                 var reloadedContracts = await _context.Contracts
                     .AsNoTracking()
                     .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                    .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User)
+                    .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                    .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
                     .Include(c => c.Group)
                     .Include(c => c.PV)
                     .Include(c => c.ContractStatus)

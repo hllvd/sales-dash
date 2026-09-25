@@ -56,6 +56,13 @@ namespace SalesApp.IntegrationTests.Contracts
             var adminsResult = await adminsResponse.Content.ReadFromJsonAsync<ApiResponse<List<AdminImportStatsResponse>>>();
             adminsResult.Should().NotBeNull();
             adminsResult!.Success.Should().BeTrue();
+
+            // Act 4: Export Licensing XLSX
+            var xlsxResponse = await _client.GetAsync("/api/monitoring/licensing/export-xlsx?year=2026&month=9");
+            xlsxResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            xlsxResponse.Content.Headers.ContentType!.MediaType.Should().Be("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            var bytes = await xlsxResponse.Content.ReadAsByteArrayAsync();
+            bytes.Should().NotBeEmpty();
         }
     }
 }

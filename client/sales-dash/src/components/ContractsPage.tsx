@@ -30,6 +30,7 @@ import {
 interface VisibleColumns {
   contractNumber: boolean;
   user: boolean;
+  team: boolean;
   matricula: boolean;
   group: boolean;
   customer: boolean;
@@ -44,6 +45,7 @@ interface VisibleColumns {
 const DEFAULT_COLUMNS: VisibleColumns = {
   contractNumber: true,
   user: true,
+  team: false,
   matricula: true,
   group: true,
   customer: true,
@@ -61,7 +63,7 @@ const ContractsPage: React.FC = () => {
 
   // Get context for caching
   const { setContracts: setCachedContracts, setUsers: setCachedUsers, setGroups: setCachedGroups } = useContractsContext();
-  const { fetchTeams } = useReferenceData();
+  const { fetchTeams, fetchContractFilterUsers } = useReferenceData();
   
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -105,6 +107,7 @@ const ContractsPage: React.FC = () => {
   // Settings modal and retention preference state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [treatUnpaidAsAwaiting, setTreatUnpaidAsAwaiting] = useState(false);
+  const [includeInactiveUsers, setIncludeInactiveUsers] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>(() => {
     const saved = localStorage.getItem('contracts_visibleColumns');
     if (saved) {
@@ -132,26 +135,24 @@ const ContractsPage: React.FC = () => {
 
   const loadFilters = useCallback(async () => {
     try {
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin' ||
-                           currentUser?.roleName?.toLowerCase() === 'superadmin' ||
-                           (currentUser?.permissions && currentUser.permissions.includes('system:superadmin'));
-
-      const [usersData, groupsData, teamsData] = await Promise.all([
-        getUsers(!isSuperAdmin),
+      const [groupsData, teamsData] = await Promise.all([
         getGroups(),
         fetchTeams(),
       ]);
-      setUsers(usersData);
       setTeams(teamsData);
-      // Cache the data in context for use by ContractForm
-      setCachedUsers(usersData);
       setCachedGroups(groupsData);
+
+      // Lazy load users in background without blocking UI
+      fetchContractFilterUsers().then(usersData => {
+        setUsers(usersData);
+      }).catch(err => {
+        console.error('Failed to load filter candidate users in background:', err);
+      });
     } catch (err: any) {
       console.error('Failed to load filter options:', err);
       toast.error(err.message || 'Falha ao carregar opções de filtro');
     }
-  }, [setCachedUsers, setCachedGroups, fetchTeams]);
+  }, [setCachedUsers, setCachedGroups, fetchTeams, fetchContractFilterUsers]);
 
   const loadContracts = useCallback(async () => {
     // Local date validation: block api call if end date is before start date
@@ -229,14 +230,21 @@ const ContractsPage: React.FC = () => {
       localStorage.setItem('contracts_filterEndDate', defaultEndDate);
     }
 
-    loadFilters();
     apiService.getUserPreferences()
       .then(res => {
         if (res.success && res.data) {
           setTreatUnpaidAsAwaiting(res.data.treatUnpaidActiveAsAwaitingPayment);
+          const inc = !!res.data.includeInactiveUsersInFilter;
+          setIncludeInactiveUsers(inc);
+          loadFilters();
+        } else {
+          loadFilters();
         }
       })
-      .catch(err => console.error('Failed to load user preferences:', err));
+      .catch(err => {
+        console.error('Failed to load user preferences:', err);
+        loadFilters();
+      });
     setIsInitializing(false);
   }, [loadFilters]);
   
@@ -457,7 +465,28 @@ const ContractsPage: React.FC = () => {
             placeholder={users.length === 0 ? 'Nenhum usuário disponível' : 'Selecionar usuários...'}
             value={filterUserIds}
             onChange={setFilterUserIds}
-            data={users.map(u => ({ value: u.id, label: u.email ? `${normalizeName(u.name)} (${u.email})` : normalizeName(u.name) }))}
+            data={users
+              .filter(u => includeInactiveUsers || u.isActive)
+              .map(u => ({
+                value: u.id,
+                label: !u.isActive
+                  ? (u.email ? `${normalizeName(u.name)} (${u.email}) (Inativo)` : `${normalizeName(u.name)} (Inativo)`)
+                  : (u.email ? `${normalizeName(u.name)} (${u.email})` : normalizeName(u.name))
+              }))}
+            renderOption={(item) => {
+              const u = users.find(user => user.id === item.option.value);
+              const isInactive = u && !u.isActive;
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', color: isInactive ? '#dc2626' : 'inherit' }}>
+                  <span>{item.option.label}</span>
+                  {isInactive && (
+                    <span style={{ fontSize: '11px', background: '#fee2e2', color: '#dc2626', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                      Inativo
+                    </span>
+                  )}
+                </div>
+              );
+            }}
             clearable
             searchable
             styles={{ input: { minHeight: '36px' } }}
@@ -662,6 +691,7 @@ const ContractsPage: React.FC = () => {
               <Table.Tr>
                 {visibleColumns.contractNumber && <Table.Th>Número do Contrato</Table.Th>}
                 {visibleColumns.user && <Table.Th>Usuário</Table.Th>}
+                {visibleColumns.team && <Table.Th>Equipe</Table.Th>}
                 {visibleColumns.matricula && <Table.Th>Matrícula</Table.Th>}
                 {visibleColumns.group && <Table.Th>Grupo</Table.Th>}
                 {visibleColumns.quota && <Table.Th>Cota</Table.Th>}
@@ -679,6 +709,7 @@ const ContractsPage: React.FC = () => {
                 <Table.Tr key={contract.id}>
                   {visibleColumns.contractNumber && <Table.Td>{contract.contractNumber}</Table.Td>}
                   {visibleColumns.user && <Table.Td>{normalizeName(contract.userName)}</Table.Td>}
+                  {visibleColumns.team && <Table.Td>{contract.teamName || '-'}</Table.Td>}
                   {visibleColumns.matricula && <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>}
                   {visibleColumns.group && <Table.Td>{contract.groupName}</Table.Td>}
                   {visibleColumns.quota && <Table.Td>{contract.quota || '-'}</Table.Td>}
@@ -791,6 +822,11 @@ const ContractsPage: React.FC = () => {
               onChange={(e) => handleColumnToggle('user', e.currentTarget.checked)}
             />
             <Checkbox
+              label="Equipe"
+              checked={visibleColumns.team}
+              onChange={(e) => handleColumnToggle('team', e.currentTarget.checked)}
+            />
+            <Checkbox
               label="Matrícula"
               checked={visibleColumns.matricula}
               onChange={(e) => handleColumnToggle('matricula', e.currentTarget.checked)}
@@ -856,6 +892,28 @@ const ContractsPage: React.FC = () => {
             }}
             label="Mostrar contratos como não pago, como 'Aguardando pagamento'"
             description="Esse contrato tem status NORMAL(ativo) mas ainda não foi confirmado o pagamento"
+          />
+
+          <Divider my="md" />
+
+          <Text fw={600} size="sm" mb="xs">Filtros</Text>
+          <Switch
+            checked={includeInactiveUsers}
+            onChange={async (e) => {
+              const val = e.currentTarget.checked;
+              setIncludeInactiveUsers(val);
+              try {
+                await apiService.updateUserPreferences({ includeInactiveUsersInFilter: val });
+                toast.success('Preferência de filtro atualizada');
+                loadFilters();
+              } catch (err: any) {
+                console.error('Failed to update filter preference:', err);
+                toast.error(err.message || 'Falha ao salvar preferência');
+                setIncludeInactiveUsers(!val);
+              }
+            }}
+            label="Incluir usuários desativados no filtro Usuário"
+            description="Ao ativar, você consegue visualizar e filtrar usuários desativados e ativados no filtro Usuário"
           />
         </div>
       </StandardModal>

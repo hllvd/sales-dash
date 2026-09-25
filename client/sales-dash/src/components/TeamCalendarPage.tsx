@@ -15,6 +15,7 @@ import {
   apiService, TeamCalendarUser, UserTeamHistoryEntry, AvailableTeamItem,
   CalendarContractPreviewResponse, AdjustTeamBoundaryRequest, AssignUserTeamRequest
 } from '../services/apiService';
+import { useCurrentUser } from '../contexts/CurrentUserContext';
 import { normalizeName } from '../utils/normalization';
 import './TeamCalendarPage.css';
 
@@ -74,12 +75,19 @@ function formatDuration(days: number): string {
 }
 
 const TeamCalendarPage: React.FC = () => {
+  const { currentUser } = useCurrentUser();
+  const isSuperAdmin = currentUser?.role?.toLowerCase() === 'superadmin';
+
   const [users, setUsers] = useState<TeamCalendarUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('all');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
+  const getHierarchyBadgeText = useCallback((level: number) => {
+    return level === 0 ? 'Raiz' : `Nível ${level}`;
+  }, []);
 
   // Available teams for assignment
   const [availableTeams, setAvailableTeams] = useState<AvailableTeamItem[]>([]);
@@ -128,6 +136,27 @@ const TeamCalendarPage: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewData, setPreviewData] = useState<CalendarContractPreviewResponse | null>(null);
   const [savingTransition, setSavingTransition] = useState(false);
+
+  // Level filter options
+  const levelFilterOptions = useMemo(() => {
+    if (!isSuperAdmin) {
+      return [
+        { label: 'Todos', value: 'all' },
+        { label: 'Nível 1', value: '1' },
+        { label: 'Nível 2', value: '2' },
+        { label: 'Nível 3', value: '3' },
+      ];
+    }
+    const distinctLevels = Array.from(new Set(users.map(u => u.hierarchyLevel))).sort((a, b) => a - b);
+    const opts = [{ label: 'Todos', value: 'all' }];
+    for (const lvl of distinctLevels) {
+      opts.push({
+        label: getHierarchyBadgeText(lvl),
+        value: String(lvl),
+      });
+    }
+    return opts;
+  }, [isSuperAdmin, users, getHierarchyBadgeText]);
 
   // Fetch calendar users
   const fetchCalendar = useCallback(async () => {
@@ -178,9 +207,7 @@ const TeamCalendarPage: React.FC = () => {
 
       const matchesLevel =
         levelFilter === 'all' ||
-        (levelFilter === '1' && u.hierarchyLevel === 1) ||
-        (levelFilter === '2' && u.hierarchyLevel === 2) ||
-        (levelFilter === '3' && u.hierarchyLevel === 3);
+        String(u.hierarchyLevel) === levelFilter;
 
       return matchesSearch && matchesLevel;
     });
@@ -665,12 +692,7 @@ const TeamCalendarPage: React.FC = () => {
               size="xs"
               value={levelFilter}
               onChange={setLevelFilter}
-              data={[
-                { label: 'Todos', value: 'all' },
-                { label: 'Nível 1', value: '1' },
-                { label: 'Nível 2', value: '2' },
-                { label: 'Nível 3', value: '3' },
-              ]}
+              data={levelFilterOptions}
               className="team-calendar-level-filters"
             />
 
@@ -687,60 +709,101 @@ const TeamCalendarPage: React.FC = () => {
               </Text>
             ) : (
               <div className="team-calendar-users-list">
-                {[1, 2, 3].map(level => {
-                  const levelUsers = filteredUsers.filter(u => u.hierarchyLevel === level);
-                  if (levelUsers.length === 0) return null;
-
-                  return (
-                    <div key={level} className="team-calendar-level-group">
-                      <div className="team-calendar-level-header">
-                        <span>Nível {level}</span>
-                        <Badge size="xs" variant="light" color="blue">
-                          {levelUsers.length}
-                        </Badge>
+                {isSuperAdmin ? (
+                  filteredUsers.map(user => {
+                    const isSelected = user.userId === selectedUserId;
+                    return (
+                      <div
+                        key={user.userId}
+                        className={`team-calendar-user-card ${isSelected ? 'active' : ''}`}
+                        onClick={() => setSelectedUserId(user.userId)}
+                      >
+                        <div className="team-calendar-user-card__top">
+                          <span className="team-calendar-user-card__name">
+                            {normalizeName(user.userName)}
+                          </span>
+                          <Badge size="xs" color={user.hierarchyLevel === 0 ? 'teal' : 'gray'} variant="outline">
+                            {getHierarchyBadgeText(user.hierarchyLevel)}
+                          </Badge>
+                        </div>
+                        <span className="team-calendar-user-card__email">
+                          {user.userEmail}
+                        </span>
+                        <div className="team-calendar-user-card__meta">
+                          {user.currentTeamName ? (
+                            <Badge size="xs" color="blue" variant="filled">
+                              {user.currentTeamName}
+                            </Badge>
+                          ) : (
+                            <Badge size="xs" color="gray" variant="light">
+                              Sem equipe
+                            </Badge>
+                          )}
+                          {user.teamHistory.length > 1 && (
+                            <Text size="xs" c="dimmed">
+                              {user.teamHistory.length} equipes
+                            </Text>
+                          )}
+                        </div>
                       </div>
+                    );
+                  })
+                ) : (
+                  [1, 2, 3].map(level => {
+                    const levelUsers = filteredUsers.filter(u => u.hierarchyLevel === level);
+                    if (levelUsers.length === 0) return null;
 
-                      {levelUsers.map(user => {
-                        const isSelected = user.userId === selectedUserId;
-                        return (
-                          <div
-                            key={user.userId}
-                            className={`team-calendar-user-card ${isSelected ? 'active' : ''}`}
-                            onClick={() => setSelectedUserId(user.userId)}
-                          >
-                            <div className="team-calendar-user-card__top">
-                              <span className="team-calendar-user-card__name">
-                                {normalizeName(user.userName)}
+                    return (
+                      <div key={level} className="team-calendar-level-group">
+                        <div className="team-calendar-level-header">
+                          <span>Nível {level}</span>
+                          <Badge size="xs" variant="light" color="blue">
+                            {levelUsers.length}
+                          </Badge>
+                        </div>
+
+                        {levelUsers.map(user => {
+                          const isSelected = user.userId === selectedUserId;
+                          return (
+                            <div
+                              key={user.userId}
+                              className={`team-calendar-user-card ${isSelected ? 'active' : ''}`}
+                              onClick={() => setSelectedUserId(user.userId)}
+                            >
+                              <div className="team-calendar-user-card__top">
+                                <span className="team-calendar-user-card__name">
+                                  {normalizeName(user.userName)}
+                                </span>
+                                <Badge size="xs" color="gray" variant="outline">
+                                  Nível {user.hierarchyLevel}
+                                </Badge>
+                              </div>
+                              <span className="team-calendar-user-card__email">
+                                {user.userEmail}
                               </span>
-                              <Badge size="xs" color="gray" variant="outline">
-                                Nível {user.hierarchyLevel}
-                              </Badge>
+                              <div className="team-calendar-user-card__meta">
+                                {user.currentTeamName ? (
+                                  <Badge size="xs" color="blue" variant="filled">
+                                    {user.currentTeamName}
+                                  </Badge>
+                                ) : (
+                                  <Badge size="xs" color="gray" variant="light">
+                                    Sem equipe
+                                  </Badge>
+                                )}
+                                {user.teamHistory.length > 1 && (
+                                  <Text size="xs" c="dimmed">
+                                    {user.teamHistory.length} equipes
+                                  </Text>
+                                )}
+                              </div>
                             </div>
-                            <span className="team-calendar-user-card__email">
-                              {user.userEmail}
-                            </span>
-                            <div className="team-calendar-user-card__meta">
-                              {user.currentTeamName ? (
-                                <Badge size="xs" color="blue" variant="filled">
-                                  {user.currentTeamName}
-                                </Badge>
-                              ) : (
-                                <Badge size="xs" color="gray" variant="light">
-                                  Sem equipe
-                                </Badge>
-                              )}
-                              {user.teamHistory.length > 1 && (
-                                <Text size="xs" c="dimmed">
-                                  {user.teamHistory.length} equipes
-                                </Text>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
           </div>
@@ -766,8 +829,8 @@ const TeamCalendarPage: React.FC = () => {
                       <Title order={3} c="#111827">
                         {normalizeName(selectedUser.userName)}
                       </Title>
-                      <Badge color="blue" size="sm">
-                        Nível {selectedUser.hierarchyLevel}
+                      <Badge color={selectedUser.hierarchyLevel === 0 ? 'teal' : 'blue'} size="sm">
+                        {getHierarchyBadgeText(selectedUser.hierarchyLevel)}
                       </Badge>
                     </Group>
                     <Text size="sm" c="#6b7280">

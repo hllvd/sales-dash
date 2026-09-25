@@ -10,5 +10,6 @@ namespace SalesApp.Models
         public HashSet<string> AllowedMatriculas { get; set; } = new HashSet<string>();
         public HashSet<string> AdminLinkedMatriculas { get; set; } = new HashSet<string>();
         public HashSet<string> AdminOwnedMatriculas { get; set; } = new HashSet<string>();
+        public HashSet<int> AllowedTeamIds { get; set; } = new HashSet<int>();
     }
 }

@@ -40,12 +40,14 @@ namespace SalesApp.Services
                 return context;
 
             // PERFORMANCE OPTIMIZATION:
-            // Prevent N+1 and Over-selecting (SELECT *) by ONLY downloading the Id and ParentUserId of active users.
+            // Prevent N+1 and Over-selecting (SELECT *) by ONLY downloading the Id, InternalId and ParentUserId.
+            // NOTE: Inactive users are included so their contracts remain visible to superiors in the hierarchy.
             var allHierarchyLinks = await _context.Users
                 .AsNoTracking()
-                .Where(u => u.IsActive)
-                .Select(u => new { u.Id, u.ParentUserId })
+                .Select(u => new { u.Id, u.InternalId, u.ParentUserId })
                 .ToListAsync();
+
+            var idToInternalId = allHierarchyLinks.ToDictionary(x => x.Id, x => x.InternalId);
 
             // Build dictionary for fast O(1) adjacency list lookup
             var childrenMap = new Dictionary<Guid, List<Guid>>();
@@ -62,6 +64,12 @@ namespace SalesApp.Services
 
             // Traverse to gather all descendant distinct IDs including the admin themselves
             var allowedUserIds = new HashSet<Guid> { currentUserId };
+            var allowedUserInternalIds = new HashSet<int>();
+            if (idToInternalId.TryGetValue(currentUserId, out var currentInternalId))
+            {
+                allowedUserInternalIds.Add(currentInternalId);
+            }
+
             var queue = new Queue<Guid>();
             queue.Enqueue(currentUserId);
 
@@ -74,6 +82,10 @@ namespace SalesApp.Services
                     {
                         if (allowedUserIds.Add(childId))
                         {
+                            if (idToInternalId.TryGetValue(childId, out var childInternalId))
+                            {
+                                allowedUserInternalIds.Add(childInternalId);
+                            }
                             queue.Enqueue(childId);
                         }
                     }
@@ -81,6 +93,19 @@ namespace SalesApp.Services
             }
 
             context.AllowedUserIds = allowedUserIds;
+
+            // Fetch teams managed or owned by hierarchy members
+            var allowedTeamIds = await _context.Teams
+                .AsNoTracking()
+                .Where(t => t.IsActive && (
+                    (t.OwnerUserInternalId.HasValue && allowedUserInternalIds.Contains(t.OwnerUserInternalId.Value)) ||
+                    t.UserTeams.Any(ut => allowedUserInternalIds.Contains(ut.UserInternalId))
+                ))
+                .Select(t => t.Id)
+                .Distinct()
+                .ToListAsync();
+
+            context.AllowedTeamIds = new HashSet<int>(allowedTeamIds);
 
             // Fetch Matricula numbers associated with these AllowedUserIds in ONE efficient query
             var now = DateTime.UtcNow;

@@ -48,7 +48,15 @@ test.describe('[TEAR 3] Deep Hierarchy Contract Visibility', () => {
       await page.goto('/#/contracts');
       await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
-      // Clear filters if any are active (clearing default 15-month date filter)
+      // Clear date filters so historical contracts from 2024 are visible
+      const startDateInput = page.locator('input#filterStartDate');
+      await startDateInput.waitFor({ state: 'visible', timeout: 10_000 });
+      await startDateInput.fill('');
+      const endDateInput = page.locator('input#filterEndDate');
+      await endDateInput.fill('');
+      await page.waitForTimeout(500);
+
+      // Clear filters if any remain active
       const clearFiltersBtn = page.getByRole('button', { name: 'Limpar Filtros' });
       if (await clearFiltersBtn.isVisible()) {
         await clearFiltersBtn.click();

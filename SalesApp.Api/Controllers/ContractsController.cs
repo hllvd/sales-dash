@@ -931,6 +931,18 @@ namespace SalesApp.Controllers
             var isRemapped = treatUnpaidAsAwaiting && isAwaitingPayment;
             var finalStatus = isRemapped ? "AwaitingPayment" : statusName;
 
+            // Determine team name at the time of contract sale start date
+            var contractUser = contract.User 
+                ?? contract.Matricula?.UserMatriculas?.FirstOrDefault(um => um.IsActive && um.IsOwner)?.User 
+                ?? contract.Matricula?.UserMatriculas?.FirstOrDefault(um => um.IsActive)?.User;
+
+            var contractDate = contract.SaleStartDate.Date;
+            var teamName = contractUser?.UserTeams?
+                .Where(ut => contractDate >= ut.StartDate.Date && (ut.EndDate == null || contractDate <= ut.EndDate.Value.Date))
+                .OrderByDescending(ut => ut.StartDate)
+                .Select(ut => ut.Team?.Name)
+                .FirstOrDefault(t => !string.IsNullOrEmpty(t));
+
             return new ContractResponse
             {
                 Id = contract.Id,
@@ -954,7 +966,8 @@ namespace SalesApp.Controllers
                 RawStatus = contract.RawStatus,
                 HasPayment = contract.HasPayment,
                 IsAwaitingPayment = isAwaitingPayment,
-                IsRemappedToAwaitingPayment = isRemapped
+                IsRemappedToAwaitingPayment = isRemapped,
+                TeamName = teamName
             };
         }
         

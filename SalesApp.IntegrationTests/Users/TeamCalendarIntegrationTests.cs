@@ -44,13 +44,81 @@ namespace SalesApp.IntegrationTests.Users
             result!.Success.Should().BeTrue();
             result.Data.Should().NotBeNull();
 
-            // All returned users must have hierarchyLevel between 1 and 3
+            // All returned users must have hierarchyLevel >= 0 (0 for Root, 1+ for descendants)
             foreach (var user in result.Data!)
             {
-                user.HierarchyLevel.Should().BeInRange(1, 3);
+                user.HierarchyLevel.Should().BeGreaterThanOrEqualTo(0);
                 user.UserId.Should().NotBeEmpty();
                 user.UserName.Should().NotBeNullOrWhiteSpace();
             }
+
+            // At least one root user should be present with HierarchyLevel == 0
+            result.Data.Should().Contain(u => u.HierarchyLevel == 0);
+        }
+
+        [Fact]
+        public async Task GetTeamCalendar_AsSuperAdmin_ShouldReturnAllActiveUsersRegardlessOfLevel()
+        {
+            // Arrange
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Guid rootUserId;
+            Guid level4UserId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                // Create a chain: Root -> L1 -> L2 -> L3 -> L4
+                var root = new User
+                {
+                    Name = $"Root Cal Test {Guid.NewGuid():N}",
+                    Email = $"root.cal.{Guid.NewGuid():N}@test.com",
+                    PasswordHash = "hash",
+                    RoleId = 2,
+                    ParentUserId = null,
+                    IsActive = true
+                };
+                context.Users.Add(root);
+                await context.SaveChangesAsync();
+                rootUserId = root.Id;
+
+                var l1 = new User { Name = $"L1 {Guid.NewGuid():N}", Email = $"l1.{Guid.NewGuid():N}@test.com", PasswordHash = "hash", RoleId = 2, ParentUserId = root.Id, IsActive = true };
+                context.Users.Add(l1);
+                await context.SaveChangesAsync();
+
+                var l2 = new User { Name = $"L2 {Guid.NewGuid():N}", Email = $"l2.{Guid.NewGuid():N}@test.com", PasswordHash = "hash", RoleId = 2, ParentUserId = l1.Id, IsActive = true };
+                context.Users.Add(l2);
+                await context.SaveChangesAsync();
+
+                var l3 = new User { Name = $"L3 {Guid.NewGuid():N}", Email = $"l3.{Guid.NewGuid():N}@test.com", PasswordHash = "hash", RoleId = 2, ParentUserId = l2.Id, IsActive = true };
+                context.Users.Add(l3);
+                await context.SaveChangesAsync();
+
+                var l4 = new User { Name = $"L4 {Guid.NewGuid():N}", Email = $"l4.{Guid.NewGuid():N}@test.com", PasswordHash = "hash", RoleId = 2, ParentUserId = l3.Id, IsActive = true };
+                context.Users.Add(l4);
+                await context.SaveChangesAsync();
+                level4UserId = l4.Id;
+            }
+
+            // Act
+            var response = await client.GetAsync("/api/teams/calendar");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<TeamCalendarUserResponse>>>();
+            result.Should().NotBeNull();
+            result!.Data.Should().NotBeNull();
+
+            // Superadmin should see both root (level 0) and deep level 4
+            var rootInResult = result.Data!.FirstOrDefault(u => u.UserId == rootUserId);
+            rootInResult.Should().NotBeNull();
+            rootInResult!.HierarchyLevel.Should().Be(0);
+
+            var l4InResult = result.Data!.FirstOrDefault(u => u.UserId == level4UserId);
+            l4InResult.Should().NotBeNull();
+            l4InResult!.HierarchyLevel.Should().Be(4);
         }
 
         [Fact]

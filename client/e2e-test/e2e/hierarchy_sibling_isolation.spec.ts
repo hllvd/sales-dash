@@ -75,7 +75,7 @@ test.describe('[TEAR 3] Sibling Isolation', () => {
     await page.goto('/#/contracts');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
-    await page.fill('input#filterStartDate', '');
+    await page.fill('input#filterStartDate', '1999-01-01');
     
     const searchPromise = page.waitForResponse(resp =>
       resp.url().includes('/api/contracts') &&
@@ -96,7 +96,7 @@ test.describe('[TEAR 3] Sibling Isolation', () => {
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 15_000 });
 
 
-    await page.fill('input#filterStartDate', '');
+    await page.fill('input#filterStartDate', '1999-01-01');
 
     const searchPromiseNeg = page.waitForResponse(resp =>
       resp.url().includes('/api/contracts') &&

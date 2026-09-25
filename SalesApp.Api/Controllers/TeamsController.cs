@@ -41,7 +41,7 @@ namespace SalesApp.Controllers
 
         [HttpGet]
         [HasPermission("teams:manage")]
-        public async Task<ActionResult<ApiResponse<List<TeamResponse>>>> GetTeams()
+        public async Task<ActionResult<ApiResponse<List<TeamResponse>>>> GetTeams([FromQuery] string status = "active")
         {
             var roleIdClaim = User.FindFirst("role_id")?.Value;
             HashSet<int>? allowedOwnerInternalIds = null;
@@ -63,7 +63,7 @@ namespace SalesApp.Controllers
                 }
             }
 
-            var teams = await _teamRepository.GetAllAsync(allowedOwnerInternalIds);
+            var teams = await _teamRepository.GetAllAsync(allowedOwnerInternalIds, status);
             var responses = teams.Select(MapToTeamResponse).ToList();
 
             return Ok(new ApiResponse<List<TeamResponse>>
@@ -110,22 +110,44 @@ namespace SalesApp.Controllers
                 });
             }
 
-            if (await _teamRepository.NameExistsAsync(request.Name))
+            var existingTeam = await _teamRepository.GetByNameAsync(request.Name);
+            Team createdTeam;
+            if (existingTeam != null)
             {
-                return BadRequest(new ApiResponse<TeamResponse>
+                if (existingTeam.IsActive)
                 {
-                    Success = false,
-                    Message = _messageService.Get(AppMessage.TeamNameAlreadyExists)
-                });
+                    return BadRequest(new ApiResponse<TeamResponse>
+                    {
+                        Success = false,
+                        Message = _messageService.Get(AppMessage.TeamNameAlreadyExists)
+                    });
+                }
+
+                existingTeam.IsActive = true;
+                existingTeam.StoreId = request.StoreId;
+                existingTeam.OwnerUserInternalId = null;
+                existingTeam.UpdatedAt = DateTime.UtcNow;
+
+                if (existingTeam.UserTeams != null && existingTeam.UserTeams.Any())
+                {
+                    _context.UserTeams.RemoveRange(existingTeam.UserTeams);
+                    await _context.SaveChangesAsync();
+                }
+
+                await _teamRepository.UpdateAsync(existingTeam);
+                createdTeam = existingTeam;
             }
-
-            var team = new Team
+            else
             {
-                Name = request.Name.Trim(),
-                StoreId = request.StoreId
-            };
+                var team = new Team
+                {
+                    Name = request.Name.Trim(),
+                    StoreId = request.StoreId,
+                    IsActive = true
+                };
 
-            var createdTeam = await _teamRepository.CreateAsync(team);
+                createdTeam = await _teamRepository.CreateAsync(team);
+            }
             var warnings = new List<string>();
 
             if (request.Members != null && request.Members.Any())
@@ -333,6 +355,41 @@ namespace SalesApp.Controllers
             {
                 Success = true,
                 Message = _messageService.Get(AppMessage.TeamDeletedSuccessfully)
+            });
+        }
+
+        [HttpPut("{id:int}/reactivate")]
+        [HasPermission("teams:manage")]
+        public async Task<ActionResult<ApiResponse<TeamResponse>>> ReactivateTeam(int id)
+        {
+            var roleIdClaim = User.FindFirst("role_id")?.Value;
+            if (roleIdClaim != "1") // Only Superadmin
+            {
+                return StatusCode(403, new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = "Apenas superadministradores podem reativar equipes."
+                });
+            }
+
+            var team = await _teamRepository.GetByIdAsync(id);
+            if (team == null)
+            {
+                return NotFound(new ApiResponse<TeamResponse>
+                {
+                    Success = false,
+                    Message = _messageService.Get(AppMessage.TeamNotFound)
+                });
+            }
+
+            await _teamRepository.ReactivateAsync(id);
+            var reloadedTeam = await _teamRepository.GetByIdAsync(id);
+
+            return Ok(new ApiResponse<TeamResponse>
+            {
+                Success = true,
+                Data = MapToTeamResponse(reloadedTeam ?? team),
+                Message = "Equipe reativada com sucesso"
             });
         }
 
@@ -887,6 +944,7 @@ namespace SalesApp.Controllers
                 StoreState = t.Store?.State,
                 Owner = owner,
                 Members = members,
+                IsActive = t.IsActive,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt
             };
@@ -919,58 +977,85 @@ namespace SalesApp.Controllers
             }
 
             var userLevels = new Dictionary<Guid, int>();
-            var queue = new Queue<(Guid Id, int Depth)>();
+            List<User> users;
 
             if (roleIdClaim == "1") // Superadmin
             {
-                // Traverse from roots or top-level nodes to identify levels 1, 2, 3
+                // Traverse from roots or top-level nodes to identify levels for all hierarchy nodes
+                var queue = new Queue<(Guid Id, int Depth)>();
                 var rootIds = allLinks.Where(l => !l.ParentUserId.HasValue || !allIds.Contains(l.ParentUserId.Value)).Select(l => l.Id).ToList();
                 foreach (var rootId in rootIds)
                 {
+                    userLevels[rootId] = 0;
                     queue.Enqueue((rootId, 0));
                 }
+
+                while (queue.Count > 0)
+                {
+                    var (curId, curDepth) = queue.Dequeue();
+
+                    if (childrenMap.TryGetValue(curId, out var kids))
+                    {
+                        foreach (var kid in kids)
+                        {
+                            if (!userLevels.ContainsKey(kid))
+                            {
+                                userLevels[kid] = curDepth + 1;
+                                queue.Enqueue((kid, curDepth + 1));
+                            }
+                        }
+                    }
+                }
+
+                // Superadmin: All active users in the system, regardless of level
+                users = await _context.Users
+                    .AsNoTracking()
+                    .Include(u => u.ParentUser)
+                    .Where(u => u.IsActive)
+                    .ToListAsync();
             }
             else // Admin
             {
+                var queue = new Queue<(Guid Id, int Depth)>();
                 queue.Enqueue((currentUserId, 0));
-            }
 
-            while (queue.Count > 0)
-            {
-                var (curId, curDepth) = queue.Dequeue();
-                if (curDepth >= 1 && curDepth <= 3)
+                while (queue.Count > 0)
                 {
-                    if (!userLevels.ContainsKey(curId))
+                    var (curId, curDepth) = queue.Dequeue();
+                    if (curDepth >= 1 && curDepth <= 3)
                     {
-                        userLevels[curId] = curDepth;
+                        if (!userLevels.ContainsKey(curId))
+                        {
+                            userLevels[curId] = curDepth;
+                        }
+                    }
+
+                    if (curDepth < 3 && childrenMap.TryGetValue(curId, out var kids))
+                    {
+                        foreach (var kid in kids)
+                        {
+                            queue.Enqueue((kid, curDepth + 1));
+                        }
                     }
                 }
 
-                if (curDepth < 3 && childrenMap.TryGetValue(curId, out var kids))
+                var targetUserGuids = userLevels.Keys.ToList();
+                if (!targetUserGuids.Any())
                 {
-                    foreach (var kid in kids)
+                    return Ok(new ApiResponse<List<TeamCalendarUserResponse>>
                     {
-                        queue.Enqueue((kid, curDepth + 1));
-                    }
+                        Success = true,
+                        Data = new List<TeamCalendarUserResponse>(),
+                        Message = "Nenhum usuário encontrado na hierarquia."
+                    });
                 }
-            }
 
-            var targetUserGuids = userLevels.Keys.ToList();
-            if (!targetUserGuids.Any())
-            {
-                return Ok(new ApiResponse<List<TeamCalendarUserResponse>>
-                {
-                    Success = true,
-                    Data = new List<TeamCalendarUserResponse>(),
-                    Message = "Nenhum usuário encontrado na hierarquia."
-                });
+                users = await _context.Users
+                    .AsNoTracking()
+                    .Include(u => u.ParentUser)
+                    .Where(u => targetUserGuids.Contains(u.Id) && u.IsActive)
+                    .ToListAsync();
             }
-
-            var users = await _context.Users
-                .AsNoTracking()
-                .Include(u => u.ParentUser)
-                .Where(u => targetUserGuids.Contains(u.Id) && u.IsActive)
-                .ToListAsync();
 
             var userInternalIds = users.Select(u => u.InternalId).ToList();
             var allMemberships = await _teamRepository.GetAllMembershipsForUsersAsync(userInternalIds);
@@ -1012,7 +1097,7 @@ namespace SalesApp.Controllers
                     UserEmail = user.Email,
                     CurrentTeamName = activeTeam?.TeamName,
                     CurrentTeamId = activeTeam?.TeamId,
-                    HierarchyLevel = userLevels.TryGetValue(user.Id, out var lvl) ? lvl : 1,
+                    HierarchyLevel = userLevels.TryGetValue(user.Id, out var lvl) ? lvl : (user.ParentUserId == null ? 0 : 1),
                     ParentUserName = user.ParentUser?.Name,
                     EarliestContractDate = earliestContractDates.TryGetValue(user.InternalId, out var dt) ? dt : null,
                     TeamHistory = history

@@ -94,7 +94,8 @@ export default defineConfig({
         'team_calendar.spec.ts',
         'team_transition_contracts_filter.spec.ts',
         'my_contracts_team_filter.spec.ts',
-        'my_contracts_matricula_autocomplete.spec.ts'
+        'my_contracts_matricula_autocomplete.spec.ts',
+        'inactive_user_contracts_visibility.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2a-import', 'tear-2b-roles']

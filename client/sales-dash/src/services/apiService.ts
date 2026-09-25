@@ -254,7 +254,7 @@ export const apiService = {
     return response.json()
   },
 
-  async getUserPreferences(): Promise<ApiResponse<{ treatUnpaidActiveAsAwaitingPayment: boolean }>> {
+  async getUserPreferences(): Promise<ApiResponse<{ treatUnpaidActiveAsAwaitingPayment: boolean; includeInactiveUsersInFilter: boolean }>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/preferences`, {
       headers: getAuthHeaders(),
     })
@@ -266,7 +266,7 @@ export const apiService = {
     return response.json()
   },
 
-  async updateUserPreferences(data: { treatUnpaidActiveAsAwaitingPayment: boolean }): Promise<ApiResponse<{ treatUnpaidActiveAsAwaitingPayment: boolean }>> {
+  async updateUserPreferences(data: { treatUnpaidActiveAsAwaitingPayment?: boolean; includeInactiveUsersInFilter?: boolean }): Promise<ApiResponse<{ treatUnpaidActiveAsAwaitingPayment: boolean; includeInactiveUsersInFilter: boolean }>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/preferences`, {
       method: 'PUT',
       headers: {
@@ -1134,14 +1134,25 @@ export const apiService = {
   },
 
   // Teams Management methods
-  async getTeams(): Promise<ApiResponse<Team[]>> {
-    const response = await authenticatedFetch(`${API_BASE_URL}/teams`, {
+  async getTeams(status?: string): Promise<ApiResponse<Team[]>> {
+    const url = status ? `${API_BASE_URL}/teams?status=${encodeURIComponent(status)}` : `${API_BASE_URL}/teams`
+    const response = await authenticatedFetch(url, {
       headers: getAuthHeaders(),
     })
     if (!response.ok) throw new Error("Failed to fetch teams")
     return response.json()
   },
 
+  async reactivateTeam(id: number): Promise<ApiResponse<Team>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}/reactivate`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to reactivate team"))
+    }
+    return response.json()
+  },
 
   async getTeam(id: number): Promise<ApiResponse<Team>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/teams/${id}`, {
@@ -2026,6 +2037,7 @@ export interface Team {
   owner: TeamMember | null
   members: TeamMember[]
   warnings?: string[]
+  isActive: boolean
   createdAt: string
   updatedAt: string
 }

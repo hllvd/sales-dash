@@ -7,6 +7,30 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-09-24] all — Attempt 2
+**Failure:** `inactive_user_contracts_visibility.spec.ts` test 4 timeout clicking checkbox input.
+**Root cause:** Mantine `Switch` component wraps the input with complex styling, causing direct `input[type="checkbox"].check()` to hang on click interception.
+**Fix applied:** Updated test 4 to click the label text `"Incluir usuários desativados no filtro Usuário"` and await the `PUT /api/users/me/preferences` response. Also removed `Where(u => u.IsActive)` from `UserRepository.GetAllHierarchyLinksAsync` and ensured `ContractForm` fetches fresh user list with `includeInactive`.
+**Result:** ✅ Green (182/182 passed on Run 1, 181/181 passed on Run 2 idempotency check)
+
+## [2026-09-24] e2e — Attempt 1
+**Failure:** `FAILED to register user admin.a.iyvutt5840@test.com: status=400, Name cannot contain numbers`.
+**Root cause:** Generated `RUN_ID` contained numbers from `Date.now()`, which were appended to test user `Name` fields, violating backend name validation prohibiting numbers.
+**Fix applied:** Changed `RUN_ID` generation in `admin_assign_contract_matricula.spec.ts` to 12 pure alphabet characters (`[a-z]`), avoiding numbers in user names.
+**Result:** ✅ Green (177/177 passed on Run 1, 177/177 passed on Run 2 idempotency check)
+
+## 2026-09-23 all — Attempt 1
+**Failure:** `team_report_setup.spec.ts` / `user_tree_hierarchy.spec.ts` failed when recreating "Equipe Alpha" after soft-delete; `contract_retention_unpaid_toggle.spec.ts` preference leaked into repeated runs; `hierarchy_sibling_isolation.spec.ts` date input clearing was inconsistent on datepicker in Chromium.
+**Root cause:** 
+1. Soft deleting a team left the unique team name in the database. `POST /api/teams` rejected recreated team names with 400 (`TeamNameAlreadyExists`) instead of reactivating the inactive team.
+2. `contract_retention_unpaid_toggle.spec.ts` persisted `treatUnpaidActiveAsAwaitingPayment` to user preferences without resetting it before test execution.
+3. `hierarchy_sibling_isolation.spec.ts` used `fill('input#filterStartDate', '')` on an HTML5 `<input type="date">` to view a probe contract dated `2000-01-01`, which Chromium date inputs often do not clear.
+**Fix applied:**
+- Updated `TeamsController.cs` in `CreateTeam` to detect existing inactive teams with the same name, reactivate them, update `StoreId`, and reset memberships.
+- Reset `treatUnpaidActiveAsAwaitingPayment: false` via API at test start in `contract_retention_unpaid_toggle.spec.ts`.
+- Changed `filterStartDate` fill in `hierarchy_sibling_isolation.spec.ts` to `'1999-01-01'` to deterministically capture probe contracts from 2000.
+**Result:** ✅ Green (178/178 passed on Run 1, 178/178 passed on Run 2 idempotency check)
+
 ## 2026-08-24 e2e — Attempt 1
 **Failure:** `hierarchy_deep_visibility.spec.ts` failed on `expect(locator).toHaveCount(1)` due to race condition between contract number filter debounce and table render.
 **Root cause:** The test used a static 6s delay instead of waiting for `.contracts-loading` to disappear, causing it to assert table rows while the previous query results were still in-flight.
@@ -510,6 +534,8 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Implemented `ScraperCredentialEncryption.cs` (AES-256-GCM), updated `ScrapeOrchestrator.cs` to publish job messages to `SQS_JOBS_QUEUE_URL` without triggering local worker when `outputMode == "sqs"`, added `AWS__SqsJobsQueueUrl` and `SCRAPER_ENCRYPTION_KEY` to compose files, and updated UI segmented controls/badges in `ScrapeDashboard.tsx`.
 **Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 176/176 PASSED, E2E Run 2: 175/175 PASSED — idempotent)
 
-
-
-
+## [2026-09-23] e2e — Attempt 1
+**Failure:** Strict mode violation in `contract_retention_unpaid_toggle.spec.ts` finding 2 switches in settings modal; column index mismatch in `contract_dashboard_bem_pend_1_atr.spec.ts` using `nth(6)` for status column.
+**Root cause:** Settings modal now has 2 switches (retention and inactive users filter); adding 'Equipe' column shifted the status column from index 6 to 7.
+**Fix applied:** Filtered switch locator by name regex `/não pago|Aguardando pagamento/i` in `contract_retention_unpaid_toggle.spec.ts`; located status badge via `.mantine-Badge-root` instead of hardcoded column index in `contract_dashboard_bem_pend_1_atr.spec.ts`.
+**Result:** ❌ Retrying with ./test.sh rm-db && ./test.sh e2e

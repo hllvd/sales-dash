@@ -21,7 +21,6 @@ import {
 } from '@mantine/core';
 import {
   IconRefresh,
-  IconUsers,
   IconUserCheck,
   IconCoins,
   IconReceipt2,
@@ -29,7 +28,7 @@ import {
   IconSearch,
   IconFileSpreadsheet,
 } from '@tabler/icons-react';
-import { getLicensingReport, LicensingReport, PriceTierInfo, UserLicenseDetail } from '../../services/contractService';
+import { getLicensingReport, exportLicensingXlsx, LicensingReport } from '../../services/contractService';
 import Menu from '../Menu';
 import './LicensingPage.css';
 
@@ -41,6 +40,7 @@ const LicensingPage: React.FC = () => {
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 15;
@@ -75,29 +75,30 @@ const LicensingPage: React.FC = () => {
     fetchReport();
   };
 
-  const handleExportCSV = () => {
-    if (!report) return;
+  const handleExportXLSX = async () => {
+    if (!report || exportingXlsx) return;
     
-    const headers = ['Nome', 'Email', 'Cargo', 'Equipe', 'Dias Ativos no Mês', 'Status Licenciamento'];
-    const rows = report.users.map(u => [
-      u.name,
-      u.email,
-      u.role,
-      u.teamName,
-      `${u.activeDaysInMonth} dias`,
-      u.isLicensed ? 'Licenciado' : 'Abaixo do mínimo'
-    ]);
+    try {
+      setExportingXlsx(true);
+      const blob = await exportLicensingXlsx(
+        parseInt(year),
+        parseInt(month),
+        minimumDays
+      );
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
-      + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `licenciamento-${month}-${year}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `licenciamento-${month}-${year}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Falha ao exportar relatório de licenciamento em XLSX', error);
+    } finally {
+      setExportingXlsx(false);
+    }
   };
 
   const months = [
@@ -302,7 +303,8 @@ const LicensingPage: React.FC = () => {
                     variant="light" 
                     color="indigo" 
                     leftSection={<IconFileSpreadsheet size={16} />}
-                    onClick={handleExportCSV}
+                    onClick={handleExportXLSX}
+                    loading={exportingXlsx}
                   >
                     Exportar Planilha
                   </Button>
