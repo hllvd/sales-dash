@@ -678,8 +678,9 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
 
   const configRows = configs.map((config) => {
     const startInfo = formatStartMonth(config.defaultStartMonth);
+    const hasAuthError = config.credentialStatus === 'wrong-password';
     return (
-      <Table.Tr key={config.id}>
+      <Table.Tr key={config.id} style={hasAuthError ? { backgroundColor: 'var(--mantine-color-red-0)' } : undefined}>
         <Table.Td>
           <Group gap="xs">
             {config.scrapeType === 'consultor' ? (

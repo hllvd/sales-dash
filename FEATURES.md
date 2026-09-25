@@ -1912,4 +1912,54 @@ Aprimoramento da gestão operacional e relatórios:
 - `client/sales-dash/src/components/ContractsPage.tsx` — Coluna Equipe, configuração de visibilidade, switch de preferência no servidor e estilização de usuários inativos no filtro.
 - `client/sales-dash/src/components/TeamsPage.tsx` — Filtro de status (ativas, inativas, todas), badge inativa e botão de reativar para superadmin.
 
+## [2026-09-25] — Preservação de Mês e Metadados de Execução Individual no Detalhe do Scrape (SQS/DynamoDB)
+
+### Contexto & Motivação
+Na tela de Detalhes da Execução de Scrape (`ScrapeRunDetailPage.tsx`), a coluna "Mês (MM/YYYY)" apresentava incorretamente a etiqueta `"MÊS ATUAL"` para todos os processos individuais de um lote de múltiplos meses (ex.: 3 meses retroativos). Além disso, métricas como duração, autenticação e status do PowerBI apareciam zeradas/indefinidas (`0s`, `-`, `NÃO DETECTADO`).
+
+A causa raiz era a perda do campo `scrapeDate` e métricas complementares durante o ciclo assíncrono SQS/DynamoDB: o serviço consumidor de resultados (`SqsResultBackgroundConsumerService`) não repassava o `scrapeDate` e métricas ao atualizar o status para `Succeeded` no DynamoDB. Além disso, a desduplicação (`DeduplicateJobs`) no serviço de log do DynamoDB não mesclava os atributos pré-existentes registrados na inicialização do job (`Pending`/`Running`).
+
+### Funcionalidades & Arquitetura
+1. **Consumidor de Resultados SQS (`SqsResultBackgroundConsumerService.cs`)**:
+   - Extrai `scrapeDate`, `durationFormatted`, `durationSeconds`, `authStatus`, `powerBiLoaded`, `authSteps` e `completedAt` do corpo da mensagem SQS.
+   - Persiste esses metadados no `additionalData` repassado a `logService.WriteJobStatusAsync` tanto para execuções bem-sucedidas (`Succeeded`) quanto em caso de erro na importação (`Failed`).
+2. **Mesclagem Resiliente de Atributos no DynamoDB (`ScrapeDynamoLogService.cs`)**:
+   - No método `DeduplicateJobs`, caso o registro de conclusão não contenha explicitamente campos como `ScrapeDate`, `Store`, `Matricula`, `UserEmail`, `AuthStatus`, `PowerBiLoaded` ou `Duration`, esses dados são recuperados a partir dos registros anteriores do ciclo de vida do mesmo `JobId` (`Pending` / `Running`).
+   - Garante que mesmo registros históricos já existentes no DynamoDB passem a recuperar o `ScrapeDate` correto na visualização do detalhe da execução.
+3. **Formatação Aprimorada de Meses no Frontend (`ScrapeRunDetailPage.tsx`)**:
+   - Função pura `formatMonthYear` atualizada:
+     - Retorna `"Todas as datas"` para scrapes sem filtro de data (`null`, vazio ou `'Padrão'`).
+     - Converte formato `YYYY-MM` para `MM/YYYY` (ex.: `"2026-07"` -> `"07/2026"`).
+     - Suporta múltiplos meses separados por vírgula (ex.: `"2026-07,2026-08"` -> `"07/2026, 08/2026"`).
+4. **Worker SQS (`pbi-scraper/worker.js`)**:
+   - Inclusão dos campos `durationSeconds`, `durationFormatted`, `authStatus`, `authMessage`, `powerbiLoaded`, `authSteps` e `retryCount` no payload SQS `resultsPayload`.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/SqsResultBackgroundConsumerService.cs` — Extração e persistência de `scrapeDate` e metadados no consumo SQS.
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs` — Mesclagem resiliente de atributos entre itens do mesmo `JobId` em `DeduplicateJobs`.
+- `client/sales-dash/src/components/Scrape/ScrapeRunDetailPage.tsx` — Formatação de data em `formatMonthYear` com suporte a "Todas as datas", formatação `MM/YYYY` e múltiplos meses.
+- `pbi-scraper/worker.js` — Enriquecimento do `resultsPayload` com métricas completas de execução.
+
+## [2026-09-25] — Retenção Automática de 30 Dias via TTL no DynamoDB (`pbi_scrape_logs`)
+
+### Contexto & Motivação
+Para evitar crescimento contínuo de registros históricos de scrape e logs de erros de sistema no DynamoDB sem gerar custos com capacidade de escrita ou exigir scripts de limpeza na VPS, foi implementado o recurso nativo **Time to Live (TTL)** da AWS na tabela `pbi_scrape_logs`.
+
+### Funcionalidades & Arquitetura
+1. **Atributo `TTL` com Timestamp Epoch em Segundos**:
+   - `ScrapeDynamoLogService.WriteJobStatusAsync`: adiciona o campo numérico `TTL` (`N`) calculado como `DateTimeOffset.UtcNow.AddDays(_logRetentionDays).ToUnixTimeSeconds()`.
+   - `ImportErrorService.LogErrorAsync`: também inclui o campo numérico `TTL` para permitir a expiração automática de erros de importação antigos.
+2. **Configurabilidade (`appsettings.json`)**:
+   - Parâmetro `PbiScraper:LogRetentionDays` configurado com valor padrão `30`.
+   - Permite alterar o período de retenção (ex.: 30, 60, 90 dias) ou desativar (`0`) via configuração sem recompilar o código.
+3. **Custo Zero e Exclusão Assíncrona**:
+   - As exclusões efetuadas pelo mecanismo nativo de TTL do DynamoDB não consomem Write Capacity Units (WCU) e são executadas em segundo plano pela infraestrutura da AWS.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs` — Inclusão do cálculo e gravação do atributo `TTL` no `PutItemAsync`.
+- `SalesApp.Api/Services/ImportErrorService.cs` — Inclusão do cálculo e gravação do atributo `TTL` para logs de erro.
+- `SalesApp.Api/appsettings.json` — Adição da chave `LogRetentionDays: 30` sob `PbiScraper`.
+
+
+
 

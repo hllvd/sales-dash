@@ -35,6 +35,33 @@ import { scrapeService, ScrapeRunDetail, ScrapeJob } from '../../services/scrape
 import Menu from '../Menu';
 import './ScrapeDashboard.css';
 
+export const formatSingleMonth = (str: string): string => {
+  const trimmed = str.trim();
+  if (!trimmed || trimmed === 'Padrão') return 'Todas as datas';
+  if (trimmed.includes('-')) {
+    const parts = trimmed.split('-');
+    if (parts.length >= 2 && parts[0] && parts[1]) {
+      return `${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+  }
+  return trimmed;
+};
+
+export const formatMonthYear = (dateStr?: string): string => {
+  if (!dateStr || !dateStr.trim() || dateStr === 'Padrão') {
+    return 'Todas as datas';
+  }
+  if (dateStr.includes(',')) {
+    return dateStr
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(formatSingleMonth)
+      .join(', ');
+  }
+  return formatSingleMonth(dateStr);
+};
+
 interface ScrapeRunDetailPageProps {
   runId: string;
 }
@@ -117,17 +144,6 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
 
   const totalRowCount = detail?.jobs.reduce((acc, job) => acc + (job.rowCount || 0), 0) || 0;
   const uniqueMatriculas = Array.from(new Set(detail?.jobs.map((j) => j.matricula) || [])).filter(Boolean);
-
-  const formatMonthYear = (dateStr?: string) => {
-    if (!dateStr || dateStr === 'Padrão') return 'Mês Atual';
-    if (dateStr.includes('-')) {
-      const parts = dateStr.split('-');
-      if (parts.length >= 2) {
-        return `${parts[1]}/${parts[0]}`;
-      }
-    }
-    return dateStr;
-  };
 
   const jobRows = (detail?.jobs || []).map((job) => (
     <Table.Tr key={job.jobId}>

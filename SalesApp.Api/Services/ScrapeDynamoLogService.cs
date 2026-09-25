@@ -88,12 +88,14 @@ namespace SalesApp.Services
     {
         private readonly IAmazonDynamoDB _dynamoDb;
         private readonly string _tableName;
+        private readonly int _logRetentionDays;
         private readonly ILogger<ScrapeDynamoLogService> _logger;
 
         public ScrapeDynamoLogService(IAmazonDynamoDB dynamoDb, IConfiguration configuration, ILogger<ScrapeDynamoLogService> logger)
         {
             _dynamoDb = dynamoDb;
             _tableName = configuration["AWS:DynamoDbTable"] ?? "pbi_scrape_logs";
+            _logRetentionDays = configuration.GetValue<int>("PbiScraper:LogRetentionDays", 30);
             _logger = logger;
         }
 
@@ -138,6 +140,13 @@ namespace SalesApp.Services
             // Global Secondary Index entry for SuperAdmin listing
             item.Add("GSI1PK", new AttributeValue { S = "ENTITY#JOB" });
             item.Add("GSI1SK", new AttributeValue { S = $"JOB#{timestamp}#{jobId}" });
+
+            // DynamoDB Time to Live (TTL) - Unix Epoch in seconds (default 30 days)
+            if (_logRetentionDays > 0)
+            {
+                var ttlSeconds = DateTimeOffset.UtcNow.AddDays(_logRetentionDays).ToUnixTimeSeconds();
+                item["TTL"] = new AttributeValue { N = ttlSeconds.ToString() };
+            }
 
             if (additionalData != null)
             {
@@ -357,12 +366,72 @@ namespace SalesApp.Services
                         }
                     }
 
-                    // If explicit duration wasn't stored or is 0, calculate from CompletedAt - CreatedAt
-                    if (entry.DurationSeconds <= 0 && entry.CompletedAt.HasValue && entry.CompletedAt.Value > entry.CreatedAt)
+                    // Merge ScrapeDate if missing in chosen entry
+                    if (string.IsNullOrEmpty(entry.ScrapeDate))
                     {
-                        var span = entry.CompletedAt.Value - entry.CreatedAt;
-                        entry.DurationSeconds = (int)Math.Round(span.TotalSeconds);
-                        entry.DurationFormatted = ScrapeDurationFormatter.FormatDuration(span);
+                        entry.ScrapeDate = g.Select(j => j.ScrapeDate).FirstOrDefault(d => !string.IsNullOrEmpty(d));
+                    }
+
+                    // Merge Store, Matricula, UserEmail if missing
+                    if (string.IsNullOrEmpty(entry.Store))
+                    {
+                        entry.Store = g.Select(j => j.Store).FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? "";
+                    }
+                    if (string.IsNullOrEmpty(entry.Matricula))
+                    {
+                        entry.Matricula = g.Select(j => j.Matricula).FirstOrDefault(m => !string.IsNullOrEmpty(m)) ?? "";
+                    }
+                    if (string.IsNullOrEmpty(entry.UserEmail))
+                    {
+                        entry.UserEmail = g.Select(j => j.UserEmail).FirstOrDefault(e => !string.IsNullOrEmpty(e)) ?? "";
+                    }
+
+                    // Merge AuthStatus and AuthMessage
+                    if (string.IsNullOrEmpty(entry.AuthStatus))
+                    {
+                        entry.AuthStatus = g.Select(j => j.AuthStatus).FirstOrDefault(a => !string.IsNullOrEmpty(a))
+                                           ?? (entry.Status == "Succeeded" ? "success" : null);
+                    }
+                    if (string.IsNullOrEmpty(entry.AuthMessage))
+                    {
+                        entry.AuthMessage = g.Select(j => j.AuthMessage).FirstOrDefault(a => !string.IsNullOrEmpty(a))
+                                            ?? (entry.Status == "Succeeded" ? "Autenticação bem-sucedida" : null);
+                    }
+
+                    // Merge PowerBiLoaded
+                    if (!entry.PowerBiLoaded)
+                    {
+                        entry.PowerBiLoaded = g.Any(j => j.PowerBiLoaded) || entry.Status == "Succeeded" || entry.RowCount > 0;
+                    }
+
+                    // Merge AuthSteps if empty
+                    if (entry.AuthSteps == null || !entry.AuthSteps.Any())
+                    {
+                        entry.AuthSteps = g.Select(j => j.AuthSteps).FirstOrDefault(steps => steps != null && steps.Any()) ?? new List<string>();
+                    }
+
+                    // Merge RetryCount if 0
+                    if (entry.RetryCount <= 0)
+                    {
+                        entry.RetryCount = g.Select(j => j.RetryCount).DefaultIfEmpty(0).Max();
+                    }
+
+                    // If explicit duration wasn't stored or is 0, check other entries or calculate from CompletedAt - CreatedAt
+                    if (entry.DurationSeconds <= 0)
+                    {
+                        var maxExplicit = g.Select(j => j.DurationSeconds).DefaultIfEmpty(0).Max();
+                        if (maxExplicit > 0)
+                        {
+                            entry.DurationSeconds = maxExplicit;
+                            var explicitFormatted = g.Select(j => j.DurationFormatted).FirstOrDefault(f => !string.IsNullOrEmpty(f) && f != "0s");
+                            entry.DurationFormatted = explicitFormatted ?? ScrapeDurationFormatter.FormatDuration(TimeSpan.FromSeconds(maxExplicit));
+                        }
+                        else if (entry.CompletedAt.HasValue && entry.CompletedAt.Value > entry.CreatedAt)
+                        {
+                            var span = entry.CompletedAt.Value - entry.CreatedAt;
+                            entry.DurationSeconds = (int)Math.Round(span.TotalSeconds);
+                            entry.DurationFormatted = ScrapeDurationFormatter.FormatDuration(span);
+                        }
                     }
 
                     return entry;

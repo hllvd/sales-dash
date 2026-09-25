@@ -36,12 +36,14 @@ namespace SalesApp.Services
     {
         private readonly IAmazonDynamoDB _dynamoDb;
         private readonly string _tableName;
+        private readonly int _logRetentionDays;
         private readonly ILogger<ImportErrorService> _logger;
 
         public ImportErrorService(IAmazonDynamoDB dynamoDb, IConfiguration configuration, ILogger<ImportErrorService> logger)
         {
             _dynamoDb = dynamoDb;
             _tableName = configuration["AWS:DynamoDbTable"] ?? "pbi_scrape_logs"; // Reuse same table for now or a different one if configured
+            _logRetentionDays = configuration.GetValue<int>("PbiScraper:LogRetentionDays", 30);
             _logger = logger;
         }
 
@@ -62,6 +64,13 @@ namespace SalesApp.Services
                 { "GSI1PK", new AttributeValue { S = "ENTITY#SYSTEM_ERROR" } },
                 { "GSI1SK", new AttributeValue { S = $"TIMESTAMP#{timestamp}#{errorId}" } }
             };
+
+            // DynamoDB Time to Live (TTL) - Unix Epoch in seconds (default 30 days)
+            if (_logRetentionDays > 0)
+            {
+                var ttlSeconds = DateTimeOffset.UtcNow.AddDays(_logRetentionDays).ToUnixTimeSeconds();
+                item["TTL"] = new AttributeValue { N = ttlSeconds.ToString() };
+            }
 
             if (sessionId.HasValue)
             {
