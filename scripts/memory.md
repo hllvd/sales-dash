@@ -7,6 +7,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-09-24] all — Attempt 2
+**Failure:** `inactive_user_contracts_visibility.spec.ts` test 4 timeout clicking checkbox input.
+**Root cause:** Mantine `Switch` component wraps the input with complex styling, causing direct `input[type="checkbox"].check()` to hang on click interception.
+**Fix applied:** Updated test 4 to click the label text `"Incluir usuários desativados no filtro Usuário"` and await the `PUT /api/users/me/preferences` response. Also removed `Where(u => u.IsActive)` from `UserRepository.GetAllHierarchyLinksAsync` and ensured `ContractForm` fetches fresh user list with `includeInactive`.
+**Result:** ✅ Green (182/182 passed on Run 1, 181/181 passed on Run 2 idempotency check)
+
 ## [2026-09-24] e2e — Attempt 1
 **Failure:** `FAILED to register user admin.a.iyvutt5840@test.com: status=400, Name cannot contain numbers`.
 **Root cause:** Generated `RUN_ID` contained numbers from `Date.now()`, which were appended to test user `Name` fields, violating backend name validation prohibiting numbers.

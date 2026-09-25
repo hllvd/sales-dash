@@ -268,7 +268,6 @@ namespace SalesApp.Repositories
         {
             return await _context.Users
                 .AsNoTracking()
-                .Where(u => u.IsActive)
                 .Select(u => new UserHierarchyLink(u.Id, u.InternalId, u.ParentUserId))
                 .ToListAsync();
         }

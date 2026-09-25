@@ -1,6 +1,30 @@
 # Features
 
-## Exibição de Scrollbar no Hover em Gerenciamento de Equipe
+## Visualização de Contratos de Usuários Inativos e Preferência no Formulário de Contratos
+
+Garante que contratos fechados por usuários que foram desativados continuem visíveis na tela de Gerenciamento de Contratos (`#/contracts`) para administradores e superadministradores, preservando estritamente a árvore hierárquica (`ParentUserId`). Além disso, ajusta o formulário de contratos (`ContractForm`) para respeitar a preferência de exibição de inativos nas configurações do usuário.
+
+### Comportamento e Regras
+- **Inclusão de Usuários Inativos no Escopo de Hierarquia (`UserScopeService`)**:
+  - Removido o filtro `Where(u => u.IsActive)` da query de links hierárquicos em `UserScopeService.GetContractScopeAsync`.
+  - Usuários desativados agora são incluídos na travessia BFS de liderados (`AllowedUserIds`), garantindo que administradores mantenham a visibilidade histórica dos contratos realizados por membros de sua equipe mesmo após sua desativação.
+  - O isolamento hierárquico é estritamente mantido: usuários inativos fora da rede do administrador continuam invisíveis para ele.
+- **Respeito às Preferências no Dropdown de Vendedor (`ContractForm`)**:
+  - O formulário de criação/edição de contratos agora consulta as preferências do usuário logado (`IncludeInactiveUsersInFilter`).
+  - Se a preferência estiver ativa, o seletor de vendedor exibe tanto usuários ativos quanto inativos; se desativada, exibe apenas os usuários ativos.
+  - Ao editar um contrato pré-existente cujo vendedor esteja desativado, o vendedor continua selecionado e visível no formulário independentemente da preferência.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/UserScopeService.cs`: Inclusão de usuários inativos na construção do grafo BFS de escopo hierárquico.
+- `SalesApp.Tests/Services/UserScopeServiceTests.cs`: Teste unitário para validar que subordinado inativo é incluído em `AllowedUserIds`.
+- `SalesApp.Tests/ContractRepositoryTests.cs`: Teste unitário validando que contratos de usuários inativos no escopo são retornados em `GetAllAsync`.
+- `client/sales-dash/src/components/ContractForm.tsx`: Consulta e aplicação da preferência `IncludeInactiveUsersInFilter` no carregamento e filtragem de vendedores.
+- `client/sales-dash/src/components/ContractForm.test.tsx`: Testes unitários para o comportamento do formulário com vendedores ativos e inativos.
+- `client/e2e-test/e2e/delete_user_migration.spec.ts`: Teste E2E cobrindo a permanência da visibilidade dos contratos após a desativação do liderado pelo admin.
+- `client/e2e-test/e2e/inactive_user_contracts_visibility.spec.ts`: Suíte de testes E2E dedicada validando escopo de admin sobre inativos, isolamento de outras redes, visão global do superadmin e toggle de preferências no `ContractForm`.
+- `client/e2e-test/playwright.config.ts`: Registro do novo arquivo de teste no projeto `tear-3a-hierarchy`.
+
+---
 
 Habilita a exibição da barra de rolagem (scrollbar) ao passar o cursor sobre as listas de "Usuários Disponíveis" e "Membros da Equipe" no modal de gerenciamento de membros da equipe (`TeamMembersModal`), permitindo identificar visualmente e rolar pelo conteúdo além do scroll via roda do mouse/trackpad.
 

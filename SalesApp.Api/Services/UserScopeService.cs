@@ -40,10 +40,10 @@ namespace SalesApp.Services
                 return context;
 
             // PERFORMANCE OPTIMIZATION:
-            // Prevent N+1 and Over-selecting (SELECT *) by ONLY downloading the Id, InternalId and ParentUserId of active users.
+            // Prevent N+1 and Over-selecting (SELECT *) by ONLY downloading the Id, InternalId and ParentUserId.
+            // NOTE: Inactive users are included so their contracts remain visible to superiors in the hierarchy.
             var allHierarchyLinks = await _context.Users
                 .AsNoTracking()
-                .Where(u => u.IsActive)
                 .Select(u => new { u.Id, u.InternalId, u.ParentUserId })
                 .ToListAsync();
 

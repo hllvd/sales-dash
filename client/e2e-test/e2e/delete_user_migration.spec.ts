@@ -192,6 +192,18 @@ test.describe('Delete User without Mandatory Migration E2E Flow', () => {
 
     // Verify user is no longer in active view
     await expect(childRow).not.toBeVisible({ timeout: 15000 });
+
+    // 6. Verify that Admin can still see the deactivated child's contract in Contracts page
+    await page.goto('/#/contracts');
+    await expect(page.getByText('Gerenciamento de Contratos')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.contracts-loading')).not.toBeVisible({ timeout: 15000 });
+
+    await page.fill('input[placeholder="Buscar por número..."]', ADMIN_CONTRACT_NUMBER);
+    await page.waitForTimeout(1000);
+
+    const contractRow = page.locator('table tbody tr').filter({ hasText: ADMIN_CONTRACT_NUMBER });
+    await expect(contractRow).toBeVisible({ timeout: 15000 });
+    await expect(contractRow.getByText(`AdminChild E2E ${RUN_ID}`)).toBeVisible();
   });
 
   test('admin/superadmin can directly deactivate user with contracts and no superior', async ({ page }) => {

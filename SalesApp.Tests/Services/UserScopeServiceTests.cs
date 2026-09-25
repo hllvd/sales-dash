@@ -160,5 +160,38 @@ namespace SalesApp.Tests.Services
             scope.AllowedTeamIds.Should().Contain(102);
             scope.AllowedTeamIds.Should().NotContain(103);
         }
+
+        [Fact]
+        public async Task GetContractScopeAsync_InactiveDescendant_IsIncludedInAllowedUserIds()
+        {
+            // Arrange
+            var adminId = Guid.NewGuid();
+            var inactiveSubordinateId = Guid.NewGuid();
+            var unrelatedInactiveUserId = Guid.NewGuid();
+
+            var admin = new User { Id = adminId, InternalId = 50, Name = "Admin", Email = "admin@inactive.com", RoleId = 2, IsActive = true };
+            var inactiveSubordinate = new User { Id = inactiveSubordinateId, InternalId = 51, Name = "Inactive Sub", Email = "inactivesub@test.com", RoleId = 3, IsActive = false, ParentUserId = adminId };
+            var unrelatedInactiveUser = new User { Id = unrelatedInactiveUserId, InternalId = 52, Name = "Unrelated Inactive", Email = "unrelatedinactive@test.com", RoleId = 3, IsActive = false };
+
+            _context.Users.AddRange(admin, inactiveSubordinate, unrelatedInactiveUser);
+            await _context.SaveChangesAsync();
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, adminId.ToString()),
+                new Claim("role_id", "2")
+            };
+            var identity = new ClaimsIdentity(claims, "TestAuth");
+            var principal = new ClaimsPrincipal(identity);
+
+            // Act
+            var scope = await _service.GetContractScopeAsync(principal);
+
+            // Assert
+            scope.IsGlobal.Should().BeFalse();
+            scope.AllowedUserIds.Should().Contain(adminId);
+            scope.AllowedUserIds.Should().Contain(inactiveSubordinateId);
+            scope.AllowedUserIds.Should().NotContain(unrelatedInactiveUserId);
+        }
     }
 }

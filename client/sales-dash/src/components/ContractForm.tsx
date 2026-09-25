@@ -74,17 +74,24 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
     const fetchDropdownData = async () => {
       try {
-        let usersData = cachedUsers;
-        if (!usersData || usersData.length === 0 || !usersData.some(u => u.activeMatriculas !== undefined)) {
-          usersData = await getUsers(isUserAdmin);
+        let includeInactive = false;
+        try {
+          const prefRes = await apiService.getUserPreferences();
+          if (prefRes.success && prefRes.data) {
+            includeInactive = !!prefRes.data.includeInactiveUsersInFilter;
+          }
+        } catch (prefErr) {
+          console.warn('Failed to load user preferences in ContractForm', prefErr);
         }
+
+        let usersData = await getUsers(isUserAdmin, includeInactive);
 
         let groupsData = cachedGroups;
         if (!groupsData || groupsData.length === 0) {
           groupsData = await getGroups();
         }
         
-        let listUsers = usersData.filter(u => u.isActive);
+        let listUsers = includeInactive ? usersData : usersData.filter(u => u.isActive);
         if (contract && contract.userId && !listUsers.some(u => u.id === contract.userId)) {
           listUsers = [...usersData, {
             id: contract.userId,

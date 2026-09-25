@@ -648,5 +648,44 @@ namespace SalesApp.Tests.Repositories
             contractNumbers.Should().Contain("CTR-TEAM-A-HISTORIC");
             contractNumbers.Should().NotContain("CTR-TEAM-B-FUTURE");
         }
+
+        [Fact]
+        public async Task GetAllAsync_WhenUserIsInactiveAndInScope_ShouldReturnTheirContracts()
+        {
+            // Arrange
+            var activeStatus = new ContractStatusEntity { Id = 701, Name = "Active" };
+            _context.ContractStatuses.Add(activeStatus);
+
+            var admin = new User { Id = Guid.NewGuid(), InternalId = 710, Name = "Admin", Email = "admin@inactivescope.com", RoleId = 2, IsActive = true };
+            var inactiveConsultant = new User { Id = Guid.NewGuid(), InternalId = 711, Name = "Inactive Consultant", Email = "inactive@test.com", RoleId = 3, IsActive = false, ParentUserId = admin.Id };
+            _context.Users.AddRange(admin, inactiveConsultant);
+
+            var contract = new Contract
+            {
+                ContractNumber = "CTR-INACTIVE-USER",
+                UserInternalId = inactiveConsultant.InternalId,
+                User = inactiveConsultant,
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                SaleStartDate = DateTime.UtcNow,
+                TotalAmount = 5000,
+                IsActive = true
+            };
+            _context.Contracts.Add(contract);
+            await _context.SaveChangesAsync();
+
+            var adminScope = new UserScopeContext
+            {
+                IsGlobal = false,
+                AllowedUserIds = new HashSet<Guid> { admin.Id, inactiveConsultant.Id }
+            };
+
+            // Act
+            var results = await _repository.GetAllAsync(scope: adminScope);
+
+            // Assert
+            var contractNumbers = results.Select(c => c.ContractNumber).ToList();
+            contractNumbers.Should().Contain("CTR-INACTIVE-USER");
+        }
     }
 }
