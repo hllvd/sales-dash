@@ -1,5 +1,37 @@
 # Features
 
+## Filtro de Licenciamento, Exportação XLSX Filtrada e Coluna Usuário Pai em Monitoramento > Licenças
+
+Implementa melhorias no módulo de monitoramento de licenças (`LicensingPage`), adicionando filtro de status de licença, exportação em planilha XLSX que respeita todos os filtros ativos (status e busca textual) e inclusão da coluna "Usuário Pai" informando o email do superior imediato acompanhado de sua equipe ativa.
+
+### Comportamento e Regras
+- **Filtro de Licenciamento (`Licenciados`, `Não licenciados`, `Todos`)**:
+  - Adicionado seletor na barra de controle da seção "Detalhamento dos Usuários".
+  - Opção padrão: **"Licenciados"** (`licensed`), exibindo apenas os usuários que atingiram a quantidade mínima de dias ativos no mês.
+  - Opção **"Não licenciados"** (`unlicensed`): exibe usuários abaixo da quantidade mínima de dias.
+  - Opção **"Todos"** (`all`): exibe a lista completa de usuários considerados.
+  - A paginação é reiniciada automaticamente ao alterar o filtro.
+- **Exportação XLSX Alinhada aos Filtros**:
+  - O endpoint de exportação `GET /api/monitoring/licensing/export-xlsx` agora suporta os parâmetros de query `status` e `search`.
+  - Ao clicar em "Exportar Planilha", o arquivo XLSX gerado reflete rigorosamente os mesmos usuários visíveis na listagem filtrada (combinando o status da licença e qualquer termo de busca textual digitado).
+- **Coluna "Usuário Pai" na Tabela e no XLSX**:
+  - Nova coluna posicionada imediatamente após a coluna "Equipe".
+  - Exibe o email do usuário pai seguido de sua respectiva equipe ativa entre parênteses: `email@domain (Equipe)`.
+  - Caso o usuário pai exista mas não possua equipe ativa vinculada no momento, exibe `email@domain (Sem Equipe)`.
+  - Caso o usuário não possua usuário pai cadastrado (`ParentUserId` nulo), exibe `-`.
+  - A mesma coluna e formatação são reproduzidas na planilha `.xlsx` exportada.
+
+### Arquivos Modificados
+- `SalesApp.Api/DTOs/LicensingDTOs.cs`: Adição da propriedade `ParentUser` ao `UserLicenseDetailDto`.
+- `SalesApp.Api/Repositories/MonitoringRepository.cs`: Inclusão de `ParentUser` na query e mapeamento de `ParentUser` com email e equipe ativa do usuário pai (ou "Sem Equipe" / "-").
+- `SalesApp.Api/Controllers/MonitoringController.cs`: Suporte a `status` e `search` no endpoint de exportação XLSX, e adição da coluna "Usuário Pai" no arquivo gerado.
+- `SalesApp.IntegrationTests/Contracts/MonitoringTests.cs`: Testes de integração validando o retorno do campo `ParentUser` e a exportação com filtros de status e busca.
+- `client/sales-dash/src/services/contractService.ts`: Atualização da interface `UserLicenseDetail` e função `exportLicensingXlsx` com parâmetros `status` e `search`.
+- `client/sales-dash/src/services/contractService.test.ts`: Testes unitários para a função `exportLicensingXlsx`.
+- `client/sales-dash/src/components/Monitoring/LicensingPage.tsx`: Inclusão do dropdown de status de licença (padrão Licenciados), coluna Usuário Pai na tabela e repasse dos filtros na exportação.
+
+---
+
 ## Visualização de Contratos de Usuários Inativos e Preferência no Formulário de Contratos
 
 Garante que contratos fechados por usuários que foram desativados continuem visíveis na tela de Gerenciamento de Contratos (`#/contracts`) para administradores e superadministradores, preservando estritamente a árvore hierárquica (`ParentUserId`). Além disso, ajusta o formulário de contratos (`ContractForm`) para respeitar a preferência de exibição de inativos nas configurações do usuário.

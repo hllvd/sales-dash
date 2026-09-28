@@ -330,6 +330,24 @@ describe('contractService', () => {
       );
     });
 
+    it('should include status and search parameters when provided', async () => {
+      const mockBlob = new Blob(['mock-xlsx-content'], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        blob: async () => mockBlob,
+      });
+
+      await exportLicensingXlsx(2026, 9, 15, 'licensed', 'ana');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/monitoring/licensing/export-xlsx?year=2026&month=9&minimumDays=15&status=licensed&search=ana',
+        expect.any(Object)
+      );
+    });
+
     it('should throw error when exportLicensingXlsx fails', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,

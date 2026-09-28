@@ -41,6 +41,7 @@ const LicensingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exportingXlsx, setExportingXlsx] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('licensed');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 15;
@@ -83,7 +84,9 @@ const LicensingPage: React.FC = () => {
       const blob = await exportLicensingXlsx(
         parseInt(year),
         parseInt(month),
-        minimumDays
+        minimumDays,
+        statusFilter,
+        search
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -122,14 +125,19 @@ const LicensingPage: React.FC = () => {
     return { value: y.toString(), label: y.toString() };
   });
 
-  // Filter users based on search
+  // Filter users based on license status and search
   const searchLower = search.trim().toLowerCase();
   const filteredUsers = report
-    ? report.users.filter(u =>
-        !searchLower ||
-        u.name.toLowerCase().includes(searchLower) ||
-        u.email.toLowerCase().includes(searchLower)
-      )
+    ? report.users.filter(u => {
+        if (statusFilter === 'licensed' && !u.isLicensed) return false;
+        if (statusFilter === 'unlicensed' && u.isLicensed) return false;
+        if (!searchLower) return true;
+        return (
+          u.name.toLowerCase().includes(searchLower) ||
+          u.email.toLowerCase().includes(searchLower) ||
+          (u.parentUser && u.parentUser.toLowerCase().includes(searchLower))
+        );
+      })
     : [];
 
   const totalPages = Math.ceil(filteredUsers.length / pageSize);
@@ -292,6 +300,18 @@ const LicensingPage: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <Title order={4} style={{ color: '#374151' }}>Detalhamento dos Usuários</Title>
                 <Group>
+                  <Select
+                    placeholder="Status da licença"
+                    data={[
+                      { value: 'licensed', label: 'Licenciados' },
+                      { value: 'unlicensed', label: 'Não licenciados' },
+                      { value: 'all', label: 'Todos' },
+                    ]}
+                    value={statusFilter}
+                    onChange={(val) => { if (val) { setStatusFilter(val); setPage(1); } }}
+                    style={{ width: 170 }}
+                    allowDeselect={false}
+                  />
                   <TextInput
                     placeholder="Buscar por nome ou email..."
                     value={search}
@@ -324,6 +344,7 @@ const LicensingPage: React.FC = () => {
                         <Table.Th>Email</Table.Th>
                         <Table.Th>Cargo</Table.Th>
                         <Table.Th>Equipe</Table.Th>
+                        <Table.Th>Usuário Pai</Table.Th>
                         <Table.Th>Dias Ativos no Mês</Table.Th>
                         <Table.Th>Status</Table.Th>
                       </Table.Tr>
@@ -339,6 +360,7 @@ const LicensingPage: React.FC = () => {
                             </Badge>
                           </Table.Td>
                           <Table.Td style={{ color: '#4b5563' }}>{u.teamName}</Table.Td>
+                          <Table.Td style={{ color: '#4b5563' }}>{u.parentUser || '-'}</Table.Td>
                           <Table.Td fw={600}>{u.activeDaysInMonth} dias</Table.Td>
                           <Table.Td>
                             {u.isLicensed ? (

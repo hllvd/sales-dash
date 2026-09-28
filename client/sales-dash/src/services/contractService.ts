@@ -227,6 +227,7 @@ export interface UserLicenseDetail {
   email: string;
   role: string;
   teamName: string;
+  parentUser?: string;
   activeDaysInMonth: number;
   isLicensed: boolean;
 }
@@ -269,11 +270,19 @@ export const getLicensingReport = async (
 export const exportLicensingXlsx = async (
   year: number,
   month: number,
-  minimumDays?: number
+  minimumDays?: number,
+  status?: string,
+  search?: string
 ): Promise<Blob> => {
   let url = `${API_BASE_URL}/monitoring/licensing/export-xlsx?year=${year}&month=${month}`;
   if (minimumDays !== undefined) {
     url += `&minimumDays=${minimumDays}`;
+  }
+  if (status) {
+    url += `&status=${encodeURIComponent(status)}`;
+  }
+  if (search && search.trim()) {
+    url += `&search=${encodeURIComponent(search.trim())}`;
   }
 
   const response = await authenticatedFetch(url, {
