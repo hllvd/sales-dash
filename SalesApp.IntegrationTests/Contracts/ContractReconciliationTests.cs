@@ -522,5 +522,99 @@ namespace SalesApp.IntegrationTests.Contracts
             result.MissingInImport[0].TotalAmount.Should().Be(2000.00m);
             result.MissingInImport[0].SystemUserName.Should().Be("Present User");
         }
+
+        [Fact]
+        public async Task Reconcile_ShouldIgnoreInactiveContracts()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Active Contract User",
+                Email = $"active_contract_{Guid.NewGuid():N}@test.com",
+                RoleId = 3,
+                InternalId = 9977
+            };
+
+            var saleDate = new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc);
+
+            var activeContract = new Contract
+            {
+                ContractNumber = "REC-ACT-101",
+                TotalAmount = 1000.00m,
+                UserInternalId = user.InternalId,
+                SaleStartDate = saleDate,
+                ContractStatusId = 1,
+                IsActive = true
+            };
+
+            var inactiveContract = new Contract
+            {
+                ContractNumber = "REC-INACT-202",
+                TotalAmount = 2000.00m,
+                UserInternalId = user.InternalId,
+                SaleStartDate = saleDate,
+                ContractStatusId = 1,
+                IsActive = false // Inactive contract
+            };
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.Users.Add(user);
+                db.Contracts.AddRange(activeContract, inactiveContract);
+                await db.SaveChangesAsync();
+            }
+
+            byte[] xlsxBytes;
+            using (var package = new ExcelPackage())
+            {
+                var ws = package.Workbook.Worksheets.Add("Sheet1");
+                ws.Cells[1, 1].Value = "Contrato";
+                ws.Cells[1, 2].Value = "Data da Venda";
+                ws.Cells[1, 3].Value = "Valor";
+                ws.Cells[1, 4].Value = "Consultor";
+
+                // Active contract matching
+                ws.Cells[2, 1].Value = "REC-ACT-101";
+                ws.Cells[2, 2].Value = "10/07/2026";
+                ws.Cells[2, 3].Value = 1000.00;
+                ws.Cells[2, 4].Value = user.Name;
+
+                // Inactive contract number in sheet
+                ws.Cells[3, 1].Value = "REC-INACT-202";
+                ws.Cells[3, 2].Value = "10/07/2026";
+                ws.Cells[3, 3].Value = 2000.00;
+                ws.Cells[3, 4].Value = user.Name;
+
+                xlsxBytes = package.GetAsByteArray();
+            }
+
+            using var content = new MultipartFormDataContent();
+            content.Add(new ByteArrayContent(xlsxBytes), "file", "inactive_contracts_test.xlsx");
+            content.Add(new StringContent("2026-07-01"), "startDate");
+            content.Add(new StringContent("2026-07-31"), "endDate");
+
+            // Act
+            var response = await _client.PostAsync("/api/contractreconciliation/reconcile", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ContractReconciliationResultDto>();
+            result.Should().NotBeNull();
+
+            // Inactive contract REC-INACT-202 should NOT be matched in system; it should be flagged as MissingInSystem
+            result!.MissingInSystem.Should().Contain(c => c.ContractNumber == "REC-INACT-202");
+            result.MissingInImport.Should().NotContain(c => c.ContractNumber == "REC-INACT-202");
+
+            // User comparison should only include active system contract (Total = 1000, not 3000)
+            var userComp = result.UserComparisons.FirstOrDefault(u => u.UserName.Equals(user.Name, StringComparison.OrdinalIgnoreCase));
+            userComp.Should().NotBeNull();
+            userComp!.SystemTotal.Should().Be(1000.00m);
+            userComp.SystemCount.Should().Be(1);
+        }
     }
 }

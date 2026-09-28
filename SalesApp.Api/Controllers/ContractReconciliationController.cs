@@ -169,8 +169,9 @@ namespace SalesApp.Controllers
             var allRelevantContracts = await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.ContractStatus)
-                .Where(c => (c.SaleStartDate >= startDateTime && c.SaleStartDate <= endDateTime)
-                         || contractNumbersInSheet.Contains(c.ContractNumber))
+                .Where(c => c.IsActive &&
+                            ((c.SaleStartDate >= startDateTime && c.SaleStartDate <= endDateTime)
+                             || contractNumbersInSheet.Contains(c.ContractNumber)))
                 .ToListAsync();
 
             // Map user internal IDs to system user names
@@ -711,7 +712,7 @@ namespace SalesApp.Controllers
 
             var relevantContracts = await _context.Contracts
                 .AsNoTracking()
-                .Where(c => contractNumbersInSheet.Contains(c.ContractNumber))
+                .Where(c => c.IsActive && contractNumbersInSheet.Contains(c.ContractNumber))
                 .ToListAsync();
 
             var systemContractsMap = new Dictionary<string, Contract>(StringComparer.OrdinalIgnoreCase);
