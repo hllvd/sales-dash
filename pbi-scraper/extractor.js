@@ -422,7 +422,10 @@ function parseDSR(data, context = null) {
       const dtCancel = row['Dt Cancelamento'] || row['tbl_cotas.dt_cancelamento'];
       const dtContemp = row['Dt Contemplacao'] || row['tbl_cotas.dt_contemplacao'];
 
-      if (dtCancel) {
+      const isDesistente = typeof rawVal === 'string' && rawVal.toLowerCase().includes('desist');
+      if (isDesistente) {
+        row[statusKey] = 'Desistente';
+      } else if (dtCancel) {
         row[statusKey] = 'EXCLUIDO';
       } else if (dtContemp) {
         row[statusKey] = 'CONTEMPLADO';

@@ -351,6 +351,13 @@ async function scrapeConsultorDirect(options) {
                     : JSON.stringify(row));
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
+        if (!row['Tem Pagamento?']) {
+          const ultPagtoKey = Object.keys(row).find(k => k.includes('Últ.Pagto Parcela') || k.includes('Ult.Pagto Parcela'));
+          if (ultPagtoKey) {
+            const ultPagtoVal = row[ultPagtoKey];
+            row['Tem Pagamento?'] = (ultPagtoVal !== null && ultPagtoVal !== undefined && String(ultPagtoVal).trim() !== '' && String(ultPagtoVal).trim().toLowerCase() !== 'null') ? 'Sim' : 'Não';
+          }
+        }
         rows.push(row);
       }
     }

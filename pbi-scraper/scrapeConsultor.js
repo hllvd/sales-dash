@@ -181,6 +181,13 @@ function parseDSR(data, context = null) {
         row[k] = toYyyyMmDd(row[k]);
       }
     });
+
+    // Derive Tem Pagamento? from '2 Rel Carteira.Últ.Pagto Parcela'
+    const ultPagtoKey = Object.keys(row).find(k => k.includes('Últ.Pagto Parcela') || k.includes('Ult.Pagto Parcela'));
+    if (ultPagtoKey) {
+      const ultPagtoVal = row[ultPagtoKey];
+      row['Tem Pagamento?'] = (ultPagtoVal !== null && ultPagtoVal !== undefined && String(ultPagtoVal).trim() !== '' && String(ultPagtoVal).trim().toLowerCase() !== 'null') ? 'Sim' : 'Não';
+    }
   });
 
   return allRows;

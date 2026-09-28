@@ -1,5 +1,68 @@
 # Features
 
+## Derivação de Status de Cotas para o Scrape do Tipo Consultor (`Late1`, `Late2`, `Late3`, `AwaitingPayment`, `Desistente`, `Defaulted`)
+
+Enriquece e padroniza a importação do relatório da Carteira do Consultor (Power BI) no backend C#. Como o relatório bruto do Consultor apresenta apenas as situações `"Normal"` e `"Excluido"`, o sistema avalia múltiplos indicadores financeiros (parcelas em atraso, parcelas pagas, última data de pagamento e data da venda) para classificar cada cota com a mesma granularidade e precisão do dashboard analítico.
+
+### Regras de Negócio Implementadas
+- **Situação `Excluido`**:
+  - Se `Sum(2 Rel Carteira.Quant.Parcelas Pagas) == 0`: Status derivado para **`Desistente`**.
+  - Se `Quant.Parcelas Pagas > 0` (ou não especificado): Status derivado para **`Defaulted`**.
+- **Situação `Normal`**:
+  - **Sem Pagamento** (`2 Rel Carteira.Últ.Pagto Parcela` nula, vazia ou `"0"`):
+    - Se a data da venda (`2 Rel Carteira.Data.Venda` / `SaleStartDate`) for **inferior ou igual a 30 dias** em relação à data atual: Status derivado para **`AwaitingPayment`** (aguardando primeiro pagamento).
+    - Se a data da venda for **superior a 30 dias**:
+      - Se `Sum(2 Rel Carteira.Quant.Parcelas em Atraso) >= 3`: **`Late3`**
+      - Se `Quant.Parcelas em Atraso == 2`: **`Late2`**
+      - Se `Quant.Parcelas em Atraso == 1`: **`Late1`**
+      - Se não houver parcelas em atraso registradas: **`AwaitingPayment`**
+  - **Com Pagamento** (`2 Rel Carteira.Últ.Pagto Parcela` preenchida com data válida e diferente de `"0"`):
+    - Se `Quant.Parcelas em Atraso >= 3`: **`Late3`**
+    - Se `Quant.Parcelas em Atraso == 2`: **`Late2`**
+    - Se `Quant.Parcelas em Atraso == 1`: **`Late1`**
+    - Se `Quant.Parcelas em Atraso == 0` (ou ausente): **`Active`** (Normal)
+- **Identificação Determinística**:
+  - O serviço `ConsultorStatusEvaluator` detecta se a linha pertence ao relatório do Consultor a partir das colunas `2 Rel Carteira.Definição.Situação`, `Quant.Parcelas em Atraso` e `Quant.Parcelas Pagas`.
+  - Caso o registro não seja do Consultor ou não contenha essas métricas, o mapeamento padrão de `Situação Cobrança` permanece inalterado.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/ConsultorStatusEvaluator.cs`: Serviço puro e determinístico contendo a lógica de derivação de status e detecção de linhas do Consultor.
+- `SalesApp.Api/appsettings.json`: Mapeamentos adicionados em `ScrapeImportMappings` para `"OverdueInstallments"` e `"PaidInstallments"`.
+- `SalesApp.Api/Services/ImportExecutionService.cs`: Integração de `ConsultorStatusEvaluator`, extração robusta de parcelas em atraso/pagas e tratamento do valor `"0"` como ausência de pagamento.
+- `SalesApp.IntegrationTests/appsettings.json`: Sincronização dos mapeamentos para o ambiente de testes de integração.
+- `SalesApp.IntegrationTests/Imports/ConsultorStatusEvaluatorTests.cs`: Testes unitários para todas as variações e condições limites da derivação de status.
+- `SalesApp.IntegrationTests/Imports/ScrapeImportValidationAndDecompositionTests.cs`: Teste de integração de ponta a ponta validando persistência no banco dos status derivados para o Consultor.
+
+---
+
+## Alinhamento de Mapeamento de Status `Desistente` e `Awaiting Payment` (`Tem Pagamento?`) nos Scrapes e Template `contractDashboard`
+
+Garante total paridade de dados entre as extrações automatizadas via Scrape (tanto modo Geral quanto modo Consultor) e a importação manual via template `contractDashboard`, tratando com fidelidade o status canônico `Desistente` e a detecção de contratos aguardando primeiro pagamento (`HasPayment == false` / `Awaiting Payment`).
+
+### Comportamento e Regras
+- **Preservação do Status `Desistente` no Scraper Geral (`pbi-scraper/extractor.js`)**:
+  - Corrigido o algoritmo de pós-processamento de status: anteriormente, qualquer registro com `Dt Cancelamento` preenchida tinha seu status sobrescrito incondicionalmente para `'EXCLUIDO'` (mapeado para `Defaulted`).
+  - O scraper agora prioriza e preserva valores de status legítimos contendo `desist` (`Desistente`), evitando que cotas canceladas por desistência sejam tratadas como cancelamento comum.
+  - No backend, `ContractStatusMappings` em `appsettings.json` inclui aliases canônicos adicionais: `"Desistência"`, `"DESISTÊNCIA"`, `"Desistencia"`, `"DESISTENCIA"`.
+- **Mapeamento de `Tem Pagamento?` / `HasPayment` no Scraper Geral**:
+  - Adicionado suporte às colunas `"Tem Pagamento?"`, `"Tem Pagamento"`, `"TemPagamento"`, `"tbl_cotas.tem_pagamento"` e `"tem_pagamento"` em `ScrapeImportMappings.Mappings` apontando para o campo de modelo `HasPayment`.
+- **Dedução de `Tem Pagamento?` e `HasPayment` no Scraper Consultor (`scrapeConsultor.js`, `extractorConsultor.js` e backend)**:
+  - O relatório do Consultor no Power BI não possui coluna booleana explícita de pagamento, mas disponibiliza a coluna `"2 Rel Carteira.Últ.Pagto Parcela"`.
+  - **No scraper (`pbi-scraper`)**: Durante a conversão de queries DSR e deduplicação de linhas, o scraper injeta dinamicamente a coluna `"Tem Pagamento?"` (`'Sim'` quando há data válida de último pagamento e `'Não'` quando for nula/vazia).
+  - **No backend (`ImportExecutionService.cs`)**: Fallback de dupla camada na importação de `contractDashboard`: caso o campo `HasPayment` esteja ausente no registro, o serviço inspeciona a coluna `"2 Rel Carteira.Últ.Pagto Parcela"` / `"LastPaymentDate"`. Se vazia/nula, atribui `HasPayment = false`; se preenchida com data, atribui `HasPayment = true`.
+  - Contratos ativos (`Normal` / `Active`) com `HasPayment == false` são perfeitamente identificados como "Aguardando Pagamento" nos relatórios e filtros do sistema.
+
+### Arquivos Modificados
+- `pbi-scraper/extractor.js`: Preservação do status `Desistente` antes de aplicar fallbacks de data de cancelamento/contemplação.
+- `pbi-scraper/scrapeConsultor.js`: Dedução e injeção do campo `"Tem Pagamento?"` a partir de `"2 Rel Carteira.Últ.Pagto Parcela"`.
+- `pbi-scraper/extractorConsultor.js`: Dedução e injeção do campo `"Tem Pagamento?"` para extrações diretas HTTP POST do Consultor.
+- `SalesApp.Api/appsettings.json`: Adicionados aliases de `Desistente` e mapeamentos de `HasPayment` e `LastPaymentDate` em `ScrapeImportMappings`.
+- `SalesApp.Api/Services/ImportExecutionService.cs`: Fallback de leitura de `LastPaymentDate` / `"2 Rel Carteira.Últ.Pagto Parcela"` para atribuição de `HasPayment`.
+- `SalesApp.IntegrationTests/appsettings.json`: Sincronização dos mapeamentos canônicos e de scrape no ambiente de testes.
+- `SalesApp.IntegrationTests/TestStartup.cs`: Registro de injeção de dependência para `ScrapeImportOptions`.
+- `SalesApp.IntegrationTests/Imports/ScrapeImportValidationAndDecompositionTests.cs`: Testes de integração cobrindo mapeamento Geral e Consultor para `Desistente` e `HasPayment`.
+
+
 ## Visualização de Contratos de Usuários Inativos e Preferência no Formulário de Contratos
 
 Garante que contratos fechados por usuários que foram desativados continuem visíveis na tela de Gerenciamento de Contratos (`#/contracts`) para administradores e superadministradores, preservando estritamente a árvore hierárquica (`ParentUserId`). Além disso, ajusta o formulário de contratos (`ContractForm`) para respeitar a preferência de exibição de inativos nas configurações do usuário.

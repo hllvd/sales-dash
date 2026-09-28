@@ -1884,6 +1884,27 @@ namespace SalesApp.Services
                     hasPayment = false;
                 }
             }
+            else
+            {
+                // Fallback for Consultor report or other templates containing last payment date column
+                var ultPagtoStr = GetFieldValue(row, reverseMappings, "LastPaymentDate");
+                if (string.IsNullOrWhiteSpace(ultPagtoStr))
+                {
+                    var ultPagtoKey = row.Keys.FirstOrDefault(k => 
+                        k.Contains("Últ.Pagto Parcela", StringComparison.OrdinalIgnoreCase) ||
+                        k.Contains("Ult.Pagto Parcela", StringComparison.OrdinalIgnoreCase) ||
+                        k.Equals("LastPaymentDate", StringComparison.OrdinalIgnoreCase));
+                    if (ultPagtoKey != null) ultPagtoStr = row[ultPagtoKey];
+                }
+
+                if (ultPagtoStr != null)
+                {
+                    var trimmed = ultPagtoStr.Trim();
+                    hasPayment = !string.IsNullOrWhiteSpace(trimmed) 
+                        && !trimmed.Equals("null", StringComparison.OrdinalIgnoreCase) 
+                        && !trimmed.Equals("0");
+                }
+            }
             
             // Parse PvId and PvName
             var pvIdStr = GetFieldValue(row, reverseMappings, "PvId");
@@ -1895,7 +1916,25 @@ namespace SalesApp.Services
             
             // Map Status
             var statusStr = GetFieldValue(row, reverseMappings, "Status");
-            var status = MapSituacaoCobrancaToStatus(statusStr);
+            string status;
+            if (ConsultorStatusEvaluator.IsConsultorRow(row))
+            {
+                int? overdueInstallments = ParseNullableInt(GetRawFieldValue(row, reverseMappings, "OverdueInstallments", "Quant.Parcelas em Atraso", "Parcelas em Atraso"));
+                int? paidInstallments = ParseNullableInt(GetRawFieldValue(row, reverseMappings, "PaidInstallments", "Quant.Parcelas Pagas", "Parcelas Pagas"));
+
+                status = ConsultorStatusEvaluator.DeriveStatus(
+                    rawStatus: statusStr,
+                    overdueInstallments: overdueInstallments,
+                    paidInstallments: paidInstallments,
+                    hasPayment: hasPayment,
+                    saleStartDate: saleStartDate,
+                    referenceDate: DateTime.UtcNow.Date,
+                    defaultStatusMapper: MapSituacaoCobrancaToStatus);
+            }
+            else
+            {
+                status = MapSituacaoCobrancaToStatus(statusStr);
+            }
             bool isUnknown = !string.IsNullOrWhiteSpace(statusStr) && 
                              status == ContractStatus.NaoDefinido.ToApiString() && 
                              !statusStr.Trim().Equals("NaoDefinido", StringComparison.OrdinalIgnoreCase) &&
@@ -2117,6 +2156,17 @@ namespace SalesApp.Services
             => incomingMatriculaId.HasValue
                && existingMatriculaId.HasValue
                && existingMatriculaId.Value != incomingMatriculaId.Value;
+
+        private static int? ParseNullableInt(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            if (int.TryParse(value.Trim(), out var parsed)) return parsed;
+            if (double.TryParse(value.Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d))
+            {
+                return (int)Math.Round(d);
+            }
+            return null;
+        }
 
         private string MapSituacaoCobrancaToStatus(string? situacaoCobranca)
         {
