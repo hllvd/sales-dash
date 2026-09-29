@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Title, Button, Table, Group, Text, Center, Loader, Paper, Stack, MultiSelect, Skeleton, LoadingOverlay } from '@mantine/core';
 import { BarChart, PieChart, DonutChart, LineChart, AreaChart } from '@mantine/charts';
 import { IconEdit, IconArrowLeft, IconFilter, IconRefresh } from '@tabler/icons-react';
@@ -42,6 +42,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
 
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
 
   // Exported Field Interactivity State
   const [teamOptions, setTeamOptions] = useState<{ value: string; label: string }[]>([]);
@@ -137,6 +138,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setCurrentUserRole(user.role || '');
     setCurrentUserId(user.id || '');
+    setCurrentUserEmail(user.email || '');
   }, [fetchResults]);
 
   // Load dropdown options for exported fields if configured
@@ -178,8 +180,14 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
     loadOptions();
   }, [report?.exportedFields]);
 
-  const isSuperadmin = currentUserRole === 'superadmin';
+  const isMasterSuperadmin = useMemo(() => {
+    const email = currentUserEmail.trim().toLowerCase();
+    return email === 'superadmin@salesapp.com' || email === 'superadmin@test.com';
+  }, [currentUserEmail]);
+
+  const isSuperadmin = currentUserRole === 'superadmin' || isMasterSuperadmin;
   const isOwner = report?.userId === currentUserId;
+  const canEdit = isSuperadmin && (isOwner || isMasterSuperadmin);
 
   const handleApplyFilters = () => {
     const overrides = {
@@ -300,7 +308,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
           </Group>
 
           <Group>
-            {isSuperadmin && isOwner && (
+            {canEdit && (
               <Button 
                 variant="light"
                 leftSection={<IconEdit size={16} />} 

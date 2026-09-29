@@ -15,10 +15,22 @@ namespace SalesApp.ReportFilters.Repositories
         Task<List<ReportFilter>> ListForUserAsync(string userId);
 
         /// <summary>
-        /// Returns a single report by its filterId.
+        /// Returns all reports across all users.
+        /// Used by Master SuperAdmin.
+        /// </summary>
+        Task<List<ReportFilter>> ListAllAsync();
+
+        /// <summary>
+        /// Returns a single report by its filterId for the given user.
         /// Returns null if the item does not exist.
         /// </summary>
         Task<ReportFilter?> GetByIdAsync(string userId, string filterId);
+
+        /// <summary>
+        /// Returns a single report by its filterId regardless of user owner.
+        /// Used by Master SuperAdmin.
+        /// </summary>
+        Task<ReportFilter?> GetAnyByIdAsync(string filterId);
 
         /// <summary>
         /// Creates a new report item in DynamoDB.

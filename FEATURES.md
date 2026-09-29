@@ -1,4 +1,38 @@
-# Features
+## Permissão Exclusiva de Gerenciamento Total de Reports e Views para o Master SuperAdmin
+
+Concede permissão exclusiva ao usuário **Master SuperAdmin** (identificado pelo e-mail configurado em `AdminInfo:MasterSuperAdminEmail` em `appsettings.json`, com valor padrão `"superadmin@salesapp.com"` e aceitando `"superadmin@test.com"` para automação de testes) para gerenciar irrestritamente qualquer relatório (`ReportFilter`) e painel/view (`ReportView`) em todo o sistema.
+
+### Comportamento e Regras
+- **Escopo Exclusivo do Master SuperAdmin**:
+  - **Listagem Universal**: Lista todos os relatórios e views existentes no sistema, inclusive relatórios e views **privados** criados por outros usuários ou por outros superadministradores.
+  - **Edição Universal**: Permite abrir, modificar e salvar alterações em qualquer relatório ou view, mantendo o `UserId` original do autor no registro.
+  - **Exclusão Universal**: Permite excluir qualquer relatório ou view do sistema, localizando o registro na partição do seu autor original (`SK = #U-{userId}#REP-{id}` ou `#U-{userId}#VIEW-{id}`) e efetuando a remoção correta no DynamoDB.
+- **Isolamento e Segurança para Demais Superadmins**:
+  - Usuários com papel `superadmin` comuns continuam estritamente restritos:
+    - Podem listar apenas seus próprios relatórios/views privados e relatórios compartilhados.
+    - Tentativas de editar ou excluir relatórios/views pertencentes a outros usuários retornam `403 Forbidden`.
+- **Configuração Centralizada**:
+  - Propriedade: `AdminInfo:MasterSuperAdminEmail` (mapeada na classe `AdminInfoOptions`).
+  - Fallback padrão no código para `"superadmin@salesapp.com"`.
+- **Interface Web (`ReportListPage`, `ReportResultsPage`, `ViewsListPage`)**:
+  - Reconhecimento automático do e-mail do Master SuperAdmin.
+  - Exibição de relatórios e views privados de outros usuários com um badge indicativo *"Outro Usuário"*.
+  - Habilitação dos botões de ação "Editar" e "Excluir" em todos os cards e páginas de resultados.
+
+### Arquivos Modificados
+- `SalesApp.Api/Models/Configuration/AdminInfoOptions.cs`: Adição da propriedade `MasterSuperAdminEmail`.
+- `SalesApp.Api/appsettings.json`: Configuração de `"MasterSuperAdminEmail": "superadmin@salesapp.com"` sob `"AdminInfo"`.
+- `SalesApp.Api/ReportFilters/Repositories/IReportFilterRepository.cs` e `DynamoDbReportFilterRepository.cs`: Métodos `ListAllAsync()` e `GetAnyByIdAsync(filterId)`.
+- `SalesApp.Api/ReportViews/Repositories/IReportViewRepository.cs` e `DynamoDbReportViewRepository.cs`: Métodos `ListAllAsync()` e `GetAnyByIdAsync(viewId)`.
+- `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs`: Injeção de `IOptions<AdminInfoOptions>`, verificação de `IsMasterSuperAdminEmail`, listagem completa via `ListAllAsync`, busca global via `GetAnyByIdAsync` e deleção/atualização autorizada mantendo o `filter.UserId`.
+- `SalesApp.Api/ReportViews/Services/ReportViewService.cs`: Injeção de `IOptions<AdminInfoOptions>` e aplicação das mesmas regras do Master SuperAdmin.
+- `client/sales-dash/src/components/Reports/ReportListPage.tsx`: Reconhecimento de `isMasterSuperadmin`, exibição de relatórios privados de terceiros com badge e liberação de botões de edição/exclusão.
+- `client/sales-dash/src/components/Reports/ReportResultsPage.tsx`: Habilitação do botão "Editar" para Master SuperAdmin em relatórios de outros usuários.
+- `client/sales-dash/src/components/Reports/ViewsListPage.tsx`: Reconhecimento de `isMasterSuperadmin`, exibição de views privadas de terceiros e liberação de botões de edição/exclusão.
+- `SalesApp.Tests/Services/ReportFilterServiceTests.cs`: Testes unitários para Master SuperAdmin (ListAll, GetAny, Update e Delete de outros usuários) e asserção de `403` para superadmin regular.
+- `SalesApp.Tests/Services/ReportViewServiceTests.cs`: Testes unitários para ReportViewService validando as regras do Master SuperAdmin e restrições de superadmin regular.
+
+---
 
 ## Atribuição em Lote de Usuários Sem Equipe à Equipe do Gestor (Modificação em Lote)
 

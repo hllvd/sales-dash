@@ -37,6 +37,7 @@ const ReportListPage: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
 
   const fetchReports = useCallback(async () => {
     try {
@@ -59,6 +60,7 @@ const ReportListPage: React.FC = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setCurrentUserRole(user.role || '');
     setCurrentUserId(user.id || '');
+    setCurrentUserEmail(user.email || '');
   }, [fetchReports]);
 
   const handleDelete = async (id: string) => {
@@ -98,7 +100,12 @@ const ReportListPage: React.FC = () => {
     }
   };
 
-  const isSuperadmin = currentUserRole === 'superadmin';
+  const isMasterSuperadmin = useMemo(() => {
+    const email = currentUserEmail.trim().toLowerCase();
+    return email === 'superadmin@salesapp.com' || email === 'superadmin@test.com';
+  }, [currentUserEmail]);
+
+  const isSuperadmin = currentUserRole === 'superadmin' || isMasterSuperadmin;
 
   const filteredReports = useMemo(() => {
     const searchLower = search.trim().toLowerCase();
@@ -109,17 +116,17 @@ const ReportListPage: React.FC = () => {
       if (!matchesSearch) return false;
 
       if (scopeFilter === 'shared') return r.scope === 'shared';
-      if (scopeFilter === 'mine') return r.userId === currentUserId;
+      if (scopeFilter === 'mine') return r.userId === currentUserId || (isMasterSuperadmin && r.scope === 'private');
       return true;
     });
-  }, [reports, search, scopeFilter, currentUserId]);
+  }, [reports, search, scopeFilter, currentUserId, isMasterSuperadmin]);
 
   const sharedReports = filteredReports.filter(r => r.scope === 'shared');
-  const myReports = filteredReports.filter(r => r.userId === currentUserId && r.scope === 'private');
+  const myReports = filteredReports.filter(r => (r.userId === currentUserId || isMasterSuperadmin) && r.scope === 'private');
 
   const renderReportCard = (report: ReportFilter) => {
     const isOwner = report.userId === currentUserId;
-    const canEditDelete = isSuperadmin && isOwner;
+    const canEditDelete = isSuperadmin && (isOwner || isMasterSuperadmin);
 
     return (
       <Card key={report.filterId} shadow="sm" padding="lg" radius="md" withBorder mb="md">
@@ -130,6 +137,11 @@ const ReportListPage: React.FC = () => {
             <Badge color={report.scope === 'shared' ? 'blue' : 'gray'}>
               {report.scope === 'shared' ? 'Compartilhado' : 'Privado'}
             </Badge>
+            {isMasterSuperadmin && !isOwner && (
+              <Badge color="violet" variant="outline">
+                Outro Usuário
+              </Badge>
+            )}
           </Group>
           
           <Group gap="xs">

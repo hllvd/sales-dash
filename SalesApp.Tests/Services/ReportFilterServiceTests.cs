@@ -1349,5 +1349,181 @@ namespace SalesApp.Tests.Services
             result.Data.Rows[0]["Contrato"].Should().Be("HIST-01");
             result.Data.Rows[0]["Equipe"].Should().Be("Team Alpha");
         }
+
+        [Fact]
+        public async Task ListAsync_WhenMasterSuperAdmin_ShouldCallListAllAsync()
+        {
+            // Arrange
+            var masterUserId = Guid.NewGuid();
+            var masterUser = new User
+            {
+                Id = masterUserId,
+                Email = "superadmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(masterUserId)).ReturnsAsync(masterUser);
+
+            var allReports = new List<ReportFilter>
+            {
+                new ReportFilter { FilterId = "rep-1", UserId = Guid.NewGuid().ToString(), Name = "Other User Private Report", Scope = "private" },
+                new ReportFilter { FilterId = "rep-2", UserId = masterUserId.ToString(), Name = "My Report", Scope = "shared" }
+            };
+            _repositoryMock.Setup(r => r.ListAllAsync()).ReturnsAsync(allReports);
+
+            // Act
+            var result = await _service.ListAsync(masterUserId.ToString());
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().HaveCount(2);
+            _repositoryMock.Verify(r => r.ListAllAsync(), Times.Once);
+            _repositoryMock.Verify(r => r.ListForUserAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GetAsync_WhenMasterSuperAdminAndNotFoundInPartition_ShouldCallGetAnyByIdAsync()
+        {
+            // Arrange
+            var masterUserId = Guid.NewGuid();
+            var masterUser = new User
+            {
+                Id = masterUserId,
+                Email = "superadmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(masterUserId)).ReturnsAsync(masterUser);
+
+            var otherOwnerId = Guid.NewGuid().ToString();
+            var otherReport = new ReportFilter { FilterId = "rep-other", UserId = otherOwnerId, Name = "Other Private", Scope = "private" };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(masterUserId.ToString(), "rep-other")).ReturnsAsync((ReportFilter?)null);
+            _repositoryMock.Setup(r => r.GetAnyByIdAsync("rep-other")).ReturnsAsync(otherReport);
+
+            // Act
+            var result = await _service.GetAsync(masterUserId.ToString(), "rep-other");
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data!.FilterId.Should().Be("rep-other");
+            _repositoryMock.Verify(r => r.GetAnyByIdAsync("rep-other"), Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_WhenMasterSuperAdmin_ShouldAllowUpdatingOtherUserReport()
+        {
+            // Arrange
+            var masterUserId = Guid.NewGuid();
+            var masterUser = new User
+            {
+                Id = masterUserId,
+                Email = "superadmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(masterUserId)).ReturnsAsync(masterUser);
+
+            var otherOwnerId = Guid.NewGuid().ToString();
+            var existingReport = new ReportFilter
+            {
+                FilterId = "rep-other",
+                UserId = otherOwnerId,
+                Name = "Original Name",
+                Scope = "private",
+                FilterConfig = new FilterConfig()
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(masterUserId.ToString(), "rep-other")).ReturnsAsync((ReportFilter?)null);
+            _repositoryMock.Setup(r => r.GetAnyByIdAsync("rep-other")).ReturnsAsync(existingReport);
+
+            var updateRequest = new UpdateReportFilterRequest
+            {
+                Name = "Updated Name by Master",
+                Scope = "private",
+                FilterConfig = new FilterConfigRequest { Teams = new List<int> { 1 } },
+                OutputColumns = new List<OutputColumnRequest>
+                {
+                    new OutputColumnRequest { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            // Act
+            var result = await _service.UpdateAsync(masterUserId.ToString(), "rep-other", updateRequest);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data!.Name.Should().Be("Updated Name by Master");
+            _repositoryMock.Verify(r => r.UpdateAsync(It.Is<ReportFilter>(rf => rf.UserId == otherOwnerId && rf.Name == "Updated Name by Master")), Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_WhenRegularSuperAdmin_ShouldForbidUpdatingOtherUserReport()
+        {
+            // Arrange
+            var regularAdminId = Guid.NewGuid();
+            var regularAdmin = new User
+            {
+                Id = regularAdminId,
+                Email = "otheradmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(regularAdminId)).ReturnsAsync(regularAdmin);
+
+            var otherOwnerId = Guid.NewGuid().ToString();
+            var existingReport = new ReportFilter
+            {
+                FilterId = "rep-other",
+                UserId = otherOwnerId,
+                Name = "Original Name",
+                Scope = "shared",
+                FilterConfig = new FilterConfig()
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(regularAdminId.ToString(), "rep-other")).ReturnsAsync(existingReport);
+
+            var updateRequest = new UpdateReportFilterRequest
+            {
+                Name = "Unauthorized Edit",
+                Scope = "shared",
+                FilterConfig = new FilterConfigRequest { Teams = new List<int> { 1 } },
+                OutputColumns = new List<OutputColumnRequest>
+                {
+                    new OutputColumnRequest { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            // Act
+            var result = await _service.UpdateAsync(regularAdminId.ToString(), "rep-other", updateRequest);
+
+            // Assert
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ReportFilter>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task DeleteAsync_WhenMasterSuperAdmin_ShouldDeleteWithOriginalOwnerUserId()
+        {
+            // Arrange
+            var masterUserId = Guid.NewGuid();
+            var masterUser = new User
+            {
+                Id = masterUserId,
+                Email = "superadmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(masterUserId)).ReturnsAsync(masterUser);
+
+            var otherOwnerId = Guid.NewGuid().ToString();
+            var otherReport = new ReportFilter { FilterId = "rep-other", UserId = otherOwnerId, Name = "Other Private", Scope = "private" };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(masterUserId.ToString(), "rep-other")).ReturnsAsync((ReportFilter?)null);
+            _repositoryMock.Setup(r => r.GetAnyByIdAsync("rep-other")).ReturnsAsync(otherReport);
+
+            // Act
+            var result = await _service.DeleteAsync(masterUserId.ToString(), "rep-other");
+
+            // Assert
+            result.Success.Should().BeTrue();
+            _repositoryMock.Verify(r => r.DeleteAsync(otherOwnerId, "rep-other"), Times.Once);
+        }
     }
 }

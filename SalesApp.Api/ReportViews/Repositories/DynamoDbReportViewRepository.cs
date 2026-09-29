@@ -52,6 +52,32 @@ namespace SalesApp.ReportViews.Repositories
             return result.OrderByDescending(v => v.CreatedAt).ToList();
         }
 
+        public async Task<List<ReportView>> ListAllAsync()
+        {
+            var request = new QueryRequest
+            {
+                TableName = _tableName,
+                KeyConditionExpression = "PK = :pk AND begins_with(SK, :skPrefix)",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":pk", new AttributeValue { S = PkValue } },
+                    { ":skPrefix", new AttributeValue { S = "#U-" } }
+                },
+                ScanIndexForward = false
+            };
+
+            try
+            {
+                var response = await _dynamoDb.QueryAsync(request);
+                return response.Items.Select(MapToModel).OrderByDescending(v => v.CreatedAt).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "DynamoDB Query for ReportViews ListAllAsync failed");
+                throw;
+            }
+        }
+
         public async Task<ReportView?> GetByIdAsync(string userId, string viewId)
         {
             var sk = BuildSk(userId, viewId);
@@ -74,6 +100,36 @@ namespace SalesApp.ReportViews.Repositories
             catch (Exception ex)
             {
                 _logger.LogError(ex, "DynamoDB GetItem failed for viewId={ViewId}", viewId);
+                throw;
+            }
+
+            return null;
+        }
+
+        public async Task<ReportView?> GetAnyByIdAsync(string viewId)
+        {
+            var request = new QueryRequest
+            {
+                TableName = _tableName,
+                KeyConditionExpression = "PK = :pk AND begins_with(SK, :skPrefix)",
+                FilterExpression = "viewId = :viewId",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":pk", new AttributeValue { S = PkValue } },
+                    { ":skPrefix", new AttributeValue { S = "#U-" } },
+                    { ":viewId", new AttributeValue { S = viewId } }
+                }
+            };
+
+            try
+            {
+                var response = await _dynamoDb.QueryAsync(request);
+                if (response.Items.Count > 0)
+                    return MapToModel(response.Items[0]);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "DynamoDB Query for ReportView GetAnyByIdAsync failed for viewId={ViewId}", viewId);
                 throw;
             }
 

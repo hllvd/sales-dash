@@ -63,6 +63,32 @@ namespace SalesApp.ReportFilters.Repositories
             return result.OrderByDescending(r => r.CreatedAt).ToList();
         }
 
+        public async Task<List<ReportFilter>> ListAllAsync()
+        {
+            var request = new QueryRequest
+            {
+                TableName = _tableName,
+                KeyConditionExpression = "PK = :pk AND begins_with(SK, :skPrefix)",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":pk", new AttributeValue { S = PkValue } },
+                    { ":skPrefix", new AttributeValue { S = "#U-" } }
+                },
+                ScanIndexForward = false
+            };
+
+            try
+            {
+                var response = await _dynamoDb.QueryAsync(request);
+                return response.Items.Select(MapToModel).OrderByDescending(r => r.CreatedAt).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "DynamoDB Query for ListAllAsync failed");
+                throw;
+            }
+        }
+
         public async Task<ReportFilter?> GetByIdAsync(string userId, string filterId)
         {
             // First try exact owner key
@@ -86,6 +112,36 @@ namespace SalesApp.ReportFilters.Repositories
             catch (Exception ex)
             {
                 _logger.LogError(ex, "DynamoDB GetItem failed for filterId={FilterId}", filterId);
+                throw;
+            }
+
+            return null;
+        }
+
+        public async Task<ReportFilter?> GetAnyByIdAsync(string filterId)
+        {
+            var request = new QueryRequest
+            {
+                TableName = _tableName,
+                KeyConditionExpression = "PK = :pk AND begins_with(SK, :skPrefix)",
+                FilterExpression = "filterId = :filterId",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":pk", new AttributeValue { S = PkValue } },
+                    { ":skPrefix", new AttributeValue { S = "#U-" } },
+                    { ":filterId", new AttributeValue { S = filterId } }
+                }
+            };
+
+            try
+            {
+                var response = await _dynamoDb.QueryAsync(request);
+                if (response.Items.Count > 0)
+                    return MapToModel(response.Items[0]);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "DynamoDB Query for GetAnyByIdAsync failed for filterId={FilterId}", filterId);
                 throw;
             }
 
