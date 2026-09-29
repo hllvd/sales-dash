@@ -1321,6 +1321,273 @@ namespace SalesApp.IntegrationTests.Users
             }
         }
 
+        [Fact]
+        public async Task GetUsersWithoutTeam_WithRegularUser_ShouldReturnForbidden()
+        {
+            var token = await GetRegularUserToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await client.GetAsync("/api/batch/users-without-team");
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        [Fact]
+        public async Task GetUsersWithoutTeam_WithSuperAdmin_ShouldReturnUnassignedUsersWithCorrectHistoryAndEligibility()
+        {
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            User managerOwner;
+            User managerNonOwner;
+            User userNever;
+            User userPast;
+            User userWithActiveTeam;
+            Team team;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                managerOwner = new User
+                {
+                    Name = "Manager Owner " + Guid.NewGuid().ToString()[..6],
+                    Email = $"manager_owner_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+                context.Users.Add(managerOwner);
+
+                managerNonOwner = new User
+                {
+                    Name = "Manager Non Owner " + Guid.NewGuid().ToString()[..6],
+                    Email = $"manager_non_owner_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+                context.Users.Add(managerNonOwner);
+                await context.SaveChangesAsync();
+
+                team = new Team
+                {
+                    Name = "Owner Team " + Guid.NewGuid().ToString()[..6],
+                    OwnerUserInternalId = managerOwner.InternalId,
+                    IsActive = true
+                };
+                context.Teams.Add(team);
+
+                var pastTeam = new Team
+                {
+                    Name = "Old Past Team " + Guid.NewGuid().ToString()[..6],
+                    IsActive = true
+                };
+                context.Teams.Add(pastTeam);
+                await context.SaveChangesAsync();
+
+                // User 1: Never had team, parent is managerOwner (Eligible)
+                userNever = new User
+                {
+                    Name = "User Never " + Guid.NewGuid().ToString()[..6],
+                    Email = $"user_never_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    ParentUserId = managerOwner.Id,
+                    IsActive = true
+                };
+                context.Users.Add(userNever);
+
+                // User 2: Had team in past (ended), parent is managerNonOwner (Ineligible: manager not owner)
+                userPast = new User
+                {
+                    Name = "User Past " + Guid.NewGuid().ToString()[..6],
+                    Email = $"user_past_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    ParentUserId = managerNonOwner.Id,
+                    IsActive = true
+                };
+                context.Users.Add(userPast);
+
+                // User 3: Currently has active team (Should NOT be returned)
+                userWithActiveTeam = new User
+                {
+                    Name = "User Active Team " + Guid.NewGuid().ToString()[..6],
+                    Email = $"user_active_team_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+                context.Users.Add(userWithActiveTeam);
+                await context.SaveChangesAsync();
+
+                // Add past membership to userPast (ended yesterday)
+                context.UserTeams.Add(new UserTeam
+                {
+                    TeamId = pastTeam.Id,
+                    UserInternalId = userPast.InternalId,
+                    StartDate = DateTime.UtcNow.AddYears(-1),
+                    EndDate = DateTime.UtcNow.AddDays(-1)
+                });
+
+                // Add active membership to userWithActiveTeam
+                context.UserTeams.Add(new UserTeam
+                {
+                    TeamId = team.Id,
+                    UserInternalId = userWithActiveTeam.InternalId,
+                    StartDate = DateTime.UtcNow.AddMonths(-1),
+                    EndDate = null
+                });
+
+                await context.SaveChangesAsync();
+            }
+
+            var response = await client.GetAsync("/api/batch/users-without-team");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<UnassignedUserDto>>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+
+            var data = result.Data!;
+            // userWithActiveTeam should not be in unassigned list
+            data.Should().NotContain(u => u.UserId == userWithActiveTeam.Id);
+
+            // userNever: historyStatus == "never", isEligible == true, targetTeamId == team.Id
+            var itemNever = data.FirstOrDefault(u => u.UserId == userNever.Id);
+            itemNever.Should().NotBeNull();
+            itemNever!.HistoryStatus.Should().Be("never");
+            itemNever.IsEligible.Should().BeTrue();
+            itemNever.ParentUserIsOwner.Should().BeTrue();
+            itemNever.TargetTeamId.Should().Be(team.Id);
+            itemNever.TargetTeamName.Should().Be(team.Name);
+
+            // userPast: historyStatus == "past_member", isEligible == false
+            var itemPast = data.FirstOrDefault(u => u.UserId == userPast.Id);
+            itemPast.Should().NotBeNull();
+            itemPast!.HistoryStatus.Should().Be("past_member");
+            itemPast.IsEligible.Should().BeFalse();
+            itemPast.ParentUserIsOwner.Should().BeFalse();
+            itemPast.StatusText.Should().Contain("Gestor não é proprietário");
+        }
+
+        [Fact]
+        public async Task AssignUnassignedToOwnerTeams_WithEligibleAndIneligibleUsers_ShouldProcessCorrectly()
+        {
+            var token = await GetSuperAdminToken();
+            var client = _factory.Client;
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            User managerOwner;
+            User managerNonOwner;
+            User eligibleUser;
+            User userWithoutParent;
+            User userWithNonOwnerParent;
+            Team team;
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                managerOwner = new User
+                {
+                    Name = "Manager Owner " + Guid.NewGuid().ToString()[..6],
+                    Email = $"manager_owner_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+                context.Users.Add(managerOwner);
+
+                managerNonOwner = new User
+                {
+                    Name = "Manager Non Owner " + Guid.NewGuid().ToString()[..6],
+                    Email = $"manager_non_owner_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    IsActive = true
+                };
+                context.Users.Add(managerNonOwner);
+                await context.SaveChangesAsync();
+
+                team = new Team
+                {
+                    Name = "Owner Team " + Guid.NewGuid().ToString()[..6],
+                    OwnerUserInternalId = managerOwner.InternalId,
+                    IsActive = true
+                };
+                context.Teams.Add(team);
+                await context.SaveChangesAsync();
+
+                eligibleUser = new User
+                {
+                    Name = "Eligible User " + Guid.NewGuid().ToString()[..6],
+                    Email = $"eligible_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    ParentUserId = managerOwner.Id,
+                    IsActive = true
+                };
+                context.Users.Add(eligibleUser);
+
+                userWithoutParent = new User
+                {
+                    Name = "No Parent User " + Guid.NewGuid().ToString()[..6],
+                    Email = $"noparent_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    ParentUserId = null,
+                    IsActive = true
+                };
+                context.Users.Add(userWithoutParent);
+
+                userWithNonOwnerParent = new User
+                {
+                    Name = "Non Owner Parent User " + Guid.NewGuid().ToString()[..6],
+                    Email = $"nonowner_parent_{Guid.NewGuid().ToString()[..6]}@test.com",
+                    PasswordHash = "xyz",
+                    ParentUserId = managerNonOwner.Id,
+                    IsActive = true
+                };
+                context.Users.Add(userWithNonOwnerParent);
+
+                await context.SaveChangesAsync();
+            }
+
+            var request = new BatchAssignUnassignedToOwnerTeamRequest
+            {
+                UserIds = new List<Guid> { eligibleUser.Id, userWithoutParent.Id, userWithNonOwnerParent.Id }
+            };
+
+            var response = await client.PostAsJsonAsync("/api/batch/team/assign-unassigned-to-owners", request);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<BatchAssignUnassignedToOwnerTeamResult>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+
+            // Eligible user must be added
+            result.Data!.Added.Should().ContainSingle(u => u.Id == eligibleUser.Id);
+
+            // Ineligible users must be skipped with appropriate reasons
+            result.Data.Skipped.Should().ContainSingle(u => u.Id == userWithoutParent.Id && u.Reason.Contains("não possui gestor direto"));
+            result.Data.Skipped.Should().ContainSingle(u => u.Id == userWithNonOwnerParent.Id && u.Reason.Contains("não é proprietário"));
+
+            // Verify in DB
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var userTeam = await context.UserTeams
+                    .FirstOrDefaultAsync(ut => ut.UserInternalId == eligibleUser.InternalId && ut.TeamId == team.Id);
+
+                userTeam.Should().NotBeNull();
+                userTeam!.EndDate.Should().BeNull();
+                userTeam.StartDate.Should().Be(new DateTime(2022, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+
+                // Other users should have no UserTeams
+                var noParentTeams = await context.UserTeams.AnyAsync(ut => ut.UserInternalId == userWithoutParent.InternalId);
+                noParentTeams.Should().BeFalse();
+
+                var nonOwnerTeams = await context.UserTeams.AnyAsync(ut => ut.UserInternalId == userWithNonOwnerParent.InternalId);
+                nonOwnerTeams.Should().BeFalse();
+            }
+        }
+
         private async Task<string> GetSuperAdminToken()
 
         {

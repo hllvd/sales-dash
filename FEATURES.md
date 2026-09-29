@@ -1,5 +1,38 @@
 # Features
 
+## Atribuição em Lote de Usuários Sem Equipe à Equipe do Gestor (Modificação em Lote)
+
+Implementa uma nova aba ("Usuários Sem Equipe") no painel de Modificação em Lote (`BatchPage`), sob "Ferramentas do Admin", permitindo visualizar todos os usuários que não pertencem a nenhuma equipe atualmente, inspecionar o histórico de vínculo, filtrar e selecionar usuários e atribuí-los em lote à equipe cujo gestor direto (`parentUser`) é o proprietário (`owner`).
+
+### Comportamento e Regras
+- **Aba "Usuários Sem Equipe" em Modificação em Lote (`#/batch`)**:
+  - Restrita aos superadministradores autorizados (`superadmin@salesapp.com` ou `superadmin@test.com`).
+  - Lista todos os usuários com cadastro ativo (`IsActive == true`) que atualmente **não possuem equipe ativa** (ou seja, sem registro em `UserTeam` com `EndDate == null || EndDate > DateTime.UtcNow`).
+- **Detecção do Histórico de Equipe**:
+  - Diferencia usuários que nunca tiveram equipe (`historyStatus = "never"`, Badge: "Nunca teve equipe") daqueles que já tiveram equipe no passado mas estão sem equipe atualmente (`historyStatus = "past_member"`, Badge: "Sem equipe atual (já pertenceu)").
+- **Avaliação de Elegibilidade**:
+  - Usuário com `parentUser` que é proprietário (`owner`) de equipe ativa: classificado como **Elegível**, exibindo a equipe de destino.
+  - Usuário sem `parentUser`: classificado como **Inelegível** (motivo: *"Sem gestor direto"*).
+  - Usuário cujo `parentUser` não é proprietário de nenhuma equipe ativa: classificado como **Inelegível** (motivo: *"Gestor não é proprietário de nenhuma equipe"*).
+- **Ações e Seleção em Lote**:
+  - Checkbox individual por linha e checkbox "master" no cabeçalho.
+  - Botão "Selecionar Todos" (seleciona todos os visíveis no filtro atual) e "Desmarcar Todos".
+  - Filtro por texto (nome, email ou gestor) e filtro por status ("Todos", "Apenas Elegíveis", "Apenas Inelegíveis").
+  - Botão "Adicionar Selecionados à Equipe do Gestor (X)": executa a atribuição em lote.
+- **Regras de Atribuição**:
+  - Apenas usuários elegíveis são atribuídos. Se o `parentUser` não for owner ou se o usuário não tiver `parentUser`, o usuário é pulado e reportado no resumo de ignorados.
+  - A data de início do vínculo é fixada em **`2022-01-01`** (`2022-01-01T00:00:00Z`) com término nulo (`EndDate = null`), tornando o usuário membro ativo da equipe.
+  - Após a conclusão, exibe o painel de resultados com contadores (Total Processados, Adicionados com Sucesso, Ignorados) e listas detalhadas com motivos, recarregando a tabela de usuários sem equipe automaticamente.
+
+### Arquivos Modificados
+- `SalesApp.Api/DTOs/BatchDTOs.cs`: Novos DTOs `UnassignedUserDto`, `BatchAssignUnassignedToOwnerTeamRequest`, `BatchAssignUnassignedToOwnerTeamResult`.
+- `SalesApp.Api/Controllers/BatchController.cs`: Novos endpoints `GET /api/batch/users-without-team` e `POST /api/batch/team/assign-unassigned-to-owners`.
+- `SalesApp.IntegrationTests/Users/BatchControllerIntegrationTests.cs`: Testes de integração validando permissões, listagem de sem equipe com histórico/elegibilidade e processamento da atribuição em lote com data fixa 2022-01-01.
+- `client/sales-dash/src/services/apiService.ts`: Tipos `UnassignedUser`, `BatchAssignUnassignedRequest`, `BatchAssignUnassignedResult` e métodos `getUsersWithoutTeam`, `assignUnassignedToOwnerTeams`.
+- `client/sales-dash/src/components/BatchPage.tsx`: Aba "Usuários Sem Equipe", tabela preview com seleção individual e master, badges de histórico/elegibilidade, filtros e exibição de resultados.
+
+---
+
 ## Filtro de Status do Vendedor, Coluna "Membro Ativo" e Padrão Histórico em Reports
 
 Implementa melhorias no módulo de Relatórios (`ReportFormPage` e `ReportFilterService`), introduzindo o filtro por ativação de vendedor, a coluna de saída "Membro Ativo" e tornando o vínculo temporal histórico com equipes o padrão para relatórios.

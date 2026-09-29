@@ -436,6 +436,35 @@ export const apiService = {
     return response.json()
   },
 
+  async getUsersWithoutTeam(): Promise<ApiResponse<UnassignedUser[]>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/batch/users-without-team`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to fetch users without team"))
+    }
+
+    return response.json()
+  },
+
+  async assignUnassignedToOwnerTeams(
+    requestData: BatchAssignUnassignedRequest
+  ): Promise<ApiResponse<BatchAssignUnassignedResult>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/batch/team/assign-unassigned-to-owners`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestData),
+    })
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Failed to assign users to owner teams"))
+    }
+
+    return response.json()
+  },
+
 
   async savePowerBiCredentials(username: string, password?: string): Promise<ApiResponse<User>> {
 
@@ -2284,6 +2313,31 @@ export interface MergeMatriculaPairResult {
 export interface MergeMatriculasResult {
   isDryRun: boolean
   pairs: MergeMatriculaPairResult[]
+}
+
+export interface UnassignedUser {
+  userId: string
+  internalId: number
+  name: string
+  email: string
+  historyStatus: 'never' | 'past_member'
+  parentUserId?: string | null
+  parentUserName?: string | null
+  parentUserEmail?: string | null
+  parentUserIsOwner: boolean
+  targetTeamId?: number | null
+  targetTeamName?: string | null
+  isEligible: boolean
+  statusText: string
+}
+
+export interface BatchAssignUnassignedRequest {
+  userIds: string[]
+}
+
+export interface BatchAssignUnassignedResult {
+  added: AddedMemberSummary[]
+  skipped: SkippedUserSummary[]
 }
 
 

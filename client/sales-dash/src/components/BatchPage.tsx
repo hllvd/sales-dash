@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import {
-  Title, TextInput, Button, Switch, Group, Table, Text, Select, Loader, Tabs, Badge, Card, SimpleGrid, Textarea
+  Title, TextInput, Button, Switch, Group, Table, Text, Select, Loader, Tabs, Badge, Card, SimpleGrid, Textarea, Checkbox
 } from '@mantine/core'
 import { DatePickerInput } from '@mantine/dates'
 import {
-  IconUsers, IconWand, IconAlertTriangle, IconCheck, IconX, IconGitMerge, IconEye
+  IconUsers, IconWand, IconAlertTriangle, IconCheck, IconX, IconGitMerge, IconEye, IconUserOff, IconSearch, IconRefresh
 } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import Menu from './Menu'
@@ -13,7 +13,8 @@ import { useReferenceData } from '../contexts/ReferenceDataContext'
 import {
   apiService, BatchUpdateParentResult, BatchAssignTeamResult, BatchAssignTeamRequest,
   MergeUserPair, MergeUsersRequest, MergeUsersResult,
-  MergeMatriculaPair, MergeMatriculasRequest, MergeMatriculasResult
+  MergeMatriculaPair, MergeMatriculasRequest, MergeMatriculasResult,
+  UnassignedUser, BatchAssignUnassignedResult
 } from '../services/apiService'
 import './BatchPage.css'
 
@@ -45,6 +46,15 @@ const BatchPage: React.FC = () => {
   const [mergeMatriculaText, setMergeMatriculaText] = useState('')
   const [deleteDuplicateMatricula, setDeleteDuplicateMatricula] = useState(false)
   const [mergeMatriculaResult, setMergeMatriculaResult] = useState<MergeMatriculasResult | null>(null)
+
+  // Tab 5: Unassigned Users
+  const [unassignedUsers, setUnassignedUsers] = useState<UnassignedUser[]>([])
+  const [loadingUnassigned, setLoadingUnassigned] = useState(false)
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set())
+  const [assigningUnassigned, setAssigningUnassigned] = useState(false)
+  const [unassignedResult, setUnassignedResult] = useState<BatchAssignUnassignedResult | null>(null)
+  const [unassignedSearch, setUnassignedSearch] = useState('')
+  const [unassignedEligibilityFilter, setUnassignedEligibilityFilter] = useState<'all' | 'eligible' | 'ineligible'>('all')
 
   const [activeTab, setActiveTab] = useState<string | null>('parent')
   const [teams, setTeams] = useState<Array<{ value: string; label: string }>>([])
@@ -81,6 +91,35 @@ const BatchPage: React.FC = () => {
       loadTeams()
     }
   }, [currentUser, fetchTeams])
+
+  const loadUnassignedUsers = async () => {
+    setLoadingUnassigned(true)
+    setError('')
+    try {
+      const res = await apiService.getUsersWithoutTeam()
+      if (res.success && res.data) {
+        setUnassignedUsers(res.data)
+        setSelectedUserIds(new Set())
+      }
+    } catch (err: any) {
+      console.error('Failed to load users without team:', err)
+      setError(err.message || 'Erro ao carregar usuários sem equipe')
+      notifications.show({
+        title: 'Erro ao carregar usuários',
+        message: err.message || 'Falha ao buscar usuários sem equipe',
+        color: 'red',
+        icon: <IconX size={16} />
+      })
+    } finally {
+      setLoadingUnassigned(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'unassigned' && currentUser && (currentUser.email === 'superadmin@salesapp.com' || currentUser.email === 'superadmin@test.com')) {
+      loadUnassignedUsers()
+    }
+  }, [activeTab, currentUser])
 
   if (loadingUser) {
     return (
@@ -477,13 +516,96 @@ const BatchPage: React.FC = () => {
     setError('')
   }
 
+  const filteredUnassignedUsers = unassignedUsers.filter(u => {
+    if (unassignedEligibilityFilter === 'eligible' && !u.isEligible) return false
+    if (unassignedEligibilityFilter === 'ineligible' && u.isEligible) return false
+    if (unassignedSearch.trim()) {
+      const q = unassignedSearch.toLowerCase().trim()
+      const nameMatch = u.name.toLowerCase().includes(q)
+      const emailMatch = u.email.toLowerCase().includes(q)
+      const parentMatch = (u.parentUserName || '').toLowerCase().includes(q) || (u.parentUserEmail || '').toLowerCase().includes(q)
+      const teamMatch = (u.targetTeamName || '').toLowerCase().includes(q)
+      if (!nameMatch && !emailMatch && !parentMatch && !teamMatch) return false
+    }
+    return true
+  })
+
+  const allFilteredSelected = filteredUnassignedUsers.length > 0 && filteredUnassignedUsers.every(u => selectedUserIds.has(u.userId))
+  const someFilteredSelected = filteredUnassignedUsers.some(u => selectedUserIds.has(u.userId))
+
+  const handleSelectAll = () => {
+    const newSet = new Set(selectedUserIds)
+    filteredUnassignedUsers.forEach(u => newSet.add(u.userId))
+    setSelectedUserIds(newSet)
+  }
+
+  const handleDeselectAll = () => {
+    setSelectedUserIds(new Set())
+  }
+
+  const handleToggleUser = (userId: string) => {
+    const newSet = new Set(selectedUserIds)
+    if (newSet.has(userId)) {
+      newSet.delete(userId)
+    } else {
+      newSet.add(userId)
+    }
+    setSelectedUserIds(newSet)
+  }
+
+  const handleToggleAllVisible = () => {
+    if (allFilteredSelected) {
+      const newSet = new Set(selectedUserIds)
+      filteredUnassignedUsers.forEach(u => newSet.delete(u.userId))
+      setSelectedUserIds(newSet)
+    } else {
+      const newSet = new Set(selectedUserIds)
+      filteredUnassignedUsers.forEach(u => newSet.add(u.userId))
+      setSelectedUserIds(newSet)
+    }
+  }
+
+  const handleAssignUnassigned = async () => {
+    if (selectedUserIds.size === 0) return
+    setAssigningUnassigned(true)
+    setError('')
+    setUnassignedResult(null)
+
+    try {
+      const res = await apiService.assignUnassignedToOwnerTeams({
+        userIds: Array.from(selectedUserIds)
+      })
+      if (res.success && res.data) {
+        setUnassignedResult(res.data)
+        notifications.show({
+          title: 'Sucesso',
+          message: res.message || 'Atribuição em lote concluída.',
+          color: 'green',
+          icon: <IconCheck size={16} />
+        })
+        await loadUnassignedUsers()
+      }
+    } catch (err: any) {
+      console.error('Failed to assign unassigned users:', err)
+      setError(err.message || 'Erro ao atribuir usuários à equipe do gestor.')
+      notifications.show({
+        title: 'Erro na operação',
+        message: err.message || 'Falha ao processar solicitação.',
+        color: 'red',
+        icon: <IconX size={16} />
+      })
+    } finally {
+      setAssigningUnassigned(false)
+    }
+  }
+
   return (
     <Menu>
       <div className="batch-container">
         <div className="batch-header">
           <Title className="batch-title">Modificação em Lote</Title>
           <Text className="batch-subtitle">
-            Altere o supervisor de múltiplos usuários simultaneamente, atribua usuários a equipes ou consolide contas/matrículas duplicadas.
+            Altere o supervisor de múltiplos usuários simultaneamente, atribua usuários a equipes, vincule usuários sem equipe ao gestor ou consolide contas/matrículas duplicadas.
           </Text>
         </div>
 
@@ -494,6 +616,9 @@ const BatchPage: React.FC = () => {
             </Tabs.Tab>
             <Tabs.Tab value="team" leftSection={<IconUsers size={16} />}>
               Atribuir a Equipe
+            </Tabs.Tab>
+            <Tabs.Tab value="unassigned" leftSection={<IconUserOff size={16} />}>
+              Usuários Sem Equipe
             </Tabs.Tab>
             <Tabs.Tab value="merge" leftSection={<IconGitMerge size={16} />}>
               Consolidar Usuários
@@ -803,6 +928,258 @@ const BatchPage: React.FC = () => {
                           </Table.Thead>
                           <Table.Tbody>
                             {assignResult.skipped.map((u) => (
+                              <Table.Tr key={u.id}>
+                                <Table.Td>{u.name}</Table.Td>
+                                <Table.Td>{u.email}</Table.Td>
+                                <Table.Td>
+                                  <Badge className="badge-skipped">{u.reason}</Badge>
+                                </Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </div>
+                    )}
+                  </Tabs.Panel>
+                </Tabs>
+              </div>
+            )}
+          </>
+        ) : activeTab === 'unassigned' ? (
+          <>
+            <div className="batch-card">
+              <Group justify="space-between" mb="md" wrap="wrap" gap="md">
+                <Group gap="sm" wrap="wrap">
+                  <TextInput
+                    placeholder="Buscar por nome, e-mail ou gestor..."
+                    leftSection={<IconSearch size={16} />}
+                    value={unassignedSearch}
+                    onChange={(e) => setUnassignedSearch(e.currentTarget.value)}
+                    style={{ minWidth: 280 }}
+                  />
+                  <Select
+                    data={[
+                      { value: 'all', label: 'Todos os usuários' },
+                      { value: 'eligible', label: 'Apenas Elegíveis' },
+                      { value: 'ineligible', label: 'Apenas Inelegíveis' }
+                    ]}
+                    value={unassignedEligibilityFilter}
+                    onChange={(val: any) => setUnassignedEligibilityFilter(val || 'all')}
+                    style={{ width: 180 }}
+                  />
+                  <Button
+                    variant="default"
+                    onClick={loadUnassignedUsers}
+                    loading={loadingUnassigned}
+                    leftSection={<IconRefresh size={16} />}
+                  >
+                    Atualizar
+                  </Button>
+                </Group>
+
+                <Group gap="sm" wrap="wrap">
+                  <Button
+                    variant="subtle"
+                    color="gray"
+                    onClick={handleSelectAll}
+                    disabled={filteredUnassignedUsers.length === 0}
+                  >
+                    Selecionar Todos ({filteredUnassignedUsers.length})
+                  </Button>
+                  <Button
+                    variant="subtle"
+                    color="gray"
+                    onClick={handleDeselectAll}
+                    disabled={selectedUserIds.size === 0}
+                  >
+                    Desmarcar Todos
+                  </Button>
+                  <Button
+                    color="blue"
+                    leftSection={<IconWand size={16} />}
+                    onClick={handleAssignUnassigned}
+                    loading={assigningUnassigned}
+                    disabled={selectedUserIds.size === 0}
+                  >
+                    Adicionar Selecionados à Equipe do Gestor ({selectedUserIds.size})
+                  </Button>
+                </Group>
+              </Group>
+
+              <Group gap="xs" mb="md">
+                <Text size="sm" c="dimmed">
+                  Total sem equipe: <b>{unassignedUsers.length}</b> | Elegíveis: <b>{unassignedUsers.filter(u => u.isEligible).length}</b> | Selecionados: <b>{selectedUserIds.size}</b>
+                </Text>
+              </Group>
+
+              {loadingUnassigned ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+                  <Loader size="md" />
+                </div>
+              ) : filteredUnassignedUsers.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                  <Text size="sm">Nenhum usuário sem equipe encontrado com os filtros aplicados.</Text>
+                </div>
+              ) : (
+                <div className="batch-table-wrapper">
+                  <Table className="batch-table">
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th style={{ width: 40 }}>
+                          <Checkbox
+                            checked={allFilteredSelected}
+                            indeterminate={someFilteredSelected && !allFilteredSelected}
+                            onChange={handleToggleAllVisible}
+                            aria-label="Selecionar todos os visíveis"
+                          />
+                        </Table.Th>
+                        <Table.Th>Nome</Table.Th>
+                        <Table.Th>E-mail</Table.Th>
+                        <Table.Th>Histórico de Equipe</Table.Th>
+                        <Table.Th>Gestor Direto (parentUser)</Table.Th>
+                        <Table.Th>Equipe do Gestor</Table.Th>
+                        <Table.Th>Data Início</Table.Th>
+                        <Table.Th>Status / Elegibilidade</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {filteredUnassignedUsers.map((u) => {
+                        const isSelected = selectedUserIds.has(u.userId)
+                        return (
+                          <Table.Tr key={u.userId} style={{ backgroundColor: isSelected ? '#eff6ff' : undefined }}>
+                            <Table.Td>
+                              <Checkbox
+                                checked={isSelected}
+                                onChange={() => handleToggleUser(u.userId)}
+                                aria-label={`Selecionar ${u.name}`}
+                              />
+                            </Table.Td>
+                            <Table.Td style={{ fontWeight: 500 }}>{u.name}</Table.Td>
+                            <Table.Td>{u.email}</Table.Td>
+                            <Table.Td>
+                              {u.historyStatus === 'never' ? (
+                                <Badge color="gray" variant="light">Nunca teve equipe</Badge>
+                              ) : (
+                                <Badge color="orange" variant="light">Sem equipe atual (já pertenceu)</Badge>
+                              )}
+                            </Table.Td>
+                            <Table.Td>
+                              {u.parentUserName ? (
+                                <div>
+                                  <Text size="sm">{u.parentUserName}</Text>
+                                  <Text size="xs" c="dimmed">{u.parentUserEmail}</Text>
+                                </div>
+                              ) : (
+                                <Text size="sm" c="dimmed">Sem gestor</Text>
+                              )}
+                            </Table.Td>
+                            <Table.Td>
+                              {u.targetTeamName ? (
+                                <Text size="sm" fw={500}>{u.targetTeamName}</Text>
+                              ) : (
+                                <Text size="sm" c="dimmed">-</Text>
+                              )}
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge color="blue" variant="outline">01/01/2022</Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              {u.isEligible ? (
+                                <Badge color="green" variant="filled">Elegível</Badge>
+                              ) : (
+                                <Badge color="red" variant="light">{u.statusText}</Badge>
+                              )}
+                            </Table.Td>
+                          </Table.Tr>
+                        )
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                </div>
+              )}
+            </div>
+
+            {unassignedResult && (
+              <div className="batch-card" style={{ marginTop: '24px' }}>
+                <Title order={3} className="batch-results-header">Resultado da Operação</Title>
+
+                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" className="batch-stats-container">
+                  <div className="batch-stat-card">
+                    <Text className="batch-stat-title">Total Processados</Text>
+                    <Text className="batch-stat-value total">
+                      {unassignedResult.added.length + unassignedResult.skipped.length}
+                    </Text>
+                  </div>
+                  <div className="batch-stat-card">
+                    <Text className="batch-stat-title">Adicionados com Sucesso</Text>
+                    <Text className="batch-stat-value success">{unassignedResult.added.length}</Text>
+                  </div>
+                  <div className="batch-stat-card">
+                    <Text className="batch-stat-title">Ignorados / Pulados</Text>
+                    <Text className="batch-stat-value skipped">{unassignedResult.skipped.length}</Text>
+                  </div>
+                </SimpleGrid>
+
+                <Tabs defaultValue="added" color="blue">
+                  <Tabs.List>
+                    <Tabs.Tab value="added" leftSection={<IconCheck size={14} />}>
+                      Adicionados ({unassignedResult.added.length})
+                    </Tabs.Tab>
+                    <Tabs.Tab value="skipped" leftSection={<IconX size={14} />}>
+                      Ignorados ({unassignedResult.skipped.length})
+                    </Tabs.Tab>
+                  </Tabs.List>
+
+                  <Tabs.Panel value="added">
+                    {unassignedResult.added.length === 0 ? (
+                      <Text size="sm" c="dimmed" style={{ padding: '24px', textAlign: 'center' }}>
+                        Nenhum usuário foi adicionado.
+                      </Text>
+                    ) : (
+                      <div className="batch-table-wrapper">
+                        <Table className="batch-table">
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Nome</Table.Th>
+                              <Table.Th>E-mail</Table.Th>
+                              <Table.Th>Data Início</Table.Th>
+                              <Table.Th>Status</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {unassignedResult.added.map((u) => (
+                              <Table.Tr key={u.id}>
+                                <Table.Td>{u.name}</Table.Td>
+                                <Table.Td>{u.email}</Table.Td>
+                                <Table.Td>01/01/2022</Table.Td>
+                                <Table.Td>
+                                  <Badge className="badge-modified">Adicionado à equipe do gestor</Badge>
+                                </Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </div>
+                    )}
+                  </Tabs.Panel>
+
+                  <Tabs.Panel value="skipped">
+                    {unassignedResult.skipped.length === 0 ? (
+                      <Text size="sm" c="dimmed" style={{ padding: '24px', textAlign: 'center' }}>
+                        Nenhum usuário foi ignorado.
+                      </Text>
+                    ) : (
+                      <div className="batch-table-wrapper">
+                        <Table className="batch-table">
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Nome</Table.Th>
+                              <Table.Th>E-mail</Table.Th>
+                              <Table.Th>Motivo</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {unassignedResult.skipped.map((u) => (
                               <Table.Tr key={u.id}>
                                 <Table.Td>{u.name}</Table.Td>
                                 <Table.Td>{u.email}</Table.Td>
