@@ -64,6 +64,7 @@ namespace SalesApp.ReportFilters.DTOs
         public decimal? MinProduction { get; set; }
         public decimal? MaxProduction { get; set; }
         public bool? AwaitingPayment { get; set; }
+        public bool? UserIsActive { get; set; }
     }
 
     public class OutputColumnResponse

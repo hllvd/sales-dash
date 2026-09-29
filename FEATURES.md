@@ -1,5 +1,44 @@
 # Features
 
+## Filtro de Status do Vendedor, Coluna "Membro Ativo" e Padrão Histórico em Reports
+
+Implementa melhorias no módulo de Relatórios (`ReportFormPage` e `ReportFilterService`), introduzindo o filtro por ativação de vendedor, a coluna de saída "Membro Ativo" e tornando o vínculo temporal histórico com equipes o padrão para relatórios.
+
+### Comportamento e Regras
+- **Filtro "Status do Vendedor (Cadastro)" (`userIsActive`)**:
+  - Novo seletor presente na seção de filtros de dados do formulário de relatórios.
+  - Opções:
+    - **"Todos"** (`all` / `null`): Padrão do sistema. Não restringe contratos por status de ativação do vendedor.
+    - **"Usuário ativado"** (`true`): Filtra apenas contratos cujos vendedores possuem cadastro ativo no sistema (`user.IsActive == true`).
+    - **"Usuário desativado"** (`false`): Filtra apenas contratos cujos vendedores estão inativos/desativados no sistema (`user.IsActive == false`).
+- **Coluna de Saída "Membro Ativo" (`Users_Contract|memberActive`)**:
+  - Nova coluna selecionável no catálogo sob `Users_Contract` (Vendedor).
+  - Retorna **"Sim"** caso o cadastro do vendedor esteja ativo (`c.User != null && c.User.IsActive`) e **"Não"** caso esteja desativado (`!c.User.IsActive`), ou **"—"** caso não haja vendedor associado.
+  - Não é adicionada compulsoriamente aos relatórios; permanece disponível para inclusão manual conforme necessidade.
+- **Padrão Histórico de Vínculo com Equipe (Calendário de Equipe em Reports)**:
+  - O filtro de equipes (`teamMembershipMode`) agora adota por padrão o modo **"📅 Histórico do período"** (`historical`).
+  - Garante que os contratos permaneçam vinculados e visíveis na equipe à qual o vendedor pertencia na **data da venda**, conforme a linha do tempo do calendário de equipes (`TeamMembershipResolver.IsMembershipActiveForSale`), mesmo que o vendedor tenha migrado de equipe ou sido desativado posteriormente.
+  - O usuário ainda pode alternar manualmente para o modo *"👤 Membros atuais"* (`current`) quando desejar listar apenas contratos de consultores que continuam na equipe no dia atual.
+
+### Arquivos Modificados
+- `SalesApp.Api/ReportFilters/Models/FilterConfig.cs`: Adição da propriedade `UserIsActive`.
+- `SalesApp.Api/ReportFilters/DTOs/CreateReportFilterRequest.cs`: Suporte a `UserIsActive` no DTO de requisição `FilterConfigRequest`.
+- `SalesApp.Api/ReportFilters/DTOs/ReportFilterResponse.cs`: Adição de `UserIsActive` no DTO de resposta `FilterConfigResponse`.
+- `SalesApp.Api/ReportFilters/Validators/ReportFilterValidationRules.cs`: Reconhecimento de `UserIsActive` no validador `ValidateFilterConfig`.
+- `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs`:
+  - Campo `"memberActive"` em `GetAvailableColumns` (`Users_Contract`) e resolução "Sim"/"Não" em `ResolveField`.
+  - Filtro em memória de `fc.UserIsActive` sobre a lista de contratos.
+  - Padrão de `TeamMembershipMode` ajustado para `historical` (caso não seja explicitamente "current").
+  - Mapeamentos de requisição/resposta em `MapToResponse` e `MapFilterConfig`.
+- `client/sales-dash/src/services/reportFilterService.ts`: Propriedade `userIsActive` na interface TypeScript `FilterConfig`.
+- `client/sales-dash/src/components/Reports/ReportFormPage.tsx`:
+  - Metadados de `'Users_Contract|memberActive'` e rótulo em `getFieldLabel`.
+  - Novo controle de seleção para "Status do Vendedor (Cadastro)" com opções "Todos" (padrão), "Usuário ativado" e "Usuário desativado".
+  - Inversão da ordem e ajuste das descrições do seletor de vínculo com equipe e loja para priorizar o histórico do período.
+  - Mapeamento e persistência de `userIsActive` e `teamMembershipMode`.
+
+---
+
 ## Filtro de Licenciamento, Exportação XLSX Filtrada e Coluna Usuário Pai em Monitoramento > Licenças
 
 Implementa melhorias no módulo de monitoramento de licenças (`LicensingPage`), adicionando filtro de status de licença, exportação em planilha XLSX que respeita todos os filtros ativos (status e busca textual) e inclusão da coluna "Usuário Pai" informando o email do superior imediato acompanhado de sua equipe ativa.

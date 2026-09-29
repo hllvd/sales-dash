@@ -34,6 +34,7 @@ namespace SalesApp.Tests
         private readonly Mock<IUserClassificationRepository> _mockUserClassificationRepository;
         private readonly Mock<IUserMetadataRepository> _mockUserMetadataRepository;
         private readonly Mock<IOptions<AdminInfoOptions>> _mockAdminInfoOptions;
+        private readonly Mock<IUserScopeService> _mockUserScopeService;
         private readonly AppDbContext _context;
         private readonly UsersController _controller;
 
@@ -54,6 +55,7 @@ namespace SalesApp.Tests
             _mockUserClassificationRepository = new Mock<IUserClassificationRepository>();
             _mockUserMetadataRepository = new Mock<IUserMetadataRepository>();
             _mockAdminInfoOptions = new Mock<IOptions<AdminInfoOptions>>();
+            _mockUserScopeService = new Mock<IUserScopeService>();
 
             _mockAdminInfoOptions.Setup(o => o.Value).Returns(new AdminInfoOptions { ContactPhone = "47989133138" });
             
@@ -79,7 +81,8 @@ namespace SalesApp.Tests
                 _mockTeamRepository.Object,
                 _mockUserClassificationRepository.Object,
                 _mockUserMetadataRepository.Object,
-                _mockAdminInfoOptions.Object);
+                _mockAdminInfoOptions.Object,
+                _mockUserScopeService.Object);
             
             // Setup MessageService to return English messages for tests
             var enumToMessage = new System.Func<AppMessage, string>(msg => {

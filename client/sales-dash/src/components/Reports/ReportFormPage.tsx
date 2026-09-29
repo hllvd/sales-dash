@@ -141,6 +141,10 @@ const COLUMN_METADATA_DICT: Record<string, ColumnMetadata> = {
     title: 'Usuário Ativo',
     description: 'Indica se o vendedor é ativo no sistema (acesso nos últimos 30 dias, criado há mais de 15 dias e cadastro ativo).'
   },
+  'Users_Contract|memberActive': {
+    title: 'Membro Ativo',
+    description: 'Indica se o cadastro do vendedor está ativo ou desativado no sistema (Sim/Não).'
+  },
   'Users_Matricula|name': {
     title: 'Nome do Titular da Matrícula',
     description: 'Nome do usuário que possui a titularidade oficial da matrícula vinculada.'
@@ -239,11 +243,12 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
   const [emails, setEmails] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]); 
   const [teams, setTeams] = useState<string[]>([]);
-  const [teamMembershipMode, setTeamMembershipMode] = useState<'current' | 'historical'>('current');
+  const [teamMembershipMode, setTeamMembershipMode] = useState<'current' | 'historical'>('historical');
   const [stores, setStores] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>(DEFAULT_REPORT_STATUSES);
   const [awaitingPayment, setAwaitingPayment] = useState<boolean | null>(null);
+  const [userIsActive, setUserIsActive] = useState<boolean | null>(null);
 
   // Classification & Performance Filters
   const [classificationLevelIds, setClassificationLevelIds] = useState<string[]>([]);
@@ -375,12 +380,13 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         const restoredTeams = (fc.teams || []).map(t => t.toString());
         if (fc.currentUserTeam) restoredTeams.unshift(CURRENT_USER_TEAM_SENTINEL);
         setTeams(restoredTeams);
-        setTeamMembershipMode(fc.teamMembershipMode || 'current');
+        setTeamMembershipMode(fc.teamMembershipMode || 'historical');
         setStores((fc.stores || []).map(s => s.toString()));
         setPvs((fc.pvs || []).map(p => p.toString()));
         setStatuses(fc.statuses && fc.statuses.length > 0 ? fc.statuses : (fc.statuses !== undefined ? fc.statuses : DEFAULT_REPORT_STATUSES));
         setStatusOperator(fc.statusOperator || 'or');
         setAwaitingPayment(fc.awaitingPayment ?? null);
+        setUserIsActive(fc.userIsActive ?? null);
 
         const restoredClassIds = (fc.classificationLevelIds || []).map(String);
         setClassificationLevelIds(restoredClassIds);
@@ -528,6 +534,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       if (field === 'classification') return 'Nível de Classificação';
       if (field === 'store') return 'Loja';
       if (field === 'userActive') return 'Usuário Ativo';
+      if (field === 'memberActive') return 'Membro Ativo';
     }
     if (source === 'Users_Matricula') {
       if (field === 'name') return 'Nome (Matrícula)';
@@ -643,6 +650,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
       minProduction: minProduction !== '' ? minProduction : undefined,
       maxProduction: maxProduction !== '' ? maxProduction : undefined,
       awaitingPayment: awaitingPayment !== null ? awaitingPayment : undefined,
+      userIsActive: userIsActive !== null ? userIsActive : undefined,
     };
 
     const exportedFieldsList: ExportedField[] = [];
@@ -1105,14 +1113,14 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                         value={teamMembershipMode}
                         onChange={(val: any) => setTeamMembershipMode(val)}
                         data={[
-                          { label: '👤 Membros atuais', value: 'current' },
                           { label: '📅 Histórico do período', value: 'historical' },
+                          { label: '👤 Membros atuais', value: 'current' },
                         ]}
                       />
                       <Text size="xs" c="dimmed" mt={4}>
-                        {teamMembershipMode === 'current'
-                          ? 'Exibe contratos de quem está na equipe hoje (ignora ex-membros).'
-                          : 'Exibe contratos de quem estava na equipe durante o intervalo do relatório.'}
+                        {teamMembershipMode === 'historical'
+                          ? 'Exibe contratos de quem estava na equipe durante o intervalo do relatório (em função da data).'
+                          : 'Exibe contratos de quem está na equipe hoje (ignora ex-membros).'}
                       </Text>
                     </div>
                   )}
@@ -1136,14 +1144,14 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                         value={teamMembershipMode}
                         onChange={(val: any) => setTeamMembershipMode(val)}
                         data={[
-                          { label: '👤 Membros atuais', value: 'current' },
                           { label: '📅 Histórico do período', value: 'historical' },
+                          { label: '👤 Membros atuais', value: 'current' },
                         ]}
                       />
                       <Text size="xs" c="dimmed" mt={4}>
-                        {teamMembershipMode === 'current'
-                          ? 'Exibe contratos de quem está em uma equipe da loja hoje.'
-                          : 'Exibe contratos de quem estava em equipe da loja durante o período.'}
+                        {teamMembershipMode === 'historical'
+                          ? 'Exibe contratos de quem estava em equipe da loja durante o período (em função da data).'
+                          : 'Exibe contratos de quem está em uma equipe da loja hoje.'}
                       </Text>
                     </div>
                   )}
@@ -1200,6 +1208,21 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                     ]}
                     value={awaitingPayment === null ? null : String(awaitingPayment)}
                     onChange={(val) => setAwaitingPayment(val === null ? null : val === 'true')}
+                    size="sm"
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Status do Vendedor (Cadastro)"
+                    placeholder="Todos"
+                    clearable={false}
+                    data={[
+                      { value: 'all', label: 'Todos' },
+                      { value: 'true', label: 'Usuário ativado' },
+                      { value: 'false', label: 'Usuário desativado' },
+                    ]}
+                    value={userIsActive === null || userIsActive === undefined ? 'all' : String(userIsActive)}
+                    onChange={(val) => setUserIsActive(val === 'all' || val === null ? null : val === 'true')}
                     size="sm"
                   />
                 </Grid.Col>

@@ -97,5 +97,12 @@ namespace SalesApp.ReportFilters.Models
         /// deprecated in favour of the Statuses filter.
         /// </summary>
         public bool? AwaitingPayment { get; set; }
+
+        /// <summary>
+        /// When true, includes only contracts where User is active (user.IsActive == true).
+        /// When false, includes only contracts where User is inactive (user.IsActive == false).
+        /// When null, no filter is applied ("Todos").
+        /// </summary>
+        public bool? UserIsActive { get; set; }
     }
 }

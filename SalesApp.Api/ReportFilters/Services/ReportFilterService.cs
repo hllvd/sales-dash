@@ -484,8 +484,9 @@ namespace SalesApp.ReportFilters.Services
             List<int>? teamIdsFilter = null;
             List<int>? userInternalIdsFilter = null;
 
-            var isHistoricalMode = string.Equals(
-                fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+            var isCurrentMode = string.Equals(
+                fc.TeamMembershipMode, "current", StringComparison.OrdinalIgnoreCase);
+            var isHistoricalMode = !isCurrentMode;
 
             if (fc.Teams?.Count > 0)
             {
@@ -619,8 +620,8 @@ namespace SalesApp.ReportFilters.Services
             //                           AND within the report date range (original temporal logic).
             if (fc.Teams?.Count > 0)
             {
-                var isHistorical = string.Equals(
-                    fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+                var isHistorical = !string.Equals(
+                    fc.TeamMembershipMode, "current", StringComparison.OrdinalIgnoreCase);
 
                 if (isHistorical)
                 {
@@ -658,8 +659,8 @@ namespace SalesApp.ReportFilters.Services
             // TeamMembershipMode logic as the Teams filter (current or historical).
             if (fc.Stores?.Count > 0)
             {
-                var isHistorical = string.Equals(
-                    fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+                var isHistorical = !string.Equals(
+                    fc.TeamMembershipMode, "current", StringComparison.OrdinalIgnoreCase);
 
                 if (isHistorical)
                 {
@@ -714,6 +715,12 @@ namespace SalesApp.ReportFilters.Services
                         x.EndDate == null);
                     return currentMatch != null && fc.ClassificationLevelIds.Contains(currentMatch.LevelId);
                 }).ToList();
+            }
+
+            // Filter by seller user active/inactive status in system (User.IsActive)
+            if (fc.UserIsActive.HasValue)
+            {
+                contracts = contracts.Where(c => c.User != null && c.User.IsActive == fc.UserIsActive.Value).ToList();
             }
 
             // ── Performance Metrics Filters ──────────────────────────────────────
@@ -1090,7 +1097,8 @@ namespace SalesApp.ReportFilters.Services
                             "teamOwner",
                             "classification",
                             "store",
-                            "userActive"
+                            "userActive",
+                            "memberActive"
                         }
                     },
                     new SourceColumns
@@ -1246,6 +1254,7 @@ namespace SalesApp.ReportFilters.Services
                     "classification" => getClassification(c),
                     "store"      => getStoreName(c),
                     "userActive" => ResolveUserActive(c.User),
+                    "memberActive" => c.User == null ? "—" : (c.User.IsActive ? "Sim" : "Não"),
                     _            => null
                 },
                 "Users_Matricula" => c.Matricula?.UserMatriculas
@@ -1448,7 +1457,8 @@ namespace SalesApp.ReportFilters.Services
                     MaxStrictRetention  = f.FilterConfig.MaxStrictRetention,
                     MinProduction       = f.FilterConfig.MinProduction,
                     MaxProduction       = f.FilterConfig.MaxProduction,
-                    AwaitingPayment     = f.FilterConfig.AwaitingPayment
+                    AwaitingPayment     = f.FilterConfig.AwaitingPayment,
+                    UserIsActive        = f.FilterConfig.UserIsActive
                 },
                 OutputColumns = f.OutputColumns
                     .OrderBy(c => c.Order)
@@ -1498,7 +1508,8 @@ namespace SalesApp.ReportFilters.Services
                 MaxStrictRetention  = req.MaxStrictRetention,
                 MinProduction       = req.MinProduction,
                 MaxProduction       = req.MaxProduction,
-                AwaitingPayment     = req.AwaitingPayment
+                AwaitingPayment     = req.AwaitingPayment,
+                UserIsActive        = req.UserIsActive
             };
 
         private static List<OutputColumn> MapOutputColumns(List<OutputColumnRequest> columns) =>

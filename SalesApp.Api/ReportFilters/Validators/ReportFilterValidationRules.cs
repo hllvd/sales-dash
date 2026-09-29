@@ -73,7 +73,8 @@ namespace SalesApp.ReportFilters.Validators
                 (config.Teams?.Count > 0) ||
                 (config.Stores?.Count > 0) ||
                 (config.Pvs?.Count > 0) ||
-                (config.Statuses?.Count > 0);
+                (config.Statuses?.Count > 0) ||
+                config.UserIsActive.HasValue;
 
             if (!hasAtLeastOneFilter)
                 errors.Add(new("filterConfig", "filterConfig must contain at least one filter field."));

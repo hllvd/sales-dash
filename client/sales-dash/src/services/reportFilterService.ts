@@ -16,7 +16,7 @@ export interface FilterConfig {
   emails?: string[];
   groups?: number[];
   teams?: number[];
-  /** "current" (default) or "historical" — controls how team membership is resolved when filtering by team */
+  /** "historical" (default) or "current" — controls how team membership is resolved when filtering by team */
   teamMembershipMode?: 'current' | 'historical';
   stores?: number[];
   pvs?: number[];
@@ -31,6 +31,8 @@ export interface FilterConfig {
   maxProduction?: number;
   /** When true: only contracts with status "Active" and HasPayment == false. When false: exclude those. When undefined: no filter. */
   awaitingPayment?: boolean;
+  /** When true: only active users (user.IsActive == true). When false: only inactive users. When null/undefined: all users. */
+  userIsActive?: boolean | null;
 }
 
 export interface ExportedField {
