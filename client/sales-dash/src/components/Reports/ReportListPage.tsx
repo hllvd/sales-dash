@@ -81,8 +81,8 @@ const ReportListPage: React.FC = () => {
         name: `Cópia de ${report.name}`,
         description: report.description,
         scope: report.scope,
-        filterConfig: report.filterConfig,
-        outputColumns: report.outputColumns,
+        filterConfig: report.filterConfig || { matriculas: [], emails: [], groups: [], teams: [], stores: [], pvs: [], statuses: [] },
+        outputColumns: report.outputColumns || [],
         groupByEmail: report.groupByEmail,
         groupByTeam: report.groupByTeam || false,
         groupByClassification: report.groupByClassification || false,
@@ -178,7 +178,7 @@ const ReportListPage: React.FC = () => {
 
         <Group justify="space-between" mt="md">
           <Text size="xs" c="dimmed">
-            Criado em {new Date(report.createdAt).toLocaleDateString()} · {report.outputColumns.length} colunas
+            Criado em {new Date(report.createdAt).toLocaleDateString()} · {(report.outputColumns || []).length} {(report.outputColumns || []).length === 1 ? 'coluna' : 'colunas'}
           </Text>
         </Group>
       </Card>

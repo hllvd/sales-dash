@@ -150,6 +150,47 @@ interface ApiResponse<T> {
   message?: string;
 }
 
+// Normalizer to guarantee array fields are never null/undefined from legacy or partial records
+const normalizeReportFilter = (r: ReportFilter): ReportFilter => {
+  if (!r) return r;
+  return {
+    ...r,
+    outputColumns: Array.isArray(r.outputColumns) ? r.outputColumns : [],
+    exportedFields: Array.isArray(r.exportedFields) ? r.exportedFields : [],
+    allowedTeamIds: Array.isArray(r.allowedTeamIds) ? r.allowedTeamIds : [],
+    allowedRoles: Array.isArray(r.allowedRoles) ? r.allowedRoles : [],
+    filterConfig: r.filterConfig ? {
+      ...r.filterConfig,
+      matriculas: Array.isArray(r.filterConfig.matriculas) ? r.filterConfig.matriculas : [],
+      emails: Array.isArray(r.filterConfig.emails) ? r.filterConfig.emails : [],
+      groups: Array.isArray(r.filterConfig.groups) ? r.filterConfig.groups : [],
+      teams: Array.isArray(r.filterConfig.teams) ? r.filterConfig.teams : [],
+      stores: Array.isArray(r.filterConfig.stores) ? r.filterConfig.stores : [],
+      pvs: Array.isArray(r.filterConfig.pvs) ? r.filterConfig.pvs : [],
+      statuses: Array.isArray(r.filterConfig.statuses) ? r.filterConfig.statuses : [],
+      classificationLevelIds: Array.isArray(r.filterConfig.classificationLevelIds) ? r.filterConfig.classificationLevelIds : [],
+    } : {
+      matriculas: [],
+      emails: [],
+      groups: [],
+      teams: [],
+      stores: [],
+      pvs: [],
+      statuses: [],
+      classificationLevelIds: []
+    }
+  };
+};
+
+const normalizeReportResults = (res: ReportResultsResponse): ReportResultsResponse => {
+  if (!res) return res;
+  return {
+    ...res,
+    columns: Array.isArray(res.columns) ? res.columns : [],
+    rows: Array.isArray(res.rows) ? res.rows : [],
+  };
+};
+
 // API Functions
 export const getReportFilters = async (): Promise<ReportFilter[]> => {
   const response = await authenticatedFetch(`${API_BASE_URL}/report-filters`, {
@@ -162,7 +203,7 @@ export const getReportFilters = async (): Promise<ReportFilter[]> => {
   }
 
   const result: ApiResponse<ReportFilter[]> = await response.json();
-  return result.data;
+  return (result.data || []).map(normalizeReportFilter);
 };
 
 export const getAvailableColumns = async (): Promise<AvailableColumnsResponse> => {
@@ -190,7 +231,7 @@ export const getReportFilter = async (id: string): Promise<ReportFilter> => {
   }
 
   const result: ApiResponse<ReportFilter> = await response.json();
-  return result.data;
+  return normalizeReportFilter(result.data);
 };
 
 export const createReportFilter = async (data: CreateReportFilterRequest): Promise<ReportFilter> => {
@@ -268,7 +309,7 @@ export const getReportResults = async (
   }
 
   const result: ApiResponse<ReportResultsResponse> = await response.json();
-  return result.data;
+  return normalizeReportResults(result.data);
 };
 
 export const startReportExport = async (filterId: string): Promise<any> => {

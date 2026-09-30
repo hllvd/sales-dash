@@ -345,7 +345,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
         setAllowedTeamIds((report.allowedTeamIds || []).map(String));
         setAllowedRoles(report.allowedRoles || []);
         
-        const fc = report.filterConfig;
+        const fc = report.filterConfig || {} as any;
         const restoredMatriculas = [...(fc.matriculas || [])];
         if (fc.currentUserMatricula) restoredMatriculas.unshift(CURRENT_USER_MATRICULA_SENTINEL);
         setMatriculas(restoredMatriculas);
@@ -376,14 +376,14 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
         setCurrentUserAsParent(fc.currentUserAsParent || false);
         setEmails(fc.emails || []);
-        setGroups((fc.groups || []).map(g => g.toString()));
-        const restoredTeams = (fc.teams || []).map(t => t.toString());
+        setGroups((fc.groups || []).map((g: any) => g.toString()));
+        const restoredTeams = (fc.teams || []).map((t: any) => t.toString());
         if (fc.currentUserTeam) restoredTeams.unshift(CURRENT_USER_TEAM_SENTINEL);
         setTeams(restoredTeams);
         setTeamMembershipMode(fc.teamMembershipMode || 'historical');
-        setStores((fc.stores || []).map(s => s.toString()));
-        setPvs((fc.pvs || []).map(p => p.toString()));
-        setStatuses(fc.statuses && fc.statuses.length > 0 ? fc.statuses : (fc.statuses !== undefined ? fc.statuses : DEFAULT_REPORT_STATUSES));
+        setStores((fc.stores || []).map((s: any) => s.toString()));
+        setPvs((fc.pvs || []).map((p: any) => p.toString()));
+        setStatuses(Array.isArray(fc.statuses) && fc.statuses.length > 0 ? fc.statuses : (Array.isArray(fc.statuses) ? fc.statuses : DEFAULT_REPORT_STATUSES));
         setStatusOperator(fc.statusOperator || 'or');
         setAwaitingPayment(fc.awaitingPayment ?? null);
         setUserIsActive(fc.userIsActive ?? null);
@@ -773,9 +773,9 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
 
   // Prepare Dynamic Aggregated Chart Data
   const prepareChartData = () => {
-    if (!previewData || previewData.rows.length === 0) return [];
+    if (!previewData || !previewData.rows || previewData.rows.length === 0) return [];
     
-    const columns = previewData.columns;
+    const columns = previewData.columns || [];
     
     // 1. Identify category/label key (Team, Email, Classification or first string col)
     const groupCol = columns.find(c => c.field === 'team' || c.field === 'email' || c.field === 'classification') 
@@ -1859,7 +1859,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                           padding: '8px' 
                         }}
                       >
-                        {previewData.rows.length === 0 ? (
+                        {(!previewData.rows || previewData.rows.length === 0) ? (
                           <Text size="sm" c="dimmed" style={{ textAlign: 'center', padding: '16px' }}>
                             Nenhum registro encontrado correspondente aos filtros de dados ativos.
                           </Text>
@@ -1868,7 +1868,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                             <table className="preview-results-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                               <thead>
                                 <tr style={{ borderBottom: '2px solid #e5e7eb', backgroundColor: '#f1f3f5' }}>
-                                  {previewData.columns.map((col) => (
+                                  {(previewData.columns || []).map((col) => (
                                     <th 
                                       key={`${col.source}-${col.field}`} 
                                       style={{ 
@@ -1888,7 +1888,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {previewData.rows.map((row, idx) => (
+                                {(previewData.rows || []).map((row, idx) => (
                                   <tr 
                                     key={idx} 
                                     style={{ 
@@ -1897,7 +1897,7 @@ const ReportFormPage: React.FC<ReportFormPageProps> = ({ filterId }) => {
                                       transition: 'background-color 0.15s ease' 
                                     }}
                                   >
-                                    {previewData.columns.map((col) => (
+                                    {(previewData.columns || []).map((col) => (
                                       <td 
                                         key={`${col.source}-${col.field}`} 
                                         style={{ 
