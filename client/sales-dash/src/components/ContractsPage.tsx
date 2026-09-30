@@ -57,6 +57,12 @@ const DEFAULT_COLUMNS: VisibleColumns = {
   awaitingPayment: false,
 };
 
+const MULTI_SELECT_STYLES = {
+  input: { minHeight: '36px' },
+  pill: { maxWidth: '100%' },
+  pillLabel: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+};
+
 const ContractsPage: React.FC = () => {
   // Track latest API request to prevent race conditions
   const requestCountRef = useRef(0);
@@ -489,7 +495,7 @@ const ContractsPage: React.FC = () => {
             }}
             clearable
             searchable
-            styles={{ input: { minHeight: '36px' } }}
+            styles={MULTI_SELECT_STYLES}
           />
         </div>
 
@@ -516,7 +522,7 @@ const ContractsPage: React.FC = () => {
             data={teams.map(t => ({ value: String(t.id), label: t.name }))}
             clearable
             searchable
-            styles={{ input: { minHeight: '36px' } }}
+            styles={MULTI_SELECT_STYLES}
           />
         </div>
 
@@ -542,7 +548,7 @@ const ContractsPage: React.FC = () => {
             }}
             clearable
             searchable
-            styles={{ input: { minHeight: '36px' } }}
+            styles={MULTI_SELECT_STYLES}
           />
         </div>
 
@@ -613,7 +619,7 @@ const ContractsPage: React.FC = () => {
             })()}
             clearable
             searchable
-            styles={{ input: { minHeight: '36px' } }}
+            styles={MULTI_SELECT_STYLES}
           />
         </div>
 
