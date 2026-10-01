@@ -1,4 +1,216 @@
-# Features
+## Otimização de Responsividade e Navegação Mobile Geral (Usuários, Meus Contratos, Solicitações, Matrículas, Equipes, Meu Usuário)
+
+Padronização da experiência móvel com visual de **app nativo** em 6 telas centrais do sistema, eliminando quebras de layout, travamentos de scroll e transbordamento horizontal.
+
+### Comportamento e Regras
+- **`Usuarios` (`UsersPage.css`)**:
+  - No celular (< 768px), a barra de busca e o filtro de status são empilhados verticalmente com largura total (`width: 100%`).
+  - O container `.users-container` passa a respeitar `width: 100%`, `box-sizing: border-box`, `padding: 12px` e `overflow-x: hidden`.
+  - Botões de ação do cabeçalho assumem largura total empilhada.
+- **`Meus Contratos` (`MyContractsPage.css`, `MyContractsPage.tsx`)**:
+  - Ações do cabeçalho (`Ajuda`, `Atualizar`, `Exportar`, `Novo`) organizadas em grid flexível no celular, evitando transbordamento.
+  - Filtros de período e seletores `MultiSelect` de matrícula e equipe empilhados verticalmente.
+  - Pílulas de seleção contidas com limite de largura e reticências (`text-overflow: ellipsis; max-width: 100%`).
+  - Rolagem horizontal contida estritamente no container da tabela.
+- **`Solicitações` (`RequestsPage.css`, `RequestsPage.tsx`)**:
+  - Adicionadas media queries responsivas no mobile.
+  - As tabelas de solicitações pendentes e enviadas foram envolvidas no container de rolagem horizontal (`.requests-table-container`), permitindo navegação fluida em telas estreitas sem estourar o card ou a tela.
+  - Botão de nova solicitação empilhado com largura total.
+- **`Matrículas` (`MatriculasPage.css`)**:
+  - A barra de pesquisa e o filtro de status foram convertidos em layout empilhado a 100% de largura no mobile, removendo a restrição de largura fixa (`width: 200px`) que causava desalinhamentos.
+  - Rolagem lateral isolada no container da tabela.
+- **`Equipes` (`TeamsPage.css`)**:
+  - Adicionadas media queries responsivas no mobile.
+  - Cabeçalho e botões (`Atualizar`, `Nova Equipe`) empilhados a 100% de largura.
+  - Todos os 4 filtros (texto, status, estados e lojas) organizados em coluna vertical com `width: 100%` e `min-width: 0`, eliminando larguras mínimas fixas que extrapolavam o viewport.
+  - Pílulas do MultiSelect contidas com truncamento de texto.
+- **`Meu Usuário` (`MyProfilePage.css`, `MyProfilePage.tsx`, `UserProfile.css`)**:
+  - Importação de `MyProfilePage.css` conectada ao componente e remoção de estilos inline rígidos.
+  - Cabeçalho empilhado no mobile com botão de solicitação ocupando largura total.
+  - Ajuste do layout de cabeçalho do perfil, avatar centralizado e metadados empilhados em 1 coluna.
+  - Lista de matrículas e ações de edição de senha/perfil com ajuste tátil para telas móveis.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/UsersPage.css`
+- `client/sales-dash/src/components/MyContractsPage.css` e `MyContractsPage.tsx`
+- `client/sales-dash/src/components/RequestsPage.css` e `RequestsPage.tsx`
+- `client/sales-dash/src/components/MatriculasPage.css`
+- `client/sales-dash/src/components/TeamsPage.css`
+- `client/sales-dash/src/components/MyProfilePage.css` e `MyProfilePage.tsx`
+- `client/sales-dash/src/components/UserProfile/UserProfile.css`
+
+---
+
+## Responsividade Mobile e Correção de Layout na Página de Contratos (`/#/contracts`)
+
+Aprimoramento da interface e experiência de usuário (UI/UX) em dispositivos móveis na tela de gerenciamento de contratos (`/#/contracts`), solucionando quebras visuais, transbordamento horizontal e colapso de texto na paginação.
+
+### Comportamento e Regras
+- **Paginação Responsiva com Visual Mobile App (`Pagination.tsx`, `Pagination.css`)**:
+  - No celular (< 640px), os controles de paginação se organizam em um card tátil com layout empilhado:
+    - Linha superior: botões de navegação táteis (`← Anterior` e `Próxima →`) com dimensões compactas isoladas (`width: auto !important; flex: 0 0 auto !important;`), ladeando o indicador central (`Página X de Y` e subtítulo com o total).
+    - O texto do indicador de página é estruturado com `white-space: nowrap;` para prevenir colapso vertical de palavras/letras.
+    - Linha inferior: seletor de "Itens por página:" com botões de tamanho de página em pílulas limpas (`[50] [100] [500]`).
+  - No desktop, mantém o layout inline com espaçamento justificado (`space-between`).
+- **Isolamento de Escopo CSS Global (`UsersPage.css`, `Pagination.css`)**:
+  - A regra legada em `UsersPage.css` (`.pagination-btn { width: 100% }`) no breakpoint mobile foi escopada para `.pagination .pagination-btn`, eliminando o vazamento global de largura de botão que deformava a paginação em outras telas.
+- **Contenção e Truncamento de Filtros MultiSelect (`ContractsPage.css`, `ContractsPage.tsx`)**:
+  - Pílulas de seleção de múltiplos valores (como Usuários com nomes longos e e-mails, Equipes, Matrículas e Status) são contidas em 100% da largura máxima com truncamento por reticências (`ellipsis`), evitando expansão horizontal forçada do viewport.
+  - Inputs e selects do grid de filtros adotam `width: 100%`, `min-width: 0` e `box-sizing: border-box`.
+- **Botão "Limpar Filtros" no Mobile**:
+  - No celular, expande para 100% da largura (`width: 100%`, `align-self: stretch`) para facilitar a interação por toque.
+- **Isolamento da Rolagem Lateral da Tabela (`.contracts-table-container`)**:
+  - A rolagem horizontal fica restrita exclusivamente ao container da tabela de contratos (`overflow-x: auto; -webkit-overflow-scrolling: touch;`), prevenindo qualquer vazamento de scroll para o container principal da página e mantendo cabeçalho, botão `+ Criar` e filtros perfeitamente alinhados na largura da tela.
+
+### Arquivos Modificados / Criados
+- `client/sales-dash/src/components/Pagination.css`: Folha de estilos responsiva para a paginação móvel e desktop com isolamento de botões e texto anti-colapso.
+- `client/sales-dash/src/components/Pagination.tsx`: Estruturação semântica de spans para página e total de itens.
+- `client/sales-dash/src/components/Pagination.test.tsx`: Testes unitários do componente de paginação.
+- `client/sales-dash/src/components/UsersPage.css`: Isolamento da regra de largura de botão para escopo local.
+- `client/sales-dash/src/components/ContractsPage.css`: Ajustes de largura, contenção do grid, truncamento de pílulas do Mantine MultiSelect, botão de limpar filtros e isolamento do container da tabela.
+- `client/sales-dash/src/components/ContractsPage.tsx`: Aplicação de estilos consistentes `MULTI_SELECT_STYLES` nos componentes MultiSelect.
+
+---
+
+## Permissão Exclusiva de Gerenciamento Total de Reports e Views para o Master SuperAdmin
+
+Concede permissão exclusiva ao usuário **Master SuperAdmin** (identificado pelo e-mail configurado em `AdminInfo:MasterSuperAdminEmail` em `appsettings.json`, com valor padrão `"superadmin@salesapp.com"` e aceitando `"superadmin@test.com"` para automação de testes) para gerenciar irrestritamente qualquer relatório (`ReportFilter`) e painel/view (`ReportView`) em todo o sistema.
+
+### Comportamento e Regras
+- **Escopo Exclusivo do Master SuperAdmin**:
+  - **Listagem Universal**: Lista todos os relatórios e views existentes no sistema, inclusive relatórios e views **privados** criados por outros usuários ou por outros superadministradores.
+  - **Edição Universal**: Permite abrir, modificar e salvar alterações em qualquer relatório ou view, mantendo o `UserId` original do autor no registro.
+  - **Exclusão Universal**: Permite excluir qualquer relatório ou view do sistema, localizando o registro na partição do seu autor original (`SK = #U-{userId}#REP-{id}` ou `#U-{userId}#VIEW-{id}`) e efetuando a remoção correta no DynamoDB.
+- **Isolamento e Segurança para Demais Superadmins**:
+  - Usuários com papel `superadmin` comuns continuam estritamente restritos:
+    - Podem listar apenas seus próprios relatórios/views privados e relatórios compartilhados.
+    - Tentativas de editar ou excluir relatórios/views pertencentes a outros usuários retornam `403 Forbidden`.
+- **Configuração Centralizada**:
+  - Propriedade: `AdminInfo:MasterSuperAdminEmail` (mapeada na classe `AdminInfoOptions`).
+  - Fallback padrão no código para `"superadmin@salesapp.com"`.
+- **Interface Web (`ReportListPage`, `ReportResultsPage`, `ViewsListPage`)**:
+  - Reconhecimento automático do e-mail do Master SuperAdmin.
+  - Exibição de relatórios e views privados de outros usuários com um badge indicativo *"Outro Usuário"*.
+  - Habilitação dos botões de ação "Editar" e "Excluir" em todos os cards e páginas de resultados.
+
+### Arquivos Modificados
+- `SalesApp.Api/Models/Configuration/AdminInfoOptions.cs`: Adição da propriedade `MasterSuperAdminEmail`.
+- `SalesApp.Api/appsettings.json`: Configuração de `"MasterSuperAdminEmail": "superadmin@salesapp.com"` sob `"AdminInfo"`.
+- `SalesApp.Api/ReportFilters/Repositories/IReportFilterRepository.cs` e `DynamoDbReportFilterRepository.cs`: Métodos `ListAllAsync()` e `GetAnyByIdAsync(filterId)`.
+- `SalesApp.Api/ReportViews/Repositories/IReportViewRepository.cs` e `DynamoDbReportViewRepository.cs`: Métodos `ListAllAsync()` e `GetAnyByIdAsync(viewId)`.
+- `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs`: Injeção de `IOptions<AdminInfoOptions>`, verificação de `IsMasterSuperAdminEmail`, listagem completa via `ListAllAsync`, busca global via `GetAnyByIdAsync` e deleção/atualização autorizada mantendo o `filter.UserId`.
+- `SalesApp.Api/ReportViews/Services/ReportViewService.cs`: Injeção de `IOptions<AdminInfoOptions>` e aplicação das mesmas regras do Master SuperAdmin.
+- `client/sales-dash/src/components/Reports/ReportListPage.tsx`: Reconhecimento de `isMasterSuperadmin`, exibição de relatórios privados de terceiros com badge e liberação de botões de edição/exclusão.
+- `client/sales-dash/src/components/Reports/ReportResultsPage.tsx`: Habilitação do botão "Editar" para Master SuperAdmin em relatórios de outros usuários.
+- `client/sales-dash/src/components/Reports/ViewsListPage.tsx`: Reconhecimento de `isMasterSuperadmin`, exibição de views privadas de terceiros e liberação de botões de edição/exclusão.
+- `SalesApp.Tests/Services/ReportFilterServiceTests.cs`: Testes unitários para Master SuperAdmin (ListAll, GetAny, Update e Delete de outros usuários) e asserção de `403` para superadmin regular.
+- `SalesApp.Tests/Services/ReportViewServiceTests.cs`: Testes unitários para ReportViewService validando as regras do Master SuperAdmin e restrições de superadmin regular.
+
+---
+
+## Atribuição em Lote de Usuários Sem Equipe à Equipe do Gestor (Modificação em Lote)
+
+Implementa uma nova aba ("Usuários Sem Equipe") no painel de Modificação em Lote (`BatchPage`), sob "Ferramentas do Admin", permitindo visualizar todos os usuários que não pertencem a nenhuma equipe atualmente, inspecionar o histórico de vínculo, filtrar e selecionar usuários e atribuí-los em lote à equipe cujo gestor direto (`parentUser`) é o proprietário (`owner`).
+
+### Comportamento e Regras
+- **Aba "Usuários Sem Equipe" em Modificação em Lote (`#/batch`)**:
+  - Restrita aos superadministradores autorizados (`superadmin@salesapp.com` ou `superadmin@test.com`).
+  - Lista todos os usuários com cadastro ativo (`IsActive == true`) que atualmente **não possuem equipe ativa** (ou seja, sem registro em `UserTeam` com `EndDate == null || EndDate > DateTime.UtcNow`).
+- **Detecção do Histórico de Equipe**:
+  - Diferencia usuários que nunca tiveram equipe (`historyStatus = "never"`, Badge: "Nunca teve equipe") daqueles que já tiveram equipe no passado mas estão sem equipe atualmente (`historyStatus = "past_member"`, Badge: "Sem equipe atual (já pertenceu)").
+- **Avaliação de Elegibilidade**:
+  - Usuário com `parentUser` que é proprietário (`owner`) de equipe ativa: classificado como **Elegível**, exibindo a equipe de destino.
+  - Usuário sem `parentUser`: classificado como **Inelegível** (motivo: *"Sem gestor direto"*).
+  - Usuário cujo `parentUser` não é proprietário de nenhuma equipe ativa: classificado como **Inelegível** (motivo: *"Gestor não é proprietário de nenhuma equipe"*).
+- **Ações e Seleção em Lote**:
+  - Checkbox individual por linha e checkbox "master" no cabeçalho.
+  - Botão "Selecionar Todos" (seleciona todos os visíveis no filtro atual) e "Desmarcar Todos".
+  - Filtro por texto (nome, email ou gestor) e filtro por status ("Todos", "Apenas Elegíveis", "Apenas Inelegíveis").
+  - Botão "Adicionar Selecionados à Equipe do Gestor (X)": executa a atribuição em lote.
+- **Regras de Atribuição**:
+  - Apenas usuários elegíveis são atribuídos. Se o `parentUser` não for owner ou se o usuário não tiver `parentUser`, o usuário é pulado e reportado no resumo de ignorados.
+  - A data de início do vínculo é fixada em **`2022-01-01`** (`2022-01-01T00:00:00Z`) com término nulo (`EndDate = null`), tornando o usuário membro ativo da equipe.
+  - Após a conclusão, exibe o painel de resultados com contadores (Total Processados, Adicionados com Sucesso, Ignorados) e listas detalhadas com motivos, recarregando a tabela de usuários sem equipe automaticamente.
+
+### Arquivos Modificados
+- `SalesApp.Api/DTOs/BatchDTOs.cs`: Novos DTOs `UnassignedUserDto`, `BatchAssignUnassignedToOwnerTeamRequest`, `BatchAssignUnassignedToOwnerTeamResult`.
+- `SalesApp.Api/Controllers/BatchController.cs`: Novos endpoints `GET /api/batch/users-without-team` e `POST /api/batch/team/assign-unassigned-to-owners`.
+- `SalesApp.IntegrationTests/Users/BatchControllerIntegrationTests.cs`: Testes de integração validando permissões, listagem de sem equipe com histórico/elegibilidade e processamento da atribuição em lote com data fixa 2022-01-01.
+- `client/sales-dash/src/services/apiService.ts`: Tipos `UnassignedUser`, `BatchAssignUnassignedRequest`, `BatchAssignUnassignedResult` e métodos `getUsersWithoutTeam`, `assignUnassignedToOwnerTeams`.
+- `client/sales-dash/src/components/BatchPage.tsx`: Aba "Usuários Sem Equipe", tabela preview com seleção individual e master, badges de histórico/elegibilidade, filtros e exibição de resultados.
+
+---
+
+## Filtro de Status do Vendedor, Coluna "Membro Ativo" e Padrão Histórico em Reports
+
+Implementa melhorias no módulo de Relatórios (`ReportFormPage` e `ReportFilterService`), introduzindo o filtro por ativação de vendedor, a coluna de saída "Membro Ativo" e tornando o vínculo temporal histórico com equipes o padrão para relatórios.
+
+### Comportamento e Regras
+- **Filtro "Status do Vendedor (Cadastro)" (`userIsActive`)**:
+  - Novo seletor presente na seção de filtros de dados do formulário de relatórios.
+  - Opções:
+    - **"Todos"** (`all` / `null`): Padrão do sistema. Não restringe contratos por status de ativação do vendedor.
+    - **"Usuário ativado"** (`true`): Filtra apenas contratos cujos vendedores possuem cadastro ativo no sistema (`user.IsActive == true`).
+    - **"Usuário desativado"** (`false`): Filtra apenas contratos cujos vendedores estão inativos/desativados no sistema (`user.IsActive == false`).
+- **Coluna de Saída "Membro Ativo" (`Users_Contract|memberActive`)**:
+  - Nova coluna selecionável no catálogo sob `Users_Contract` (Vendedor).
+  - Retorna **"Sim"** caso o cadastro do vendedor esteja ativo (`c.User != null && c.User.IsActive`) e **"Não"** caso esteja desativado (`!c.User.IsActive`), ou **"—"** caso não haja vendedor associado.
+  - Não é adicionada compulsoriamente aos relatórios; permanece disponível para inclusão manual conforme necessidade.
+- **Padrão Histórico de Vínculo com Equipe (Calendário de Equipe em Reports)**:
+  - O filtro de equipes (`teamMembershipMode`) agora adota por padrão o modo **"📅 Histórico do período"** (`historical`).
+  - Garante que os contratos permaneçam vinculados e visíveis na equipe à qual o vendedor pertencia na **data da venda**, conforme a linha do tempo do calendário de equipes (`TeamMembershipResolver.IsMembershipActiveForSale`), mesmo que o vendedor tenha migrado de equipe ou sido desativado posteriormente.
+  - O usuário ainda pode alternar manualmente para o modo *"👤 Membros atuais"* (`current`) quando desejar listar apenas contratos de consultores que continuam na equipe no dia atual.
+
+### Arquivos Modificados
+- `SalesApp.Api/ReportFilters/Models/FilterConfig.cs`: Adição da propriedade `UserIsActive`.
+- `SalesApp.Api/ReportFilters/DTOs/CreateReportFilterRequest.cs`: Suporte a `UserIsActive` no DTO de requisição `FilterConfigRequest`.
+- `SalesApp.Api/ReportFilters/DTOs/ReportFilterResponse.cs`: Adição de `UserIsActive` no DTO de resposta `FilterConfigResponse`.
+- `SalesApp.Api/ReportFilters/Validators/ReportFilterValidationRules.cs`: Reconhecimento de `UserIsActive` no validador `ValidateFilterConfig`.
+- `SalesApp.Api/ReportFilters/Services/ReportFilterService.cs`:
+  - Campo `"memberActive"` em `GetAvailableColumns` (`Users_Contract`) e resolução "Sim"/"Não" em `ResolveField`.
+  - Filtro em memória de `fc.UserIsActive` sobre a lista de contratos.
+  - Padrão de `TeamMembershipMode` ajustado para `historical` (caso não seja explicitamente "current").
+  - Mapeamentos de requisição/resposta em `MapToResponse` e `MapFilterConfig`.
+- `client/sales-dash/src/services/reportFilterService.ts`: Propriedade `userIsActive` na interface TypeScript `FilterConfig`.
+- `client/sales-dash/src/components/Reports/ReportFormPage.tsx`:
+  - Metadados de `'Users_Contract|memberActive'` e rótulo em `getFieldLabel`.
+  - Novo controle de seleção para "Status do Vendedor (Cadastro)" com opções "Todos" (padrão), "Usuário ativado" e "Usuário desativado".
+  - Inversão da ordem e ajuste das descrições do seletor de vínculo com equipe e loja para priorizar o histórico do período.
+  - Mapeamento e persistência de `userIsActive` e `teamMembershipMode`.
+
+---
+
+## Filtro de Licenciamento, Exportação XLSX Filtrada e Coluna Usuário Pai em Monitoramento > Licenças
+
+Implementa melhorias no módulo de monitoramento de licenças (`LicensingPage`), adicionando filtro de status de licença, exportação em planilha XLSX que respeita todos os filtros ativos (status e busca textual) e inclusão da coluna "Usuário Pai" informando o email do superior imediato acompanhado de sua equipe ativa.
+
+### Comportamento e Regras
+- **Filtro de Licenciamento (`Licenciados`, `Não licenciados`, `Todos`)**:
+  - Adicionado seletor na barra de controle da seção "Detalhamento dos Usuários".
+  - Opção padrão: **"Licenciados"** (`licensed`), exibindo apenas os usuários que atingiram a quantidade mínima de dias ativos no mês.
+  - Opção **"Não licenciados"** (`unlicensed`): exibe usuários abaixo da quantidade mínima de dias.
+  - Opção **"Todos"** (`all`): exibe a lista completa de usuários considerados.
+  - A paginação é reiniciada automaticamente ao alterar o filtro.
+- **Exportação XLSX Alinhada aos Filtros**:
+  - O endpoint de exportação `GET /api/monitoring/licensing/export-xlsx` agora suporta os parâmetros de query `status` e `search`.
+  - Ao clicar em "Exportar Planilha", o arquivo XLSX gerado reflete rigorosamente os mesmos usuários visíveis na listagem filtrada (combinando o status da licença e qualquer termo de busca textual digitado).
+- **Coluna "Usuário Pai" na Tabela e no XLSX**:
+  - Nova coluna posicionada imediatamente após a coluna "Equipe".
+  - Exibe o email do usuário pai seguido de sua respectiva equipe ativa entre parênteses: `email@domain (Equipe)`.
+  - Caso o usuário pai exista mas não possua equipe ativa vinculada no momento, exibe `email@domain (Sem Equipe)`.
+  - Caso o usuário não possua usuário pai cadastrado (`ParentUserId` nulo), exibe `-`.
+  - A mesma coluna e formatação são reproduzidas na planilha `.xlsx` exportada.
+
+### Arquivos Modificados
+- `SalesApp.Api/DTOs/LicensingDTOs.cs`: Adição da propriedade `ParentUser` ao `UserLicenseDetailDto`.
+- `SalesApp.Api/Repositories/MonitoringRepository.cs`: Inclusão de `ParentUser` na query e mapeamento de `ParentUser` com email e equipe ativa do usuário pai (ou "Sem Equipe" / "-").
+- `SalesApp.Api/Controllers/MonitoringController.cs`: Suporte a `status` e `search` no endpoint de exportação XLSX, e adição da coluna "Usuário Pai" no arquivo gerado.
+- `SalesApp.IntegrationTests/Contracts/MonitoringTests.cs`: Testes de integração validando o retorno do campo `ParentUser` e a exportação com filtros de status e busca.
+- `client/sales-dash/src/services/contractService.ts`: Atualização da interface `UserLicenseDetail` e função `exportLicensingXlsx` com parâmetros `status` e `search`.
+- `client/sales-dash/src/services/contractService.test.ts`: Testes unitários para a função `exportLicensingXlsx`.
+- `client/sales-dash/src/components/Monitoring/LicensingPage.tsx`: Inclusão do dropdown de status de licença (padrão Licenciados), coluna Usuário Pai na tabela e repasse dos filtros na exportação.
+
+---
 
 ## Derivação de Status de Cotas para o Scrape do Tipo Consultor (`Late1`, `Late2`, `Late3`, `AwaitingPayment`, `Desistente`, `Defaulted`)
 

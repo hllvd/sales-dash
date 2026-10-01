@@ -36,6 +36,7 @@ namespace SalesApp.ReportFilters.DTOs
         /// When false: exclude those contracts. When null: no filter applied.
         /// </summary>
         public bool? AwaitingPayment { get; set; }
+        public bool? UserIsActive { get; set; }
     }
 
     /// <summary>

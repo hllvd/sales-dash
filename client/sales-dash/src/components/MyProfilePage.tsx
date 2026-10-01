@@ -5,6 +5,7 @@ import Menu from './Menu';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
 import { UserProfile } from './UserProfile';
 import { apiService } from '../services/apiService';
+import './MyProfilePage.css';
 
 const MyProfilePage: React.FC = () => {
   const { currentUser } = useCurrentUser();
@@ -54,8 +55,8 @@ const MyProfilePage: React.FC = () => {
 
   return (
     <Menu>
-      <div className="my-profile-page" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-        <div className="my-profile-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="my-profile-page">
+        <div className="my-profile-header">
           <Title order={2} size="h2" className="page-title-break">Meu Perfil</Title>
           <Button
             leftSection={<IconMailForward size={18} />}

@@ -13,6 +13,8 @@
   padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .contracts-header {
@@ -65,11 +67,16 @@
   background-color: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .filter-group label {
@@ -89,6 +96,9 @@
   color: #333;
   font-size: 14px;
   transition: all 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .filter-group select:focus,
@@ -103,6 +113,30 @@
   color: #333;
 }
 
+/* MultiSelect pill containment and truncation */
+.filter-group .mantine-MultiSelect-root,
+.filter-group .mantine-PillsInput-root,
+.filter-group .mantine-PillsInput-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.filter-group .mantine-Pill-root,
+.filter-group .mantine-MultiSelect-pill {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.filter-group .mantine-Pill-label,
+.filter-group .mantine-MultiSelect-pillLabel {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: calc(100% - 20px) !important;
+}
+
 .clear-filters-btn {
   background-color: rgba(239, 68, 68, 0.1);
   border: 1px solid #ef4444;
@@ -114,6 +148,7 @@
   cursor: pointer;
   transition: all 0.2s;
   align-self: flex-end;
+  box-sizing: border-box;
 }
 
 .clear-filters-btn:hover {
@@ -166,8 +201,11 @@
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow-x: auto;
+  max-width: 100%;
+  width: 100%;
   margin-bottom: 24px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .contracts-table {
@@ -345,7 +383,11 @@
 
 @media (max-width: 640px) {
   .contracts-page {
-    padding: 16px;
+    padding: 12px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   .contracts-header {
@@ -365,7 +407,7 @@
   }
 
   .contracts-header h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .create-contract-btn {
@@ -373,11 +415,29 @@
   }
 
   .contracts-filters {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+    gap: 12px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .clear-filters-btn {
+    width: 100%;
+    align-self: stretch;
+    text-align: center;
+    padding: 12px;
+    font-size: 14px;
+    box-sizing: border-box;
   }
 
   .contracts-table-container {
-    overflow-x: scroll;
+    overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
   }
 
   .contracts-table {

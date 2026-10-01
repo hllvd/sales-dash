@@ -118,7 +118,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(existingReport);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -178,6 +178,7 @@ namespace SalesApp.Tests.Services
             var usersContract = available.Sources.Find(s => s.Source == "Users_Contract");
             usersContract.Should().NotBeNull();
             usersContract!.Fields.Should().Contain("userActive");
+            usersContract.Fields.Should().Contain("memberActive");
 
             var usersMatricula = available.Sources.Find(s => s.Source == "Users_Matricula");
             usersMatricula.Should().NotBeNull();
@@ -332,7 +333,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(existingReport);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -436,7 +437,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(existingReport);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -514,7 +515,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(existingReport);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -577,7 +578,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(existingReport);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -638,7 +639,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(existingReport);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -696,7 +697,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(existingReport);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -771,7 +772,7 @@ namespace SalesApp.Tests.Services
                 }
             };
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team> { team });
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -844,7 +845,7 @@ namespace SalesApp.Tests.Services
                 UserTeams = new List<UserTeam>()
             };
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team> { team });
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -905,7 +906,7 @@ namespace SalesApp.Tests.Services
                 UserTeams = new List<UserTeam>() // no members!
             };
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team> { team });
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -956,7 +957,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(report);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -1017,7 +1018,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(report);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -1075,7 +1076,7 @@ namespace SalesApp.Tests.Services
             _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
                 .ReturnsAsync(report);
 
-            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>()))
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
                 .ReturnsAsync(new List<Team>());
 
             _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
@@ -1104,6 +1105,425 @@ namespace SalesApp.Tests.Services
             result.Data.TotalSum.Should().Be(200m);
             // With AwaitingPayment = true, awaiting contracts count in retention
             result.Data.OverallRetention.Should().Be(1.0m);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithMemberActiveOutputColumn_ShouldReturnSimOrNao()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "filter-member-active-col-test";
+
+            var report = new ReportFilter
+            {
+                FilterId = filterId,
+                UserId = callerId,
+                Name = "Member Active Col Test",
+                Scope = "private",
+                FilterConfig = new FilterConfig(),
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 },
+                    new OutputColumn { Source = "Users_Contract", Field = "memberActive", Label = "Membro Ativo", Order = 2 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId))
+                .ReturnsAsync(report);
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
+                .ReturnsAsync(new List<Team>());
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var userActive = new User { Id = Guid.NewGuid(), Name = "Active Seller", Email = "active@test.com", IsActive = true };
+            var userInactive = new User { Id = Guid.NewGuid(), Name = "Inactive Seller", Email = "inactive@test.com", IsActive = false };
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "C1", TotalAmount = 500m, User = userActive, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { ContractNumber = "C2", TotalAmount = 300m, User = userInactive, ContractStatus = new ContractStatusEntity { Name = "Active" } }
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data!.Rows.Should().HaveCount(2);
+
+            var row1 = result.Data.Rows.Find(r => (string?)r["Contrato"] == "C1");
+            row1.Should().NotBeNull();
+            row1!["Membro Ativo"].Should().Be("Sim");
+
+            var row2 = result.Data.Rows.Find(r => (string?)r["Contrato"] == "C2");
+            row2.Should().NotBeNull();
+            row2!["Membro Ativo"].Should().Be("Não");
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithUserIsActiveFilterTrue_ShouldOnlyIncludeActiveUserContracts()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "filter-user-is-active-true";
+
+            var report = new ReportFilter
+            {
+                FilterId = filterId,
+                UserId = callerId,
+                Name = "UserIsActive True Test",
+                Scope = "private",
+                FilterConfig = new FilterConfig
+                {
+                    UserIsActive = true
+                },
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId)).ReturnsAsync(report);
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>())).ReturnsAsync(new List<Team>());
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync()).ReturnsAsync(new List<ClassificationLevel>());
+
+            var userActive = new User { Id = Guid.NewGuid(), Name = "Active Seller", Email = "active@test.com", IsActive = true };
+            var userInactive = new User { Id = Guid.NewGuid(), Name = "Inactive Seller", Email = "inactive@test.com", IsActive = false };
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "C1", TotalAmount = 500m, User = userActive, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { ContractNumber = "C2", TotalAmount = 300m, User = userInactive, ContractStatus = new ContractStatusEntity { Name = "Active" } }
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data!.Rows.Should().HaveCount(1);
+            result.Data.Rows[0]["Contrato"].Should().Be("C1");
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithUserIsActiveFilterFalse_ShouldOnlyIncludeInactiveUserContracts()
+        {
+            // Arrange
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "filter-user-is-active-false";
+
+            var report = new ReportFilter
+            {
+                FilterId = filterId,
+                UserId = callerId,
+                Name = "UserIsActive False Test",
+                Scope = "private",
+                FilterConfig = new FilterConfig
+                {
+                    UserIsActive = false
+                },
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId)).ReturnsAsync(report);
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>())).ReturnsAsync(new List<Team>());
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync()).ReturnsAsync(new List<ClassificationLevel>());
+
+            var userActive = new User { Id = Guid.NewGuid(), Name = "Active Seller", Email = "active@test.com", IsActive = true };
+            var userInactive = new User { Id = Guid.NewGuid(), Name = "Inactive Seller", Email = "inactive@test.com", IsActive = false };
+
+            var contracts = new List<Contract>
+            {
+                new Contract { ContractNumber = "C1", TotalAmount = 500m, User = userActive, ContractStatus = new ContractStatusEntity { Name = "Active" } },
+                new Contract { ContractNumber = "C2", TotalAmount = 300m, User = userInactive, ContractStatus = new ContractStatusEntity { Name = "Active" } }
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(contracts);
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data!.Rows.Should().HaveCount(1);
+            result.Data.Rows[0]["Contrato"].Should().Be("C2");
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithTeamFilter_DefaultsToHistoricalMode()
+        {
+            // Arrange: Seller was in Team 1 until 2026-06-01, then transferred to Team 2.
+            // Contract was sold on 2026-03-15 (while in Team 1).
+            // Querying Team 1 without explicit TeamMembershipMode must default to historical mode and find the contract!
+            var callerId = Guid.NewGuid().ToString();
+            var filterId = "filter-team-historical-default";
+
+            var report = new ReportFilter
+            {
+                FilterId = filterId,
+                UserId = callerId,
+                Name = "Team Historical Default Test",
+                Scope = "private",
+                FilterConfig = new FilterConfig
+                {
+                    Teams = new List<int> { 1 },
+                    TeamMembershipMode = null // null must default to historical!
+                },
+                OutputColumns = new List<OutputColumn>
+                {
+                    new OutputColumn { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 },
+                    new OutputColumn { Source = "Users_Contract", Field = "team", Label = "Equipe", Order = 2 }
+                }
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(callerId, filterId)).ReturnsAsync(report);
+
+            var team1 = new Team
+            {
+                Id = 1,
+                Name = "Team Alpha",
+                UserTeams = new List<UserTeam>
+                {
+                    new UserTeam
+                    {
+                        UserInternalId = 100,
+                        TeamId = 1,
+                        StartDate = new DateTime(2026, 1, 1),
+                        EndDate = new DateTime(2026, 6, 1) // ended in June
+                    }
+                }
+            };
+
+            _teamRepositoryMock.Setup(t => t.GetAllAsync(It.IsAny<HashSet<int>?>(), It.IsAny<string>()))
+                .ReturnsAsync(new List<Team> { team1 });
+            _classificationLevelRepositoryMock.Setup(c => c.GetAllAsync())
+                .ReturnsAsync(new List<ClassificationLevel>());
+
+            var user = new User { InternalId = 100, Id = Guid.NewGuid(), Name = "Transferred Seller", Email = "seller@test.com", IsActive = true };
+
+            var contract = new Contract
+            {
+                ContractNumber = "HIST-01",
+                TotalAmount = 1000m,
+                UserInternalId = 100,
+                User = user,
+                SaleStartDate = new DateTime(2026, 3, 15),
+                ContractStatus = new ContractStatusEntity { Name = "Active" }
+            };
+
+            _contractRepositoryMock.Setup(c => c.GetAllAsync(
+                It.IsAny<Guid?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<List<string>?>(), It.IsAny<string?>(),
+                It.IsAny<UserScopeContext?>(), It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(),
+                It.IsAny<List<string>?>(), It.IsAny<bool>(), It.IsAny<bool?>()))
+                .ReturnsAsync(new List<Contract> { contract });
+
+            // Act
+            var result = await _service.ExecuteAsync(callerId, filterId, null, 1, 25);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data!.Rows.Should().HaveCount(1);
+            result.Data.Rows[0]["Contrato"].Should().Be("HIST-01");
+            result.Data.Rows[0]["Equipe"].Should().Be("Team Alpha");
+        }
+
+        [Fact]
+        public async Task ListAsync_WhenMasterSuperAdmin_ShouldCallListAllAsync()
+        {
+            // Arrange
+            var masterUserId = Guid.NewGuid();
+            var masterUser = new User
+            {
+                Id = masterUserId,
+                Email = "superadmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(masterUserId)).ReturnsAsync(masterUser);
+
+            var allReports = new List<ReportFilter>
+            {
+                new ReportFilter { FilterId = "rep-1", UserId = Guid.NewGuid().ToString(), Name = "Other User Private Report", Scope = "private" },
+                new ReportFilter { FilterId = "rep-2", UserId = masterUserId.ToString(), Name = "My Report", Scope = "shared" }
+            };
+            _repositoryMock.Setup(r => r.ListAllAsync()).ReturnsAsync(allReports);
+
+            // Act
+            var result = await _service.ListAsync(masterUserId.ToString());
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().HaveCount(2);
+            _repositoryMock.Verify(r => r.ListAllAsync(), Times.Once);
+            _repositoryMock.Verify(r => r.ListForUserAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GetAsync_WhenMasterSuperAdminAndNotFoundInPartition_ShouldCallGetAnyByIdAsync()
+        {
+            // Arrange
+            var masterUserId = Guid.NewGuid();
+            var masterUser = new User
+            {
+                Id = masterUserId,
+                Email = "superadmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(masterUserId)).ReturnsAsync(masterUser);
+
+            var otherOwnerId = Guid.NewGuid().ToString();
+            var otherReport = new ReportFilter { FilterId = "rep-other", UserId = otherOwnerId, Name = "Other Private", Scope = "private" };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(masterUserId.ToString(), "rep-other")).ReturnsAsync((ReportFilter?)null);
+            _repositoryMock.Setup(r => r.GetAnyByIdAsync("rep-other")).ReturnsAsync(otherReport);
+
+            // Act
+            var result = await _service.GetAsync(masterUserId.ToString(), "rep-other");
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data!.FilterId.Should().Be("rep-other");
+            _repositoryMock.Verify(r => r.GetAnyByIdAsync("rep-other"), Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_WhenMasterSuperAdmin_ShouldAllowUpdatingOtherUserReport()
+        {
+            // Arrange
+            var masterUserId = Guid.NewGuid();
+            var masterUser = new User
+            {
+                Id = masterUserId,
+                Email = "superadmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(masterUserId)).ReturnsAsync(masterUser);
+
+            var otherOwnerId = Guid.NewGuid().ToString();
+            var existingReport = new ReportFilter
+            {
+                FilterId = "rep-other",
+                UserId = otherOwnerId,
+                Name = "Original Name",
+                Scope = "private",
+                FilterConfig = new FilterConfig()
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(masterUserId.ToString(), "rep-other")).ReturnsAsync((ReportFilter?)null);
+            _repositoryMock.Setup(r => r.GetAnyByIdAsync("rep-other")).ReturnsAsync(existingReport);
+
+            var updateRequest = new UpdateReportFilterRequest
+            {
+                Name = "Updated Name by Master",
+                Scope = "private",
+                FilterConfig = new FilterConfigRequest { Teams = new List<int> { 1 } },
+                OutputColumns = new List<OutputColumnRequest>
+                {
+                    new OutputColumnRequest { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            // Act
+            var result = await _service.UpdateAsync(masterUserId.ToString(), "rep-other", updateRequest);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data!.Name.Should().Be("Updated Name by Master");
+            _repositoryMock.Verify(r => r.UpdateAsync(It.Is<ReportFilter>(rf => rf.UserId == otherOwnerId && rf.Name == "Updated Name by Master")), Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_WhenRegularSuperAdmin_ShouldForbidUpdatingOtherUserReport()
+        {
+            // Arrange
+            var regularAdminId = Guid.NewGuid();
+            var regularAdmin = new User
+            {
+                Id = regularAdminId,
+                Email = "otheradmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(regularAdminId)).ReturnsAsync(regularAdmin);
+
+            var otherOwnerId = Guid.NewGuid().ToString();
+            var existingReport = new ReportFilter
+            {
+                FilterId = "rep-other",
+                UserId = otherOwnerId,
+                Name = "Original Name",
+                Scope = "shared",
+                FilterConfig = new FilterConfig()
+            };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(regularAdminId.ToString(), "rep-other")).ReturnsAsync(existingReport);
+
+            var updateRequest = new UpdateReportFilterRequest
+            {
+                Name = "Unauthorized Edit",
+                Scope = "shared",
+                FilterConfig = new FilterConfigRequest { Teams = new List<int> { 1 } },
+                OutputColumns = new List<OutputColumnRequest>
+                {
+                    new OutputColumnRequest { Source = "Contracts", Field = "contractNumber", Label = "Contrato", Order = 1 }
+                }
+            };
+
+            // Act
+            var result = await _service.UpdateAsync(regularAdminId.ToString(), "rep-other", updateRequest);
+
+            // Assert
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ReportFilter>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task DeleteAsync_WhenMasterSuperAdmin_ShouldDeleteWithOriginalOwnerUserId()
+        {
+            // Arrange
+            var masterUserId = Guid.NewGuid();
+            var masterUser = new User
+            {
+                Id = masterUserId,
+                Email = "superadmin@salesapp.com",
+                Role = new Role { Name = "superadmin" }
+            };
+            _userRepositoryMock.Setup(u => u.GetByIdAsync(masterUserId)).ReturnsAsync(masterUser);
+
+            var otherOwnerId = Guid.NewGuid().ToString();
+            var otherReport = new ReportFilter { FilterId = "rep-other", UserId = otherOwnerId, Name = "Other Private", Scope = "private" };
+
+            _repositoryMock.Setup(r => r.GetByIdAsync(masterUserId.ToString(), "rep-other")).ReturnsAsync((ReportFilter?)null);
+            _repositoryMock.Setup(r => r.GetAnyByIdAsync("rep-other")).ReturnsAsync(otherReport);
+
+            // Act
+            var result = await _service.DeleteAsync(masterUserId.ToString(), "rep-other");
+
+            // Assert
+            result.Success.Should().BeTrue();
+            _repositoryMock.Verify(r => r.DeleteAsync(otherOwnerId, "rep-other"), Times.Once);
         }
     }
 }

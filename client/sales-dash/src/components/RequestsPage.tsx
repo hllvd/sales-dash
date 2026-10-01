@@ -362,79 +362,81 @@ const RequestsPage: React.FC = () => {
                   Nenhuma solicitação pendente para aprovação.
                 </Text>
               ) : (
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Solicitante</Table.Th>
-                      <Table.Th>Tipo</Table.Th>
-                      <Table.Th>Detalhes</Table.Th>
-                      <Table.Th>Data</Table.Th>
-                      <Table.Th style={{ textAlign: 'right', width: '250px', minWidth: '250px' }}>Ações</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {pendingRequests.map((req) => (
-                      <Table.Tr key={req.id}>
-                        <Table.Td>
-                          <Text fw={500} size="sm">{req.requesterName}</Text>
-                          <Text size="xs" c="dimmed">{req.requesterEmail}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge color="blue" variant="light">
-                            {formatRequestType(req.requestType)}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <span className="payload-details">
-                            {formatPayload(req.requestType, req.payloadJson)}
-                          </span>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="xs">
-                            {new Date(req.createdAt).toLocaleDateString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <Group justify="flex-end" gap="xs" wrap="nowrap">
-                            <Button
-                              size="xs"
-                              color="teal"
-                              variant="light"
-                              leftSection={<IconCheck size={14} />}
-                              onClick={() => handleApprove(req.id)}
-                            >
-                              Sim
-                            </Button>
-                            <Button
-                              size="xs"
-                              color="red"
-                              variant="light"
-                              leftSection={<IconX size={14} />}
-                              onClick={() => handleOpenRejectModal(req.id)}
-                            >
-                              Não
-                            </Button>
-                            <Button
-                              size="xs"
-                              color="gray"
-                              variant="subtle"
-                              leftSection={<IconClock size={14} />}
-                              onClick={() => handleLater(req.id)}
-                            >
-                              Depois
-                            </Button>
-                          </Group>
-                        </Table.Td>
+                <div className="requests-table-container">
+                  <Table striped highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Solicitante</Table.Th>
+                        <Table.Th>Tipo</Table.Th>
+                        <Table.Th>Detalhes</Table.Th>
+                        <Table.Th>Data</Table.Th>
+                        <Table.Th style={{ textAlign: 'right', width: '250px', minWidth: '250px' }}>Ações</Table.Th>
                       </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {pendingRequests.map((req) => (
+                        <Table.Tr key={req.id}>
+                          <Table.Td>
+                            <Text fw={500} size="sm">{req.requesterName}</Text>
+                            <Text size="xs" c="dimmed">{req.requesterEmail}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge color="blue" variant="light">
+                              {formatRequestType(req.requestType)}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <span className="payload-details">
+                              {formatPayload(req.requestType, req.payloadJson)}
+                            </span>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs">
+                              {new Date(req.createdAt).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <Group justify="flex-end" gap="xs" wrap="nowrap">
+                              <Button
+                                size="xs"
+                                color="teal"
+                                variant="light"
+                                leftSection={<IconCheck size={14} />}
+                                onClick={() => handleApprove(req.id)}
+                              >
+                                Sim
+                              </Button>
+                              <Button
+                                size="xs"
+                                color="red"
+                                variant="light"
+                                leftSection={<IconX size={14} />}
+                                onClick={() => handleOpenRejectModal(req.id)}
+                              >
+                                Não
+                              </Button>
+                              <Button
+                                size="xs"
+                                color="gray"
+                                variant="subtle"
+                                leftSection={<IconClock size={14} />}
+                                onClick={() => handleLater(req.id)}
+                              >
+                                Depois
+                              </Button>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </div>
               )}
             </Tabs.Panel>
           )}
@@ -445,7 +447,8 @@ const RequestsPage: React.FC = () => {
                 Você ainda não realizou nenhuma solicitação.
               </Text>
             ) : (
-              <Table striped highlightOnHover>
+              <div className="requests-table-container">
+                <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Tipo</Table.Th>
@@ -493,7 +496,8 @@ const RequestsPage: React.FC = () => {
                   ))}
                 </Table.Tbody>
               </Table>
-            )}
+            </div>
+          )}
           </Tabs.Panel>
         </Tabs>
       </Card>

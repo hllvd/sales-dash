@@ -49,6 +49,19 @@ interface ApiResponse<T> {
   message?: string;
 }
 
+const normalizeReportView = (view: ReportView): ReportView => {
+  if (!view) return view;
+  return {
+    ...view,
+    rows: Array.isArray(view.rows) ? view.rows.map(r => ({
+      ...r,
+      columns: Array.isArray(r.columns) ? r.columns : []
+    })) : [],
+    allowedTeamIds: Array.isArray(view.allowedTeamIds) ? view.allowedTeamIds : [],
+    allowedRoles: Array.isArray(view.allowedRoles) ? view.allowedRoles : []
+  };
+};
+
 // API Functions
 export const getReportViews = async (): Promise<ReportView[]> => {
   const response = await authenticatedFetch(`${API_BASE_URL}/report-views`, {
@@ -61,7 +74,7 @@ export const getReportViews = async (): Promise<ReportView[]> => {
   }
 
   const result: ApiResponse<ReportView[]> = await response.json();
-  return result.data;
+  return (result.data || []).map(normalizeReportView);
 };
 
 export const getReportView = async (id: string): Promise<ReportView> => {
@@ -75,7 +88,7 @@ export const getReportView = async (id: string): Promise<ReportView> => {
   }
 
   const result: ApiResponse<ReportView> = await response.json();
-  return result.data;
+  return normalizeReportView(result.data);
 };
 
 export const createReportView = async (data: CreateReportViewRequest): Promise<ReportView> => {

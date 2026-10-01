@@ -6,7 +6,9 @@ using SalesApp.Attributes;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Drawing;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace SalesApp.Controllers
@@ -92,7 +94,9 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> ExportLicensingXlsx(
             [FromQuery] int year,
             [FromQuery] int month,
-            [FromQuery] int? minimumDays)
+            [FromQuery] int? minimumDays,
+            [FromQuery] string? status,
+            [FromQuery] string? search)
         {
             if (year <= 0 || month < 1 || month > 12)
             {
@@ -109,7 +113,7 @@ namespace SalesApp.Controllers
             using var package = new ExcelPackage();
             var worksheet = package.Workbook.Worksheets.Add($"Licenciamento {month:D2}-{year}");
 
-            var headers = new[] { "Nome", "Email", "Cargo", "Equipe", "Dias Ativos no Mês", "Status Licenciamento" };
+            var headers = new[] { "Nome", "Email", "Cargo", "Equipe", "Usuário Pai", "Dias Ativos no Mês", "Status Licenciamento" };
 
             for (int col = 0; col < headers.Length; col++)
             {
@@ -121,18 +125,42 @@ namespace SalesApp.Controllers
                 cell.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
             }
 
-            if (report.Users != null)
+            IEnumerable<UserLicenseDetailDto> usersToExport = report.Users ?? new List<UserLicenseDetailDto>();
+
+            if (!string.IsNullOrWhiteSpace(status))
             {
-                for (int r = 0; r < report.Users.Count; r++)
+                if (status.Equals("licensed", StringComparison.OrdinalIgnoreCase))
                 {
-                    var u = report.Users[r];
-                    worksheet.Cells[r + 2, 1].Value = u.Name;
-                    worksheet.Cells[r + 2, 2].Value = u.Email;
-                    worksheet.Cells[r + 2, 3].Value = u.Role;
-                    worksheet.Cells[r + 2, 4].Value = u.TeamName;
-                    worksheet.Cells[r + 2, 5].Value = $"{u.ActiveDaysInMonth} dias";
-                    worksheet.Cells[r + 2, 6].Value = u.IsLicensed ? "Licenciado" : "Abaixo do mínimo";
+                    usersToExport = usersToExport.Where(u => u.IsLicensed);
                 }
+                else if (status.Equals("unlicensed", StringComparison.OrdinalIgnoreCase))
+                {
+                    usersToExport = usersToExport.Where(u => !u.IsLicensed);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.Trim().ToLower();
+                usersToExport = usersToExport.Where(u =>
+                    (u.Name != null && u.Name.ToLower().Contains(searchLower)) ||
+                    (u.Email != null && u.Email.ToLower().Contains(searchLower)) ||
+                    (u.ParentUser != null && u.ParentUser.ToLower().Contains(searchLower))
+                );
+            }
+
+            var exportList = usersToExport.ToList();
+
+            for (int r = 0; r < exportList.Count; r++)
+            {
+                var u = exportList[r];
+                worksheet.Cells[r + 2, 1].Value = u.Name;
+                worksheet.Cells[r + 2, 2].Value = u.Email;
+                worksheet.Cells[r + 2, 3].Value = u.Role;
+                worksheet.Cells[r + 2, 4].Value = u.TeamName;
+                worksheet.Cells[r + 2, 5].Value = u.ParentUser ?? "-";
+                worksheet.Cells[r + 2, 6].Value = $"{u.ActiveDaysInMonth} dias";
+                worksheet.Cells[r + 2, 7].Value = u.IsLicensed ? "Licenciado" : "Abaixo do mínimo";
             }
 
             worksheet.Cells.AutoFitColumns();

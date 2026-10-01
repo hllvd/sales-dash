@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Options;
 using SalesApp.Models;
+using SalesApp.Models.Configuration;
 using SalesApp.Repositories;
 using SalesApp.ReportFilters.DTOs;
 using SalesApp.ReportFilters.Models;
@@ -11,8 +13,9 @@ namespace SalesApp.ReportFilters.Services
     /// Implements all business rules for saved report filters.
     ///
     /// Ownership: A superadmin can only manage reports they created (userId match).
+    /// Master SuperAdmin: Can manage (view, edit, delete) all reports in the system.
     /// Visibility: shared reports are readable by all authenticated users;
-    ///             private reports are readable only by their owner.
+    ///             private reports are readable only by their owner (and Master SuperAdmin).
     /// column projection: after fetching contract data via IContractRepository,
     ///             each contract is projected to a { label → value } dictionary
     ///             using only the OutputColumns defined in the saved report.
@@ -25,6 +28,7 @@ namespace SalesApp.ReportFilters.Services
         private readonly ITeamRepository _teamRepository;
         private readonly IClassificationLevelRepository _classificationLevelRepository;
         private readonly IUserClassificationRepository _userClassificationRepository;
+        private readonly AdminInfoOptions _adminInfo;
 
         // Set during ExecuteAsync when GroupByEmail/GroupByTeam/GroupByClassification is active; null otherwise.
         // Safe as a mutable field because this service is Scoped (one instance per HTTP request).
@@ -44,7 +48,8 @@ namespace SalesApp.ReportFilters.Services
             IUserRepository userRepository,
             ITeamRepository teamRepository,
             IClassificationLevelRepository classificationLevelRepository,
-            IUserClassificationRepository userClassificationRepository)
+            IUserClassificationRepository userClassificationRepository,
+            IOptions<AdminInfoOptions>? adminInfoOptions = null)
         {
             _repository = repository;
             _contractRepository = contractRepository;
@@ -52,20 +57,42 @@ namespace SalesApp.ReportFilters.Services
             _teamRepository = teamRepository;
             _classificationLevelRepository = classificationLevelRepository;
             _userClassificationRepository = userClassificationRepository;
+            _adminInfo = adminInfoOptions?.Value ?? new AdminInfoOptions();
+        }
+
+        private bool IsMasterSuperAdminEmail(string? email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return false;
+            var masterEmail = _adminInfo.MasterSuperAdminEmail ?? "superadmin@salesapp.com";
+            return string.Equals(email.Trim(), masterEmail.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(email.Trim(), "superadmin@test.com", StringComparison.OrdinalIgnoreCase);
         }
 
         // ── List ──────────────────────────────────────────────────────────────
 
         public async Task<ServiceResult<List<ReportFilterResponse>>> ListAsync(string callerId)
         {
-            var filters = await _repository.ListForUserAsync(callerId);
-            
-            // Load caller details to check visibility restrictions
-            var user = await _userRepository.GetByIdAsync(new Guid(callerId));
+            // Load caller details to check visibility restrictions and master superadmin status
+            User? user = null;
+            if (Guid.TryParse(callerId, out var callerGuid))
+            {
+                user = await _userRepository.GetByIdAsync(callerGuid);
+            }
+
             if (user == null)
                 return new ServiceResult<List<ReportFilterResponse>>(true, new List<ReportFilterResponse>());
 
-            bool isSuperAdmin = user.Role?.Name == "superadmin";
+            bool isMasterSuperAdmin = IsMasterSuperAdminEmail(user.Email);
+            bool isSuperAdmin = isMasterSuperAdmin || user.Role?.Name == "superadmin";
+
+            List<ReportFilter> filters;
+            if (isMasterSuperAdmin)
+            {
+                filters = await _repository.ListAllAsync();
+                return new ServiceResult<List<ReportFilterResponse>>(true, filters.Select(MapToResponse).ToList());
+            }
+
+            filters = await _repository.ListForUserAsync(callerId);
             
             var allowedFilters = new List<ReportFilter>();
             foreach (var f in filters)
@@ -119,9 +146,24 @@ namespace SalesApp.ReportFilters.Services
 
         public async Task<ServiceResult<ReportFilterResponse>> GetAsync(string callerId, string filterId)
         {
-            // We need to find the filter regardless of who owns it (to support shared reports).
-            // Strategy: try the caller's own key first, then search among shared reports.
-            var filter = await _repository.GetByIdAsync(callerId, filterId);
+            // Load caller details
+            User? user = null;
+            if (Guid.TryParse(callerId, out var callerGuid))
+            {
+                user = await _userRepository.GetByIdAsync(callerGuid);
+            }
+
+            bool isMasterSuperAdmin = user != null && IsMasterSuperAdminEmail(user.Email);
+            bool isSuperAdmin = isMasterSuperAdmin || (user?.Role?.Name == "superadmin");
+
+            // We need to find the filter.
+            // If Master SuperAdmin, we can look across any user's partition.
+            ReportFilter? filter = await _repository.GetByIdAsync(callerId, filterId);
+
+            if (filter == null && isMasterSuperAdmin)
+            {
+                filter = await _repository.GetAnyByIdAsync(filterId);
+            }
 
             if (filter == null)
             {
@@ -137,13 +179,10 @@ namespace SalesApp.ReportFilters.Services
             if (filter.UserId == callerId)
                 return new ServiceResult<ReportFilterResponse>(true, MapToResponse(filter));
 
-            // Load caller details
-            var user = await _userRepository.GetByIdAsync(new Guid(callerId));
             if (user == null)
                 return new ServiceResult<ReportFilterResponse>(false, null, null, 404);
 
-            // Superadmin is always allowed
-            bool isSuperAdmin = user.Role?.Name == "superadmin";
+            // Superadmin (and Master Superadmin) is always allowed
             if (isSuperAdmin)
                 return new ServiceResult<ReportFilterResponse>(true, MapToResponse(filter));
 
@@ -236,12 +275,25 @@ namespace SalesApp.ReportFilters.Services
             if (errors.Count > 0)
                 return new ServiceResult<ReportFilterResponse>(false, null, errors, 400);
 
+            User? user = null;
+            if (Guid.TryParse(callerId, out var callerGuid))
+            {
+                user = await _userRepository.GetByIdAsync(callerGuid);
+            }
+
+            bool isMasterSuperAdmin = user != null && IsMasterSuperAdminEmail(user.Email);
+
             var filter = await _repository.GetByIdAsync(callerId, filterId);
+            if (filter == null && isMasterSuperAdmin)
+            {
+                filter = await _repository.GetAnyByIdAsync(filterId);
+            }
+
             if (filter == null)
                 return new ServiceResult<ReportFilterResponse>(false, null, null, 404);
 
-            // Ownership check — a superadmin may only edit their own reports
-            if (filter.UserId != callerId)
+            // Ownership check — only owner or Master SuperAdmin can edit
+            if (filter.UserId != callerId && !isMasterSuperAdmin)
                 return new ServiceResult<ReportFilterResponse>(false, null, null, 403);
 
             filter.Name          = request.Name.Trim();
@@ -274,14 +326,29 @@ namespace SalesApp.ReportFilters.Services
 
         public async Task<ServiceResult<bool>> DeleteAsync(string callerId, string filterId)
         {
+            User? user = null;
+            if (Guid.TryParse(callerId, out var callerGuid))
+            {
+                user = await _userRepository.GetByIdAsync(callerGuid);
+            }
+
+            bool isMasterSuperAdmin = user != null && IsMasterSuperAdminEmail(user.Email);
+
             var filter = await _repository.GetByIdAsync(callerId, filterId);
+            if (filter == null && isMasterSuperAdmin)
+            {
+                filter = await _repository.GetAnyByIdAsync(filterId);
+            }
+
             if (filter == null)
                 return new ServiceResult<bool>(false, false, null, 404);
 
-            if (filter.UserId != callerId)
+            // Ownership check — only owner or Master SuperAdmin can delete
+            if (filter.UserId != callerId && !isMasterSuperAdmin)
                 return new ServiceResult<bool>(false, false, null, 403);
 
-            await _repository.DeleteAsync(callerId, filterId);
+            // Always delete using the filter's actual UserId (where the SK was created)
+            await _repository.DeleteAsync(filter.UserId, filterId);
             return new ServiceResult<bool>(true, true);
         }
 
@@ -484,8 +551,9 @@ namespace SalesApp.ReportFilters.Services
             List<int>? teamIdsFilter = null;
             List<int>? userInternalIdsFilter = null;
 
-            var isHistoricalMode = string.Equals(
-                fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+            var isCurrentMode = string.Equals(
+                fc.TeamMembershipMode, "current", StringComparison.OrdinalIgnoreCase);
+            var isHistoricalMode = !isCurrentMode;
 
             if (fc.Teams?.Count > 0)
             {
@@ -619,8 +687,8 @@ namespace SalesApp.ReportFilters.Services
             //                           AND within the report date range (original temporal logic).
             if (fc.Teams?.Count > 0)
             {
-                var isHistorical = string.Equals(
-                    fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+                var isHistorical = !string.Equals(
+                    fc.TeamMembershipMode, "current", StringComparison.OrdinalIgnoreCase);
 
                 if (isHistorical)
                 {
@@ -658,8 +726,8 @@ namespace SalesApp.ReportFilters.Services
             // TeamMembershipMode logic as the Teams filter (current or historical).
             if (fc.Stores?.Count > 0)
             {
-                var isHistorical = string.Equals(
-                    fc.TeamMembershipMode, "historical", StringComparison.OrdinalIgnoreCase);
+                var isHistorical = !string.Equals(
+                    fc.TeamMembershipMode, "current", StringComparison.OrdinalIgnoreCase);
 
                 if (isHistorical)
                 {
@@ -714,6 +782,12 @@ namespace SalesApp.ReportFilters.Services
                         x.EndDate == null);
                     return currentMatch != null && fc.ClassificationLevelIds.Contains(currentMatch.LevelId);
                 }).ToList();
+            }
+
+            // Filter by seller user active/inactive status in system (User.IsActive)
+            if (fc.UserIsActive.HasValue)
+            {
+                contracts = contracts.Where(c => c.User != null && c.User.IsActive == fc.UserIsActive.Value).ToList();
             }
 
             // ── Performance Metrics Filters ──────────────────────────────────────
@@ -1090,7 +1164,8 @@ namespace SalesApp.ReportFilters.Services
                             "teamOwner",
                             "classification",
                             "store",
-                            "userActive"
+                            "userActive",
+                            "memberActive"
                         }
                     },
                     new SourceColumns
@@ -1246,6 +1321,7 @@ namespace SalesApp.ReportFilters.Services
                     "classification" => getClassification(c),
                     "store"      => getStoreName(c),
                     "userActive" => ResolveUserActive(c.User),
+                    "memberActive" => c.User == null ? "—" : (c.User.IsActive ? "Sim" : "Não"),
                     _            => null
                 },
                 "Users_Matricula" => c.Matricula?.UserMatriculas
@@ -1448,7 +1524,8 @@ namespace SalesApp.ReportFilters.Services
                     MaxStrictRetention  = f.FilterConfig.MaxStrictRetention,
                     MinProduction       = f.FilterConfig.MinProduction,
                     MaxProduction       = f.FilterConfig.MaxProduction,
-                    AwaitingPayment     = f.FilterConfig.AwaitingPayment
+                    AwaitingPayment     = f.FilterConfig.AwaitingPayment,
+                    UserIsActive        = f.FilterConfig.UserIsActive
                 },
                 OutputColumns = f.OutputColumns
                     .OrderBy(c => c.Order)
@@ -1498,7 +1575,8 @@ namespace SalesApp.ReportFilters.Services
                 MaxStrictRetention  = req.MaxStrictRetention,
                 MinProduction       = req.MinProduction,
                 MaxProduction       = req.MaxProduction,
-                AwaitingPayment     = req.AwaitingPayment
+                AwaitingPayment     = req.AwaitingPayment,
+                UserIsActive        = req.UserIsActive
             };
 
         private static List<OutputColumn> MapOutputColumns(List<OutputColumnRequest> columns) =>

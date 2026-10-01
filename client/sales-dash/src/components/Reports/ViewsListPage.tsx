@@ -36,6 +36,7 @@ const ViewsListPage: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
 
   const fetchViews = useCallback(async () => {
     try {
@@ -58,6 +59,7 @@ const ViewsListPage: React.FC = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setCurrentUserRole(user.role || '');
     setCurrentUserId(user.id || '');
+    setCurrentUserEmail(user.email || '');
   }, [fetchViews]);
 
   const handleDelete = async (id: string) => {
@@ -71,7 +73,12 @@ const ViewsListPage: React.FC = () => {
     }
   };
 
-  const isSuperadmin = currentUserRole === 'superadmin';
+  const isMasterSuperadmin = useMemo(() => {
+    const email = currentUserEmail.trim().toLowerCase();
+    return email === 'superadmin@salesapp.com' || email === 'superadmin@test.com';
+  }, [currentUserEmail]);
+
+  const isSuperadmin = currentUserRole === 'superadmin' || isMasterSuperadmin;
 
   const filteredViews = useMemo(() => {
     const searchLower = search.trim().toLowerCase();
@@ -82,17 +89,17 @@ const ViewsListPage: React.FC = () => {
       if (!matchesSearch) return false;
 
       if (scopeFilter === 'shared') return v.scope === 'shared';
-      if (scopeFilter === 'mine') return v.userId === currentUserId;
+      if (scopeFilter === 'mine') return v.userId === currentUserId || (isMasterSuperadmin && v.scope === 'private');
       return true;
     });
-  }, [views, search, scopeFilter, currentUserId]);
+  }, [views, search, scopeFilter, currentUserId, isMasterSuperadmin]);
 
   const sharedViews = filteredViews.filter(v => v.scope === 'shared');
-  const myViews = filteredViews.filter(v => v.userId === currentUserId && v.scope === 'private');
+  const myViews = filteredViews.filter(v => (v.userId === currentUserId || isMasterSuperadmin) && v.scope === 'private');
 
   const renderViewCard = (view: ReportView) => {
     const isOwner = view.userId === currentUserId;
-    const canEditDelete = isSuperadmin && isOwner;
+    const canEditDelete = isSuperadmin && (isOwner || isMasterSuperadmin);
 
     // Calculate total report modules compiled inside layout
     let reportCount = 0;
@@ -111,6 +118,11 @@ const ViewsListPage: React.FC = () => {
             <Badge color={view.scope === 'shared' ? 'indigo' : 'gray'} variant="light">
               {view.scope === 'shared' ? 'Compartilhado' : 'Privado'}
             </Badge>
+            {isMasterSuperadmin && !isOwner && (
+              <Badge color="violet" variant="outline">
+                Outro Usuário
+              </Badge>
+            )}
           </Group>
           
           <Group gap="xs">

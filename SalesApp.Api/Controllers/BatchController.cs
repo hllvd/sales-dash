@@ -684,6 +684,207 @@ namespace SalesApp.Controllers
             });
         }
 
+        [HttpGet("users-without-team")]
+        public async Task<ActionResult<ApiResponse<List<UnassignedUserDto>>>> GetUsersWithoutTeam()
+        {
+            var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (emailClaim != "superadmin@salesapp.com" && emailClaim != "superadmin@test.com")
+            {
+                return Forbid();
+            }
+
+            var now = DateTime.UtcNow;
+
+            var activeTeams = await _context.Teams
+                .Where(t => t.IsActive && t.OwnerUserInternalId.HasValue)
+                .ToListAsync();
+
+            var teamOwnersMap = new Dictionary<int, Team>();
+            foreach (var team in activeTeams)
+            {
+                if (team.OwnerUserInternalId.HasValue && !teamOwnersMap.ContainsKey(team.OwnerUserInternalId.Value))
+                {
+                    teamOwnersMap[team.OwnerUserInternalId.Value] = team;
+                }
+            }
+
+            var users = await _context.Users
+                .Include(u => u.ParentUser)
+                .Include(u => u.UserTeams)
+                .Where(u => u.IsActive && !u.UserTeams.Any(ut => ut.EndDate == null || ut.EndDate > now))
+                .OrderBy(u => u.Name)
+                .ToListAsync();
+
+            var dtoList = new List<UnassignedUserDto>();
+
+            foreach (var user in users)
+            {
+                bool hasHistory = user.UserTeams.Any();
+                string historyStatus = hasHistory ? "past_member" : "never";
+
+                bool isEligible = false;
+                bool parentIsOwner = false;
+                int? targetTeamId = null;
+                string? targetTeamName = null;
+                string statusText;
+
+                if (user.ParentUser == null)
+                {
+                    statusText = "Sem gestor direto";
+                }
+                else if (teamOwnersMap.TryGetValue(user.ParentUser.InternalId, out var targetTeam))
+                {
+                    isEligible = true;
+                    parentIsOwner = true;
+                    targetTeamId = targetTeam.Id;
+                    targetTeamName = targetTeam.Name;
+                    statusText = $"Elegível ({targetTeam.Name})";
+                }
+                else
+                {
+                    statusText = "Gestor não é proprietário de nenhuma equipe";
+                }
+
+                dtoList.Add(new UnassignedUserDto
+                {
+                    UserId = user.Id,
+                    InternalId = user.InternalId,
+                    Name = user.Name,
+                    Email = user.Email,
+                    HistoryStatus = historyStatus,
+                    ParentUserId = user.ParentUserId,
+                    ParentUserName = user.ParentUser?.Name,
+                    ParentUserEmail = user.ParentUser?.Email,
+                    ParentUserIsOwner = parentIsOwner,
+                    TargetTeamId = targetTeamId,
+                    TargetTeamName = targetTeamName,
+                    IsEligible = isEligible,
+                    StatusText = statusText
+                });
+            }
+
+            return Ok(new ApiResponse<List<UnassignedUserDto>>
+            {
+                Success = true,
+                Data = dtoList,
+                Message = $"{dtoList.Count} usuário(s) sem equipe ativa encontrado(s)."
+            });
+        }
+
+        [HttpPost("team/assign-unassigned-to-owners")]
+        public async Task<ActionResult<ApiResponse<BatchAssignUnassignedToOwnerTeamResult>>> AssignUnassignedToOwnerTeams(
+            [FromBody] BatchAssignUnassignedToOwnerTeamRequest request)
+        {
+            var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (emailClaim != "superadmin@salesapp.com" && emailClaim != "superadmin@test.com")
+            {
+                return Forbid();
+            }
+
+            if (request == null || request.UserIds == null || !request.UserIds.Any())
+            {
+                return BadRequest(new ApiResponse<BatchAssignUnassignedToOwnerTeamResult>
+                {
+                    Success = false,
+                    Message = "Nenhum usuário selecionado."
+                });
+            }
+
+            var now = DateTime.UtcNow;
+            var targetStartDate = new DateTime(2022, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var activeTeams = await _context.Teams
+                .Where(t => t.IsActive && t.OwnerUserInternalId.HasValue)
+                .ToListAsync();
+
+            var teamOwnersMap = new Dictionary<int, Team>();
+            foreach (var team in activeTeams)
+            {
+                if (team.OwnerUserInternalId.HasValue && !teamOwnersMap.ContainsKey(team.OwnerUserInternalId.Value))
+                {
+                    teamOwnersMap[team.OwnerUserInternalId.Value] = team;
+                }
+            }
+
+            var targetUsers = await _context.Users
+                .Include(u => u.ParentUser)
+                .Include(u => u.UserTeams)
+                .Where(u => request.UserIds.Contains(u.Id))
+                .ToListAsync();
+
+            var result = new BatchAssignUnassignedToOwnerTeamResult();
+
+            foreach (var user in targetUsers)
+            {
+                var hasActiveTeam = user.UserTeams.Any(ut => ut.EndDate == null || ut.EndDate > now);
+                if (hasActiveTeam)
+                {
+                    result.Skipped.Add(new SkippedUserSummary
+                    {
+                        Id = user.Id,
+                        Name = user.Name,
+                        Email = user.Email,
+                        CurrentParentEmail = user.ParentUser?.Email,
+                        Reason = "Usuário já possui equipe ativa"
+                    });
+                    continue;
+                }
+
+                if (user.ParentUser == null)
+                {
+                    result.Skipped.Add(new SkippedUserSummary
+                    {
+                        Id = user.Id,
+                        Name = user.Name,
+                        Email = user.Email,
+                        CurrentParentEmail = null,
+                        Reason = "Usuário não possui gestor direto (parentUser)"
+                    });
+                    continue;
+                }
+
+                if (!teamOwnersMap.TryGetValue(user.ParentUser.InternalId, out var targetTeam))
+                {
+                    result.Skipped.Add(new SkippedUserSummary
+                    {
+                        Id = user.Id,
+                        Name = user.Name,
+                        Email = user.Email,
+                        CurrentParentEmail = user.ParentUser.Email,
+                        Reason = "O gestor direto não é proprietário (owner) de nenhuma equipe ativa"
+                    });
+                    continue;
+                }
+
+                var userTeam = new UserTeam
+                {
+                    TeamId = targetTeam.Id,
+                    UserInternalId = user.InternalId,
+                    StartDate = targetStartDate,
+                    EndDate = null,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                _context.UserTeams.Add(userTeam);
+
+                result.Added.Add(new AddedMemberSummary
+                {
+                    Id = user.Id,
+                    Name = user.Name,
+                    Email = user.Email
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new ApiResponse<BatchAssignUnassignedToOwnerTeamResult>
+            {
+                Success = true,
+                Data = result,
+                Message = $"Processamento concluído. {result.Added.Count} adicionados, {result.Skipped.Count} ignorados."
+            });
+        }
+
         private async Task UpdateUserHierarchyLevelsAsync(User user, int newLevel)
         {
             user.Level = newLevel;

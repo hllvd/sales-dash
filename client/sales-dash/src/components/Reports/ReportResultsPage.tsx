@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Title, Button, Table, Group, Text, Center, Loader, Paper, Stack, MultiSelect, Skeleton, LoadingOverlay } from '@mantine/core';
 import { BarChart, PieChart, DonutChart, LineChart, AreaChart } from '@mantine/charts';
 import { IconEdit, IconArrowLeft, IconFilter, IconRefresh } from '@tabler/icons-react';
@@ -42,6 +42,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
 
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
 
   // Exported Field Interactivity State
   const [teamOptions, setTeamOptions] = useState<{ value: string; label: string }[]>([]);
@@ -97,9 +98,9 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
           }
         } else {
           // Initialize from report's default filter config
-          const defaultTeams = (filterData.filterConfig.teams || []).map(String);
-          const defaultEmails = filterData.filterConfig.emails || [];
-          const defaultStores = (filterData.filterConfig.stores || []).map(String);
+          const defaultTeams = (filterData?.filterConfig?.teams || []).map(String);
+          const defaultEmails = filterData?.filterConfig?.emails || [];
+          const defaultStores = (filterData?.filterConfig?.stores || []).map(String);
           setSelectedTeams(defaultTeams);
           setSelectedEmails(defaultEmails);
           setSelectedStores(defaultStores);
@@ -116,14 +117,14 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
 
       const resultsData = await getReportResults(filterId, page, pageSize, overrides);
       
-      setColumns(resultsData.columns);
-      setRows(resultsData.rows);
-      setTotalPages(resultsData.totalPages);
-      setTotalCount(resultsData.totalCount);
-      setTotalSum(resultsData.totalSum);
-      setOverallRetention(resultsData.overallRetention);
-      setActiveUsersCount(resultsData.activeUsersCount);
-      setInactiveUsersCount(resultsData.inactiveUsersCount);
+      setColumns(resultsData?.columns || []);
+      setRows(resultsData?.rows || []);
+      setTotalPages(resultsData?.totalPages || 1);
+      setTotalCount(resultsData?.totalCount || 0);
+      setTotalSum(resultsData?.totalSum);
+      setOverallRetention(resultsData?.overallRetention);
+      setActiveUsersCount(resultsData?.activeUsersCount);
+      setInactiveUsersCount(resultsData?.inactiveUsersCount);
     } catch (err: any) {
       notifications.show({ title: 'Erro', message: err.message || 'Falha ao carregar resultados do relatório', color: 'red' });
     } finally {
@@ -137,6 +138,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setCurrentUserRole(user.role || '');
     setCurrentUserId(user.id || '');
+    setCurrentUserEmail(user.email || '');
   }, [fetchResults]);
 
   // Load dropdown options for exported fields if configured
@@ -178,8 +180,14 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
     loadOptions();
   }, [report?.exportedFields]);
 
-  const isSuperadmin = currentUserRole === 'superadmin';
+  const isMasterSuperadmin = useMemo(() => {
+    const email = currentUserEmail.trim().toLowerCase();
+    return email === 'superadmin@salesapp.com' || email === 'superadmin@test.com';
+  }, [currentUserEmail]);
+
+  const isSuperadmin = currentUserRole === 'superadmin' || isMasterSuperadmin;
   const isOwner = report?.userId === currentUserId;
+  const canEdit = isSuperadmin && (isOwner || isMasterSuperadmin);
 
   const handleApplyFilters = () => {
     const overrides = {
@@ -197,9 +205,9 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
 
   const handleResetFilters = () => {
     localStorage.removeItem(getStorageKey(filterId));
-    const defaultTeams = (report?.filterConfig.teams || []).map(String);
-    const defaultEmails = report?.filterConfig.emails || [];
-    const defaultStores = (report?.filterConfig.stores || []).map(String);
+    const defaultTeams = (report?.filterConfig?.teams || []).map(String);
+    const defaultEmails = report?.filterConfig?.emails || [];
+    const defaultStores = (report?.filterConfig?.stores || []).map(String);
     setSelectedTeams(defaultTeams);
     setSelectedEmails(defaultEmails);
     setSelectedStores(defaultStores);
@@ -223,29 +231,30 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
     if (!rows || rows.length === 0) return [];
     
     // 1. Identify category/label key (Team, Email, Classification or first string col)
-    const groupCol = columns.find(c => c.field === 'team' || c.field === 'email' || c.field === 'classification') 
-      || columns.find(c => c.source === 'Users_Contract' || c.source === 'Users_Matricula')
-      || columns[0];
+    const safeColumns = columns || [];
+    const groupCol = safeColumns.find(c => c.field === 'team' || c.field === 'email' || c.field === 'classification') 
+      || safeColumns.find(c => c.source === 'Users_Contract' || c.source === 'Users_Matricula')
+      || safeColumns[0];
       
-    const labelKey = groupCol ? groupCol.label : columns[0]?.label;
+    const labelKey = groupCol ? groupCol.label : safeColumns[0]?.label;
 
     // 2. Identify metric/value key (report.chartMetric if matched, otherwise totalAmount or first numeric col)
     let valueKey: string | null = null;
     if (report?.chartMetric) {
-      const found = columns.find(c => c.label === report.chartMetric || c.field === report.chartMetric);
+      const found = safeColumns.find(c => c.label === report.chartMetric || c.field === report.chartMetric);
       if (found) {
         valueKey = found.label;
       }
     }
     
     if (!valueKey) {
-      const numericCol = columns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
-        || columns.find(c => {
-             const val = rows[0][c.label];
+      const numericCol = safeColumns.find(c => c.field === 'totalAmount' || c.field === 'contractCount' || c.field === 'quota' || c.field === 'commission')
+        || safeColumns.find(c => {
+             const val = rows[0]?.[c.label];
              return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(/[^0-9.-]+/g, ''))));
            })
-        || columns[1]
-        || columns[0];
+        || safeColumns[1]
+        || safeColumns[0];
 
       valueKey = numericCol ? numericCol.label : null;
     }
@@ -300,7 +309,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
           </Group>
 
           <Group>
-            {isSuperadmin && isOwner && (
+            {canEdit && (
               <Button 
                 variant="light"
                 leftSection={<IconEdit size={16} />} 
@@ -326,11 +335,11 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
         />
 
         {/* Interactive Exported Fields Bar */}
-        {report?.exportedFields && report.exportedFields.length > 0 && (
+        {(report?.exportedFields || []).length > 0 && (
           <Paper withBorder p="md" radius="md" mb="lg" style={{ backgroundColor: '#f8fafc', borderColor: '#cbd5e1' }}>
             <Group justify="space-between" align="flex-end">
               <Group gap="md" style={{ flex: 1, alignItems: 'flex-end' }}>
-                {report.exportedFields.map((ef) => {
+                {(report?.exportedFields || []).map((ef) => {
                   if (ef.fieldType === 'teams') {
                     return (
                       <div key="teams" style={{ minWidth: 260, flex: 1, maxWidth: 400 }}>
@@ -344,7 +353,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                             label={ef.label || 'Equipe'}
                             placeholder="Selecionar equipes..."
                             data={teamOptions}
-                            value={selectedTeams}
+                            value={selectedTeams || []}
                             onChange={setSelectedTeams}
                             searchable
                             clearable
@@ -368,7 +377,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                             label={ef.label || 'Vendedor'}
                             placeholder="Selecionar vendedores..."
                             data={userOptions}
-                            value={selectedEmails}
+                            value={selectedEmails || []}
                             onChange={setSelectedEmails}
                             searchable
                             clearable
@@ -392,7 +401,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                             label={ef.label || 'Loja'}
                             placeholder="Selecionar lojas..."
                             data={storeOptions}
-                            value={selectedStores}
+                            value={selectedStores || []}
                             onChange={setSelectedStores}
                             searchable
                             clearable
@@ -440,7 +449,7 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
           <div style={{ position: 'relative' }}>
             <LoadingOverlay visible={isRefetching} overlayProps={{ radius: "sm", blur: 1.5 }} />
             
-            {rows.length === 0 ? (
+            {(!rows || rows.length === 0) ? (
               <div className="empty-state" style={{ padding: '40px', textAlign: 'center' }}>
                 <Text c="dimmed">Nenhum resultado encontrado para estes filtros.</Text>
               </div>
@@ -455,15 +464,15 @@ const ReportResultsPage: React.FC<ReportResultsPageProps> = ({ filterId }) => {
                         <Table striped highlightOnHover>
                           <Table.Thead>
                             <Table.Tr>
-                              {columns.map((col) => (
+                              {(columns || []).map((col) => (
                                 <Table.Th key={col.field}>{col.label}</Table.Th>
                               ))}
                             </Table.Tr>
                           </Table.Thead>
                           <Table.Tbody>
-                            {rows.map((row, index) => (
+                            {(rows || []).map((row, index) => (
                               <Table.Tr key={index}>
-                                {columns.map((col) => (
+                                {(columns || []).map((col) => (
                                   <Table.Td key={col.field}>
                                     {row[col.label] !== null && row[col.label] !== undefined 
                                       ? String(row[col.label]) 

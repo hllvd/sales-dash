@@ -15,6 +15,8 @@
   padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .my-contracts-header {
@@ -399,30 +401,82 @@
   cursor: pointer;
 }
 
+/* MultiSelect containment and pill ellipsis in MyContracts */
+.date-filters .filter-group .mantine-MultiSelect-root,
+.date-filters .filter-group .mantine-PillsInput-root,
+.date-filters .filter-group .mantine-PillsInput-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.date-filters .filter-group .mantine-Pill-root,
+.date-filters .filter-group .mantine-MultiSelect-pill {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.date-filters .filter-group .mantine-Pill-label,
+.date-filters .filter-group .mantine-MultiSelect-pillLabel {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: calc(100% - 20px) !important;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
+  .my-contracts-page {
+    padding: 12px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
   .my-contracts-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 16px;
     margin-bottom: 24px;
   }
 
   .header-actions {
     width: 100%;
-    justify-content: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-actions > * {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 130px;
+  }
+
+  .header-actions button {
+    width: 100%;
   }
 
   .date-filters {
     flex-direction: column;
     align-items: stretch;
-    padding: 16px;
-    gap: 16px;
+    padding: 14px;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .filter-group {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .filter-group input[type="date"] {
     min-width: 0;
     width: 100%;
+    box-sizing: border-box;
   }
 
   .filter-actions {
@@ -430,6 +484,7 @@
     flex-direction: column;
     gap: 10px;
     margin-top: 8px;
+    width: 100%;
   }
 
   .filter-actions button {
@@ -438,6 +493,9 @@
 
   .my-contracts-table-container {
     overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
   }
 

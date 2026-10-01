@@ -63,6 +63,25 @@ namespace SalesApp.IntegrationTests.Contracts
             xlsxResponse.Content.Headers.ContentType!.MediaType.Should().Be("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             var bytes = await xlsxResponse.Content.ReadAsByteArrayAsync();
             bytes.Should().NotBeEmpty();
+
+            // Act 4.1: Export with status and search filter
+            var filteredXlsxResponse = await _client.GetAsync("/api/monitoring/licensing/export-xlsx?year=2026&month=9&status=licensed&search=test");
+            filteredXlsxResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var filteredBytes = await filteredXlsxResponse.Content.ReadAsByteArrayAsync();
+            filteredBytes.Should().NotBeEmpty();
+
+            // Act 5: Get Licensing Report and verify ParentUser field
+            var reportResponse = await _client.GetAsync("/api/monitoring/licensing?year=2026&month=9");
+            reportResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var reportResult = await reportResponse.Content.ReadFromJsonAsync<ApiResponse<LicensingReportResponse>>();
+            reportResult.Should().NotBeNull();
+            reportResult!.Success.Should().BeTrue();
+            reportResult.Data.Should().NotBeNull();
+            reportResult.Data.Users.Should().NotBeNull();
+            if (reportResult.Data.Users.Count > 0)
+            {
+                reportResult.Data.Users[0].ParentUser.Should().NotBeNull();
+            }
         }
     }
 }

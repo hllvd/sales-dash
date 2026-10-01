@@ -549,3 +549,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** Settings modal now has 2 switches (retention and inactive users filter); adding 'Equipe' column shifted the status column from index 6 to 7.
 **Fix applied:** Filtered switch locator by name regex `/não pago|Aguardando pagamento/i` in `contract_retention_unpaid_toggle.spec.ts`; located status badge via `.mantine-Badge-root` instead of hardcoded column index in `contract_dashboard_bem_pend_1_atr.spec.ts`.
 **Result:** ❌ Retrying with ./test.sh rm-db && ./test.sh e2e
+
+## [2026-09-28] all — Attempt 1
+**Failure:** None — full verification run for ignoring inactive contracts (`IsActive = false`) during contract reconciliation and date range detection.
+**Root cause:** N/A.
+**Fix applied:**
+1. In `ContractReconciliationController.cs`: added `c.IsActive` filter to `allRelevantContracts` in `ReconcileContracts` and to `relevantContracts` in `DetectDateRange`, preventing deactivated/soft-deleted contracts from being loaded into system contracts, matched against rows, counted in system totals, or included in `MissingInImport`.
+2. Added integration test `Reconcile_ShouldIgnoreInactiveContracts` in `ContractReconciliationTests.cs`.
+3. Updated `walkthrough.md`.
+**Result:** ✅ Green (Build PASSED, 309/309 Integration tests PASSED, 181/181 Playwright E2E PASSED)

@@ -1,11 +1,16 @@
 .my-profile-page {
-  padding: 20px;
-  max-width: 800px;
+  padding: 24px;
+  max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .my-profile-header {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .my-profile-content {
@@ -195,4 +200,61 @@
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .my-profile-page {
+    padding: 12px !important;
+    overflow-x: hidden;
+  }
+
+  .my-profile-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+
+  .my-profile-header button {
+    width: 100% !important;
+  }
+
+  .my-profile-content {
+    padding: 16px;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .password-section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .password-section-header button {
+    width: 100%;
+  }
+
+  .matricula-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .matricula-dates {
+    margin-left: 0;
+    width: 100%;
+    font-size: 12px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
 }

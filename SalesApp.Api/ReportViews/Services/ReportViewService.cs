@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using SalesApp.DTOs;
+using SalesApp.Models;
+using SalesApp.Models.Configuration;
 using SalesApp.Repositories;
 using SalesApp.ReportViews.DTOs;
 using SalesApp.ReportViews.Models;
@@ -14,27 +17,51 @@ namespace SalesApp.ReportViews.Services
     {
         private readonly IReportViewRepository _repository;
         private readonly IUserRepository _userRepository;
+        private readonly AdminInfoOptions _adminInfo;
 
         public ReportViewService(
             IReportViewRepository repository,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            IOptions<AdminInfoOptions>? adminInfoOptions = null)
         {
             _repository = repository;
             _userRepository = userRepository;
+            _adminInfo = adminInfoOptions?.Value ?? new AdminInfoOptions();
+        }
+
+        private bool IsMasterSuperAdminEmail(string? email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return false;
+            var masterEmail = _adminInfo.MasterSuperAdminEmail ?? "superadmin@salesapp.com";
+            return string.Equals(email.Trim(), masterEmail.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(email.Trim(), "superadmin@test.com", StringComparison.OrdinalIgnoreCase);
         }
 
         // ── List ──────────────────────────────────────────────────────────────
 
         public async Task<ServiceResult<List<ReportViewResponse>>> ListAsync(string callerId)
         {
-            var views = await _repository.ListForUserAsync(callerId);
+            // Load caller details to check visibility restrictions and master superadmin status
+            User? user = null;
+            if (Guid.TryParse(callerId, out var callerGuid))
+            {
+                user = await _userRepository.GetByIdAsync(callerGuid);
+            }
 
-            // Load caller details to check visibility restrictions
-            var user = await _userRepository.GetByIdAsync(new Guid(callerId));
             if (user == null)
                 return new ServiceResult<List<ReportViewResponse>>(true, new List<ReportViewResponse>());
 
-            bool isSuperAdmin = user.Role?.Name == "superadmin";
+            bool isMasterSuperAdmin = IsMasterSuperAdminEmail(user.Email);
+            bool isSuperAdmin = isMasterSuperAdmin || user.Role?.Name == "superadmin";
+
+            List<ReportView> views;
+            if (isMasterSuperAdmin)
+            {
+                views = await _repository.ListAllAsync();
+                return new ServiceResult<List<ReportViewResponse>>(true, views.Select(MapToResponse).ToList());
+            }
+
+            views = await _repository.ListForUserAsync(callerId);
             var allowedViews = new List<ReportView>();
 
             foreach (var v in views)
@@ -88,8 +115,22 @@ namespace SalesApp.ReportViews.Services
 
         public async Task<ServiceResult<ReportViewResponse>> GetAsync(string callerId, string viewId)
         {
-            // Strategy: try caller's own key first, then search shared views
+            User? user = null;
+            if (Guid.TryParse(callerId, out var callerGuid))
+            {
+                user = await _userRepository.GetByIdAsync(callerGuid);
+            }
+
+            bool isMasterSuperAdmin = user != null && IsMasterSuperAdminEmail(user.Email);
+            bool isSuperAdmin = isMasterSuperAdmin || (user?.Role?.Name == "superadmin");
+
+            // Strategy: try caller's own key first
             var view = await _repository.GetByIdAsync(callerId, viewId);
+
+            if (view == null && isMasterSuperAdmin)
+            {
+                view = await _repository.GetAnyByIdAsync(viewId);
+            }
 
             if (view == null)
             {
@@ -105,13 +146,10 @@ namespace SalesApp.ReportViews.Services
             if (view.UserId == callerId)
                 return new ServiceResult<ReportViewResponse>(true, MapToResponse(view));
 
-            // Load caller details
-            var user = await _userRepository.GetByIdAsync(new Guid(callerId));
             if (user == null)
                 return new ServiceResult<ReportViewResponse>(false, null, null, 404);
 
-            // Superadmin is always allowed
-            bool isSuperAdmin = user.Role?.Name == "superadmin";
+            // Superadmin (and Master Superadmin) is always allowed
             if (isSuperAdmin)
                 return new ServiceResult<ReportViewResponse>(true, MapToResponse(view));
 
@@ -190,12 +228,25 @@ namespace SalesApp.ReportViews.Services
             if (errors.Count > 0)
                 return new ServiceResult<ReportViewResponse>(false, null, errors, 400);
 
+            User? user = null;
+            if (Guid.TryParse(callerId, out var callerGuid))
+            {
+                user = await _userRepository.GetByIdAsync(callerGuid);
+            }
+
+            bool isMasterSuperAdmin = user != null && IsMasterSuperAdminEmail(user.Email);
+
             var view = await _repository.GetByIdAsync(callerId, viewId);
+            if (view == null && isMasterSuperAdmin)
+            {
+                view = await _repository.GetAnyByIdAsync(viewId);
+            }
+
             if (view == null)
                 return new ServiceResult<ReportViewResponse>(false, null, null, 404);
 
-            // Ownership check
-            if (view.UserId != callerId)
+            // Ownership check — only owner or Master SuperAdmin can edit
+            if (view.UserId != callerId && !isMasterSuperAdmin)
                 return new ServiceResult<ReportViewResponse>(false, null, null, 403);
 
             view.Name           = request.Name.Trim();
@@ -214,14 +265,29 @@ namespace SalesApp.ReportViews.Services
 
         public async Task<ServiceResult<bool>> DeleteAsync(string callerId, string viewId)
         {
+            User? user = null;
+            if (Guid.TryParse(callerId, out var callerGuid))
+            {
+                user = await _userRepository.GetByIdAsync(callerGuid);
+            }
+
+            bool isMasterSuperAdmin = user != null && IsMasterSuperAdminEmail(user.Email);
+
             var view = await _repository.GetByIdAsync(callerId, viewId);
+            if (view == null && isMasterSuperAdmin)
+            {
+                view = await _repository.GetAnyByIdAsync(viewId);
+            }
+
             if (view == null)
                 return new ServiceResult<bool>(false, false, null, 404);
 
-            if (view.UserId != callerId)
+            // Ownership check — only owner or Master SuperAdmin can delete
+            if (view.UserId != callerId && !isMasterSuperAdmin)
                 return new ServiceResult<bool>(false, false, null, 403);
 
-            await _repository.DeleteAsync(callerId, viewId);
+            // Always delete using the view's actual UserId (where the SK was created)
+            await _repository.DeleteAsync(view.UserId, viewId);
             return new ServiceResult<bool>(true, true);
         }
 

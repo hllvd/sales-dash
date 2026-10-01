@@ -124,6 +124,34 @@ namespace SalesApp.DTOs
         public bool IsDryRun { get; set; }
         public List<MergeMatriculaPairResult> Pairs { get; set; } = new List<MergeMatriculaPairResult>();
     }
+
+    public class UnassignedUserDto
+    {
+        public Guid UserId { get; set; }
+        public int InternalId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string HistoryStatus { get; set; } = "never"; // "never" or "past_member"
+        public Guid? ParentUserId { get; set; }
+        public string? ParentUserName { get; set; }
+        public string? ParentUserEmail { get; set; }
+        public bool ParentUserIsOwner { get; set; }
+        public int? TargetTeamId { get; set; }
+        public string? TargetTeamName { get; set; }
+        public bool IsEligible { get; set; }
+        public string StatusText { get; set; } = string.Empty;
+    }
+
+    public class BatchAssignUnassignedToOwnerTeamRequest
+    {
+        public List<Guid> UserIds { get; set; } = new List<Guid>();
+    }
+
+    public class BatchAssignUnassignedToOwnerTeamResult
+    {
+        public List<AddedMemberSummary> Added { get; set; } = new List<AddedMemberSummary>();
+        public List<SkippedUserSummary> Skipped { get; set; } = new List<SkippedUserSummary>();
+    }
 }
 
 

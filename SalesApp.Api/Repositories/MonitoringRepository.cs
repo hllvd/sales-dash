@@ -190,9 +190,10 @@ namespace SalesApp.Repositories
             var monthEnd = monthStart.AddMonths(1);
             var daysInMonth = DateTime.DaysInMonth(year, month);
 
-            // Fetch users (including Role)
+            // Fetch users (including Role and ParentUser)
             var users = await _context.Users
                 .Include(u => u.Role)
+                .Include(u => u.ParentUser)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -239,6 +240,17 @@ namespace SalesApp.Repositories
                     teamName = team;
                 }
 
+                string parentUserDisplay = "-";
+                if (u.ParentUser != null)
+                {
+                    string parentTeamName = "Sem Equipe";
+                    if (userTeamsMap.TryGetValue(u.ParentUser.InternalId, out var pTeam) && !string.IsNullOrWhiteSpace(pTeam))
+                    {
+                        parentTeamName = pTeam;
+                    }
+                    parentUserDisplay = $"{u.ParentUser.Email} ({parentTeamName})";
+                }
+
                 // If user was created after the month ended, they had 0 active days
                 if (u.CreatedAt >= monthEnd)
                 {
@@ -249,6 +261,7 @@ namespace SalesApp.Repositories
                         Email = u.Email,
                         Role = u.Role?.Name ?? "user",
                         TeamName = teamName,
+                        ParentUser = parentUserDisplay,
                         ActiveDaysInMonth = 0,
                         IsLicensed = false
                     });
@@ -320,6 +333,7 @@ namespace SalesApp.Repositories
                     Email = u.Email,
                     Role = u.Role?.Name ?? "user",
                     TeamName = teamName,
+                    ParentUser = parentUserDisplay,
                     ActiveDaysInMonth = activeDaysCount,
                     IsLicensed = activeDaysCount >= minimumActiveDays
                 });
