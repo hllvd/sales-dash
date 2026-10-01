@@ -14,6 +14,8 @@
     padding: 24px;
     max-width: 1200px;
     margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .users-header {
@@ -383,6 +385,11 @@
     padding: 20px;
   }
 
+  .users-container {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
   .users-header {
     flex-direction: column;
     align-items: stretch;
@@ -403,12 +410,30 @@
     width: 100%;
   }
 
+  .search-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100%;
+  }
+
   .search-input {
-    max-width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .search-bar .mantine-Select-root {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
   }
 
   .table-container {
     overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
   }
 

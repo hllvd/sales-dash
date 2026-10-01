@@ -377,3 +377,53 @@
 .h-100 {
   height: 100%;
 }
+
+@media (max-width: 768px) {
+  .profile-header-layout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .profile-avatar-circle {
+    margin: 0 auto;
+  }
+
+  .profile-header-info {
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .profile-name-row,
+  .profile-email-row {
+    justify-content: center;
+  }
+
+  .profile-meta-grid {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .section-header-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .section-header-row button {
+    width: 100%;
+  }
+
+  .matriculas-table-container {
+    overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .profile-data-table {
+    min-width: 480px;
+  }
+}

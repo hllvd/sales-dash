@@ -2,6 +2,8 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .teams-header {
@@ -68,6 +70,9 @@
   border-radius: 8px;
   overflow-x: auto;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .members-dates-list {
@@ -204,4 +209,69 @@
 
 .modal-members-table tr.is-owner-row:hover {
   background-color: #362c14 !important;
+}
+
+/* MultiSelect pill containment and truncation in Teams */
+.search-container .mantine-Pill-root {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.search-container .mantine-Pill-label {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: calc(100% - 20px) !important;
+}
+
+@media (max-width: 768px) {
+  .teams-container {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  .teams-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .teams-header > div:last-child {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px !important;
+  }
+
+  .teams-header > div:last-child button {
+    width: 100% !important;
+  }
+
+  .search-container .mantine-Group-root {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100%;
+  }
+
+  .search-container .mantine-TextInput-root,
+  .search-container .mantine-Select-root,
+  .search-container .mantine-MultiSelect-root {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-container table {
+    min-width: 800px;
+  }
 }

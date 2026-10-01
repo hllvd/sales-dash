@@ -27,6 +27,12 @@ import {
 import { apiService, UserMatricula } from '../services/apiService';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
 
+const MULTI_SELECT_STYLES = {
+  input: { minHeight: '36px' },
+  pill: { maxWidth: '100%' },
+  pillLabel: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+};
+
 const MyContractsPage: React.FC = () => {
   const { currentUser, refreshCurrentUser } = useCurrentUser();
   // Track latest API request to prevent race conditions
@@ -519,7 +525,7 @@ const MyContractsPage: React.FC = () => {
                 data={matriculaSelectData}
                 clearable
                 searchable
-                styles={{ input: { minHeight: '36px' } }}
+                styles={MULTI_SELECT_STYLES}
               />
             </div>
             {myTeams.length > 0 && (
@@ -532,6 +538,7 @@ const MyContractsPage: React.FC = () => {
                   data={myTeams}
                   clearable
                   searchable
+                  styles={MULTI_SELECT_STYLES}
                 />
               </div>
             )}

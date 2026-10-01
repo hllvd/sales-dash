@@ -1,3 +1,46 @@
+## Otimização de Responsividade e Navegação Mobile Geral (Usuários, Meus Contratos, Solicitações, Matrículas, Equipes, Meu Usuário)
+
+Padronização da experiência móvel com visual de **app nativo** em 6 telas centrais do sistema, eliminando quebras de layout, travamentos de scroll e transbordamento horizontal.
+
+### Comportamento e Regras
+- **`Usuarios` (`UsersPage.css`)**:
+  - No celular (< 768px), a barra de busca e o filtro de status são empilhados verticalmente com largura total (`width: 100%`).
+  - O container `.users-container` passa a respeitar `width: 100%`, `box-sizing: border-box`, `padding: 12px` e `overflow-x: hidden`.
+  - Botões de ação do cabeçalho assumem largura total empilhada.
+- **`Meus Contratos` (`MyContractsPage.css`, `MyContractsPage.tsx`)**:
+  - Ações do cabeçalho (`Ajuda`, `Atualizar`, `Exportar`, `Novo`) organizadas em grid flexível no celular, evitando transbordamento.
+  - Filtros de período e seletores `MultiSelect` de matrícula e equipe empilhados verticalmente.
+  - Pílulas de seleção contidas com limite de largura e reticências (`text-overflow: ellipsis; max-width: 100%`).
+  - Rolagem horizontal contida estritamente no container da tabela.
+- **`Solicitações` (`RequestsPage.css`, `RequestsPage.tsx`)**:
+  - Adicionadas media queries responsivas no mobile.
+  - As tabelas de solicitações pendentes e enviadas foram envolvidas no container de rolagem horizontal (`.requests-table-container`), permitindo navegação fluida em telas estreitas sem estourar o card ou a tela.
+  - Botão de nova solicitação empilhado com largura total.
+- **`Matrículas` (`MatriculasPage.css`)**:
+  - A barra de pesquisa e o filtro de status foram convertidos em layout empilhado a 100% de largura no mobile, removendo a restrição de largura fixa (`width: 200px`) que causava desalinhamentos.
+  - Rolagem lateral isolada no container da tabela.
+- **`Equipes` (`TeamsPage.css`)**:
+  - Adicionadas media queries responsivas no mobile.
+  - Cabeçalho e botões (`Atualizar`, `Nova Equipe`) empilhados a 100% de largura.
+  - Todos os 4 filtros (texto, status, estados e lojas) organizados em coluna vertical com `width: 100%` e `min-width: 0`, eliminando larguras mínimas fixas que extrapolavam o viewport.
+  - Pílulas do MultiSelect contidas com truncamento de texto.
+- **`Meu Usuário` (`MyProfilePage.css`, `MyProfilePage.tsx`, `UserProfile.css`)**:
+  - Importação de `MyProfilePage.css` conectada ao componente e remoção de estilos inline rígidos.
+  - Cabeçalho empilhado no mobile com botão de solicitação ocupando largura total.
+  - Ajuste do layout de cabeçalho do perfil, avatar centralizado e metadados empilhados em 1 coluna.
+  - Lista de matrículas e ações de edição de senha/perfil com ajuste tátil para telas móveis.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/UsersPage.css`
+- `client/sales-dash/src/components/MyContractsPage.css` e `MyContractsPage.tsx`
+- `client/sales-dash/src/components/RequestsPage.css` e `RequestsPage.tsx`
+- `client/sales-dash/src/components/MatriculasPage.css`
+- `client/sales-dash/src/components/TeamsPage.css`
+- `client/sales-dash/src/components/MyProfilePage.css` e `MyProfilePage.tsx`
+- `client/sales-dash/src/components/UserProfile/UserProfile.css`
+
+---
+
 ## Responsividade Mobile e Correção de Layout na Página de Contratos (`/#/contracts`)
 
 Aprimoramento da interface e experiência de usuário (UI/UX) em dispositivos móveis na tela de gerenciamento de contratos (`/#/contracts`), solucionando quebras visuais, transbordamento horizontal e colapso de texto na paginação.
