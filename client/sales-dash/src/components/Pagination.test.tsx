@@ -19,8 +19,8 @@ describe('Pagination Component', () => {
   it('renders page info and navigation buttons', () => {
     render(<Pagination {...defaultProps} />);
 
-    expect(screen.getByText('Página 2 de 5 (250 total)')).toBeInTheDocument();
-    expect(screen.getByText('Página 2 de 5')).toBeInTheDocument();
+    expect(screen.getAllByText('Página 2 de 5').length).toBe(2);
+    expect(screen.getByText('(250 total)')).toBeInTheDocument();
     expect(screen.getAllByText('← Anterior').length).toBe(2);
     expect(screen.getAllByText('Próxima →').length).toBe(2);
   });

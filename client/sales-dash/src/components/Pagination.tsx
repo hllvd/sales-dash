@@ -47,7 +47,12 @@ const Pagination: React.FC<PaginationProps> = ({
           ← Anterior
         </button>
         <span className="pagination-info">
-          Página {currentPage} de {totalPages} ({totalItems} total)
+          <span className="pagination-info-pages">
+            Página {currentPage} de {totalPages}
+          </span>
+          <span className="pagination-info-total">
+            ({totalItems} total)
+          </span>
         </span>
         <button
           className="pagination-btn"
@@ -82,7 +87,9 @@ const Pagination: React.FC<PaginationProps> = ({
         ← Anterior
       </button>
       <span className="pagination-info">
-        Página {currentPage} de {totalPages}
+        <span className="pagination-info-pages">
+          Página {currentPage} de {totalPages}
+        </span>
       </span>
       <button
         className="pagination-btn"

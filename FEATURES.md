@@ -1,13 +1,16 @@
 ## Responsividade Mobile e Correção de Layout na Página de Contratos (`/#/contracts`)
 
-Aprimoramento da interface e experiência de usuário (UI/UX) em dispositivos móveis na tela de gerenciamento de contratos (`/#/contracts`), solucionando quebras visuais e transbordamento horizontal.
+Aprimoramento da interface e experiência de usuário (UI/UX) em dispositivos móveis na tela de gerenciamento de contratos (`/#/contracts`), solucionando quebras visuais, transbordamento horizontal e colapso de texto na paginação.
 
 ### Comportamento e Regras
 - **Paginação Responsiva com Visual Mobile App (`Pagination.tsx`, `Pagination.css`)**:
   - No celular (< 640px), os controles de paginação se organizam em um card tátil com layout empilhado:
-    - Linha superior: botões de navegação táteis (`← Anterior` e `Próxima →`) ladeando o indicador de página atual (`Página X de Y (Z total)`).
+    - Linha superior: botões de navegação táteis (`← Anterior` e `Próxima →`) com dimensões compactas isoladas (`width: auto !important; flex: 0 0 auto !important;`), ladeando o indicador central (`Página X de Y` e subtítulo com o total).
+    - O texto do indicador de página é estruturado com `white-space: nowrap;` para prevenir colapso vertical de palavras/letras.
     - Linha inferior: seletor de "Itens por página:" com botões de tamanho de página em pílulas limpas (`[50] [100] [500]`).
   - No desktop, mantém o layout inline com espaçamento justificado (`space-between`).
+- **Isolamento de Escopo CSS Global (`UsersPage.css`, `Pagination.css`)**:
+  - A regra legada em `UsersPage.css` (`.pagination-btn { width: 100% }`) no breakpoint mobile foi escopada para `.pagination .pagination-btn`, eliminando o vazamento global de largura de botão que deformava a paginação em outras telas.
 - **Contenção e Truncamento de Filtros MultiSelect (`ContractsPage.css`, `ContractsPage.tsx`)**:
   - Pílulas de seleção de múltiplos valores (como Usuários com nomes longos e e-mails, Equipes, Matrículas e Status) são contidas em 100% da largura máxima com truncamento por reticências (`ellipsis`), evitando expansão horizontal forçada do viewport.
   - Inputs e selects do grid de filtros adotam `width: 100%`, `min-width: 0` e `box-sizing: border-box`.
@@ -17,8 +20,10 @@ Aprimoramento da interface e experiência de usuário (UI/UX) em dispositivos m�
   - A rolagem horizontal fica restrita exclusivamente ao container da tabela de contratos (`overflow-x: auto; -webkit-overflow-scrolling: touch;`), prevenindo qualquer vazamento de scroll para o container principal da página e mantendo cabeçalho, botão `+ Criar` e filtros perfeitamente alinhados na largura da tela.
 
 ### Arquivos Modificados / Criados
-- `client/sales-dash/src/components/Pagination.css`: Criação de folha de estilos responsiva para a paginação móvel e desktop.
-- `client/sales-dash/src/components/Pagination.tsx`: Integração com as classes de `Pagination.css` e remoção de estilos inline rígidos.
+- `client/sales-dash/src/components/Pagination.css`: Folha de estilos responsiva para a paginação móvel e desktop com isolamento de botões e texto anti-colapso.
+- `client/sales-dash/src/components/Pagination.tsx`: Estruturação semântica de spans para página e total de itens.
+- `client/sales-dash/src/components/Pagination.test.tsx`: Testes unitários do componente de paginação.
+- `client/sales-dash/src/components/UsersPage.css`: Isolamento da regra de largura de botão para escopo local.
 - `client/sales-dash/src/components/ContractsPage.css`: Ajustes de largura, contenção do grid, truncamento de pílulas do Mantine MultiSelect, botão de limpar filtros e isolamento do container da tabela.
 - `client/sales-dash/src/components/ContractsPage.tsx`: Aplicação de estilos consistentes `MULTI_SELECT_STYLES` nos componentes MultiSelect.
 
