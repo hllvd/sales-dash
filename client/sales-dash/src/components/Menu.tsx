@@ -589,8 +589,15 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconTools size={20} />}
               childrenOffset={28}
               styles={navLinkStyles('')}
-              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts' || currentPath === '#/admin-tools/sqs-queue'}
+              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts' || currentPath === '#/admin-tools/sqs-queue' || currentPath === '#/admin-tools/team-inconsistencies'}
             >
+              <NavLink
+                href="#/admin-tools/team-inconsistencies"
+                label="Inconsistências de Equipes"
+                active={isActive('#/admin-tools/team-inconsistencies')}
+                styles={navLinkStyles('#/admin-tools/team-inconsistencies')}
+                onClick={() => { if (opened) close(); }}
+              />
               <NavLink
                 href="#/admin-tools/sqs-queue"
                 label="Fila de Scrape (SQS)"

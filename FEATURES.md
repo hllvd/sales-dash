@@ -1,3 +1,44 @@
+## Painel de Inconsistências de Equipes e Correção sob Demanda (`#/admin-tools/team-inconsistencies`)
+
+Ferramenta administrativa sob o menu **Ferramentas Admin** para mapear, auditar e resolver pontualmente inconsistências estruturais entre usuários, proprietários e períodos de equipes, com recomendação inteligente, exportação nativa em XLSX e prevenção de inconsistências futuras.
+
+### Comportamento e Regras
+- **Mapeamento de Inconsistências**:
+  - `OwnerWithoutActiveMembership`: Usuário configurado como proprietário de uma equipe (`Team.OwnerUserInternalId`), mas que não possui vínculo de vigência ativo (`UserTeam`) como membro nesta equipe.
+  - `MultipleActiveMemberships`: Usuário que possui dois ou mais vínculos de equipe ativos simultaneamente (`EndDate == null || EndDate > UtcNow`).
+  - `ActiveInInactiveTeam`: Usuário com vínculo de equipe ativo em uma equipe desativada/inativa (`Team.IsActive == false`).
+  - `ContractsWithoutActiveTeam`: Usuário ativo com contratos registrados no sistema, mas sem nenhuma equipe ativa atualmente ("Sem equipe").
+- **Auditoria e Visualização em Ferramentas Admin**:
+  - Exibe cartões de resumo por categoria de inconsistência.
+  - Tabela com filtros de tipo de inconsistência e busca por nome, email, equipe e supervisor.
+  - Exibição do supervisor do usuário (`ParentEmail`, `ParentUserName` e `ParentTeamName`).
+  - Histórico cronológico completo de equipes do usuário (datas de início/fim e status da equipe).
+- **Resolução sob Demanda (Botão "Migrar")**:
+  - Nenhum ajuste automático em massa é aplicado no banco de dados.
+  - Ao clicar em "Migrar", o modal exibe a **Recomendação do Sistema** (equipe destino sugerida e data do 1º contrato), permitindo ao administrador revisar ou alterar a equipe destino, data de início, data de término, posse como proprietário e encerramento de conflitos.
+- **Exportação XLSX**:
+  - Botão "Exportar XLSX" para download direto de planilha Excel nativa gerada via `EPPlus` contendo dados completos, supervisor, histórico de equipes e recomendações.
+- **Regras Preventivas de Integridade**:
+  - `TeamsController.MapToTeamResponse`: o dono de uma equipe só é retornado se for membro ativo da equipe (`m.IsActive`).
+  - `TeamsController.AddMembers` e `TeamMembersModal`: adição de membro na equipe utiliza a data do 1º contrato do vendedor (ou hoje se não houver contratos), eliminando a data retroativa estática de 8 anos atrás e prevenindo falsos conflitos.
+  - `TeamsController.AssignTeam` e `UpdateMemberDates`: ao encerrar a vigência de um usuário em uma equipe da qual era proprietário, a posse da equipe é desvinculada (`OwnerUserInternalId = null`).
+  - `UsersController.MapToUserResponse`: `CurrentTeamName` prioriza equipes ativas (`Team.IsActive`) com início mais recente (`StartDate DESC`).
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/DTOs/AdminTeamInconsistenciesDTOs.cs`
+- `SalesApp.Api/Controllers/AdminToolsController.cs`
+- `SalesApp.Api/Controllers/TeamsController.cs`
+- `SalesApp.Api/Controllers/UsersController.cs`
+- `SalesApp.IntegrationTests/AdminTools/TeamInconsistenciesIntegrationTests.cs`
+- `client/sales-dash/src/components/AdminTools/TeamInconsistenciesTool.tsx`
+- `client/sales-dash/src/components/AdminTools/TeamInconsistenciesTool.css`
+- `client/sales-dash/src/components/TeamMembersModal.tsx`
+- `client/sales-dash/src/components/Menu.tsx`
+- `client/sales-dash/src/App.tsx`
+- `client/sales-dash/src/services/apiService.ts`
+
+---
+
 ## Sistema de Documentação e Manuais Integrados (`#/document`)
 
 Módulo integrado de documentação técnica e manuais operacionais "Como Fazer" diretamente no cliente web, com renderização de Markdown e suporte nativo a exportação de PDF.

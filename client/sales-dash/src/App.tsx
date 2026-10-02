@@ -30,6 +30,7 @@ import ContractReconciliationPage from './components/ContractReconciliationPage'
 import RetentionFilterPage from './components/RetentionFilterPage';
 import ContractMigrationTool from './components/AdminTools/ContractMigrationTool';
 import SqsQueuePanel from './components/AdminTools/SqsQueuePanel';
+import TeamInconsistenciesTool from './components/AdminTools/TeamInconsistenciesTool';
 import RequestsPage from './components/RequestsPage';
 import DocumentPage from './components/Document/DocumentPage';
 import DocumentIndex from './components/Document/DocumentIndex';
@@ -164,6 +165,8 @@ function App() {
         return <ContractMigrationTool />;
       case '#/admin-tools/sqs-queue':
         return <SqsQueuePanel />;
+      case '#/admin-tools/team-inconsistencies':
+        return <TeamInconsistenciesTool />;
       case '#/requests':
         return <RequestsPage />;
       case '#/surveys':

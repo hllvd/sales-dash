@@ -1203,8 +1203,19 @@ namespace SalesApp.Controllers
             // Get the primary/owner matricula if it exists
             var primaryMatricula = user.UserMatriculas?.FirstOrDefault(m => m.IsOwner && m.IsActive);
             
-            // Get current active team
-            var activeUserTeam = user.UserTeams?.FirstOrDefault(ut => ut.EndDate == null || ut.EndDate > DateTime.UtcNow);
+            // Get current active team (prefer active team, most recent start date)
+            var activeUserTeam = user.UserTeams?
+                .Where(ut => ut.Team != null && ut.Team.IsActive && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow))
+                .OrderByDescending(ut => ut.StartDate)
+                .FirstOrDefault();
+
+            if (activeUserTeam == null)
+            {
+                activeUserTeam = user.UserTeams?
+                    .Where(ut => ut.EndDate == null || ut.EndDate > DateTime.UtcNow)
+                    .OrderByDescending(ut => ut.StartDate)
+                    .FirstOrDefault();
+            }
 
             // Get current active classification level (without lazy loading – query inline)
             var activeLevelName = _context.UserClassifications
