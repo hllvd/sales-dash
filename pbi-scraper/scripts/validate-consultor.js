@@ -313,6 +313,28 @@ function excelSerialToDateStr(v) {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Normalizes field values for fair comparison:
+ * - Pure numbers: rounded to 3 decimal places (e.g. "3.0" == "3")
+ * - Strings / text: trimmed and compared case-insensitively (e.g. "FABIO" == "Fabio")
+ * - Dates (already converted to YYYY-MM-DD): compared case-insensitively without numeric truncation
+ */
+function normalizeFieldVal(v) {
+  if (v == null) return '';
+  const trimmed = String(v).trim();
+  if (trimmed === '') return '';
+
+  // Only normalize strictly numeric values (avoiding date strings like "2026-02-28")
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    const n = parseFloat(trimmed);
+    if (!isNaN(n)) {
+      return String(Math.round(n * 1000) / 1000);
+    }
+  }
+
+  return trimmed.toLowerCase();
+}
+
 function compareFields(xlsxRow, csvRow) {
   const discrepancies = [];
 
@@ -325,13 +347,7 @@ function compareFields(xlsxRow, csvRow) {
       xlsxVal = excelSerialToDateStr(xlsxVal);
     }
 
-    // Normalize numbers: "3.0" == "3"
-    const normalizeNum = v => {
-      const n = parseFloat(v);
-      return !isNaN(n) ? String(Math.round(n * 1000) / 1000) : v;
-    };
-
-    if (normalizeNum(xlsxVal) !== normalizeNum(csvVal)) {
+    if (normalizeFieldVal(xlsxVal) !== normalizeFieldVal(csvVal)) {
       discrepancies.push(`  ${xlsxCol}: xlsx="${xlsxVal}" vs csv="${csvVal}"`);
     }
   }
@@ -478,7 +494,7 @@ function runTest2(dashboardData, csvData) {
     const statusA = deriveDashboardStatus(dashMap.get(k));
     const statusB = deriveScrappedStatus(csvMap.get(k), referenceDate);
 
-    if (statusA !== statusB) {
+    if (statusA.trim().toLowerCase() !== statusB.trim().toLowerCase()) {
       const rawDash = (dashMap.get(k)[situacaoColName] ?? '').trim();
       const rawCsv  = (csvMap.get(k)['2 Rel Carteira.Definição.Situação'] ?? '').trim();
       divergencias.push({ contrato: k, statusA, statusB, rawDash, rawCsv });
