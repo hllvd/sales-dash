@@ -1,3 +1,35 @@
+## Sistema de Documentação e Manuais Integrados (`#/document`)
+
+Módulo integrado de documentação técnica e manuais operacionais "Como Fazer" diretamente no cliente web, com renderização de Markdown e suporte nativo a exportação de PDF.
+
+### Comportamento e Regras
+- **Padrão de Roteamento**:
+  - `#/document`: Exibe o índice central com cartões para **Como Fazer** (tutoriais) e **Documentação** (referência técnica).
+  - `#/document/{secao}/{topico}`: Carrega dinamicamente o arquivo Markdown correspondente de `public/docs/{secao}/{topico}.md`.
+- **Renderização e Mídias Suportadas**:
+  - Renderização via `react-markdown`, `remark-gfm` e `rehype-raw`.
+  - Suporte completo a formatação GitHub Flavored Markdown (tabelas, alertas, blocos de código).
+  - Suporte a imagens locais armazenadas em `public/docs/images/` ou links de imagem remotos via `![alt](/docs/images/...)` ou `![alt](url)`.
+  - Suporte a vídeos incorporados via `<iframe>` (YouTube, Vimeo) ou tags `<video>` HTML nativas.
+- **Exportação para PDF**:
+  - Botão "Exportar PDF" dedicado no cabeçalho do documento (`window.print()`).
+  - Folha de estilo de impressão `@media print` otimizada que oculta menus, sidebars e botões de navegação, expande a tipografia e anota links no papel impresso/PDF.
+
+### Estrutura de Pastas de Documentos
+- `client/sales-dash/public/docs/como-fazer/`: Manuais e tutoriais passo a passo.
+- `client/sales-dash/public/docs/documentacao/`: Documentação e guias do sistema.
+- `client/sales-dash/public/docs/images/`: Imagens e capturas de tela para os manuais.
+
+### Arquivos Adicionados / Modificados
+- `client/sales-dash/src/components/Document/DocumentPage.tsx`
+- `client/sales-dash/src/components/Document/DocumentIndex.tsx`
+- `client/sales-dash/src/components/Document/Document.css`
+- `client/sales-dash/src/App.tsx`
+- `client/sales-dash/public/docs/como-fazer/como-importar-contratos-powerbi.md`
+- `client/sales-dash/public/docs/documentacao/introducao.md`
+
+---
+
 ## Otimização de Responsividade e Navegação Mobile Geral (Usuários, Meus Contratos, Solicitações, Matrículas, Equipes, Meu Usuário)
 
 Padronização da experiência móvel com visual de **app nativo** em 6 telas centrais do sistema, eliminando quebras de layout, travamentos de scroll e transbordamento horizontal.
