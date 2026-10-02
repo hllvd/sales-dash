@@ -1807,6 +1807,48 @@ export const apiService = {
     return response.json()
   },
 
+  async getTeamInconsistencies(): Promise<ApiResponse<AdminTeamInconsistencyItem[]>> {
+    const token = localStorage.getItem("token")
+    const response = await fetch(`${API_BASE_URL}/admin-tools/team-inconsistencies`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao buscar inconsistências de equipes"))
+    }
+    return response.json()
+  },
+
+  async migrateTeamMemberInconsistency(data: AdminMigrateTeamMemberRequest): Promise<ApiResponse<AdminMigrateTeamMemberResult>> {
+    const token = localStorage.getItem("token")
+    const response = await fetch(`${API_BASE_URL}/admin-tools/team-inconsistencies/migrate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao migrar usuário"))
+    }
+    return response.json()
+  },
+
+  async exportTeamInconsistenciesXlsx(): Promise<Blob> {
+    const token = localStorage.getItem("token")
+    const response = await fetch(`${API_BASE_URL}/admin-tools/team-inconsistencies/export-xlsx`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao exportar relatório XLSX"))
+    }
+    return response.blob()
+  },
+
   async getSqsQueueStats(queueType: 'jobs' | 'results' = 'results'): Promise<SqsQueueStats> {
     const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/stats?queue=${queueType}`, {
       method: "GET",
@@ -2528,6 +2570,70 @@ export interface ProcessSqsMessageResponse {
   importedCount: number
   message: string
 }
+
+export interface TeamHistoryItem {
+  userTeamId: number
+  teamId: number
+  teamName: string
+  teamIsActive: boolean
+  startDate: string
+  endDate: string | null
+  isActivePeriod: boolean
+}
+
+export interface InconsistencyDescriptor {
+  type: string
+  description: string
+  severity: 'warning' | 'error' | 'info'
+}
+
+export interface MigrationRecommendation {
+  suggestedTeamId?: number | null
+  suggestedTeamName?: string | null
+  suggestedStartDate?: string | null
+  reason: string
+  suggestSetAsOwner: boolean
+}
+
+export interface AdminTeamInconsistencyItem {
+  userId: string
+  userInternalId: number
+  userName: string
+  userEmail: string
+  isActive: boolean
+  parentEmail?: string | null
+  parentUserName?: string | null
+  parentTeamName?: string | null
+  currentTeamId?: number | null
+  currentTeamName?: string | null
+  ownedTeamId?: number | null
+  ownedTeamName?: string | null
+  earliestContractDate?: string | null
+  totalContractsCount: number
+  teamHistory: TeamHistoryItem[]
+  inconsistencies: InconsistencyDescriptor[]
+  recommendation?: MigrationRecommendation | null
+}
+
+export interface AdminMigrateTeamMemberRequest {
+  userId: string
+  targetTeamId: number
+  startDate: string
+  endDate?: string | null
+  setAsOwner?: boolean
+  closeConflictingPeriods?: boolean
+}
+
+export interface AdminMigrateTeamMemberResult {
+  userId: string
+  userName: string
+  targetTeamId: number
+  targetTeamName: string
+  closedPeriodsCount: number
+  isOwner: boolean
+  message: string
+}
+
 
 
 

@@ -30,7 +30,10 @@ import ContractReconciliationPage from './components/ContractReconciliationPage'
 import RetentionFilterPage from './components/RetentionFilterPage';
 import ContractMigrationTool from './components/AdminTools/ContractMigrationTool';
 import SqsQueuePanel from './components/AdminTools/SqsQueuePanel';
+import TeamInconsistenciesTool from './components/AdminTools/TeamInconsistenciesTool';
 import RequestsPage from './components/RequestsPage';
+import DocumentPage from './components/Document/DocumentPage';
+import DocumentIndex from './components/Document/DocumentIndex';
 import SurveyPage from './components/Survey/SurveyPage';
 import MyQAPage from './components/Survey/MyQAPage';
 import { SurveyModal } from './components/Survey/SurveyModal';
@@ -102,6 +105,14 @@ function App() {
       return <ScrapeRunDetailPage runId={runId} />;
     }
 
+    if (routePath.startsWith('#/document')) {
+      const docPath = routePath.replace(/^#\/document\/?/, '');
+      if (!docPath) {
+        return <DocumentIndex />;
+      }
+      return <DocumentPage docPath={docPath} />;
+    }
+
     switch (routePath) {
       case '#/user/registration/admin':
         return <AdminRegistrationPage />;
@@ -154,6 +165,8 @@ function App() {
         return <ContractMigrationTool />;
       case '#/admin-tools/sqs-queue':
         return <SqsQueuePanel />;
+      case '#/admin-tools/team-inconsistencies':
+        return <TeamInconsistenciesTool />;
       case '#/requests':
         return <RequestsPage />;
       case '#/surveys':

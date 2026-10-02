@@ -6,7 +6,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconSearch, IconCrown, IconUserPlus, IconUserMinus,
-  IconUsers, IconUser, IconCheck, IconCalendar, IconX, IconSitemap, IconBuildingStore
+  IconUsers, IconUser, IconCheck, IconCalendar, IconX, IconSitemap
 } from '@tabler/icons-react';
 import { apiService, Team, TeamMember, User, Store } from '../services/apiService';
 import { normalizeTeamName, normalizeName } from '../utils/normalization';
@@ -23,12 +23,6 @@ function formatDate(dateStr: string): string {
   } catch {
     return dateStr;
   }
-}
-
-function getEightYearsAgo(): string {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() - 8);
-  return d.toISOString();
 }
 
 /** BFS from ownerUserId → returns users ordered by proximity to owner, then createdAt.
@@ -459,7 +453,7 @@ const TeamMembersModal: React.FC<Props> = ({
   const handleAdd = useCallback(async (user: User) => {
     setAddingId(user.id);
     try {
-      const res = await apiService.addTeamMembers(team.id, [{ userId: user.id, startDate: getEightYearsAgo() }]);
+      const res = await apiService.addTeamMembers(team.id, [{ userId: user.id }]);
       applyTeamUpdate(res);
       if (res.data?.warnings && res.data.warnings.length > 0) {
         res.data.warnings.forEach((warn: string) => {

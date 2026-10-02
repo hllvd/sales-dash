@@ -449,7 +449,23 @@ namespace SalesApp.Controllers
                     }
                 }
 
-                var start = (memberReq.StartDate ?? DateTime.UtcNow.AddYears(-8)).Date;
+                DateTime start;
+                if (memberReq.StartDate.HasValue)
+                {
+                    start = memberReq.StartDate.Value.Date;
+                }
+                else
+                {
+                    var earliestContract = await _context.Contracts
+                        .AsNoTracking()
+                        .Where(c => c.UserInternalId == user.InternalId && c.IsActive)
+                        .OrderBy(c => c.SaleStartDate)
+                        .FirstOrDefaultAsync();
+
+                    start = earliestContract != null
+                        ? earliestContract.SaleStartDate.Date.AddDays(-1)
+                        : DateTime.UtcNow.Date;
+                }
 
                 // Auto-close overlapping memberships on other teams (ensuring no gap and no overlap)
                 var overlaps = await _teamRepository.FindOverlappingMembershipsAsync(user.InternalId, start, null);
@@ -466,6 +482,13 @@ namespace SalesApp.Controllers
                             overlap.EndDate = overlap.StartDate;
                         }
                         overlap.UpdatedAt = DateTime.UtcNow;
+
+                        if (overlap.Team != null && overlap.Team.OwnerUserInternalId == user.InternalId)
+                        {
+                            overlap.Team.OwnerUserInternalId = null;
+                            overlap.Team.UpdatedAt = DateTime.UtcNow;
+                        }
+
                         await _teamRepository.UpdateAsync(overlap.Team);
 
                         warnings.Add(_messageService.Get(AppMessage.UserRemovedFromTeamConflict, user.Name, overlap.Team.Name));
@@ -752,6 +775,18 @@ namespace SalesApp.Controllers
             membership.EndDate = newEndDate;
             membership.UpdatedAt = DateTime.UtcNow;
 
+            // If the updated member was the owner and the period is no longer active, check if any active period remains
+            if (team.OwnerUserInternalId == user.InternalId)
+            {
+                var isStillActive = (newEndDate == null || newEndDate.Value > DateTime.UtcNow) ||
+                    team.UserTeams.Any(ut => ut.Id != membership.Id && ut.UserInternalId == user.InternalId && (ut.EndDate == null || ut.EndDate > DateTime.UtcNow));
+                if (!isStillActive)
+                {
+                    team.OwnerUserInternalId = null;
+                    team.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             var reloadedTeam = await _teamRepository.GetByIdAsync(id);
@@ -933,7 +968,7 @@ namespace SalesApp.Controllers
                 .Where(ut => ut.User != null && ut.User.IsActive)
                 .Select(ut => MapToMemberResponse(ut, t.OwnerUserInternalId))
                 .ToList();
-            var owner = members.FirstOrDefault(m => m.UserInternalId == t.OwnerUserInternalId);
+            var owner = members.FirstOrDefault(m => m.UserInternalId == t.OwnerUserInternalId && m.IsActive);
 
             return new TeamResponse
             {
@@ -1434,6 +1469,12 @@ namespace SalesApp.Controllers
 
                 activeTeam.EndDate = request.StartDate.Date.AddDays(-1);
                 activeTeam.UpdatedAt = DateTime.UtcNow;
+
+                if (activeTeam.Team != null && activeTeam.Team.OwnerUserInternalId == user.InternalId)
+                {
+                    activeTeam.Team.OwnerUserInternalId = null;
+                    activeTeam.Team.UpdatedAt = DateTime.UtcNow;
+                }
             }
             else
             {

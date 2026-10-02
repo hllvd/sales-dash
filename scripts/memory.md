@@ -558,3 +558,14 @@ Each entry records a fix attempt — past entries must be consulted before retry
 2. Added integration test `Reconcile_ShouldIgnoreInactiveContracts` in `ContractReconciliationTests.cs`.
 3. Updated `walkthrough.md`.
 **Result:** ✅ Green (Build PASSED, 309/309 Integration tests PASSED, 181/181 Playwright E2E PASSED)
+
+## [2026-10-02] all — Attempt 1
+**Failure:** None — full verification run for Team Inconsistencies mapping tool in Admin Tools, on-demand resolution modal with smart recommendations, XLSX export, and dynamic contract start date fallbacks.
+**Root cause:** N/A.
+**Fix applied:**
+1. Backend `AdminToolsController.cs`: created endpoints `GET /api/admin-tools/team-inconsistencies`, `POST /api/admin-tools/team-inconsistencies/migrate`, and `GET /api/admin-tools/team-inconsistencies/export-xlsx` detecting 4 inconsistency types without touching existing database records.
+2. Backend `TeamsController.cs` & `UsersController.cs`: ensured `Owner` in team response is only mapped if active member (`m.IsActive`), dynamic date assignment fallback in `AddMembers` (earliest contract date or today), and `CurrentTeamName` in user response prioritizes active teams (`t.IsActive`) with active membership fallback.
+3. Frontend: added `TeamInconsistenciesTool.tsx` under `/#/admin-tools/team-inconsistencies` with KPI cards, search, category filters, history details, XLSX export, and migration modal with pre-computed system recommendations.
+4. Integration tests: added `TeamInconsistenciesIntegrationTests.cs` validating detection, migration resolution, and XLSX export.
+**Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 181/181 PASSED, E2E Run 2: 181/181 PASSED — idempotent)
+
