@@ -589,8 +589,15 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconTools size={20} />}
               childrenOffset={28}
               styles={navLinkStyles('')}
-              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts' || currentPath === '#/admin-tools/sqs-queue' || currentPath === '#/admin-tools/team-inconsistencies'}
+              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts' || currentPath === '#/admin-tools/sqs-queue' || currentPath === '#/admin-tools/team-inconsistencies' || currentPath === '#/admin-tools/deleted-contracts'}
             >
+              <NavLink
+                href="#/admin-tools/deleted-contracts"
+                label="Contratos Deletados"
+                active={isActive('#/admin-tools/deleted-contracts')}
+                styles={navLinkStyles('#/admin-tools/deleted-contracts')}
+                onClick={() => { if (opened) close(); }}
+              />
               <NavLink
                 href="#/admin-tools/team-inconsistencies"
                 label="Inconsistências de Equipes"

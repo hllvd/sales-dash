@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
+using SalesApp.Utils;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Drawing;
@@ -704,6 +705,196 @@ namespace SalesApp.Controllers
                 fileBytes,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 $"inconsistencias_equipes_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
+        }
+
+        [HttpGet("deleted-contracts")]
+        public async Task<ActionResult<ApiResponse<PagedContractResponse>>> GetDeletedContracts(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50,
+            [FromQuery] string? contractNumber = null,
+            [FromQuery] bool exactMatch = true,
+            [FromQuery] int? teamId = null)
+        {
+            if (!IsSuperAdmin())
+            {
+                return Forbid();
+            }
+
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 50;
+
+            var query = _context.Contracts
+                .AsNoTracking()
+                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas).ThenInclude(um => um.Matricula)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Group)
+                .Include(c => c.ContractStatus)
+                .Where(c => !c.IsActive);
+
+            if (!string.IsNullOrWhiteSpace(contractNumber))
+            {
+                var norm = contractNumber.Trim();
+                if (exactMatch)
+                {
+                    query = query.Where(c => c.ContractNumber == norm);
+                }
+                else
+                {
+                    query = query.Where(c => EF.Functions.Like(c.ContractNumber, $"%{norm}%"));
+                }
+            }
+
+            if (teamId.HasValue)
+            {
+                var tId = teamId.Value;
+                query = query.Where(c =>
+                    (c.UserInternalId != null && _context.UserTeams.Any(ut =>
+                        ut.TeamId == tId &&
+                        ut.UserInternalId == c.UserInternalId.Value &&
+                        c.SaleStartDate.Date >= ut.StartDate.Date &&
+                        (ut.EndDate == null || c.SaleStartDate.Date <= ut.EndDate.Value.Date)))
+                    ||
+                    (c.UserInternalId == null && c.MatriculaId != null && _context.UserMatriculas.Any(um =>
+                        um.MatriculaId == c.MatriculaId.Value && um.IsActive &&
+                        _context.UserTeams.Any(ut =>
+                            ut.TeamId == tId &&
+                            ut.UserInternalId == um.UserInternalId &&
+                            c.SaleStartDate.Date >= ut.StartDate.Date &&
+                            (ut.EndDate == null || c.SaleStartDate.Date <= ut.EndDate.Value.Date))))
+                );
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var contracts = await query
+                .OrderByDescending(c => c.UpdatedAt)
+                .ThenByDescending(c => c.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = contracts.Select(c => MapToContractResponse(c)).ToList();
+
+            return Ok(new ApiResponse<PagedContractResponse>
+            {
+                Success = true,
+                Data = new PagedContractResponse
+                {
+                    Items = items,
+                    TotalCount = totalCount,
+                    Page = page,
+                    PageSize = pageSize
+                }
+            });
+        }
+
+        [HttpPost("deleted-contracts/{id}/restore")]
+        public async Task<ActionResult<ApiResponse<object>>> RestoreDeletedContract(int id)
+        {
+            if (!IsSuperAdmin())
+            {
+                return Forbid();
+            }
+
+            var contract = await _context.Contracts
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (contract == null)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Contrato não encontrado."
+                });
+            }
+
+            if (contract.IsActive)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "O contrato já se encontra ativo."
+                });
+            }
+
+            var hasActiveDuplicate = await _context.Contracts
+                .AnyAsync(c => c.ContractNumber == contract.ContractNumber && c.IsActive && c.Id != id);
+
+            if (hasActiveDuplicate)
+            {
+                return Conflict(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Não é possível restaurar o contrato: já existe um contrato ativo com o número '{contract.ContractNumber}'."
+                });
+            }
+
+            contract.IsActive = true;
+            contract.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = $"Contrato {contract.ContractNumber} restaurado com sucesso."
+            });
+        }
+
+        private static ContractResponse MapToContractResponse(Contract contract)
+        {
+            var matriculaNumber = contract.Matricula?.MatriculaNumber
+                ?? contract.TempMatricula
+                ?? contract.User?.UserMatriculas?.FirstOrDefault(um => um.IsActive && um.IsOwner)?.Matricula?.MatriculaNumber
+                ?? contract.User?.UserMatriculas?.FirstOrDefault(um => um.IsActive)?.Matricula?.MatriculaNumber;
+
+            matriculaNumber = NormalizationUtils.NormalizeNumber(matriculaNumber);
+            if (string.IsNullOrWhiteSpace(matriculaNumber))
+            {
+                matriculaNumber = null;
+            }
+
+            var statusName = contract.ContractStatus?.Name ?? "";
+            var isAwaitingPayment = statusName.Equals("Active", StringComparison.OrdinalIgnoreCase) && contract.HasPayment == false;
+
+            var contractUser = contract.User
+                ?? contract.Matricula?.UserMatriculas?.FirstOrDefault(um => um.IsActive && um.IsOwner)?.User
+                ?? contract.Matricula?.UserMatriculas?.FirstOrDefault(um => um.IsActive)?.User;
+
+            var contractDate = contract.SaleStartDate.Date;
+            var teamName = contractUser?.UserTeams?
+                .Where(ut => contractDate >= ut.StartDate.Date && (ut.EndDate == null || contractDate <= ut.EndDate.Value.Date))
+                .OrderByDescending(ut => ut.StartDate)
+                .Select(ut => ut.Team?.Name)
+                .FirstOrDefault(t => !string.IsNullOrEmpty(t));
+
+            return new ContractResponse
+            {
+                Id = contract.Id,
+                ContractNumber = contract.ContractNumber,
+                UserId = contract.User?.Id,
+                UserName = contract.User?.Name ?? "",
+                TotalAmount = contract.TotalAmount,
+                GroupId = contract.GroupId,
+                GroupName = contract.Group?.Name ?? "",
+                Status = statusName,
+                ContractStartDate = contract.SaleStartDate,
+                IsActive = contract.IsActive,
+                CreatedAt = contract.CreatedAt,
+                UpdatedAt = contract.UpdatedAt,
+                ContractType = ContractTypeExtensions.ToApiString(contract.ContractType),
+                Quota = contract.Quota,
+                PvId = contract.PvId,
+                CustomerName = contract.CustomerName,
+                MatriculaId = contract.MatriculaId,
+                MatriculaNumber = matriculaNumber,
+                RawStatus = contract.RawStatus,
+                HasPayment = contract.HasPayment,
+                IsAwaitingPayment = isAwaitingPayment,
+                IsRemappedToAwaitingPayment = false,
+                TeamName = teamName
+            };
         }
     }
 }
