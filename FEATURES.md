@@ -1,3 +1,24 @@
+## Guia do Consultor e Manual de Boas Práticas (`#/document/documentacao/guia-do-consultor`)
+
+Documentação direcionada aos consultores de vendas com foco motivacional e instrucional, destacando os benefícios do sistema, como acompanhar a tela Meus Contratos, como registrar novas vendas e visão de futuro com IA.
+
+### Comportamento e Regras
+- **Público e Acesso**: Redigido com foco motivacional para os consultores de vendas, acessível pela rota `#/document/documentacao/guia-do-consultor`.
+- **Benefícios Apresentados**: Acompanhamento de produção consolidada em tempo real (total geral, ativo e atrasado), curva de produção, índice de retenção de cancelamentos, exportação em `.xlsx` e garantia de apuração correta para comissões e plano de carreira.
+- **Leitura da Tela Meus Contratos**: Explicação detalhada dos filtros por período/matrícula/equipe, colunas da tabela de vendas, cards de resumo e gráficos com prints ilustrativos.
+- **Inclusão de Contratos**: Passo a passo com o botão `+ Novo` em Meus Contratos e inclusão do vídeo tutorial passo a passo embutido.
+- **Alerta de Comissão**: Destaque para o registro imediato logo após a venda, reforçando que a falta de registro pode reter o pagamento da comissão até a regularização.
+- **Contratos Pendentes**: Explicação de que o status "Aguardando importação" em Contratos Solicitados é normal e que a vinculação é automática após a atualização da base pelo gestor.
+- **Visão de IA**: Seção dedicada apresentando a visão de futuro onde ferramentas de Inteligência Artificial irão analisar dados históricos para oferecer insights personalizados e aumentar as vendas.
+
+### Arquivos Adicionados / Modificados
+- `client/sales-dash/public/docs/documentacao/guia-do-consultor.md`
+- `client/sales-dash/public/docs/images/meus-contratos-visao-geral.png`
+- `client/sales-dash/public/docs/images/meus-contratos-graficos-pendentes.png`
+- `client/sales-dash/public/docs/images/meus-contratos-atribuir-contrato.png`
+
+---
+
 ## Painel de Inconsistências de Equipes e Correção sob Demanda (`#/admin-tools/team-inconsistencies`)
 
 Ferramenta administrativa sob o menu **Ferramentas Admin** para mapear, auditar e resolver pontualmente inconsistências estruturais entre usuários, proprietários e períodos de equipes, com recomendação inteligente, exportação nativa em XLSX e prevenção de inconsistências futuras.
