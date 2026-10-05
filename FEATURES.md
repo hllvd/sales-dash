@@ -1,3 +1,46 @@
+## Contratos Deletados e Restauração (Undo) em Ferramentas Admin (`#/admin-tools/deleted-contracts`)
+
+Ferramenta administrativa sob o menu **Ferramentas Admin** para auditar, visualizar e restaurar contratos que foram excluídos logicamente (*soft delete* com `IsActive == false`). A interface oferece filtros combinados por número de contrato (com opção de busca exata ou parcial), filtro por equipe, paginação de 50 itens e ação de restauração (Undo) protegida por modal de confirmação e validação de duplicidade ativa.
+
+### Comportamento e Regras
+- **Acesso Restrito**:
+  - Exclusivo para usuários com permissão de Superadministrador (`superadmin@salesapp.com`, `superadmin@test.com` ou claim `system:superadmin`).
+  - Item acessível sob o menu **Ferramentas Admin -> Contratos Deletados**.
+- **Filtros e Busca**:
+  - **Número de Contrato**: Campo de texto para busca por número. Por padrão, realiza correspondência exata.
+  - **Busca Parcial**: Checkbox (desativado por padrão) que, quando habilitado, permite buscar por qualquer trecho do número do contrato.
+  - **Equipe**: Seleção suspensa (*dropdown*) contendo todas as equipes cadastradas no sistema, com opção "Todas as equipes". Filtra considerando o vínculo histórico do vendedor com a equipe na data de início da venda do contrato (`SaleStartDate`).
+  - **Botões Buscar e Limpar**: Permite disparar a consulta manualmente e limpar todos os filtros aplicados.
+- **Tabela de Dados**:
+  - Exibe as colunas:
+    1. **Nº Contrato**: número identificador do contrato.
+    2. **Cliente**: nome do cliente ou `—` se não informado.
+    3. **Vendedor**: nome do consultor/vendedor responsável.
+    4. **Status**: badge padronizado com o status do contrato.
+    5. **Equipe**: equipe à qual o contrato pertencia no momento da venda.
+    6. **Cota**: número da cota ou `—`.
+    7. **Total**: valor total do contrato formatado em moeda brasileira (R$).
+    8. **Data Início**: data de início do contrato (`DD/MM/AAAA`).
+    9. **Ações**: botão de restauração com ícone de desfazer (*Undo*).
+- **Restauração (Undo)**:
+  - Ao clicar em "Restaurar", um modal de confirmação exibe o resumo dos dados do contrato.
+  - Ao confirmar, o backend valida se já existe algum outro contrato ativo (`IsActive == true`) com o mesmo número.
+  - Se houver conflito com contrato ativo existente, a restauração é rejeitada com código 409 e aviso explicativo ao usuário.
+  - Em caso de sucesso, o contrato tem seu status alterado para `IsActive = true`, data de atualização renovada, notificação toast exibida e a listagem é atualizada automaticamente.
+- **Paginação**:
+  - Paginação de 50 registros por página com indicador de página e contador total de registros.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Controllers/AdminToolsController.cs`
+- `SalesApp.Tests/AdminDeletedContractsTests.cs`
+- `client/sales-dash/src/services/apiService.ts`
+- `client/sales-dash/src/components/AdminTools/DeletedContractsTool.tsx`
+- `client/sales-dash/src/components/Menu.tsx`
+- `client/sales-dash/src/App.tsx`
+- `FEATURES.md`
+
+---
+
 ## Guia do Consultor e Manual de Boas Práticas (`#/document/documentacao/guia-do-consultor`)
 
 Documentação direcionada aos consultores de vendas com foco motivacional e instrucional, destacando os benefícios do sistema, como acompanhar a tela Meus Contratos, como registrar novas vendas e visão de futuro com IA.

@@ -31,6 +31,7 @@ import RetentionFilterPage from './components/RetentionFilterPage';
 import ContractMigrationTool from './components/AdminTools/ContractMigrationTool';
 import SqsQueuePanel from './components/AdminTools/SqsQueuePanel';
 import TeamInconsistenciesTool from './components/AdminTools/TeamInconsistenciesTool';
+import DeletedContractsTool from './components/AdminTools/DeletedContractsTool';
 import RequestsPage from './components/RequestsPage';
 import DocumentPage from './components/Document/DocumentPage';
 import DocumentIndex from './components/Document/DocumentIndex';
@@ -167,6 +168,8 @@ function App() {
         return <SqsQueuePanel />;
       case '#/admin-tools/team-inconsistencies':
         return <TeamInconsistenciesTool />;
+      case '#/admin-tools/deleted-contracts':
+        return <DeletedContractsTool />;
       case '#/requests':
         return <RequestsPage />;
       case '#/surveys':

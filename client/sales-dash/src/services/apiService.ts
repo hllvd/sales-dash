@@ -10,20 +10,24 @@ import {
   UserSurveyHistoryDto,
 } from '../types/Survey'
 
+import type { Contract } from './contractService'
+
 const API_BASE_URL = config.apiUrl
 
-interface ApiResponse<T> {
+export interface ApiResponse<T> {
   success: boolean
   data?: T
   message: string
 }
 
-interface PagedResponse<T> {
+export interface PagedResponse<T> {
   items: T[]
   totalCount: number
   page: number
   pageSize: number
 }
+
+export type PagedContractResponse = PagedResponse<Contract>
 
 export interface UserMatriculaInfo {
   id: number          // UserMatriculas join-table PK
@@ -1847,6 +1851,43 @@ export const apiService = {
       throw new Error(await extractErrorMessage(response, "Falha ao exportar relatório XLSX"))
     }
     return response.blob()
+  },
+
+  async getDeletedContracts(params: {
+    page?: number
+    pageSize?: number
+    contractNumber?: string
+    exactMatch?: boolean
+    teamId?: number
+  }): Promise<ApiResponse<PagedContractResponse>> {
+    const searchParams = new URLSearchParams()
+    if (params.page !== undefined) searchParams.append("page", params.page.toString())
+    if (params.pageSize !== undefined) searchParams.append("pageSize", params.pageSize.toString())
+    if (params.contractNumber) searchParams.append("contractNumber", params.contractNumber.trim())
+    if (params.exactMatch !== undefined) searchParams.append("exactMatch", params.exactMatch.toString())
+    if (params.teamId !== undefined) searchParams.append("teamId", params.teamId.toString())
+
+    const queryStr = searchParams.toString()
+    const url = `${API_BASE_URL}/admin-tools/deleted-contracts${queryStr ? `?${queryStr}` : ''}`
+    const response = await authenticatedFetch(url, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao buscar contratos deletados"))
+    }
+    return response.json()
+  },
+
+  async restoreDeletedContract(id: number): Promise<ApiResponse<object>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin-tools/deleted-contracts/${id}/restore`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao restaurar contrato"))
+    }
+    return response.json()
   },
 
   async getSqsQueueStats(queueType: 'jobs' | 'results' = 'results'): Promise<SqsQueueStats> {
