@@ -10,6 +10,9 @@ test.describe('Approval Requests E2E', () => {
   ).join('') + Date.now().toString().slice(-4);
   const ADMIN_EMAIL = `parent.admin.${RUN_ID}@test.com`;
   const USER_EMAIL = `request.user.${RUN_ID}@test.com`;
+  const GUIMEL_USER_EMAIL = `guimel.user.${RUN_ID}@test.com`;
+  const INSTITUTIONAL_EMAIL = `guimel.${RUN_ID}@autorizadoademicon.com.br`;
+  const GUIMEL_TEAM_NAME = `Equipe Guimel ${RUN_ID}`;
   const PASSWORD = 'Password123!';
 
   let superadminToken = '';
@@ -38,7 +41,12 @@ test.describe('Approval Requests E2E', () => {
       const body = await getUsersRes.json();
       const usersList = body.data?.items || [];
       for (const u of usersList) {
-        if (u.email.toLowerCase().includes('parent.admin.') || u.email.toLowerCase().includes('request.user.')) {
+        if (
+          u.email.toLowerCase().includes('parent.admin.') ||
+          u.email.toLowerCase().includes('request.user.') ||
+          u.email.toLowerCase().includes('guimel.') ||
+          u.email.toLowerCase().includes('@autorizadoademicon.com.br')
+        ) {
           await request.delete(`/api/users/${u.id}`, {
             headers: { Authorization: `Bearer ${superadminToken}` },
           });
@@ -62,8 +70,22 @@ test.describe('Approval Requests E2E', () => {
     await registerUser('Parent Admin Test', ADMIN_EMAIL, 'admin', superadminId);
     await new Promise(r => setTimeout(r, 400));
 
+    const adminLoginRes = await request.post('/api/users/login', {
+      data: { email: ADMIN_EMAIL, password: PASSWORD },
+    });
+    expect(adminLoginRes.ok()).toBeTruthy();
+    const adminLoginData = await adminLoginRes.json();
+    const adminToken = adminLoginData.data.token;
+    const adminMeRes = await request.get('/api/users/me', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const adminId = (await adminMeRes.json()).data.id;
+
     // 3. Register user initially under SuperAdmin
     await registerUser('User Request Test', USER_EMAIL, 'user', superadminId);
+
+    // 4. Register Guimel test user under Parent Admin
+    await registerUser('Guimel Request Test', GUIMEL_USER_EMAIL, 'user', adminId);
   });
 
   test('Superadmin can view requests page and tabs', async ({ page }) => {
@@ -207,6 +229,70 @@ test.describe('Approval Requests E2E', () => {
     // 4. Verify user is now an Admin (can see Contratos admin link)
     await loginAs(page, USER_EMAIL, PASSWORD);
 
+    await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15000 });
+  });
+
+  test('User asks to become Guimel and change email to institutional, parent admin accepts it', async ({ page }) => {
+    test.setTimeout(60000);
+
+    // 1. Guimel user logs in
+    await loginAs(page, GUIMEL_USER_EMAIL, PASSWORD);
+
+    // 2. User goes to Requests page to request Guimel team creation
+    await page.goto('/#/requests');
+    await expect(page.getByRole('heading', { name: 'Central de Solicitações' })).toBeVisible();
+    await page.click('button:has-text("Nova Solicitação")');
+
+    await expect(page.getByRole('dialog')).toBeVisible();
+    const select = page.locator('input[readonly].mantine-Select-input').first();
+    await select.click();
+    await page.click('div[role="option"]:has-text("Eu sou Guimel agora, quero criar minha equipe")');
+
+    const teamInput = page.locator('input[placeholder="Ex: Equipe Comercial SP"]');
+    await teamInput.fill(GUIMEL_TEAM_NAME);
+
+    // Check option to change email to institutional
+    const checkbox = page.locator('label:has-text("Quero mudar meu email para o institucional")');
+    await checkbox.click();
+
+    // Verify institutional email input appears
+    const emailInput = page.locator('input[placeholder="nome@autorizadoademicon.com.br"]');
+    await expect(emailInput).toBeVisible();
+
+    // Test invalid domain validation
+    await emailInput.fill('invalid@gmail.com');
+    await page.click('button:has-text("Enviar Solicitação")');
+    await expect(page.getByText('O e-mail institucional deve ter o domínio @autorizadoademicon.com.br.')).toBeVisible();
+
+    // Fill valid institutional email and submit
+    await emailInput.fill(INSTITUTIONAL_EMAIL);
+    await page.click('button:has-text("Enviar Solicitação")');
+
+    // Wait for modal to close
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15000 });
+
+    // Verify request is listed under Minhas Solicitações with details
+    await expect(page.getByRole('cell', { name: 'Criar Equipe (Guimel)' }).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(`Nome da Equipe: ${GUIMEL_TEAM_NAME} | Novo E-mail Institucional: ${INSTITUTIONAL_EMAIL}`).first()).toBeVisible({ timeout: 15000 });
+
+    // 3. Parent Admin logs in to accept the Guimel request
+    await loginAs(page, ADMIN_EMAIL, PASSWORD);
+
+    await page.goto('/#/requests');
+    await page.click('text=Solicitações Pendentes');
+
+    // Find row with Guimel user and verify payload details
+    const pendingRow = page.locator('tr', { hasText: GUIMEL_USER_EMAIL });
+    await expect(pendingRow).toBeVisible({ timeout: 15000 });
+    await expect(pendingRow.getByText('Criar Equipe (Guimel)')).toBeVisible();
+    await expect(pendingRow.getByText(`Nome da Equipe: ${GUIMEL_TEAM_NAME} | Novo E-mail Institucional: ${INSTITUTIONAL_EMAIL}`)).toBeVisible();
+
+    // Approve the request
+    await pendingRow.locator('button:has-text("Sim")').click();
+    await expect(pendingRow).not.toBeVisible({ timeout: 15000 });
+
+    // 4. Verify user can now log in using the NEW institutional email and is Admin
+    await loginAs(page, INSTITUTIONAL_EMAIL, PASSWORD);
     await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15000 });
   });
 });

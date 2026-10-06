@@ -1285,14 +1285,18 @@ This feature enables users to request team creation directly through the unified
 ### Core Objectives
 - Allow users of any role to submit a team creation request using the prompt: `"Eu sou Guimel agora, quero criar minha equipe"`.
 - Enforce team name uniqueness validation in Portuguese (`"Nome da equipe já existe"`) both at request submission and at approval execution.
+- Provide an optional choice for the user to change their email to an institutional email (`@autorizadoademicon.com.br`) when becoming Guimel (`"Quero mudar meu email para o institucional"`).
+- Validate the institutional email domain (`@autorizadoademicon.com.br`) and ensure email uniqueness both at submission and on approval.
 - Enable superadmins and superior admins (parentAdmin in hierarchy) to approve or reject the request.
-- Automatically execute team creation, owner assignment, team membership creation, and user role promotion to `Admin` (roleId = 2) upon approval.
+- Automatically execute team creation, owner assignment, team membership creation, user role promotion to `Admin` (roleId = 2), and institutional email update upon approval.
 
 ### Key Capabilities
 - **Request Type**: `CreateTeam` in `ApprovalRequestType`.
 - **UI Option**: Select dropdown option labelled `"Eu sou Guimel agora, quero criar minha equipe"` visible across user roles.
-- **Immediate Validation**: Checks for existing team names in Portuguese during submission to prevent duplicate requests.
-- **One-Step Execution**: On approval by superadmin or parent admin, creates `Team`, links `UserTeam`, and updates user's `RoleId` to `Admin`.
+- **Institutional Email Option**: Checkbox `"Quero mudar meu email para o institucional"` revealing a mandatory email input (validated to match `*@autorizadoademicon.com.br`).
+- **Immediate Validation**: Checks for existing team names and email uniqueness/domain in Portuguese during submission to prevent duplicate requests.
+- **One-Step Execution**: On approval by superadmin or parent admin, creates `Team`, links `UserTeam`, updates user's `RoleId` to `Admin`, and updates user's `Email` to the institutional email if requested.
+- **Request Display**: Table and details display the requested institutional email alongside the team name (`Nome da Equipe: ... | Novo E-mail Institucional: ...`).
 
 ## Exported Fields in Reports (Interactive Viewer Filters)
 

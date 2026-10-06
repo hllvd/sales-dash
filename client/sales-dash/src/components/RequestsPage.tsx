@@ -14,6 +14,7 @@ import {
   Alert,
   LoadingOverlay,
   Card,
+  Checkbox,
 } from '@mantine/core';
 import { IconCheck, IconX, IconClock, IconPlus, IconAlertCircle, IconSend } from '@tabler/icons-react';
 import { apiService, ApprovalRequestItem } from '../services/apiService';
@@ -40,6 +41,8 @@ const RequestsPage: React.FC = () => {
   const [parentEmail, setParentEmail] = useState('');
   const [matriculaNumber, setMatriculaNumber] = useState('');
   const [teamName, setTeamName] = useState('');
+  const [wantsChangeEmail, setWantsChangeEmail] = useState(false);
+  const [institutionalEmail, setInstitutionalEmail] = useState('');
   const [classificationLevels, setClassificationLevels] = useState<{ id: number; name: string }[]>([]);
   const [selectedLevelId, setSelectedLevelId] = useState<string>('');
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -191,7 +194,25 @@ const RequestsPage: React.FC = () => {
           setSubmitting(false);
           return;
         }
-        payloadJson = JSON.stringify({ teamName: trimmedName });
+
+        const payload: { teamName: string; newEmail?: string } = { teamName: trimmedName };
+
+        if (wantsChangeEmail) {
+          const trimmedEmail = institutionalEmail.trim().toLowerCase();
+          if (!trimmedEmail) {
+            setCreateError('O e-mail institucional é obrigatório quando a opção de alteração de e-mail está selecionada.');
+            setSubmitting(false);
+            return;
+          }
+          if (!/^[^@\s]+@autorizadoademicon\.com\.br$/.test(trimmedEmail)) {
+            setCreateError('O e-mail institucional deve ter o domínio @autorizadoademicon.com.br.');
+            setSubmitting(false);
+            return;
+          }
+          payload.newEmail = trimmedEmail;
+        }
+
+        payloadJson = JSON.stringify(payload);
       } else if (requestType === 'RequestClassificationLevel') {
         if (!selectedLevelId) {
           setCreateError('O nível de classificação é obrigatório.');
@@ -236,6 +257,8 @@ const RequestsPage: React.FC = () => {
       setParentEmail('');
       setMatriculaNumber('');
       setTeamName('');
+      setWantsChangeEmail(false);
+      setInstitutionalEmail('');
       setSelectedLevelId('');
       await loadData();
     } catch (err: any) {
@@ -277,7 +300,12 @@ const RequestsPage: React.FC = () => {
         return 'Solicitação de perfil Administrador';
       }
       if (type === 'CreateTeam') {
-        return `Nome da Equipe: ${parsed.teamName || parsed.TeamName}`;
+        const team = parsed.teamName || parsed.TeamName;
+        const newEmail = parsed.newEmail || parsed.NewEmail;
+        if (newEmail) {
+          return `Nome da Equipe: ${team} | Novo E-mail Institucional: ${newEmail}`;
+        }
+        return `Nome da Equipe: ${team}`;
       }
       if (type === 'RequestClassificationLevel') {
         const levelName = parsed.levelName || parsed.LevelName || `ID ${parsed.levelId || parsed.LevelId}`;
@@ -531,7 +559,12 @@ const RequestsPage: React.FC = () => {
       {/* Create Request Modal */}
       <Modal
         opened={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
+        onClose={() => {
+          setCreateModalOpen(false);
+          setWantsChangeEmail(false);
+          setInstitutionalEmail('');
+          setCreateError(null);
+        }}
         title={<Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>Criar Nova Solicitação</Title>}
         centered
       >
@@ -585,8 +618,25 @@ const RequestsPage: React.FC = () => {
               onChange={(e) => setTeamName(e.target.value)}
               mb="md"
             />
+            <Checkbox
+              label="Quero mudar meu email para o institucional"
+              checked={wantsChangeEmail}
+              onChange={(e) => setWantsChangeEmail(e.currentTarget.checked)}
+              mb="md"
+            />
+            {wantsChangeEmail && (
+              <TextInput
+                label="Novo E-mail Institucional"
+                placeholder="nome@autorizadoademicon.com.br"
+                required
+                value={institutionalEmail}
+                onChange={(e) => setInstitutionalEmail(e.target.value)}
+                mb="md"
+              />
+            )}
             <Text size="sm" c="dimmed" mb="md">
               Ao ser aprovado, a equipe será criada, você se tornará proprietário dela e seu perfil será alterado para Administrador.
+              {wantsChangeEmail && ' Seu e-mail de acesso também será atualizado para o e-mail institucional informado.'}
             </Text>
           </>
         ) : requestType === 'RequestClassificationLevel' ? (

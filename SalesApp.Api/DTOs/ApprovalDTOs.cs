@@ -66,5 +66,6 @@ namespace SalesApp.DTOs
     public class CreateTeamPayload
     {
         public string TeamName { get; set; } = string.Empty;
+        public string? NewEmail { get; set; }
     }
 }

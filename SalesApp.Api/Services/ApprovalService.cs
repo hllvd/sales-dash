@@ -111,6 +111,20 @@ namespace SalesApp.Services
                 {
                     throw new InvalidOperationException("Nome da equipe já existe.");
                 }
+
+                if (!string.IsNullOrWhiteSpace(payload.NewEmail))
+                {
+                    var normalizedEmail = payload.NewEmail.Trim().ToLowerInvariant();
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(normalizedEmail, @"^[^@\s]+@autorizadoademicon\.com\.br$"))
+                    {
+                        throw new ArgumentException("O e-mail institucional deve ter o domínio @autorizadoademicon.com.br.");
+                    }
+
+                    if (await _context.Users.AnyAsync(u => u.Email.ToLower() == normalizedEmail && u.InternalId != requester.InternalId))
+                    {
+                        throw new InvalidOperationException("O e-mail informado já está em uso por outro usuário.");
+                    }
+                }
             }
             else
             {
@@ -444,6 +458,22 @@ namespace SalesApp.Services
                 if (await _context.Teams.AnyAsync(t => t.Name.ToLower() == trimmedName.ToLower()))
                 {
                     throw new InvalidOperationException("Nome da equipe já existe.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.NewEmail))
+                {
+                    var normalizedEmail = payload.NewEmail.Trim().ToLowerInvariant();
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(normalizedEmail, @"^[^@\s]+@autorizadoademicon\.com\.br$"))
+                    {
+                        throw new InvalidOperationException("O e-mail institucional deve ter o domínio @autorizadoademicon.com.br.");
+                    }
+
+                    if (await _context.Users.AnyAsync(u => u.Email.ToLower() == normalizedEmail && u.InternalId != requester.InternalId))
+                    {
+                        throw new InvalidOperationException("O e-mail informado já está em uso por outro usuário.");
+                    }
+
+                    requester.Email = normalizedEmail;
                 }
 
                 var team = new Team

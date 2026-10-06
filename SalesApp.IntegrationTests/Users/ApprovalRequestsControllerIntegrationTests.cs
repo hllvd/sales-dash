@@ -702,6 +702,176 @@ namespace SalesApp.IntegrationTests.Users
             var u1MeData = await u1MeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
             u1MeData!.Data!.IsMatriculaOwner.Should().BeFalse();
         }
+
+        [Fact]
+        public async Task CreateTeam_WithValidInstitutionalEmail_Approved_UpdatesEmailAndPromotesToAdmin()
+        {
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+
+            var tag = Guid.NewGuid().ToString()[..6];
+            var parentAdminEmail = $"parent_team_{tag}@test.com";
+            var userEmail = $"user_team_{tag}@test.com";
+            var institutionalEmail = $"user_team_{tag}@autorizadoademicon.com.br";
+
+            var regParent = await _client.PostAsJsonAsync("/api/users/admin-register", new
+            {
+                Name = "Parent Admin",
+                Email = parentAdminEmail,
+                Password = "Password123!",
+                TeamName = $"ParentTeam_{tag}",
+                ClassificationLevelId = 1,
+                Role = "manager"
+            });
+            regParent.EnsureSuccessStatusCode();
+
+            var parentAdminToken = await GetTokenAsync(parentAdminEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", parentAdminToken);
+            var parentMeRes = await _client.GetAsync("/api/users/me");
+            var parentMeData = await parentMeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var parentId = parentMeData!.Data!.Id;
+
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var regUser = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "User Team Requester",
+                Email = userEmail,
+                Password = "Password123!",
+                Role = "user",
+                ParentUserId = parentId
+            });
+            regUser.EnsureSuccessStatusCode();
+
+            var userToken = await GetTokenAsync(userEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var payload = JsonSerializer.Serialize(new CreateTeamPayload
+            {
+                TeamName = $"NewTeam_{tag}",
+                NewEmail = institutionalEmail
+            });
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = "CreateTeam",
+                PayloadJson = payload
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            var requestId = createData!.Data!.Id;
+
+            // Parent Admin approves request
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", parentAdminToken);
+            var approveRes = await _client.PostAsJsonAsync($"/api/approval-requests/{requestId}/resolve", new ResolveApprovalDto
+            {
+                Action = "Approved",
+                Comment = "Promoted and team created"
+            });
+            approveRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // Verify user now has institutional email and role is Admin
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+            var meRes = await _client.GetAsync("/api/users/me");
+            meRes.EnsureSuccessStatusCode();
+            var meData = await meRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            meData!.Data!.Email.Should().Be(institutionalEmail.ToLowerInvariant());
+            meData.Data.Role.ToLower().Should().Be("admin");
+        }
+
+        [Fact]
+        public async Task CreateTeam_WithInvalidInstitutionalEmailDomain_ReturnsBadRequest()
+        {
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var superAdminMeRes = await _client.GetAsync("/api/users/me");
+            var superAdminMeData = await superAdminMeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var superAdminId = superAdminMeData!.Data!.Id;
+
+            var tag = Guid.NewGuid().ToString()[..6];
+            var userEmail = $"user_invalid_{tag}@test.com";
+
+            var regUser = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "User Invalid Email",
+                Email = userEmail,
+                Password = "Password123!",
+                Role = "user",
+                ParentUserId = superAdminId
+            });
+            regUser.EnsureSuccessStatusCode();
+
+            var userToken = await GetTokenAsync(userEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var payload = JsonSerializer.Serialize(new CreateTeamPayload
+            {
+                TeamName = $"InvalidEmailTeam_{tag}",
+                NewEmail = $"invalid_{tag}@gmail.com"
+            });
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = "CreateTeam",
+                PayloadJson = payload
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var errorData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            errorData!.Message.Should().Contain("@autorizadoademicon.com.br");
+        }
+
+        [Fact]
+        public async Task CreateTeam_WithExistingEmail_ReturnsBadRequest()
+        {
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var superAdminMeRes = await _client.GetAsync("/api/users/me");
+            var superAdminMeData = await superAdminMeRes.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var superAdminId = superAdminMeData!.Data!.Id;
+
+            var tag = Guid.NewGuid().ToString()[..6];
+            var existingEmail = $"existing_{tag}@autorizadoademicon.com.br";
+            var userEmail = $"requester_{tag}@test.com";
+
+            // Register existing user with the email
+            var regExisting = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "Existing User",
+                Email = existingEmail,
+                Password = "Password123!",
+                Role = "user",
+                ParentUserId = superAdminId
+            });
+            regExisting.EnsureSuccessStatusCode();
+
+            // Register requester
+            var regUser = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "Requester User",
+                Email = userEmail,
+                Password = "Password123!",
+                Role = "user",
+                ParentUserId = superAdminId
+            });
+            regUser.EnsureSuccessStatusCode();
+
+            var userToken = await GetTokenAsync(userEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var payload = JsonSerializer.Serialize(new CreateTeamPayload
+            {
+                TeamName = $"DuplicateEmailTeam_{tag}",
+                NewEmail = existingEmail
+            });
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = "CreateTeam",
+                PayloadJson = payload
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var errorData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            errorData!.Message.Should().Contain("já está em uso");
+        }
     }
 }
 
