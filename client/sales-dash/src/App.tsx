@@ -106,8 +106,8 @@ function App() {
       return <ScrapeRunDetailPage runId={runId} />;
     }
 
-    if (routePath.startsWith('#/document')) {
-      const docPath = routePath.replace(/^#\/document\/?/, '');
+    if (routePath.startsWith('#/document') || routePath.startsWith('#/documents')) {
+      const docPath = routePath.replace(/^#\/documents?\/?/, '');
       if (!docPath) {
         return <DocumentIndex />;
       }

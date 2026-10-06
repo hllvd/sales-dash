@@ -1,3 +1,27 @@
+## Manual Operacional: Como Usar Solicitações (`#/document/como-fazer/como-usar-solicitacoes`)
+
+Manual operacional passo a passo detalhando o funcionamento completo do módulo de Solicitações (`#/requests`), estruturado com índice de âncoras para navegação rápida e mini how-tos explicativos e concisos para cada um dos 6 tipos de solicitação do sistema.
+
+### Comportamento e Regras
+- **Padrão de Navegação por Âncoras**: O documento possui um índice no início permitindo saltar diretamente para qualquer um dos 6 fluxos:
+  1. `Alteração de Superior (E-mail)`
+  2. `Solicitar o uso da matrícula do gestor`
+  3. `Eu sou Guimel agora, quero criar minha equipe`
+  4. `Solicitação de Nível de Classificação`
+  5. `Solicitação de Matrícula (Proprietário)`
+  6. `Solicitação de Perfil Administrador (Role Admin)`
+  7. `Como Acompanhar o Status da Solicitação`
+- **Conteúdo Didático e Conciso**: Cada subtópico explica claramente o cenário real de uso ("Quando usar"), os campos obrigatórios a preencher e o fluxo de aprovação com o impacto imediato na conta após o aceite do gestor ou SuperAdmin.
+- **Acompanhamento de Status**: Instruções claras sobre as abas "Minhas Solicitações" e "Pendentes de Aprovação", detalhando o significado dos badges coloridos (Pendente, Aprovado e Rejeitado com justificativa).
+- **Referência Visual e Central de Documentos**: Print ilustrativo do modal integrado ao cabeçalho e link adicionado ao card "Como Fazer" na Central de Documentação (`#/document`).
+
+### Arquivos Adicionados / Modificados
+- `client/sales-dash/public/docs/como-fazer/como-usar-solicitacoes.md`
+- `client/sales-dash/public/docs/images/solicitacoes-criar-nova.png`
+- `client/sales-dash/src/components/Document/DocumentIndex.tsx`
+
+---
+
 ## Contratos Deletados e Restauração (Undo) em Ferramentas Admin (`#/admin-tools/deleted-contracts`)
 
 Ferramenta administrativa sob o menu **Ferramentas Admin** para auditar, visualizar e restaurar contratos que foram excluídos logicamente (*soft delete* com `IsActive == false`). A interface oferece filtros combinados por número de contrato (com opção de busca exata ou parcial), filtro por equipe, paginação de 50 itens e ação de restauração (Undo) protegida por modal de confirmação e validação de duplicidade ativa.

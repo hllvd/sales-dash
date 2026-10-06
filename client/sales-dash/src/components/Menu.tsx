@@ -31,6 +31,7 @@ import {
   IconHelp,
   IconDatabase,
   IconFileImport,
+  IconBook2,
 } from '@tabler/icons-react';
 import { surveyPollingService } from '../services/surveyPollingService';
 
@@ -156,6 +157,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
 
   const isActive = (path: string) => {
     if (path === '#/scrapes' && currentPath.startsWith('#/scrapes')) return true;
+    if (path === '#/documents' && (currentPath.startsWith('#/documents') || currentPath.startsWith('#/document'))) return true;
     return currentPath === path;
   };
 
@@ -554,6 +556,18 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             color="red"
             styles={navLinkStyles('#/qa')}
             data-testid="nav-qa"
+            onClick={() => { if (opened) close(); }}
+          />
+
+          <NavLink
+            href="#/documents"
+            label="Ajuda"
+            leftSection={<IconBook2 size={20} />}
+            active={isActive('#/documents')}
+            variant="filled"
+            color="red"
+            styles={navLinkStyles('#/documents')}
+            data-testid="nav-help"
             onClick={() => { if (opened) close(); }}
           />
 

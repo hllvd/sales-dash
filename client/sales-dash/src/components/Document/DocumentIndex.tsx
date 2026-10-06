@@ -57,6 +57,16 @@ export const DocumentIndex: React.FC = () => {
                   <span>Como ajustar membros de equipe usando o calendário</span>
                   <IconArrowRight size={14} style={{ marginLeft: 'auto' }} />
                 </Anchor>
+
+                <Anchor
+                  href="#/document/como-fazer/como-usar-solicitacoes"
+                  underline="hover"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0969da' }}
+                >
+                  <IconFileText size={16} />
+                  <span>Como usar solicitações</span>
+                  <IconArrowRight size={14} style={{ marginLeft: 'auto' }} />
+                </Anchor>
               </Stack>
             </Card>
 
