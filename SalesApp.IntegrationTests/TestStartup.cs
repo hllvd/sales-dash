@@ -131,6 +131,10 @@ namespace SalesApp.IntegrationTests
             // Report Filters feature
             services.AddScoped<IReportFilterRepository, DynamoDbReportFilterRepository>();
             services.AddScoped<IReportFilterService, ReportFilterService>();
+
+            // Helpdesk (Private FAQ) feature
+            services.AddScoped<SalesApp.Helpdesk.Repositories.IHelpdeskRepository, SalesApp.Helpdesk.Repositories.DynamoDbHelpdeskRepository>();
+            services.AddScoped<SalesApp.Helpdesk.Services.IHelpdeskService, SalesApp.Helpdesk.Services.HelpdeskService>();
             
             // CORS
             services.AddCors(options =>

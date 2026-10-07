@@ -1,3 +1,74 @@
+## FAQ Privado e Sistema de Dúvidas Integrado (`salesapp-helpdesk` / `#/documents`)
+
+Sistema de suporte e FAQ privado integrado à Central de Ajuda e a todas as telas do sistema, permitindo que usuários do tipo `admin` enviem dúvidas com captura automática de contexto, e `superadmins` visualizem e respondam todas as perguntas através de um repositório serverless DynamoDB seguindo Single-Table Design.
+
+### Comportamento e Regras
+- **Banco de Dados (DynamoDB `salesapp-helpdesk`)**:
+  - Tabela independente com modelo OneTable (`PK`, `SK`) e índice global secundário (`GSI1` com `GSI1PK`, `GSI1SK`).
+  - Entidade de Pergunta Principal (`FAQ#<id>` / `METADATA`), Mensagens da Conversa (`MSG#<timestamp>#<id>`) e Histórico de Edição da Pergunta Original (`HIST#<timestamp>#V<version>`).
+- **Níveis de Acesso e Isolamento**:
+  - **Admins**: Podem enviar perguntas e visualizam exclusivamente o seu próprio histórico de perguntas e respostas. Nenhum admin tem visibilidade sobre dúvidas de outros admins.
+  - **Superadmins**: Acesso irrestrito para visualizar todas as perguntas enviadas no sistema, responder em threads estilo chat e filtrar por status.
+  - **Consultores (`user`)**: Não possuem acesso ao envio nem ao painel privado, preservando o foco operacional.
+- **Ciclo de Status**:
+  - `Não lido` (status inicial na criação da dúvida).
+  - `Lida` (marcado pelo superadmin ao tomar conhecimento).
+  - `Pendente` (quando há ação ou resposta em aguardo).
+  - `Resolvido` (pode ser marcado ou reaberto por qualquer um dos envolvidos na conversa).
+- **Botão Flutuante "?" (Sticky Help)**:
+  - Exibido exclusivamente para admins e superadmins em todas as telas da aplicação.
+  - Surge de forma suave no canto superior direito apenas quando o usuário rola a página para baixo (`scrollY > 150px`), sem interferir na navegação ou em menus móveis.
+  - Ao clicar, abre o modal de criação já preenchendo automaticamente a URL de origem da dúvida.
+- **Painel Central de Dúvidas**:
+  - Integrado ao rodapé da Central de Documentação/Ajuda (`#/documents`).
+  - Permite aos admins ver suas próprias dúvidas e aos superadmins gerenciar todas as perguntas com filtros por status e respostas em tempo real.
+- **Notificação e Alertas**:
+  - Selo numérico vermelho (Badge) dinâmico no item de menu "Ajuda", indicando a contagem de dúvidas em status "Não lido" ou "Pendente".
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Helpdesk/Models/HelpdeskQuestion.cs`
+- `SalesApp.Api/Helpdesk/DTOs/HelpdeskDtos.cs`
+- `SalesApp.Api/Helpdesk/Repositories/IHelpdeskRepository.cs`
+- `SalesApp.Api/Helpdesk/Repositories/DynamoDbHelpdeskRepository.cs`
+- `SalesApp.Api/Helpdesk/Services/IHelpdeskService.cs`
+- `SalesApp.Api/Helpdesk/Services/HelpdeskService.cs`
+- `SalesApp.Api/Helpdesk/Controllers/HelpdeskController.cs`
+- `SalesApp.Api/ReportFilters/Settings/DynamoDbSettings.cs`
+- `SalesApp.Api/Startup.cs`
+- `SalesApp.Api/appsettings.json`
+- `client/sales-dash/src/services/apiService.ts`
+- `client/sales-dash/src/components/Document/HelpdeskModal.tsx`
+- `client/sales-dash/src/components/Document/HelpdeskSection.tsx`
+- `client/sales-dash/src/components/Document/StickyHelpButton.tsx`
+- `client/sales-dash/src/components/Document/DocumentIndex.tsx`
+- `client/sales-dash/src/components/Menu.tsx`
+- `client/sales-dash/src/App.tsx`
+- `SalesApp.IntegrationTests/Helpdesk/HelpdeskIntegrationTests.cs`
+
+---
+
+## Perguntas Frequentes (FAQ) & Regras do Sistema (`#/document/documentacao/perguntas-frequentes`)
+
+Seção oficial de Perguntas e Respostas na Central de Documentação/Ajuda, detalhando tanto as regras técnicas de importação de contratos e atualização de vínculos com matrículas divergentes (baseadas no arquivo técnico de auditoria `MD/QA.txt`) quanto as principais dúvidas operacionais e regras de negócio do sistema.
+
+### Comportamento e Regras
+- **Navegação por Âncoras**: Sumário com links diretos para cada uma das perguntas e respostas frequentes.
+- **Regras Técnicas de Importação de Contratos**:
+  - Explicação completa do comportamento de importação (`ImportExecutionService.cs`) quando um contrato na planilha possui matrícula divergente da cadastrada no sistema.
+  - Tabela comparativa e detalhamento da flag `updateMatriculaOnExisting` (`true` vs `false`), retenção do consultor atribuído (`UserInternalId`), vínculo automático em `UserMatriculas` e auditoria em `MatriculaChanges`.
+  - Confirmação de que o status (`ContractStatusId`, `RawStatus`), valores e data de atualização sempre são sincronizados pela planilha independentemente da matrícula.
+- **Perguntas Operacionais e Comerciais**:
+  - Prazos e necessidade do cadastro imediato de contratos pelo botão `+ Novo` em Meus Contratos para evitar atraso no pagamento de comissões.
+  - Esclarecimento sobre o status "Aguardando importação" em Contratos Solicitados.
+  - A importância de manter sempre uma equipe ativa (sem data final) no Calendário de Equipes.
+  - Funcionamento e objetivo do módulo de Perguntas e Respostas (`#/qa`).
+- **Acesso na Central de Ajuda**: Link adicionado no card "Documentação" em `DocumentIndex.tsx`.
+
+### Arquivos Adicionados / Modificados
+- `client/sales-dash/public/docs/documentacao/perguntas-frequentes.md`
+- `client/sales-dash/src/components/Document/DocumentIndex.tsx`
+
+---
 ## Manual Operacional: Como Usar Solicitações (`#/document/como-fazer/como-usar-solicitacoes`)
 
 Manual operacional passo a passo detalhando o funcionamento completo do módulo de Solicitações (`#/requests`), estruturado com índice de âncoras para navegação rápida e mini how-tos explicativos e concisos para cada um dos 6 tipos de solicitação do sistema.

@@ -2,6 +2,7 @@ import React from 'react';
 import { Title, Text, SimpleGrid, Card, Group, Badge, Stack, ThemeIcon, Anchor } from '@mantine/core';
 import { IconBook, IconHelp, IconArrowRight, IconFileText } from '@tabler/icons-react';
 import Menu from '../Menu';
+import { HelpdeskSection } from './HelpdeskSection';
 import './Document.css';
 
 export const DocumentIndex: React.FC = () => {
@@ -101,6 +102,9 @@ export const DocumentIndex: React.FC = () => {
               </Stack>
             </Card>
           </SimpleGrid>
+
+          {/* Helpdesk FAQ / Q&A Section */}
+          <HelpdeskSection />
         </div>
       </div>
     </Menu>

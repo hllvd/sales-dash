@@ -36,8 +36,9 @@ import RequestsPage from './components/RequestsPage';
 import DocumentPage from './components/Document/DocumentPage';
 import DocumentIndex from './components/Document/DocumentIndex';
 import SurveyPage from './components/Survey/SurveyPage';
-import MyQAPage from './components/Survey/MyQAPage';
+import { MyQAPage } from './components/Survey/MyQAPage';
 import { SurveyModal } from './components/Survey/SurveyModal';
+import { StickyHelpButton } from './components/Document/StickyHelpButton';
 import { surveyPollingService } from './services/surveyPollingService';
 import { ContractsProvider } from './contexts/ContractsContext';
 import { UsersProvider } from './contexts/UsersContext';
@@ -193,6 +194,7 @@ function App() {
               <MantineProvider>
                 <Notifications />
                 <SurveyModal />
+                <StickyHelpButton />
                 <ErrorBoundary>
                   {renderPage()}
                 </ErrorBoundary>

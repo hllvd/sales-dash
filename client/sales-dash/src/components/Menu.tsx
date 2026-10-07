@@ -3,7 +3,7 @@ import { AppShell, NavLink, Text, Group, Button, Tooltip, Burger, Badge } from '
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { useBuildInfo } from '../contexts/BuildInfoContext';
 import { UserRole } from '../types/UserRole';
-import { apiService } from '../services/apiService';
+import { apiService, helpdeskApiService } from '../services/apiService';
 import './Menu.css';
 import {
   IconUsers,
@@ -63,6 +63,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   );
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [pendingSurveyCount, setPendingSurveyCount] = useState<number>(0);
+  const [pendingHelpdeskCount, setPendingHelpdeskCount] = useState<number>(0);
 
   useEffect(() => {
     const updateSurveyCount = () => {
@@ -81,6 +82,14 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         .then((res) => {
           if (res.success && res.data) {
             setPendingCount(res.data.length);
+          }
+        })
+        .catch(() => {});
+
+      helpdeskApiService.getUnreadCount()
+        .then((res) => {
+          if (res.success && res.data) {
+            setPendingHelpdeskCount(res.data.unreadCount || 0);
           }
         })
         .catch(() => {});
@@ -563,6 +572,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             href="#/documents"
             label="Ajuda"
             leftSection={<IconBook2 size={20} />}
+            rightSection={pendingHelpdeskCount > 0 ? <Badge size="xs" circle color="red">{pendingHelpdeskCount}</Badge> : undefined}
             active={isActive('#/documents')}
             variant="filled"
             color="red"

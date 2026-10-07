@@ -2675,7 +2675,99 @@ export interface AdminMigrateTeamMemberResult {
   message: string
 }
 
+export interface HelpdeskMessageDto {
+  messageId: string
+  senderUserId: string
+  senderName: string
+  senderRole: string
+  content: string
+  createdAt: string
+}
 
+export interface HelpdeskEditHistoryDto {
+  version: number
+  previousContent: string
+  editedAt: string
+}
 
+export interface HelpdeskQuestionDto {
+  questionId: string
+  userId: string
+  userEmail: string
+  userName: string
+  title: string
+  currentContent: string
+  sourcePageUrl: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  messages: HelpdeskMessageDto[]
+  editHistory: HelpdeskEditHistoryDto[]
+}
 
+export interface HelpdeskUnreadCountDto {
+  unreadCount: number
+}
 
+export const helpdeskApiService = {
+  createQuestion: async (data: { title: string; content: string; sourcePageUrl?: string }): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    return response.json()
+  },
+
+  listQuestions: async (status?: string): Promise<ApiResponse<HelpdeskQuestionDto[]>> => {
+    const query = status ? `?status=${encodeURIComponent(status)}` : ''
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions${query}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+
+  getQuestionById: async (id: string): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions/${id}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+
+  updateQuestion: async (id: string, content: string): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ content }),
+    })
+    return response.json()
+  },
+
+  updateStatus: async (id: string, status: string): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions/${id}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status }),
+    })
+    return response.json()
+  },
+
+  addMessage: async (id: string, content: string): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions/${id}/messages`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ content }),
+    })
+    return response.json()
+  },
+
+  getUnreadCount: async (): Promise<ApiResponse<HelpdeskUnreadCountDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/unread-count`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+}

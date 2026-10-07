@@ -120,7 +120,8 @@ export default defineConfig({
         'batch_merge_users.spec.ts',
         'batch_merge_matriculas.spec.ts',
         'admin_create_user_gestor_defaults.spec.ts',
-        'surveys_qa.spec.ts'
+        'surveys_qa.spec.ts',
+        'helpdesk_faq_flow.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['tear-2a-import', 'tear-2b-roles']
