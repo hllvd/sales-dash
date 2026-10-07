@@ -1,3 +1,26 @@
+## Perguntas Frequentes (FAQ) & Regras do Sistema (`#/document/documentacao/perguntas-frequentes`)
+
+Seção oficial de Perguntas e Respostas na Central de Documentação/Ajuda, detalhando tanto as regras técnicas de importação de contratos e atualização de vínculos com matrículas divergentes (baseadas no arquivo técnico de auditoria `MD/QA.txt`) quanto as principais dúvidas operacionais e regras de negócio do sistema.
+
+### Comportamento e Regras
+- **Navegação por Âncoras**: Sumário com links diretos para cada uma das perguntas e respostas frequentes.
+- **Regras Técnicas de Importação de Contratos**:
+  - Explicação completa do comportamento de importação (`ImportExecutionService.cs`) quando um contrato na planilha possui matrícula divergente da cadastrada no sistema.
+  - Tabela comparativa e detalhamento da flag `updateMatriculaOnExisting` (`true` vs `false`), retenção do consultor atribuído (`UserInternalId`), vínculo automático em `UserMatriculas` e auditoria em `MatriculaChanges`.
+  - Confirmação de que o status (`ContractStatusId`, `RawStatus`), valores e data de atualização sempre são sincronizados pela planilha independentemente da matrícula.
+- **Perguntas Operacionais e Comerciais**:
+  - Prazos e necessidade do cadastro imediato de contratos pelo botão `+ Novo` em Meus Contratos para evitar atraso no pagamento de comissões.
+  - Esclarecimento sobre o status "Aguardando importação" em Contratos Solicitados.
+  - A importância de manter sempre uma equipe ativa (sem data final) no Calendário de Equipes.
+  - Funcionamento e objetivo do módulo de Perguntas e Respostas (`#/qa`).
+- **Acesso na Central de Ajuda**: Link adicionado no card "Documentação" em `DocumentIndex.tsx`.
+
+### Arquivos Adicionados / Modificados
+- `client/sales-dash/public/docs/documentacao/perguntas-frequentes.md`
+- `client/sales-dash/src/components/Document/DocumentIndex.tsx`
+
+---
+
 ## Manual Operacional: Como Usar Solicitações (`#/document/como-fazer/como-usar-solicitacoes`)
 
 Manual operacional passo a passo detalhando o funcionamento completo do módulo de Solicitações (`#/requests`), estruturado com índice de âncoras para navegação rápida e mini how-tos explicativos e concisos para cada um dos 6 tipos de solicitação do sistema.

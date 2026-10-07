@@ -98,6 +98,16 @@ export const DocumentIndex: React.FC = () => {
                   <span>Introdução ao Sistema</span>
                   <IconArrowRight size={14} style={{ marginLeft: 'auto' }} />
                 </Anchor>
+
+                <Anchor
+                  href="#/document/documentacao/perguntas-frequentes"
+                  underline="hover"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0969da' }}
+                >
+                  <IconFileText size={16} />
+                  <span>Perguntas Frequentes (FAQ)</span>
+                  <IconArrowRight size={14} style={{ marginLeft: 'auto' }} />
+                </Anchor>
               </Stack>
             </Card>
           </SimpleGrid>
