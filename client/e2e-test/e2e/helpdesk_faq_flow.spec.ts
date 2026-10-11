@@ -20,7 +20,7 @@ test.describe('Helpdesk Private FAQ Flow (TEAR 3B)', () => {
     superadminReply = `Resposta oficial do Superadmin ${runId}: Os valores de comissao sao calculados com base no Total Ativo.`;
   });
 
-  test('Step 1: Admin 1 scrolls down, clicks sticky help ?, and submits question', async ({ page }) => {
+  test('Step 1: Admin 1 clicks help ? (visible immediately without scroll), attaches an image, and submits question', async ({ page }) => {
     test.setTimeout(60000);
     await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
@@ -28,14 +28,7 @@ test.describe('Helpdesk Private FAQ Flow (TEAR 3B)', () => {
     await page.goto('/#/my-contracts');
     await expect(page.locator('h1, h2, .mantine-Title-root').first()).toBeVisible({ timeout: 15000 });
 
-    // Ensure page can scroll and scroll down > 150px to trigger sticky button
-    await page.evaluate(() => {
-      document.body.style.minHeight = '2000px';
-      window.scrollTo(0, 300);
-      window.dispatchEvent(new Event('scroll'));
-    });
-    await page.waitForTimeout(500);
-
+    // Verify ? help button is immediately visible on the page WITHOUT scrolling
     const helpBtn = page.locator('button[aria-label="Ajuda e FAQ"]');
     await expect(helpBtn).toBeVisible({ timeout: 10000 });
     await helpBtn.click();
@@ -48,6 +41,21 @@ test.describe('Helpdesk Private FAQ Flow (TEAR 3B)', () => {
     // Fill form
     await modal.locator('input[placeholder*="Como funciona a retenção"]').fill(questionTitle);
     await modal.locator('textarea[placeholder*="Explique o cenário"]').fill(questionContent);
+
+    // Attach sample image (PNG)
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await modal.getByRole('button', { name: /Adicionar Imagem/i }).click();
+    const fileChooser = await fileChooserPromise;
+    // 1x1 transparent PNG buffer
+    const pngBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    await fileChooser.setFiles({
+      name: 'screenshot.png',
+      mimeType: 'image/png',
+      buffer: pngBuffer
+    });
+
+    // Verify image preview is rendered
+    await expect(modal.getByAltText('Preview da dúvida')).toBeVisible({ timeout: 10000 });
 
     // Submit question
     await modal.getByRole('button', { name: 'Enviar Pergunta' }).click();
@@ -95,13 +103,19 @@ test.describe('Helpdesk Private FAQ Flow (TEAR 3B)', () => {
     await modal.getByRole('button', { name: 'Enviar Mensagem' }).click();
     await expect(modal.getByText(superadminReply)).toBeVisible({ timeout: 10000 });
 
-    // Mark as resolved
+    // Mark as resolved (opens confirmation dialog for AI Knowledge Base summary)
     const resolveBtn = modal.getByRole('button', { name: 'Marcar como Resolvido' });
     await resolveBtn.click();
+
+    // Confirm AI summary generation
+    const confirmDialog = page.getByRole('dialog', { name: 'Marcar como Resolvido' });
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole('button', { name: 'Sim, gerar resumo com IA' }).click();
+
     await expect(modal.locator('.mantine-Badge-root', { hasText: 'Resolvido' })).toBeVisible({ timeout: 10000 });
 
-    // Close modal
-    await modal.locator('.mantine-Modal-close').click();
+    // Close question modal
+    await modal.locator('.mantine-Modal-close').first().click();
     await expect(modal).not.toBeVisible();
   });
 
@@ -114,10 +128,11 @@ test.describe('Helpdesk Private FAQ Flow (TEAR 3B)', () => {
     await expect(row).toBeVisible({ timeout: 15000 });
     await expect(row.getByText('Resolvido')).toBeVisible();
 
-    // Open thread to confirm reply content
+    // Open thread to confirm reply content and attached image
     await row.click();
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible();
     await expect(modal.getByText(superadminReply)).toBeVisible();
+    await expect(modal.getByAltText('Imagem da dúvida')).toBeVisible({ timeout: 10000 });
   });
 });

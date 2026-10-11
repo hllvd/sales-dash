@@ -46,6 +46,7 @@ namespace SalesApp.Helpdesk.Repositories
                 { "title", new AttributeValue { S = question.Title } },
                 { "currentContent", new AttributeValue { S = question.CurrentContent } },
                 { "sourcePageUrl", new AttributeValue { S = question.SourcePageUrl ?? "" } },
+                { "imageUrl", new AttributeValue { S = question.ImageUrl ?? "" } },
                 { "status", new AttributeValue { S = question.Status } },
                 { "createdAt", new AttributeValue { S = question.CreatedAt.ToString("O") } },
                 { "updatedAt", new AttributeValue { S = question.UpdatedAt.ToString("O") } },
@@ -72,6 +73,7 @@ namespace SalesApp.Helpdesk.Repositories
                 { "title", new AttributeValue { S = question.Title } },
                 { "currentContent", new AttributeValue { S = question.CurrentContent } },
                 { "sourcePageUrl", new AttributeValue { S = question.SourcePageUrl ?? "" } },
+                { "imageUrl", new AttributeValue { S = question.ImageUrl ?? "" } },
                 { "status", new AttributeValue { S = question.Status } },
                 { "createdAt", new AttributeValue { S = question.CreatedAt.ToString("O") } },
                 { "updatedAt", new AttributeValue { S = question.UpdatedAt.ToString("O") } }
@@ -120,6 +122,7 @@ namespace SalesApp.Helpdesk.Repositories
                         SenderName = item.GetValueOrDefault("senderName")?.S ?? "",
                         SenderRole = item.GetValueOrDefault("senderRole")?.S ?? "",
                         Content = item.GetValueOrDefault("content")?.S ?? "",
+                        ImageUrl = item.TryGetValue("imageUrl", out var imgVal) && !string.IsNullOrEmpty(imgVal.S) ? imgVal.S : null,
                         CreatedAt = DateTime.TryParse(item.GetValueOrDefault("createdAt")?.S, out var ca) ? ca : DateTime.UtcNow
                     });
                 }
@@ -250,6 +253,7 @@ namespace SalesApp.Helpdesk.Repositories
                 { "senderName", new AttributeValue { S = message.SenderName } },
                 { "senderRole", new AttributeValue { S = message.SenderRole } },
                 { "content", new AttributeValue { S = message.Content } },
+                { "imageUrl", new AttributeValue { S = message.ImageUrl ?? "" } },
                 { "createdAt", new AttributeValue { S = now.ToString("O") } }
             };
 
@@ -413,6 +417,7 @@ namespace SalesApp.Helpdesk.Repositories
                 Title = item.GetValueOrDefault("title")?.S ?? "",
                 CurrentContent = item.GetValueOrDefault("currentContent")?.S ?? "",
                 SourcePageUrl = item.GetValueOrDefault("sourcePageUrl")?.S ?? "",
+                ImageUrl = item.TryGetValue("imageUrl", out var imgVal) && !string.IsNullOrEmpty(imgVal.S) ? imgVal.S : null,
                 Status = item.GetValueOrDefault("status")?.S ?? "Não lido",
                 CreatedAt = DateTime.TryParse(item.GetValueOrDefault("createdAt")?.S, out var ca) ? ca : DateTime.UtcNow,
                 UpdatedAt = DateTime.TryParse(item.GetValueOrDefault("updatedAt")?.S, out var ua) ? ua : DateTime.UtcNow

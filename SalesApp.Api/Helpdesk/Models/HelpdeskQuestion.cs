@@ -12,6 +12,7 @@ namespace SalesApp.Helpdesk.Models
         public string Title { get; set; } = string.Empty;
         public string CurrentContent { get; set; } = string.Empty;
         public string SourcePageUrl { get; set; } = string.Empty;
+        public string? ImageUrl { get; set; }
         public string Status { get; set; } = "Não lido"; // "Não lido", "Lida", "Pendente", "Resolvido"
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -27,6 +28,7 @@ namespace SalesApp.Helpdesk.Models
         public string SenderName { get; set; } = string.Empty;
         public string SenderRole { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
+        public string? ImageUrl { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 

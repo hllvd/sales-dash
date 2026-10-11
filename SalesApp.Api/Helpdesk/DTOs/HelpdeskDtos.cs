@@ -8,6 +8,7 @@ namespace SalesApp.Helpdesk.DTOs
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string? SourcePageUrl { get; set; }
+        public string? ImageUrl { get; set; }
     }
 
     public class UpdateHelpdeskQuestionRequest
@@ -18,11 +19,13 @@ namespace SalesApp.Helpdesk.DTOs
     public class AddHelpdeskMessageRequest
     {
         public string Content { get; set; } = string.Empty;
+        public string? ImageUrl { get; set; }
     }
 
     public class UpdateHelpdeskStatusRequest
     {
         public string Status { get; set; } = string.Empty; // "Não lido", "Lida", "Pendente", "Resolvido"
+        public bool GenerateSummary { get; set; } = false;
     }
 
     public class HelpdeskQuestionResponse
@@ -34,6 +37,7 @@ namespace SalesApp.Helpdesk.DTOs
         public string Title { get; set; } = string.Empty;
         public string CurrentContent { get; set; } = string.Empty;
         public string SourcePageUrl { get; set; } = string.Empty;
+        public string? ImageUrl { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
@@ -48,6 +52,7 @@ namespace SalesApp.Helpdesk.DTOs
         public string SenderName { get; set; } = string.Empty;
         public string SenderRole { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
+        public string? ImageUrl { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -61,5 +66,18 @@ namespace SalesApp.Helpdesk.DTOs
     public class HelpdeskUnreadCountResponse
     {
         public int UnreadCount { get; set; }
+    }
+
+    public class KnowledgeBaseArticleResponse
+    {
+        public string ArticleId { get; set; } = string.Empty;
+        public string QuestionId { get; set; } = string.Empty;
+        public string Category { get; set; } = "FAQ"; // "FAQ" or "COMO_FAZER"
+        public string Title { get; set; } = string.Empty;
+        public string Slug { get; set; } = string.Empty;
+        public string SummaryContent { get; set; } = string.Empty;
+        public string Status { get; set; } = "published"; // "draft", "published"
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
     }
 }

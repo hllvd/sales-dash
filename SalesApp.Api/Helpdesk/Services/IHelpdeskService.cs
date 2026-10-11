@@ -13,5 +13,7 @@ namespace SalesApp.Helpdesk.Services
         Task<HelpdeskQuestionResponse> AddMessageAsync(string questionId, string callerUserId, string callerName, string callerRole, AddHelpdeskMessageRequest request);
         Task<List<HelpdeskQuestionResponse>> ListQuestionsAsync(string callerUserId, bool isSuperAdmin, string? statusFilter = null);
         Task<HelpdeskUnreadCountResponse> GetUnreadCountAsync(string callerUserId, bool isSuperAdmin);
+        Task<List<KnowledgeBaseArticleResponse>> ListKnowledgeBaseArticlesAsync(string? category = null);
+        Task<KnowledgeBaseArticleResponse?> GetKnowledgeBaseArticleBySlugAsync(string slug);
     }
 }

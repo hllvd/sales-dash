@@ -4,7 +4,6 @@ import { IconHelp } from '@tabler/icons-react';
 import { HelpdeskModal } from './HelpdeskModal';
 
 export const StickyHelpButton: React.FC = () => {
-  const [visible, setVisible] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
 
@@ -44,18 +43,8 @@ export const StickyHelpButton: React.FC = () => {
 
     updateRole();
 
-    const handleScroll = () => {
-      if (window.scrollY > 150) {
-        setVisible(true);
-      } else {
-        setVisible(false);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('storage', updateRole);
     return () => {
-      window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('storage', updateRole);
     };
   }, []);
@@ -64,7 +53,7 @@ export const StickyHelpButton: React.FC = () => {
   const role = userRole.toLowerCase();
   const canAsk = role === 'admin' || role === 'superadmin';
 
-  if (!canAsk || !visible) {
+  if (!canAsk) {
     return null;
   }
 

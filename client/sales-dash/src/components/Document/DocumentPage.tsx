@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import { Button, Loader, Alert, Breadcrumbs, Anchor, Text, Group } from '@mantine/core';
-import { IconPrinter, IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
+import { Button, Loader, Alert, Breadcrumbs, Anchor, Text, Group, Badge } from '@mantine/core';
+import { IconPrinter, IconAlertCircle, IconArrowLeft, IconSparkles } from '@tabler/icons-react';
 import Menu from '../Menu';
+import { helpdeskApiService, KnowledgeBaseArticleDto } from '../../services/apiService';
 import './Document.css';
 
 interface DocumentPageProps {
@@ -15,19 +16,24 @@ export const DocumentPage: React.FC<DocumentPageProps> = ({ docPath }) => {
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [kbArticle, setKbArticle] = useState<KnowledgeBaseArticleDto | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
     setError(null);
+    setKbArticle(null);
 
     const cleanDocPath = docPath.replace(/^\/+|\/+$/g, '');
+    const pathParts = cleanDocPath.split('/');
+    const slug = pathParts[pathParts.length - 1];
     const url = `${process.env.PUBLIC_URL || ''}/docs/${cleanDocPath}.md`;
 
+    // 1. Try fetching static markdown file
     fetch(url)
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) {
-          throw new Error(`Documento não encontrado (status HTTP ${res.status})`);
+          throw new Error(`Static file not found (${res.status})`);
         }
         return res.text();
       })
@@ -37,10 +43,25 @@ export const DocumentPage: React.FC<DocumentPageProps> = ({ docPath }) => {
           setLoading(false);
         }
       })
-      .catch((err) => {
-        if (isMounted) {
-          setError(err.message || 'Falha ao carregar o documento');
-          setLoading(false);
+      .catch(async () => {
+        // 2. Fallback: Check DynamoDB Knowledge Base API
+        try {
+          const apiRes = await helpdeskApiService.getKnowledgeBaseArticle(slug);
+          if (isMounted) {
+            if (apiRes.success && apiRes.data) {
+              setKbArticle(apiRes.data);
+              setContent(`# ${apiRes.data.title}\n\n${apiRes.data.summaryContent}`);
+              setLoading(false);
+            } else {
+              setError(`Documento "${cleanDocPath}" não encontrado na base de documentação.`);
+              setLoading(false);
+            }
+          }
+        } catch (apiErr: any) {
+          if (isMounted) {
+            setError(apiErr.message || 'Falha ao carregar o documento');
+            setLoading(false);
+          }
         }
       });
 
@@ -72,8 +93,13 @@ export const DocumentPage: React.FC<DocumentPageProps> = ({ docPath }) => {
                 </Text>
                 {topicName && (
                   <Text size="sm" fw={500} c="dark">
-                    {topicName}
+                    {kbArticle ? kbArticle.title : topicName}
                   </Text>
+                )}
+                {kbArticle && (
+                  <Badge size="xs" variant="light" color={kbArticle.category === 'FAQ' ? 'blue' : 'teal'} leftSection={<IconSparkles size={12} />}>
+                    Gerado por IA (Helpdesk)
+                  </Badge>
                 )}
               </Breadcrumbs>
               <Group gap="xs">

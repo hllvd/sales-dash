@@ -20,6 +20,37 @@ namespace SalesApp.Helpdesk.Controllers
             _service = service;
         }
 
+        [HttpPost("questions/upload-image")]
+        public async Task<IActionResult> UploadImage([FromForm] Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            var callerRole = GetCallerRole();
+            if (!IsAdminOrSuperAdmin(callerRole))
+                return Forbid("Apenas administradores podem fazer upload de imagens.");
+
+            if (file == null || file.Length == 0)
+                return BadRequest(new { success = false, message = "Nenhum arquivo enviado." });
+
+            var allowedMimeTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+            if (!allowedMimeTypes.Contains(file.ContentType.ToLowerInvariant()))
+            {
+                return BadRequest(new { success = false, message = "Apenas arquivos de imagem (PNG, JPG, GIF, WebP) são permitidos. Vídeos e outros arquivos não são aceitos." });
+            }
+
+            // Max 10MB
+            if (file.Length > 10 * 1024 * 1024)
+            {
+                return BadRequest(new { success = false, message = "A imagem deve ter no máximo 10MB." });
+            }
+
+            using var memoryStream = new System.IO.MemoryStream();
+            await file.CopyToAsync(memoryStream);
+            var bytes = memoryStream.ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            var dataUri = $"data:{file.ContentType.ToLowerInvariant()};base64,{base64}";
+
+            return Ok(new { success = true, data = new { imageUrl = dataUri } });
+        }
+
         [HttpPost("questions")]
         public async Task<IActionResult> CreateQuestion([FromBody] CreateHelpdeskQuestionRequest request)
         {
@@ -171,6 +202,23 @@ namespace SalesApp.Helpdesk.Controllers
 
             var result = await _service.GetUnreadCountAsync(userId, isSuperAdmin);
             return Ok(new { success = true, data = result });
+        }
+
+        [HttpGet("knowledge-base")]
+        public async Task<IActionResult> ListKnowledgeBaseArticles([FromQuery] string? category = null)
+        {
+            var articles = await _service.ListKnowledgeBaseArticlesAsync(category);
+            return Ok(new { success = true, data = articles });
+        }
+
+        [HttpGet("knowledge-base/{slug}")]
+        public async Task<IActionResult> GetKnowledgeBaseArticle(string slug)
+        {
+            var article = await _service.GetKnowledgeBaseArticleBySlugAsync(slug);
+            if (article == null)
+                return NotFound(new { success = false, message = "Artigo não encontrado." });
+
+            return Ok(new { success = true, data = article });
         }
 
         private static bool IsAdminOrSuperAdmin(string role)

@@ -11,11 +11,21 @@ namespace SalesApp.Helpdesk.Services
     public class HelpdeskService : IHelpdeskService
     {
         private readonly IHelpdeskRepository _repository;
+        private readonly IKnowledgeBaseRepository _knowledgeBaseRepository;
+        private readonly IGeminiLlmService _geminiLlmService;
+        private readonly ILogger<HelpdeskService> _logger;
         private static readonly HashSet<string> ValidStatuses = new() { "Não lido", "Lida", "Pendente", "Resolvido" };
 
-        public HelpdeskService(IHelpdeskRepository repository)
+        public HelpdeskService(
+            IHelpdeskRepository repository,
+            IKnowledgeBaseRepository knowledgeBaseRepository,
+            IGeminiLlmService geminiLlmService,
+            ILogger<HelpdeskService> logger)
         {
             _repository = repository;
+            _knowledgeBaseRepository = knowledgeBaseRepository;
+            _geminiLlmService = geminiLlmService;
+            _logger = logger;
         }
 
         public async Task<HelpdeskQuestionResponse> CreateQuestionAsync(string userId, string userEmail, string userName, CreateHelpdeskQuestionRequest request)
@@ -35,6 +45,7 @@ namespace SalesApp.Helpdesk.Services
                 Title = request.Title.Trim(),
                 CurrentContent = request.Content.Trim(),
                 SourcePageUrl = request.SourcePageUrl?.Trim() ?? "",
+                ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim(),
                 Status = "Não lido",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -89,6 +100,38 @@ namespace SalesApp.Helpdesk.Services
             await _repository.UpdateStatusAsync(questionId, request.Status);
 
             var updated = await _repository.GetQuestionByIdAsync(questionId);
+
+            if (request.Status == "Resolvido" && request.GenerateSummary && updated != null)
+            {
+                // Fire and forget in background so UI response is immediate
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        _logger.LogInformation("Generating LLM summary for resolved question {QuestionId}...", questionId);
+                        var summary = await _geminiLlmService.GenerateSummaryAsync(updated);
+                        var article = new KnowledgeBaseArticle
+                        {
+                            ArticleId = Guid.NewGuid().ToString("N"),
+                            QuestionId = updated.QuestionId,
+                            Category = summary.Category,
+                            Title = summary.Title,
+                            Slug = summary.Slug,
+                            SummaryContent = summary.Content,
+                            Status = "published",
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+                        await _knowledgeBaseRepository.SaveArticleAsync(article);
+                        _logger.LogInformation("Saved KB article {Slug} under category {Category}", article.Slug, article.Category);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to generate or save background summary for question {QuestionId}", questionId);
+                    }
+                });
+            }
+
             return MapToResponse(updated!);
         }
 
@@ -113,6 +156,7 @@ namespace SalesApp.Helpdesk.Services
                 SenderName = callerName,
                 SenderRole = callerRole,
                 Content = request.Content.Trim(),
+                ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim(),
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -147,6 +191,34 @@ namespace SalesApp.Helpdesk.Services
             return new HelpdeskUnreadCountResponse { UnreadCount = count };
         }
 
+        public async Task<List<KnowledgeBaseArticleResponse>> ListKnowledgeBaseArticlesAsync(string? category = null)
+        {
+            var articles = await _knowledgeBaseRepository.ListArticlesAsync(category);
+            return articles.Select(MapToArticleResponse).ToList();
+        }
+
+        public async Task<KnowledgeBaseArticleResponse?> GetKnowledgeBaseArticleBySlugAsync(string slug)
+        {
+            var article = await _knowledgeBaseRepository.GetArticleBySlugAsync(slug);
+            return article != null ? MapToArticleResponse(article) : null;
+        }
+
+        private static KnowledgeBaseArticleResponse MapToArticleResponse(KnowledgeBaseArticle a)
+        {
+            return new KnowledgeBaseArticleResponse
+            {
+                ArticleId = a.ArticleId,
+                QuestionId = a.QuestionId,
+                Category = a.Category,
+                Title = a.Title,
+                Slug = a.Slug,
+                SummaryContent = a.SummaryContent,
+                Status = a.Status,
+                CreatedAt = a.CreatedAt,
+                UpdatedAt = a.UpdatedAt
+            };
+        }
+
         private static HelpdeskQuestionResponse MapToResponse(HelpdeskQuestion q)
         {
             return new HelpdeskQuestionResponse
@@ -158,6 +230,7 @@ namespace SalesApp.Helpdesk.Services
                 Title = q.Title,
                 CurrentContent = q.CurrentContent,
                 SourcePageUrl = q.SourcePageUrl,
+                ImageUrl = q.ImageUrl,
                 Status = q.Status,
                 CreatedAt = q.CreatedAt,
                 UpdatedAt = q.UpdatedAt,
@@ -168,6 +241,7 @@ namespace SalesApp.Helpdesk.Services
                     SenderName = m.SenderName,
                     SenderRole = m.SenderRole,
                     Content = m.Content,
+                    ImageUrl = m.ImageUrl,
                     CreatedAt = m.CreatedAt
                 }).ToList(),
                 EditHistory = q.EditHistory.Select(h => new HelpdeskEditHistoryResponse

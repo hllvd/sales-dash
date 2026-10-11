@@ -1,3 +1,41 @@
+## Geração Automática de Artigos de Conhecimento com IA (Gemini Flash Lite) (`salesapp-helpdesk` / `#/document`)
+
+Alimentação autônoma da base de documentação e FAQ a partir de dúvidas resolvidas no Helpdesk, utilizando o modelo Gemini Flash Lite (`gemini-2.5-flash-lite`). Ao marcar uma pergunta como "Resolvido", o sistema oferece a opção de sintetizar o problema e sua solução em formato de artigo de documentação, alimentando dinamicamente as seções "Como Fazer" (`#/document/como-fazer/%`) ou "Perguntas Frequentes" (`#/document/documentacao/%`) para servir como base de conhecimento futura para atendimento automatizado com IA.
+
+### Comportamento e Regras
+- **Confirmação e Processamento Assíncrono**:
+  - Ao alterar o status de uma dúvida para `Resolvido` (seja pelo botão de ação rápida ou no seletor de status), o sistema abre uma janela de confirmação perguntando se o usuário deseja gerar um resumo automático com IA.
+  - Se confirmado (`generateSummary: true`), a requisição HTTP retorna imediatamente o status atualizado, e a sintetização do artigo ocorre em segundo plano via `Task.Run` no backend, sem travar a navegação do usuário.
+- **Classificação e Síntese via Gemini Flash Lite**:
+  - O serviço `GeminiLlmService` envia a pergunta original, contexto de origem e toda a cadeia de mensagens e respostas para a API do Gemini Flash Lite.
+  - O próprio modelo de IA classifica o artigo como `FAQ` ou `COMO_FAZER`, define um título objetivo, formata a resposta técnica em Markdown limpo e gera um slug amigável único (ex: `como-solicitar-novo-contrato-retroativo`).
+  - Caso a chave de API `GEMINI_API_KEY` não esteja presente no ambiente ou o serviço esteja inacessível, um mecanismo inteligente de fallback heurístico sintetiza a resposta preservando a continuidade operacional sem erros para o usuário.
+- **Armazenamento no DynamoDB (`salesapp-helpdesk`)**:
+  - Salvo na mesma tabela DynamoDB seguindo Single-Table Design (`PK = KB#ARTICLES`, `SK = CAT#<CATEGORY>#SLUG#<slug>`).
+  - Consulta eficiente por categoria utilizando a chave primária e operador `begins_with`, sem uso de operações `Scan` (totalmente compatível com as permissões IAM restritas da AWS).
+- **Indexação Dinâmica e Navegação Integrada**:
+  - A página inicial da documentação (`#/document`) consulta a API de artigos e exibe links categorizados com o distintivo de IA (`IA`), direcionando para as rotas correspondentes (`#/document/como-fazer/:slug` ou `#/document/documentacao/:slug`).
+  - O componente visualizador `DocumentPage` carrega primeiramente o arquivo estático markdown; caso não encontre, realiza fallback automático para buscar o artigo gerado por IA no DynamoDB via API, renderizando o conteúdo completo em Markdown com badge indicativo de geração por IA.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Helpdesk/Models/KnowledgeBaseArticle.cs`
+- `SalesApp.Api/Helpdesk/Repositories/IKnowledgeBaseRepository.cs`
+- `SalesApp.Api/Helpdesk/Repositories/DynamoDbKnowledgeBaseRepository.cs`
+- `SalesApp.Api/Helpdesk/Services/IGeminiLlmService.cs`
+- `SalesApp.Api/Helpdesk/Services/GeminiLlmService.cs`
+- `SalesApp.Api/Helpdesk/DTOs/HelpdeskDtos.cs`
+- `SalesApp.Api/Helpdesk/Services/IHelpdeskService.cs`
+- `SalesApp.Api/Helpdesk/Services/HelpdeskService.cs`
+- `SalesApp.Api/Helpdesk/Controllers/HelpdeskController.cs`
+- `SalesApp.Api/Startup.cs`
+- `client/sales-dash/src/services/apiService.ts`
+- `client/sales-dash/src/components/Document/HelpdeskModal.tsx`
+- `client/sales-dash/src/components/Document/DocumentIndex.tsx`
+- `client/sales-dash/src/components/Document/DocumentPage.tsx`
+- `client/sales-dash/public/docs/documentacao/perguntas-frequentes.md`
+
+---
+
 ## FAQ Privado e Sistema de Dúvidas Integrado (`salesapp-helpdesk` / `#/documents`)
 
 Sistema de suporte e FAQ privado integrado à Central de Ajuda e a todas as telas do sistema, permitindo que usuários do tipo `admin` enviem dúvidas com captura automática de contexto, e `superadmins` visualizem e respondam todas as perguntas através de um repositório serverless DynamoDB seguindo Single-Table Design.
@@ -15,10 +53,13 @@ Sistema de suporte e FAQ privado integrado à Central de Ajuda e a todas as tela
   - `Lida` (marcado pelo superadmin ao tomar conhecimento).
   - `Pendente` (quando há ação ou resposta em aguardo).
   - `Resolvido` (pode ser marcado ou reaberto por qualquer um dos envolvidos na conversa).
-- **Botão Flutuante "?" (Sticky Help)**:
-  - Exibido exclusivamente para admins e superadmins em todas as telas da aplicação.
-  - Surge de forma suave no canto superior direito apenas quando o usuário rola a página para baixo (`scrollY > 150px`), sem interferir na navegação ou em menus móveis.
+- **Botão Flutuante "?" (Helpdesk)**:
+  - Exibido para admins e superadmins em todas as telas da aplicação, sempre visível no canto superior direito sem necessidade de rolar a página para baixo (`scrollY`), permitindo acesso imediato à abertura de dúvidas de qualquer janela sem interferir na usabilidade.
   - Ao clicar, abre o modal de criação já preenchendo automaticamente a URL de origem da dúvida.
+- **Upload de Imagem na Dúvida**:
+  - Permite anexar imagem (PNG, JPG, WebP, GIF até 10MB) diretamente ao registrar uma pergunta (`FileButton`), com pré-visualização instantânea e opção de remoção.
+  - Validação estrita no backend e frontend: apenas imagens são aceitas (vídeos e outros arquivos não são permitidos).
+  - A imagem anexada é persistida e exibida no cabeçalho da dúvida para o SuperAdmin e Admin na thread de conversa.
 - **Painel Central de Dúvidas**:
   - Integrado ao rodapé da Central de Documentação/Ajuda (`#/documents`).
   - Permite aos admins ver suas próprias dúvidas e aos superadmins gerenciar todas as perguntas com filtros por status e respostas em tempo real.

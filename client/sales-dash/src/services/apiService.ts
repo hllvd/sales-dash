@@ -2681,6 +2681,7 @@ export interface HelpdeskMessageDto {
   senderName: string
   senderRole: string
   content: string
+  imageUrl?: string
   createdAt: string
 }
 
@@ -2698,6 +2699,7 @@ export interface HelpdeskQuestionDto {
   title: string
   currentContent: string
   sourcePageUrl: string
+  imageUrl?: string
   status: string
   createdAt: string
   updatedAt: string
@@ -2709,8 +2711,34 @@ export interface HelpdeskUnreadCountDto {
   unreadCount: number
 }
 
+export interface KnowledgeBaseArticleDto {
+  articleId: string
+  questionId: string
+  category: 'FAQ' | 'COMO_FAZER'
+  title: string
+  slug: string
+  summaryContent: string
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
 export const helpdeskApiService = {
-  createQuestion: async (data: { title: string; content: string; sourcePageUrl?: string }): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+  uploadImage: async (file: File): Promise<ApiResponse<{ imageUrl: string }>> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${API_BASE_URL}/helpdesk/questions/upload-image`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    })
+    return response.json()
+  },
+
+  createQuestion: async (data: { title: string; content: string; sourcePageUrl?: string; imageUrl?: string }): Promise<ApiResponse<HelpdeskQuestionDto>> => {
     const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -2745,11 +2773,11 @@ export const helpdeskApiService = {
     return response.json()
   },
 
-  updateStatus: async (id: string, status: string): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+  updateStatus: async (id: string, status: string, generateSummary: boolean = false): Promise<ApiResponse<HelpdeskQuestionDto>> => {
     const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions/${id}/status`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, generateSummary }),
     })
     return response.json()
   },
@@ -2765,6 +2793,23 @@ export const helpdeskApiService = {
 
   getUnreadCount: async (): Promise<ApiResponse<HelpdeskUnreadCountDto>> => {
     const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/unread-count`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+
+  listKnowledgeBaseArticles: async (category?: string): Promise<ApiResponse<KnowledgeBaseArticleDto[]>> => {
+    const query = category ? `?category=${encodeURIComponent(category)}` : ''
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/knowledge-base${query}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+
+  getKnowledgeBaseArticle: async (slug: string): Promise<ApiResponse<KnowledgeBaseArticleDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/knowledge-base/${encodeURIComponent(slug)}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     })

@@ -15,17 +15,17 @@ import {
   Center,
   ScrollArea,
   ActionIcon,
-  Tooltip
+  FileButton,
+  Image
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconSend,
   IconEdit,
   IconCheck,
-  IconClock,
   IconHistory,
-  IconAlertCircle,
-  IconMessageDots
+  IconPhoto,
+  IconTrash
 } from '@tabler/icons-react';
 import { helpdeskApiService, HelpdeskQuestionDto } from '../../services/apiService';
 
@@ -50,14 +50,22 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
   // New question form state
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Reply message form state
   const [replyContent, setReplyContent] = useState('');
+  const [replyImageUrl, setReplyImageUrl] = useState<string | null>(null);
+  const [uploadingReplyImage, setUploadingReplyImage] = useState(false);
 
   // Edit original content state
   const [isEditingOriginal, setIsEditingOriginal] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+
+  // Confirmation modal for AI Knowledge Base summary generation
+  const [confirmResolveModalOpen, setConfirmResolveModalOpen] = useState(false);
+  const [targetResolveStatus, setTargetResolveStatus] = useState<string>('Resolvido');
 
   useEffect(() => {
     const userJson = localStorage.getItem('user');
@@ -78,11 +86,63 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
         setQuestion(null);
         setTitle('');
         setContent('');
+        setImageUrl(null);
         setReplyContent('');
+        setReplyImageUrl(null);
         setIsEditingOriginal(false);
       }
     }
   }, [opened, questionId]);
+
+  const handleImageUpload = async (file: File | null) => {
+    if (!file) return;
+
+    // Validate type strictly to image (no videos)
+    if (!file.type.startsWith('image/')) {
+      notifications.show({
+        title: 'Formato inválido',
+        message: 'Apenas arquivos de imagem são permitidos. Vídeos não são aceitos.',
+        color: 'red'
+      });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      notifications.show({
+        title: 'Arquivo muito grande',
+        message: 'A imagem deve ter no máximo 10MB.',
+        color: 'red'
+      });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const res = await helpdeskApiService.uploadImage(file);
+      if (res.success && res.data?.imageUrl) {
+        setImageUrl(res.data.imageUrl);
+        notifications.show({
+          title: 'Imagem anexada',
+          message: 'Imagem carregada com sucesso!',
+          color: 'green'
+        });
+      } else {
+        notifications.show({
+          title: 'Erro',
+          message: res.message || 'Falha ao carregar imagem.',
+          color: 'red'
+        });
+      }
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro',
+        message: err.message || 'Erro ao fazer upload da imagem.',
+        color: 'red'
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const loadQuestion = async (id: string) => {
     setLoading(true);
@@ -124,7 +184,8 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
       const res = await helpdeskApiService.createQuestion({
         title: title.trim(),
         content: content.trim(),
-        sourcePageUrl: window.location.hash || window.location.pathname
+        sourcePageUrl: window.location.hash || window.location.pathname,
+        imageUrl: imageUrl || undefined
       });
 
       if (res.success) {
@@ -133,6 +194,7 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
           message: 'Sua dúvida foi registrada com sucesso!',
           color: 'green'
         });
+        setImageUrl(null);
         onSaved?.();
         onClose();
       } else {
@@ -207,16 +269,28 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
     }
   };
 
-  const handleChangeStatus = async (newStatus: string) => {
+  const requestChangeStatus = (newStatus: string) => {
+    if (!question || !newStatus) return;
+    if (newStatus === 'Resolvido') {
+      setTargetResolveStatus('Resolvido');
+      setConfirmResolveModalOpen(true);
+    } else {
+      executeChangeStatus(newStatus, false);
+    }
+  };
+
+  const executeChangeStatus = async (newStatus: string, generateSummary: boolean) => {
     if (!question || !newStatus) return;
 
     try {
-      const res = await helpdeskApiService.updateStatus(question.questionId, newStatus);
+      const res = await helpdeskApiService.updateStatus(question.questionId, newStatus, generateSummary);
       if (res.success && res.data) {
         setQuestion(res.data);
         notifications.show({
           title: 'Status atualizado',
-          message: `Status alterado para "${newStatus}".`,
+          message: generateSummary
+            ? `Status alterado para "${newStatus}". A IA está gerando o resumo para a base de conhecimento em segundo plano!`
+            : `Status alterado para "${newStatus}".`,
           color: 'blue'
         });
         onSaved?.();
@@ -227,6 +301,8 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
         message: err.message || 'Erro ao mudar status.',
         color: 'red'
       });
+    } finally {
+      setConfirmResolveModalOpen(false);
     }
   };
 
@@ -291,6 +367,57 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
             onChange={(e) => setContent(e.target.value)}
           />
 
+          {/* Image Upload for New Question */}
+          <div>
+            <Group justify="space-between" align="center" mb={6}>
+              <Text size="xs" fw={500} c="dimmed">
+                Anexar Imagem (Opcional - Prints de tela, recibos, etc.)
+              </Text>
+              <FileButton
+                onChange={handleImageUpload}
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                disabled={uploadingImage}
+              >
+                {(props) => (
+                  <Button
+                    {...props}
+                    size="xs"
+                    variant="light"
+                    color="blue"
+                    leftSection={<IconPhoto size={14} />}
+                    loading={uploadingImage}
+                  >
+                    {imageUrl ? 'Trocar Imagem' : 'Adicionar Imagem'}
+                  </Button>
+                )}
+              </FileButton>
+            </Group>
+
+            {imageUrl && (
+              <Card withBorder padding="xs" radius="sm" style={{ backgroundColor: '#f1f5f9', position: 'relative' }}>
+                <Group justify="space-between" align="flex-start">
+                  <Image
+                    src={imageUrl}
+                    alt="Preview da dúvida"
+                    radius="sm"
+                    mah={160}
+                    fit="contain"
+                    style={{ maxHeight: 160, width: 'auto' }}
+                  />
+                  <ActionIcon
+                    color="red"
+                    variant="subtle"
+                    size="sm"
+                    onClick={() => setImageUrl(null)}
+                    title="Remover imagem"
+                  >
+                    <IconTrash size={14} />
+                  </ActionIcon>
+                </Group>
+              </Card>
+            )}
+          </div>
+
           <Text size="xs" c="dimmed">
             Página de contexto capturada: <code>{window.location.hash || window.location.pathname}</code>
           </Text>
@@ -325,7 +452,7 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
               style={{ width: 140 }}
               value={question.status}
               data={['Não lido', 'Lida', 'Pendente', 'Resolvido']}
-              onChange={(val) => val && handleChangeStatus(val)}
+              onChange={(val) => val && requestChangeStatus(val)}
             />
           </Group>
 
@@ -378,9 +505,24 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
                 </Group>
               </Stack>
             ) : (
-              <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
-                {question.currentContent}
-              </Text>
+              <Stack gap="xs">
+                <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+                  {question.currentContent}
+                </Text>
+                {question.imageUrl && (
+                  <div style={{ marginTop: 8 }}>
+                    <Text size="xs" fw={500} c="dimmed" mb={4}>Imagem anexada:</Text>
+                    <Image
+                      src={question.imageUrl}
+                      alt="Imagem da dúvida"
+                      radius="md"
+                      mah={280}
+                      fit="contain"
+                      style={{ maxHeight: 280, width: 'auto', border: '1px solid #e2e8f0' }}
+                    />
+                  </div>
+                )}
+              </Stack>
             )}
 
             {showHistory && question.editHistory && (
@@ -437,6 +579,18 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
                       <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
                         {msg.content}
                       </Text>
+                      {msg.imageUrl && (
+                        <div style={{ marginTop: 6 }}>
+                          <Image
+                            src={msg.imageUrl}
+                            alt="Imagem da resposta"
+                            radius="sm"
+                            mah={200}
+                            fit="contain"
+                            style={{ maxHeight: 200, width: 'auto', border: '1px solid #e2e8f0' }}
+                          />
+                        </div>
+                      )}
                     </Card>
                   );
                 })
@@ -460,7 +614,11 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
                 size="xs"
                 variant="light"
                 color={question.status === 'Resolvido' ? 'gray' : 'green'}
-                onClick={() => handleChangeStatus(question.status === 'Resolvido' ? 'Pendente' : 'Resolvido')}
+                onClick={() =>
+                  question.status === 'Resolvido'
+                    ? executeChangeStatus('Pendente', false)
+                    : requestChangeStatus('Resolvido')
+                }
               >
                 {question.status === 'Resolvido' ? 'Reabrir Dúvida' : 'Marcar como Resolvido'}
               </Button>
@@ -478,6 +636,46 @@ export const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
           </Stack>
         </Stack>
       )}
+
+      {/* Confirmation modal for AI Summary generation */}
+      <Modal
+        opened={confirmResolveModalOpen}
+        onClose={() => setConfirmResolveModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <IconCheck size={20} color="#16a34a" />
+            <Text fw={600}>Marcar como Resolvido</Text>
+          </Group>
+        }
+        size="md"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Deseja que a <strong>Inteligência Artificial (Gemini)</strong> gere um resumo automático desta solução e alimente a nossa Central de Conhecimento / FAQ?
+          </Text>
+          <Text size="xs" c="dimmed">
+            O resumo será gerado em segundo plano e adicionado como rascunho/artigo na documentação para futura resposta automática aos usuários.
+          </Text>
+          <Group justify="flex-end" gap="sm" mt="sm">
+            <Button
+              variant="default"
+              size="xs"
+              onClick={() => executeChangeStatus('Resolvido', false)}
+            >
+              Não, apenas resolver
+            </Button>
+            <Button
+              color="green"
+              size="xs"
+              onClick={() => executeChangeStatus('Resolvido', true)}
+            >
+              Sim, gerar resumo com IA
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Modal>
   );
 };
+

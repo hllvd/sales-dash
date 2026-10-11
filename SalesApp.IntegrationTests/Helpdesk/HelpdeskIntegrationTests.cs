@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using SalesApp.Helpdesk.DTOs;
 using SalesApp.Helpdesk.Models;
@@ -13,12 +14,24 @@ namespace SalesApp.IntegrationTests.Helpdesk
     public class HelpdeskIntegrationTests
     {
         private readonly Mock<IHelpdeskRepository> _mockRepo;
+        private readonly Mock<IKnowledgeBaseRepository> _mockKbRepo;
+        private readonly Mock<IGeminiLlmService> _mockLlmService;
+        private readonly Mock<ILogger<HelpdeskService>> _mockLogger;
         private readonly IHelpdeskService _service;
 
         public HelpdeskIntegrationTests()
         {
             _mockRepo = new Mock<IHelpdeskRepository>();
-            _service = new HelpdeskService(_mockRepo.Object);
+            _mockKbRepo = new Mock<IKnowledgeBaseRepository>();
+            _mockLlmService = new Mock<IGeminiLlmService>();
+            _mockLogger = new Mock<ILogger<HelpdeskService>>();
+
+            _service = new HelpdeskService(
+                _mockRepo.Object,
+                _mockKbRepo.Object,
+                _mockLlmService.Object,
+                _mockLogger.Object
+            );
         }
 
         [Fact]
