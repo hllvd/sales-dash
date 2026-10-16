@@ -451,9 +451,15 @@ function runTest2(dashboardData, csvData) {
 
   const dashMap = new Map();
   for (const row of dashboardData.rows) {
-    const key = normalizeContractNumber(
-      row['Nº Contrato'] ?? row['n_contrato'] ?? row['ContractNumber'] ?? ''
-    );
+    let rawContract = row['Nº Contrato'] ?? row['n_contrato'] ?? row['ContractNumber'] ?? '';
+    if (!rawContract) {
+      const cotaVal = row['Cota'] ?? row['cota'] ?? '';
+      if (cotaVal.includes(';')) {
+        const parts = cotaVal.split(';');
+        rawContract = parts[parts.length - 1];
+      }
+    }
+    const key = normalizeContractNumber(rawContract);
     if (key) dashMap.set(key, row);
   }
 
