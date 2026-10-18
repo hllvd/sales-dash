@@ -15,6 +15,7 @@ const axios = require('axios');
 const AVA_URL = 'https://avapro.ademicon.com.br/';
 const DASHBOARD_URL = 'https://avapro.ademicon.com.br/dashboard';
 const DASHBOARD_CONSULTOR_URL = 'https://avapro.ademicon.com.br/dashboard/consultor';
+const { resolveDictValue } = require('./dsrDict');
 
 /**
  * Pure helper to convert DSR semantic query result into normalized rows.
@@ -69,9 +70,7 @@ function parseDSR(data, context = null) {
           const alias = s.N;
           const dictKey = s.DN;
           let val = entry[alias] ?? prev[i] ?? null;
-          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
-            val = dicts[dictKey][val] ?? val;
-          }
+          val = resolveDictValue(dicts[dictKey], val, s);
           row[friendlyName[alias] || alias] = val;
           if (entry[alias] !== undefined) {
             prev[i] = entry[alias];
@@ -110,9 +109,7 @@ function parseDSR(data, context = null) {
           const alias = s.N;
           const dictKey = s.DN;
           let val = resolved[i];
-          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
-            val = dicts[dictKey][val] ?? val;
-          }
+          val = resolveDictValue(dicts[dictKey], val, s);
           row[friendlyName[alias] || alias] = val;
         });
         allRows.push(row);
@@ -144,9 +141,7 @@ function parseDSR(data, context = null) {
           const alias = s.N;
           const dictKey = s.DN;
           let val = resolved[i];
-          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
-            val = dicts[dictKey][val] ?? val;
-          }
+          val = resolveDictValue(dicts[dictKey], val, s);
           row[friendlyName[alias] || alias] = val;
         });
         allRows.push(row);

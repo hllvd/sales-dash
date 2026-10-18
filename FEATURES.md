@@ -1,3 +1,29 @@
+## Resolução de Dicionários PowerBI DSR (`ValueDicts`) — Correção de Cota e Literais Numéricos
+
+Mecanismo puro e determinístico de resolução de `ValueDicts` no `parseDSR` para scraper Consultor e Padrão, eliminando a substituição indevida de valores literais numéricos (como `Cota` e `NO_Endereco`) por índices de dicionário em JavaScript.
+
+### Problema e Causa Raiz
+- No protocolo DSR do Power BI, colunas dicionarizadas (`DN`) enviam os top 100 valores mais frequentes como índices inteiros (`0..99`) e valores fora do dicionário como strings literais (ex.: `'82'`, `'28'`, `'2'`).
+- Em JavaScript, o acesso a arrays via string numérica (`arr["82"]`) é convertido internamente no índice inteiro (`arr[82]`). Com isso, valores literais como a cota `'82'` eram erroneamente substituídos pelo 83º elemento do dicionário (`'964'`/`'154'`).
+- Apenas valores `>= 100` escapavam porque excediam o tamanho do dicionário (`undefined ?? val`).
+
+### Comportamento e Regras
+- **Detecção Automática e Pura (`resolveDictValue`)**:
+  - `string`: Tratado estritamente como valor literal. Nunca consulta o dicionário.
+  - `number` (inteiro `>= 0` e `< dict.length`): Tratado como índice do dicionário e resolvido para `dict[val]`.
+  - Qualquer outro valor (`null`, `undefined`, números fora do range ou frações): Retornado intacto.
+- **Abrangência**:
+  - Centralizado em `pbi-scraper/dsrDict.js` e consumido por `pbi-scraper/scrapeConsultor.js` e `pbi-scraper/extractor.js`.
+  - Corrige automaticamente todas as colunas com `ValueDicts` (`Cota`, `NO_Endereco`, etc.).
+
+### Arquivos Adicionados / Modificados
+- `pbi-scraper/dsrDict.js`
+- `pbi-scraper/scrapeConsultor.js`
+- `pbi-scraper/extractor.js`
+- `pbi-scraper/test-extractorConsultor.js`
+
+---
+
 ## Painel de Inconsistências de Equipes e Correção sob Demanda (`#/admin-tools/team-inconsistencies`)
 
 Ferramenta administrativa sob o menu **Ferramentas Admin** para mapear, auditar e resolver pontualmente inconsistências estruturais entre usuários, proprietários e períodos de equipes, com recomendação inteligente, exportação nativa em XLSX e prevenção de inconsistências futuras.

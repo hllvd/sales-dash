@@ -30,6 +30,25 @@ const fs = require('fs');
 const path = require('path');
 const { parseDSR: parseConsultor } = require('./scrapeConsultor');
 const { parseDSR: parseExtractor } = require('./extractor');
+const { resolveDictValue } = require('./dsrDict');
+
+console.log('Testing resolveDictValue (pure resolver)...');
+const sampleDict100 = Array.from({ length: 100 }, (_, i) => `DictItem_${i}`);
+// Integer index: resolves
+assert.strictEqual(resolveDictValue(sampleDict100, 0), 'DictItem_0');
+assert.strictEqual(resolveDictValue(sampleDict100, 82), 'DictItem_82');
+// String literal: NEVER resolves against dict, even when string is a valid numeric index
+assert.strictEqual(resolveDictValue(sampleDict100, '82'), '82', 'Literal string "82" must NOT be resolved against dict');
+assert.strictEqual(resolveDictValue(sampleDict100, '2'), '2', 'Literal string "2" must NOT be resolved against dict');
+assert.strictEqual(resolveDictValue(sampleDict100, '0'), '0', 'Literal string "0" must NOT be resolved against dict');
+assert.strictEqual(resolveDictValue(sampleDict100, 'TextValue'), 'TextValue');
+// Null / undefined / out of bounds
+assert.strictEqual(resolveDictValue(sampleDict100, null), null);
+assert.strictEqual(resolveDictValue(sampleDict100, undefined), undefined);
+assert.strictEqual(resolveDictValue(sampleDict100, 150), 150);
+assert.strictEqual(resolveDictValue(sampleDict100, -1), -1);
+assert.strictEqual(resolveDictValue(null, 5), 5);
+console.log('✅ resolveDictValue passed!');
 
 // Mock DSR data mimicking PowerBI response:
 // Row 0 has S (schema), C (values), Ø (nulls).
@@ -54,33 +73,42 @@ const mockDsrData = {
               {
                 ValueDicts: {
                   D0: ['Ponto de Venda Alpha', 'Ponto de Venda Beta'],
-                  D1: ['Comissionado X', 'Comissionado Y']
+                  D1: ['Comissionado X', 'Comissionado Y'],
+                  D2: Array.from({ length: 100 }, (_, i) => `DictCota_${i}`)
                 },
                 PH: [
                   {
                     DM1: [
                       // Entry 0: Schema + Baseline Data (C) + Null bitmask (bit 3 is null)
+                      // G2 is index 0 -> should resolve to 'DictCota_0'
                       {
                         S: [
                           { N: 'G0', T: 1, DN: 'D0' },
                           { N: 'G1', T: 1, DN: 'D1' },
-                          { N: 'G2', T: 4 },
+                          { N: 'G2', T: 1, DN: 'D2' },
                           { N: 'G3', T: 3 },
                           { N: 'G4', T: 7 },
                           { N: 'G5', T: 1 }
                         ],
-                        C: [0, 0, 1001, '2026-01-15', 'Normal'],
+                        C: [0, 0, 0, '2026-01-15', 'Normal'],
                         'Ø': 8 // 1 << 3 (G3 is null)
                       },
-                      // Entry 1: Repeated Col0 and Col1 (bits 0 and 1), Col2 and Col3 provided in C
+                      // Entry 1: Col0/1 repeated. Col2 is literal string '82' (NOT in dict, overflow)
+                      // MUST remain literal '82' and NOT be replaced by DictCota_82!
                       {
                         R: 3, // (1 << 0) | (1 << 1)
-                        C: [1002, 5000, '2026-01-16', 'Normal']
+                        C: ['82', 5000, '2026-01-16', 'Normal']
                       },
-                      // Entry 2: Col0 changes (bit 0 not repeated, Col1 repeated)
+                      // Entry 2: Col0 changes. Col2 is integer number 82 (dictionary index)
+                      // MUST resolve to DictCota_82!
                       {
                         R: 2, // (1 << 1)
-                        C: [1, 1003, 7500, '2026-01-17', 'Normal']
+                        C: [1, 82, 7500, '2026-01-17', 'Normal']
+                      },
+                      // Entry 3: Col2 is literal string '2' -> MUST remain '2' and NOT become DictCota_2!
+                      {
+                        R: 3,
+                        C: ['2', 3000, '2026-01-18', 'Normal']
                       }
                     ]
                   }
@@ -96,31 +124,37 @@ const mockDsrData = {
 
 // 1. Test scrapeConsultor parseDSR
 const rows1 = parseConsultor(mockDsrData);
-assert.strictEqual(rows1.length, 3, 'Deve retornar exatamente 3 registros');
+assert.strictEqual(rows1.length, 4, 'Deve retornar exatamente 4 registros');
 assert.strictEqual(rows1[0]['Col0_PontoDeVenda'], 'Ponto de Venda Alpha', 'Baseline Col0 deve ser extraído');
 assert.strictEqual(rows1[0]['Col1_Comissionado'], 'Comissionado X', 'Baseline Col1 deve ser extraído');
-assert.strictEqual(rows1[0]['Col2_Cota'], 1001);
+assert.strictEqual(rows1[0]['Col2_Cota'], 'DictCota_0', 'Index 0 deve resolver para DictCota_0');
 assert.strictEqual(rows1[0]['Col3_Valor'], null);
 assert.strictEqual(rows1[0]['Col4_DataVenda'], '2026-01-15');
 
 assert.strictEqual(rows1[1]['Col0_PontoDeVenda'], 'Ponto de Venda Alpha', 'Col0 deve ser repetido de Row 0');
 assert.strictEqual(rows1[1]['Col1_Comissionado'], 'Comissionado X', 'Col1 deve ser repetido de Row 0');
-assert.strictEqual(rows1[1]['Col2_Cota'], 1002);
+assert.strictEqual(rows1[1]['Col2_Cota'], '82', 'Literal string "82" NÃO pode ser substituída por item de dicionário');
 assert.strictEqual(rows1[1]['Col3_Valor'], 5000);
 
 assert.strictEqual(rows1[2]['Col0_PontoDeVenda'], 'Ponto de Venda Beta', 'Col0 deve refletir novo valor');
 assert.strictEqual(rows1[2]['Col1_Comissionado'], 'Comissionado X', 'Col1 deve continuar repetido');
-assert.strictEqual(rows1[2]['Col2_Cota'], 1003);
+assert.strictEqual(rows1[2]['Col2_Cota'], 'DictCota_82', 'Index 82 (number) deve resolver para DictCota_82');
 assert.strictEqual(rows1[2]['Col3_Valor'], 7500);
-console.log('✅ scrapeConsultor parseDSR validado!');
+
+assert.strictEqual(rows1[3]['Col2_Cota'], '2', 'Literal string "2" NÃO pode ser substituída por DictCota_2');
+console.log('✅ scrapeConsultor parseDSR validado (incluindo literais e índices de dicionário)!');
 
 // 2. Test extractor.js parseDSR
 const rows2 = parseExtractor(mockDsrData);
-assert.strictEqual(rows2.length, 3, 'extractor parseDSR deve retornar 3 registros');
+assert.strictEqual(rows2.length, 4, 'extractor.js deve retornar 4 registros');
+assert.strictEqual(rows2[0]['Col2_Cota'], 'DictCota_0');
+assert.strictEqual(rows2[1]['Col2_Cota'], '82', 'extractor.js: Literal string "82" preservada');
+assert.strictEqual(rows2[2]['Col2_Cota'], 'DictCota_82', 'extractor.js: Index 82 resolvido');
+assert.strictEqual(rows2[3]['Col2_Cota'], '2', 'extractor.js: Literal string "2" preservada');
 assert.strictEqual(rows2[0]['Col0_PontoDeVenda'], 'Ponto de Venda Alpha');
 assert.strictEqual(rows2[1]['Col0_PontoDeVenda'], 'Ponto de Venda Alpha');
 assert.strictEqual(rows2[2]['Col0_PontoDeVenda'], 'Ponto de Venda Beta');
-console.log('✅ extractor parseDSR validado!');
+console.log('✅ extractor parseDSR validado (incluindo literais e índices de dicionário)!');
 
 // 3. Test paginationContext preservation across pages
 const context = { prev: [] };
