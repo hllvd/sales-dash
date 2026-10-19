@@ -20,6 +20,9 @@ namespace SalesApp.Controllers
         public string ScrapeType { get; set; } = "geral";
         public string OutputMode { get; set; } = "direct";
         public bool AutoImportSqs { get; set; } = true;
+        public string? ScheduleMode { get; set; }
+        public int? ScheduleIntervalHours { get; set; }
+        public string? ScheduleTimes { get; set; }
         public int? ScrapeIntervalHours { get; set; }
         public DateTime? LastTriggeredAt { get; set; }
         public bool SkipMissingContractNumber { get; set; } = true;
@@ -43,6 +46,9 @@ namespace SalesApp.Controllers
         public string? ScrapeType { get; set; }
         public string? OutputMode { get; set; }
         public bool? AutoImportSqs { get; set; }
+        public string? ScheduleMode { get; set; }
+        public int? ScheduleIntervalHours { get; set; }
+        public string? ScheduleTimes { get; set; }
         public int? ScrapeIntervalHours { get; set; }
         public bool? SkipMissingContractNumber { get; set; }
         public bool? AllowAutoCreateGroups { get; set; }
@@ -161,17 +167,60 @@ namespace SalesApp.Controllers
             config.OutputMode = string.IsNullOrWhiteSpace(request.OutputMode) ? "direct" : request.OutputMode.Trim().ToLowerInvariant();
             if (request.AutoImportSqs.HasValue) config.AutoImportSqs = request.AutoImportSqs.Value;
 
-            if (request.ScrapeIntervalHours.HasValue)
+            var cleanScheduleMode = string.IsNullOrWhiteSpace(request.ScheduleMode) ? null : request.ScheduleMode.Trim().ToLowerInvariant();
+            if (cleanScheduleMode == "disabled" || cleanScheduleMode == "0" || cleanScheduleMode == "none")
             {
-                if (request.ScrapeIntervalHours.Value < 1)
+                cleanScheduleMode = null;
+            }
+
+            config.ScheduleMode = cleanScheduleMode;
+            config.ScheduleIntervalHours = request.ScheduleIntervalHours;
+            config.ScheduleTimes = string.IsNullOrWhiteSpace(request.ScheduleTimes) ? null : request.ScheduleTimes.Trim();
+
+            if (config.ScheduleMode == "interval")
+            {
+                var intervalVal = config.ScheduleIntervalHours ?? request.ScrapeIntervalHours;
+                if (intervalVal.HasValue && intervalVal.Value < 1)
                 {
                     return BadRequest(new { message = "O intervalo mínimo de extração automática é de 1 hora." });
                 }
-                config.ScrapeIntervalHours = request.ScrapeIntervalHours.Value;
+                config.ScheduleIntervalHours = intervalVal;
+                config.ScrapeIntervalHours = intervalVal;
+                config.ScheduleTimes = null;
+            }
+            else if (config.ScheduleMode == "daily")
+            {
+                if (string.IsNullOrWhiteSpace(config.ScheduleTimes) || config.ScheduleTimes == "[]")
+                {
+                    return BadRequest(new { message = "Selecione ao menos um horário para a extração diária." });
+                }
+                config.ScheduleIntervalHours = null;
+                config.ScrapeIntervalHours = null;
+            }
+            else if (config.ScheduleMode == "weekly")
+            {
+                if (string.IsNullOrWhiteSpace(config.ScheduleTimes) || config.ScheduleTimes == "{}")
+                {
+                    return BadRequest(new { message = "Selecione o dia e ao menos um horário para a extração semanal." });
+                }
+                config.ScheduleIntervalHours = null;
+                config.ScrapeIntervalHours = null;
             }
             else
             {
-                config.ScrapeIntervalHours = null;
+                if (request.ScrapeIntervalHours.HasValue && request.ScrapeIntervalHours.Value >= 1)
+                {
+                    config.ScheduleMode = "interval";
+                    config.ScheduleIntervalHours = request.ScrapeIntervalHours.Value;
+                    config.ScrapeIntervalHours = request.ScrapeIntervalHours.Value;
+                }
+                else
+                {
+                    config.ScheduleMode = null;
+                    config.ScheduleIntervalHours = null;
+                    config.ScheduleTimes = null;
+                    config.ScrapeIntervalHours = null;
+                }
             }
 
             if (request.SkipMissingContractNumber.HasValue) config.SkipMissingContractNumber = request.SkipMissingContractNumber.Value;
@@ -531,7 +580,10 @@ namespace SalesApp.Controllers
                 ScrapeType = config.ScrapeType ?? "geral",
                 OutputMode = config.OutputMode ?? "direct",
                 AutoImportSqs = config.AutoImportSqs,
-                ScrapeIntervalHours = config.ScrapeIntervalHours,
+                ScheduleMode = config.ScheduleMode,
+                ScheduleIntervalHours = config.ScheduleIntervalHours ?? config.ScrapeIntervalHours,
+                ScheduleTimes = config.ScheduleTimes,
+                ScrapeIntervalHours = config.ScheduleIntervalHours ?? config.ScrapeIntervalHours,
                 LastTriggeredAt = config.LastTriggeredAt,
                 SkipMissingContractNumber = config.SkipMissingContractNumber,
                 AllowAutoCreateGroups = config.AllowAutoCreateGroups,

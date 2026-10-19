@@ -265,14 +265,21 @@ namespace SalesApp.Services
 
         private async Task TryInvokeScraperLauncherLambdaAsync(string jobId, string runId, string matricula)
         {
-            var lambdaUrl = _configuration["AWS:ScraperLauncherLambdaUrl"];
+            var lambdaUrl = _configuration["AWS:ScraperLauncherLambdaUrl"]
+                         ?? _configuration["AWS__ScraperLauncherLambdaUrl"]
+                         ?? _configuration["SCRAPER_LAUNCHER_LAMBDA_URL"]
+                         ?? Environment.GetEnvironmentVariable("SCRAPER_LAUNCHER_LAMBDA_URL")
+                         ?? Environment.GetEnvironmentVariable("AWS__ScraperLauncherLambdaUrl");
+
             if (string.IsNullOrWhiteSpace(lambdaUrl))
             {
+                Console.WriteLine("[ScrapeOrchestrator] Aviso: URL da Lambda launcher não configurada (SCRAPER_LAUNCHER_LAMBDA_URL). O Fargate Spot não será disparado automaticamente.");
                 return;
             }
 
             try
             {
+                Console.WriteLine($"[ScrapeOrchestrator] Disparando Lambda launcher em {lambdaUrl} para job {jobId} (runId: {runId})...");
                 var payload = System.Text.Json.JsonSerializer.Serialize(new
                 {
                     jobId,
@@ -285,14 +292,20 @@ namespace SalesApp.Services
 
                 using var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
                 var response = await _httpClient.PostAsync(lambdaUrl, content);
+                var responseBody = await response.Content.ReadAsStringAsync();
+
                 if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"[ScrapeOrchestrator] Aviso: Lambda de launcher retornou status {response.StatusCode} para job {jobId}");
+                    Console.WriteLine($"[ScrapeOrchestrator] Aviso: Lambda de launcher retornou status {response.StatusCode} para job {jobId}. Resposta: {responseBody}");
+                }
+                else
+                {
+                    Console.WriteLine($"[ScrapeOrchestrator] Sucesso: Lambda de launcher executada com status {response.StatusCode} para job {jobId}. Resposta: {responseBody}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ScrapeOrchestrator] Aviso: Falha ao acionar Lambda de launcher para job {jobId}: {ex.Message}");
+                Console.WriteLine($"[ScrapeOrchestrator] Erro: Falha ao acionar Lambda de launcher para job {jobId}: {ex.Message}");
             }
         }
 

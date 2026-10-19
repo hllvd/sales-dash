@@ -7,6 +7,16 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-09-28] all — Attempt 1
+**Feature:** Derivação de Status de Cotas para o Scrape do Tipo Consultor (`Late1`, `Late2`, `Late3`, `AwaitingPayment`, `Desistente`, `Defaulted`).
+**Validation:** Full build, 316+ integration tests (.NET 9 in Docker including ConsultorStatusEvaluatorTests and ScrapeImportValidationAndDecompositionTests), 182 Playwright E2E tests Run 1 + Run 2 (idempotency check).
+**Result:** ✅ Green (Build: clean, Integration: all passed with zero failures, E2E Run 1: 182/182 passed, E2E Run 2: 182/182 passed)
+
+## [2026-09-25] all — Attempt 1
+**Feature:** Alinhamento de Mapeamento de Status `Desistente` e `Awaiting Payment` (`Tem Pagamento?`) nos Scrapes e Template `contractDashboard`.
+**Validation:** Full build, 308 integration tests (.NET 9 in Docker), 182 Playwright E2E tests Run 1 + Run 2 (idempotency check).
+**Result:** ✅ Green (Build: clean, Integration: 308/308 passed, E2E Run 1: 182/182 passed, E2E Run 2: 182/182 passed)
+
 ## [2026-09-24] all — Attempt 2
 **Failure:** `inactive_user_contracts_visibility.spec.ts` test 4 timeout clicking checkbox input.
 **Root cause:** Mantine `Switch` component wraps the input with complex styling, causing direct `input[type="checkbox"].check()` to hang on click interception.
