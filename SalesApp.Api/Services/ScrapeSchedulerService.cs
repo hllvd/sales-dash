@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using SalesApp.Data;
@@ -127,13 +128,14 @@ namespace SalesApp.Services
                     try
                     {
                         var runId = $"cron-{DateTime.UtcNow:yyyyMMddHHmmss}-{config.Matricula}";
+                        var scrapeDate = ResolveScheduledScrapeDate(config.DefaultStartMonth, config.ScrapeType, nowUtc);
                         
                         await orchestrator.TriggerScrapeAsync(
                             configId: config.Id,
                             isManual: false,
                             runId: runId,
                             userEmail: config.User?.Email ?? "scheduler@system",
-                            scrapeDate: null,
+                            scrapeDate: scrapeDate,
                             scrapeType: config.ScrapeType,
                             outputMode: config.OutputMode
                         );
@@ -142,7 +144,7 @@ namespace SalesApp.Services
                         config.UpdatedAt = nowUtc;
                         await dbContext.SaveChangesAsync(cancellationToken);
 
-                        _logger.LogInformation("Scrape agendado disparado com sucesso para matrícula {Matricula} (RunId: {RunId})", config.Matricula, runId);
+                        _logger.LogInformation("Scrape agendado disparado com sucesso para matrícula {Matricula} (RunId: {RunId}, ScrapeDate: {ScrapeDate})", config.Matricula, runId, scrapeDate ?? "Todos");
                     }
                     catch (Exception triggerEx)
                     {
@@ -264,6 +266,63 @@ namespace SalesApp.Services
             }
 
             return (false, string.Empty);
+        }
+
+        /// <summary>
+        /// Pure helper that calculates the scrapeDate parameter for scheduled executions
+        /// based on the configured DefaultStartMonth and ScrapeType.
+        /// For 'consultor', multiple months are joined as a comma-separated string (e.g. "2026-08,2026-09,2026-10").
+        /// For null or empty DefaultStartMonth, returns null (meaning full scrape).
+        /// </summary>
+        public static string? ResolveScheduledScrapeDate(string? defaultStartMonth, string? scrapeType, DateTime nowUtc, int maxMonthsAgo = 15)
+        {
+            if (string.IsNullOrWhiteSpace(defaultStartMonth))
+            {
+                return null;
+            }
+
+            if (!DateTime.TryParseExact(defaultStartMonth.Trim(), "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var startParsed))
+            {
+                return null;
+            }
+
+            var currentYearMonth = new DateTime(nowUtc.Year, nowUtc.Month, 1);
+            var effectiveMaxMonthsAgo = maxMonthsAgo > 0 ? maxMonthsAgo : 15;
+            var earliestAllowedMonth = currentYearMonth.AddMonths(-effectiveMaxMonthsAgo);
+
+            var cursor = new DateTime(startParsed.Year, startParsed.Month, 1);
+            if (cursor < earliestAllowedMonth)
+            {
+                cursor = earliestAllowedMonth;
+            }
+
+            var months = new List<string>();
+            if (cursor > currentYearMonth)
+            {
+                months.Add(currentYearMonth.ToString("yyyy-MM"));
+            }
+            else
+            {
+                while (cursor <= currentYearMonth)
+                {
+                    months.Add(cursor.ToString("yyyy-MM"));
+                    cursor = cursor.AddMonths(1);
+                }
+            }
+
+            if (months.Count == 0)
+            {
+                return null;
+            }
+
+            // Consultor accepts multiple months joined by comma in a single query
+            if (string.Equals(scrapeType, "consultor", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Join(",", months);
+            }
+
+            // Default: return the first/start month or single month
+            return months.FirstOrDefault();
         }
     }
 }

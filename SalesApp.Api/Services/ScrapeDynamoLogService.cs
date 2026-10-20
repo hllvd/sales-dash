@@ -495,7 +495,22 @@ namespace SalesApp.Services
             return "Unknown";
         }
 
-        private ScrapeLogEntry MapToEntry(Dictionary<string, AttributeValue> item)
+        /// <summary>
+        /// Pure helper that calculates timeout in minutes for a scrape job:
+        /// 5 minutes base + (monthCount * 3) minutes. If scrapeDate is null or empty ("Todos os meses"), timeout is 60 minutes.
+        /// </summary>
+        public static int CalculateJobTimeoutMinutes(string? scrapeDate)
+        {
+            if (string.IsNullOrWhiteSpace(scrapeDate))
+            {
+                return 60;
+            }
+
+            var monthCount = scrapeDate.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;
+            return 5 + (monthCount * 3);
+        }
+
+        public static ScrapeLogEntry MapToEntry(Dictionary<string, AttributeValue> item)
         {
             var jobId = item.GetValueOrDefault("JobId")?.S ?? item.GetValueOrDefault("jobId")?.S ?? "";
             var runId = item.GetValueOrDefault("RunId")?.S ?? item.GetValueOrDefault("runId")?.S ?? "";
@@ -515,9 +530,11 @@ namespace SalesApp.Services
             var completedAt = DateTime.TryParse(completedAtRaw, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var cd) ? cd : (DateTime?)null;
 
             var errorMsg = item.GetValueOrDefault("error")?.S ?? item.GetValueOrDefault("ErrorMessage")?.S ?? item.GetValueOrDefault("errorMessage")?.S;
+            var scrapeDate = item.GetValueOrDefault("ScrapeDate")?.S ?? item.GetValueOrDefault("scrapeDate")?.S;
 
-            // Self-healing timeout for transitory states (Pending/Running) created > 5 minutes ago (UTC adjusted)
-            if ((rawStatus == "Pending" || rawStatus == "Running") && createdAt != DateTime.MinValue && (DateTime.UtcNow - createdAt > TimeSpan.FromMinutes(5)))
+            var timeoutMinutes = CalculateJobTimeoutMinutes(scrapeDate);
+
+            if ((rawStatus == "Pending" || rawStatus == "Running") && createdAt != DateTime.MinValue && (DateTime.UtcNow - createdAt > TimeSpan.FromMinutes(timeoutMinutes)))
             {
                 rawStatus = "Failed";
                 errorMsg = string.IsNullOrEmpty(errorMsg) ? "Tempo limite excedido (Timeout)" : errorMsg;
@@ -536,7 +553,6 @@ namespace SalesApp.Services
                 catch { }
             }
 
-            var scrapeDate = item.GetValueOrDefault("ScrapeDate")?.S ?? item.GetValueOrDefault("scrapeDate")?.S;
             var retryCountStr = item.GetValueOrDefault("RetryCount")?.N
                             ?? item.GetValueOrDefault("RetryCount")?.S
                             ?? item.GetValueOrDefault("retryCount")?.N

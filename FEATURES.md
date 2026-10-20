@@ -1,3 +1,31 @@
+## Agendamento com Período Dinâmico e Timeout Adaptativo no Scraper
+
+Resolução automática do período de extração em execuções agendadas e cálculo dinâmico do timeout de monitoramento no visualizador de logs do DynamoDB.
+
+### Problema e Causa Raiz
+- O serviço de agendamento em background (`ScrapeSchedulerService.cs`) disparava as extrações com `scrapeDate = null`, ignorando a configuração da conta (`DefaultStartMonth`) e forçando o robô na nuvem a varrer toda a base histórica legada (mais de 94 mil contratos).
+- Paralelamente, o leitor de logs do DynamoDB (`ScrapeDynamoLogService.cs`) aplicava um timeout estático de 5 minutos para status `Pending` e `Running`, marcando falsamente processos como "Tempo limite excedido (Timeout)" na tela do usuário, mesmo quando a execução na nuvem seguia em andamento e terminava com sucesso no S3.
+
+### Comportamento e Regras
+- **Período Dinâmico no Agendador (`ScrapeSchedulerService.ResolveScheduledScrapeDate`)**:
+  - Inspeciona o `config.DefaultStartMonth` da conta.
+  - Se preenchido (ex.: `"2026-08"`), calcula os meses até o mês atual em UTC.
+  - Para o modo `"consultor"`, concatena os meses separados por vírgula (`"2026-08,2026-09,2026-10"`), permitindo que o robô faça a extração em uma única consulta semântica direta.
+  - Para o modo `"geral"`, envia o primeiro mês do intervalo.
+  - Se nulo ou vazio, mantém `null` ("Todos os meses").
+- **Timeout Adaptativo de Monitoramento (`ScrapeDynamoLogService.CalculateJobTimeoutMinutes`)**:
+  - Quando houver meses definidos: `Timeout = 5 minutos base + (Quantidade de Meses × 3 minutos)`.
+  - Exemplos: 1 mês = 8 min; 3 meses = 14 min; 15 meses = 50 min.
+  - Quando não houver meses informados (`null` / "Todos os meses"): `Timeout = 60 minutos`.
+  - Transições para `Failed` por timeout só ocorrem após o tempo limite calculado com base no volume esperado.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Services/ScrapeSchedulerService.cs`
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs`
+- `SalesApp.Tests/Services/ScrapeSchedulerAndTimeoutTests.cs`
+
+---
+
 ## Perguntas Frequentes (FAQ) & Regras do Sistema (`#/document/documentacao/perguntas-frequentes`)
 
 Seção oficial de Perguntas e Respostas na Central de Documentação/Ajuda, detalhando tanto as regras técnicas de importação de contratos e atualização de vínculos com matrículas divergentes (baseadas no arquivo técnico de auditoria `MD/QA.txt`) quanto as principais dúvidas operacionais e regras de negócio do sistema.
