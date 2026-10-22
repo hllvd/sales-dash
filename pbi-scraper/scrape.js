@@ -170,10 +170,21 @@ async function runScrapeJob(params) {
     } catch (err) {
       result.status = 'Failed';
       result.error = err.message || 'Falha no scrape de Consultor';
-      result.authStatus = 'error';
-      result.authMessage = err.message;
+      const isWrongPassword = err.authStatus === 'wrong-password' ||
+        (err.message && (
+          err.message.toLowerCase().includes('senha expirada') ||
+          err.message.toLowerCase().includes('redefina sua senha') ||
+          err.message.toLowerCase().includes('wrong-password') ||
+          err.message.toLowerCase().includes('usuário ou senha') ||
+          err.message.toLowerCase().includes('usuario ou senha')
+        ));
+      result.authStatus = isWrongPassword ? 'wrong-password' : (err.authStatus || 'error');
+      result.authMessage = err.message || (isWrongPassword ? 'Falha de credencial no AVA PRO' : 'Erro no processamento');
       result.powerbiLoaded = false;
       result.loginSuccess = false;
+      if (err.steps && Array.isArray(err.steps)) {
+        result.authSteps = err.steps;
+      }
       return result;
     }
   }

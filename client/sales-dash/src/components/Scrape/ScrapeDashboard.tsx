@@ -176,8 +176,8 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
   const [store, setStore] = useState<string | null>(null);
   const [matricula, setMatricula] = useState('');
   const [password, setPassword] = useState('');
-  const [dateMode, setDateMode] = useState<DateSelectionMode>('all');
-  const [configDefaultStartMonth, setConfigDefaultStartMonth] = useState('');
+  const [dateMode, setDateMode] = useState<DateSelectionMode>('15');
+  const [configDefaultStartMonth, setConfigDefaultStartMonth] = useState(calculateRelativeMonth(15));
   const [scrapeType, setScrapeType] = useState<'geral' | 'consultor'>('consultor');
   const [outputMode, setOutputMode] = useState<'direct' | 'sqs'>('sqs');
   const [autoImportSqs, setAutoImportSqs] = useState(true);
@@ -311,8 +311,8 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
       setStore('');
       setMatricula('');
       setPassword('');
-      setConfigDefaultStartMonth('');
-      setDateMode('all');
+      setConfigDefaultStartMonth(calculateRelativeMonth(15));
+      setDateMode('15');
       setScrapeType('consultor');
       setOutputMode('sqs'); // Padrão: Remoto (AWS Fargate Spot)
       setAutoImportSqs(true);
@@ -585,7 +585,7 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
     if (status === 'ok') 
         return <Badge color="green" leftSection={<IconCheck size={12}/>} variant="outline">Válida</Badge>;
     if (status === 'wrong-password')
-        return <Badge color="red" leftSection={<IconAlertCircle size={12}/>} variant="outline">Senha Incorreta</Badge>;
+        return <Badge color="red" leftSection={<IconAlertCircle size={12}/>} variant="outline">Senha Expirada / Inválida</Badge>;
     return <Badge color="gray" variant="dot">Não Testada</Badge>;
   };
 

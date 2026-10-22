@@ -31,6 +31,34 @@ function addStep(steps, message) {
   console.log(`[AuthStep] ${entry}`);
 }
 
+/**
+ * Pure helper to detect specific authentication errors (such as expired password or wrong credentials)
+ * from visible text in the login page or API responses.
+ *
+ * @param {string|null|undefined} text
+ * @returns {{ isFatalAuth: boolean, reason: string } | null}
+ */
+function detectLoginErrorText(text) {
+  if (!text || typeof text !== 'string') return null;
+  const lower = text.toLowerCase().trim();
+
+  if (lower.includes('senha expirada') || lower.includes('redefina sua senha')) {
+    return {
+      isFatalAuth: true,
+      reason: 'Senha expirada. Por favor, redefina sua senha no AVA PRO.'
+    };
+  }
+
+  if (lower.includes('usuário ou senha') || lower.includes('usuario ou senha') || lower.includes('credenciais inválidas') || lower.includes('credencial inválida')) {
+    return {
+      isFatalAuth: true,
+      reason: 'Usuário ou senha inválida no AVA PRO.'
+    };
+  }
+
+  return null;
+}
+
 /** True when the URL is the PowerBI dedicated query endpoint */
 function isPbiQueryUrl(url) {
   const lower = url.toLowerCase();
@@ -260,8 +288,40 @@ async function getTokenFromLogin(matricula, password, store = null) {
 
     const currentUrl = page.url();
     addStep(steps, `URL após login: ${currentUrl}`);
-    if (interceptedAuthError) throw new AuthError('wrong-password', interceptedAuthError, steps, false, false);
-    if (currentUrl.includes('/login')) throw new AuthError('wrong-password', 'Permaneceu na página de login.', steps, false, false);
+
+    // Inspeciona texto visível na página de login para capturar avisos como "Senha expirada"
+    let pageErrorText = null;
+    try {
+      pageErrorText = await page.evaluate(() => {
+        // Tenta seletores comuns de alert/erro do Bootstrap/Tailwind/Mantine ou texto visível no formulário
+        const errorEl = document.querySelector('.alert, [role="alert"], .error, .text-danger, .invalid-feedback, div[class*="error"], span[class*="error"]');
+        if (errorEl && errorEl.textContent) return errorEl.textContent.trim();
+        const bodyText = document.body ? document.body.innerText : '';
+        if (bodyText.includes('Senha expirada') || bodyText.includes('redefina sua senha') || bodyText.includes('Usuário ou senha')) {
+          const match = bodyText.split('\n').find(l => l.includes('Senha expirada') || l.includes('redefina') || l.includes('Usuário ou senha'));
+          return match ? match.trim() : null;
+        }
+        return null;
+      });
+    } catch (_) {}
+
+    const detectedPageError = detectLoginErrorText(pageErrorText);
+    if (detectedPageError && detectedPageError.isFatalAuth) {
+      addStep(steps, `[Falha de Autenticação Detectada na Página] ${detectedPageError.reason}`);
+      throw new AuthError('wrong-password', detectedPageError.reason, steps, false, false);
+    }
+
+    if (interceptedAuthError) {
+      const detectedIntercepted = detectLoginErrorText(interceptedAuthError);
+      const finalMsg = detectedIntercepted ? detectedIntercepted.reason : interceptedAuthError;
+      throw new AuthError('wrong-password', finalMsg, steps, false, false);
+    }
+
+    if (currentUrl.includes('/login')) {
+      const fallbackReason = pageErrorText || 'Permaneceu na página de login.';
+      throw new AuthError('wrong-password', fallbackReason, steps, false, false);
+    }
+
     loginSuccess = true;
     addStep(steps, 'Login bem-sucedido.');
 
@@ -488,4 +548,4 @@ async function getOrFetchTokens(matricula, password, store = null, forceRefresh 
   return await getTokenFromLogin(matricula, password, store);
 }
 
-module.exports = { getTokenFromLogin, getOrFetchTokens, AuthError };
+module.exports = { getTokenFromLogin, getOrFetchTokens, AuthError, detectLoginErrorText };

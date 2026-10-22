@@ -415,10 +415,21 @@ namespace SalesApp.Controllers
             var scrapeDates = CalculateScrapeDates(effectiveStartMonth, monthsCount, maxMonthsAgo);
 
             var jobIds = new List<string>();
-            foreach (var date in scrapeDates)
+
+            // For consultor scrapeType, all requested months can be executed in a single consolidated semantic query
+            if (string.Equals(effectiveScrapeType, "consultor", StringComparison.OrdinalIgnoreCase) && scrapeDates.Count > 1 && scrapeDates.All(d => !string.IsNullOrEmpty(d)))
             {
-                var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail, scrapeDate: date, scrapeType: effectiveScrapeType);
+                var consolidatedDate = string.Join(",", scrapeDates);
+                var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail, scrapeDate: consolidatedDate, scrapeType: effectiveScrapeType);
                 jobIds.Add(jobId);
+            }
+            else
+            {
+                foreach (var date in scrapeDates)
+                {
+                    var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail, scrapeDate: date, scrapeType: effectiveScrapeType);
+                    jobIds.Add(jobId);
+                }
             }
 
             return Accepted(new { jobId = jobIds.FirstOrDefault(), jobIds, runId, scrapeDates });

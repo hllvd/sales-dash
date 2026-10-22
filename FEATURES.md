@@ -1,3 +1,32 @@
+## Período Padrão de 15 Meses e Detecção de Senha Expirada no Scraper
+
+Configuração da UI para sugerir por padrão a extração dos últimos 15 meses (preservando a opção de "Todas as datas") e detecção explícita de "Senha expirada" no portal AVA PRO, integrando com o disjuntor de lote e aviso visual no dashboard.
+
+### Problema e Causa Raiz
+- Ao cadastrar uma nova conta de scrape, o modal pré-selecionava "Todas as datas (Sem filtro)" por padrão, o que levava usuários a extrair desnecessariamente todo o histórico de anos anteriores.
+- Ao tentar autenticar com uma senha expirada no AVA PRO, a página de login não realizava redirecionamento e exibia o aviso de alerta: `"Senha expirada. Por favor, redefina sua senha."`. O robô (Puppeteer) aguardava o redirecionamento que nunca ocorria até estourar o timeout, resultando em falsos timeouts de 5 minutos na tela em vez de apontar imediatamente a senha expirada e destacar o card da conta em vermelho.
+
+### Comportamento e Regras
+- **Período Padrão de 15 Meses na UI (`ScrapeDashboard.tsx`)**:
+  - Novas contas iniciam com `dateMode = '15'` e `defaultStartMonth` calculado para 15 meses atrás (`calculateRelativeMonth(15)`).
+  - A opção `"Todas as datas (Sem filtro)"` continua disponível para seleção explícita caso o usuário queira raspar toda a base.
+  - Para extrações manuais de Consultor (`ScrapeController.cs`), meses múltiplos configurados são unificados em uma única chamada consolidada (ex.: `"2025-08,2025-09,...,2026-10"`), executando em apenas 1 job rápido em vez de 15 jobs paralelos.
+- **Detecção de Senha Expirada no Fargate / Puppeteer (`auth.js`, `captureTemplate.js`, `scrape.js`)**:
+  - Adicionado o helper puro `detectLoginErrorText` para identificar termos como `"senha expirada"`, `"redefina sua senha"` e `"usuário ou senha inválida"` tanto no DOM renderizado da página quanto em respostas HTTP.
+  - No `captureTemplate.js` e `auth.js`, após submeter o formulário de login, o DOM é inspecionado. Se o aviso de senha expirada estiver presente ou a página permanecer em `/login`, é lançado imediatamente `AuthError('wrong-password', 'Senha expirada. Por favor, redefina sua senha no AVA PRO.')`.
+  - No `worker.js`, o status `'wrong-password'` aciona o disjuntor para a matrícula (`markAuthFailure`) e aborta o lote inteiro (`abortRun`), notificando o backend via callback com o motivo claro.
+  - No backend e na UI, a conta é marcada com `credentialStatus = 'wrong-password'`, destacando o card de vínculos em vermelho com o badge `"Senha Expirada / Inválida"`.
+
+### Arquivos Adicionados / Modificados
+- `client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx`
+- `pbi-scraper/auth.js`
+- `pbi-scraper/captureTemplate.js`
+- `pbi-scraper/scrape.js`
+- `pbi-scraper/test-auth-errors.js`
+- `SalesApp.Api/Controllers/ScrapeController.cs`
+
+---
+
 ## Agendamento com Período Dinâmico e Timeout Adaptativo no Scraper
 
 Resolução automática do período de extração em execuções agendadas e cálculo dinâmico do timeout de monitoramento no visualizador de logs do DynamoDB.
