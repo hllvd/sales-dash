@@ -491,6 +491,14 @@ async function processMessage(rawMessage) {
         scrapeDate: scrapeResult.scrapeDate,
         scrapeType,
         status: scrapeResult.status,
+        durationSeconds: scrapeResult.durationSeconds || null,
+        durationFormatted: scrapeResult.durationFormatted || null,
+        authStatus: scrapeResult.authStatus || 'success',
+        authMessage: scrapeResult.authMessage || 'Autenticação bem-sucedida',
+        powerbiLoaded: scrapeResult.powerbiLoaded !== false,
+        authSteps: scrapeResult.authSteps || [],
+        retryCount: scrapeResult.retryCount || 0,
+        completedAt: new Date().toISOString(),
         timestamp: new Date().toISOString()
       };
       log('INFO', `Publishing result to SQS queue: ${SQS_RESULTS_QUEUE_URL}`, { jobId, resultsPayload });

@@ -6,6 +6,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
+const { AuthError, detectLoginErrorText } = require('./auth');
 
 const AVA_URL = 'https://avapro.ademicon.com.br/';
 const DASHBOARD_CONSULTOR_URL = 'https://avapro.ademicon.com.br/dashboard/consultor';
@@ -137,6 +138,36 @@ async function captureTemplate(matricula, password, stepLogger = null) {
     } else {
       await page.keyboard.press('Enter');
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+    }
+
+    const currentUrl = page.url();
+    addStep(`[Capture] URL após login: ${currentUrl}`);
+
+    // Inspeciona texto visível na página de login para capturar avisos como "Senha expirada"
+    let pageErrorText = null;
+    try {
+      pageErrorText = await page.evaluate(() => {
+        const errorEl = document.querySelector('.alert, [role="alert"], .error, .text-danger, .invalid-feedback, div[class*="error"], span[class*="error"]');
+        if (errorEl && errorEl.textContent) return errorEl.textContent.trim();
+        const bodyText = document.body ? document.body.innerText : '';
+        if (bodyText.includes('Senha expirada') || bodyText.includes('redefina sua senha') || bodyText.includes('Usuário ou senha')) {
+          const match = bodyText.split('\n').find(l => l.includes('Senha expirada') || l.includes('redefina') || l.includes('Usuário ou senha'));
+          return match ? match.trim() : null;
+        }
+        return null;
+      });
+    } catch (_) {}
+
+    const detectedPageError = detectLoginErrorText(pageErrorText);
+    if (detectedPageError && detectedPageError.isFatalAuth) {
+      addStep(`[Capture ❌ Falha de Autenticação] ${detectedPageError.reason}`);
+      throw new AuthError('wrong-password', detectedPageError.reason, [], false, false);
+    }
+
+    if (currentUrl.includes('/login')) {
+      const fallbackReason = pageErrorText || 'Permaneceu na página de login.';
+      addStep(`[Capture ❌ Falha de Autenticação] ${fallbackReason}`);
+      throw new AuthError('wrong-password', fallbackReason, [], false, false);
     }
 
     addStep('[Capture] Login efetuado com sucesso. Navegando para /dashboard/consultor...');

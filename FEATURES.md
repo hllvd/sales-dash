@@ -88,6 +88,63 @@ Sistema de suporte e FAQ privado integrado à Central de Ajuda e a todas as tela
 
 ---
 
+## Período Padrão de 15 Meses e Detecção de Senha Expirada no Scraper
+
+Configuração da UI para sugerir por padrão a extração dos últimos 15 meses (preservando a opção de "Todas as datas") e detecção explícita de "Senha expirada" no portal AVA PRO, integrando com o disjuntor de lote e aviso visual no dashboard.
+
+### Problema e Causa Raiz
+- Ao cadastrar uma nova conta de scrape, o modal pré-selecionava "Todas as datas (Sem filtro)" por padrão, o que levava usuários a extrair desnecessariamente todo o histórico de anos anteriores.
+- Ao tentar autenticar com uma senha expirada no AVA PRO, a página de login não realizava redirecionamento e exibia o aviso de alerta: `"Senha expirada. Por favor, redefina sua senha."`. O robô (Puppeteer) aguardava o redirecionamento que nunca ocorria até estourar o timeout, resultando em falsos timeouts de 5 minutos na tela em vez de apontar imediatamente a senha expirada e destacar o card da conta em vermelho.
+
+### Comportamento e Regras
+- **Período Padrão de 15 Meses na UI (`ScrapeDashboard.tsx`)**:
+  - Novas contas iniciam com `dateMode = '15'` e `defaultStartMonth` calculado para 15 meses atrás (`calculateRelativeMonth(15)`).
+  - A opção `"Todas as datas (Sem filtro)"` continua disponível para seleção explícita caso o usuário queira raspar toda a base.
+  - Para extrações manuais de Consultor (`ScrapeController.cs`), meses múltiplos configurados são unificados em uma única chamada consolidada (ex.: `"2025-08,2025-09,...,2026-10"`), executando em apenas 1 job rápido em vez de 15 jobs paralelos.
+- **Detecção de Senha Expirada no Fargate / Puppeteer (`auth.js`, `captureTemplate.js`, `scrape.js`)**:
+  - Adicionado o helper puro `detectLoginErrorText` para identificar termos como `"senha expirada"`, `"redefina sua senha"` e `"usuário ou senha inválida"` tanto no DOM renderizado da página quanto em respostas HTTP.
+  - No `captureTemplate.js` e `auth.js`, após submeter o formulário de login, o DOM é inspecionado. Se o aviso de senha expirada estiver presente ou a página permanecer em `/login`, é lançado imediatamente `AuthError('wrong-password', 'Senha expirada. Por favor, redefina sua senha no AVA PRO.')`.
+  - No `worker.js`, o status `'wrong-password'` aciona o disjuntor para a matrícula (`markAuthFailure`) e aborta o lote inteiro (`abortRun`), notificando o backend via callback com o motivo claro.
+  - No backend e na UI, a conta é marcada com `credentialStatus = 'wrong-password'`, destacando o card de vínculos em vermelho com o badge `"Senha Expirada / Inválida"`.
+
+### Arquivos Adicionados / Modificados
+- `client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx`
+- `pbi-scraper/auth.js`
+- `pbi-scraper/captureTemplate.js`
+- `pbi-scraper/scrape.js`
+- `pbi-scraper/test-auth-errors.js`
+- `SalesApp.Api/Controllers/ScrapeController.cs`
+
+---
+
+## Agendamento com Período Dinâmico e Timeout Adaptativo no Scraper
+
+Resolução automática do período de extração em execuções agendadas e cálculo dinâmico do timeout de monitoramento no visualizador de logs do DynamoDB.
+
+### Problema e Causa Raiz
+- O serviço de agendamento em background (`ScrapeSchedulerService.cs`) disparava as extrações com `scrapeDate = null`, ignorando a configuração da conta (`DefaultStartMonth`) e forçando o robô na nuvem a varrer toda a base histórica legada (mais de 94 mil contratos).
+- Paralelamente, o leitor de logs do DynamoDB (`ScrapeDynamoLogService.cs`) aplicava um timeout estático de 5 minutos para status `Pending` e `Running`, marcando falsamente processos como "Tempo limite excedido (Timeout)" na tela do usuário, mesmo quando a execução na nuvem seguia em andamento e terminava com sucesso no S3.
+
+### Comportamento e Regras
+- **Período Dinâmico no Agendador (`ScrapeSchedulerService.ResolveScheduledScrapeDate`)**:
+  - Inspeciona o `config.DefaultStartMonth` da conta.
+  - Se preenchido (ex.: `"2026-08"`), calcula os meses até o mês atual em UTC.
+  - Para o modo `"consultor"`, concatena os meses separados por vírgula (`"2026-08,2026-09,2026-10"`), permitindo que o robô faça a extração em uma única consulta semântica direta.
+  - Para o modo `"geral"`, envia o primeiro mês do intervalo.
+  - Se nulo ou vazio, mantém `null` ("Todos os meses").
+- **Timeout Adaptativo de Monitoramento (`ScrapeDynamoLogService.CalculateJobTimeoutMinutes`)**:
+  - Quando houver meses definidos: `Timeout = 5 minutos base + (Quantidade de Meses × 3 minutos)`.
+  - Exemplos: 1 mês = 8 min; 3 meses = 14 min; 15 meses = 50 min.
+  - Quando não houver meses informados (`null` / "Todos os meses"): `Timeout = 60 minutos`.
+  - Transições para `Failed` por timeout só ocorrem após o tempo limite calculado com base no volume esperado.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Services/ScrapeSchedulerService.cs`
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs`
+- `SalesApp.Tests/Services/ScrapeSchedulerAndTimeoutTests.cs`
+
+---
+
 ## Perguntas Frequentes (FAQ) & Regras do Sistema (`#/document/documentacao/perguntas-frequentes`)
 
 Seção oficial de Perguntas e Respostas na Central de Documentação/Ajuda, detalhando tanto as regras técnicas de importação de contratos e atualização de vínculos com matrículas divergentes (baseadas no arquivo técnico de auditoria `MD/QA.txt`) quanto as principais dúvidas operacionais e regras de negócio do sistema.
@@ -110,6 +167,7 @@ Seção oficial de Perguntas e Respostas na Central de Documentação/Ajuda, det
 - `client/sales-dash/src/components/Document/DocumentIndex.tsx`
 
 ---
+
 ## Manual Operacional: Como Usar Solicitações (`#/document/como-fazer/como-usar-solicitacoes`)
 
 Manual operacional passo a passo detalhando o funcionamento completo do módulo de Solicitações (`#/requests`), estruturado com índice de âncoras para navegação rápida e mini how-tos explicativos e concisos para cada um dos 6 tipos de solicitação do sistema.
@@ -195,6 +253,32 @@ Documentação direcionada aos consultores de vendas com foco motivacional e ins
 - `client/sales-dash/public/docs/images/meus-contratos-visao-geral.png`
 - `client/sales-dash/public/docs/images/meus-contratos-graficos-pendentes.png`
 - `client/sales-dash/public/docs/images/meus-contratos-atribuir-contrato.png`
+
+---
+
+## Resolução de Dicionários PowerBI DSR (`ValueDicts`) — Correção de Cota e Literais Numéricos
+
+Mecanismo puro e determinístico de resolução de `ValueDicts` no `parseDSR` para scraper Consultor e Padrão, eliminando a substituição indevida de valores literais numéricos (como `Cota` e `NO_Endereco`) por índices de dicionário em JavaScript.
+
+### Problema e Causa Raiz
+- No protocolo DSR do Power BI, colunas dicionarizadas (`DN`) enviam os top 100 valores mais frequentes como índices inteiros (`0..99`) e valores fora do dicionário como strings literais (ex.: `'82'`, `'28'`, `'2'`).
+- Em JavaScript, o acesso a arrays via string numérica (`arr["82"]`) é convertido internamente no índice inteiro (`arr[82]`). Com isso, valores literais como a cota `'82'` eram erroneamente substituídos pelo 83º elemento do dicionário (`'964'`/`'154'`).
+- Apenas valores `>= 100` escapavam porque excediam o tamanho do dicionário (`undefined ?? val`).
+
+### Comportamento e Regras
+- **Detecção Automática e Pura (`resolveDictValue`)**:
+  - `string`: Tratado estritamente como valor literal. Nunca consulta o dicionário.
+  - `number` (inteiro `>= 0` e `< dict.length`): Tratado como índice do dicionário e resolvido para `dict[val]`.
+  - Qualquer outro valor (`null`, `undefined`, números fora do range ou frações): Retornado intacto.
+- **Abrangência**:
+  - Centralizado em `pbi-scraper/dsrDict.js` e consumido por `pbi-scraper/scrapeConsultor.js` e `pbi-scraper/extractor.js`.
+  - Corrige automaticamente todas as colunas com `ValueDicts` (`Cota`, `NO_Endereco`, etc.).
+
+### Arquivos Adicionados / Modificados
+- `pbi-scraper/dsrDict.js`
+- `pbi-scraper/scrapeConsultor.js`
+- `pbi-scraper/extractor.js`
+- `pbi-scraper/test-extractorConsultor.js`
 
 ---
 
@@ -485,6 +569,69 @@ Implementa melhorias no módulo de monitoramento de licenças (`LicensingPage`),
 
 ---
 
+## Derivação de Status de Cotas para o Scrape do Tipo Consultor (`Late1`, `Late2`, `Late3`, `AwaitingPayment`, `Desistente`, `Defaulted`)
+
+Enriquece e padroniza a importação do relatório da Carteira do Consultor (Power BI) no backend C#. Como o relatório bruto do Consultor apresenta apenas as situações `"Normal"` e `"Excluido"`, o sistema avalia múltiplos indicadores financeiros (parcelas em atraso, parcelas pagas, última data de pagamento e data da venda) para classificar cada cota com a mesma granularidade e precisão do dashboard analítico.
+
+### Regras de Negócio Implementadas
+- **Situação `Excluido`**:
+  - Se `Sum(2 Rel Carteira.Quant.Parcelas Pagas) == 0`: Status derivado para **`Desistente`**.
+  - Se `Quant.Parcelas Pagas > 0` (ou não especificado): Status derivado para **`Defaulted`**.
+- **Situação `Normal`**:
+  - **Sem Pagamento** (`2 Rel Carteira.Últ.Pagto Parcela` nula, vazia ou `"0"`):
+    - Se a data da venda (`2 Rel Carteira.Data.Venda` / `SaleStartDate`) for **inferior ou igual a 30 dias** em relação à data atual: Status derivado para **`AwaitingPayment`** (aguardando primeiro pagamento).
+    - Se a data da venda for **superior a 30 dias**:
+      - Se `Sum(2 Rel Carteira.Quant.Parcelas em Atraso) >= 3`: **`Late3`**
+      - Se `Quant.Parcelas em Atraso == 2`: **`Late2`**
+      - Se `Quant.Parcelas em Atraso == 1`: **`Late1`**
+      - Se não houver parcelas em atraso registradas: **`AwaitingPayment`**
+  - **Com Pagamento** (`2 Rel Carteira.Últ.Pagto Parcela` preenchida com data válida e diferente de `"0"`):
+    - Se `Quant.Parcelas em Atraso >= 3`: **`Late3`**
+    - Se `Quant.Parcelas em Atraso == 2`: **`Late2`**
+    - Se `Quant.Parcelas em Atraso == 1`: **`Late1`**
+    - Se `Quant.Parcelas em Atraso == 0` (ou ausente): **`Active`** (Normal)
+- **Identificação Determinística**:
+  - O serviço `ConsultorStatusEvaluator` detecta se a linha pertence ao relatório do Consultor a partir das colunas `2 Rel Carteira.Definição.Situação`, `Quant.Parcelas em Atraso` e `Quant.Parcelas Pagas`.
+  - Caso o registro não seja do Consultor ou não contenha essas métricas, o mapeamento padrão de `Situação Cobrança` permanece inalterado.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/ConsultorStatusEvaluator.cs`: Serviço puro e determinístico contendo a lógica de derivação de status e detecção de linhas do Consultor.
+- `SalesApp.Api/appsettings.json`: Mapeamentos adicionados em `ScrapeImportMappings` para `"OverdueInstallments"` e `"PaidInstallments"`.
+- `SalesApp.Api/Services/ImportExecutionService.cs`: Integração de `ConsultorStatusEvaluator`, extração robusta de parcelas em atraso/pagas e tratamento do valor `"0"` como ausência de pagamento.
+- `SalesApp.IntegrationTests/appsettings.json`: Sincronização dos mapeamentos para o ambiente de testes de integração.
+- `SalesApp.IntegrationTests/Imports/ConsultorStatusEvaluatorTests.cs`: Testes unitários para todas as variações e condições limites da derivação de status.
+- `SalesApp.IntegrationTests/Imports/ScrapeImportValidationAndDecompositionTests.cs`: Teste de integração de ponta a ponta validando persistência no banco dos status derivados para o Consultor.
+
+---
+
+## Alinhamento de Mapeamento de Status `Desistente` e `Awaiting Payment` (`Tem Pagamento?`) nos Scrapes e Template `contractDashboard`
+
+Garante total paridade de dados entre as extrações automatizadas via Scrape (tanto modo Geral quanto modo Consultor) e a importação manual via template `contractDashboard`, tratando com fidelidade o status canônico `Desistente` e a detecção de contratos aguardando primeiro pagamento (`HasPayment == false` / `Awaiting Payment`).
+
+### Comportamento e Regras
+- **Preservação do Status `Desistente` no Scraper Geral (`pbi-scraper/extractor.js`)**:
+  - Corrigido o algoritmo de pós-processamento de status: anteriormente, qualquer registro com `Dt Cancelamento` preenchida tinha seu status sobrescrito incondicionalmente para `'EXCLUIDO'` (mapeado para `Defaulted`).
+  - O scraper agora prioriza e preserva valores de status legítimos contendo `desist` (`Desistente`), evitando que cotas canceladas por desistência sejam tratadas como cancelamento comum.
+  - No backend, `ContractStatusMappings` em `appsettings.json` inclui aliases canônicos adicionais: `"Desistência"`, `"DESISTÊNCIA"`, `"Desistencia"`, `"DESISTENCIA"`.
+- **Mapeamento de `Tem Pagamento?` / `HasPayment` no Scraper Geral**:
+  - Adicionado suporte às colunas `"Tem Pagamento?"`, `"Tem Pagamento"`, `"TemPagamento"`, `"tbl_cotas.tem_pagamento"` e `"tem_pagamento"` em `ScrapeImportMappings.Mappings` apontando para o campo de modelo `HasPayment`.
+- **Dedução de `Tem Pagamento?` e `HasPayment` no Scraper Consultor (`scrapeConsultor.js`, `extractorConsultor.js` e backend)**:
+  - O relatório do Consultor no Power BI não possui coluna booleana explícita de pagamento, mas disponibiliza a coluna `"2 Rel Carteira.Últ.Pagto Parcela"`.
+  - **No scraper (`pbi-scraper`)**: Durante a conversão de queries DSR e deduplicação de linhas, o scraper injeta dinamicamente a coluna `"Tem Pagamento?"` (`'Sim'` quando há data válida de último pagamento e `'Não'` quando for nula/vazia).
+  - **No backend (`ImportExecutionService.cs`)**: Fallback de dupla camada na importação de `contractDashboard`: caso o campo `HasPayment` esteja ausente no registro, o serviço inspeciona a coluna `"2 Rel Carteira.Últ.Pagto Parcela"` / `"LastPaymentDate"`. Se vazia/nula, atribui `HasPayment = false`; se preenchida com data, atribui `HasPayment = true`.
+  - Contratos ativos (`Normal` / `Active`) com `HasPayment == false` são perfeitamente identificados como "Aguardando Pagamento" nos relatórios e filtros do sistema.
+
+### Arquivos Modificados
+- `pbi-scraper/extractor.js`: Preservação do status `Desistente` antes de aplicar fallbacks de data de cancelamento/contemplação.
+- `pbi-scraper/scrapeConsultor.js`: Dedução e injeção do campo `"Tem Pagamento?"` a partir de `"2 Rel Carteira.Últ.Pagto Parcela"`.
+- `pbi-scraper/extractorConsultor.js`: Dedução e injeção do campo `"Tem Pagamento?"` para extrações diretas HTTP POST do Consultor.
+- `SalesApp.Api/appsettings.json`: Adicionados aliases de `Desistente` e mapeamentos de `HasPayment` e `LastPaymentDate` em `ScrapeImportMappings`.
+- `SalesApp.Api/Services/ImportExecutionService.cs`: Fallback de leitura de `LastPaymentDate` / `"2 Rel Carteira.Últ.Pagto Parcela"` para atribuição de `HasPayment`.
+- `SalesApp.IntegrationTests/appsettings.json`: Sincronização dos mapeamentos canônicos e de scrape no ambiente de testes.
+- `SalesApp.IntegrationTests/TestStartup.cs`: Registro de injeção de dependência para `ScrapeImportOptions`.
+- `SalesApp.IntegrationTests/Imports/ScrapeImportValidationAndDecompositionTests.cs`: Testes de integração cobrindo mapeamento Geral e Consultor para `Desistente` e `HasPayment`.
+
+
 ## Visualização de Contratos de Usuários Inativos e Preferência no Formulário de Contratos
 
 Garante que contratos fechados por usuários que foram desativados continuem visíveis na tela de Gerenciamento de Contratos (`#/contracts`) para administradores e superadministradores, preservando estritamente a árvore hierárquica (`ParentUserId`). Além disso, ajusta o formulário de contratos (`ContractForm`) para respeitar a preferência de exibição de inativos nas configurações do usuário.
@@ -625,27 +772,27 @@ Permite aos administradores definirem de forma granular e visual para cada crede
 
 ---
 
-## Agendamento por Intervalo de Horas (Cron) e Deploy Fargate Scraper em Produção
+## Agendamento por Horário Específico (Fuso de Brasília) e Worker Remoto Padrão
 
-Permite configurar a periodicidade de extração automática para cada conta cadastrada no modal de Scrape (`ScrapeIntervalHours`), com execução autônoma através de um hosted service no backend (`ScrapeSchedulerService`). O ecossistema suporta a arquitetura de container Fargate Spot disparado sob demanda via AWS Lambda Function URL, processando jobs da fila SQS e encerrando-se automaticamente (`SCALE_TO_ZERO`), enquanto um worker local no VPS consome a fila de resultados (`RESULTS_CONSUMER_MODE`) e efetua a ingestão dos contratos para a base de dados.
+Permite configurar a periodicidade e horários fixos de extração automática para cada conta cadastrada no modal de Scrape, com execução autônoma através de um hosted service no backend (`ScrapeSchedulerService`) sincronizado com o fuso horário oficial de Brasília (`America/Sao_Paulo` / UTC-3). Adicionalmente, novas contas agora vêm com o modo de extração `Remoto (AWS Fargate Spot)` pré-selecionado por padrão.
 
 ### Comportamento e Regras
-- **Agendamento por Conta (`ScrapeConfig.ScrapeIntervalHours` & `LastTriggeredAt`)**:
-  - Usuários podem selecionar a periodicidade: Desativada, a cada 1h, 3h, 6h, 12h, 24h (diário), 48h (2 dias) ou 168h (semanal).
-  - Regra de validação: intervalo mínimo permitido de 1 hora.
-  - O painel exibe um badge visual `Auto Xh` nos registros que possuem periodicidade configurada.
+- **Worker Remoto Padrão para Novas Contas**:
+  - Ao abrir o modal "Nova Conta", o campo *Tipo de Worker de Extração* vem pré-selecionado como `☁ Remoto (AWS Fargate Spot)` (`outputMode: 'sqs'`).
+  - Contas existentes preservam as configurações salvas anteriormente.
+- **Agendamento por Horário Fixo no Fuso de Brasília (`ScheduleMode`, `ScheduleTimes`, `ScheduleIntervalHours`)**:
+  - **Modo Diário (`daily`)**: Permite cadastrar múltiplos horários específicos ao longo do dia (ex: `08:00`, `14:30`, `20:00`). O backend avalia o fuso horário `America/Sao_Paulo` a cada 60s, executa no horário programado com janela de tolerância de 15 minutos e previne execuções duplicadas no mesmo slot.
+  - **Modo Semanal (`weekly`)**: Permite escolher o dia da semana (Segunda a Domingo) e os horários de execução naquele dia.
+  - **Modo Intervalo Recorrente (`interval`)**: Mantém a opção de intervalo a cada N horas (1h, 3h, 6h, 12h, 24h, 48h ou 168h).
+  - **Modo Desativado (`disabled`)**: Execuções ocorrem apenas sob demanda manual.
 - **Hosted Service de Agendamento (`ScrapeSchedulerService.cs`)**:
-  - Executa loop de verificação a cada 60 segundos no backend.
+  - Avaliação pura e determinística (`EvaluateSchedule`) isolada de side-effects.
   - Dispara requisições apenas para contas ativas (`IsEnabled == true`) e sem trava de erro de credencial (`CredentialStatus != "wrong-password"`).
-  - Atualiza `LastTriggeredAt` e calcula os períodos retroativos relativos à data de execução.
-- **Disparo Remoto do Fargate via Lambda Function (`infra/lambda/scraper-launcher`)**:
-  - Função serverless em Node.js que recebe notificações de jobs enfileirados e invoca `ecs:RunTask` com capacidade `FARGATE_SPOT` na rede padrão da AWS (`assignPublicIp: ENABLED`, sem custo de NAT Gateway).
-- **Consumo Nativo de Resultados no Backend (`salesapp-api`)**:
-  - A própria API .NET monitora a fila `SQS_RESULTS_QUEUE_URL` via `SqsResultBackgroundConsumerService` em segundo plano com custo de memória marginal quase nulo.
-  - Baixa os arquivos CSV do S3 e efetua a ingestão dos contratos diretamente na base SQLite, dispensando containers adicionais na VPS.
-- **Pipeline CI/CD (GitHub Actions)**:
-  - Workflow `.github/workflows/deploy-scraper.yml` para compilação e publicação automática no AWS ECR.
-  - Matriz de build e deploy do `.github/workflows/deploy.yml` unificada com o serviço `pbi-scraper`.
+  - Atualiza `LastTriggeredAt` imediatamente no banco para controle de idempotência.
+- **Interface e Experiência do Usuário (`ScrapeDashboard.tsx`)**:
+  - Segmented control intuitivo no modal permitindo alternar entre Desativada, Diária (Horários), Semanal e Intervalo.
+  - Seletor de horas (00-23) e minutos (00-55) com adição dinâmica de tags de horários removíveis com `X`.
+  - Badges informativos na listagem com tooltips detalhando os horários de Brasília agendados.
 
 ---
 
@@ -2400,5 +2547,55 @@ Aprimoramento da gestão operacional e relatórios:
 - `client/sales-dash/src/contexts/ReferenceDataContext.tsx` — Suporte a `status` em `fetchTeams`.
 - `client/sales-dash/src/components/ContractsPage.tsx` — Coluna Equipe, configuração de visibilidade, switch de preferência no servidor e estilização de usuários inativos no filtro.
 - `client/sales-dash/src/components/TeamsPage.tsx` — Filtro de status (ativas, inativas, todas), badge inativa e botão de reativar para superadmin.
+
+## [2026-09-25] — Preservação de Mês e Metadados de Execução Individual no Detalhe do Scrape (SQS/DynamoDB)
+
+### Contexto & Motivação
+Na tela de Detalhes da Execução de Scrape (`ScrapeRunDetailPage.tsx`), a coluna "Mês (MM/YYYY)" apresentava incorretamente a etiqueta `"MÊS ATUAL"` para todos os processos individuais de um lote de múltiplos meses (ex.: 3 meses retroativos). Além disso, métricas como duração, autenticação e status do PowerBI apareciam zeradas/indefinidas (`0s`, `-`, `NÃO DETECTADO`).
+
+A causa raiz era a perda do campo `scrapeDate` e métricas complementares durante o ciclo assíncrono SQS/DynamoDB: o serviço consumidor de resultados (`SqsResultBackgroundConsumerService`) não repassava o `scrapeDate` e métricas ao atualizar o status para `Succeeded` no DynamoDB. Além disso, a desduplicação (`DeduplicateJobs`) no serviço de log do DynamoDB não mesclava os atributos pré-existentes registrados na inicialização do job (`Pending`/`Running`).
+
+### Funcionalidades & Arquitetura
+1. **Consumidor de Resultados SQS (`SqsResultBackgroundConsumerService.cs`)**:
+   - Extrai `scrapeDate`, `durationFormatted`, `durationSeconds`, `authStatus`, `powerBiLoaded`, `authSteps` e `completedAt` do corpo da mensagem SQS.
+   - Persiste esses metadados no `additionalData` repassado a `logService.WriteJobStatusAsync` tanto para execuções bem-sucedidas (`Succeeded`) quanto em caso de erro na importação (`Failed`).
+2. **Mesclagem Resiliente de Atributos no DynamoDB (`ScrapeDynamoLogService.cs`)**:
+   - No método `DeduplicateJobs`, caso o registro de conclusão não contenha explicitamente campos como `ScrapeDate`, `Store`, `Matricula`, `UserEmail`, `AuthStatus`, `PowerBiLoaded` ou `Duration`, esses dados são recuperados a partir dos registros anteriores do ciclo de vida do mesmo `JobId` (`Pending` / `Running`).
+   - Garante que mesmo registros históricos já existentes no DynamoDB passem a recuperar o `ScrapeDate` correto na visualização do detalhe da execução.
+3. **Formatação Aprimorada de Meses no Frontend (`ScrapeRunDetailPage.tsx`)**:
+   - Função pura `formatMonthYear` atualizada:
+     - Retorna `"Todas as datas"` para scrapes sem filtro de data (`null`, vazio ou `'Padrão'`).
+     - Converte formato `YYYY-MM` para `MM/YYYY` (ex.: `"2026-07"` -> `"07/2026"`).
+     - Suporta múltiplos meses separados por vírgula (ex.: `"2026-07,2026-08"` -> `"07/2026, 08/2026"`).
+4. **Worker SQS (`pbi-scraper/worker.js`)**:
+   - Inclusão dos campos `durationSeconds`, `durationFormatted`, `authStatus`, `authMessage`, `powerbiLoaded`, `authSteps` e `retryCount` no payload SQS `resultsPayload`.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/SqsResultBackgroundConsumerService.cs` — Extração e persistência de `scrapeDate` e metadados no consumo SQS.
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs` — Mesclagem resiliente de atributos entre itens do mesmo `JobId` em `DeduplicateJobs`.
+- `client/sales-dash/src/components/Scrape/ScrapeRunDetailPage.tsx` — Formatação de data em `formatMonthYear` com suporte a "Todas as datas", formatação `MM/YYYY` e múltiplos meses.
+- `pbi-scraper/worker.js` — Enriquecimento do `resultsPayload` com métricas completas de execução.
+
+## [2026-09-25] — Retenção Automática de 30 Dias via TTL no DynamoDB (`pbi_scrape_logs`)
+
+### Contexto & Motivação
+Para evitar crescimento contínuo de registros históricos de scrape e logs de erros de sistema no DynamoDB sem gerar custos com capacidade de escrita ou exigir scripts de limpeza na VPS, foi implementado o recurso nativo **Time to Live (TTL)** da AWS na tabela `pbi_scrape_logs`.
+
+### Funcionalidades & Arquitetura
+1. **Atributo `TTL` com Timestamp Epoch em Segundos**:
+   - `ScrapeDynamoLogService.WriteJobStatusAsync`: adiciona o campo numérico `TTL` (`N`) calculado como `DateTimeOffset.UtcNow.AddDays(_logRetentionDays).ToUnixTimeSeconds()`.
+   - `ImportErrorService.LogErrorAsync`: também inclui o campo numérico `TTL` para permitir a expiração automática de erros de importação antigos.
+2. **Configurabilidade (`appsettings.json`)**:
+   - Parâmetro `PbiScraper:LogRetentionDays` configurado com valor padrão `30`.
+   - Permite alterar o período de retenção (ex.: 30, 60, 90 dias) ou desativar (`0`) via configuração sem recompilar o código.
+3. **Custo Zero e Exclusão Assíncrona**:
+   - As exclusões efetuadas pelo mecanismo nativo de TTL do DynamoDB não consomem Write Capacity Units (WCU) e são executadas em segundo plano pela infraestrutura da AWS.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs` — Inclusão do cálculo e gravação do atributo `TTL` no `PutItemAsync`.
+- `SalesApp.Api/Services/ImportErrorService.cs` — Inclusão do cálculo e gravação do atributo `TTL` para logs de erro.
+- `SalesApp.Api/appsettings.json` — Adição da chave `LogRetentionDays: 30` sob `PbiScraper`.
+
+
 
 

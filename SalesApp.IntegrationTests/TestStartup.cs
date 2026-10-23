@@ -124,6 +124,7 @@ namespace SalesApp.IntegrationTests
             // Contract Status Aliases Mapping
             services.Configure<Models.Configuration.ContractStatusOptions>(Configuration.GetSection("ContractStatusMappings"));
             services.AddSingleton<IContractStatusMapper, ContractStatusMapper>();
+            services.Configure<Models.Configuration.ScrapeImportOptions>(Configuration.GetSection("ScrapeImportMappings"));
             
             // DynamoDb typed settings
             services.Configure<DynamoDbSettings>(Configuration.GetSection("AWS"));

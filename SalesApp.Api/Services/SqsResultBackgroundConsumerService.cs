@@ -143,6 +143,24 @@ namespace SalesApp.Services
                 string? runId = body.runId?.ToString();
                 string? matricula = body.matricula?.ToString();
                 string? store = body.store?.ToString() ?? body.unit?.ToString();
+                string? scrapeDate = body.scrapeDate?.ToString();
+                string? durationFormatted = body.durationFormatted?.ToString();
+                int? durationSeconds = null;
+                string? durSecsRaw = body.durationSeconds?.ToString();
+                if (!string.IsNullOrEmpty(durSecsRaw) && int.TryParse(durSecsRaw, out int ds))
+                {
+                    durationSeconds = ds;
+                }
+                string? authStatus = body.authStatus?.ToString() ?? "success";
+                string? authMessage = body.authMessage?.ToString() ?? "Autenticação bem-sucedida";
+                bool powerBiLoaded = true;
+                string? pblRaw = body.powerbiLoaded?.ToString() ?? body.powerBiLoaded?.ToString();
+                if (!string.IsNullOrEmpty(pblRaw) && bool.TryParse(pblRaw, out bool pbl))
+                {
+                    powerBiLoaded = pbl;
+                }
+                string? authSteps = body.authSteps != null ? body.authSteps.ToString() : null;
+                string? completedAt = body.completedAt?.ToString() ?? body.timestamp?.ToString() ?? DateTime.UtcNow.ToString("O");
 
                 Guid? userId = null;
                 if (!string.IsNullOrEmpty(rawUserId) && Guid.TryParse(rawUserId, out var parsedUid))
@@ -202,7 +220,10 @@ namespace SalesApp.Services
                                 matricula ?? string.Empty,
                                 runId,
                                 null,
-                                new { error = $"Auto-import failed: {errorsJoined}" });
+                                new { 
+                                    error = $"Auto-import failed: {errorsJoined}",
+                                    ScrapeDate = scrapeDate
+                                });
                         }
                         catch (Exception logEx)
                         {
@@ -251,7 +272,15 @@ namespace SalesApp.Services
                                 rowCount = importResult.ProcessedRows,
                                 s3Bucket,
                                 s3Key,
-                                autoImported = true
+                                autoImported = true,
+                                ScrapeDate = scrapeDate,
+                                DurationFormatted = durationFormatted,
+                                DurationSeconds = durationSeconds,
+                                AuthStatus = authStatus,
+                                AuthMessage = authMessage,
+                                PowerBiLoaded = powerBiLoaded,
+                                AuthSteps = authSteps,
+                                CompletedAt = completedAt
                             });
                     }
                     catch (Exception logEx)

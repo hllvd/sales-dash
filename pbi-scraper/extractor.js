@@ -1,6 +1,7 @@
 // extractor.js
 const axios = require('axios');
 const tokenManager = require('./tokenManager');
+const { resolveDictValue } = require('./dsrDict');
 
 const ENDPOINT = '7a8110990e16404daec259c355434bc6.pbidedicated.windows.net';
 const PATH     = '/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query';
@@ -289,9 +290,7 @@ function parseDSR(data, context = null) {
           const alias = s.N;
           const dictKey = s.DN;
           let val = entry[alias] ?? prev[i] ?? null;
-          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
-            val = dicts[dictKey][val] ?? val;
-          }
+          val = resolveDictValue(dicts[dictKey], val, s);
           row[friendlyName[alias] || alias] = val;
           if (entry[alias] !== undefined) {
             prev[i] = entry[alias];
@@ -330,9 +329,7 @@ function parseDSR(data, context = null) {
           const alias   = s.N;
           const dictKey = s.DN;
           let val = resolved[i];
-          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
-            val = dicts[dictKey][val] ?? val;
-          }
+          val = resolveDictValue(dicts[dictKey], val, s);
           row[friendlyName[alias] || alias] = val;
         });
         allRows.push(row);
@@ -364,9 +361,7 @@ function parseDSR(data, context = null) {
           const alias   = s.N;
           const dictKey = s.DN;
           let val = resolved[i];
-          if (dictKey && dicts[dictKey] !== undefined && val !== null && val !== undefined) {
-            val = dicts[dictKey][val] ?? val;
-          }
+          val = resolveDictValue(dicts[dictKey], val, s);
           row[friendlyName[alias] || alias] = val;
         });
         allRows.push(row);
@@ -422,7 +417,10 @@ function parseDSR(data, context = null) {
       const dtCancel = row['Dt Cancelamento'] || row['tbl_cotas.dt_cancelamento'];
       const dtContemp = row['Dt Contemplacao'] || row['tbl_cotas.dt_contemplacao'];
 
-      if (dtCancel) {
+      const isDesistente = typeof rawVal === 'string' && rawVal.toLowerCase().includes('desist');
+      if (isDesistente) {
+        row[statusKey] = 'Desistente';
+      } else if (dtCancel) {
         row[statusKey] = 'EXCLUIDO';
       } else if (dtContemp) {
         row[statusKey] = 'CONTEMPLADO';
