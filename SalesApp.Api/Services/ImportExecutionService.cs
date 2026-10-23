@@ -357,14 +357,23 @@ namespace SalesApp.Services
                 contractNumber = Utils.NormalizationUtils.NormalizeNumber(cotaInfo.Contract);
             }
             var userEmail = GetFieldValue(row, reverseMappings, "UserEmail");
-            var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
-
-            if ((string.IsNullOrWhiteSpace(totalAmountStr) || totalAmountStr == "0") && existingContract == null)
+            string? totalAmountStr;
+            if (IsConsultorScrapeRow(row))
             {
-                var creditoVendaStr = GetRawFieldValue(row, reverseMappings, "CreditoVenda", "Crédito Venda", "vl_credito_venda", "Credito Venda");
-                if (!string.IsNullOrWhiteSpace(creditoVendaStr))
+                // Strict: For consultor scrape, use ONLY Sum(2 Rel Carteira.R$ Bem Venda) with NO fallback
+                totalAmountStr = GetConsultorTotalAmount(row);
+            }
+            else
+            {
+                totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
+
+                if ((string.IsNullOrWhiteSpace(totalAmountStr) || totalAmountStr == "0") && existingContract == null)
                 {
-                    totalAmountStr = creditoVendaStr;
+                    var creditoVendaStr = GetRawFieldValue(row, reverseMappings, "CreditoVenda", "Crédito Venda", "vl_credito_venda", "Credito Venda");
+                    if (!string.IsNullOrWhiteSpace(creditoVendaStr))
+                    {
+                        totalAmountStr = creditoVendaStr;
+                    }
                 }
             }
 
@@ -1244,6 +1253,22 @@ namespace SalesApp.Services
             return null;
         }
 
+        private static bool IsConsultorScrapeRow(Dictionary<string, string> row)
+        {
+            return row.Keys.Any(k => k.StartsWith("2 Rel Carteira", StringComparison.OrdinalIgnoreCase)
+                                  || k.StartsWith("Sum(2 Rel Carteira", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string? GetConsultorTotalAmount(Dictionary<string, string> row)
+        {
+            var key = row.Keys.FirstOrDefault(k => k.Equals("Sum(2 Rel Carteira.R$ Bem Venda)", StringComparison.OrdinalIgnoreCase));
+            if (key != null && !string.IsNullOrWhiteSpace(row[key]))
+            {
+                return row[key].Trim();
+            }
+            return null;
+        }
+
         /// <summary>
         /// Safely extracts the actual contract number from potentially concatenated PowerBI values 
         /// (e.g. '012173;4103;0;MARIO;1100326334' -> '1100326334')
@@ -1739,17 +1764,30 @@ namespace SalesApp.Services
                 quota = parsedQuota;
             }
 
-            // Parse TotalAmount (initial attempt from TotalAmount / Produção Analitica)
-            var totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
-            bool hasTotalAmount = TryParseBrazilianCurrency(totalAmountStr, out var totalAmount);
+            // Parse TotalAmount
+            string? totalAmountStr;
+            bool hasTotalAmount;
+            decimal totalAmount;
 
-            // Rule 3 (fallback check): If TotalAmount (Produção Analitica) is missing/0, check Crédito de Venda
-            if (!hasTotalAmount)
+            if (IsConsultorScrapeRow(row))
             {
-                var creditoVendaStr = GetRawFieldValue(row, reverseMappings, "CreditoVenda", "Crédito Venda", "vl_credito_venda", "Credito Venda");
-                if (!string.IsNullOrWhiteSpace(creditoVendaStr))
+                // Strict: For consultor scrape, use ONLY Sum(2 Rel Carteira.R$ Bem Venda) with NO fallback
+                totalAmountStr = GetConsultorTotalAmount(row);
+                hasTotalAmount = TryParseBrazilianCurrency(totalAmountStr, out totalAmount);
+            }
+            else
+            {
+                totalAmountStr = GetFieldValue(row, reverseMappings, "TotalAmount");
+                hasTotalAmount = TryParseBrazilianCurrency(totalAmountStr, out totalAmount);
+
+                // Rule 3 (fallback check): If TotalAmount (Produção Analitica) is missing/0, check Crédito de Venda
+                if (!hasTotalAmount)
                 {
-                    hasTotalAmount = TryParseBrazilianCurrency(creditoVendaStr, out totalAmount);
+                    var creditoVendaStr = GetRawFieldValue(row, reverseMappings, "CreditoVenda", "Crédito Venda", "vl_credito_venda", "Credito Venda");
+                    if (!string.IsNullOrWhiteSpace(creditoVendaStr))
+                    {
+                        hasTotalAmount = TryParseBrazilianCurrency(creditoVendaStr, out totalAmount);
+                    }
                 }
             }
 

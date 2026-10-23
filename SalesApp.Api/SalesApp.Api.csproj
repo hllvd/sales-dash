@@ -29,4 +29,10 @@
     <PackageReference Include="EPPlus" Version="8.5.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="CareerPlan/career-plan.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

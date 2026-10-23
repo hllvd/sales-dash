@@ -25,6 +25,7 @@ using SalesApp.ReportFilters.Services;
 using SalesApp.ReportFilters.Settings;
 using SalesApp.ReportViews.Repositories;
 using SalesApp.ReportViews.Services;
+using SalesApp.CareerPlan;
 
 namespace SalesApp
 {
@@ -113,6 +114,10 @@ namespace SalesApp
             
             // Message service for translations
             services.AddScoped<IMessageService, MessageService>();
+
+            // Career Plan services
+            services.AddSingleton<ICareerPlanConfigProvider, CareerPlanConfigProvider>();
+            services.AddScoped<ICareerPlanService, CareerPlanService>();
             
             // Email services
             services.AddScoped<IEmailSender, SesEmailSender>();

@@ -1,0 +1,52 @@
+{
+  "closingDay": 15,
+  "levels": {
+    "Alef": {
+      "requirements": {
+        "all": [
+          {
+            "label": "Produção 12 meses ≥ Meta",
+            "metric": "production",
+            "windowMonths": 12,
+            "op": ">=",
+            "value": { "ref": "targetLevel.salesGoal" }
+          }
+        ]
+      }
+    },
+    "Beth": {
+      "requirements": {
+        "all": [
+          {
+            "label": "Produção 12 meses ≥ Meta",
+            "metric": "production",
+            "windowMonths": 12,
+            "op": ">=",
+            "value": { "ref": "targetLevel.salesGoal" }
+          }
+        ]
+      }
+    },
+    "Guimel": {
+      "requirements": {
+        "all": [
+          {
+            "label": "Retenção estrita 15 meses ≥ Retenção do nível (contratos com 2+ meses)",
+            "metric": "strictRetention",
+            "windowMonths": 15,
+            "eligibility": { "minAgeMonths": 2 },
+            "op": ">=",
+            "value": { "ref": "targetLevel.retention" }
+          },
+          {
+            "label": "Produção 12 meses ≥ Meta",
+            "metric": "production",
+            "windowMonths": 12,
+            "op": ">=",
+            "value": { "ref": "targetLevel.salesGoal" }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -163,6 +163,11 @@ namespace SalesApp
                     rbacCache.Initialize(cacheData);
                     Log.Information("RBAC Cache initialized successfully.");
 
+                    // Validate career plan configuration against seeded classification levels
+                    var careerPlanConfigProvider = services.GetRequiredService<SalesApp.CareerPlan.ICareerPlanConfigProvider>();
+                    var dbLevelNames = await context.ClassificationLevels.Select(l => l.Name).ToListAsync();
+                    careerPlanConfigProvider.ValidateAgainstDbLevels(dbLevelNames);
+
                     // CloudWatch Retention Initialization
                     if (cwEnabled)
                     {
