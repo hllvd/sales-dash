@@ -1,3 +1,40 @@
+## Conferência de Contratos em Lote (`#/admin-tools/compare-contracts`)
+
+Ferramenta administrativa exclusiva para `superadmin`, acessível pelo menu "Ferramentas Admin", permitindo colar uma lista de números de contratos (separados por vírgula ou por quebra de linha) para realizar uma busca e comparação global no sistema (incluindo contratos ativos e excluídos via soft-delete).
+
+### Comportamento e Regras
+- **Entrada Flexível**:
+  - Aceita listas de números de contrato (`ContractNumber`) coladas em uma textarea, separadas por vírgula ou por quebra de linha.
+  - Normaliza os números removendo espaços em branco em excesso e descartando entradas vazias.
+- **Detecção de Duplicidades na Entrada**:
+  - Identifica automaticamente números repetidos informados na lista de entrada.
+  - Exibe uma tabela dedicada de "Contratos duplicados na lista" caso existam repetições, alertando o usuário.
+- **Busca Global Completa**:
+  - Consulta o banco de dados globalmente sem restrição de equipe ou hierarquia.
+  - Inclui contratos excluídos (`IsActive == false`), permitindo rastrear o histórico completo.
+  - Para cada número único informado, exibe:
+    1. **Número do Contrato**: O identificador do contrato consultado.
+    2. **Pra quem está atribuído**: Nome do usuário proprietário, "Não atribuído" se desvinculado, ou "-" se inexistente no banco de dados.
+    3. **Valor**: Valor total do contrato (`TotalAmount`) formatado em moeda (R$), ou "-" se não encontrado.
+    4. **Data**: Data de início/venda (`SaleStartDate`) formatada em `DD/MM/AAAA`, ou "-" se não encontrado.
+    5. **Está no sistema**: Badge visual indicando `Sim` ou `Não`.
+    6. **Contrato excluído**: Badge indicando `Sim` (se excluído/inativo), `Não` (se ativo), ou "-" (se não cadastrado).
+- **Exportação em XLSX**:
+  - Botão para download direto do relatório em formato Excel (`.xlsx`) estilizado com cabeçalho formatado, formatação de moeda e abas separadas para os resultados e para a lista de contratos duplicados.
+- **Segurança**:
+  - Acesso restrito a `superadmin` validado tanto no frontend (menu restrito) quanto no backend (`AdminToolsController` com validação de claims e email).
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/DTOs/AdminCheckContractsDto.cs`
+- `SalesApp.Api/Controllers/AdminToolsController.cs`
+- `SalesApp.Tests/AdminCheckContractsTests.cs`
+- `client/sales-dash/src/services/apiService.ts`
+- `client/sales-dash/src/components/AdminTools/ContractComparisonTool.tsx`
+- `client/sales-dash/src/components/Menu.tsx`
+- `client/sales-dash/src/App.tsx`
+
+---
+
 ## Geração Automática de Artigos de Conhecimento com IA (Gemini Flash Lite) (`salesapp-helpdesk` / `#/document`)
 
 Alimentação autônoma da base de documentação e FAQ a partir de dúvidas resolvidas no Helpdesk, utilizando o modelo Gemini Flash Lite (`gemini-2.5-flash-lite`). Ao marcar uma pergunta como "Resolvido", o sistema oferece a opção de sintetizar o problema e sua solução em formato de artigo de documentação, alimentando dinamicamente as seções "Como Fazer" (`#/document/como-fazer/%`) ou "Perguntas Frequentes" (`#/document/documentacao/%`) para servir como base de conhecimento futura para atendimento automatizado com IA.

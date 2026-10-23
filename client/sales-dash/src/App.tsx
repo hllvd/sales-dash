@@ -32,6 +32,7 @@ import ContractMigrationTool from './components/AdminTools/ContractMigrationTool
 import SqsQueuePanel from './components/AdminTools/SqsQueuePanel';
 import TeamInconsistenciesTool from './components/AdminTools/TeamInconsistenciesTool';
 import DeletedContractsTool from './components/AdminTools/DeletedContractsTool';
+import ContractComparisonTool from './components/AdminTools/ContractComparisonTool';
 import RequestsPage from './components/RequestsPage';
 import DocumentPage from './components/Document/DocumentPage';
 import DocumentIndex from './components/Document/DocumentIndex';
@@ -171,6 +172,8 @@ function App() {
         return <TeamInconsistenciesTool />;
       case '#/admin-tools/deleted-contracts':
         return <DeletedContractsTool />;
+      case '#/admin-tools/compare-contracts':
+        return <ContractComparisonTool />;
       case '#/requests':
         return <RequestsPage />;
       case '#/surveys':

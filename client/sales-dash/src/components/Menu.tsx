@@ -613,8 +613,15 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconTools size={20} />}
               childrenOffset={28}
               styles={navLinkStyles('')}
-              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts' || currentPath === '#/admin-tools/sqs-queue' || currentPath === '#/admin-tools/team-inconsistencies' || currentPath === '#/admin-tools/deleted-contracts'}
+              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts' || currentPath === '#/admin-tools/sqs-queue' || currentPath === '#/admin-tools/team-inconsistencies' || currentPath === '#/admin-tools/deleted-contracts' || currentPath === '#/admin-tools/compare-contracts'}
             >
+              <NavLink
+                href="#/admin-tools/compare-contracts"
+                label="Conferência de Contratos"
+                active={isActive('#/admin-tools/compare-contracts')}
+                styles={navLinkStyles('#/admin-tools/compare-contracts')}
+                onClick={() => { if (opened) close(); }}
+              />
               <NavLink
                 href="#/admin-tools/deleted-contracts"
                 label="Contratos Deletados"

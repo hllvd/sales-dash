@@ -49,6 +49,25 @@ export interface UserMetadataFieldValue {
   value?: string
 }
 
+export interface AdminContractCheckItem {
+  contractNumber: string
+  existsInSystem: boolean
+  isDeleted: boolean
+  assignedTo: string | null
+  totalAmount: number | null
+  saleStartDate: string | null
+}
+
+export interface AdminCheckContractsResponse {
+  results: AdminContractCheckItem[]
+  duplicatesInList: string[]
+  totalInput: number
+  uniqueInput: number
+  foundCount: number
+  notFoundCount: number
+  deletedCount: number
+}
+
 export interface UserMetadataGroup {
   groupLabel: string | null
   fields: UserMetadataFieldValue[]
@@ -1888,6 +1907,37 @@ export const apiService = {
       throw new Error(await extractErrorMessage(response, "Falha ao restaurar contrato"))
     }
     return response.json()
+  },
+
+  async checkContracts(contractNumbers: string[]): Promise<ApiResponse<AdminCheckContractsResponse>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin-tools/check-contracts`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ contractNumbers }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao conferir contratos"))
+    }
+    return response.json()
+  },
+
+  async exportCheckContractsXlsx(contractNumbers: string[]): Promise<Blob> {
+    const token = localStorage.getItem("token")
+    const response = await fetch(`${API_BASE_URL}/admin-tools/check-contracts/export`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ contractNumbers }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao exportar conferência em XLSX"))
+    }
+    return response.blob()
   },
 
   async getSqsQueueStats(queueType: 'jobs' | 'results' = 'results'): Promise<SqsQueueStats> {

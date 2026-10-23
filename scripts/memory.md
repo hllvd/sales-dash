@@ -569,3 +569,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 4. Integration tests: added `TeamInconsistenciesIntegrationTests.cs` validating detection, migration resolution, and XLSX export.
 **Result:** ✅ Green (Build PASSED, Integration tests PASSED, E2E Run 1: 181/181 PASSED, E2E Run 2: 181/181 PASSED — idempotent)
 
+## [2026-10-23] e2e — Attempt 1
+**Failure:** `expect(locator).toBeVisible() failed` in `scrape_credentials.spec.ts` (relative date options test and circuit breaker test).
+**Root cause:** (1) Default date mode for new accounts was changed in `ScrapeDashboard.tsx` from `'all'` to `'15'` (`Últimos 15 meses`), causing the test to fail when expecting `'Todas as datas'` by default; (2) Credential status badge for `wrong-password` renders `'Senha Expirada / Inválida'`, but test expected `'Senha Incorreta'`.
+**Fix applied:** Updated `scrape_credentials.spec.ts` to assert default `'Últimos 15 meses (Máximo)'` value, added selection step for `'Todas as datas (Sem filtro)'`, and adjusted credential status assertion to match `/Senha (Incorreta|Expirada)/`.
+**Result:** ✅ Green (187/187 E2E tests passed)
+
+
