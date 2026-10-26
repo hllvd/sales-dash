@@ -67,12 +67,8 @@ export interface ApiResponse<T> {
 
 export const careerPlanService = {
   async evaluateUser(userId: string, asOfDate?: string): Promise<CareerPlanEvaluation> {
-    const url = new URL(`${API_BASE_URL}/api/career-plan/users/${userId}`)
-    if (asOfDate) {
-      url.searchParams.append('asOfDate', asOfDate)
-    }
-
-    const response = await authenticatedFetch(url.toString(), {
+    const query = asOfDate ? `?asOfDate=${encodeURIComponent(asOfDate)}` : ''
+    const response = await authenticatedFetch(`${API_BASE_URL}/career-plan/users/${userId}${query}`, {
       headers: getAuthHeaders()
     })
 
@@ -90,7 +86,7 @@ export const careerPlanService = {
   },
 
   async getConfigSummary(): Promise<CareerPlanConfigSummary> {
-    const response = await authenticatedFetch(`${API_BASE_URL}/api/career-plan/config`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/career-plan/config`, {
       headers: getAuthHeaders()
     })
 
