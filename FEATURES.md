@@ -22,11 +22,18 @@ Reestruturação dos níveis de classificação (`ClassificationLevel`) do siste
 - **Resolução de Nível Inicial no Plano de Carreira**:
   - Como Alef é o novo nível raiz da cadeia (não é apontado como `NextLevel` por nenhum outro nível), usuários sem classificação atribuída são automaticamente avaliados para o nível Alef, garantindo que os requisitos de meta e produção sejam calculados sem mensagens de "Nenhum requisito configurado".
 
+- **Guarda de Proteção do Seeder para Produção**:
+  - `SeedClassificationLevels` no `DbSeeder.cs` foi protegido com a guarda `if (await context.ClassificationLevels.AnyAsync()) return;`, garantindo que se o banco já possuir quaisquer níveis de classificação cadastrados (como ocorre em Produção), nenhuma classificação existente será alterada, sobrescrita ou excluída pelo backend na inicialização.
+- **Teste E2E de Progressão Alef para Beth (`career_plan_progression.spec.ts`)**:
+  - Teste de ponta a ponta Playwright que cadastra um usuário com nível inicial **Alef**, vincula contratos ativos elegíveis totalizando R$ 4.000.000,00 e verifica na tela `/#/career-plan` que o nível atual é Alef, o próximo é Beth, a meta é R$ 4.000.000,00 e o requisito de vendas de 12 meses está marcado como 100% atingido.
+
 ### Arquivos Adicionados / Modificados
 - `SalesApp.Api/Data/DbSeeder.cs`
 - `SalesApp.IntegrationTests/TestWebApplicationFactory.cs`
 - `SalesApp.IntegrationTests/Users/ApprovalRequestsControllerIntegrationTests.cs`
 - `client/e2e-test/e2e/admin_registration.spec.ts`
+- `client/e2e-test/e2e/career_plan_progression.spec.ts`
+- `client/e2e-test/playwright.config.ts`
 - `FEATURES.md`
 
 ---

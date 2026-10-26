@@ -204,6 +204,12 @@ namespace SalesApp.Data
 
         private static async Task SeedClassificationLevels(AppDbContext context)
         {
+            // Proteção: apenas seeda se a tabela estiver completamente vazia para não tocar em dados de Produção
+            if (await context.ClassificationLevels.AnyAsync())
+            {
+                return;
+            }
+
             // Remove legacy levels (Bronze, Prata, Ouro) if present
             var legacyNames = new[] { "bronze", "prata", "ouro" };
             var legacyLevels = await context.ClassificationLevels
