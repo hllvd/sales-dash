@@ -330,12 +330,18 @@ namespace SalesApp.IntegrationTests
             {
                 var levels = new[]
                 {
-                    new SalesApp.Models.ClassificationLevel { Id = 1, Name = "Bronze", Description = "Nível Bronze", SalesGoal = 10000, NextLevelId = 2, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                    new SalesApp.Models.ClassificationLevel { Id = 2, Name = "Prata", Description = "Nível Prata", SalesGoal = 30000, NextLevelId = 3, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                    new SalesApp.Models.ClassificationLevel { Id = 3, Name = "Ouro", Description = "Nível Ouro", SalesGoal = 60000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                    new SalesApp.Models.ClassificationLevel { Id = 101, Name = "Alef", Description = "Nível Alef", SalesGoal = 2000000m, NextLevelId = 102, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                    new SalesApp.Models.ClassificationLevel { Id = 102, Name = "Beth", Description = "Nível Beth", SalesGoal = 4000000m, NextLevelId = 103, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                    new SalesApp.Models.ClassificationLevel { Id = 103, Name = "Guimel", Description = "Nível Guimel", SalesGoal = 10000000m, Retention = 79, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
+                    new SalesApp.Models.ClassificationLevel { Id = 1, Name = "Alef", Description = "Nível Alef", Prize = "ALMOÇO BATEL GRILL", SalesGoal = 2000000m, NextLevelId = 2, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 2, Name = "Beth", Description = "Nível Beth", Prize = "VALE ZARA", SalesGoal = 4000000m, NextLevelId = 3, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 3, Name = "Guimel", Description = "Nível Guimel", Prize = "CAMISA", SalesGoal = 10000000m, Retention = 79, NextLevelId = 4, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 4, Name = "Daleth", Description = "Nível Daleth", Prize = "RELÓGIO", SalesGoal = 40000000m, NextLevelId = 5, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 5, Name = "Vav", Description = "Nível Vav", Prize = "CANETA MONT BLANC", SalesGoal = 40000000m, NextLevelId = 6, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 6, Name = "Hé", Description = "Nível Hé", Prize = "TERNO OU BOLSA", SalesGoal = 80000000m, NextLevelId = 7, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 7, Name = "Zayin", Description = "Nível Zayin", Prize = "CRUZEIRO", SalesGoal = 140000000m, NextLevelId = 8, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 8, Name = "Heth", Description = "Nível Heth", Prize = "PUNTA CANA", SalesGoal = 240000000m, NextLevelId = 9, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 9, Name = "Teth", Description = "Nível Teth", Prize = "VIAGEM PARA DISNEY", SalesGoal = 300000000m, NextLevelId = 10, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 10, Name = "Iod", Description = "Nível Iod", Prize = "VIAGEM GRÉCIA E SANTORINI", SalesGoal = 500000000m, NextLevelId = 11, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 11, Name = "Kaf", Description = "Nível Kaf", Prize = "VIAGEM DUBAI E MALDIVAS", SalesGoal = 700000000m, NextLevelId = 12, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 12, Name = "Lamed", Description = "Nível Lamed", Prize = "VIAGEM VOLTA AO MUNDO", SalesGoal = 1000000000m, NextLevelId = null, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
                 };
                 context.ClassificationLevels.AddRange(levels);
                 await context.SaveChangesAsync();

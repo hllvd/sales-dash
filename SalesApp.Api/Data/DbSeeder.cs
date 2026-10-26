@@ -204,11 +204,43 @@ namespace SalesApp.Data
 
         private static async Task SeedClassificationLevels(AppDbContext context)
         {
+            // Remove legacy levels (Bronze, Prata, Ouro) if present
+            var legacyNames = new[] { "bronze", "prata", "ouro" };
+            var legacyLevels = await context.ClassificationLevels
+                .Where(l => legacyNames.Contains(l.Name.ToLower()))
+                .ToListAsync();
+
+            if (legacyLevels.Count > 0)
+            {
+                var legacyIds = legacyLevels.Select(l => l.Id).ToHashSet();
+                var referencingLevels = await context.ClassificationLevels
+                    .Where(l => l.NextLevelId.HasValue && legacyIds.Contains(l.NextLevelId.Value))
+                    .ToListAsync();
+                foreach (var refL in referencingLevels)
+                {
+                    refL.NextLevelId = null;
+                }
+
+                foreach (var leg in legacyLevels)
+                {
+                    leg.NextLevelId = null;
+                }
+                await context.SaveChangesAsync();
+
+                var legacyAssignments = await context.UserClassifications
+                    .Where(uc => legacyIds.Contains(uc.LevelId))
+                    .ToListAsync();
+                if (legacyAssignments.Count > 0)
+                {
+                    context.UserClassifications.RemoveRange(legacyAssignments);
+                }
+
+                context.ClassificationLevels.RemoveRange(legacyLevels);
+                await context.SaveChangesAsync();
+            }
+
             var baseLevels = new List<(string Name, string Description, string? Prize, decimal? SalesGoal, int? Retention, string? NextLevelName)>
             {
-                ("Bronze", "Nível Bronze", null, 10000m, null, "Prata"),
-                ("Prata", "Nível Prata", null, 30000m, null, "Ouro"),
-                ("Ouro", "Nível Ouro", null, 60000m, null, null),
                 ("Alef", "Nível Alef", "ALMOÇO BATEL GRILL", 2000000m, null, "Beth"),
                 ("Beth", "Nível Beth", "VALE ZARA", 4000000m, null, "Guimel"),
                 ("Guimel", "Nível Guimel", "CAMISA", 10000000m, 79, "Daleth"),
@@ -239,6 +271,14 @@ namespace SalesApp.Data
                         UpdatedAt = DateTime.UtcNow
                     });
                 }
+                else
+                {
+                    existing.Description = item.Description;
+                    existing.Prize = item.Prize;
+                    existing.SalesGoal = item.SalesGoal;
+                    existing.Retention = item.Retention;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                }
             }
             await context.SaveChangesAsync();
 
@@ -258,6 +298,13 @@ namespace SalesApp.Data
                         curr.NextLevelId = next.Id;
                         updatedAny = true;
                     }
+                }
+                else if (item.NextLevelName == null &&
+                         nameToLevel.TryGetValue(item.Name.ToLower(), out var lastLevel) &&
+                         lastLevel.NextLevelId.HasValue)
+                {
+                    lastLevel.NextLevelId = null;
+                    updatedAny = true;
                 }
             }
 

@@ -571,7 +571,7 @@ namespace SalesApp.IntegrationTests.Users
             var payload = JsonSerializer.Serialize(new RequestClassificationLevelPayload
             {
                 LevelId = 1,
-                LevelName = "Bronze",
+                LevelName = "Alef",
                 StartDate = DateTime.UtcNow.Date
             });
 

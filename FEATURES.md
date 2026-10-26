@@ -1,3 +1,36 @@
+## Níveis Canônicos de Classificação (Alef a Lamed) e Remoção de Níveis Legados
+
+Reestruturação dos níveis de classificação (`ClassificationLevel`) do sistema para adotar os 12 níveis de progressão canônicos (Alef a Lamed), com metas, retenção, prêmios e ordenação encadeada (`NextLevelId`), removendo completamente os níveis legados (Bronze, Prata, Ouro) do seed e do banco de dados.
+
+### Comportamento e Regras
+- **12 Níveis Canônicos em Sequência Encadeada**:
+  - **Alef**: Meta R$ 2.000.000,00 | Prêmio "ALMOÇO BATEL GRILL" | Próximo: Beth
+  - **Beth**: Meta R$ 4.000.000,00 | Prêmio "VALE ZARA" | Próximo: Guimel
+  - **Guimel**: Meta R$ 10.000.000,00 | Retenção 79% | Prêmio "CAMISA" | Próximo: Daleth
+  - **Daleth**: Meta R$ 40.000.000,00 | Prêmio "RELÓGIO" | Próximo: Vav
+  - **Vav**: Meta R$ 40.000.000,00 | Prêmio "CANETA MONT BLANC" | Próximo: Hé
+  - **Hé**: Meta R$ 80.000.000,00 | Prêmio "TERNO OU BOLSA" | Próximo: Zayin
+  - **Zayin**: Meta R$ 140.000.000,00 | Prêmio "CRUZEIRO" | Próximo: Heth
+  - **Heth**: Meta R$ 240.000.000,00 | Prêmio "PUNTA CANA" | Próximo: Teth
+  - **Teth**: Meta R$ 300.000.000,00 | Prêmio "VIAGEM PARA DISNEY" | Próximo: Iod
+  - **Iod**: Meta R$ 500.000.000,00 | Prêmio "VIAGEM GRÉCIA E SANTORINI" | Próximo: Kaf
+  - **Kaf**: Meta R$ 700.000.000,00 | Prêmio "VIAGEM DUBAI E MALDIVAS" | Próximo: Lamed
+  - **Lamed**: Meta R$ 1.000.000.000,00 | Prêmio "VIAGEM VOLTA AO MUNDO" | Próximo: Nenhum (topo da carreira)
+- **Remoção de Níveis Legados (Bronze, Prata, Ouro)**:
+  - Níveis Bronze, Prata e Ouro removidos da lista de seeding inicial e expurgados automaticamente do banco pelo `DbSeeder` ao inicializar.
+  - Vínculos legados de usuários com estes níveis (`UserClassification`) são limpos de forma limpa pelo seeder para evitar orfãos ou violações de chave estrangeira.
+- **Resolução de Nível Inicial no Plano de Carreira**:
+  - Como Alef é o novo nível raiz da cadeia (não é apontado como `NextLevel` por nenhum outro nível), usuários sem classificação atribuída são automaticamente avaliados para o nível Alef, garantindo que os requisitos de meta e produção sejam calculados sem mensagens de "Nenhum requisito configurado".
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Data/DbSeeder.cs`
+- `SalesApp.IntegrationTests/TestWebApplicationFactory.cs`
+- `SalesApp.IntegrationTests/Users/ApprovalRequestsControllerIntegrationTests.cs`
+- `client/e2e-test/e2e/admin_registration.spec.ts`
+- `FEATURES.md`
+
+---
+
 ## Plano de Carreira Parametrizável para SuperAdmin (`#/career-plan`)
 
 Sistema configurável e orientado a regras JSON para cálculo e acompanhamento da evolução dos usuários no plano de carreira baseado na classificação (`usersClassification`). Disponível inicialmente para SuperAdmin com endpoints dedicados e interface de visualização.

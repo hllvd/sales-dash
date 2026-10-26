@@ -98,7 +98,7 @@ test.describe('Admin Wizard Registration E2E Tests', () => {
     // Select classification level from select
     const select = page.locator('select#classification');
     await expect(select).toBeVisible();
-    await select.selectOption({ label: 'Bronze' });
+    await select.selectOption({ label: 'Alef' });
     
     // Fill optional start date
     await page.fill('input#startDate', '2026-06-01');
