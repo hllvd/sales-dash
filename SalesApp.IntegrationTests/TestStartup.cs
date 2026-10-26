@@ -21,6 +21,7 @@ using Microsoft.AspNetCore.Authorization;
 using SalesApp.ReportFilters.Repositories;
 using SalesApp.ReportFilters.Services;
 using SalesApp.ReportFilters.Settings;
+using SalesApp.CareerPlan;
 
 namespace SalesApp.IntegrationTests
 {
@@ -132,6 +133,10 @@ namespace SalesApp.IntegrationTests
             // Report Filters feature
             services.AddScoped<IReportFilterRepository, DynamoDbReportFilterRepository>();
             services.AddScoped<IReportFilterService, ReportFilterService>();
+
+            // Career Plan services
+            services.AddSingleton<ICareerPlanConfigProvider, CareerPlanConfigProvider>();
+            services.AddScoped<ICareerPlanService, CareerPlanService>();
             
             // CORS
             services.AddCors(options =>

@@ -135,5 +135,34 @@ namespace SalesApp.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task DeleteAsync(Guid id)
+        {
+            var survey = await _context.Surveys
+                .Include(s => s.Assignments)
+                    .ThenInclude(a => a.Response)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (survey != null)
+            {
+                var responses = survey.Assignments
+                    .Where(a => a.Response != null)
+                    .Select(a => a.Response!)
+                    .ToList();
+
+                if (responses.Count > 0)
+                {
+                    _context.SurveyResponses.RemoveRange(responses);
+                }
+
+                if (survey.Assignments.Count > 0)
+                {
+                    _context.SurveyAssignments.RemoveRange(survey.Assignments);
+                }
+
+                _context.Surveys.Remove(survey);
+                await _context.SaveChangesAsync();
+            }
+        }
     }
 }

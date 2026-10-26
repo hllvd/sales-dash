@@ -330,9 +330,12 @@ namespace SalesApp.IntegrationTests
             {
                 var levels = new[]
                 {
-                    new SalesApp.Models.ClassificationLevel { Id = 1, Name = "Bronze", Description = "Nível Bronze", SalesGoal = 10000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                    new SalesApp.Models.ClassificationLevel { Id = 2, Name = "Prata", Description = "Nível Prata", SalesGoal = 30000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                    new SalesApp.Models.ClassificationLevel { Id = 3, Name = "Ouro", Description = "Nível Ouro", SalesGoal = 60000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
+                    new SalesApp.Models.ClassificationLevel { Id = 1, Name = "Bronze", Description = "Nível Bronze", SalesGoal = 10000, NextLevelId = 2, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 2, Name = "Prata", Description = "Nível Prata", SalesGoal = 30000, NextLevelId = 3, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 3, Name = "Ouro", Description = "Nível Ouro", SalesGoal = 60000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 101, Name = "Alef", Description = "Nível Alef", SalesGoal = 2000000m, NextLevelId = 102, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 102, Name = "Beth", Description = "Nível Beth", SalesGoal = 4000000m, NextLevelId = 103, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                    new SalesApp.Models.ClassificationLevel { Id = 103, Name = "Guimel", Description = "Nível Guimel", SalesGoal = 10000000m, Retention = 79, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
                 };
                 context.ClassificationLevels.AddRange(levels);
                 await context.SaveChangesAsync();

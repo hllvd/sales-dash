@@ -32,6 +32,7 @@ import {
   IconDatabase,
   IconFileImport,
   IconBook2,
+  IconTrophy,
 } from '@tabler/icons-react';
 import { surveyPollingService } from '../services/surveyPollingService';
 
@@ -157,7 +158,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
 
   const isActive = (path: string) => {
     if (path === '#/scrapes' && currentPath.startsWith('#/scrapes')) return true;
-    if (path === '#/documents' && (currentPath.startsWith('#/documents') || currentPath.startsWith('#/document'))) return true;
+    if (path === '#/help' && (currentPath.startsWith('#/help') || currentPath.startsWith('#/documents') || currentPath.startsWith('#/document'))) return true;
     return currentPath === path;
   };
 
@@ -438,6 +439,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
+          {(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')) && (
+            <NavLink
+              href="#/career-plan"
+              label="Plano de Carreira"
+              leftSection={<IconTrophy size={20} />}
+              active={isActive('#/career-plan')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/career-plan')}
+              onClick={() => { if (opened) close(); }}
+            />
+          )}
+
           {userRole === 'superadmin' && (
             <NavLink
               href="#/user-metadata-fields"
@@ -560,13 +574,13 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
           />
 
           <NavLink
-            href="#/documents"
+            href="#/help"
             label="Ajuda"
             leftSection={<IconBook2 size={20} />}
-            active={isActive('#/documents')}
+            active={isActive('#/help')}
             variant="filled"
             color="red"
-            styles={navLinkStyles('#/documents')}
+            styles={navLinkStyles('#/help')}
             data-testid="nav-help"
             onClick={() => { if (opened) close(); }}
           />

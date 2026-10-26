@@ -174,6 +174,7 @@ namespace SalesApp.Models
         SurveyAnsweredSuccessfully,
         SurveyResentSuccessfully,
         SurveysRetrievedSuccessfully,
-        SurveyResultsRetrievedSuccessfully
+        SurveyResultsRetrievedSuccessfully,
+        SurveyDeletedSuccessfully
     }
 }

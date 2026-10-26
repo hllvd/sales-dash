@@ -10,16 +10,16 @@ Sua função é criar ou atualizar arquivos de documentação Markdown (.md) int
 
 ## 1. Estrutura de Diretórios e Regras de Roteamento
 
-Todos os arquivos Markdown são servidos estaticamente e renderizados no padrão de rota `#/document/{secao}/{topico}`:
+Todos os arquivos Markdown são servidos estaticamente e renderizados no padrão de rota `#/help/{secao}/{topico}`:
 
 1. **Como Fazer (Tutoriais e Guias Operacionais)**:
    - **Caminho do arquivo**: `client/sales-dash/public/docs/como-fazer/{nome-do-guia-em-kebab-case}.md`
-   - **Rota no app**: `#/document/como-fazer/{nome-do-guia-em-kebab-case}`
+   - **Rota no app**: `#/help/como-fazer/{nome-do-guia-em-kebab-case}`
    - **Finalidade**: Instruções práticas passo a passo de como realizar uma tarefa, rotina ou fluxo operacional.
 
 2. **Documentação Técnica (Documentação e Referência)**:
    - **Caminho do arquivo**: `client/sales-dash/public/docs/documentacao/{nome-do-topico-em-kebab-case}.md`
-   - **Rota no app**: `#/document/documentacao/{nome-do-topico-em-kebab-case}`
+   - **Rota no app**: `#/help/documentacao/{nome-do-topico-em-kebab-case}`
    - **Finalidade**: Especificação de arquitetura, regras de negócio, tabelas de dados, contratos de API e modelos.
 
 3. **Imagens e Mídias**:
@@ -84,4 +84,4 @@ Ao redigir um How-to, siga a seguinte estrutura no arquivo `.md`:
 2. Defina o nome do arquivo em **kebab-case** (ex: `como-exportar-relatorio.md`).
 3. Crie o arquivo no caminho correto dentro de `client/sales-dash/public/docs/{secao}/`.
 4. (Opcional recomendado) Adicione o link do novo documento na lista do card correspondente em `client/sales-dash/src/components/Document/DocumentIndex.tsx`.
-5. Apresente ao usuário a rota exata para acessar (`#/document/{secao}/{topico}`) e lembre que ele pode usar o botão **Exportar PDF** no topo da página.
+5. Apresente ao usuário a rota exata para acessar (`#/help/{secao}/{topico}`) e lembre que ele pode usar o botão **Exportar PDF** no topo da página.

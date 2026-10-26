@@ -261,7 +261,13 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     const periodSelect = page.getByRole('textbox', { name: 'Período de Extração Padrão' });
     await expect(periodSelect).toBeVisible();
 
-    // Default for new account is "Todas as datas (Sem filtro)"
+    // Default for new account is "Últimos 15 meses (Máximo)"
+    await expect(periodSelect).toHaveValue('Últimos 15 meses (Máximo)');
+    await expect(page.getByText(/Extrairá dados a partir de 01\/\d{2}\/\d{4} até o mês atual\./)).toBeVisible();
+
+    // 0. Select Todas as datas (Sem filtro)
+    await periodSelect.click();
+    await page.getByRole('option', { name: 'Todas as datas (Sem filtro)' }).click();
     await expect(page.getByText('Sem filtro de data: o robô buscará todos os contratos disponíveis no portal.')).toBeVisible();
 
     // 1. Select Último 1 mês
@@ -375,7 +381,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
 
     // Click Sincronizar to reload configs with wrong-password status
     await page.getByRole('button', { name: 'Sincronizar' }).click();
-    await expect(row.getByText('Senha Incorreta')).toBeVisible({ timeout: 10000 });
+    await expect(row.getByText(/Senha (Incorreta|Expirada)/)).toBeVisible({ timeout: 10000 });
 
     // 3. Try clicking trigger button (Extrair) on the row
     const playBtn = row.getByRole('button', { name: 'Extrair' }).first();

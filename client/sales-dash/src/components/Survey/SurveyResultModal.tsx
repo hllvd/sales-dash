@@ -16,9 +16,10 @@ import {
   Tabs,
   TextInput,
   CloseButton,
+  Alert,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconRefresh, IconCheck, IconX, IconSearch } from '@tabler/icons-react';
+import { IconRefresh, IconCheck, IconX, IconSearch, IconTrash, IconAlertCircle } from '@tabler/icons-react';
 import { SurveyResultDto } from '../../types/Survey';
 import { apiService } from '../../services/apiService';
 
@@ -30,6 +31,8 @@ interface SurveyResultModalProps {
 export const SurveyResultModal: React.FC<SurveyResultModalProps> = ({ surveyId, onClose }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [resending, setResending] = useState<boolean>(false);
+  const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState<boolean>(false);
   const [results, setResults] = useState<SurveyResultDto | null>(null);
   const [activeResponseFilter, setActiveResponseFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -211,6 +214,40 @@ export const SurveyResultModal: React.FC<SurveyResultModalProps> = ({ surveyId, 
     }
   };
 
+  const handleDelete = async () => {
+    if (!surveyId) return;
+    try {
+      setDeleting(true);
+      const res = await apiService.deleteSurvey(surveyId);
+      if (res.success) {
+        notifications.show({
+          title: 'Sucesso',
+          message: 'Pergunta excluída com sucesso!',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+        setConfirmDelete(false);
+        onClose();
+      } else {
+        notifications.show({
+          title: 'Erro',
+          message: res.message || 'Falha ao excluir pergunta.',
+          color: 'red',
+          icon: <IconX size={16} />,
+        });
+      }
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro',
+        message: err.message || 'Erro ao excluir pergunta.',
+        color: 'red',
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case 'answered':
@@ -352,17 +389,28 @@ export const SurveyResultModal: React.FC<SurveyResultModalProps> = ({ surveyId, 
                   : results.responses.length}
                 )
               </Text>
-              <Button
-                leftSection={<IconRefresh size={16} />}
-                variant="light"
-                color="red"
-                size="xs"
-                loading={resending}
-                onClick={handleResend}
-                disabled={results.summary.totalPending + results.summary.totalExpired === 0}
-              >
-                Reenviar para não respondidos ({results.summary.totalPending + results.summary.totalExpired})
-              </Button>
+              <Group gap="xs">
+                <Button
+                  leftSection={<IconRefresh size={16} />}
+                  variant="light"
+                  color="red"
+                  size="xs"
+                  loading={resending}
+                  onClick={handleResend}
+                  disabled={results.summary.totalPending + results.summary.totalExpired === 0}
+                >
+                  Reenviar para não respondidos ({results.summary.totalPending + results.summary.totalExpired})
+                </Button>
+                <Button
+                  leftSection={<IconTrash size={16} />}
+                  variant="outline"
+                  color="red"
+                  size="xs"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Excluir Pergunta
+                </Button>
+              </Group>
             </Group>
 
             {/* Filter Tabs by Response & Search Input by Name/Email */}
@@ -449,6 +497,51 @@ export const SurveyResultModal: React.FC<SurveyResultModalProps> = ({ surveyId, 
           <Text c="dimmed">Nenhum detalhe disponível.</Text>
         </Center>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={confirmDelete}
+        onClose={() => !deleting && setConfirmDelete(false)}
+        title={
+          <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>
+            Confirmar Exclusão da Pergunta
+          </Title>
+        }
+        centered
+        size="md"
+        styles={{
+          header: { backgroundColor: '#ffffff', borderBottom: '1px solid #e9ecef', padding: '16px 20px' },
+          body: { backgroundColor: '#ffffff', padding: '20px' },
+          content: { borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' },
+        }}
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Tem certeza que deseja excluir esta pergunta?
+          </Text>
+          <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+            Todas as atribuições e respostas já enviadas serão permanentemente removidas. Esta ação não pode ser desfeita.
+          </Alert>
+          <Group justify="flex-end" mt="md" style={{ borderTop: '1px solid #e9ecef', paddingTop: 16 }}>
+            <Button
+              variant="subtle"
+              color="gray"
+              onClick={() => setConfirmDelete(false)}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              color="red"
+              leftSection={<IconTrash size={16} />}
+              loading={deleting}
+              onClick={handleDelete}
+            >
+              Excluir Definitivamente
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Modal>
   );
 };

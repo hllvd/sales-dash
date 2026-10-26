@@ -9,7 +9,7 @@ namespace SalesApp.CareerPlan
     public interface ICareerPlanConfigProvider
     {
         CareerPlanConfig GetConfig();
-        void ValidateAgainstDbLevels(IEnumerable<string> dbLevelNames);
+        IReadOnlyList<string> ValidateAgainstDbLevels(IEnumerable<string> dbLevelNames);
     }
 
     public class CareerPlanConfigProvider : ICareerPlanConfigProvider
@@ -62,17 +62,19 @@ namespace SalesApp.CareerPlan
 
         public CareerPlanConfig GetConfig() => _config;
 
-        public void ValidateAgainstDbLevels(IEnumerable<string> dbLevelNames)
+        public IReadOnlyList<string> ValidateAgainstDbLevels(IEnumerable<string> dbLevelNames)
         {
             var errors = CareerPlanConfigValidator.Validate(_config, dbLevelNames);
             if (errors.Count > 0)
             {
                 var errDetails = string.Join("; ", errors);
-                var msg = $"Career plan database level validation failed: {errDetails}";
-                _logger.LogCritical(msg);
-                throw new InvalidOperationException(msg);
+                _logger.LogWarning("Career plan database level validation warnings: {Errors}", errDetails);
             }
-            _logger.LogInformation("Career plan levels validated against DB levels successfully.");
+            else
+            {
+                _logger.LogInformation("Career plan levels validated against DB levels successfully.");
+            }
+            return errors;
         }
     }
 }

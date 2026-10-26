@@ -1,3 +1,79 @@
+## Plano de Carreira Parametrizável para SuperAdmin (`#/career-plan`)
+
+Sistema configurável e orientado a regras JSON para cálculo e acompanhamento da evolução dos usuários no plano de carreira baseado na classificação (`usersClassification`). Disponível inicialmente para SuperAdmin com endpoints dedicados e interface de visualização.
+
+### Comportamento e Regras
+- **Parametrização via JSON Versionado (`career-plan.json`)**:
+  - As regras para promoção a cada nível são expressas em uma árvore declarativa (`all` / `any` / condições).
+  - Cada nível do JSON se associa à tabela de classificações (`ClassificationLevel`) pelo **nome** (case-insensitive).
+  - Suporta referências diretas aos campos do nível cadastrados no banco de dados: `{ "ref": "targetLevel.salesGoal" }` para a meta em R$ e `{ "ref": "targetLevel.retention" }` para a retenção percentual.
+  - Se a regra referenciar um campo não configurado no banco, o requisito é exibido como `"Meta não configurada"` (não atingido) sem quebrar o sistema.
+  - Configuração global `closingDay: 15` para o fechamento mensal da apuração.
+- **Data de Fechamento de Referência e Janelas de Meses Fechados (`CareerReferenceDate`)**:
+  - A apuração considera o dia 15 mais recente que seja `<= hoje` (ex.: dia 23/10 utiliza 15/10; dia 10/10 utiliza 15/09).
+  - Janelas de tempo (`windowMonths`) cobrem exclusivamente **meses fechados** antes do mês da data de referência (ex.: janela de 15 meses a partir de 15/10/2026 abrange o intervalo `[2025-07-01, 2026-10-01)`).
+- **Cálculo Determinístico e Puro de Métricas (`CareerMetricsCalculator`)**:
+  - Contratos avaliados são estritamente os do próprio consultor (`Contract.UserInternalId`).
+  - Contratos com status `AwaitingPayment` ou `Active` com `HasPayment = false` são **excluídos de todas as métricas** (retenção e produção).
+  - Contratos `Desistente` são **excluídos** da produção e do denominador da retenção.
+  - **Produção**: soma do `TotalAmount` no período elegível.
+  - **Retenção Estrita**: contratos `Defaulted` e em atraso (`Late1`, `Late2`, `Late3`) contam como perda no numerador; aproveita a lógica do motor puro `ReportRetentionCalculator`.
+  - **Elegibilidade por Idade de Contrato**: suporta filtros declarativos como `minAgeMonths: 2` (ex.: no Guimel, apenas contratos com 2 ou mais meses completos entram na apuração de retenção).
+- **Resolução de Nível e Progressão (`CareerLevelResolver`)**:
+  - Se o usuário não possui nível ativo, o sistema busca automaticamente o nível-raiz da cadeia de progressão (nível que não é apontado como `NextLevel` de nenhum outro, ex.: Alef).
+  - Se o usuário já possui um nível ativo, o alvo é o seu `NextLevel` cadastrado.
+- **Métricas Consolidadas do Usuário**:
+  - Exibe retenção normal (6m, 12m, 15m), retenção estrita (6m, 12m, 15m e 15m para contratos > 2 meses), produção (12m, 15m), liderança de equipe ativa (`isTeamOwner`), total de membros ativos distintos nas equipes e equipes de consultores diretos (`directSubTeams`).
+- **Interface Web Alinhada ao Design System (`CareerPlanPage.tsx`, `CareerPlanPage.css`)**:
+  - Envelopada como filha direta do Mantine `AppShell` (`<Menu>`), eliminando sobreposição de layout ou blocos brancos vazios no topo da tela.
+  - Cabeçalho padronizado com `<Title order={2} style={{ color: '#1c1c1e', fontWeight: 700 }}>`, subtítulo descritivo e botão de ação `Atualizar`.
+  - Cards de transição de nível ("Nível Atual" e "Próximo Nível (Objetivo)") com acentos de borda superior em gradiente (indigo e teal).
+  - Tabela de requisitos com `Table.ScrollContainer`, `<Table striped highlightOnHover>`, badges semânticos e barras de progresso `<Progress>`.
+  - Painel de métricas consolidadas em cartões individuais com alto contraste visual e destaque especial para a métrica de retenção estrita > 2 meses.
+  - Estados claros para carregamento com `<Loader>`, erro com `<Alert>` e estado vazio premium (`IconTrophy`) quando nenhum usuário estiver selecionado.
+- **Segurança e Restrição de Acesso**:
+  - Endpoints `GET /api/career-plan/users/{userId}` e `GET /api/career-plan/config` restritos a `SuperAdmin`.
+  - Item de navegação no menu lateral (`Menu.tsx`) exibido apenas para o perfil SuperAdmin.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/CareerPlan/career-plan.json`
+- `SalesApp.Api/CareerPlan/CareerPlanConfig.cs`
+- `SalesApp.Api/CareerPlan/CareerPlanConfigParser.cs`
+- `SalesApp.Api/CareerPlan/CareerPlanConfigValidator.cs`
+- `SalesApp.Api/CareerPlan/CareerReferenceDate.cs`
+- `SalesApp.Api/CareerPlan/ContractEligibility.cs`
+- `SalesApp.Api/CareerPlan/CareerMetricsCalculator.cs`
+- `SalesApp.Api/CareerPlan/CareerRuleEvaluator.cs`
+- `SalesApp.Api/CareerPlan/CareerLevelResolver.cs`
+- `SalesApp.Api/CareerPlan/CareerPlanConfigProvider.cs`
+- `SalesApp.Api/DTOs/CareerPlanDTOs.cs`
+- `SalesApp.Api/Services/ICareerPlanService.cs`
+- `SalesApp.Api/Services/CareerPlanService.cs`
+- `SalesApp.Api/Controllers/CareerPlanController.cs`
+- `SalesApp.Api/Data/DbSeeder.cs`
+- `SalesApp.Api/Program.cs`
+- `SalesApp.Api/Startup.cs`
+- `SalesApp.Api/SalesApp.Api.csproj`
+- `SalesApp.Tests/CareerPlan/CareerReferenceDateTests.cs`
+- `SalesApp.Tests/CareerPlan/ContractEligibilityTests.cs`
+- `SalesApp.Tests/CareerPlan/CareerMetricsCalculatorTests.cs`
+- `SalesApp.Tests/CareerPlan/CareerPlanConfigParserTests.cs`
+- `SalesApp.Tests/CareerPlan/CareerRuleEvaluatorTests.cs`
+- `SalesApp.Tests/CareerPlan/CareerLevelResolverTests.cs`
+- `SalesApp.Tests/CareerPlan/CareerPlanJsonFileValidationTests.cs`
+- `SalesApp.IntegrationTests/CareerPlan/CareerPlanControllerTests.cs`
+- `SalesApp.IntegrationTests/TestStartup.cs`
+- `SalesApp.IntegrationTests/TestWebApplicationFactory.cs`
+- `SalesApp.IntegrationTests/SalesApp.IntegrationTests.csproj`
+- `client/sales-dash/src/services/careerPlanService.ts`
+- `client/sales-dash/src/components/CareerPlanPage.tsx`
+- `client/sales-dash/src/components/CareerPlanPage.css`
+- `client/sales-dash/src/components/Menu.tsx`
+- `client/sales-dash/src/App.tsx`
+- `FEATURES.md`
+
+---
+
 ## Período Padrão de 15 Meses e Detecção de Senha Expirada no Scraper
 
 Configuração da UI para sugerir por padrão a extração dos últimos 15 meses (preservando a opção de "Todas as datas") e detecção explícita de "Senha expirada" no portal AVA PRO, integrando com o disjuntor de lote e aviso visual no dashboard.

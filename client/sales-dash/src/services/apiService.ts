@@ -1972,6 +1972,15 @@ export const apiService = {
     return response.json()
   },
 
+  async deleteSurvey(id: string): Promise<ApiResponse<string>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/surveys/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Falha ao excluir pergunta"))
+    return response.json()
+  },
+
   async getPendingSurveys(): Promise<ApiResponse<SurveyAssignmentDto[]>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/surveys/pending`, {
       headers: getAuthHeaders(),

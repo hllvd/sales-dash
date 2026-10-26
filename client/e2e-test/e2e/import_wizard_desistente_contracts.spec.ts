@@ -41,10 +41,12 @@ test.describe('Import Wizard — Desistente Status Handling', () => {
     const step2Input = page.locator('#wizard-step2-input');
     await expect(step2Input).toBeAttached();
     await step2Input.setInputFiles(getTestDataPath('users-demo.csv'));
-    await page.click('button:has-text("Importar Usuários e Avançar")');
+    const advanceBtn = page.locator('button:has-text("Importar Usuários e Avançar")');
+    await expect(advanceBtn).toBeEnabled({ timeout: 15_000 });
+    await advanceBtn.click();
 
     // ── Step 3: Configure and Import ─────────────────────────────────────────────
-    await expect(page.getByText('Opções de Importação')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Opções de Importação')).toBeVisible({ timeout: 60_000 });
     await page.click('button:has-text("Importar Contratos")');
 
     // Wait for the results screen

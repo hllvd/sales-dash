@@ -39,7 +39,7 @@ export const DocumentIndex: React.FC = () => {
 
               <Stack gap="sm">
                 <Anchor
-                  href="#/document/como-fazer/como-importar-contratos-powerbi"
+                  href="#/help/como-fazer/como-importar-contratos-powerbi"
                   underline="hover"
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0969da' }}
                 >
@@ -49,7 +49,7 @@ export const DocumentIndex: React.FC = () => {
                 </Anchor>
 
                 <Anchor
-                  href="#/document/como-fazer/como-ajustar-membros-equipe-calendario"
+                  href="#/help/como-fazer/como-ajustar-membros-equipe-calendario"
                   underline="hover"
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0969da' }}
                 >
@@ -59,7 +59,7 @@ export const DocumentIndex: React.FC = () => {
                 </Anchor>
 
                 <Anchor
-                  href="#/document/como-fazer/como-usar-solicitacoes"
+                  href="#/help/como-fazer/como-usar-solicitacoes"
                   underline="hover"
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0969da' }}
                 >
@@ -90,7 +90,7 @@ export const DocumentIndex: React.FC = () => {
 
               <Stack gap="sm">
                 <Anchor
-                  href="#/document/documentacao/introducao"
+                  href="#/help/documentacao/introducao"
                   underline="hover"
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0969da' }}
                 >
@@ -100,7 +100,7 @@ export const DocumentIndex: React.FC = () => {
                 </Anchor>
 
                 <Anchor
-                  href="#/document/documentacao/perguntas-frequentes"
+                  href="#/help/documentacao/perguntas-frequentes"
                   underline="hover"
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0969da' }}
                 >

@@ -389,5 +389,16 @@ namespace SalesApp.Services
 
             return counts;
         }
+
+        public async Task DeleteSurveyAsync(Guid surveyId)
+        {
+            var survey = await _surveyRepository.GetByIdAsync(surveyId);
+            if (survey == null)
+            {
+                throw new KeyNotFoundException("Pergunta não encontrada.");
+            }
+
+            await _surveyRepository.DeleteAsync(surveyId);
+        }
     }
 }

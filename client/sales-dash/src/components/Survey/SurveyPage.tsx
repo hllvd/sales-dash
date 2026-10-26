@@ -18,6 +18,8 @@ import {
   Alert,
   Loader,
   Center,
+  Modal,
+  Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -68,6 +70,8 @@ export const SurveyPage: React.FC = () => {
   const [surveys, setSurveys] = useState<SurveySummaryDto[]>([]);
   const [loadingSurveys, setLoadingSurveys] = useState<boolean>(false);
   const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null);
+  const [surveyToDelete, setSurveyToDelete] = useState<SurveySummaryDto | null>(null);
+  const [deletingSurvey, setDeletingSurvey] = useState<boolean>(false);
 
   // Check superadmin permissions
   useEffect(() => {
@@ -150,6 +154,43 @@ export const SurveyPage: React.FC = () => {
       });
     } finally {
       setLoadingSurveys(false);
+    }
+  };
+
+  const handleDeleteSurvey = async () => {
+    if (!surveyToDelete) return;
+    try {
+      setDeletingSurvey(true);
+      const res = await apiService.deleteSurvey(surveyToDelete.id);
+      if (res.success) {
+        notifications.show({
+          title: 'Sucesso',
+          message: 'Pergunta excluída com sucesso!',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+        setSurveyToDelete(null);
+        if (selectedSurveyId === surveyToDelete.id) {
+          setSelectedSurveyId(null);
+        }
+        await loadSurveys();
+      } else {
+        notifications.show({
+          title: 'Erro',
+          message: res.message || 'Falha ao excluir pergunta.',
+          color: 'red',
+          icon: <IconX size={16} />,
+        });
+      }
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro',
+        message: err.message || 'Erro ao excluir pergunta.',
+        color: 'red',
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setDeletingSurvey(false);
     }
   };
 
@@ -605,6 +646,7 @@ export const SurveyPage: React.FC = () => {
                       <Table.Th ta="center">Respondidos</Table.Th>
                       <Table.Th ta="center">Pendentes</Table.Th>
                       <Table.Th ta="center">Expirados</Table.Th>
+                      <Table.Th ta="center" style={{ width: 80 }}>Ações</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -645,6 +687,19 @@ export const SurveyPage: React.FC = () => {
                             {s.totalExpired}
                           </Badge>
                         </Table.Td>
+                        <Table.Td ta="center" onClick={(e) => e.stopPropagation()}>
+                          <Tooltip label="Excluir pergunta" withArrow position="top">
+                            <ActionIcon
+                              color="red"
+                              variant="subtle"
+                              size="sm"
+                              onClick={() => setSurveyToDelete(s)}
+                              aria-label="Excluir pergunta"
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Table.Td>
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
@@ -653,6 +708,55 @@ export const SurveyPage: React.FC = () => {
             </Stack>
           </Tabs.Panel>
         </Tabs>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          opened={!!surveyToDelete}
+          onClose={() => !deletingSurvey && setSurveyToDelete(null)}
+          title={
+            <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>
+              Confirmar Exclusão da Pergunta
+            </Title>
+          }
+          centered
+          size="md"
+          styles={{
+            header: { backgroundColor: '#ffffff', borderBottom: '1px solid #e9ecef', padding: '16px 20px' },
+            body: { backgroundColor: '#ffffff', padding: '20px' },
+            content: { borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' },
+          }}
+        >
+          <Stack gap="md">
+            <Text size="sm">
+              Tem certeza que deseja excluir a pergunta{' '}
+              <Text span fw={700}>
+                &ldquo;{surveyToDelete?.title}&rdquo;
+              </Text>
+              ?
+            </Text>
+            <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+              Todas as atribuições e respostas já enviadas serão permanentemente removidas. Esta ação não pode ser desfeita.
+            </Alert>
+            <Group justify="flex-end" mt="md" style={{ borderTop: '1px solid #e9ecef', paddingTop: 16 }}>
+              <Button
+                variant="subtle"
+                color="gray"
+                onClick={() => setSurveyToDelete(null)}
+                disabled={deletingSurvey}
+              >
+                Cancelar
+              </Button>
+              <Button
+                color="red"
+                leftSection={<IconTrash size={16} />}
+                loading={deletingSurvey}
+                onClick={handleDeleteSurvey}
+              >
+                Excluir Definitivamente
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
 
         {/* Detail / Results Modal */}
         <SurveyResultModal

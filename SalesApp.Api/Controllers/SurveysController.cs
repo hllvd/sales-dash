@@ -119,6 +119,30 @@ namespace SalesApp.Controllers
             }
         }
 
+        // DELETE: api/surveys/{id} (Superadmin only)
+        [HttpDelete("{id}")]
+        [HasPermission("system:superadmin")]
+        public async Task<ActionResult<ApiResponse<string>>> Delete(Guid id)
+        {
+            try
+            {
+                await _surveyService.DeleteSurveyAsync(id);
+                return Ok(new ApiResponse<string>
+                {
+                    Success = true,
+                    Message = _messageService.Get(AppMessage.SurveyDeletedSuccessfully)
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<string>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
         // GET: api/surveys/pending (Any authenticated user)
         [HttpGet("pending")]
         public async Task<ActionResult<ApiResponse<List<SurveyAssignmentDto>>>> GetPending()

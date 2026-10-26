@@ -113,5 +113,33 @@ namespace SalesApp.Tests.Services
             // 5. Bruno (pending, sent 2026-09-09)
             namesInOrder.Should().Equal("Carlos", "Ana", "Amanda", "Daniel", "Bruno");
         }
+
+        [Fact]
+        public async Task DeleteSurveyAsync_WhenSurveyExists_CallsRepositoryDelete()
+        {
+            // Arrange
+            var surveyId = Guid.NewGuid();
+            var survey = new Survey { Id = surveyId, Title = "Pesquisa" };
+            _surveyRepoMock.Setup(r => r.GetByIdAsync(surveyId)).ReturnsAsync(survey);
+            _surveyRepoMock.Setup(r => r.DeleteAsync(surveyId)).Returns(Task.CompletedTask);
+
+            // Act
+            await _surveyService.DeleteSurveyAsync(surveyId);
+
+            // Assert
+            _surveyRepoMock.Verify(r => r.DeleteAsync(surveyId), Times.Once);
+        }
+
+        [Fact]
+        public async Task DeleteSurveyAsync_WhenSurveyNotFound_ThrowsKeyNotFoundException()
+        {
+            // Arrange
+            var surveyId = Guid.NewGuid();
+            _surveyRepoMock.Setup(r => r.GetByIdAsync(surveyId)).ReturnsAsync((Survey?)null);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<KeyNotFoundException>(() => _surveyService.DeleteSurveyAsync(surveyId));
+            _surveyRepoMock.Verify(r => r.DeleteAsync(It.IsAny<Guid>()), Times.Never);
+        }
     }
 }

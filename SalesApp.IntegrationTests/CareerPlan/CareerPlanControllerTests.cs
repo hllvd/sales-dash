@@ -23,7 +23,9 @@ namespace SalesApp.IntegrationTests.CareerPlan
         [Fact]
         public async Task GetConfig_WithoutAuth_ReturnsUnauthorized()
         {
-            var response = await _client.GetAsync("/api/career-plan/config");
+            var unauthClient = _factory.CreateClient();
+            unauthClient.DefaultRequestHeaders.Authorization = null;
+            var response = await unauthClient.GetAsync("/api/career-plan/config");
             response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         }
 
@@ -66,7 +68,7 @@ namespace SalesApp.IntegrationTests.CareerPlan
             // Fetch users list to get an existing user's ID
             var usersResponse = await clientWithToken.GetAsync("/api/users?pageSize=1");
             usersResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-            var usersResult = await usersResponse.Content.ReadFromJsonAsync<ApiResponse<PagedResult<UserResponse>>>();
+            var usersResult = await usersResponse.Content.ReadFromJsonAsync<ApiResponse<PagedResponse<UserResponse>>>();
             var user = usersResult!.Data!.Items[0];
 
             var evalResponse = await clientWithToken.GetAsync($"/api/career-plan/users/{user.Id}");
@@ -101,7 +103,8 @@ namespace SalesApp.IntegrationTests.CareerPlan
                 Password = "superadmin123"
             };
 
-            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var client = _factory.CreateClient();
+            var response = await client.PostAsJsonAsync("/api/users/login", loginRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
             return result?.Data?.Token ?? throw new Exception("Failed to get superadmin token");
         }
@@ -114,7 +117,8 @@ namespace SalesApp.IntegrationTests.CareerPlan
                 Password = "admin123"
             };
 
-            var response = await _client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var client = _factory.CreateClient();
+            var response = await client.PostAsJsonAsync("/api/users/login", loginRequest);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
             return result?.Data?.Token ?? throw new Exception("Failed to get admin token");
         }

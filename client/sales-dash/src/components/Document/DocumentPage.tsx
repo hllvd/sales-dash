@@ -64,7 +64,7 @@ export const DocumentPage: React.FC<DocumentPageProps> = ({ docPath }) => {
           <div className="doc-header-actions">
             <div>
               <Breadcrumbs separator="→" mb="xs">
-                <Anchor href="#/document" size="sm">
+                <Anchor href="#/help" size="sm">
                   Documentos
                 </Anchor>
                 <Text size="sm" c="dimmed">
@@ -82,7 +82,7 @@ export const DocumentPage: React.FC<DocumentPageProps> = ({ docPath }) => {
                   size="xs"
                   leftSection={<IconArrowLeft size={16} />}
                   component="a"
-                  href="#/document"
+                  href="#/help"
                 >
                   Voltar ao Índice
                 </Button>

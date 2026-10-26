@@ -17,5 +17,6 @@ namespace SalesApp.Repositories
         Task ExpireStaleAssignmentsAsync();
         Task<List<SurveyAssignment>> GetUserHistoryAsync(Guid userId);
         Task DeleteResponsesForAssignmentsAsync(IEnumerable<int> assignmentIds);
+        Task DeleteAsync(Guid id);
     }
 }

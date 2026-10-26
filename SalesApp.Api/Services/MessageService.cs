@@ -178,7 +178,8 @@ namespace SalesApp.Services
             [AppMessage.SurveyAnsweredSuccessfully] = "Resposta registrada com sucesso",
             [AppMessage.SurveyResentSuccessfully] = "Pergunta reenviada com sucesso",
             [AppMessage.SurveysRetrievedSuccessfully] = "Perguntas recuperadas com sucesso",
-            [AppMessage.SurveyResultsRetrievedSuccessfully] = "Resultados da pergunta recuperados com sucesso"
+            [AppMessage.SurveyResultsRetrievedSuccessfully] = "Resultados da pergunta recuperados com sucesso",
+            [AppMessage.SurveyDeletedSuccessfully] = "Pergunta excluída com sucesso"
         };
         
         /// <summary>

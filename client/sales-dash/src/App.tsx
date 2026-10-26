@@ -12,6 +12,7 @@ import TeamsPage from './components/TeamsPage';
 import TeamCalendarPage from './components/TeamCalendarPage';
 import StoresPage from './components/StoresPage';
 import ClassificationsPage from './components/ClassificationsPage';
+import CareerPlanPage from './components/CareerPlanPage';
 import MyProfilePage from './components/MyProfilePage';
 import ImportHistoryPage from './components/ImportHistoryPage';
 import ImportWizardPage from './components/ImportWizardPage';
@@ -55,7 +56,24 @@ function App() {
   const [currentRoute, setCurrentRoute] = useState(window.location.hash || '#/my-contracts');
 
   useEffect(() => {
+    const checkRedirect = () => {
+      const hash = window.location.hash || '#/my-contracts';
+      if (hash.startsWith('#/document') || hash.startsWith('#/documents')) {
+        const redirected = hash.replace(/^#\/documents?/, '#/help');
+        window.location.replace(redirected);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkRedirect()) {
+      return;
+    }
+
     const handleHashChange = () => {
+      if (checkRedirect()) {
+        return;
+      }
       setCurrentRoute(window.location.hash || '#/my-contracts');
     };
 
@@ -107,7 +125,13 @@ function App() {
     }
 
     if (routePath.startsWith('#/document') || routePath.startsWith('#/documents')) {
-      const docPath = routePath.replace(/^#\/documents?\/?/, '');
+      const redirected = currentRoute.replace(/^#\/documents?/, '#/help');
+      window.location.replace(redirected);
+      return null;
+    }
+
+    if (routePath.startsWith('#/help')) {
+      const docPath = routePath.replace(/^#\/help\/?/, '');
       if (!docPath) {
         return <DocumentIndex />;
       }
@@ -137,6 +161,8 @@ function App() {
         return <StoresPage />;
       case '#/classifications':
         return <ClassificationsPage />;
+      case '#/career-plan':
+        return <CareerPlanPage />;
       case '#/my-profile':
         return <MyProfilePage />;
       case '#/import-history':

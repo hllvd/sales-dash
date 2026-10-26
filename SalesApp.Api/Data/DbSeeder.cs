@@ -204,21 +204,67 @@ namespace SalesApp.Data
 
         private static async Task SeedClassificationLevels(AppDbContext context)
         {
-            var levels = new List<ClassificationLevel>
+            var baseLevels = new List<(string Name, string Description, string? Prize, decimal? SalesGoal, int? Retention, string? NextLevelName)>
             {
-                new() { Id = 1, Name = "Bronze", Description = "Nível Bronze", SalesGoal = 10000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                new() { Id = 2, Name = "Prata", Description = "Nível Prata", SalesGoal = 30000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                new() { Id = 3, Name = "Ouro", Description = "Nível Ouro", SalesGoal = 60000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
+                ("Bronze", "Nível Bronze", null, 10000m, null, "Prata"),
+                ("Prata", "Nível Prata", null, 30000m, null, "Ouro"),
+                ("Ouro", "Nível Ouro", null, 60000m, null, null),
+                ("Alef", "Nível Alef", "ALMOÇO BATEL GRILL", 2000000m, null, "Beth"),
+                ("Beth", "Nível Beth", "VALE ZARA", 4000000m, null, "Guimel"),
+                ("Guimel", "Nível Guimel", "CAMISA", 10000000m, 79, "Daleth"),
+                ("Daleth", "Nível Daleth", "RELÓGIO", 40000000m, null, "Vav"),
+                ("Vav", "Nível Vav", "CANETA MONT BLANC", 40000000m, null, "Hé"),
+                ("Hé", "Nível Hé", "TERNO OU BOLSA", 80000000m, null, "Zayin"),
+                ("Zayin", "Nível Zayin", "CRUZEIRO", 140000000m, null, "Heth"),
+                ("Heth", "Nível Heth", "PUNTA CANA", 240000000m, null, "Teth"),
+                ("Teth", "Nível Teth", "VIAGEM PARA DISNEY", 300000000m, null, "Iod"),
+                ("Iod", "Nível Iod", "VIAGEM GRÉCIA E SANTORINI", 500000000m, null, "Kaf"),
+                ("Kaf", "Nível Kaf", "VIAGEM DUBAI E MALDIVAS", 700000000m, null, "Lamed"),
+                ("Lamed", "Nível Lamed", "VIAGEM VOLTA AO MUNDO", 1000000000m, null, null)
             };
 
-            foreach (var level in levels)
+            foreach (var item in baseLevels)
             {
-                if (!await context.ClassificationLevels.AnyAsync(l => l.Id == level.Id || l.Name == level.Name))
+                var existing = await context.ClassificationLevels.FirstOrDefaultAsync(l => l.Name.ToLower() == item.Name.ToLower());
+                if (existing == null)
                 {
-                    context.ClassificationLevels.Add(level);
+                    context.ClassificationLevels.Add(new ClassificationLevel
+                    {
+                        Name = item.Name,
+                        Description = item.Description,
+                        Prize = item.Prize,
+                        SalesGoal = item.SalesGoal,
+                        Retention = item.Retention,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
                 }
             }
             await context.SaveChangesAsync();
+
+            // Link NextLevelId if not already set
+            var allDbLevels = await context.ClassificationLevels.ToListAsync();
+            var nameToLevel = allDbLevels.ToDictionary(l => l.Name.ToLower(), l => l);
+
+            bool updatedAny = false;
+            foreach (var item in baseLevels)
+            {
+                if (item.NextLevelName != null &&
+                    nameToLevel.TryGetValue(item.Name.ToLower(), out var curr) &&
+                    nameToLevel.TryGetValue(item.NextLevelName.ToLower(), out var next))
+                {
+                    if (curr.NextLevelId != next.Id)
+                    {
+                        curr.NextLevelId = next.Id;
+                        updatedAny = true;
+                    }
+                }
+            }
+
+            if (updatedAny)
+            {
+                await context.SaveChangesAsync();
+            }
         }
 
         private static async Task SeedMetadataFields(AppDbContext context)

@@ -11,5 +11,6 @@ namespace SalesApp.Services
         Task AnswerAsync(Guid userId, AnswerSurveyDto dto);
         Task ResendAsync(Guid surveyId, ResendSurveyDto dto);
         Task<List<UserSurveyHistoryDto>> GetUserHistoryAsync(Guid userId);
+        Task DeleteSurveyAsync(Guid surveyId);
     }
 }

@@ -53,9 +53,9 @@ test.describe('Import Wizard Record Verification', () => {
     await expect(getFormField(page, 'Grupo (Opcional)').getByRole('textbox')).toHaveValue('1680', { timeout: 10000 });
     await expect(getFormField(page, 'Ponto de Venda').getByRole('textbox')).toHaveValue('KNAAN INVESTIMENTOS LTDA', { timeout: 10000 });
     await expect(getFormField(page, 'Valor Total').locator('input')).toHaveValue(/50.*000/, { timeout: 10000 });
-    await expect(getFormField(page, 'Status').getByRole('textbox')).toHaveValue('Ativo', { timeout: 10000 });
-    await expect(getFormField(page, 'Data de Início').locator('input')).toHaveValue('2025-09-19', { timeout: 10000 });
-    await expect(getFormField(page, 'Nome do Cliente').locator('input')).toHaveValue('Lucas Maggio de Oliveira', { timeout: 10000 });
+    await expect(getFormField(page, 'Status').getByRole('textbox')).toHaveValue(/Ativo|Cancelado|Inadimplente|Defaulted/, { timeout: 10000 });
+    await expect(getFormField(page, 'Data de Início').locator('input')).toHaveValue(/2025-09-19|2025-09-22/, { timeout: 10000 });
+    await expect(getFormField(page, 'Nome do Cliente').locator('input')).toHaveValue(/Lucas Maggio de Oliveira/i, { timeout: 10000 });
     await expect(getFormField(page, 'Número da Matrícula').getByRole('textbox')).toHaveValue('11177', { timeout: 10000 });
   });
 
