@@ -1,3 +1,34 @@
+## Isolamento de Tokens por Matrícula e Detecção Imediata de Credenciais Inválidas no Scraper AVA PRO
+
+Mecanismo de segurança e resiliência na autenticação do AVA PRO e extração de dados do PowerBI (tanto para extração geral quanto consultor), garantindo que tokens nunca sejam compartilhados entre matrículas distintas, que alterações de senha invalidem o cache imediatamente e que senhas incorretas sejam interrompidas de forma precoce sem acionar timeouts ou permitir scrapes falsos-positivos.
+
+### Comportamento e Regras
+- **Isolamento de Cache por Matrícula e Hash de Senha**:
+  - No `tokenManager.js`, tanto o cache em memória quanto os tokens de consultor em disco são particionados por matrícula (`consultorToken_${matricula}.json`).
+  - Cada entrada de cache armazena um hash SHA-256 da senha. Ao solicitar um token em cache, se a senha fornecida tiver hash diferente da senha com a qual o token foi obtido, o cache é invalidado imediatamente e descartado.
+  - O arquivo legado global `templates/consultorToken.json` é automaticamente removido, impedindo que uma matrícula utilize tokens gerados por outra.
+- **Detecção Precoce de Erros de Autenticação no AVA PRO**:
+  - Interceptação de respostas HTTP não-200 na rota de login (`/bifrost/login`), interrompendo o fluxo antes do timeout de rede.
+  - Varredura de textos de aviso na tela de login, incluindo avisos de tentativas restantes antes de bloqueio (`"Usuário ou senha inválida. Você ainda possui mais X tentativas antes do bloqueio..."`), senhas expiradas e credenciais incorretas.
+  - Verificação se o campo de input de senha continua visível na página após submissão, impedindo declaração prematura de sucesso de login.
+  - Requisito estrito do token `avaJwt`: o login no AVA PRO só é considerado bem-sucedido (`loginSuccess = true`) se o JWT for efetivamente capturado.
+- **Disjuntor e Status de Credencial no Backend (`SalesApp.Api`)**:
+  - No `ScrapeController.cs`, `CredentialStatus` só é marcado como `"ok"` se a extração/teste obtiver sucesso completo (`success == true`).
+  - Em caso de falha de login, marca rigorosamente `"wrong-password"`, acionando o disjuntor de segurança que impede novas tentativas automáticas e evita o bloqueio da conta no AVA PRO.
+  - No `SaveConfig`, chamadas de `TestOnSave` tratam falhas de conectividade (`HttpRequestException` / timeout de rede) quando o scraper opera em modo assíncrono (Fargate/SQS), salvando as credenciais com `CredentialStatus = null` sem disparar erro 500 no salvamento.
+  - No `worker.js`, mensagens SQS com falha de `"wrong-password"` são excluídas da fila imediatamente, prevenindo retentativas desnecessárias em senhas erradas.
+
+### Arquivos Adicionados / Modificados
+- `pbi-scraper/tokenManager.js`
+- `pbi-scraper/auth.js`
+- `pbi-scraper/captureTemplate.js`
+- `pbi-scraper/extractorConsultor.js`
+- `pbi-scraper/worker.js`
+- `pbi-scraper/test-auth-errors.js`
+- `SalesApp.Api/Controllers/ScrapeController.cs`
+
+---
+
 ## Conferência de Contratos em Lote (`#/admin-tools/compare-contracts`)
 
 Ferramenta administrativa exclusiva para `superadmin`, acessível pelo menu "Ferramentas Admin", permitindo colar uma lista de números de contratos (separados por vírgula ou por quebra de linha) para realizar uma busca e comparação global no sistema (incluindo contratos ativos e excluídos via soft-delete).

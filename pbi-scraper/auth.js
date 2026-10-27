@@ -49,7 +49,16 @@ function detectLoginErrorText(text) {
     };
   }
 
-  if (lower.includes('usuário ou senha') || lower.includes('usuario ou senha') || lower.includes('credenciais inválidas') || lower.includes('credencial inválida')) {
+  if (
+    lower.includes('usuário ou senha') ||
+    lower.includes('usuario ou senha') ||
+    lower.includes('credenciais inválidas') ||
+    lower.includes('credencial inválida') ||
+    lower.includes('senha incorreta') ||
+    lower.includes('senha errada') ||
+    lower.includes('tentativas antes do bloqueio') ||
+    (lower.includes('tentativa') && (lower.includes('bloqueio') || lower.includes('esqueceu')))
+  ) {
     return {
       isFatalAuth: true,
       reason: 'Usuário ou senha inválida no AVA PRO.'
@@ -240,8 +249,17 @@ async function getTokenFromLogin(matricula, password, store = null) {
           }
         }
 
-        if ((status === 401 || status === 403) && url.includes('bifrost')) {
+        if (url.includes('bifrost') && url.includes('/login') && status !== 200) {
           let message = 'Usuário ou senha inválida';
+          try {
+            const json = await res.json().catch(() => null);
+            if (json && json.message) message = json.message.replace(/\s+/g, ' ').trim();
+            else if (json && json.error) message = json.error.replace(/\s+/g, ' ').trim();
+          } catch (e) {}
+          interceptedAuthError = message;
+          addStep(steps, `Erro HTTP ${status} no login: ${message}`);
+        } else if ((status === 401 || status === 403) && url.includes('bifrost')) {
+          let message = 'Acesso não autorizado no AVA PRO';
           try {
             const json = await res.json().catch(() => null);
             if (json && json.message) message = json.message.replace(/\s+/g, ' ').trim();
@@ -279,46 +297,73 @@ async function getTokenFromLogin(matricula, password, store = null) {
     });
     if (submitBtn && submitBtn.asElement()) {
       await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {}),
         submitBtn.asElement().click(),
       ]);
     } else {
       await page.keyboard.press('Enter');
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {});
     }
 
     const currentUrl = page.url();
     addStep(steps, `URL após login: ${currentUrl}`);
 
-    // Inspeciona texto visível na página de login para capturar avisos como "Senha expirada"
+    // Inspeciona texto visível na página de login e aguarda possível resposta
     let pageErrorText = null;
-    try {
-      pageErrorText = await page.evaluate(() => {
-        // Tenta seletores comuns de alert/erro do Bootstrap/Tailwind/Mantine ou texto visível no formulário
-        const errorEl = document.querySelector('.alert, [role="alert"], .error, .text-danger, .invalid-feedback, div[class*="error"], span[class*="error"]');
-        if (errorEl && errorEl.textContent) return errorEl.textContent.trim();
-        const bodyText = document.body ? document.body.innerText : '';
-        if (bodyText.includes('Senha expirada') || bodyText.includes('redefina sua senha') || bodyText.includes('Usuário ou senha')) {
-          const match = bodyText.split('\n').find(l => l.includes('Senha expirada') || l.includes('redefina') || l.includes('Usuário ou senha'));
+    const checkDeadline = Date.now() + 6000;
+    while (!avaJwt && !interceptedAuthError && Date.now() < checkDeadline) {
+      try {
+        const text = await page.evaluate(() => {
+          const errorEl = document.querySelector('.alert, [role="alert"], .error, .text-danger, .invalid-feedback, div[class*="error"], span[class*="error"], p[class*="error"], div[class*="red"], p[class*="red"]');
+          if (errorEl && errorEl.textContent) return errorEl.textContent.trim();
+          const bodyText = document.body ? document.body.innerText : '';
+          const match = bodyText.split('\n').find(l => 
+            l.includes('Senha expirada') || 
+            l.includes('redefina sua senha') || 
+            l.includes('Usuário ou senha') || 
+            l.includes('usuario ou senha') ||
+            l.includes('tentativas')
+          );
           return match ? match.trim() : null;
+        });
+        if (text) {
+          pageErrorText = text;
+          const detected = detectLoginErrorText(pageErrorText);
+          if (detected && detected.isFatalAuth) {
+            interceptedAuthError = detected.reason;
+            break;
+          }
         }
-        return null;
-      });
-    } catch (_) {}
-
-    const detectedPageError = detectLoginErrorText(pageErrorText);
-    if (detectedPageError && detectedPageError.isFatalAuth) {
-      addStep(steps, `[Falha de Autenticação Detectada na Página] ${detectedPageError.reason}`);
-      throw new AuthError('wrong-password', detectedPageError.reason, steps, false, false);
+      } catch (_) {}
+      await new Promise(r => setTimeout(r, 400));
     }
 
     if (interceptedAuthError) {
       const detectedIntercepted = detectLoginErrorText(interceptedAuthError);
       const finalMsg = detectedIntercepted ? detectedIntercepted.reason : interceptedAuthError;
+      addStep(steps, `[Falha de Autenticação Detectada] ${finalMsg}`);
       throw new AuthError('wrong-password', finalMsg, steps, false, false);
     }
 
-    if (currentUrl.includes('/login')) {
-      const fallbackReason = pageErrorText || 'Permaneceu na página de login.';
+    if (pageErrorText) {
+      const detectedPageError = detectLoginErrorText(pageErrorText);
+      if (detectedPageError && detectedPageError.isFatalAuth) {
+        addStep(steps, `[Falha de Autenticação Detectada na Página] ${detectedPageError.reason}`);
+        throw new AuthError('wrong-password', detectedPageError.reason, steps, false, false);
+      }
+    }
+
+    // Se não obteve avaJwt, valida se o formulário de login ainda está na tela
+    if (!avaJwt) {
+      const isPasswordInputStillPresent = await page.evaluate(() => {
+        const pwd = document.querySelector('input[type="password"]');
+        return pwd !== null && pwd.offsetParent !== null;
+      }).catch(() => false);
+
+      const fallbackReason = isPasswordInputStillPresent
+        ? (pageErrorText || 'Usuário ou senha inválida no AVA PRO.')
+        : 'Sessão JWT não emitida pelo AVA PRO.';
+      addStep(steps, `[Falha de Autenticação] ${fallbackReason}`);
       throw new AuthError('wrong-password', fallbackReason, steps, false, false);
     }
 
@@ -486,7 +531,7 @@ async function getTokenFromLogin(matricula, password, store = null) {
     addStep(steps, 'Autenticação e obtenção de MWCToken concluídas com sucesso.');
 
     // Save tokens in tokenManager cache
-    tokenManager.setTokens(matricula, { avaJwt, pbiToken: tokenRef.value, detectedStore });
+    tokenManager.setTokens(matricula, { avaJwt, pbiToken: tokenRef.value, detectedStore, password });
 
     return {
       token: tokenRef.value,
@@ -523,7 +568,7 @@ async function getTokenFromLogin(matricula, password, store = null) {
  */
 async function getOrFetchTokens(matricula, password, store = null, forceRefresh = false) {
   if (!forceRefresh) {
-    const cached = tokenManager.getTokens(matricula);
+    const cached = tokenManager.getTokens(matricula, password);
     if (cached && cached.pbiToken) {
       console.log(`[Auth] Reutilizando token PowerBI em cache para matrícula ${matricula}`);
       return {

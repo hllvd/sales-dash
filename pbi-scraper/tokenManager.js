@@ -1,6 +1,4 @@
-// tokenManager.js
-// In-memory token cache for Avapro JWT and PowerBI MWCToken per matricula,
-// plus Authentication Circuit Breaker state to prevent account lockout in AVA PRO.
+const crypto = require('crypto');
 
 const tokenCache = new Map();
 
@@ -11,37 +9,56 @@ const authFailureMap = new Map();
 // Set of aborted runIds
 const abortedRunIds = new Set();
 
+function hashPassword(password) {
+  if (!password || typeof password !== 'string') return null;
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
 /**
  * Retrieves cached tokens for a given matricula.
+ * If password is provided, ensures cached token belongs to that exact password.
  * @param {string} matricula
- * @returns {{ avaJwt: string|null, pbiToken: string|null, createdAt: number } | null}
+ * @param {string} [password]
+ * @returns {{ avaJwt: string|null, pbiToken: string|null, store: string|null, passwordHash: string|null, createdAt: number } | null}
  */
-function getTokens(matricula) {
+function getTokens(matricula, password = null) {
   if (!matricula) return null;
   const key = String(matricula).trim();
   const cached = tokenCache.get(key);
   if (!cached) return null;
+
+  if (password) {
+    const currentHash = hashPassword(password);
+    if (cached.passwordHash && cached.passwordHash !== currentHash) {
+      console.log(`[TokenManager] Senha alterada para matrícula "${key}". Invalidando cache em memória.`);
+      tokenCache.delete(key);
+      return null;
+    }
+  }
+
   return cached;
 }
 
 /**
  * Stores tokens in cache for a given matricula.
  * @param {string} matricula
- * @param {{ avaJwt?: string, pbiToken?: string, token?: string }} tokens
+ * @param {{ avaJwt?: string, pbiToken?: string, token?: string, store?: string, detectedStore?: string, password?: string, passwordHash?: string }} tokens
  */
-function setTokens(matricula, { avaJwt = null, pbiToken = null, token = null, store = null, detectedStore = null }) {
+function setTokens(matricula, { avaJwt = null, pbiToken = null, token = null, store = null, detectedStore = null, password = null, passwordHash = null }) {
   if (!matricula) return;
   const key = String(matricula).trim();
   const resolvedPbiToken = pbiToken || token || null;
   const resolvedStore = detectedStore || store || null;
+  const resolvedPasswordHash = passwordHash || (password ? hashPassword(password) : null);
 
   tokenCache.set(key, {
     avaJwt: avaJwt || null,
     pbiToken: resolvedPbiToken,
     store: resolvedStore,
+    passwordHash: resolvedPasswordHash,
     createdAt: Date.now(),
   });
-  console.log(`[TokenManager] Cached tokens for matricula "${key}" (Store: "${resolvedStore || 'N/A'}").`);
+  console.log(`[TokenManager] Cached tokens for matricula "${key}" (Store: "${resolvedStore || 'N/A'}", HasPwdHash: ${Boolean(resolvedPasswordHash)}).`);
 }
 
 /**
@@ -161,4 +178,5 @@ module.exports = {
   abortRun,
   isRunAborted,
   clearAllAuthLocks,
+  hashPassword,
 };
