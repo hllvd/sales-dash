@@ -7,6 +7,13 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-10-27] all — Attempt 1
+**Failure:** `browserType.launch: Timeout 180000ms exceeded` and `Failed global setup login for admin`.
+**Root cause:** System accumulated 225 orphaned `chrome-headless-shell` processes and stopped Node/Playwright processes from prior suspended runs, causing pipe exhaustion and timeout during browser launch.
+**Fix applied:** Killed all orphaned `chrome-headless-shell` and stopped `playwright` processes (`pkill -9`), restarted docker containers via `./test.sh rm-db`, and re-executed `./test.sh all`.
+**Result:** ✅ Green (Build: clean, Integration: clean, E2E Run 1: 187/187 passed, E2E Run 2: 186/186 passed — suite is idempotent).
+
+
 ## [2026-10-26] e2e — Attempt 1
 **Failure:** `scrape_credentials.spec.ts` failed on `expect(page.getByText('Sem filtro de data...')).toBeVisible()` and `expect(row.getByText('Senha Incorreta')).toBeVisible()`.
 **Root cause:** Commit `c6efcd07` updated the default scrape period from "all" to "15 months" and updated the credential error badge label from "Senha Incorreta" to "Senha Expirada / Inválida", but the E2E assertions had not been updated.

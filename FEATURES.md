@@ -24,11 +24,15 @@ Reestruturação dos níveis de classificação (`ClassificationLevel`) do siste
 
 - **Guarda de Proteção do Seeder para Produção**:
   - `SeedClassificationLevels` no `DbSeeder.cs` foi protegido com a guarda `if (await context.ClassificationLevels.AnyAsync()) return;`, garantindo que se o banco já possuir quaisquer níveis de classificação cadastrados (como ocorre em Produção), nenhuma classificação existente será alterada, sobrescrita ou excluída pelo backend na inicialização.
-- **Teste E2E de Progressão Alef para Beth (`career_plan_progression.spec.ts`)**:
-  - Teste de ponta a ponta Playwright que cadastra um usuário com nível inicial **Alef**, vincula contratos ativos elegíveis totalizando R$ 4.000.000,00 e verifica na tela `/#/career-plan` que o nível atual é Alef, o próximo é Beth, a meta é R$ 4.000.000,00 e o requisito de vendas de 12 meses está marcado como 100% atingido.
+- **Testes de Progressão Beth para Guimel (Integração e E2E Playwright)**:
+  - **Teste de Integração (`CareerPlanControllerTests.cs`)**: comprova no backend que a regra de retenção estrita de 15 meses de Guimel exclui estritamente contratos iniciados há $\le 2$ meses (`eligibility.minAgeMonths: 2`), mantendo 100% de retenção em contratos elegíveis ativos, e que perdas em contratos $> 2$ meses reduzem a taxa de retenção abaixo de 79%, reprovando o requisito.
+  - **Testes E2E (`career_plan_progression.spec.ts`)**:
+    - **Cenário de Sucesso**: usuário no nível **Beth** com contratos ativos totalizando R$ 10.000.000,00 e contratos com mais de 2 meses com retenção 100% $\ge$ 79%, comprovando na tela `/#/career-plan` o objetivo **Guimel** (Meta R$ 10M, Retenção 79%, Prêmio CAMISA) com ambos os requisitos marcados como "Atingido" (100%).
+    - **Cenário de Reprovação por Retenção**: usuário no nível **Beth** com contratos Defaulted com mais de 2 meses resultando em 50% de retenção estrita, exibindo o status "Não atingido".
 
 ### Arquivos Adicionados / Modificados
 - `SalesApp.Api/Data/DbSeeder.cs`
+- `SalesApp.IntegrationTests/CareerPlan/CareerPlanControllerTests.cs`
 - `SalesApp.IntegrationTests/TestWebApplicationFactory.cs`
 - `SalesApp.IntegrationTests/Users/ApprovalRequestsControllerIntegrationTests.cs`
 - `client/e2e-test/e2e/admin_registration.spec.ts`
