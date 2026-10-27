@@ -21,10 +21,11 @@ namespace SalesApp.Repositories
         public async Task<List<MatriculaHealthResponse>> GetMatriculaHealthAsync()
         {
             var now = DateTime.UtcNow;
+            var cutoffDate = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-14);
 
             var healthData = await _context.Contracts
                 .AsNoTracking()
-                .Where(c => c.IsActive && c.ContractStatus.Name.ToLower() != "desistente")
+                .Where(c => c.IsActive && c.ContractStatus.Name.ToLower() != "desistente" && c.SaleStartDate >= cutoffDate)
                 .Select(c => new
                 {
                     Matricula = c.Matricula != null ? c.Matricula.MatriculaNumber : c.TempMatricula,

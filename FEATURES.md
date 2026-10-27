@@ -1,3 +1,27 @@
+## Janela de 14 Meses no Monitoramento de Saúde das Matrículas (`/#/monitoring/matricula-health`)
+
+Restrição da verificação de saúde e atualização de matrículas e equipes para considerar exclusivamente os contratos cuja data de venda (`SaleStartDate`) esteja dentro dos últimos 14 meses (a partir do 1º dia do mês de 14 meses atrás). Contratos mais antigos são ignorados, garantindo que matrículas inativas há mais de 14 meses não gerem alarmes falsos de desatualização e que as contagens de contratos reflitam apenas o período operacionalmente monitorado.
+
+### Comportamento e Regras
+- **Filtro de Contratos por Data de Venda**:
+  - Na consulta de integridade (`GetMatriculaHealthAsync`), a data de corte é calculada como o primeiro dia do mês de 14 meses atrás em UTC (`new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-14)`).
+  - Apenas contratos ativos (`IsActive == true`), não desistentes e com `SaleStartDate >= cutoffDate` são consultados e computados.
+- **Data da Última Atualização e Status de Saúde**:
+  - A data de última atualização (`LastUpdate`) de cada matrícula é calculada como `Max(UpdatedAt)` entre os contratos pertencentes à janela de 14 meses.
+  - O status (`Healthy`, `Warning`, `OutOfDate`, `Danger`) é derivado das horas decorridas desde esse `LastUpdate`.
+- **Exclusão de Matrículas e Equipes Inativas**:
+  - Matrículas que não possuem vendas/contratos nos últimos 14 meses são omitidas do resultado.
+  - A aba de Equipes (`GetEquipesHealthAsync`) herda essa regra: equipes cujos membros não possuem matrículas com contratos recentes não exibem dados obsoletos.
+- **Contagem de Contratos em Tela**:
+  - A coluna "Qtd. Contratos" da tabela e o card de "Contratos Totais" no painel refletem estritamente o volume de contratos dentro da janela de 14 meses.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Repositories/MonitoringRepository.cs`
+- `SalesApp.Tests/Repositories/MonitoringRepositoryTests.cs`
+- `FEATURES.md`
+
+---
+
 ## Isolamento de Tokens por Matrícula e Detecção Imediata de Credenciais Inválidas no Scraper AVA PRO
 
 Mecanismo de segurança e resiliência na autenticação do AVA PRO e extração de dados do PowerBI (tanto para extração geral quanto consultor), garantindo que tokens nunca sejam compartilhados entre matrículas distintas, que alterações de senha invalidem o cache imediatamente e que senhas incorretas sejam interrompidas de forma precoce sem acionar timeouts ou permitir scrapes falsos-positivos.

@@ -575,4 +575,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Fix applied:** Updated `scrape_credentials.spec.ts` to assert default `'Últimos 15 meses (Máximo)'` value, added selection step for `'Todas as datas (Sem filtro)'`, and adjusted credential status assertion to match `/Senha (Incorreta|Expirada)/`.
 **Result:** ✅ Green (187/187 E2E tests passed)
 
+## [2026-10-27] e2e — Attempt 1
+**Failure:** `expect(locator).toHaveText(expected) failed` in `matricula_health_monitoring.spec.ts` (expected 19 and 173 contracts for matriculas 9999 and 11177).
+**Root cause:** With the new business rule restricting matricula health monitoring to the last 14 months (`SaleStartDate >= cutoffDate`), only contracts from the last 14 months are counted (9 for matricula 9999 and 120 for matricula 11177), whereas the test hardcoded the lifetime counts (19 and 173).
+**Fix applied:** Updated contract count expectations in `client/e2e-test/e2e/matricula_health_monitoring.spec.ts` from 19 to 9 and 173 to 120.
+**Result:** ✅ Green (188/188 E2E tests passed)
+
 

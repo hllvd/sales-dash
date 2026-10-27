@@ -41,10 +41,10 @@ test.describe('Matricula Health Monitoring', () => {
       await expect(statusCell).toContainText('Normal');
     }
 
-    // 4. Verify Matricula 9999 has 19 contracts and is healthy
-    await verifyMatriculaRow('9999', '19');
+    // 4. Verify Matricula 9999 has 9 contracts (within last 14 months) and is healthy
+    await verifyMatriculaRow('9999', '9');
 
-    // 5. Verify Matricula 11177 has 173 contracts and is healthy
-    await verifyMatriculaRow('11177', '173');
+    // 5. Verify Matricula 11177 has 120 contracts (within last 14 months) and is healthy
+    await verifyMatriculaRow('11177', '120');
   });
 });
