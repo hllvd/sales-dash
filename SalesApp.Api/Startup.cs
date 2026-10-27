@@ -186,6 +186,12 @@ namespace SalesApp
             services.AddScoped<IReportViewRepository, DynamoDbReportViewRepository>();
             services.AddScoped<IReportViewService, ReportViewService>();
 
+            // Helpdesk (Private FAQ) feature
+            services.AddScoped<SalesApp.Helpdesk.Repositories.IHelpdeskRepository, SalesApp.Helpdesk.Repositories.DynamoDbHelpdeskRepository>();
+            services.AddScoped<SalesApp.Helpdesk.Repositories.IKnowledgeBaseRepository, SalesApp.Helpdesk.Repositories.DynamoDbKnowledgeBaseRepository>();
+            services.AddHttpClient<SalesApp.Helpdesk.Services.IGeminiLlmService, SalesApp.Helpdesk.Services.GeminiLlmService>();
+            services.AddScoped<SalesApp.Helpdesk.Services.IHelpdeskService, SalesApp.Helpdesk.Services.HelpdeskService>();
+
             // Scraping and Error Services
             services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();
             services.AddScoped<IImportErrorService, ImportErrorService>();

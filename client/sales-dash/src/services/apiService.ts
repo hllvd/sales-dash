@@ -49,6 +49,25 @@ export interface UserMetadataFieldValue {
   value?: string
 }
 
+export interface AdminContractCheckItem {
+  contractNumber: string
+  existsInSystem: boolean
+  isDeleted: boolean
+  assignedTo: string | null
+  totalAmount: number | null
+  saleStartDate: string | null
+}
+
+export interface AdminCheckContractsResponse {
+  results: AdminContractCheckItem[]
+  duplicatesInList: string[]
+  totalInput: number
+  uniqueInput: number
+  foundCount: number
+  notFoundCount: number
+  deletedCount: number
+}
+
 export interface UserMetadataGroup {
   groupLabel: string | null
   fields: UserMetadataFieldValue[]
@@ -1890,6 +1909,37 @@ export const apiService = {
     return response.json()
   },
 
+  async checkContracts(contractNumbers: string[]): Promise<ApiResponse<AdminCheckContractsResponse>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/admin-tools/check-contracts`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ contractNumbers }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao conferir contratos"))
+    }
+    return response.json()
+  },
+
+  async exportCheckContractsXlsx(contractNumbers: string[]): Promise<Blob> {
+    const token = localStorage.getItem("token")
+    const response = await fetch(`${API_BASE_URL}/admin-tools/check-contracts/export`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ contractNumbers }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, "Falha ao exportar conferência em XLSX"))
+    }
+    return response.blob()
+  },
+
   async getSqsQueueStats(queueType: 'jobs' | 'results' = 'results'): Promise<SqsQueueStats> {
     const response = await authenticatedFetch(`${API_BASE_URL}/admin/sqs/stats?queue=${queueType}`, {
       method: "GET",
@@ -2684,7 +2734,144 @@ export interface AdminMigrateTeamMemberResult {
   message: string
 }
 
+export interface HelpdeskMessageDto {
+  messageId: string
+  senderUserId: string
+  senderName: string
+  senderRole: string
+  content: string
+  imageUrl?: string
+  createdAt: string
+}
 
+export interface HelpdeskEditHistoryDto {
+  version: number
+  previousContent: string
+  editedAt: string
+}
 
+export interface HelpdeskQuestionDto {
+  questionId: string
+  userId: string
+  userEmail: string
+  userName: string
+  title: string
+  currentContent: string
+  sourcePageUrl: string
+  imageUrl?: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  messages: HelpdeskMessageDto[]
+  editHistory: HelpdeskEditHistoryDto[]
+}
 
+export interface HelpdeskUnreadCountDto {
+  unreadCount: number
+}
 
+export interface KnowledgeBaseArticleDto {
+  articleId: string
+  questionId: string
+  category: 'FAQ' | 'COMO_FAZER'
+  title: string
+  slug: string
+  summaryContent: string
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export const helpdeskApiService = {
+  uploadImage: async (file: File): Promise<ApiResponse<{ imageUrl: string }>> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${API_BASE_URL}/helpdesk/questions/upload-image`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    })
+    return response.json()
+  },
+
+  createQuestion: async (data: { title: string; content: string; sourcePageUrl?: string; imageUrl?: string }): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    return response.json()
+  },
+
+  listQuestions: async (status?: string): Promise<ApiResponse<HelpdeskQuestionDto[]>> => {
+    const query = status ? `?status=${encodeURIComponent(status)}` : ''
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions${query}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+
+  getQuestionById: async (id: string): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions/${id}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+
+  updateQuestion: async (id: string, content: string): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ content }),
+    })
+    return response.json()
+  },
+
+  updateStatus: async (id: string, status: string, generateSummary: boolean = false): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions/${id}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status, generateSummary }),
+    })
+    return response.json()
+  },
+
+  addMessage: async (id: string, content: string): Promise<ApiResponse<HelpdeskQuestionDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/questions/${id}/messages`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ content }),
+    })
+    return response.json()
+  },
+
+  getUnreadCount: async (): Promise<ApiResponse<HelpdeskUnreadCountDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/unread-count`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+
+  listKnowledgeBaseArticles: async (category?: string): Promise<ApiResponse<KnowledgeBaseArticleDto[]>> => {
+    const query = category ? `?category=${encodeURIComponent(category)}` : ''
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/knowledge-base${query}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+
+  getKnowledgeBaseArticle: async (slug: string): Promise<ApiResponse<KnowledgeBaseArticleDto>> => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/helpdesk/knowledge-base/${encodeURIComponent(slug)}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+    return response.json()
+  },
+}

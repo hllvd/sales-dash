@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace SalesApp.Models
 {
     public class ScrapeResult
@@ -15,10 +19,12 @@ namespace SalesApp.Models
         public string? AuthStatus { get; set; }
         public string? AuthMessage { get; set; }
         public bool PowerBiLoaded { get; set; }
+        public bool? LoginSuccess { get; set; }
         public List<string>? AuthSteps { get; set; }
         public int RetryCount { get; set; }
         public string? ScrapeDate { get; set; }
         public string? DetectedStore { get; set; }
+        public string? DetectedStartDate { get; set; }
         public int DurationSeconds { get; set; }
         public string? DurationFormatted { get; set; }
         public string? StartedAt { get; set; }
@@ -28,5 +34,8 @@ namespace SalesApp.Models
         public string? OutputMode { get; set; }  // "direct" | "sqs"
         public string? S3Key { get; set; }
         public string? S3Bucket { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 }

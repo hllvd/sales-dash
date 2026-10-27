@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
 const { AuthError, detectLoginErrorText } = require('./auth');
+const { hashPassword } = require('./tokenManager');
 
 const AVA_URL = 'https://avapro.ademicon.com.br/';
 const DASHBOARD_CONSULTOR_URL = 'https://avapro.ademicon.com.br/dashboard/consultor';
@@ -24,7 +25,7 @@ async function captureTemplate(matricula, password, stepLogger = null) {
   const tplFile = path.join(tplDir, 'consultorQueryTemplate.json');
 
   const isHeadless = process.env.HEADLESS === 'false' || process.env.HEADLESS === '0' ? false : true;
-  const tokenFile = path.join(tplDir, 'consultorToken.json');
+  const tokenFile = path.join(tplDir, `consultorToken_${matricula}.json`);
 
   addStep(`[Capture] Iniciando Puppeteer (Headless: ${isHeadless})...`);
   const browser = await puppeteer.launch({
@@ -45,6 +46,7 @@ async function captureTemplate(matricula, password, stepLogger = null) {
 
   let capturedTemplate = fs.existsSync(tplFile);
   let capturedToken = null;
+  let interceptedAuthError = null;
 
   try {
     const page = await browser.newPage();
@@ -65,8 +67,13 @@ async function captureTemplate(matricula, password, stepLogger = null) {
           const auth = headers['authorization'] || headers['Authorization'];
           if (auth && (auth.startsWith('MWCToken') || auth.startsWith('ey'))) {
             capturedToken = auth.startsWith('MWCToken') ? auth : `MWCToken ${auth}`;
-            fs.writeFileSync(tokenFile, JSON.stringify({ token: capturedToken, capturedAt: Date.now() }, null, 2), 'utf8');
-            console.log(`[Capture] 🎯 MWCToken específico de Consultor capturado!`);
+            fs.writeFileSync(tokenFile, JSON.stringify({
+              token: capturedToken,
+              matricula,
+              passwordHash: hashPassword(password),
+              capturedAt: Date.now()
+            }, null, 2), 'utf8');
+            console.log(`[Capture] 🎯 MWCToken específico de Consultor capturado para matrícula ${matricula}!`);
           }
         }
 
@@ -90,11 +97,22 @@ async function captureTemplate(matricula, password, stepLogger = null) {
     const onResponse = async (res) => {
       try {
         const url = res.url();
-        if (url.includes('bifrost') && url.includes('/login') && res.status() === 200) {
-          const body = await res.json().catch(() => null);
-          if (body?.token) {
-            avaJwt = body.token;
-            console.log(`[Capture] AVA JWT capturado: ${avaJwt.substring(0, 20)}...`);
+        const status = res.status();
+        if (url.includes('bifrost') && url.includes('/login')) {
+          if (status === 200) {
+            const body = await res.json().catch(() => null);
+            if (body?.token) {
+              avaJwt = body.token;
+              console.log(`[Capture] AVA JWT capturado: ${avaJwt.substring(0, 20)}...`);
+            }
+          } else {
+            let message = 'Usuário ou senha inválida';
+            try {
+              const json = await res.json().catch(() => null);
+              if (json && json.message) message = json.message.replace(/\s+/g, ' ').trim();
+              else if (json && json.error) message = json.error.replace(/\s+/g, ' ').trim();
+            } catch (_) {}
+            interceptedAuthError = message;
           }
         }
       } catch (_) {}
@@ -132,40 +150,71 @@ async function captureTemplate(matricula, password, stepLogger = null) {
 
     if (submitBtn && submitBtn.asElement()) {
       await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {}),
         submitBtn.asElement().click()
       ]);
     } else {
       await page.keyboard.press('Enter');
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {});
     }
 
     const currentUrl = page.url();
     addStep(`[Capture] URL após login: ${currentUrl}`);
 
-    // Inspeciona texto visível na página de login para capturar avisos como "Senha expirada"
+    // Inspeciona texto visível na página de login e aguarda resposta
     let pageErrorText = null;
-    try {
-      pageErrorText = await page.evaluate(() => {
-        const errorEl = document.querySelector('.alert, [role="alert"], .error, .text-danger, .invalid-feedback, div[class*="error"], span[class*="error"]');
-        if (errorEl && errorEl.textContent) return errorEl.textContent.trim();
-        const bodyText = document.body ? document.body.innerText : '';
-        if (bodyText.includes('Senha expirada') || bodyText.includes('redefina sua senha') || bodyText.includes('Usuário ou senha')) {
-          const match = bodyText.split('\n').find(l => l.includes('Senha expirada') || l.includes('redefina') || l.includes('Usuário ou senha'));
+    const checkDeadline = Date.now() + 6000;
+    while (!avaJwt && !interceptedAuthError && Date.now() < checkDeadline) {
+      try {
+        const text = await page.evaluate(() => {
+          const errorEl = document.querySelector('.alert, [role="alert"], .error, .text-danger, .invalid-feedback, div[class*="error"], span[class*="error"], p[class*="error"], div[class*="red"], p[class*="red"]');
+          if (errorEl && errorEl.textContent) return errorEl.textContent.trim();
+          const bodyText = document.body ? document.body.innerText : '';
+          const match = bodyText.split('\n').find(l => 
+            l.includes('Senha expirada') || 
+            l.includes('redefina sua senha') || 
+            l.includes('Usuário ou senha') || 
+            l.includes('usuario ou senha') ||
+            l.includes('tentativas')
+          );
           return match ? match.trim() : null;
+        });
+        if (text) {
+          pageErrorText = text;
+          const detected = detectLoginErrorText(pageErrorText);
+          if (detected && detected.isFatalAuth) {
+            interceptedAuthError = detected.reason;
+            break;
+          }
         }
-        return null;
-      });
-    } catch (_) {}
-
-    const detectedPageError = detectLoginErrorText(pageErrorText);
-    if (detectedPageError && detectedPageError.isFatalAuth) {
-      addStep(`[Capture ❌ Falha de Autenticação] ${detectedPageError.reason}`);
-      throw new AuthError('wrong-password', detectedPageError.reason, [], false, false);
+      } catch (_) {}
+      await new Promise(r => setTimeout(r, 400));
     }
 
-    if (currentUrl.includes('/login')) {
-      const fallbackReason = pageErrorText || 'Permaneceu na página de login.';
+    if (interceptedAuthError) {
+      const detectedIntercepted = detectLoginErrorText(interceptedAuthError);
+      const finalMsg = detectedIntercepted ? detectedIntercepted.reason : interceptedAuthError;
+      addStep(`[Capture ❌ Falha de Autenticação] ${finalMsg}`);
+      throw new AuthError('wrong-password', finalMsg, [], false, false);
+    }
+
+    if (pageErrorText) {
+      const detectedPageError = detectLoginErrorText(pageErrorText);
+      if (detectedPageError && detectedPageError.isFatalAuth) {
+        addStep(`[Capture ❌ Falha de Autenticação] ${detectedPageError.reason}`);
+        throw new AuthError('wrong-password', detectedPageError.reason, [], false, false);
+      }
+    }
+
+    if (!avaJwt) {
+      const isPasswordInputStillPresent = await page.evaluate(() => {
+        const pwd = document.querySelector('input[type="password"]');
+        return pwd !== null && pwd.offsetParent !== null;
+      }).catch(() => false);
+
+      const fallbackReason = isPasswordInputStillPresent
+        ? (pageErrorText || 'Usuário ou senha inválida no AVA PRO.')
+        : 'Sessão JWT não emitida pelo AVA PRO.';
       addStep(`[Capture ❌ Falha de Autenticação] ${fallbackReason}`);
       throw new AuthError('wrong-password', fallbackReason, [], false, false);
     }

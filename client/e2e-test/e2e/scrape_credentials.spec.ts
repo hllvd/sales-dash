@@ -264,7 +264,6 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     // Default for new account is "Últimos 15 meses (Máximo)"
     await expect(periodSelect).toHaveValue('Últimos 15 meses (Máximo)');
     await expect(page.getByText(/Extrairá dados a partir de 01\/\d{2}\/\d{4} até o mês atual\./)).toBeVisible();
-
     // 0. Select Todas as datas (Sem filtro)
     await periodSelect.click();
     await page.getByRole('option', { name: 'Todas as datas (Sem filtro)' }).click();
@@ -297,6 +296,11 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     await expect(customMonthInput).toBeVisible();
     await customMonthInput.fill('2026-04');
     await expect(page.getByText('Extrairá dados a partir de 01/04/2026 até o mês atual.')).toBeVisible();
+
+    // 6. Select Todas as datas (Sem filtro)
+    await periodSelect.click();
+    await page.getByRole('option', { name: 'Todas as datas (Sem filtro)' }).click();
+    await expect(page.getByText('Sem filtro de data: o robô buscará todos os contratos disponíveis no portal.')).toBeVisible();
 
     // Fill credentials and save with 15 months selected
     await periodSelect.click();

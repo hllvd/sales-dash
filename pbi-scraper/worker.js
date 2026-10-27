@@ -544,7 +544,7 @@ async function processMessage(rawMessage) {
   }
 
   // If scrape succeeded or failed cleanly with AuthError, delete message from jobs queue
-  if (scrapeResult.status === 'Succeeded' || scrapeResult.authStatus === 'error' || scrapeResult.loginSuccess === false) {
+  if (scrapeResult.status === 'Succeeded' || scrapeResult.authStatus === 'error' || scrapeResult.authStatus === 'wrong-password' || scrapeResult.loginSuccess === false) {
     try {
       await deleteMessage(receiptHandle);
       log('INFO', `Job ${jobId} finished and message deleted from jobs queue`, { jobId });

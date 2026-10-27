@@ -137,6 +137,10 @@ namespace SalesApp.IntegrationTests
             // Career Plan services
             services.AddSingleton<ICareerPlanConfigProvider, CareerPlanConfigProvider>();
             services.AddScoped<ICareerPlanService, CareerPlanService>();
+
+            // Helpdesk (Private FAQ) feature
+            services.AddScoped<SalesApp.Helpdesk.Repositories.IHelpdeskRepository, SalesApp.Helpdesk.Repositories.DynamoDbHelpdeskRepository>();
+            services.AddScoped<SalesApp.Helpdesk.Services.IHelpdeskService, SalesApp.Helpdesk.Services.HelpdeskService>();
             
             // CORS
             services.AddCors(options =>

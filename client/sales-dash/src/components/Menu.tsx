@@ -3,7 +3,7 @@ import { AppShell, NavLink, Text, Group, Button, Tooltip, Burger, Badge } from '
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { useBuildInfo } from '../contexts/BuildInfoContext';
 import { UserRole } from '../types/UserRole';
-import { apiService } from '../services/apiService';
+import { apiService, helpdeskApiService } from '../services/apiService';
 import './Menu.css';
 import {
   IconUsers,
@@ -64,6 +64,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   );
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [pendingSurveyCount, setPendingSurveyCount] = useState<number>(0);
+  const [pendingHelpdeskCount, setPendingHelpdeskCount] = useState<number>(0);
 
   useEffect(() => {
     const updateSurveyCount = () => {
@@ -82,6 +83,14 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         .then((res) => {
           if (res.success && res.data) {
             setPendingCount(res.data.length);
+          }
+        })
+        .catch(() => {});
+
+      helpdeskApiService.getUnreadCount()
+        .then((res) => {
+          if (res.success && res.data) {
+            setPendingHelpdeskCount(res.data.unreadCount || 0);
           }
         })
         .catch(() => {});
@@ -577,6 +586,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             href="#/help"
             label="Ajuda"
             leftSection={<IconBook2 size={20} />}
+            rightSection={pendingHelpdeskCount > 0 ? <Badge size="xs" circle color="red">{pendingHelpdeskCount}</Badge> : undefined}
             active={isActive('#/help')}
             variant="filled"
             color="red"
@@ -617,8 +627,15 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               leftSection={<IconTools size={20} />}
               childrenOffset={28}
               styles={navLinkStyles('')}
-              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts' || currentPath === '#/admin-tools/sqs-queue' || currentPath === '#/admin-tools/team-inconsistencies' || currentPath === '#/admin-tools/deleted-contracts'}
+              defaultOpened={currentPath === '#/tester' || currentPath === '#/batch' || currentPath === '#/contract-reconciliation' || currentPath === '#/retention-filter' || currentPath === '#/admin-tools/migrate-contracts' || currentPath === '#/admin-tools/sqs-queue' || currentPath === '#/admin-tools/team-inconsistencies' || currentPath === '#/admin-tools/deleted-contracts' || currentPath === '#/admin-tools/compare-contracts'}
             >
+              <NavLink
+                href="#/admin-tools/compare-contracts"
+                label="Conferência de Contratos"
+                active={isActive('#/admin-tools/compare-contracts')}
+                styles={navLinkStyles('#/admin-tools/compare-contracts')}
+                onClick={() => { if (opened) close(); }}
+              />
               <NavLink
                 href="#/admin-tools/deleted-contracts"
                 label="Contratos Deletados"

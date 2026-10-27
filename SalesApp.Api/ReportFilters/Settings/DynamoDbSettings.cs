@@ -7,5 +7,6 @@ namespace SalesApp.ReportFilters.Settings
     public class DynamoDbSettings
     {
         public string ReportFiltersTable { get; set; } = string.Empty;
+        public string HelpdeskTable { get; set; } = string.Empty;
     }
 }

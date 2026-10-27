@@ -896,5 +896,206 @@ namespace SalesApp.Controllers
                 TeamName = teamName
             };
         }
+
+        [HttpPost("check-contracts")]
+        public async Task<ActionResult<ApiResponse<AdminCheckContractsResponse>>> CheckContracts([FromBody] AdminCheckContractsRequest request)
+        {
+            if (!IsSuperAdmin())
+            {
+                return Forbid();
+            }
+
+            var response = await ProcessCheckContractsAsync(request?.ContractNumbers);
+            return Ok(new ApiResponse<AdminCheckContractsResponse>
+            {
+                Success = true,
+                Data = response,
+                Message = "Conferência de contratos realizada com sucesso."
+            });
+        }
+
+        [HttpPost("check-contracts/export")]
+        public async Task<IActionResult> ExportCheckContractsXlsx([FromBody] AdminCheckContractsRequest request)
+        {
+            if (!IsSuperAdmin())
+            {
+                return Forbid();
+            }
+
+            var checkResult = await ProcessCheckContractsAsync(request?.ContractNumbers);
+
+            ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
+            using var package = new ExcelPackage();
+            var worksheet = package.Workbook.Worksheets.Add("Conferência de Contratos");
+
+            var headers = new[]
+            {
+                "Número do Contrato",
+                "Atribuído a",
+                "Valor",
+                "Data",
+                "Está no sistema",
+                "Contrato excluído"
+            };
+
+            for (int col = 0; col < headers.Length; col++)
+            {
+                var cell = worksheet.Cells[1, col + 1];
+                cell.Value = headers[col];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(243, 244, 246));
+                cell.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+            }
+
+            int row = 2;
+            foreach (var item in checkResult.Results)
+            {
+                worksheet.Cells[row, 1].Value = item.ContractNumber;
+                worksheet.Cells[row, 2].Value = item.ExistsInSystem ? (item.AssignedTo ?? "Não atribuído") : "-";
+
+                if (item.TotalAmount.HasValue)
+                {
+                    worksheet.Cells[row, 3].Value = item.TotalAmount.Value;
+                    worksheet.Cells[row, 3].Style.Numberformat.Format = "R$ #,##0.00";
+                }
+                else
+                {
+                    worksheet.Cells[row, 3].Value = "-";
+                }
+
+                if (item.SaleStartDate.HasValue)
+                {
+                    worksheet.Cells[row, 4].Value = item.SaleStartDate.Value.ToString("dd/MM/yyyy");
+                }
+                else
+                {
+                    worksheet.Cells[row, 4].Value = "-";
+                }
+
+                worksheet.Cells[row, 5].Value = item.ExistsInSystem ? "Sim" : "Não";
+                worksheet.Cells[row, 6].Value = item.ExistsInSystem ? (item.IsDeleted ? "Sim" : "Não") : "-";
+
+                row++;
+            }
+
+            if (checkResult.DuplicatesInList.Count > 0)
+            {
+                var dupSheet = package.Workbook.Worksheets.Add("Duplicados na Lista");
+                dupSheet.Cells[1, 1].Value = "Contrato Duplicado";
+                dupSheet.Cells[1, 1].Style.Font.Bold = true;
+                dupSheet.Cells[1, 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                dupSheet.Cells[1, 1].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(243, 244, 246));
+                dupSheet.Cells[1, 1].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+
+                int dupRow = 2;
+                foreach (var dup in checkResult.DuplicatesInList)
+                {
+                    dupSheet.Cells[dupRow, 1].Value = dup;
+                    dupRow++;
+                }
+                dupSheet.Cells.AutoFitColumns();
+            }
+
+            worksheet.Cells.AutoFitColumns();
+
+            var fileBytes = package.GetAsByteArray();
+            return File(
+                fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"conferencia_contratos_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
+        }
+
+        private async Task<AdminCheckContractsResponse> ProcessCheckContractsAsync(List<string>? inputNumbers)
+        {
+            var cleanedNumbers = (inputNumbers ?? new List<string>())
+                .Select(n => n?.Trim())
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Select(n => n!)
+                .ToList();
+
+            var duplicates = cleanedNumbers
+                .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+
+            var uniqueNumbers = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var n in cleanedNumbers)
+            {
+                if (seen.Add(n))
+                {
+                    uniqueNumbers.Add(n);
+                }
+            }
+
+            var dbContracts = await _context.Contracts
+                .AsNoTracking()
+                .Include(c => c.User)
+                .Where(c => uniqueNumbers.Contains(c.ContractNumber))
+                .ToListAsync();
+
+            var dbContractsByNumber = dbContracts
+                .GroupBy(c => c.ContractNumber, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(c => c.IsActive).ThenByDescending(c => c.UpdatedAt).First(),
+                    StringComparer.OrdinalIgnoreCase
+                );
+
+            var results = new List<AdminContractCheckItemDto>();
+            int foundCount = 0;
+            int notFoundCount = 0;
+            int deletedCount = 0;
+
+            foreach (var num in uniqueNumbers)
+            {
+                if (dbContractsByNumber.TryGetValue(num, out var contract))
+                {
+                    foundCount++;
+                    var isDeleted = !contract.IsActive;
+                    if (isDeleted) deletedCount++;
+
+                    string assignedTo = contract.User != null && !string.IsNullOrWhiteSpace(contract.User.Name)
+                        ? contract.User.Name
+                        : "Não atribuído";
+
+                    results.Add(new AdminContractCheckItemDto
+                    {
+                        ContractNumber = contract.ContractNumber,
+                        ExistsInSystem = true,
+                        IsDeleted = isDeleted,
+                        AssignedTo = assignedTo,
+                        TotalAmount = contract.TotalAmount,
+                        SaleStartDate = contract.SaleStartDate
+                    });
+                }
+                else
+                {
+                    notFoundCount++;
+                    results.Add(new AdminContractCheckItemDto
+                    {
+                        ContractNumber = num,
+                        ExistsInSystem = false,
+                        IsDeleted = false,
+                        AssignedTo = null,
+                        TotalAmount = null,
+                        SaleStartDate = null
+                    });
+                }
+            }
+
+            return new AdminCheckContractsResponse
+            {
+                Results = results,
+                DuplicatesInList = duplicates,
+                TotalInput = cleanedNumbers.Count,
+                UniqueInput = uniqueNumbers.Count,
+                FoundCount = foundCount,
+                NotFoundCount = notFoundCount,
+                DeletedCount = deletedCount
+            };
+        }
     }
 }

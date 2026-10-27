@@ -88,6 +88,7 @@ namespace SalesApp.Controllers
         private readonly PbiScraperClient _scraperClient;
         private readonly IDataProtector _protector;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<ScrapeController> _logger;
         private readonly string _outputDir;
         private readonly bool _isE2E;
 
@@ -98,7 +99,8 @@ namespace SalesApp.Controllers
             IScrapeImportService importService,
             PbiScraperClient scraperClient,
             IDataProtectionProvider dataProtectionProvider,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ILogger<ScrapeController> logger)
         {
             _orchestrator = orchestrator;
             _logService = logService;
@@ -107,6 +109,7 @@ namespace SalesApp.Controllers
             _scraperClient = scraperClient;
             _protector = dataProtectionProvider.CreateProtector("ScrapeConfig.PowerBiPassword");
             _configuration = configuration;
+            _logger = logger;
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
             _isE2E = configuration["ASPNETCORE_ENVIRONMENT"] == "E2E";
         }
@@ -246,7 +249,7 @@ namespace SalesApp.Controllers
 
                 if (!string.IsNullOrEmpty(passwordToTest))
                 {
-                    if (_isE2E || config.Matricula == "789012")
+                    if (_isE2E && config.Matricula == "789012")
                     {
                         config.CredentialStatus = "ok";
                         if (string.IsNullOrEmpty(config.Store))
@@ -260,20 +263,28 @@ namespace SalesApp.Controllers
                     }
                     else
                     {
-                        var (success, loginSuccess, message, steps, detectedStore, detectedStartDate) = await _scraperClient.TestAuthAsync(config.Matricula, passwordToTest, config.Store);
-                        config.CredentialStatus = (loginSuccess || success) ? "ok" : "wrong-password";
-                        if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+                        try
                         {
-                            config.Store = detectedStore;
-                        }
-                        if (string.IsNullOrWhiteSpace(config.DefaultStartMonth) && !string.IsNullOrWhiteSpace(detectedStartDate))
-                        {
-                            config.DefaultStartMonth = detectedStartDate;
-                        }
+                            var (success, loginSuccess, message, steps, detectedStore, detectedStartDate) = await _scraperClient.TestAuthAsync(config.Matricula, passwordToTest, config.Store);
+                            config.CredentialStatus = success ? "ok" : (loginSuccess == false ? "wrong-password" : "error");
+                            if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+                            {
+                                config.Store = detectedStore;
+                            }
+                            if (string.IsNullOrWhiteSpace(config.DefaultStartMonth) && !string.IsNullOrWhiteSpace(detectedStartDate))
+                            {
+                                config.DefaultStartMonth = detectedStartDate;
+                            }
 
-                        if (!loginSuccess && !success)
+                            if (!success)
+                            {
+                                return BadRequest(new { message = $"Falha na autenticação: {message}", steps, credentialStatus = config.CredentialStatus });
+                            }
+                        }
+                        catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException)
                         {
-                            return BadRequest(new { message = $"Falha na autenticação: {message}", steps });
+                            _logger.LogWarning(ex, "Serviço HTTP do scraper inacessível para testar credenciais durante SaveConfig. Configuração salva sem validação ao vivo.");
+                            config.CredentialStatus = null;
                         }
                     }
                 }
@@ -338,7 +349,7 @@ namespace SalesApp.Controllers
                 return BadRequest(new { message = "Senha não configurada" });
             }
 
-            if (_isE2E || config.Matricula == "789012")
+            if (_isE2E && config.Matricula == "789012")
             {
                 config.CredentialStatus = "ok";
                 if (string.IsNullOrEmpty(config.Store)) config.Store = "AHU - PR";
@@ -360,22 +371,35 @@ namespace SalesApp.Controllers
 
             string password = config.PowerBiPassword;
 
-            var (success, loginSuccess, message, steps, detectedStore, detectedStartDate) = await _scraperClient.TestAuthAsync(config.Matricula, password, config.Store);
-
-            bool effectiveSuccess = loginSuccess || success;
-            config.CredentialStatus = effectiveSuccess ? "ok" : "wrong-password";
-            if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+            try
             {
-                config.Store = detectedStore;
-            }
-            if (string.IsNullOrWhiteSpace(config.DefaultStartMonth) && !string.IsNullOrWhiteSpace(detectedStartDate))
-            {
-                config.DefaultStartMonth = detectedStartDate;
-            }
-            config.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+                var (success, loginSuccess, message, steps, detectedStore, detectedStartDate) = await _scraperClient.TestAuthAsync(config.Matricula, password, config.Store);
 
-            return Ok(new { success = effectiveSuccess, loginSuccess, message, steps, credentialStatus = config.CredentialStatus, detectedStore, detectedStartDate });
+                config.CredentialStatus = success ? "ok" : (loginSuccess == false ? "wrong-password" : "error");
+                if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+                {
+                    config.Store = detectedStore;
+                }
+                if (string.IsNullOrWhiteSpace(config.DefaultStartMonth) && !string.IsNullOrWhiteSpace(detectedStartDate))
+                {
+                    config.DefaultStartMonth = detectedStartDate;
+                }
+                config.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success, loginSuccess, message, steps, credentialStatus = config.CredentialStatus, detectedStore, detectedStartDate });
+            }
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException)
+            {
+                _logger.LogWarning(ex, "Serviço HTTP do scraper inacessível para TestAuth.");
+                return StatusCode(503, new { 
+                    success = false, 
+                    loginSuccess = false, 
+                    message = "Serviço de teste do scraper não está acessível no momento.", 
+                    steps = new[] { "[Erro] Não foi possível conectar ao scraper HTTP para testar a senha em tempo real." },
+                    credentialStatus = config.CredentialStatus 
+                });
+            }
         }
 
         [Authorize(Roles = "admin,superadmin")]

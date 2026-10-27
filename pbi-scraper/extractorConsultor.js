@@ -214,27 +214,44 @@ async function scrapeConsultorDirect(options) {
 
     const tplDir = path.resolve(__dirname, 'templates');
     const tplFile = path.join(tplDir, 'consultorQueryTemplate.json');
-    const tokenFile = path.join(tplDir, 'consultorToken.json');
+    const tokenFile = path.join(tplDir, `consultorToken_${matricula}.json`);
+    const legacyTokenFile = path.join(tplDir, 'consultorToken.json');
+
+    // Remove arquivo de token global legado para evitar vazamento entre matrículas
+    if (fs.existsSync(legacyTokenFile)) {
+      try {
+        fs.unlinkSync(legacyTokenFile);
+      } catch (_) {}
+    }
 
     // 1. Obtém o token específico de Consultor e o template
     let consultorToken = null;
 
-    // Verifica cache em memória
-    const mem = tokenManager.getTokens(`${matricula}_consultor`);
+    // Verifica cache em memória (com validação de hash da senha)
+    const mem = tokenManager.getTokens(`${matricula}_consultor`, password);
     if (mem && mem.pbiToken) {
       addStep('[Auth] MWCToken de Consultor reutilizado do cache em memória.');
       consultorToken = mem.pbiToken;
     }
 
-    // Verifica cache em disco (consultorToken.json) válido por 40 minutos
+    // Verifica cache em disco (consultorToken_${matricula}.json) válido por 40 minutos e para a mesma senha/matrícula
     if (!consultorToken && fs.existsSync(tokenFile)) {
       try {
         const disk = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
         const ageMs = Date.now() - (disk.capturedAt || 0);
-        if (disk.token && ageMs < 40 * 60 * 1000) {
+        const currentHash = tokenManager.hashPassword ? tokenManager.hashPassword(password) : null;
+        const passwordMatches = !disk.passwordHash || (currentHash && disk.passwordHash === currentHash);
+        const matriculaMatches = !disk.matricula || String(disk.matricula).trim() === String(matricula).trim();
+
+        if (disk.token && ageMs < 40 * 60 * 1000 && passwordMatches && matriculaMatches) {
           addStep(`[Auth] MWCToken de Consultor reutilizado do cache em disco (${Math.round(ageMs / 60000)}m atrás).`);
           consultorToken = disk.token;
-          tokenManager.setTokens(`${matricula}_consultor`, { pbiToken: consultorToken });
+          tokenManager.setTokens(`${matricula}_consultor`, { pbiToken: consultorToken, password });
+        } else {
+          // Token expirado ou de senha/matrícula anterior: descarta arquivo do disco
+          try {
+            fs.unlinkSync(tokenFile);
+          } catch (_) {}
         }
       } catch (_) {}
     }

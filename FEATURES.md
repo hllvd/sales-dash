@@ -38,6 +38,29 @@ Reestruturação dos níveis de classificação (`ClassificationLevel`) do siste
 - `client/e2e-test/e2e/admin_registration.spec.ts`
 - `client/e2e-test/e2e/career_plan_progression.spec.ts`
 - `client/e2e-test/playwright.config.ts`
+
+---
+
+## Janela de 14 Meses no Monitoramento de Saúde das Matrículas (`/#/monitoring/matricula-health`)
+
+Restrição da verificação de saúde e atualização de matrículas e equipes para considerar exclusivamente os contratos cuja data de venda (`SaleStartDate`) esteja dentro dos últimos 14 meses (a partir do 1º dia do mês de 14 meses atrás). Contratos mais antigos são ignorados, garantindo que matrículas inativas há mais de 14 meses não gerem alarmes falsos de desatualização e que as contagens de contratos reflitam apenas o período operacionalmente monitorado.
+
+### Comportamento e Regras
+- **Filtro de Contratos por Data de Venda**:
+  - Na consulta de integridade (`GetMatriculaHealthAsync`), a data de corte é calculada como o primeiro dia do mês de 14 meses atrás em UTC (`new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-14)`).
+  - Apenas contratos ativos (`IsActive == true`), não desistentes e com `SaleStartDate >= cutoffDate` são consultados e computados.
+- **Data da Última Atualização e Status de Saúde**:
+  - A data de última atualização (`LastUpdate`) de cada matrícula é calculada como `Max(UpdatedAt)` entre os contratos pertencentes à janela de 14 meses.
+  - O status (`Healthy`, `Warning`, `OutOfDate`, `Danger`) é derivado das horas decorridas desde esse `LastUpdate`.
+- **Exclusão de Matrículas e Equipes Inativas**:
+  - Matrículas que não possuem vendas/contratos nos últimos 14 meses são omitidas do resultado.
+  - A aba de Equipes (`GetEquipesHealthAsync`) herda essa regra: equipes cujos membros não possuem matrículas com contratos recentes não exibem dados obsoletos.
+- **Contagem de Contratos em Tela**:
+  - A coluna "Qtd. Contratos" da tabela e o card de "Contratos Totais" no painel refletem estritamente o volume de contratos dentro da janela de 14 meses.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Repositories/MonitoringRepository.cs`
+- `SalesApp.Tests/Repositories/MonitoringRepositoryTests.cs`
 - `FEATURES.md`
 
 ---
@@ -85,7 +108,7 @@ Sistema configurável e orientado a regras JSON para cálculo e acompanhamento d
 - `SalesApp.Api/CareerPlan/CareerPlanConfigParser.cs`
 - `SalesApp.Api/CareerPlan/CareerPlanConfigValidator.cs`
 - `SalesApp.Api/CareerPlan/CareerReferenceDate.cs`
-- `SalesApp.Api/CareerPlan/ContractEligibility.cs`
+- `SalesApp.Api/ContractEligibility.cs`
 - `SalesApp.Api/CareerPlan/CareerMetricsCalculator.cs`
 - `SalesApp.Api/CareerPlan/CareerRuleEvaluator.cs`
 - `SalesApp.Api/CareerPlan/CareerLevelResolver.cs`
@@ -115,6 +138,164 @@ Sistema configurável e orientado a regras JSON para cálculo e acompanhamento d
 - `client/sales-dash/src/components/Menu.tsx`
 - `client/sales-dash/src/App.tsx`
 - `FEATURES.md`
+
+---
+## Isolamento de Tokens por Matrícula e Detecção Imediata de Credenciais Inválidas no Scraper AVA PRO
+
+Mecanismo de segurança e resiliência na autenticação do AVA PRO e extração de dados do PowerBI (tanto para extração geral quanto consultor), garantindo que tokens nunca sejam compartilhados entre matrículas distintas, que alterações de senha invalidem o cache imediatamente e que senhas incorretas sejam interrompidas de forma precoce sem acionar timeouts ou permitir scrapes falsos-positivos.
+
+### Comportamento e Regras
+- **Isolamento de Cache por Matrícula e Hash de Senha**:
+  - No `tokenManager.js`, tanto o cache em memória quanto os tokens de consultor em disco são particionados por matrícula (`consultorToken_${matricula}.json`).
+  - Cada entrada de cache armazena um hash SHA-256 da senha. Ao solicitar um token em cache, se a senha fornecida tiver hash diferente da senha com a qual o token foi obtido, o cache é invalidado imediatamente e descartado.
+  - O arquivo legado global `templates/consultorToken.json` é automaticamente removido, impedindo que uma matrícula utilize tokens gerados por outra.
+- **Detecção Precoce de Erros de Autenticação no AVA PRO**:
+  - Interceptação de respostas HTTP não-200 na rota de login (`/bifrost/login`), interrompendo o fluxo antes do timeout de rede.
+  - Varredura de textos de aviso na tela de login, incluindo avisos de tentativas restantes antes de bloqueio (`"Usuário ou senha inválida. Você ainda possui mais X tentativas antes do bloqueio..."`), senhas expiradas e credenciais incorretas.
+  - Verificação se o campo de input de senha continua visível na página após submissão, impedindo declaração prematura de sucesso de login.
+  - Requisito estrito do token `avaJwt`: o login no AVA PRO só é considerado bem-sucedido (`loginSuccess = true`) se o JWT for efetivamente capturado.
+- **Disjuntor e Status de Credencial no Backend (`SalesApp.Api`)**:
+  - No `ScrapeController.cs`, `CredentialStatus` só é marcado como `"ok"` se a extração/teste obtiver sucesso completo (`success == true`).
+  - Em caso de falha de login, marca rigorosamente `"wrong-password"`, acionando o disjuntor de segurança que impede novas tentativas automáticas e evita o bloqueio da conta no AVA PRO.
+  - No `SaveConfig`, chamadas de `TestOnSave` tratam falhas de conectividade (`HttpRequestException` / timeout de rede) quando o scraper opera em modo assíncrono (Fargate/SQS), salvando as credenciais com `CredentialStatus = null` sem disparar erro 500 no salvamento.
+  - No `worker.js`, mensagens SQS com falha de `"wrong-password"` são excluídas da fila imediatamente, prevenindo retentativas desnecessárias em senhas erradas.
+
+### Arquivos Adicionados / Modificados
+- `pbi-scraper/tokenManager.js`
+- `pbi-scraper/auth.js`
+- `pbi-scraper/captureTemplate.js`
+- `pbi-scraper/extractorConsultor.js`
+- `pbi-scraper/worker.js`
+- `pbi-scraper/test-auth-errors.js`
+- `SalesApp.Api/Controllers/ScrapeController.cs`
+
+---
+
+## Conferência de Contratos em Lote (`#/admin-tools/compare-contracts`)
+
+Ferramenta administrativa exclusiva para `superadmin`, acessível pelo menu "Ferramentas Admin", permitindo colar uma lista de números de contratos (separados por vírgula ou por quebra de linha) para realizar uma busca e comparação global no sistema (incluindo contratos ativos e excluídos via soft-delete).
+
+### Comportamento e Regras
+- **Entrada Flexível**:
+  - Aceita listas de números de contrato (`ContractNumber`) coladas em uma textarea, separadas por vírgula ou por quebra de linha.
+  - Normaliza os números removendo espaços em branco em excesso e descartando entradas vazias.
+- **Detecção de Duplicidades na Entrada**:
+  - Identifica automaticamente números repetidos informados na lista de entrada.
+  - Exibe uma tabela dedicada de "Contratos duplicados na lista" caso existam repetições, alertando o usuário.
+- **Busca Global Completa**:
+  - Consulta o banco de dados globalmente sem restrição de equipe ou hierarquia.
+  - Inclui contratos excluídos (`IsActive == false`), permitindo rastrear o histórico completo.
+  - Para cada número único informado, exibe:
+    1. **Número do Contrato**: O identificador do contrato consultado.
+    2. **Pra quem está atribuído**: Nome do usuário proprietário, "Não atribuído" se desvinculado, ou "-" se inexistente no banco de dados.
+    3. **Valor**: Valor total do contrato (`TotalAmount`) formatado em moeda (R$), ou "-" se não encontrado.
+    4. **Data**: Data de início/venda (`SaleStartDate`) formatada em `DD/MM/AAAA`, ou "-" se não encontrado.
+    5. **Está no sistema**: Badge visual indicando `Sim` ou `Não`.
+    6. **Contrato excluído**: Badge indicando `Sim` (se excluído/inativo), `Não` (se ativo), ou "-" (se não cadastrado).
+- **Exportação em XLSX**:
+  - Botão para download direto do relatório em formato Excel (`.xlsx`) estilizado com cabeçalho formatado, formatação de moeda e abas separadas para os resultados e para a lista de contratos duplicados.
+- **Segurança**:
+  - Acesso restrito a `superadmin` validado tanto no frontend (menu restrito) quanto no backend (`AdminToolsController` com validação de claims e email).
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/DTOs/AdminCheckContractsDto.cs`
+- `SalesApp.Api/Controllers/AdminToolsController.cs`
+- `SalesApp.Tests/AdminCheckContractsTests.cs`
+- `client/sales-dash/src/services/apiService.ts`
+- `client/sales-dash/src/components/AdminTools/ContractComparisonTool.tsx`
+- `client/sales-dash/src/components/Menu.tsx`
+- `client/sales-dash/src/App.tsx`
+
+---
+
+## Geração Automática de Artigos de Conhecimento com IA (Gemini Flash Lite) (`salesapp-helpdesk` / `#/document`)
+
+Alimentação autônoma da base de documentação e FAQ a partir de dúvidas resolvidas no Helpdesk, utilizando o modelo Gemini Flash Lite (`gemini-2.5-flash-lite`). Ao marcar uma pergunta como "Resolvido", o sistema oferece a opção de sintetizar o problema e sua solução em formato de artigo de documentação, alimentando dinamicamente as seções "Como Fazer" (`#/document/como-fazer/%`) ou "Perguntas Frequentes" (`#/document/documentacao/%`) para servir como base de conhecimento futura para atendimento automatizado com IA.
+
+### Comportamento e Regras
+- **Confirmação e Processamento Assíncrono**:
+  - Ao alterar o status de uma dúvida para `Resolvido` (seja pelo botão de ação rápida ou no seletor de status), o sistema abre uma janela de confirmação perguntando se o usuário deseja gerar um resumo automático com IA.
+  - Se confirmado (`generateSummary: true`), a requisição HTTP retorna imediatamente o status atualizado, e a sintetização do artigo ocorre em segundo plano via `Task.Run` no backend, sem travar a navegação do usuário.
+- **Classificação e Síntese via Gemini Flash Lite**:
+  - O serviço `GeminiLlmService` envia a pergunta original, contexto de origem e toda a cadeia de mensagens e respostas para a API do Gemini Flash Lite.
+  - O próprio modelo de IA classifica o artigo como `FAQ` ou `COMO_FAZER`, define um título objetivo, formata a resposta técnica em Markdown limpo e gera um slug amigável único (ex: `como-solicitar-novo-contrato-retroativo`).
+  - Caso a chave de API `GEMINI_API_KEY` não esteja presente no ambiente ou o serviço esteja inacessível, um mecanismo inteligente de fallback heurístico sintetiza a resposta preservando a continuidade operacional sem erros para o usuário.
+- **Armazenamento no DynamoDB (`salesapp-helpdesk`)**:
+  - Salvo na mesma tabela DynamoDB seguindo Single-Table Design (`PK = KB#ARTICLES`, `SK = CAT#<CATEGORY>#SLUG#<slug>`).
+  - Consulta eficiente por categoria utilizando a chave primária e operador `begins_with`, sem uso de operações `Scan` (totalmente compatível com as permissões IAM restritas da AWS).
+- **Indexação Dinâmica e Navegação Integrada**:
+  - A página inicial da documentação (`#/document`) consulta a API de artigos e exibe links categorizados com o distintivo de IA (`IA`), direcionando para as rotas correspondentes (`#/document/como-fazer/:slug` ou `#/document/documentacao/:slug`).
+  - O componente visualizador `DocumentPage` carrega primeiramente o arquivo estático markdown; caso não encontre, realiza fallback automático para buscar o artigo gerado por IA no DynamoDB via API, renderizando o conteúdo completo em Markdown com badge indicativo de geração por IA.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Helpdesk/Models/KnowledgeBaseArticle.cs`
+- `SalesApp.Api/Helpdesk/Repositories/IKnowledgeBaseRepository.cs`
+- `SalesApp.Api/Helpdesk/Repositories/DynamoDbKnowledgeBaseRepository.cs`
+- `SalesApp.Api/Helpdesk/Services/IGeminiLlmService.cs`
+- `SalesApp.Api/Helpdesk/Services/GeminiLlmService.cs`
+- `SalesApp.Api/Helpdesk/DTOs/HelpdeskDtos.cs`
+- `SalesApp.Api/Helpdesk/Services/IHelpdeskService.cs`
+- `SalesApp.Api/Helpdesk/Services/HelpdeskService.cs`
+- `SalesApp.Api/Helpdesk/Controllers/HelpdeskController.cs`
+- `SalesApp.Api/Startup.cs`
+- `client/sales-dash/src/services/apiService.ts`
+- `client/sales-dash/src/components/Document/HelpdeskModal.tsx`
+- `client/sales-dash/src/components/Document/DocumentIndex.tsx`
+- `client/sales-dash/src/components/Document/DocumentPage.tsx`
+- `client/sales-dash/public/docs/documentacao/perguntas-frequentes.md`
+
+---
+
+## FAQ Privado e Sistema de Dúvidas Integrado (`salesapp-helpdesk` / `#/documents`)
+
+Sistema de suporte e FAQ privado integrado à Central de Ajuda e a todas as telas do sistema, permitindo que usuários do tipo `admin` enviem dúvidas com captura automática de contexto, e `superadmins` visualizem e respondam todas as perguntas através de um repositório serverless DynamoDB seguindo Single-Table Design.
+
+### Comportamento e Regras
+- **Banco de Dados (DynamoDB `salesapp-helpdesk`)**:
+  - Tabela independente com modelo OneTable (`PK`, `SK`) e índice global secundário (`GSI1` com `GSI1PK`, `GSI1SK`).
+  - Entidade de Pergunta Principal (`FAQ#<id>` / `METADATA`), Mensagens da Conversa (`MSG#<timestamp>#<id>`) e Histórico de Edição da Pergunta Original (`HIST#<timestamp>#V<version>`).
+- **Níveis de Acesso e Isolamento**:
+  - **Admins**: Podem enviar perguntas e visualizam exclusivamente o seu próprio histórico de perguntas e respostas. Nenhum admin tem visibilidade sobre dúvidas de outros admins.
+  - **Superadmins**: Acesso irrestrito para visualizar todas as perguntas enviadas no sistema, responder em threads estilo chat e filtrar por status.
+  - **Consultores (`user`)**: Não possuem acesso ao envio nem ao painel privado, preservando o foco operacional.
+- **Ciclo de Status**:
+  - `Não lido` (status inicial na criação da dúvida).
+  - `Lida` (marcado pelo superadmin ao tomar conhecimento).
+  - `Pendente` (quando há ação ou resposta em aguardo).
+  - `Resolvido` (pode ser marcado ou reaberto por qualquer um dos envolvidos na conversa).
+- **Botão Flutuante "?" (Helpdesk)**:
+  - Exibido para admins e superadmins em todas as telas da aplicação, sempre visível no canto superior direito sem necessidade de rolar a página para baixo (`scrollY`), permitindo acesso imediato à abertura de dúvidas de qualquer janela sem interferir na usabilidade.
+  - Ao clicar, abre o modal de criação já preenchendo automaticamente a URL de origem da dúvida.
+- **Upload de Imagem na Dúvida**:
+  - Permite anexar imagem (PNG, JPG, WebP, GIF até 10MB) diretamente ao registrar uma pergunta (`FileButton`), com pré-visualização instantânea e opção de remoção.
+  - Validação estrita no backend e frontend: apenas imagens são aceitas (vídeos e outros arquivos não são permitidos).
+  - A imagem anexada é persistida e exibida no cabeçalho da dúvida para o SuperAdmin e Admin na thread de conversa.
+- **Painel Central de Dúvidas**:
+  - Integrado ao rodapé da Central de Documentação/Ajuda (`#/documents`).
+  - Permite aos admins ver suas próprias dúvidas e aos superadmins gerenciar todas as perguntas com filtros por status e respostas em tempo real.
+- **Notificação e Alertas**:
+  - Selo numérico vermelho (Badge) dinâmico no item de menu "Ajuda", indicando a contagem de dúvidas em status "Não lido" ou "Pendente".
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Helpdesk/Models/HelpdeskQuestion.cs`
+- `SalesApp.Api/Helpdesk/DTOs/HelpdeskDtos.cs`
+- `SalesApp.Api/Helpdesk/Repositories/IHelpdeskRepository.cs`
+- `SalesApp.Api/Helpdesk/Repositories/DynamoDbHelpdeskRepository.cs`
+- `SalesApp.Api/Helpdesk/Services/IHelpdeskService.cs`
+- `SalesApp.Api/Helpdesk/Services/HelpdeskService.cs`
+- `SalesApp.Api/Helpdesk/Controllers/HelpdeskController.cs`
+- `SalesApp.Api/ReportFilters/Settings/DynamoDbSettings.cs`
+- `SalesApp.Api/Startup.cs`
+- `SalesApp.Api/appsettings.json`
+- `client/sales-dash/src/services/apiService.ts`
+- `client/sales-dash/src/components/Document/HelpdeskModal.tsx`
+- `client/sales-dash/src/components/Document/HelpdeskSection.tsx`
+- `client/sales-dash/src/components/Document/StickyHelpButton.tsx`
+- `client/sales-dash/src/components/Document/DocumentIndex.tsx`
+- `client/sales-dash/src/components/Menu.tsx`
+- `client/sales-dash/src/App.tsx`
+- `SalesApp.IntegrationTests/Helpdesk/HelpdeskIntegrationTests.cs`
+>>>>>>> development
 
 ---
 
