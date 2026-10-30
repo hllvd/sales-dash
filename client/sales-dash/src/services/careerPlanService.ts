@@ -34,6 +34,7 @@ export interface CareerRawMetrics {
   strictRetention15mMinAge2: number
   production12m: number
   production15m: number
+  activeProduction12mMinPaid2: number
   isTeamOwner: boolean
   activeTeamMembers: number
   directSubTeams: number

@@ -386,6 +386,24 @@ const CareerPlanPage: React.FC = () => {
                   <div className="career-plan-metric-box-value">{fmtCurrency(evaluation.rawMetrics.production15m)}</div>
                 </div>
 
+                <Tooltip
+                  label="Produção dos últimos 12 meses considerando apenas contratos com status Ativo que possuam ao menos 2 parcelas pagas inferidas (idade em meses menos atrasos ≥ 2). Soma o valor total (R$) dos contratos elegíveis."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box highlight" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Prod. Ativa 12m (≥ 2 pagas)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value" style={{ color: '#0d9488' }}>
+                      {fmtCurrency(evaluation.rawMetrics.activeProduction12mMinPaid2)}
+                    </div>
+                  </div>
+                </Tooltip>
+
                 <div className="career-plan-metric-box">
                   <div className="career-plan-metric-box-label">Líder de Equipe Ativa</div>
                   <div className="career-plan-metric-box-value">

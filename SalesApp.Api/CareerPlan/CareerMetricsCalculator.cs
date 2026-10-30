@@ -24,6 +24,7 @@ namespace SalesApp.CareerPlan
         decimal StrictRetention15mMinAge2,
         decimal Production12m,
         decimal Production15m,
+        decimal ActiveProduction12mMinPaid2,
         bool IsTeamOwner,
         int ActiveTeamMembers,
         int DirectSubTeams
@@ -31,6 +32,28 @@ namespace SalesApp.CareerPlan
 
     public static class CareerMetricsCalculator
     {
+        public static decimal ComputeActiveProduction(
+            int windowMonths,
+            int minInferredPaidMonths,
+            CareerMetricInputs inputs)
+        {
+            if (inputs == null) throw new ArgumentNullException(nameof(inputs));
+
+            var (start, end) = CareerReferenceDate.GetClosedMonthWindow(inputs.ReferenceDate, windowMonths);
+
+            return inputs.UserContracts
+                .Where(c => c.SaleStartDate >= start && c.SaleStartDate < end)
+                .Where(c => string.Equals(c.ContractStatus?.Name, ContractStatus.Active.ToApiString(), StringComparison.OrdinalIgnoreCase))
+                .Where(c => c.HasPayment != false)
+                .Where(c =>
+                {
+                    int age = CareerReferenceDate.CalculateAgeMonths(c.SaleStartDate, inputs.ReferenceDate);
+                    int paid = ContractEligibility.CalculateInferredPaidMonths(age, c.ContractStatus?.Name);
+                    return paid >= minInferredPaidMonths;
+                })
+                .Sum(c => c.TotalAmount);
+        }
+
         public static decimal ComputeMetric(
             MetricKind metric,
             int? windowMonths,
@@ -99,6 +122,8 @@ namespace SalesApp.CareerPlan
             var p12 = ComputeMetric(MetricKind.Production, 12, null, inputs);
             var p15 = ComputeMetric(MetricKind.Production, 15, null, inputs);
 
+            var activeProd12mMinPaid2 = ComputeActiveProduction(12, 2, inputs);
+
             return new CareerRawMetrics(
                 Retention6m: r6,
                 Retention12m: r12,
@@ -109,6 +134,7 @@ namespace SalesApp.CareerPlan
                 StrictRetention15mMinAge2: sr15Age2,
                 Production12m: p12,
                 Production15m: p15,
+                ActiveProduction12mMinPaid2: activeProd12mMinPaid2,
                 IsTeamOwner: inputs.IsTeamOwner,
                 ActiveTeamMembers: inputs.ActiveTeamMembers,
                 DirectSubTeams: inputs.DirectSubTeams

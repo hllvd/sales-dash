@@ -90,13 +90,13 @@ Sistema configurável e orientado a regras JSON para cálculo e acompanhamento d
   - Se o usuário não possui nível ativo, o sistema busca automaticamente o nível-raiz da cadeia de progressão (nível que não é apontado como `NextLevel` de nenhum outro, ex.: Alef).
   - Se o usuário já possui um nível ativo, o alvo é o seu `NextLevel` cadastrado.
 - **Métricas Consolidadas do Usuário**:
-  - Exibe retenção normal (6m, 12m, 15m), retenção estrita (6m, 12m, 15m e 15m para contratos > 2 meses), produção (12m, 15m), liderança de equipe ativa (`isTeamOwner`), total de membros ativos distintos nas equipes e equipes de consultores diretos (`directSubTeams`).
+  - Exibe retenção normal (6m, 12m, 15m), retenção estrita (6m, 12m, 15m e 15m para contratos > 2 meses), produção geral (12m, 15m), produção ativa com parcelas pagas (`Prod. Ativa 12m (≥ 2 pagas)` considerando apenas contratos com status estritamente Ativo e ao menos 2 parcelas pagas inferidas), liderança de equipe ativa (`isTeamOwner`), total de membros ativos distintos nas equipes e equipes de consultores diretos (`directSubTeams`).
 - **Interface Web Alinhada ao Design System (`CareerPlanPage.tsx`, `CareerPlanPage.css`)**:
   - Envelopada como filha direta do Mantine `AppShell` (`<Menu>`), eliminando sobreposição de layout ou blocos brancos vazios no topo da tela.
   - Cabeçalho padronizado com `<Title order={2} style={{ color: '#1c1c1e', fontWeight: 700 }}>`, subtítulo descritivo e botão de ação `Atualizar`.
   - Cards de transição de nível ("Nível Atual" e "Próximo Nível (Objetivo)") com acentos de borda superior em gradiente (indigo e teal).
   - Tabela de requisitos com `Table.ScrollContainer`, `<Table striped highlightOnHover>`, badges semânticos e barras de progresso `<Progress>`.
-  - Painel de métricas consolidadas em cartões individuais com alto contraste visual e destaque especial para a métrica de retenção estrita > 2 meses.
+  - Painel de métricas consolidadas em cartões individuais com alto contraste visual e destaque especial com `<Tooltip>` informativo para a métrica `Prod. Ativa 12m (≥ 2 pagas)`.
   - Estados claros para carregamento com `<Loader>`, erro com `<Alert>` e estado vazio premium (`IconTrophy`) quando nenhum usuário estiver selecionado.
 - **Segurança e Restrição de Acesso**:
   - Endpoints `GET /api/career-plan/users/{userId}` e `GET /api/career-plan/config` restritos a `SuperAdmin`.

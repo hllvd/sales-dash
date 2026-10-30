@@ -212,6 +212,11 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(retRow).toContainText('79');
     await expect(retRow.getByText('Atingido')).toBeVisible();
     await expect(retRow).toContainText('100%');
+
+    // 8. Verify Consolidated Metric Box for Active Production (>= 2 paid installments)
+    const activeProdBox = page.locator('.career-plan-metric-box', { hasText: 'Prod. Ativa 12m (≥ 2 pagas)' });
+    await expect(activeProdBox).toBeVisible({ timeout: 15000 });
+    await expect(activeProdBox).toContainText('R$ 10.000.000,00');
   });
 
   test('should display strict retention as not passed when strict retention is below 79%', async ({ page }) => {

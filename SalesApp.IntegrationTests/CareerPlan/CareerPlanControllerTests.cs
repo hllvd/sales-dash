@@ -190,6 +190,9 @@ namespace SalesApp.IntegrationTests.CareerPlan
             prodReq.CurrentValue.Should().Be(15_000_000m);
             prodReq.Progress.Should().Be(1m);
 
+            // ActiveProduction12mMinPaid2: contract 1 (10M, 4 months old, Active) qualifies. Contract 2 (1 month old, Defaulted) does not.
+            evalResult.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(10_000_000m);
+
             // 3. Now add Contract 3: 5 months old (> 2 months), Defaulted, R$ 10.000.000,00
             // This should drop strict retention on eligible contracts to 10M / 20M = 50% (< 79%), failing the requirement.
             var contract3 = new Contract
@@ -212,6 +215,9 @@ namespace SalesApp.IntegrationTests.CareerPlan
             var retentionReq2 = evalResult2!.Data!.Requirements.First(r => r.Metric == "StrictRetention");
             retentionReq2.Passed.Should().BeFalse("strict retention dropped to 50% which is below 79%");
             retentionReq2.CurrentValue.Should().Be(0.5m);
+
+            // Contract 3 is Defaulted, so ActiveProduction12mMinPaid2 remains 10M
+            evalResult2.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(10_000_000m);
         }
 
         private async Task<string> GetSuperAdminToken()
