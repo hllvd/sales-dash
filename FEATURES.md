@@ -2807,6 +2807,35 @@ Para evitar crescimento contínuo de registros históricos de scrape e logs de e
 - `SalesApp.Api/Services/ImportErrorService.cs` — Inclusão do cálculo e gravação do atributo `TTL` para logs de erro.
 - `SalesApp.Api/appsettings.json` — Adição da chave `LogRetentionDays: 30` sob `PbiScraper`.
 
+## [2026-10-30] — Ordenação Descendente e Paginação no Backend em Meus Contratos (`#/my-contracts`)
+
+### Contexto & Motivação
+Na tela **Meus Contratos** (`#/my-contracts`), os contratos eram listados sem paginação e ordenados originalmente por data de importação (`CreatedAt`). Para melhorar o fluxo de trabalho e o desempenho na visualização de grandes volumes de contratos, a listagem agora é apresentada em ordem cronológica decrescente pela **Data Início da Venda** (`SaleStartDate` / `contractStartDate`) e conta com paginação executada no backend de 100 em 100 contratos com controles idênticos à tela geral de contratos (`#/contracts`).
+
+### Funcionalidades & Arquitetura
+1. **Ordenação Descendente por Data de Venda**:
+   - `ContractRepository.cs`: a consulta de contratos do usuário passa a ordenar de forma determinística por `c.SaleStartDate` decrescente, utilizando `c.Id` decrescente como critério de desempate.
+2. **Paginação Eficiente no Backend (`GET /api/contracts/user/{userId}`)**:
+   - Parâmetros opcionais `page` e `pageSize` adicionados à rota.
+   - Quando informados, o repositório executa a contagem total (`totalCount`) e paginação via `Skip((page - 1) * pageSize).Take(pageSize)`.
+   - O cálculo do resumo agregado (`AggregationSummary`) continua sendo executado sobre a totalidade dos contratos filtrados do usuário, garantindo precisão nos totais de vendas e taxas de retenção.
+   - Quando `page` e `pageSize` são omitidos, a rota mantém o retorno completo retrocompatível (`ApiResponse<List<ContractResponse>>`).
+3. **Paginador Padrão do Sistema na Interface (`MyContractsPage.tsx`)**:
+   - Inclusão do componente padrão `<Pagination />` no topo (sem controles inferiores) e no rodapé (sem controles superiores) da tabela de contratos, exatamente igual ao layout de `#/contracts`.
+   - Tamanho de página padrão inicializado em **100**, com seletor `[50, 100, 500]` e persistência da preferência em `localStorage['myContracts_pageSize']`.
+   - Reset automático para a página 1 ao alterar qualquer filtro (datas, matrículas ou equipes).
+   - A tabela de contratos solicitados/pendentes permanece sem alterações.
+
+### Arquivos Modificados
+- `SalesApp.Api/Repositories/IContractRepository.cs` — Adição das assinaturas `GetPagedByUserIdAsync` e `GetUserContractsAggregationAsync`.
+- `SalesApp.Api/Repositories/ContractRepository.cs` — Extração de `BuildUserContractsQuery`, implementação de paginação e ordenação por `SaleStartDate` decrescente, e unificação de cálculo de agregação.
+- `SalesApp.Api/Controllers/ContractsController.cs` — Suporte a `page` e `pageSize` em `GetUserContracts`, retornando `ApiResponse<PagedContractResponse>`.
+- `SalesApp.IntegrationTests/Contracts/ContractsControllerTests.cs` — Teste de integração para paginação e ordenação decrescente em `/api/contracts/user/{userId}`.
+- `client/sales-dash/src/services/contractService.ts` — Suporte a `page` e `pageSize` em `getUserContracts`.
+- `client/sales-dash/src/services/contractService.test.ts` — Testes unitários para `getUserContracts` paginado.
+- `client/sales-dash/src/components/MyContractsPage.tsx` — Integração de estado de paginação, reset de página em filtros e renderização do componente `Pagination` no topo e rodapé.
+
+
 
 
 

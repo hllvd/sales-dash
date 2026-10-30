@@ -11,6 +11,7 @@ import {
   Contract,
   ContractStatus,
   exportLicensingXlsx,
+  getUserContracts,
 } from './contractService';
 
 // Mock fetch globally
@@ -357,5 +358,73 @@ describe('contractService', () => {
       await expect(exportLicensingXlsx(2026, 9)).rejects.toThrow('Falha no servidor');
     });
   });
+
+  describe('getUserContracts', () => {
+    it('should fetch user contracts without pagination and map items and totalCount', async () => {
+      const mockContracts = [
+        { id: 1, contractNumber: 'UC01', totalAmount: 500 },
+      ];
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: mockContracts,
+          aggregation: { total: 500 },
+        }),
+      });
+
+      const result = await getUserContracts('user-123');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/contracts/user/user-123',
+        expect.any(Object)
+      );
+      expect(result.contracts).toEqual(mockContracts);
+      expect(result.totalCount).toBe(1);
+      expect(result.aggregation).toEqual({ total: 500 });
+    });
+
+    it('should fetch user contracts with page and pageSize and map paged response', async () => {
+      const mockItems = [
+        { id: 2, contractNumber: 'UC02', totalAmount: 1500 },
+      ];
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            items: mockItems,
+            totalCount: 42,
+            page: 1,
+            pageSize: 100,
+            aggregation: { total: 50000 },
+          },
+        }),
+      });
+
+      const result = await getUserContracts(
+        'user-123',
+        '2026-01-01',
+        '2026-12-31',
+        undefined,
+        [1, 2],
+        ['M10', 'M20'],
+        true,
+        1,
+        100
+      );
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/contracts/user/user-123?startDate=2026-01-01&endDate=2026-12-31&matriculas=M10&matriculas=M20&teamIds=1&teamIds=2&treatUnpaidAsAwaiting=true&page=1&pageSize=100',
+        expect.any(Object)
+      );
+      expect(result.contracts).toEqual(mockItems);
+      expect(result.totalCount).toBe(42);
+      expect(result.aggregation).toEqual({ total: 50000 });
+    });
+  });
 });
+
 

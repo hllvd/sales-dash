@@ -257,24 +257,15 @@ namespace SalesApp.Repositories
             return (items, totalCount);
         }
 
-        public async Task<ContractAggregation> GetAggregationAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null, bool treatUnpaidAsAwaiting = false)
+        private class StatusGrouping
         {
-            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
+            public string StatusName { get; set; } = string.Empty;
+            public bool? HasPayment { get; set; }
+            public decimal TotalAmount { get; set; }
+        }
 
-            var groupings = await query
-                .GroupBy(c => new
-                {
-                    StatusName = c.ContractStatus.Name,
-                    HasPayment = c.HasPayment
-                })
-                .Select(g => new
-                {
-                    StatusName = g.Key.StatusName,
-                    HasPayment = g.Key.HasPayment,
-                    TotalAmount = g.Sum(c => c.TotalAmount)
-                })
-                .ToListAsync();
-
+        private static ContractAggregation CalculateAggregationFromGroupings(IEnumerable<StatusGrouping> groupings, bool treatUnpaidAsAwaiting)
+        {
             decimal total = 0m;
             decimal totalCancel = 0m;
             decimal totalActive = 0m;
@@ -334,17 +325,32 @@ namespace SalesApp.Repositories
                 StrictRetention = strictRetention
             };
         }
-        
-        public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null, List<int>? teamIds = null, List<string>? matriculaNumbers = null)
+
+        public async Task<ContractAggregation> GetAggregationAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null, bool treatUnpaidAsAwaiting = false)
+        {
+            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
+
+            var groupings = await query
+                .GroupBy(c => new
+                {
+                    StatusName = c.ContractStatus.Name,
+                    HasPayment = c.HasPayment
+                })
+                .Select(g => new StatusGrouping
+                {
+                    StatusName = g.Key.StatusName,
+                    HasPayment = g.Key.HasPayment,
+                    TotalAmount = g.Sum(c => c.TotalAmount)
+                })
+                .ToListAsync();
+
+            return CalculateAggregationFromGroupings(groupings, treatUnpaidAsAwaiting);
+        }
+
+        private IQueryable<Contract> BuildUserContractsQuery(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null, List<int>? teamIds = null, List<string>? matriculaNumbers = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
-                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
-                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
-                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
-                .Include(c => c.Group)
-                .Include(c => c.PV)
-                .Include(c => c.ContractStatus)
                 .Where(c => c.User.Id == userId && c.IsActive && c.ContractStatus.Name.ToLower() != "desistente");
             
             if (startDate.HasValue)
@@ -388,8 +394,64 @@ namespace SalesApp.Repositories
                     )
                 );
             }
-            
-            return await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
+
+            return query;
+        }
+
+        public async Task<List<Contract>> GetByUserIdAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null, List<int>? teamIds = null, List<string>? matriculaNumbers = null)
+        {
+            var query = BuildUserContractsQuery(userId, startDate, endDate, matriculaNumber, teamIds, matriculaNumbers)
+                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus);
+
+            return await query.OrderByDescending(c => c.SaleStartDate).ThenByDescending(c => c.Id).ToListAsync();
+        }
+
+        public async Task<(List<Contract> Items, int TotalCount)> GetPagedByUserIdAsync(Guid userId, int page, int pageSize, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null, List<int>? teamIds = null, List<string>? matriculaNumbers = null)
+        {
+            var baseQuery = BuildUserContractsQuery(userId, startDate, endDate, matriculaNumber, teamIds, matriculaNumbers);
+
+            var totalCount = await baseQuery.CountAsync();
+
+            var items = await baseQuery
+                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
+                .OrderByDescending(c => c.SaleStartDate)
+                .ThenByDescending(c => c.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
+        public async Task<ContractAggregation> GetUserContractsAggregationAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, string? matriculaNumber = null, List<int>? teamIds = null, List<string>? matriculaNumbers = null, bool treatUnpaidAsAwaiting = false)
+        {
+            var query = BuildUserContractsQuery(userId, startDate, endDate, matriculaNumber, teamIds, matriculaNumbers);
+
+            var groupings = await query
+                .GroupBy(c => new
+                {
+                    StatusName = c.ContractStatus.Name,
+                    HasPayment = c.HasPayment
+                })
+                .Select(g => new StatusGrouping
+                {
+                    StatusName = g.Key.StatusName,
+                    HasPayment = g.Key.HasPayment,
+                    TotalAmount = g.Sum(c => c.TotalAmount)
+                })
+                .ToListAsync();
+
+            return CalculateAggregationFromGroupings(groupings, treatUnpaidAsAwaiting);
         }
 
         

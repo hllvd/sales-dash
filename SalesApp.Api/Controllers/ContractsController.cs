@@ -186,14 +186,16 @@ namespace SalesApp.Controllers
         
         [HttpGet("user/{userId}")]
         [HasPermission("contracts:read")]
-        public async Task<ActionResult<ApiResponse<List<ContractResponse>>>> GetUserContracts(
+        public async Task<IActionResult> GetUserContracts(
             Guid userId,
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
             [FromQuery] string? matricula = null,
             [FromQuery] List<string>? matriculas = null,
             [FromQuery] List<int>? teamIds = null,
-            [FromQuery] bool? treatUnpaidAsAwaiting = null)
+            [FromQuery] bool? treatUnpaidAsAwaiting = null,
+            [FromQuery] int? page = null,
+            [FromQuery] int? pageSize = null)
         {
             var currentUserId = GetCurrentUserId();
             var hasReadPermission = User.HasClaim("perm", "contracts:read") || User.HasClaim("perm", "system:superadmin");
@@ -213,21 +215,45 @@ namespace SalesApp.Controllers
                 var targetUser = await _userRepository.GetByIdAsync(userId);
                 effectiveTreatUnpaid = targetUser?.TreatUnpaidActiveAsAwaitingPayment ?? false;
             }
-            
-            var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate, matricula, teamIds, matriculas);
-            
-            var contractResponses = contracts.Select(c => MapToContractResponse(c, effectiveTreatUnpaid)).ToList();
-            
-            // Calculate aggregations using service
-            var aggregation = _aggregationService.CalculateAggregation(contracts, effectiveTreatUnpaid);
-            
-            return Ok(new ApiResponse<List<ContractResponse>>
+
+            if (page.HasValue && pageSize.HasValue)
             {
-                Success = true,
-                Data = contractResponses,
-                Message = _messageService.Get(AppMessage.ContractsRetrievedSuccessfully),
-                Aggregation = aggregation
-            });
+                var (contracts, totalCount) = await _contractRepository.GetPagedByUserIdAsync(
+                    userId, page.Value, pageSize.Value, startDate, endDate, matricula, teamIds, matriculas);
+
+                var contractResponses = contracts.Select(c => MapToContractResponse(c, effectiveTreatUnpaid)).ToList();
+                var aggregation = await _contractRepository.GetUserContractsAggregationAsync(
+                    userId, startDate, endDate, matricula, teamIds, matriculas, effectiveTreatUnpaid);
+
+                return Ok(new ApiResponse<PagedContractResponse>
+                {
+                    Success = true,
+                    Data = new PagedContractResponse
+                    {
+                        Items = contractResponses,
+                        TotalCount = totalCount,
+                        Page = page.Value,
+                        PageSize = pageSize.Value,
+                        Aggregation = aggregation
+                    },
+                    Message = _messageService.Get(AppMessage.ContractsRetrievedSuccessfully),
+                    Aggregation = aggregation
+                });
+            }
+            else
+            {
+                var contracts = await _contractRepository.GetByUserIdAsync(userId, startDate, endDate, matricula, teamIds, matriculas);
+                var contractResponses = contracts.Select(c => MapToContractResponse(c, effectiveTreatUnpaid)).ToList();
+                var aggregation = _aggregationService.CalculateAggregation(contracts, effectiveTreatUnpaid);
+
+                return Ok(new ApiResponse<List<ContractResponse>>
+                {
+                    Success = true,
+                    Data = contractResponses,
+                    Message = _messageService.Get(AppMessage.ContractsRetrievedSuccessfully),
+                    Aggregation = aggregation
+                });
+            }
         }
 
         

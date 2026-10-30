@@ -378,8 +378,10 @@ export const getUserContracts = async (
   matricula?: string,
   teamIds?: number[],
   matriculas?: string[],
-  treatUnpaidAsAwaiting?: boolean
-): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation }> => {
+  treatUnpaidAsAwaiting?: boolean,
+  page?: number,
+  pageSize?: number
+): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation; totalCount: number }> => {
   const params = new URLSearchParams();
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
@@ -393,6 +395,8 @@ export const getUserContracts = async (
   if (treatUnpaidAsAwaiting !== undefined) {
     params.append('treatUnpaidAsAwaiting', treatUnpaidAsAwaiting.toString());
   }
+  if (page !== undefined) params.append('page', page.toString());
+  if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
 
   const queryString = params.toString();
   const url = `${API_BASE_URL}/contracts/user/${userId}${queryString ? `?${queryString}` : ''}`;
@@ -406,8 +410,22 @@ export const getUserContracts = async (
     throw new Error('Failed to fetch user contracts');
   }
 
-  const data: ApiResponse<Contract[]> = await response.json();
-  return { contracts: data.data, aggregation: data.aggregation };
+  const result = await response.json();
+
+  if (page !== undefined && pageSize !== undefined) {
+    const data = result.data;
+    return {
+      contracts: data.items,
+      aggregation: data.aggregation || result.aggregation,
+      totalCount: data.totalCount
+    };
+  } else {
+    return {
+      contracts: result.data,
+      aggregation: result.aggregation,
+      totalCount: result.data ? result.data.length : 0
+    };
+  }
 };
 
 

@@ -706,5 +706,74 @@ namespace SalesApp.IntegrationTests.Contracts
             result.Data.PageSize.Should().Be(1);
             result.Data.Aggregation.Should().NotBeNull();
         }
+
+        [Fact]
+        public async Task GetUserContracts_WithPagination_ShouldReturnPagedResponseAndDescendingOrder()
+        {
+            // Arrange
+            var token = await GetSuperAdminTokenAsync();
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var user = new User { Id = Guid.NewGuid(), Name = "Paged User", Email = $"pageduser-{Guid.NewGuid().ToString()[..6]}@test.com", RoleId = 1 };
+            var group = new Group { Id = 111, Name = "Paged User Group" };
+
+            var olderDate = DateTime.UtcNow.AddDays(-10);
+            var newerDate = DateTime.UtcNow.AddDays(-1);
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                context.Users.Add(user);
+                if (await context.Groups.FindAsync(group.Id) == null)
+                {
+                    context.Groups.Add(group);
+                }
+                var statusId = context.ContractStatuses.First(s => s.Name == "Active").Id;
+
+                // Add older contract first
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = $"USER-PAG-OLD-{Guid.NewGuid().ToString()[..8]}",
+                    UserInternalId = user.InternalId,
+                    GroupId = group.Id,
+                    ContractStatusId = statusId,
+                    TotalAmount = 1000m,
+                    SaleStartDate = olderDate,
+                    IsActive = true
+                });
+
+                // Add newer contract second
+                context.Contracts.Add(new Contract
+                {
+                    ContractNumber = $"USER-PAG-NEW-{Guid.NewGuid().ToString()[..8]}",
+                    UserInternalId = user.InternalId,
+                    GroupId = group.Id,
+                    ContractStatusId = statusId,
+                    TotalAmount = 2000m,
+                    SaleStartDate = newerDate,
+                    IsActive = true
+                });
+
+                await context.SaveChangesAsync();
+            }
+
+            // Act: Request page 1 with pageSize 1
+            var response = await _client.GetAsync($"/api/contracts/user/{user.Id}?page=1&pageSize=1");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<PagedContractResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Items.Should().HaveCount(1);
+            result.Data.TotalCount.Should().Be(2);
+            result.Data.Page.Should().Be(1);
+            result.Data.PageSize.Should().Be(1);
+            // The first item must be the newer contract (descending order by SaleStartDate)
+            result.Data.Items[0].ContractStartDate.Date.Should().Be(newerDate.Date);
+            result.Data.Aggregation.Should().NotBeNull();
+            result.Data.Aggregation!.Total.Should().Be(3000m);
+        }
     }
 }

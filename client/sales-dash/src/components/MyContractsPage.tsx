@@ -12,6 +12,7 @@ import HistoricProduction from '../shared/HistoricProduction';
 import ContractStatusBadge from '../shared/ContractStatusBadge';
 import ExportButton from '../shared/ExportButton';
 import ExportProgressIndicator from '../shared/ExportProgressIndicator';
+import Pagination from './Pagination';
 import {
   Contract,
   ContractAggregation,
@@ -44,6 +45,21 @@ const MyContractsPage: React.FC = () => {
   const [aggregation, setAggregation] = useState<ContractAggregation | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showHelperModal, setShowHelperModal] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const saved = localStorage.getItem('myContracts_pageSize');
+    return saved ? parseInt(saved, 10) : 100;
+  });
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+    localStorage.setItem('myContracts_pageSize', newSize.toString());
+  };
 
   // Export state
   const [exportJobId, setExportJobId] = useState<string | null>(null);
@@ -112,17 +128,21 @@ const MyContractsPage: React.FC = () => {
 
       // Load contracts for current user with date, team, and matriculas filters
       const teamIdsAsNumbers = filterTeamIds.map(id => parseInt(id, 10));
-      const { contracts: data, aggregation: aggData } = await getUserContracts(
+      const { contracts: data, aggregation: aggData, totalCount: fetchedTotalCount } = await getUserContracts(
         userId,
         startDate || undefined,
         endDate || undefined,
         undefined,
         teamIdsAsNumbers.length > 0 ? teamIdsAsNumbers : undefined,
-        filterMatriculas.length > 0 ? filterMatriculas : undefined
+        filterMatriculas.length > 0 ? filterMatriculas : undefined,
+        undefined,
+        currentPage,
+        pageSize
       );
       if (requestId !== requestCountRef.current) return;
       setContracts(data);
       setAggregation(aggData || null);
+      setTotalCount(fetchedTotalCount);
     } catch (err: any) {
       if (requestId !== requestCountRef.current) return;
       setError(err.message || 'Falha ao carregar contratos');
@@ -131,7 +151,12 @@ const MyContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [startDate, endDate, filterMatriculas, filterTeamIds, currentUser]);
+  }, [startDate, endDate, filterMatriculas, filterTeamIds, currentUser, currentPage, pageSize]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [startDate, endDate, filterMatriculas, filterTeamIds]);
 
   // Load saved date and matriculas filters from localStorage
   useEffect(() => {
@@ -355,15 +380,12 @@ const MyContractsPage: React.FC = () => {
     }
   };
 
-  const handleApplyFilters = () => {
-    loadMyContracts();
-  };
-
   const handleClearFilters = () => {
     setStartDate('');
     setEndDate('');
     setFilterMatriculas([]);
     setFilterTeamIds([]);
+    setCurrentPage(1);
     localStorage.removeItem('myContracts_startDate');
     localStorage.removeItem('myContracts_endDate');
     localStorage.removeItem('myContracts_matriculas');
@@ -576,42 +598,64 @@ const MyContractsPage: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="my-contracts-table-container">
-            <Table.ScrollContainer minWidth={800}>
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Número do Contrato</Table.Th>
-                    <Table.Th>Cliente</Table.Th>
-                    <Table.Th>Matrícula</Table.Th>
-                    <Table.Th>Grupo</Table.Th>
-                    <Table.Th>Valor Total</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th>Data Início</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {contracts.map((contract) => (
-                    <Table.Tr key={contract.id}>
-                      <Table.Td>{contract.contractNumber}</Table.Td>
-                      <Table.Td>{normalizeName(contract.customerName) || '-'}</Table.Td>
-                      <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
-                      <Table.Td>{contract.groupName}</Table.Td>
-                      <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
-                      <Table.Td>
-                        <ContractStatusBadge
-                          status={contract.status}
-                          rawStatus={contract.rawStatus}
-                          isRemappedToAwaitingPayment={contract.isRemappedToAwaitingPayment}
-                        />
-                      </Table.Td>
-                      <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
+          <>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={totalCount}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={handlePageSizeChange}
+              showBottomControls={false}
+            />
+
+            <div className="my-contracts-table-container">
+              <Table.ScrollContainer minWidth={800}>
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Número do Contrato</Table.Th>
+                      <Table.Th>Cliente</Table.Th>
+                      <Table.Th>Matrícula</Table.Th>
+                      <Table.Th>Grupo</Table.Th>
+                      <Table.Th>Valor Total</Table.Th>
+                      <Table.Th>Status</Table.Th>
+                      <Table.Th>Data Início</Table.Th>
                     </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          </div>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {contracts.map((contract) => (
+                      <Table.Tr key={contract.id}>
+                        <Table.Td>{contract.contractNumber}</Table.Td>
+                        <Table.Td>{normalizeName(contract.customerName) || '-'}</Table.Td>
+                        <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
+                        <Table.Td>{contract.groupName}</Table.Td>
+                        <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
+                        <Table.Td>
+                          <ContractStatusBadge
+                            status={contract.status}
+                            rawStatus={contract.rawStatus}
+                            isRemappedToAwaitingPayment={contract.isRemappedToAwaitingPayment}
+                          />
+                        </Table.Td>
+                        <Table.Td>{formatDate(contract.contractStartDate)}</Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
+            </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={totalCount}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={handlePageSizeChange}
+              showTopControls={false}
+            />
+          </>
         )}
         {/* Aggregation Summary */}
         {aggregation && contracts.length > 0 && (
