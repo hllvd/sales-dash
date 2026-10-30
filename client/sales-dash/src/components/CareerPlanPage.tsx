@@ -344,47 +344,151 @@ const CareerPlanPage: React.FC = () => {
               </Text>
 
               <div className="career-plan-metrics-grid">
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Retenção Normal (6 meses)</div>
-                  <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.retention6m)}</div>
-                </div>
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Retenção Normal (12 meses)</div>
-                  <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.retention12m)}</div>
-                </div>
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Retenção Normal (15 meses)</div>
-                  <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.retention15m)}</div>
-                </div>
-
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Retenção Estrita (6 meses)</div>
-                  <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.strictRetention6m)}</div>
-                </div>
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Retenção Estrita (12 meses)</div>
-                  <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.strictRetention12m)}</div>
-                </div>
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Retenção Estrita (15 meses)</div>
-                  <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.strictRetention15m)}</div>
-                </div>
-
-                <div className="career-plan-metric-box highlight">
-                  <div className="career-plan-metric-box-label">Ret. Estrita 15m (contratos &gt; 2 meses)</div>
-                  <div className="career-plan-metric-box-value" style={{ color: '#6366f1' }}>
-                    {fmtPercent(evaluation.rawMetrics.strictRetention15mMinAge2)}
+                <Tooltip
+                  label="Percentual financeiro de retenção padrão na janela dos últimos 6 meses fechados. Considera perda apenas contratos com status Defaulted. Exclui Desistentes e AwaitingPayment."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Retenção Normal (6 meses)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.retention6m)}</div>
                   </div>
-                </div>
+                </Tooltip>
 
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Produção (12 meses)</div>
-                  <div className="career-plan-metric-box-value">{fmtCurrency(evaluation.rawMetrics.production12m)}</div>
-                </div>
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Produção (15 meses)</div>
-                  <div className="career-plan-metric-box-value">{fmtCurrency(evaluation.rawMetrics.production15m)}</div>
-                </div>
+                <Tooltip
+                  label="Percentual financeiro de retenção padrão na janela dos últimos 12 meses fechados. Considera perda apenas contratos com status Defaulted. Exclui Desistentes e AwaitingPayment."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Retenção Normal (12 meses)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.retention12m)}</div>
+                  </div>
+                </Tooltip>
+
+                <Tooltip
+                  label="Percentual financeiro de retenção padrão na janela dos últimos 15 meses fechados. Considera perda apenas contratos com status Defaulted. Exclui Desistentes e AwaitingPayment."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Retenção Normal (15 meses)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.retention15m)}</div>
+                  </div>
+                </Tooltip>
+
+                <Tooltip
+                  label="Percentual financeiro de retenção estrita na janela dos últimos 6 meses fechados. Considera como perda contratos Defaulted e em atraso (Late1, Late2, Late3). Exclui Desistentes e AwaitingPayment."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Retenção Estrita (6 meses)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.strictRetention6m)}</div>
+                  </div>
+                </Tooltip>
+
+                <Tooltip
+                  label="Percentual financeiro de retenção estrita na janela dos últimos 12 meses fechados. Considera como perda contratos Defaulted e em atraso (Late1, Late2, Late3). Exclui Desistentes e AwaitingPayment."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Retenção Estrita (12 meses)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.strictRetention12m)}</div>
+                  </div>
+                </Tooltip>
+
+                <Tooltip
+                  label="Percentual financeiro de retenção estrita na janela dos últimos 15 meses fechados. Considera como perda contratos Defaulted e em atraso (Late1, Late2, Late3). Exclui Desistentes e AwaitingPayment."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Retenção Estrita (15 meses)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.strictRetention15m)}</div>
+                  </div>
+                </Tooltip>
+
+                <Tooltip
+                  label="Percentual financeiro de retenção estrita na janela de 15 meses considerando exclusivamente contratos com mais de 2 meses de venda. Contratos recentes (≤ 2 meses) são desconsiderados do cálculo."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box highlight" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Ret. Estrita 15m (contratos &gt; 2 meses)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value" style={{ color: '#6366f1' }}>
+                      {fmtPercent(evaluation.rawMetrics.strictRetention15mMinAge2)}
+                    </div>
+                  </div>
+                </Tooltip>
+
+                <Tooltip
+                  label="Soma do valor total (R$) dos contratos vendidos na janela dos últimos 12 meses fechados. Exclui apenas contratos Desistentes e AwaitingPayment."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Produção (12 meses)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">{fmtCurrency(evaluation.rawMetrics.production12m)}</div>
+                  </div>
+                </Tooltip>
+
+                <Tooltip
+                  label="Soma do valor total (R$) dos contratos vendidos na janela dos últimos 15 meses fechados. Exclui apenas contratos Desistentes e AwaitingPayment."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Produção (15 meses)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">{fmtCurrency(evaluation.rawMetrics.production15m)}</div>
+                  </div>
+                </Tooltip>
 
                 <Tooltip
                   label="Produção dos últimos 12 meses considerando apenas contratos com status Ativo que possuam ao menos 2 parcelas pagas inferidas (idade em meses menos atrasos ≥ 2). Soma o valor total (R$) dos contratos elegíveis."
@@ -404,24 +508,59 @@ const CareerPlanPage: React.FC = () => {
                   </div>
                 </Tooltip>
 
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Líder de Equipe Ativa</div>
-                  <div className="career-plan-metric-box-value">
-                    {evaluation.rawMetrics.isTeamOwner ? 'Sim' : 'Não'}
+                <Tooltip
+                  label="Indica se o consultor é proprietário/líder ativo de ao menos uma equipe comercial no sistema."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Líder de Equipe Ativa</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">
+                      {evaluation.rawMetrics.isTeamOwner ? 'Sim' : 'Não'}
+                    </div>
                   </div>
-                </div>
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Membros Ativos nas Equipes</div>
-                  <div className="career-plan-metric-box-value">
-                    {evaluation.rawMetrics.activeTeamMembers}
+                </Tooltip>
+
+                <Tooltip
+                  label="Contagem distinta de membros com cadastro ativo vinculados às equipes lideradas pelo consultor."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Membros Ativos nas Equipes</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">
+                      {evaluation.rawMetrics.activeTeamMembers}
+                    </div>
                   </div>
-                </div>
-                <div className="career-plan-metric-box">
-                  <div className="career-plan-metric-box-label">Equipes Abaixo (Filhos Diretos)</div>
-                  <div className="career-plan-metric-box-value">
-                    {evaluation.rawMetrics.directSubTeams}
+                </Tooltip>
+
+                <Tooltip
+                  label="Quantidade de equipes lideradas por consultores que são subordinados diretos deste usuário na hierarquia."
+                  multiline
+                  w={300}
+                  withArrow
+                  position="top"
+                >
+                  <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
+                    <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Equipes Abaixo (Filhos Diretos)</span>
+                      <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                    <div className="career-plan-metric-box-value">
+                      {evaluation.rawMetrics.directSubTeams}
+                    </div>
                   </div>
-                </div>
+                </Tooltip>
               </div>
             </Card>
           </Stack>

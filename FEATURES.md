@@ -96,7 +96,7 @@ Sistema configurável e orientado a regras JSON para cálculo e acompanhamento d
   - Cabeçalho padronizado com `<Title order={2} style={{ color: '#1c1c1e', fontWeight: 700 }}>`, subtítulo descritivo e botão de ação `Atualizar`.
   - Cards de transição de nível ("Nível Atual" e "Próximo Nível (Objetivo)") com acentos de borda superior em gradiente (indigo e teal).
   - Tabela de requisitos com `Table.ScrollContainer`, `<Table striped highlightOnHover>`, badges semânticos e barras de progresso `<Progress>`.
-  - Painel de métricas consolidadas em cartões individuais com alto contraste visual e destaque especial com `<Tooltip>` informativo para a métrica `Prod. Ativa 12m (≥ 2 pagas)`.
+  - Painel de métricas consolidadas em cartões individuais com alto contraste visual e `<Tooltip>` informativo em cada cartão detalhando fórmulas, regras de cálculo e critérios de exclusão ao passar o mouse.
   - Estados claros para carregamento com `<Loader>`, erro com `<Alert>` e estado vazio premium (`IconTrophy`) quando nenhum usuário estiver selecionado.
 - **Segurança e Restrição de Acesso**:
   - Endpoints `GET /api/career-plan/users/{userId}` e `GET /api/career-plan/config` restritos a `SuperAdmin`.
