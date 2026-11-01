@@ -139,7 +139,7 @@ namespace SalesApp.IntegrationTests.CareerPlan
             var now = DateTime.UtcNow;
             var refDate = CareerReferenceDate.Resolve(now, 15);
 
-            // Contract 1: 4 months old (> 2 months), Active, R$ 10.000.000,00
+            // Contract 1: 4 months old, Active, R$ 10.000.000,00 (Paid months = 4 >= 2)
             var contract1 = new Contract
             {
                 ContractNumber = $"CONT-BETH-1-{Guid.NewGuid().ToString()[..6]}",
@@ -151,17 +151,17 @@ namespace SalesApp.IntegrationTests.CareerPlan
                 HasPayment = true
             };
 
-            // Contract 2: 1 month old (<= 2 months), Defaulted (loss), R$ 5.000.000,00
-            // Because minAgeMonths is 2, this contract MUST be excluded from Guimel's strict retention requirement!
+            // Contract 2: 1 month old, Active, R$ 5.000.000,00 (Paid months = 1 < 2)
+            // Because paid months < 2, this contract is excluded from ActiveProduction! But it is Active, so retention stays 100%.
             var contract2 = new Contract
             {
                 ContractNumber = $"CONT-BETH-2-{Guid.NewGuid().ToString()[..6]}",
                 UserInternalId = testUser.InternalId,
                 TotalAmount = 5_000_000m,
-                ContractStatusId = defaultedStatus.Id,
+                ContractStatusId = activeStatus.Id,
                 SaleStartDate = refDate.AddMonths(-1),
                 IsActive = true,
-                HasPayment = false
+                HasPayment = true
             };
 
             context.Contracts.AddRange(contract1, contract2);
@@ -177,29 +177,29 @@ namespace SalesApp.IntegrationTests.CareerPlan
             evalResult.Data!.CurrentLevel!.Name.Should().Be("Beth");
             evalResult.Data.TargetLevel!.Name.Should().Be("Guimel");
 
-            // Strict retention for Guimel: only contract 1 qualifies (100% retention >= 79%)
+            // Strict retention for Guimel: both contracts are active (100% retention >= 79%)
             var retentionReq = evalResult.Data.Requirements.First(r => r.Metric == "StrictRetention");
-            retentionReq.Passed.Should().BeTrue("contract with <= 2 months is excluded, leaving 100% retention on eligible contracts");
+            retentionReq.Passed.Should().BeTrue("all contracts in 15m are active, resulting in 100% strict retention");
             retentionReq.CurrentValue.Should().Be(1m);
             retentionReq.TargetValue.Should().Be(0.79m);
             retentionReq.Progress.Should().Be(1m);
 
-            // Production: contract 1 (10M) + contract 2 (5M) = 15M >= 10M meta
-            var prodReq = evalResult.Data.Requirements.First(r => r.Metric == "Production");
+            // ActiveProduction: contract 1 qualifies (10M, 4 months old, Active, >= 2 paid) >= 10M meta. Contract 2 (1 month old, paid < 2) is excluded.
+            var prodReq = evalResult.Data.Requirements.First(r => r.Metric == "ActiveProduction");
             prodReq.Passed.Should().BeTrue();
-            prodReq.CurrentValue.Should().Be(15_000_000m);
+            prodReq.CurrentValue.Should().Be(10_000_000m);
             prodReq.Progress.Should().Be(1m);
 
-            // ActiveProduction12mMinPaid2: contract 1 (10M, 4 months old, Active) qualifies. Contract 2 (1 month old, Defaulted) does not.
+            // ActiveProduction12mMinPaid2 in raw metrics matches
             evalResult.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(10_000_000m);
 
-            // 3. Now add Contract 3: 5 months old (> 2 months), Defaulted, R$ 10.000.000,00
-            // This should drop strict retention on eligible contracts to 10M / 20M = 50% (< 79%), failing the requirement.
+            // 3. Now add Contract 3: 5 months old, Defaulted, R$ 15.000.000,00
+            // This should drop strict retention on eligible contracts (15M active / 30M total = 50% < 79%), failing retention requirement.
             var contract3 = new Contract
             {
                 ContractNumber = $"CONT-BETH-3-{Guid.NewGuid().ToString()[..6]}",
                 UserInternalId = testUser.InternalId,
-                TotalAmount = 10_000_000m,
+                TotalAmount = 15_000_000m,
                 ContractStatusId = defaultedStatus.Id,
                 SaleStartDate = refDate.AddMonths(-5),
                 IsActive = true,
@@ -216,7 +216,9 @@ namespace SalesApp.IntegrationTests.CareerPlan
             retentionReq2.Passed.Should().BeFalse("strict retention dropped to 50% which is below 79%");
             retentionReq2.CurrentValue.Should().Be(0.5m);
 
-            // Contract 3 is Defaulted, so ActiveProduction12mMinPaid2 remains 10M
+            // Contract 3 is Defaulted, so ActiveProduction remains 10M
+            var prodReq2 = evalResult2.Data.Requirements.First(r => r.Metric == "ActiveProduction");
+            prodReq2.CurrentValue.Should().Be(10_000_000m);
             evalResult2.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(10_000_000m);
         }
 

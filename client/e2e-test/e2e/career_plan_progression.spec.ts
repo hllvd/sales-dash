@@ -150,18 +150,27 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(currentCard).toBeVisible({ timeout: 15000 });
     await expect(currentCard.locator('.career-plan-card-name')).toContainText('Alef');
 
-    // 5. Verify Target Level card shows "Beth" with Meta R$ 4.000.000,00
+    // 5. Verify Target Level card shows "Beth" with Meta R$ 4.000.000,00 and Retenção: 79%
     const targetCard = page.locator('.career-plan-card.target');
     await expect(targetCard).toBeVisible({ timeout: 15000 });
     await expect(targetCard.locator('.career-plan-card-name')).toContainText('Beth');
     await expect(targetCard).toContainText('Meta: R$ 4.000.000,00');
+    await expect(targetCard).toContainText('Retenção: 79%');
 
-    // 6. Verify Requirements Table has the 4M sales production requirement as passed (100%)
-    const reqRow = page.locator('table tbody tr', { hasText: 'Produção 12 meses ≥ Meta' });
+    // 6. Verify Requirements Table has the 4M active sales production requirement as passed (100%)
+    const reqRow = page.locator('table tbody tr', { hasText: 'Prod. Ativa 12m (≥ 2 pagas)' });
     await expect(reqRow).toBeVisible({ timeout: 15000 });
     await expect(reqRow).toContainText('R$ 4.000.000,00');
     await expect(reqRow.getByText('Atingido')).toBeVisible();
     await expect(reqRow).toContainText('100%');
+
+    // 7. Verify Requirements Table has the strict retention requirement as passed (100% >= 79%)
+    const retRow = page.locator('table tbody tr', { hasText: 'Retenção Estrita (15 meses)' });
+    await expect(retRow).toBeVisible({ timeout: 15000 });
+    await expect(retRow).toContainText('100');
+    await expect(retRow).toContainText('79');
+    await expect(retRow.getByText('Atingido')).toBeVisible();
+    await expect(retRow).toContainText('100%');
   });
 
   test('should display Beth as current level, Guimel as target with R$ 10M production and strict retention >= 79% reached (100%)', async ({ page }) => {
@@ -198,15 +207,15 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(targetCard).toContainText('Retenção: 79%');
     await expect(targetCard).toContainText('Prêmio: CAMISA');
 
-    // 6. Verify Production requirement (R$ 10M) passed
-    const prodRow = page.locator('table tbody tr', { hasText: 'Produção 12 meses ≥ Meta' });
+    // 6. Verify Active Production requirement (R$ 10M) passed
+    const prodRow = page.locator('table tbody tr', { hasText: 'Prod. Ativa 12m (≥ 2 pagas)' });
     await expect(prodRow).toBeVisible({ timeout: 15000 });
     await expect(prodRow).toContainText('R$ 10.000.000,00');
     await expect(prodRow.getByText('Atingido')).toBeVisible();
     await expect(prodRow).toContainText('100%');
 
-    // 7. Verify Strict Retention requirement for contracts > 2 months passed (100% >= 79%)
-    const retRow = page.locator('table tbody tr', { hasText: 'Retenção estrita 15 meses' });
+    // 7. Verify Strict Retention requirement passed (100% >= 79%)
+    const retRow = page.locator('table tbody tr', { hasText: 'Retenção Estrita (15 meses)' });
     await expect(retRow).toBeVisible({ timeout: 15000 });
     await expect(retRow).toContainText('100');
     await expect(retRow).toContainText('79');
@@ -257,7 +266,7 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(targetCard.locator('.career-plan-card-name')).toContainText('Guimel');
 
     // 5. Verify Strict Retention requirement shows "Não atingido" (50% < 79%)
-    const retRow = page.locator('table tbody tr', { hasText: 'Retenção estrita 15 meses' });
+    const retRow = page.locator('table tbody tr', { hasText: 'Retenção Estrita (15 meses)' });
     await expect(retRow).toBeVisible({ timeout: 15000 });
     await expect(retRow).toContainText('50');
     await expect(retRow.getByText('Não atingido')).toBeVisible();

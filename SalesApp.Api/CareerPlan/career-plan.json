@@ -5,11 +5,19 @@
       "requirements": {
         "all": [
           {
-            "label": "Produção 12 meses ≥ Meta",
-            "metric": "production",
+            "label": "Prod. Ativa 12m (≥ 2 pagas) ≥ Meta",
+            "metric": "activeProduction",
             "windowMonths": 12,
+            "eligibility": { "minInferredPaidMonths": 2 },
             "op": ">=",
             "value": { "ref": "targetLevel.salesGoal" }
+          },
+          {
+            "label": "Retenção Estrita (15 meses)",
+            "metric": "strictRetention",
+            "windowMonths": 15,
+            "op": ">=",
+            "value": { "ref": "targetLevel.retention" }
           }
         ]
       }
@@ -18,11 +26,19 @@
       "requirements": {
         "all": [
           {
-            "label": "Produção 12 meses ≥ Meta",
-            "metric": "production",
+            "label": "Prod. Ativa 12m (≥ 2 pagas) ≥ Meta",
+            "metric": "activeProduction",
             "windowMonths": 12,
+            "eligibility": { "minInferredPaidMonths": 2 },
             "op": ">=",
             "value": { "ref": "targetLevel.salesGoal" }
+          },
+          {
+            "label": "Retenção Estrita (15 meses)",
+            "metric": "strictRetention",
+            "windowMonths": 15,
+            "op": ">=",
+            "value": { "ref": "targetLevel.retention" }
           }
         ]
       }
@@ -31,19 +47,19 @@
       "requirements": {
         "all": [
           {
-            "label": "Retenção estrita 15 meses ≥ Retenção do nível (contratos com 2+ meses)",
-            "metric": "strictRetention",
-            "windowMonths": 15,
-            "eligibility": { "minAgeMonths": 2 },
-            "op": ">=",
-            "value": { "ref": "targetLevel.retention" }
-          },
-          {
-            "label": "Produção 12 meses ≥ Meta",
-            "metric": "production",
+            "label": "Prod. Ativa 12m (≥ 2 pagas) ≥ Meta",
+            "metric": "activeProduction",
             "windowMonths": 12,
+            "eligibility": { "minInferredPaidMonths": 2 },
             "op": ">=",
             "value": { "ref": "targetLevel.salesGoal" }
+          },
+          {
+            "label": "Retenção Estrita (15 meses)",
+            "metric": "strictRetention",
+            "windowMonths": 15,
+            "op": ">=",
+            "value": { "ref": "targetLevel.retention" }
           }
         ]
       }

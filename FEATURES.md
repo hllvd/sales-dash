@@ -24,11 +24,15 @@ Reestruturação dos níveis de classificação (`ClassificationLevel`) do siste
 
 - **Guarda de Proteção do Seeder para Produção**:
   - `SeedClassificationLevels` no `DbSeeder.cs` foi protegido com a guarda `if (await context.ClassificationLevels.AnyAsync()) return;`, garantindo que se o banco já possuir quaisquer níveis de classificação cadastrados (como ocorre em Produção), nenhuma classificação existente será alterada, sobrescrita ou excluída pelo backend na inicialização.
-- **Testes de Progressão Beth para Guimel (Integração e E2E Playwright)**:
-  - **Teste de Integração (`CareerPlanControllerTests.cs`)**: comprova no backend que a regra de retenção estrita de 15 meses de Guimel exclui estritamente contratos iniciados há $\le 2$ meses (`eligibility.minAgeMonths: 2`), mantendo 100% de retenção em contratos elegíveis ativos, e que perdas em contratos $> 2$ meses reduzem a taxa de retenção abaixo de 79%, reprovando o requisito.
+- **Requisitos de Promoção dos Níveis Alef, Beth e Guimel**:
+  - **Produção Ativa (`Prod. Ativa 12m (≥ 2 pagas)`)**: contratos com status estritamente `Active`, pagamento confirmado e pelo menos 2 parcelas pagas inferidas na janela dos últimos 12 meses fechados. Avaliado contra a meta de vendas do próximo nível (`targetLevel.salesGoal`).
+  - **Retenção Estrita (`Retenção Estrita (15 meses)`)**: cálculo financeiro de retenção estrita na janela dos últimos 15 meses fechados considerando todos os contratos elegíveis (excluindo Desistente e AwaitingPayment), sem restrição de idade mínima de contrato (`minAgeMonths: 2` removido). Avaliado contra a meta de retenção do próximo nível (`targetLevel.retention`), com mínimo de 79% para Alef, Beth e Guimel.
+- **Testes de Progressão Alef, Beth e Guimel (Integração e E2E Playwright)**:
+  - **Teste de Integração (`CareerPlanControllerTests.cs`)**: comprova no backend que a regra de retenção estrita de 15 meses avalia os contratos elegíveis sem restrição de idade mínima de 2 meses, exigindo 79% de retenção, e que o requisito de produção valida exclusivamente a produção ativa com $\ge 2$ parcelas pagas.
   - **Testes E2E (`career_plan_progression.spec.ts`)**:
-    - **Cenário de Sucesso**: usuário no nível **Beth** com contratos ativos totalizando R$ 10.000.000,00 e contratos com mais de 2 meses com retenção 100% $\ge$ 79%, comprovando na tela `/#/career-plan` o objetivo **Guimel** (Meta R$ 10M, Retenção 79%, Prêmio CAMISA) com ambos os requisitos marcados como "Atingido" (100%).
-    - **Cenário de Reprovação por Retenção**: usuário no nível **Beth** com contratos Defaulted com mais de 2 meses resultando em 50% de retenção estrita, exibindo o status "Não atingido".
+    - **Cenário Alef $\to$ Beth**: usuário no nível **Alef** com contrato ativo de R$ 4M alcançando 100% de produção ativa (`Prod. Ativa 12m (≥ 2 pagas)`) e 100% de retenção estrita contra a meta de 79% de Beth.
+    - **Cenário Beth $\to$ Guimel (Sucesso)**: usuário no nível **Beth** com contratos ativos totalizando R$ 10.000.000,00 e retenção estrita 100% $\ge$ 79%, comprovando na tela `/#/career-plan` o objetivo **Guimel** (Meta R$ 10M, Retenção 79%, Prêmio CAMISA) com ambos os requisitos marcados como "Atingido" (100%).
+    - **Cenário Beth $\to$ Guimel (Reprovação por Retenção)**: usuário no nível **Beth** com contratos Defaulted resultando em 50% de retenção estrita, exibindo o status "Não atingido".
 
 ### Arquivos Adicionados / Modificados
 - `SalesApp.Api/Data/DbSeeder.cs`

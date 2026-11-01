@@ -102,6 +102,13 @@ namespace SalesApp.CareerPlan
                     return eligibleProduction;
                 }
 
+                case MetricKind.ActiveProduction:
+                {
+                    int wm = windowMonths.GetValueOrDefault(12);
+                    int minPaid = eligibility?.MinInferredPaidMonths ?? 2;
+                    return ComputeActiveProduction(wm, minPaid, inputs);
+                }
+
                 default:
                     throw new NotSupportedException($"MetricKind '{metric}' is not supported.");
             }

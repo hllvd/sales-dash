@@ -247,8 +247,8 @@ namespace SalesApp.Data
 
             var baseLevels = new List<(string Name, string Description, string? Prize, decimal? SalesGoal, int? Retention, string? NextLevelName)>
             {
-                ("Alef", "Nível Alef", "ALMOÇO BATEL GRILL", 2000000m, null, "Beth"),
-                ("Beth", "Nível Beth", "VALE ZARA", 4000000m, null, "Guimel"),
+                ("Alef", "Nível Alef", "ALMOÇO BATEL GRILL", 2000000m, 79, "Beth"),
+                ("Beth", "Nível Beth", "VALE ZARA", 4000000m, 79, "Guimel"),
                 ("Guimel", "Nível Guimel", "CAMISA", 10000000m, 79, "Daleth"),
                 ("Daleth", "Nível Daleth", "RELÓGIO", 40000000m, null, "Vav"),
                 ("Vav", "Nível Vav", "CANETA MONT BLANC", 40000000m, null, "Hé"),
