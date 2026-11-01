@@ -18,8 +18,15 @@ Just use the test-and-fix workflow if:
 
 ## Step 1 — Run the full suite
 
+> [!TIP]
+> **Sleep Prevention:** On macOS, prefix `test.sh` commands with `caffeinate -dimsu` to prevent system and display sleep during test runs. On Linux, use `systemd-inhibit` if available, or run `./test.sh` directly.
+
 ```bash
-./test.sh all
+# macOS:
+caffeinate -dimsu ./test.sh all
+
+# Linux (uses systemd-inhibit if available, else runs directly):
+systemd-inhibit ./test.sh all 2>/dev/null || ./test.sh all
 ```
 
 Read `artifacts/build-errors.log`, `artifacts/integration-errors.log`, `artifacts/e2e-errors.log`.
@@ -64,7 +71,10 @@ Examples: failing assertions, wrong selectors, bad test data, API mismatch in te
 ## Step 3 — Retry loop (TTL = 5 per target)
 
 > [!IMPORTANT]
-> **E2E Target Execution:** Whenever running or retrying the `e2e` target, **ALWAYS** run `./test.sh rm-db && ./test.sh e2e` instead of `./test.sh e2e` alone. Resetting the database clears stale data and prevents false test failures.
+> **E2E Target Execution:** Whenever running or retrying the `e2e` target, **ALWAYS** run the DB reset before running `e2e`:
+> - macOS: `caffeinate -dimsu ./test.sh rm-db && caffeinate -dimsu ./test.sh e2e`
+> - Linux: `systemd-inhibit ./test.sh rm-db 2>/dev/null || ./test.sh rm-db && systemd-inhibit ./test.sh e2e 2>/dev/null || ./test.sh e2e` (or direct `./test.sh rm-db && ./test.sh e2e`)
+> Resetting the database clears stale data and prevents false test failures.
 
 ```
 ATTEMPT = 1
@@ -72,7 +82,9 @@ ATTEMPT = 1
 while ATTEMPT <= 5:
   1. Check scripts/memory.md — if this exact failure was already tried, skip that fix.
   2. Apply minimal fix (see Fix Scope below).
-  3. Run ./test.sh <failing-target>   ← only failing target (for 'e2e', ALWAYS run `./test.sh rm-db && ./test.sh e2e`)
+  3. Run target test:
+     - macOS: caffeinate -dimsu ./test.sh <failing-target> (for 'e2e', ALWAYS: caffeinate -dimsu ./test.sh rm-db && caffeinate -dimsu ./test.sh e2e)
+     - Linux: systemd-inhibit ./test.sh <failing-target> 2>/dev/null || ./test.sh <failing-target> (for 'e2e', ALWAYS: ./test.sh rm-db && ./test.sh e2e)
   4. Read artifacts/<target>-errors.log
   5. Write entry to scripts/memory.md (see format below).
   6. If 0 errors → ✅ target green. Move to next failing target.

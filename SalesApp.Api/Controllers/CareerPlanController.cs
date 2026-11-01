@@ -88,5 +88,62 @@ namespace SalesApp.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Returns paginated contract RT tracking for users at or below Guimel.
+        /// Available strictly to SuperAdmins.
+        /// </summary>
+        [HttpGet("users/{userId}/contracts-rt")]
+        public async Task<ActionResult<ApiResponse<ContractRtPageDto>>> GetContractsRt(
+            Guid userId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 100,
+            [FromQuery] DateTime? asOfDate = null)
+        {
+            if (page < 1)
+            {
+                return BadRequest(new ApiResponse<ContractRtPageDto>
+                {
+                    Success = false,
+                    Message = "Page must be greater than or equal to 1."
+                });
+            }
+
+            if (pageSize < 1 || pageSize > 100)
+            {
+                return BadRequest(new ApiResponse<ContractRtPageDto>
+                {
+                    Success = false,
+                    Message = "PageSize must be between 1 and 100."
+                });
+            }
+
+            try
+            {
+                var response = await _careerPlanService.GetContractRtTrackingAsync(userId, page, pageSize, asOfDate);
+                return Ok(new ApiResponse<ContractRtPageDto>
+                {
+                    Success = true,
+                    Data = response
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<ContractRtPageDto>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting contracts RT for user {UserId}", userId);
+                return StatusCode(500, new ApiResponse<ContractRtPageDto>
+                {
+                    Success = false,
+                    Message = "An unexpected error occurred while getting contract RT tracking."
+                });
+            }
+        }
     }
 }

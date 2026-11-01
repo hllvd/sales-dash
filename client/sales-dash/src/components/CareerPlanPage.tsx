@@ -15,6 +15,7 @@ import {
   CareerPlanEvaluation
 } from '../services/careerPlanService'
 import { User } from '../services/apiService'
+import ContractRtTable from './ContractRtTable'
 import './CareerPlanPage.css'
 
 const fmtCurrency = (val?: number | null) =>
@@ -563,6 +564,8 @@ const CareerPlanPage: React.FC = () => {
                 </Tooltip>
               </div>
             </Card>
+
+            <ContractRtTable userId={evaluation.userId} />
           </Stack>
         )}
 

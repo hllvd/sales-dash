@@ -60,6 +60,32 @@ export interface CareerPlanConfigSummary {
   configuredLevels: string[]
 }
 
+export type RtCellStatus = 'paid' | 'unpaid' | 'blank'
+export type RtCurrentStatus = 'upToDate' | 'overdue'
+
+export interface ContractRtRow {
+  contractNumber: string
+  customerName: string | null
+  totalAmount: number
+  saleStartDate: string
+  status: string
+  rts: RtCellStatus[]
+  current: RtCurrentStatus
+  ageMonths: number
+  overdueMonths: number
+  paidMonths: number
+}
+
+export interface ContractRtPage {
+  isApplicable: boolean
+  currentLevelName: string | null
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  items: ContractRtRow[]
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data?: T
@@ -102,5 +128,31 @@ export const careerPlanService = {
     }
 
     return result.data
+  },
+
+  async getContractRtTracking(userId: string, page = 1, pageSize = 100, asOfDate?: string): Promise<ContractRtPage> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    })
+    if (asOfDate) {
+      params.append('asOfDate', asOfDate)
+    }
+    const response = await authenticatedFetch(`${API_BASE_URL}/career-plan/users/${userId}/contracts-rt?${params.toString()}`, {
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || 'Falha ao obter acompanhamento de RT dos contratos.')
+    }
+
+    const result: ApiResponse<ContractRtPage> = await response.json()
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Dados inválidos retornados pela API.')
+    }
+
+    return result.data
   }
 }
+

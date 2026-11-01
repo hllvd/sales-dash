@@ -217,6 +217,13 @@ test.describe('Career Plan Progression E2E Tests', () => {
     const activeProdBox = page.locator('.career-plan-metric-box', { hasText: 'Prod. Ativa 12m (≥ 2 pagas)' });
     await expect(activeProdBox).toBeVisible({ timeout: 15000 });
     await expect(activeProdBox).toContainText('R$ 10.000.000,00');
+
+    // 9. Verify Contract RT Tracking Table is visible for Beth user
+    await expect(page.getByText('Acompanhamento de Contratos (RT1 a RT6 e RT Atual)')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('columnheader', { name: 'Nº do Contrato' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'RT1' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'RT6' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'RT ATUAL' })).toBeVisible();
   });
 
   test('should display strict retention as not passed when strict retention is below 79%', async ({ page }) => {

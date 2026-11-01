@@ -91,6 +91,17 @@ Sistema configurável e orientado a regras JSON para cálculo e acompanhamento d
   - Se o usuário já possui um nível ativo, o alvo é o seu `NextLevel` cadastrado.
 - **Métricas Consolidadas do Usuário**:
   - Exibe retenção normal (6m, 12m, 15m), retenção estrita (6m, 12m, 15m e 15m para contratos > 2 meses), produção geral (12m, 15m), produção ativa com parcelas pagas (`Prod. Ativa 12m (≥ 2 pagas)` considerando apenas contratos com status estritamente Ativo e ao menos 2 parcelas pagas inferidas), liderança de equipe ativa (`isTeamOwner`), total de membros ativos distintos nas equipes e equipes de consultores diretos (`directSubTeams`).
+- **Acompanhamento de Contratos (RT1 a RT6 e RT Atual) para Usuários até Guimel**:
+  - Tabela paginada (100 itens/página) renderizada logo abaixo de "Métricas Consolidadas do Usuário" na tela `/#/career-plan`.
+  - Exibida exclusivamente para usuários sem nível atribuído (concorrendo a Alef) ou com nível atual Alef, Beth e Guimel (oculta a partir de Daleth).
+  - Colunas: `Nº do Contrato`, `Cliente`, `Valor`, `Data do Contrato`, `Status`, `RT1`, `RT2`, `RT3`, `RT4`, `RT5`, `RT6`, `RT ATUAL`.
+  - **Filtro de Contratos**: Janela de venda dos últimos 15 meses (`SaleStartDate >= hoje - 15 meses`), sem limite mínimo de idade de contrato, excluindo contratos `Desistente`, `AwaitingPayment` e com `HasPayment == false`.
+  - **Inferência de Atraso e Pagamentos**:
+    - `Active`: 0 meses de atraso; `Late1`: 1 mês; `Late2`: 2 meses; `Late3`: 3 meses; `Defaulted`: 4 meses de atraso;
+    - Meses pagos inferidos = `max(0, idade - atraso)`.
+  - **Sinais dos Indicadores**:
+    - RT1 a RT6: 🟢 Verde para meses pagos ($i \le \text{pagos}$); 🟡 Amarelo para meses em atraso ($\text{pagos} < i \le \text{idade}$); ⚪ Branco com borda cinza para meses não vencidos ($i > \text{idade}$).
+    - RT Atual: 🔴 Vermelho se houver qualquer mês em atraso; 🟢 Verde se o contrato estiver 100% em dia.
 - **Interface Web Alinhada ao Design System (`CareerPlanPage.tsx`, `CareerPlanPage.css`)**:
   - Envelopada como filha direta do Mantine `AppShell` (`<Menu>`), eliminando sobreposição de layout ou blocos brancos vazios no topo da tela.
   - Cabeçalho padronizado com `<Title order={2} style={{ color: '#1c1c1e', fontWeight: 700 }}>`, subtítulo descritivo e botão de ação `Atualizar`.
@@ -99,7 +110,7 @@ Sistema configurável e orientado a regras JSON para cálculo e acompanhamento d
   - Painel de métricas consolidadas em cartões individuais com alto contraste visual e `<Tooltip>` informativo em cada cartão detalhando fórmulas, regras de cálculo e critérios de exclusão ao passar o mouse.
   - Estados claros para carregamento com `<Loader>`, erro com `<Alert>` e estado vazio premium (`IconTrophy`) quando nenhum usuário estiver selecionado.
 - **Segurança e Restrição de Acesso**:
-  - Endpoints `GET /api/career-plan/users/{userId}` e `GET /api/career-plan/config` restritos a `SuperAdmin`.
+  - Endpoints `GET /api/career-plan/users/{userId}`, `GET /api/career-plan/users/{userId}/contracts-rt` e `GET /api/career-plan/config` restritos a `SuperAdmin`.
   - Item de navegação no menu lateral (`Menu.tsx`) exibido apenas para o perfil SuperAdmin.
 
 ### Arquivos Adicionados / Modificados
@@ -110,6 +121,7 @@ Sistema configurável e orientado a regras JSON para cálculo e acompanhamento d
 - `SalesApp.Api/CareerPlan/CareerReferenceDate.cs`
 - `SalesApp.Api/ContractEligibility.cs`
 - `SalesApp.Api/CareerPlan/CareerMetricsCalculator.cs`
+- `SalesApp.Api/CareerPlan/ContractPaymentTracking.cs`
 - `SalesApp.Api/CareerPlan/CareerRuleEvaluator.cs`
 - `SalesApp.Api/CareerPlan/CareerLevelResolver.cs`
 - `SalesApp.Api/CareerPlan/CareerPlanConfigProvider.cs`
@@ -124,6 +136,7 @@ Sistema configurável e orientado a regras JSON para cálculo e acompanhamento d
 - `SalesApp.Tests/CareerPlan/CareerReferenceDateTests.cs`
 - `SalesApp.Tests/CareerPlan/ContractEligibilityTests.cs`
 - `SalesApp.Tests/CareerPlan/CareerMetricsCalculatorTests.cs`
+- `SalesApp.Tests/CareerPlan/ContractPaymentTrackingTests.cs`
 - `SalesApp.Tests/CareerPlan/CareerPlanConfigParserTests.cs`
 - `SalesApp.Tests/CareerPlan/CareerRuleEvaluatorTests.cs`
 - `SalesApp.Tests/CareerPlan/CareerLevelResolverTests.cs`
@@ -133,10 +146,12 @@ Sistema configurável e orientado a regras JSON para cálculo e acompanhamento d
 - `SalesApp.IntegrationTests/TestWebApplicationFactory.cs`
 - `SalesApp.IntegrationTests/SalesApp.IntegrationTests.csproj`
 - `client/sales-dash/src/services/careerPlanService.ts`
+- `client/sales-dash/src/components/ContractRtTable.tsx`
 - `client/sales-dash/src/components/CareerPlanPage.tsx`
 - `client/sales-dash/src/components/CareerPlanPage.css`
 - `client/sales-dash/src/components/Menu.tsx`
 - `client/sales-dash/src/App.tsx`
+- `client/e2e-test/e2e/career_plan_progression.spec.ts`
 - `FEATURES.md`
 
 ---

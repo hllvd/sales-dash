@@ -172,6 +172,91 @@ namespace SalesApp.Services
             };
         }
 
+        public async Task<ContractRtPageDto> GetContractRtTrackingAsync(Guid userId, int page = 1, int pageSize = 100, DateTime? asOfDate = null)
+        {
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                throw new KeyNotFoundException($"User with ID {userId} not found.");
+            }
+
+            var evaluationDate = asOfDate ?? DateTime.UtcNow;
+
+            // 1. Check user active classification
+            var activeClassification = await _context.UserClassifications
+                .AsNoTracking()
+                .Include(uc => uc.Level)
+                .Where(uc => uc.UserInternalId == user.InternalId
+                             && (uc.EndDate == null || uc.EndDate > DateTime.UtcNow))
+                .OrderByDescending(uc => uc.StartDate)
+                .FirstOrDefaultAsync();
+
+            var currentLevelName = activeClassification?.Level?.Name;
+            bool isApplicable = ContractPaymentTracking.IsLevelEligibleForRtTable(currentLevelName);
+
+            if (!isApplicable)
+            {
+                return new ContractRtPageDto
+                {
+                    IsApplicable = false,
+                    CurrentLevelName = currentLevelName,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalCount = 0,
+                    TotalPages = 0,
+                    Items = new List<ContractRtRowDto>()
+                };
+            }
+
+            // 2. Fetch contracts
+            var contracts = await _context.Contracts
+                .AsNoTracking()
+                .Include(c => c.ContractStatus)
+                .Where(c => c.UserInternalId == user.InternalId)
+                .ToListAsync();
+
+            // 3. Evaluate contracts purely
+            var evaluated = ContractPaymentTracking.EvaluateContracts(contracts, evaluationDate, 15);
+
+            int totalCount = evaluated.Count;
+            int totalPages = pageSize > 0 ? (int)Math.Ceiling(totalCount / (double)pageSize) : 0;
+            int skip = Math.Max(0, (page - 1) * pageSize);
+
+            var paged = evaluated
+                .Skip(skip)
+                .Take(pageSize)
+                .Select(e => new ContractRtRowDto
+                {
+                    ContractNumber = e.ContractNumber,
+                    CustomerName = e.CustomerName,
+                    TotalAmount = e.TotalAmount,
+                    SaleStartDate = e.SaleStartDate,
+                    Status = e.Status,
+                    Rts = e.Rts.Select(r => r switch
+                    {
+                        RtCellState.Paid => "paid",
+                        RtCellState.Unpaid => "unpaid",
+                        _ => "blank"
+                    }).ToList(),
+                    Current = e.Current == RtCurrentState.Overdue ? "overdue" : "upToDate",
+                    AgeMonths = e.AgeMonths,
+                    OverdueMonths = e.OverdueMonths,
+                    PaidMonths = e.PaidMonths
+                })
+                .ToList();
+
+            return new ContractRtPageDto
+            {
+                IsApplicable = true,
+                CurrentLevelName = currentLevelName,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = totalPages,
+                Items = paged
+            };
+        }
+
         private static CareerPlanLevelSummaryDto MapLevelSummary(ClassificationLevel level)
         {
             return new CareerPlanLevelSummaryDto

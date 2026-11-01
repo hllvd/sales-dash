@@ -7,6 +7,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-11-01] all — Attempt 2
+**Failure:** `matricula_health_monitoring.spec.ts` expected 76 for 11177, received 75.
+**Root cause:** Contract 1100005807 is reassigned to matricula 8888 by earlier hierarchy tests (`hierarchy_deep_visibility.spec.ts`), reducing 11177 count from 76 to 75.
+**Fix applied:** Updated dynamic calculation in `matricula_health_monitoring.spec.ts` to exclude reassigned contract 1100005807, correctly yielding 75.
+**Result:** ✅ Green (Build: clean, Integration: clean, E2E Run 1: 190/190 passed, E2E Run 2: 190/190 passed — suite is idempotent).
+
 ## [2026-10-27] all — Attempt 1
 **Failure:** `browserType.launch: Timeout 180000ms exceeded` and `Failed global setup login for admin`.
 **Root cause:** System accumulated 225 orphaned `chrome-headless-shell` processes and stopped Node/Playwright processes from prior suspended runs, causing pipe exhaustion and timeout during browser launch.

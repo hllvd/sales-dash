@@ -64,4 +64,30 @@ namespace SalesApp.DTOs
         public int ClosingDay { get; set; }
         public List<string> ConfiguredLevels { get; set; } = new();
     }
+
+    public class ContractRtRowDto
+    {
+        public string ContractNumber { get; set; } = string.Empty;
+        public string? CustomerName { get; set; }
+        public decimal TotalAmount { get; set; }
+        public DateTime SaleStartDate { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public List<string> Rts { get; set; } = new();
+        public string Current { get; set; } = string.Empty;
+        public int AgeMonths { get; set; }
+        public int OverdueMonths { get; set; }
+        public int PaidMonths { get; set; }
+    }
+
+    public class ContractRtPageDto
+    {
+        public bool IsApplicable { get; set; }
+        public string? CurrentLevelName { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalPages { get; set; }
+        public List<ContractRtRowDto> Items { get; set; } = new();
+    }
 }
+

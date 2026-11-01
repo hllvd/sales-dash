@@ -220,6 +220,104 @@ namespace SalesApp.IntegrationTests.CareerPlan
             evalResult2.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(10_000_000m);
         }
 
+        [Fact]
+        public async Task GetContractsRt_WithoutAuth_ReturnsUnauthorized()
+        {
+            var unauthClient = _factory.CreateClient();
+            unauthClient.DefaultRequestHeaders.Authorization = null;
+            var response = await unauthClient.GetAsync($"/api/career-plan/users/{Guid.NewGuid()}/contracts-rt");
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        [Fact]
+        public async Task GetContractsRt_InvalidPagination_ReturnsBadRequest()
+        {
+            var token = await GetSuperAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var res1 = await clientWithToken.GetAsync($"/api/career-plan/users/{Guid.NewGuid()}/contracts-rt?page=0");
+            res1.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+            var res2 = await clientWithToken.GetAsync($"/api/career-plan/users/{Guid.NewGuid()}/contracts-rt?pageSize=150");
+            res2.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        [Fact]
+        public async Task GetContractsRt_ForGuimelUser_ReturnsApplicableAndEvaluatedRows()
+        {
+            var token = await GetSuperAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var user = await db.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+            var guimelLevel = await db.ClassificationLevels.FirstAsync(l => l.Name == "Guimel");
+            var activeStatus = await db.ContractStatuses.FirstAsync(s => s.Name == "Active");
+            var late1Status = await db.ContractStatuses.FirstAsync(s => s.Name == "Late1");
+
+            var uc = new UserClassification
+            {
+                UserInternalId = user.InternalId,
+                LevelId = guimelLevel.Id,
+                StartDate = DateTime.UtcNow.AddMonths(-6),
+                CreatedAt = DateTime.UtcNow
+            };
+            db.UserClassifications.Add(uc);
+
+            var c1 = new Contract
+            {
+                ContractNumber = "RT-CTR-001",
+                CustomerName = "Cliente RT 1",
+                UserInternalId = user.InternalId,
+                TotalAmount = 80_000m,
+                SaleStartDate = DateTime.UtcNow.AddMonths(-4),
+                ContractStatusId = activeStatus.Id,
+                HasPayment = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            var c2 = new Contract
+            {
+                ContractNumber = "RT-CTR-002",
+                CustomerName = "Cliente RT 2",
+                UserInternalId = user.InternalId,
+                TotalAmount = 150_000m,
+                SaleStartDate = DateTime.UtcNow.AddMonths(-3),
+                ContractStatusId = late1Status.Id,
+                HasPayment = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            db.Contracts.AddRange(c1, c2);
+            await db.SaveChangesAsync();
+
+            var response = await clientWithToken.GetAsync($"/api/career-plan/users/{user.Id}/contracts-rt?page=1&pageSize=100");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractRtPageDto>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data!.IsApplicable.Should().BeTrue();
+            result.Data.Items.Should().NotBeEmpty();
+
+            var row2 = result.Data.Items.FirstOrDefault(i => i.ContractNumber == "RT-CTR-002");
+            row2.Should().NotBeNull();
+            row2!.Status.Should().Be("Late1");
+            row2.Current.Should().Be("overdue");
+            row2.Rts.Should().Contain("unpaid");
+
+            var row1 = result.Data.Items.FirstOrDefault(i => i.ContractNumber == "RT-CTR-001");
+            row1.Should().NotBeNull();
+            row1!.Status.Should().Be("Active");
+            row1.Current.Should().Be("upToDate");
+        }
+
+
         private async Task<string> GetSuperAdminToken()
         {
             var loginRequest = new LoginRequest

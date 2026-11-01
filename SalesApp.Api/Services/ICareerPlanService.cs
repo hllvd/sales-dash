@@ -8,5 +8,6 @@ namespace SalesApp.Services
     {
         Task<CareerPlanEvaluationResponse> EvaluateUserCareerPlanAsync(Guid userId, DateTime? asOfDate = null);
         CareerPlanConfigResponse GetConfigSummary();
+        Task<ContractRtPageDto> GetContractRtTrackingAsync(Guid userId, int page = 1, int pageSize = 100, DateTime? asOfDate = null);
     }
 }
