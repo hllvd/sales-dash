@@ -112,7 +112,7 @@ test.describe('Career Plan Progression E2E Tests', () => {
 
     // Setup User 1: Alef -> Beth
     const user1Id = await registerAndAssign(userNameAlef, userEmailAlef, alefLevel.id);
-    await createContract(`CONT-AB-${timestamp}`, 4000000, 'Active', date2m, user1Id);
+    await createContract(`CONT-AB-${timestamp}`, 4000000, 'Active', date4m, user1Id);
 
     // Setup User 2: Beth -> Guimel Pass (10M production + 100% strict retention >= 79%)
     const user2Id = await registerAndAssign(userNameBethPass, userEmailBethPass, bethLevel.id);

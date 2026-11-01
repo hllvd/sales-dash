@@ -606,5 +606,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Root cause:** With the new business rule restricting matricula health monitoring to the last 14 months (`SaleStartDate >= cutoffDate`), only contracts from the last 14 months are counted (9 for matricula 9999 and 120 for matricula 11177), whereas the test hardcoded the lifetime counts (19 and 173).
 **Fix applied:** Updated contract count expectations in `client/e2e-test/e2e/matricula_health_monitoring.spec.ts` from 19 to 9 and 173 to 120.
 **Result:** ✅ Green (188/188 E2E tests passed)
-
-
+## [2026-11-01] all — Attempt 1
+**Failure:** E2E failure in `career_plan_progression.spec.ts` when expecting 100% on `Prod. Ativa 12m (≥ 2 pagas)` for Alef User 1 (`R$ 0,00` instead of `R$ 4.000.000,00`).
+**Root cause:** User 1 test contract was created with `date2m` (2 months ago relative to today). With today being day 01 and closing day being 15, the reference date resolved to 15/10/2026. A contract from 10/09/2026 had an elapsed age of 1 month, which yielded 1 inferred paid month (< 2 required).
+**Fix applied:**
+1. Unified promotion requirements in `career-plan.json` for Alef, Beth and Guimel: `Prod. Ativa 12m (≥ 2 pagas) ≥ Meta` (`metric: activeProduction`, `windowMonths: 12`, `minInferredPaidMonths: 2`) and `Retenção Estrita (15 meses)` (`metric: strictRetention`, `windowMonths: 15`) without `minAgeMonths: 2`.
+2. Updated `DbSeeder.cs` setting 79% retention targets for Alef and Beth.
+3. Added `ActiveProduction` to `MetricKind` and connected to pure method `ComputeActiveProduction`.
+4. In `career_plan_progression.spec.ts`, updated User 1 test contract to `date4m` ensuring inferred paid months >= 2.
+**Result:** ✅ Green (Integration tests: 364/364 PASSED, E2E Run 1: 190/190 PASSED, E2E Run 2: 191/191 PASSED — suite is idempotent)
