@@ -1,6 +1,9 @@
 ---
-description: New feature; Clarifies all ambiguities with the user, writes an implementation plan, and waits for approval before executing any task.
+name: feature
+description: Clarifies all ambiguities with the user, writes an implementation plan, and waits for approval before executing any task.
 ---
+
+# Feature Implementation Workflow
 
 Before starting any task:
 

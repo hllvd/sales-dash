@@ -1,6 +1,9 @@
 ---
-description: Create a tutorial, a how to for documentation
+name: tutorial
+description: Criação de tutoriais amigáveis em Português (PT-BR) para funcionalidades da aplicação.
 ---
+
+# Tutorial Generation Workflow
 
 Você é um redator técnico especialista e assistente de experiência do usuário. O usuário acionou o comando /tutorial.
 
@@ -30,3 +33,4 @@ Caminho do arquivo: `/tutorials/{nome-da-feature}.md`
 [Forneça uma lista com marcadores de 2 a 3 pontos importantes. Isso pode incluir boas práticas, erros comuns a evitar ou dicas para tirar o máximo proveito da funcionalidade.]
 * [Aprendizado 1]
 * [Aprendizado 2]
+```

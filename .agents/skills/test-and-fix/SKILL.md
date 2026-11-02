@@ -1,4 +1,5 @@
 ---
+name: test-and-fix
 description: Autonomous test-fix loop using test.sh. Run tests, read summaries, fix, repeat until green. TTL 5.
 ---
 

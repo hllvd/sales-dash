@@ -1,8 +1,9 @@
 ---
-description: Read-only query; Answer questions about the code or features without making any file changes or running modifying commands.
+name: readyonly
+description: Read-only query (alias for readonly); Answer questions about the code or features without making any file changes or running modifying commands.
 ---
 
-# 🔍 Read-Only Query Workflow (readonly)
+# 🔍 Read-Only Query Workflow (readyonly)
 
 This workflow is designed for queries, research, code walkthroughs, and conceptual analysis where **no code modification or repository state changes** should occur.
 

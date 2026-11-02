@@ -1,3 +1,24 @@
+## Validador e Auditoria de Retenção do Plano de Carreira (`scripts/audit_career_plan.py`)
+
+Utilitário de linha de comando para auditoria e validação de conformidade matemática entre as planilhas modelo do Plano de Carreira (como `plano-de-carreira-samuel.xlsx`) e as regras implementadas no backend (`SalesApp.Api/CareerPlan`).
+
+### Comportamento e Regras
+- **Paridade de Retenção (DASHBOARD C12 vs strictRetention 15m)**:
+  - Comprova matematicamente que a célula `C12` da planilha (`PRODUCAO!F4 / PRODUCAO!E4`) calcula a retenção pela razão entre o valor das cotas ativas/retidas e o total de cotas na janela de 15 meses.
+  - Valida que a fórmula de `strictRetention` de 15 meses do backend (`CareerMetricsCalculator` + `ReportRetentionCalculator`) reflete exatamente a mesma lógica da planilha.
+  - Confirma que os níveis **Alef**, **Beth** e **Guimel** compartilham a mesma métrica de retenção (`C12 > 78.99%`, isto é, $\ge 79\%$) tanto na planilha quanto no banco de dados (`targetLevel.retention = 79`).
+- **Execução Leve e Determinística**:
+  - Implementado em Python puro (usando `zipfile` e `xml.etree.ElementTree` nativos), sem dependência de bibliotecas externas como `openpyxl` ou `pandas`.
+  - Isola efeitos colaterais de I/O nas bordas e garante funções puras com tipagem estática via `dataclasses`.
+- **Relatório Completo de Auditoria**:
+  - Aponta dados do consultor, métricas totais, recálculo independente linha a linha, conferência da célula `C12`, comparação com o mínimo de 79% e status de qualificação para Alef, Beth e Guimel.
+
+### Arquivos Adicionados / Modificados
+- `scripts/audit_career_plan.py`
+- `FEATURES.md`
+
+---
+
 ## Níveis Canônicos de Classificação (Alef a Lamed) e Remoção de Níveis Legados
 
 Reestruturação dos níveis de classificação (`ClassificationLevel`) do sistema para adotar os 12 níveis de progressão canônicos (Alef a Lamed), com metas, retenção, prêmios e ordenação encadeada (`NextLevelId`), removendo completamente os níveis legados (Bronze, Prata, Ouro) do seed e do banco de dados.

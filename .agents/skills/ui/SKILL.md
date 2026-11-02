@@ -1,5 +1,6 @@
 ---
-description: UI - Premium UI Design System and Component Guidelines
+name: ui
+description: UI design system and Mantine UI component consistency guidelines for SalesApp.
 ---
 
 # 🎨 UI Design System & Component Consistency Workflow
@@ -80,4 +81,3 @@ To keep navigation menus modular, group related child views within a parent `<Na
 3. **Disjointed Modals**: Never stack vertical, loose cards inside standard modal popups where a structured `<table>` provides a clean grid.
 4. **Duplicate UI Code**: Do not write ad-hoc utility styling if an element can be governed by a shared CSS class in `index.css` or component-specific CSS (like `TeamsPage.css`).
 5. **Invisible Modal Headers**: Do not omit `style={{ color: '#1c1c1e' }}` on custom `<Modal>` header titles.
-

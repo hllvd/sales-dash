@@ -1,5 +1,6 @@
 ---
-description: sqlite migration
+name: sqlite
+description: SQLite migration & troubleshooting guide covering ALTER TABLE limitations, table rebuilds, surrogate keys, and locking issues.
 ---
 
 # SQLite Migration & Troubleshooting Guide

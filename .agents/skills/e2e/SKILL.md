@@ -1,8 +1,10 @@
 ---
-description: e2e - Playwright E2E Specialist
+name: e2e
+description: Playwright E2E specialist guide for writing, executing, and debugging tear-based E2E tests, handling soft-delete stability, and data fixtures.
 ---
 
-Playwright E2E Specialist Prompt
+# Playwright E2E Specialist Prompt
+
 Context:
 
 Location: All E2E tests are located in client/e2e-test.
