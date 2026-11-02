@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loginAs, ADMIN_EMAIL, ADMIN_PASSWORD } from './helpers/auth';
+import { loginAs, ADMIN_EMAIL, ADMIN_PASSWORD, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD } from './helpers/auth';
 
 test.describe('Scrape Credentials Management (TEAR 2)', () => {
   const testStore = 'AHU - PR';
@@ -9,7 +9,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
   test('should add a new scrape credential without testing auth, then remove it', async ({ page }) => {
     test.setTimeout(60000);
     console.log(`>>> [Tear 2] Logging in as Admin to test Scrape Credentials`);
-    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 
     // Auto-accept deletion confirmation popups
     page.on('dialog', dialog => {
@@ -84,7 +84,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
   test('should allow saving credentials without store (optional store, only matricula and password mandatory)', async ({ page }) => {
     test.setTimeout(60000);
     console.log(`>>> [Tear 2] Testing saving credentials without store`);
-    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 
     page.on('dialog', dialog => {
       dialog.accept().catch(() => {});
@@ -127,7 +127,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
   test('should auto-fill store and/or startDate when validating credentials on save', async ({ page }) => {
     test.setTimeout(60000);
     console.log(`>>> [Tear 2] Testing auto-fill of store/startDate on save with validation`);
-    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 
     page.on('dialog', dialog => {
       dialog.accept().catch(() => {});
@@ -176,7 +176,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
   test('should display Opções Avançadas accordion with correct default checkboxes and allow updating them', async ({ page }) => {
     test.setTimeout(60000);
     console.log(`>>> [Tear 2] Testing Opções Avançadas in Scrape modal`);
-    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 
     page.on('dialog', dialog => {
       dialog.accept().catch(() => {});
@@ -247,7 +247,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
   test('should select and save relative date options (1, 3, 12, 15 months, custom, all)', async ({ page }) => {
     test.setTimeout(60000);
     console.log(`>>> [Tear 2] Testing Relative Dates selection in Scrape modal`);
-    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 
     page.on('dialog', dialog => dialog.accept().catch(() => {}));
 
@@ -337,7 +337,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
   test('should block scrape trigger when account has wrong-password (circuit breaker anti-lockout)', async ({ page }) => {
     test.setTimeout(60000);
     console.log(`>>> [Tear 2] Testing Circuit Breaker on wrong-password credential status`);
-    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 
     page.on('dialog', dialog => dialog.accept().catch(() => {}));
 
@@ -412,7 +412,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
   test('should configure automatic scrape schedule interval and display badge', async ({ page }) => {
     test.setTimeout(60000);
     console.log(`>>> [Tear 2] Testing Automatic Scrape Schedule Interval in Scrape modal`);
-    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 
     page.on('dialog', dialog => dialog.accept().catch(() => {}));
 
@@ -476,7 +476,7 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
   test('should default worker to Remote and configure daily schedule with multiple times', async ({ page }) => {
     test.setTimeout(60000);
     console.log(`>>> [Tear 2] Testing Default Remote Worker and Daily Multiple Times Schedule`);
-    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 
     page.on('dialog', dialog => dialog.accept().catch(() => {}));
 
@@ -537,5 +537,34 @@ test.describe('Scrape Credentials Management (TEAR 2)', () => {
     await deleteBtn.click();
     await expect(page.getByText('Vínculo de conta removido')).toBeVisible({ timeout: 15000 });
     await expect(row).not.toBeVisible({ timeout: 15000 });
+  });
+
+  test('should display "Extração Power Bi" inside "Importação" for superadmin and hide it for admin', async ({ page }) => {
+    test.setTimeout(60000);
+
+    // 1. Check as Superadmin
+    console.log(`>>> [Menu Visibility] Testing as Superadmin`);
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
+    await page.goto('/#/my-contracts');
+
+    // Ensure Importação group is open (or click it if not open)
+    const importacaoNavLink = page.getByRole('link', { name: 'Importação' }).or(page.getByRole('button', { name: 'Importação' })).or(page.locator('.mantine-NavLink-root').filter({ hasText: 'Importação' })).first();
+    await expect(importacaoNavLink).toBeVisible({ timeout: 15000 });
+
+    const pbiLink = page.locator('a[href="#/scrapes"]');
+    if (!(await pbiLink.isVisible())) {
+      await importacaoNavLink.click();
+    }
+    await expect(pbiLink).toBeVisible({ timeout: 10000 });
+    await expect(pbiLink).toHaveText(/Extração Power Bi/i);
+
+    // 2. Check as regular Admin
+    console.log(`>>> [Menu Visibility] Testing as Admin`);
+    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/#/my-contracts');
+
+    // For admin, "Extração Power Bi" must NOT exist in the DOM / menu
+    await expect(page.locator('a[href="#/scrapes"]')).not.toBeVisible();
+    await expect(page.getByText('Extração Power Bi')).not.toBeVisible();
   });
 });

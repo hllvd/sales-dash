@@ -1,6 +1,0 @@
-Name,Email,Role,ParentEmail,Matricula,IsMatriculaOwner,Password
-Superior E2E rakpfxxg8111,superior.e2e.rakpfxxg8111@test.com,user,,MAT-SUP-rakpfxxg8111,1,ChangeMe123!
-Subordinado E2E rakpfxxg8111,subordinado.e2e.rakpfxxg8111@test.com,user,superior.e2e.rakpfxxg8111@test.com,MAT-SUB-rakpfxxg8111,1,ChangeMe123!
-Admin E2E rakpfxxg8111,admin.e2e.rakpfxxg8111@test.com,admin,,MAT-ADM-rakpfxxg8111,1,ChangeMe123!
-AdminChild E2E rakpfxxg8111,adminchild.e2e.rakpfxxg8111@test.com,user,admin.e2e.rakpfxxg8111@test.com,MAT-ADC-rakpfxxg8111,1,ChangeMe123!
-Orphan E2E rakpfxxg8111,orphan.e2e.rakpfxxg8111@test.com,user,,MAT-ORP-rakpfxxg8111,1,ChangeMe123!

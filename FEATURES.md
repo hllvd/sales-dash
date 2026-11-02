@@ -1519,12 +1519,12 @@ Reorganização da navegação principal do sistema (`Menu.tsx`) para agrupar fu
   - Agrupa os itens de navegação:
     - **Relatórios** (`#/reports`)
     - **Dashboards** (`#/views`)
-    - **Extração PowerBI** (`#/scrapes`, visível para administradores com permissão `system:admin`)
 - **Grupo Expansível "Importação"**:
-  - Novo item pai colapsável com ícone de importação de arquivos (`IconFileImport`), exibido para usuários com permissão de execução ou histórico (`imports:execute` ou `imports:history`).
+  - Item pai colapsável com ícone de importação de arquivos (`IconFileImport`), exibido para usuários com permissão de execução, histórico ou superadmin (`imports:execute`, `imports:history` ou `superadmin`).
   - Agrupa os itens de navegação:
     - **Assistente de Importação** (`#/import-wizard`)
     - **Histórico de Importação** (`#/import-history`)
+    - **Extração Power Bi** (`#/scrapes`, exclusivo para usuários do perfil `superadmin`)
 - **Estado Reativo e Suporte a Responsividade**:
   - Abertura automática inteligente dos grupos ao navegar diretamente ou via hash change para qualquer subrota filha.
   - Fechamento automático da barra de navegação ao clicar em qualquer item no modo mobile.
@@ -2874,6 +2874,28 @@ Na tela **Meus Contratos** (`#/my-contracts`), os contratos eram listados sem pa
 - `client/sales-dash/src/services/contractService.ts` — Suporte a `page` e `pageSize` em `getUserContracts`.
 - `client/sales-dash/src/services/contractService.test.ts` — Testes unitários para `getUserContracts` paginado.
 - `client/sales-dash/src/components/MyContractsPage.tsx` — Integração de estado de paginação, reset de página em filtros e renderização do componente `Pagination` no topo e rodapé.
+
+## [2026-11-02] — Reorganização do Menu Lateral: Extração Power Bi sob Importação e Restrita a Superadmin
+
+### Contexto & Motivação
+A funcionalidade de extração automatizada de dados do Power BI (`#/scrapes`) estava anteriormente alocada sob a seção de "Dados & Relatórios" e com o rótulo "Extração PowerBI", visível para perfis de administrador. Para alinhar o fluxo conceitual (processos de importação/extração de dados agrupados na mesma categoria) e restringir o acesso operacional a funcionalidades sensíveis de scraping, o item foi realocado para o grupo "Importação", renomeado para "Extração Power Bi" e sua visibilidade no menu lateral passou a ser exclusiva para usuários do tipo `superadmin`.
+
+### Funcionalidades & Arquitetura
+1. **Realocação e Rótulo no Menu Lateral (`Menu.tsx`)**:
+   - O item de navegação para `#/scrapes` foi transferido de "Dados & Relatórios" para o grupo expansível "Importação", posicionado imediatamente abaixo de "Histórico de Importação".
+   - Rótulo atualizado para `"Extração Power Bi"`.
+   - O grupo pai "Importação" agora também permanece visível e abre automaticamente ao navegar em rotas de scraping (`#/scrapes`), além de estar acessível a usuários com o perfil `superadmin`.
+2. **Restrição de Visibilidade Exclusiva para Superadmin**:
+   - A visibilidade de `Extração Power Bi` no menu lateral é condicionada estritamente ao perfil `superadmin` (`userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')`), permanecendo oculta para perfis comuns e administradores regulares.
+3. **Validação E2E Automatizada (`scrape_credentials.spec.ts`)**:
+   - Cenários de teste atualizados para autenticação com credenciais de `superadmin`.
+   - Novo teste automatizado cobrindo a presença do subitem "Extração Power Bi" dentro de "Importação" para `superadmin` e garantindo que ele não é visível para o perfil `admin`.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/Menu.tsx` — Realocação do item `Extração Power Bi` para o grupo expansível `Importação`, atualização do rótulo e restrição de visibilidade para `superadmin`.
+- `client/e2e-test/e2e/scrape_credentials.spec.ts` — Ajuste de autenticação para `superadmin` e novo teste de visibilidade condicional do menu.
+- `FEATURES.md` — Documentação da reorganização do menu lateral.
+
 
 
 

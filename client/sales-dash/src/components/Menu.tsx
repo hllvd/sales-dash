@@ -56,11 +56,12 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   );
   const [dadosMenuOpened, setDadosMenuOpened] = useState(
     window.location.hash.startsWith('#/reports') ||
-    window.location.hash.startsWith('#/views') ||
-    window.location.hash.startsWith('#/scrapes')
+    window.location.hash.startsWith('#/views')
   );
   const [importacaoMenuOpened, setImportacaoMenuOpened] = useState(
-    window.location.hash === '#/import-wizard' || window.location.hash === '#/import-history'
+    window.location.hash === '#/import-wizard' || 
+    window.location.hash === '#/import-history' ||
+    window.location.hash.startsWith('#/scrapes')
   );
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [pendingSurveyCount, setPendingSurveyCount] = useState<number>(0);
@@ -104,10 +105,10 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     if (currentPath === '#/teams' || currentPath === '#/teams/calendar') {
       setTeamsMenuOpened(true);
     }
-    if (currentPath.startsWith('#/reports') || currentPath.startsWith('#/views') || currentPath.startsWith('#/scrapes')) {
+    if (currentPath.startsWith('#/reports') || currentPath.startsWith('#/views')) {
       setDadosMenuOpened(true);
     }
-    if (currentPath === '#/import-wizard' || currentPath === '#/import-history') {
+    if (currentPath === '#/import-wizard' || currentPath === '#/import-history' || currentPath.startsWith('#/scrapes')) {
       setImportacaoMenuOpened(true);
     }
   }, [currentPath]);
@@ -517,22 +518,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               styles={navLinkStyles('#/views')}
               onClick={() => { if (opened) close(); }}
             />
-            
-            {hasPermission('system:admin') && (
-              <NavLink
-                href="#/scrapes"
-                label="Extração PowerBI"
-                leftSection={<IconRefresh size={16} />}
-                active={isActive('#/scrapes')}
-                variant="filled"
-                color="red"
-                styles={navLinkStyles('#/scrapes')}
-                onClick={() => { if (opened) close(); }}
-              />
-            )}
           </NavLink>
 
-          {(hasPermission('imports:execute') || hasPermission('imports:history')) && (
+          {(hasPermission('imports:execute') || hasPermission('imports:history') || userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')) && (
             <NavLink
               label="Importação"
               leftSection={<IconFileImport size={20} />}
@@ -563,6 +551,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
                   variant="filled"
                   color="red"
                   styles={navLinkStyles('#/import-history')}
+                  onClick={() => { if (opened) close(); }}
+                />
+              )}
+
+              {(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')) && (
+                <NavLink
+                  href="#/scrapes"
+                  label="Extração Power Bi"
+                  leftSection={<IconRefresh size={16} />}
+                  active={isActive('#/scrapes')}
+                  variant="filled"
+                  color="red"
+                  styles={navLinkStyles('#/scrapes')}
                   onClick={() => { if (opened) close(); }}
                 />
               )}
