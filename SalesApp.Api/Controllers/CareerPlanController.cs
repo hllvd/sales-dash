@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Services;
 
@@ -11,29 +16,68 @@ namespace SalesApp.Controllers
 {
     [ApiController]
     [Route("api/career-plan")]
-    [Authorize(Roles = "SuperAdmin,superadmin")]
+    [Authorize(Roles = "SuperAdmin,superadmin,Admin,admin")]
     public class CareerPlanController : ControllerBase
     {
         private readonly ICareerPlanService _careerPlanService;
+        private readonly AppDbContext _context;
         private readonly ILogger<CareerPlanController> _logger;
 
         public CareerPlanController(
             ICareerPlanService careerPlanService,
+            AppDbContext context,
             ILogger<CareerPlanController> logger)
         {
             _careerPlanService = careerPlanService;
+            _context = context;
             _logger = logger;
+        }
+
+        private Guid GetCurrentUserId()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? User.FindFirst("id")?.Value;
+            return Guid.TryParse(claim, out var id) ? id : Guid.Empty;
+        }
+
+        private bool IsSuperAdmin()
+        {
+            return User.IsInRole("SuperAdmin")
+                || User.IsInRole("superadmin")
+                || User.HasClaim("perm", "system:superadmin")
+                || User.FindFirst("role_id")?.Value == "1";
+        }
+
+        private async Task<bool> CanAccessUserAsync(Guid targetUserId)
+        {
+            if (IsSuperAdmin()) return true;
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId == Guid.Empty) return false;
+            if (targetUserId == currentUserId) return true;
+
+            var targetUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == targetUserId);
+            return targetUser != null && targetUser.ParentUserId == currentUserId;
         }
 
         /// <summary>
         /// Evaluates career plan progress and metrics for a specific user.
-        /// Available strictly to SuperAdmins.
+        /// Available to SuperAdmins and Admins (scoped to self and 1st-level subordinates).
         /// </summary>
         [HttpGet("users/{userId}")]
         public async Task<ActionResult<ApiResponse<CareerPlanEvaluationResponse>>> EvaluateUser(
             Guid userId,
             [FromQuery] DateTime? asOfDate = null)
         {
+            if (!await CanAccessUserAsync(userId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<CareerPlanEvaluationResponse>
+                {
+                    Success = false,
+                    Message = "Você não tem permissão para visualizar o plano de carreira deste usuário."
+                });
+            }
+
             try
             {
                 var response = await _careerPlanService.EvaluateUserCareerPlanAsync(userId, asOfDate);
@@ -64,7 +108,7 @@ namespace SalesApp.Controllers
 
         /// <summary>
         /// Returns summary of loaded career plan configuration.
-        /// Available strictly to SuperAdmins.
+        /// Available to SuperAdmins and Admins.
         /// </summary>
         [HttpGet("config")]
         public ActionResult<ApiResponse<CareerPlanConfigResponse>> GetConfig()
@@ -91,7 +135,7 @@ namespace SalesApp.Controllers
 
         /// <summary>
         /// Returns paginated contract RT tracking for users at or below Guimel.
-        /// Available strictly to SuperAdmins.
+        /// Available to SuperAdmins and Admins (scoped to self and 1st-level subordinates).
         /// </summary>
         [HttpGet("users/{userId}/contracts-rt")]
         public async Task<ActionResult<ApiResponse<ContractRtPageDto>>> GetContractsRt(
@@ -100,6 +144,15 @@ namespace SalesApp.Controllers
             [FromQuery] int pageSize = 100,
             [FromQuery] DateTime? asOfDate = null)
         {
+            if (!await CanAccessUserAsync(userId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<ContractRtPageDto>
+                {
+                    Success = false,
+                    Message = "Você não tem permissão para visualizar os contratos deste usuário."
+                });
+            }
+
             if (page < 1)
             {
                 return BadRequest(new ApiResponse<ContractRtPageDto>
@@ -148,7 +201,7 @@ namespace SalesApp.Controllers
 
         /// <summary>
         /// Returns the pre-calculated career plan snapshot list of consultants (unclassified, Alef, Beth).
-        /// Available strictly to SuperAdmins.
+        /// For Admins, scoped strictly to self and 1st-level subordinates.
         /// </summary>
         [HttpGet("consultants")]
         public async Task<ActionResult<ApiResponse<CareerPlanConsultantsListResponse>>> GetConsultantsList()
@@ -156,6 +209,28 @@ namespace SalesApp.Controllers
             try
             {
                 var response = await _careerPlanService.GetConsultantsListAsync();
+
+                if (!IsSuperAdmin())
+                {
+                    var currentUserId = GetCurrentUserId();
+                    var directSubordinateIds = (await _context.Users
+                        .Where(u => u.ParentUserId == currentUserId && u.IsActive)
+                        .Select(u => u.Id)
+                        .ToListAsync())
+                        .ToHashSet();
+
+                    var scopedConsultants = response.Consultants
+                        .Where(c => c.UserId == currentUserId || directSubordinateIds.Contains(c.UserId))
+                        .ToList();
+
+                    response = new CareerPlanConsultantsListResponse
+                    {
+                        Consultants = scopedConsultants,
+                        TotalCount = scopedConsultants.Count,
+                        LastCalculatedAt = response.LastCalculatedAt
+                    };
+                }
+
                 return Ok(new ApiResponse<CareerPlanConsultantsListResponse>
                 {
                     Success = true,
@@ -175,7 +250,7 @@ namespace SalesApp.Controllers
 
         /// <summary>
         /// Triggers asynchronous/manual recalculation of career plan consultant snapshots in DynamoDB.
-        /// Available strictly to SuperAdmins.
+        /// Available to SuperAdmins and Admins.
         /// </summary>
         [HttpPost("consultants/recalculate")]
         public async Task<ActionResult<ApiResponse<RecalculateCareerPlanResponse>>> RecalculateConsultants()

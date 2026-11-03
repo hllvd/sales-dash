@@ -36,14 +36,30 @@ namespace SalesApp.IntegrationTests.CareerPlan
         }
 
         [Fact]
-        public async Task GetConfig_AsAdmin_ReturnsForbidden()
+        public async Task GetConfig_AsUser_ReturnsForbidden()
+        {
+            var token = await GetUserToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await clientWithToken.GetAsync("/api/career-plan/config");
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        [Fact]
+        public async Task GetConfig_AsAdmin_ReturnsConfigSummary()
         {
             var token = await GetAdminToken();
             var clientWithToken = _factory.CreateClient();
             clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             var response = await clientWithToken.GetAsync("/api/career-plan/config");
-            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<CareerPlanConfigResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
         }
 
         [Fact]
@@ -352,6 +368,193 @@ namespace SalesApp.IntegrationTests.CareerPlan
             result.Data.Should().NotBeNull();
             result.Data!.Success.Should().BeTrue();
             result.Data.ProcessedCount.Should().BeGreaterThanOrEqualTo(0);
+        }
+
+        [Fact]
+        public async Task EvaluateUser_AsAdmin_CanEvaluateSelf()
+        {
+            var token = await GetAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Guid adminId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var admin = await db.Users.FirstAsync(u => u.Email == "admin@test.com");
+                adminId = admin.Id;
+            }
+
+            var response = await clientWithToken.GetAsync($"/api/career-plan/users/{adminId}");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data!.UserEmail.Should().Be("admin@test.com");
+        }
+
+        [Fact]
+        public async Task EvaluateUser_AsAdmin_CanEvaluateDirectSubordinate()
+        {
+            var token = await GetAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Guid childUserId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var admin = await db.Users.FirstAsync(u => u.Email == "admin@test.com");
+                var child = await db.Users.FirstOrDefaultAsync(u => u.Email == "admin_child@test.com");
+                if (child == null)
+                {
+                    child = new User
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Admin Child",
+                        Email = "admin_child@test.com",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("user123"),
+                        RoleId = 3,
+                        ParentUserId = admin.Id,
+                        IsActive = true
+                    };
+                    db.Users.Add(child);
+                    await db.SaveChangesAsync();
+                }
+                childUserId = child.Id;
+            }
+
+            var response = await clientWithToken.GetAsync($"/api/career-plan/users/{childUserId}");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data!.UserEmail.Should().Be("admin_child@test.com");
+        }
+
+        [Fact]
+        public async Task EvaluateUser_AsAdmin_CannotEvaluateNonSubordinate_ReturnsForbidden()
+        {
+            var token = await GetAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Guid otherUserId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superadmin = await db.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+                var other = await db.Users.FirstOrDefaultAsync(u => u.Email == "other_user_non_subordinate@test.com");
+                if (other == null)
+                {
+                    other = new User
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Other User",
+                        Email = "other_user_non_subordinate@test.com",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("user123"),
+                        RoleId = 3,
+                        ParentUserId = superadmin.Id,
+                        IsActive = true
+                    };
+                    db.Users.Add(other);
+                    await db.SaveChangesAsync();
+                }
+                otherUserId = other.Id;
+            }
+
+            var response = await clientWithToken.GetAsync($"/api/career-plan/users/{otherUserId}");
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        [Fact]
+        public async Task GetContractsRt_AsAdmin_CannotAccessNonSubordinate_ReturnsForbidden()
+        {
+            var token = await GetAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Guid otherUserId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var superadmin = await db.Users.FirstAsync(u => u.Email == "superadmin@test.com");
+                var other = await db.Users.FirstOrDefaultAsync(u => u.Email == "other_user_non_subordinate@test.com");
+                if (other == null)
+                {
+                    other = new User
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Other User",
+                        Email = "other_user_non_subordinate@test.com",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("user123"),
+                        RoleId = 3,
+                        ParentUserId = superadmin.Id,
+                        IsActive = true
+                    };
+                    db.Users.Add(other);
+                    await db.SaveChangesAsync();
+                }
+                otherUserId = other.Id;
+            }
+
+            var response = await clientWithToken.GetAsync($"/api/career-plan/users/{otherUserId}/contracts-rt");
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+
+        [Fact]
+        public async Task GetConsultantsList_AsAdmin_ReturnsOnlySelfAndDirectSubordinates()
+        {
+            var token = await GetAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            Guid adminId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var admin = await db.Users.FirstAsync(u => u.Email == "admin@test.com");
+                adminId = admin.Id;
+            }
+
+            var response = await clientWithToken.GetAsync("/api/career-plan/consultants");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<CareerPlanConsultantsListResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+
+            // Every consultant returned MUST be either the admin or a direct subordinate
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var directSubordinateIds = (await db.Users
+                    .Where(u => u.ParentUserId == adminId && u.IsActive)
+                    .Select(u => u.Id)
+                    .ToListAsync())
+                    .ToHashSet();
+
+                foreach (var c in result.Data!.Consultants)
+                {
+                    (c.UserId == adminId || directSubordinateIds.Contains(c.UserId)).Should().BeTrue();
+                }
+            }
+        }
+
+        private async Task<string> GetUserToken()
+        {
+            var loginRequest = new LoginRequest
+            {
+                Email = "user@test.com",
+                Password = "user123"
+            };
+
+            var client = _factory.CreateClient();
+            var response = await client.PostAsJsonAsync("/api/users/login", loginRequest);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+            return result?.Data?.Token ?? throw new Exception("Failed to get user token");
         }
 
         private async Task<string> GetSuperAdminToken()

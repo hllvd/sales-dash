@@ -632,5 +632,10 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Feature:** Decoupled master superadmin authentication (`superadmin@salesapp.com`) from SQLite database password hash. The password is now validated authoritatively from `SUPERADMIN_PASSWORD` (.env / environment variable), with fallback to `"string"` in local/testing environments. Protected against unintended password resets via public `forgot-password` endpoint and blocked manual UI password changes for superadmin.
 **Result:** ✅ Green (Integration tests: 378/378 PASSED, E2E Run: 196/196 PASSED)
 
+## [2026-11-03] career-plan — Acesso do Admin ao Plano de Carreira (1º Nível)
+**Feature:** Replaced "Meu Plano de Carreira" for Admin with "Plano de Carreira" (Performance do Consultor & Lista de consultores) scoped strictly to 1st-level subordinates (`ParentUserId == admin.Id`) + Admin himself. Admin is pre-selected by default in `#/career-plan`. "Meu Plano de Carreira" remains exclusive to `user` role.
+**Result:** ✅ Green (Integration tests: 383/383 PASSED, E2E Run: 196/196 PASSED)
+
+
 
 

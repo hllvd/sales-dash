@@ -3027,6 +3027,34 @@ Em ambientes de produção com banco SQLite persistente (`SalesApp.db`), ações
 - `.env` — Adição da chave `SUPERADMIN_PASSWORD=string`.
 - `SalesApp.IntegrationTests/Users/SuperAdminPasswordEnvTests.cs` — Suíte de testes de integração cobrindo login com hash divergente, bloqueio com senha errada, proteção em forgot-password e bloqueio em rotas de alteração de senha.
 
+## [2026-11-03] — Acesso do Admin ao Plano de Carreira (1º Nível) e Exclusividade de "Meu Plano de Carreira" para Usuário
+
+### Contexto & Motivação
+Anteriormente, administradores (`admin`) visualizavam apenas o item "Meu Plano de Carreira" e o grupo "Plano de Carreira" era restrito exclusivamente ao `superadmin`. Para permitir que os administradores acompanhem a performance de si próprios e de sua equipe direta de consultores, o acesso ao "Plano de Carreira" foi estendido ao perfil `admin` com escopo estrito de primeiro nível (`ParentUserId == admin.Id` + o próprio Admin), enquanto o item "Meu Plano de Carreira" passou a ser exclusivo para o perfil comum de usuário (`user`).
+
+### Funcionalidades & Arquitetura
+1. **Regras de Visibilidade no Menu Lateral (`Menu.tsx`)**:
+   - **`superadmin`**: Vê o grupo expansível *"Plano de Carreira"* (Performance do Consultor e Lista de consultores) com escopo global/irrestrito. Não vê *"Meu Plano de Carreira"*.
+   - **`admin`**: Vê o grupo expansível *"Plano de Carreira"* (Performance do Consultor e Lista de consultores). Não vê *"Meu Plano de Carreira"*.
+   - **`user`**: Vê exclusivamente o item *"Meu Plano de Carreira"*. Não vê o grupo *"Plano de Carreira"*.
+2. **Escopo Hierárquico de 1º Nível no Backend (`CareerPlanController.cs`)**:
+   - Controller anotada com `[Authorize(Roles = "SuperAdmin,superadmin,Admin,admin")]`.
+   - Método auxiliar de autorização valida se o chamador é `SuperAdmin` (acesso irrestrito) ou se o `targetUserId` corresponde ao próprio Admin autenticado ou a um subordinado direto (`ParentUserId == currentUserId`).
+   - `GET /api/career-plan/users/{userId}` e `GET /api/career-plan/users/{userId}/contracts-rt`: Retornam `403 Forbidden` se o Admin tentar acessar usuários fora do seu 1º nível.
+   - `GET /api/career-plan/consultants`: Para Admins, filtra a listagem para conter estritamente o próprio Admin e seus consultores diretos de 1º nível ativos.
+   - `POST /api/career-plan/consultants/recalculate`: Autorizado para Admins e SuperAdmins.
+3. **Comportamento na Interface do Usuário**:
+   - Em `CareerPlanPage.tsx`, Admins têm a si próprios pré-selecionados por padrão ao entrar na tela sem parâmetro na URL (`#/career-plan?userId={adminId}`), e o dropdown de seleção contém apenas o Admin e seus consultores diretos de 1º nível.
+   - Em `CareerPlanConsultantsPage.tsx`, a tabela exibe a equipe direta do Admin com todos os filtros e ordenações funcionando perfeitamente.
+
+### Arquivos Modificados
+- `SalesApp.Api/Controllers/CareerPlanController.cs` — Autorização para Admin, validação de escopo hierárquico de 1º nível e filtragem de consultores.
+- `client/sales-dash/src/components/Menu.tsx` — Reestruturação de visibilidade do menu por perfil.
+- `client/sales-dash/src/components/CareerPlanPage.tsx` — Suporte a Admin, filtragem de usuários no select e pré-seleção automática do próprio Admin.
+- `SalesApp.IntegrationTests/CareerPlan/CareerPlanControllerTests.cs` — Testes de integração cobrindo acesso, restrição 403 fora de escopo e listagem filtrada para Admin.
+- `client/e2e-test/e2e/my_career_plan.spec.ts` — Testes E2E validando a visibilidade de menu e navegação para Admin, Superadmin e User.
+
+
 
 
 

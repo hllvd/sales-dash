@@ -455,7 +455,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             />
           )}
 
-          {(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')) && (
+          {(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || userRole === 'admin' || userRole === UserRole.ADMIN || hasPermission('system:superadmin')) && (
             <NavLink
               label="Plano de Carreira"
               leftSection={<IconTrophy size={20} />}
@@ -487,7 +487,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             </NavLink>
           )}
 
-          {!(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')) && (
+          {(userRole === 'user' || userRole === UserRole.USER) && (
             <NavLink
               href="#/my-career-plan"
               label="Meu Plano de Carreira"
