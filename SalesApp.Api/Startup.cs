@@ -192,8 +192,9 @@ namespace SalesApp
             services.AddHttpClient<SalesApp.Helpdesk.Services.IGeminiLlmService, SalesApp.Helpdesk.Services.GeminiLlmService>();
             services.AddScoped<SalesApp.Helpdesk.Services.IHelpdeskService, SalesApp.Helpdesk.Services.HelpdeskService>();
 
-            // Career Plan snapshot repository (DynamoDB with in-memory fallback)
+            // Career Plan snapshot and evaluation cache repositories (DynamoDB with in-memory fallback)
             services.AddSingleton<SalesApp.CareerPlan.Repositories.ICareerPlanSnapshotRepository, SalesApp.CareerPlan.Repositories.DynamoDbCareerPlanSnapshotRepository>();
+            services.AddSingleton<SalesApp.CareerPlan.Repositories.ICareerPlanEvaluationCacheRepository, SalesApp.CareerPlan.Repositories.DynamoDbCareerPlanEvaluationCacheRepository>();
 
             // Scraping and Error Services
             services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();

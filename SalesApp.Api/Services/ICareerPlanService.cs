@@ -11,5 +11,6 @@ namespace SalesApp.Services
         Task<ContractRtPageDto> GetContractRtTrackingAsync(Guid userId, int page = 1, int pageSize = 100, DateTime? asOfDate = null);
         Task<CareerPlanConsultantsListResponse> GetConsultantsListAsync(bool autoCalculateIfEmpty = true);
         Task<RecalculateCareerPlanResponse> RecalculateAllConsultantsSnapshotsAsync();
+        Task<MyCareerPlanResponse> GetMyCareerPlanAsync(Guid userId, bool forceRefresh = false);
     }
 }

@@ -487,6 +487,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
             </NavLink>
           )}
 
+          {!(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')) && (
+            <NavLink
+              href="#/my-career-plan"
+              label="Meu Plano de Carreira"
+              leftSection={<IconTrophy size={20} />}
+              active={isActive('#/my-career-plan')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/my-career-plan')}
+              onClick={() => { if (opened) close(); }}
+            />
+          )}
+
           {userRole === 'superadmin' && (
             <NavLink
               href="#/user-metadata-fields"

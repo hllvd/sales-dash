@@ -112,6 +112,12 @@ export interface RecalculateCareerPlanResponse {
   calculatedAt: string
 }
 
+export interface MyCareerPlanResponse {
+  evaluation: CareerPlanEvaluation
+  calculatedAt: string
+  fromCache: boolean
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data?: T
@@ -211,6 +217,69 @@ export const careerPlanService = {
     }
 
     const result: ApiResponse<RecalculateCareerPlanResponse> = await response.json()
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Dados inválidos retornados pela API.')
+    }
+
+    return result.data
+  },
+
+  async getMyCareerPlan(forceRefresh = false): Promise<MyCareerPlanResponse> {
+    const url = `${API_BASE_URL}/career-plan/me${forceRefresh ? '?forceRefresh=true' : ''}`
+    const response = await authenticatedFetch(url, {
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || 'Falha ao carregar seu plano de carreira.')
+    }
+
+    const result: ApiResponse<MyCareerPlanResponse> = await response.json()
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Dados inválidos retornados pela API.')
+    }
+
+    return result.data
+  },
+
+  async refreshMyCareerPlan(): Promise<MyCareerPlanResponse> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/career-plan/me/refresh`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || 'Falha ao recalcular seu plano de carreira.')
+    }
+
+    const result: ApiResponse<MyCareerPlanResponse> = await response.json()
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Dados inválidos retornados pela API.')
+    }
+
+    return result.data
+  },
+
+  async getMyContractRtTracking(page = 1, pageSize = 100, asOfDate?: string): Promise<ContractRtPage> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    })
+    if (asOfDate) {
+      params.append('asOfDate', asOfDate)
+    }
+    const response = await authenticatedFetch(`${API_BASE_URL}/career-plan/me/contracts-rt?${params.toString()}`, {
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || 'Falha ao obter acompanhamento de RT dos contratos.')
+    }
+
+    const result: ApiResponse<ContractRtPage> = await response.json()
     if (!result.success || !result.data) {
       throw new Error(result.message || 'Dados inválidos retornados pela API.')
     }

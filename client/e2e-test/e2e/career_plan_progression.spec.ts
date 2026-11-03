@@ -316,10 +316,16 @@ test.describe('Career Plan Progression E2E Tests', () => {
 
     // Uncheck to see all consultants
     await prodCheck.uncheck();
+    await expect(prodCheck).not.toBeChecked();
     await retCheck.uncheck();
+    await expect(retCheck).not.toBeChecked();
 
-    // 9. Test "Ver mais" navigation directly selecting user in Career Plan page
-    const verMaisBtn = page.getByRole('button', { name: 'Ver mais' }).first();
+    // 9. Search for Alef user to ensure row is visible regardless of total count / pagination
+    const searchInput = page.getByPlaceholder('Nome ou e-mail...');
+    await searchInput.fill(userNameAlef);
+
+    // 10. Test "Ver mais" navigation directly selecting user in Career Plan page
+    const verMaisBtn = page.locator('tr', { hasText: userNameAlef }).getByRole('button', { name: 'Ver mais' });
     await expect(verMaisBtn).toBeVisible({ timeout: 10000 });
     await verMaisBtn.click();
 

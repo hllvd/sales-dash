@@ -122,6 +122,7 @@ export default defineConfig({
         'admin_create_user_gestor_defaults.spec.ts',
         'surveys_qa.spec.ts',
         'career_plan_progression.spec.ts',
+        'my_career_plan.spec.ts',
         'helpdesk_faq_flow.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },

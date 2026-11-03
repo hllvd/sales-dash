@@ -19,6 +19,7 @@ namespace SalesApp.Services
         private readonly IClassificationLevelRepository _classificationLevelRepo;
         private readonly ICareerPlanConfigProvider _configProvider;
         private readonly ICareerPlanSnapshotRepository _snapshotRepository;
+        private readonly ICareerPlanEvaluationCacheRepository _evaluationCacheRepository;
         private readonly ILogger<CareerPlanService> _logger;
 
         public CareerPlanService(
@@ -26,12 +27,14 @@ namespace SalesApp.Services
             IClassificationLevelRepository classificationLevelRepo,
             ICareerPlanConfigProvider configProvider,
             ICareerPlanSnapshotRepository snapshotRepository,
+            ICareerPlanEvaluationCacheRepository evaluationCacheRepository,
             ILogger<CareerPlanService> logger)
         {
             _context = context;
             _classificationLevelRepo = classificationLevelRepo;
             _configProvider = configProvider;
             _snapshotRepository = snapshotRepository;
+            _evaluationCacheRepository = evaluationCacheRepository;
             _logger = logger;
         }
 
@@ -266,24 +269,41 @@ namespace SalesApp.Services
             var existing = await _snapshotRepository.GetLatestSnapshotsAsync();
             if (existing != null && existing.Count > 0)
             {
-                var maxCalculatedAt = existing.Max(e => (DateTime?)e.CalculatedAt);
-                return new CareerPlanConsultantsListResponse
+                var activeUserIds = (await _context.Users
+                    .Where(u => u.IsActive)
+                    .Select(u => u.Id)
+                    .ToListAsync())
+                    .ToHashSet();
+
+                var validSnapshots = existing.Where(s => activeUserIds.Contains(s.UserId)).ToList();
+                if (validSnapshots.Count > 0)
                 {
-                    Consultants = existing.OrderBy(c => c.UserName).ToList(),
-                    TotalCount = existing.Count,
-                    LastCalculatedAt = maxCalculatedAt
-                };
+                    var maxCalculatedAt = validSnapshots.Max(e => (DateTime?)e.CalculatedAt);
+                    return new CareerPlanConsultantsListResponse
+                    {
+                        Consultants = validSnapshots.OrderBy(c => c.UserName).ToList(),
+                        TotalCount = validSnapshots.Count,
+                        LastCalculatedAt = maxCalculatedAt
+                    };
+                }
             }
 
             if (autoCalculateIfEmpty)
             {
                 var result = await RecalculateAllConsultantsSnapshotsAsync();
                 var fresh = await _snapshotRepository.GetLatestSnapshotsAsync();
+                var activeUserIds = (await _context.Users
+                    .Where(u => u.IsActive)
+                    .Select(u => u.Id)
+                    .ToListAsync())
+                    .ToHashSet();
+                var validFresh = fresh.Where(s => activeUserIds.Contains(s.UserId)).ToList();
+
                 return new CareerPlanConsultantsListResponse
                 {
-                    Consultants = fresh.OrderBy(c => c.UserName).ToList(),
-                    TotalCount = fresh.Count,
-                    LastCalculatedAt = result.CalculatedAt
+                    Consultants = validFresh.OrderBy(c => c.UserName).ToList(),
+                    TotalCount = validFresh.Count,
+                    LastCalculatedAt = validFresh.Count > 0 ? validFresh.Max(e => (DateTime?)e.CalculatedAt) : result.CalculatedAt
                 };
             }
 
@@ -379,6 +399,43 @@ namespace SalesApp.Services
                 Success = true,
                 ProcessedCount = snapshots.Count,
                 CalculatedAt = calculatedAt
+            };
+        }
+
+        public async Task<MyCareerPlanResponse> GetMyCareerPlanAsync(Guid userId, bool forceRefresh = false)
+        {
+            if (!forceRefresh)
+            {
+                var cached = await _evaluationCacheRepository.GetAsync(userId);
+                if (cached != null)
+                {
+                    return new MyCareerPlanResponse
+                    {
+                        Evaluation = cached.Evaluation,
+                        CalculatedAt = cached.CalculatedAt,
+                        FromCache = true
+                    };
+                }
+            }
+
+            var evaluation = await EvaluateUserCareerPlanAsync(userId);
+            var now = DateTime.UtcNow;
+
+            var cacheEntry = new CachedCareerPlanEvaluationDto
+            {
+                UserId = userId,
+                Evaluation = evaluation,
+                CalculatedAt = now,
+                Ttl = DynamoDbCareerPlanEvaluationCacheRepository.ComputeTtlEpoch(now)
+            };
+
+            await _evaluationCacheRepository.SaveAsync(cacheEntry);
+
+            return new MyCareerPlanResponse
+            {
+                Evaluation = evaluation,
+                CalculatedAt = now,
+                FromCache = false
             };
         }
 

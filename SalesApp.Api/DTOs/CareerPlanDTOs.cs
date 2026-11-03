@@ -118,5 +118,20 @@ namespace SalesApp.DTOs
         public int ProcessedCount { get; set; }
         public DateTime CalculatedAt { get; set; }
     }
+
+    public class MyCareerPlanResponse
+    {
+        public CareerPlanEvaluationResponse Evaluation { get; set; } = null!;
+        public DateTime CalculatedAt { get; set; }
+        public bool FromCache { get; set; }
+    }
+
+    public class CachedCareerPlanEvaluationDto
+    {
+        public Guid UserId { get; set; }
+        public CareerPlanEvaluationResponse Evaluation { get; set; } = null!;
+        public DateTime CalculatedAt { get; set; }
+        public long Ttl { get; set; }
+    }
 }
 

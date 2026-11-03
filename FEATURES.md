@@ -1,3 +1,40 @@
+## Meu Plano de Carreira (Visão Pessoal para Roles User e Admin)
+
+Item de menu de primeiro nível **Meu Plano de Carreira** (`#/my-career-plan`) visível exclusivamente para usuários com as roles `user` e `admin` (oculto para `superadmin`), permitindo que cada consultor visualize seu próprio plano de carreira de forma otimizada via cache no DynamoDB (`salesapp-data-cache` / `dev-salesapp-data-cache`), com recálculo sob demanda e lazy load do Acompanhamento de Contratos (RT1 a RT6).
+
+### Comportamento e Regras
+- **Acesso e Escopo Pessoal**:
+  - Exibido apenas para roles `user` e `admin`. Não é exibido para `superadmin` (que possui acesso gerencial irrestrito à Performance do Consultor e Lista de Consultores).
+  - O usuário autenticado visualiza unicamente o seu próprio plano de carreira. O identificador do usuário é extraído de forma estrita e segura da claim `NameIdentifier` do token JWT emitido.
+- **Cache de Avaliação Completa no DynamoDB**:
+  - Dados salvos na tabela genérica `salesapp-data-cache` (ou `dev-salesapp-data-cache` em desenvolvimento) com chave `PK = CAREER_EVALUATION#USER#{userId}` e `SK = LATEST`.
+  - Atributo nativo `TTL` de 60 dias (2 meses).
+  - Ao acessar a tela, se houver snapshot em cache válido, é servido instantaneamente. Se não houver (cache ausente/expirado ou níveis Guimel+), a API avalia sob demanda na hora, armazena no cache e retorna.
+  - Botão **Atualizar** dispara recálculo forçado via `POST /api/career-plan/me/refresh`, atualizando o cache e exibindo os novos valores.
+- **Lazy Load de Contratos RT1 a RT6**:
+  - O bloco de **Acompanhamento de Contratos (RT1 a RT6 e RT Atual)** é renderizado automaticamente logo após o carregamento da avaliação, realizando sua própria chamada assíncrona ao endpoint `GET /api/career-plan/me/contracts-rt` com paginação independente.
+- **Segurança e Isolamento**:
+  - Endpoints dedicados em `MyCareerPlanController` (`/api/career-plan/me`), sem parâmetros de identificação arbitrária de usuário, garantindo isolamento total entre usuários.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/CareerPlan/Repositories/ICareerPlanEvaluationCacheRepository.cs`
+- `SalesApp.Api/CareerPlan/Repositories/DynamoDbCareerPlanEvaluationCacheRepository.cs`
+- `SalesApp.Api/Controllers/MyCareerPlanController.cs`
+- `SalesApp.Api/DTOs/CareerPlanDTOs.cs`
+- `SalesApp.Api/Services/ICareerPlanService.cs`
+- `SalesApp.Api/Services/CareerPlanService.cs`
+- `SalesApp.Api/Startup.cs`
+- `SalesApp.IntegrationTests/TestStartup.cs`
+- `SalesApp.IntegrationTests/CareerPlan/MyCareerPlanControllerTests.cs`
+- `client/sales-dash/src/services/careerPlanService.ts`
+- `client/sales-dash/src/components/CareerPlanEvaluationView.tsx`
+- `client/sales-dash/src/components/ContractRtTable.tsx`
+- `client/sales-dash/src/components/MyCareerPlanPage.tsx`
+- `client/sales-dash/src/components/CareerPlanPage.tsx`
+- `client/sales-dash/src/components/Menu.tsx`
+- `client/sales-dash/src/App.tsx`
+- `client/e2e-test/e2e/my_career_plan.spec.ts`
+
 ## Lista de Consultores e Performance do Consultor no Plano de Carreira
 
 Reestruturação da navegação do Plano de Carreira em subitens de menu e criação da tela consolidada **Lista de consultores** com pré-cálculo e persistência em DynamoDB com TTL de 2 meses.

@@ -620,3 +620,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 **Feature:** Subdivided "Plano de Carreira" menu into "Performance do Consultor" (`#/career-plan`) and "Lista de consultores" (`#/career-plan/consultants`). Built precalculated snapshots view for active consultants (Sem Classificação, Alef, Beth) stored in DynamoDB with 60-day TTL and in-memory fallback, including asynchronous manual recalculation.
 **Result:** ✅ Green (Integration tests: 366/366 PASSED, E2E Run 1: 193/193 PASSED)
 
+## [2026-11-03] career-plan — Meu Plano de Carreira & Cache Filters
+**Feature:** Added "Meu Plano de Carreira" first-level menu (`#/my-career-plan`) for `user` and `admin` roles (hidden from `superadmin`), loading cached evaluations from DynamoDB (`salesapp-data-cache` / `dev-salesapp-data-cache`) with 60-day TTL, manual refresh ("Atualizar"), and lazy-loaded RT contract tracking. Added filters "Meta de produção atingida (≥ 100%)" and "Retenção qualificada (≥ 79%)" in "Lista de consultores".
+**Fixes Applied:**
+1. Sanitized `GetConsultantsListAsync` to verify user existence against current active SQLite users, pruning stale cached snapshots from prior database resets.
+2. In `career_plan_progression.spec.ts`, added explicit search query for `userNameAlef` before clicking "Ver mais" to handle multi-page lists deterministically.
+3. In `my_career_plan.spec.ts`, fixed user registration endpoint to `/api/users/register`, ensured non-numeric username generation to pass `ValidUserNameAttribute`, and aligned role visibility locators.
+**Result:** ✅ Green (Integration tests: 373/373 PASSED, E2E Run: 196/196 PASSED)
+
+

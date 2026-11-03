@@ -11,7 +11,8 @@ import {
 } from '../services/careerPlanService'
 
 interface ContractRtTableProps {
-  userId: string
+  userId?: string
+  isMe?: boolean
   asOfDate?: string
 }
 
@@ -122,25 +123,27 @@ const SignalCircle: React.FC<{
   )
 }
 
-export const ContractRtTable: React.FC<ContractRtTableProps> = ({ userId, asOfDate }) => {
+export const ContractRtTable: React.FC<ContractRtTableProps> = ({ userId, isMe = false, asOfDate }) => {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [pageData, setPageData] = useState<ContractRtPage | null>(null)
   const [page, setPage] = useState<number>(1)
 
   const fetchData = useCallback(async (targetPage: number) => {
-    if (!userId) return
+    if (!isMe && !userId) return
     setLoading(true)
     setError(null)
     try {
-      const data = await careerPlanService.getContractRtTracking(userId, targetPage, 100, asOfDate)
+      const data = isMe
+        ? await careerPlanService.getMyContractRtTracking(targetPage, 100, asOfDate)
+        : await careerPlanService.getContractRtTracking(userId!, targetPage, 100, asOfDate)
       setPageData(data)
     } catch (err: any) {
       setError(err?.message || 'Erro ao carregar o acompanhamento de RT dos contratos.')
     } finally {
       setLoading(false)
     }
-  }, [userId, asOfDate])
+  }, [userId, isMe, asOfDate])
 
   // Reset page to 1 when user or asOfDate changes
   useEffect(() => {

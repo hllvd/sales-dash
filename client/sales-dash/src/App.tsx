@@ -14,6 +14,7 @@ import StoresPage from './components/StoresPage';
 import ClassificationsPage from './components/ClassificationsPage';
 import CareerPlanPage from './components/CareerPlanPage';
 import { CareerPlanConsultantsPage } from './components/CareerPlanConsultantsPage';
+import MyCareerPlanPage from './components/MyCareerPlanPage';
 import MyProfilePage from './components/MyProfilePage';
 import ImportHistoryPage from './components/ImportHistoryPage';
 import ImportWizardPage from './components/ImportWizardPage';
@@ -168,6 +169,8 @@ function App() {
         return <CareerPlanPage />;
       case '#/career-plan/consultants':
         return <CareerPlanConsultantsPage />;
+      case '#/my-career-plan':
+        return <MyCareerPlanPage />;
       case '#/my-profile':
         return <MyProfilePage />;
       case '#/import-history':
