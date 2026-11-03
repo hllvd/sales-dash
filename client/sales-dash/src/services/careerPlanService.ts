@@ -86,6 +86,32 @@ export interface ContractRtPage {
   items: ContractRtRow[]
 }
 
+export interface CareerPlanConsultantSnapshot {
+  userId: string
+  userName: string
+  userEmail: string
+  currentLevelName: string
+  targetLevelName: string
+  salesGoal: number | null
+  retentionTarget: number | null
+  activeProduction12m: number
+  productionProgressPct: number
+  strictRetention15m: number
+  calculatedAt: string
+}
+
+export interface CareerPlanConsultantsListResponse {
+  consultants: CareerPlanConsultantSnapshot[]
+  totalCount: number
+  lastCalculatedAt: string | null
+}
+
+export interface RecalculateCareerPlanResponse {
+  success: boolean
+  processedCount: number
+  calculatedAt: string
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data?: T
@@ -148,6 +174,43 @@ export const careerPlanService = {
     }
 
     const result: ApiResponse<ContractRtPage> = await response.json()
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Dados inválidos retornados pela API.')
+    }
+
+    return result.data
+  },
+
+  async getConsultantsList(): Promise<CareerPlanConsultantsListResponse> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/career-plan/consultants`, {
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || 'Falha ao obter lista de consultores do plano de carreira.')
+    }
+
+    const result: ApiResponse<CareerPlanConsultantsListResponse> = await response.json()
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Dados inválidos retornados pela API.')
+    }
+
+    return result.data
+  },
+
+  async recalculateConsultants(): Promise<RecalculateCareerPlanResponse> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/career-plan/consultants/recalculate`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || 'Falha ao recalcular lista de consultores.')
+    }
+
+    const result: ApiResponse<RecalculateCareerPlanResponse> = await response.json()
     if (!result.success || !result.data) {
       throw new Error(result.message || 'Dados inválidos retornados pela API.')
     }

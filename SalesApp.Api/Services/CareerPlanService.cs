@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SalesApp.CareerPlan;
+using SalesApp.CareerPlan.Repositories;
 using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
@@ -17,17 +18,20 @@ namespace SalesApp.Services
         private readonly AppDbContext _context;
         private readonly IClassificationLevelRepository _classificationLevelRepo;
         private readonly ICareerPlanConfigProvider _configProvider;
+        private readonly ICareerPlanSnapshotRepository _snapshotRepository;
         private readonly ILogger<CareerPlanService> _logger;
 
         public CareerPlanService(
             AppDbContext context,
             IClassificationLevelRepository classificationLevelRepo,
             ICareerPlanConfigProvider configProvider,
+            ICareerPlanSnapshotRepository snapshotRepository,
             ILogger<CareerPlanService> logger)
         {
             _context = context;
             _classificationLevelRepo = classificationLevelRepo;
             _configProvider = configProvider;
+            _snapshotRepository = snapshotRepository;
             _logger = logger;
         }
 
@@ -254,6 +258,127 @@ namespace SalesApp.Services
                 TotalCount = totalCount,
                 TotalPages = totalPages,
                 Items = paged
+            };
+        }
+
+        public async Task<CareerPlanConsultantsListResponse> GetConsultantsListAsync(bool autoCalculateIfEmpty = true)
+        {
+            var existing = await _snapshotRepository.GetLatestSnapshotsAsync();
+            if (existing != null && existing.Count > 0)
+            {
+                var maxCalculatedAt = existing.Max(e => (DateTime?)e.CalculatedAt);
+                return new CareerPlanConsultantsListResponse
+                {
+                    Consultants = existing.OrderBy(c => c.UserName).ToList(),
+                    TotalCount = existing.Count,
+                    LastCalculatedAt = maxCalculatedAt
+                };
+            }
+
+            if (autoCalculateIfEmpty)
+            {
+                var result = await RecalculateAllConsultantsSnapshotsAsync();
+                var fresh = await _snapshotRepository.GetLatestSnapshotsAsync();
+                return new CareerPlanConsultantsListResponse
+                {
+                    Consultants = fresh.OrderBy(c => c.UserName).ToList(),
+                    TotalCount = fresh.Count,
+                    LastCalculatedAt = result.CalculatedAt
+                };
+            }
+
+            return new CareerPlanConsultantsListResponse
+            {
+                Consultants = new List<CareerPlanConsultantSnapshotDto>(),
+                TotalCount = 0,
+                LastCalculatedAt = null
+            };
+        }
+
+        public async Task<RecalculateCareerPlanResponse> RecalculateAllConsultantsSnapshotsAsync()
+        {
+            var calculatedAt = DateTime.UtcNow;
+            _logger.LogInformation("Starting career plan consultants snapshot calculation at {Time}", calculatedAt);
+
+            // 1. Load active users
+            var activeUsers = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.IsActive)
+                .OrderBy(u => u.Name)
+                .ToListAsync();
+
+            // 2. Load all active classifications
+            var activeClassifications = await _context.UserClassifications
+                .AsNoTracking()
+                .Include(uc => uc.Level)
+                .Where(uc => uc.EndDate == null || uc.EndDate > calculatedAt)
+                .ToListAsync();
+
+            var classificationByUserInternalId = activeClassifications
+                .GroupBy(uc => uc.UserInternalId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.StartDate).First().Level);
+
+            var allLevels = await _classificationLevelRepo.GetAllAsync();
+
+            var snapshots = new List<CareerPlanConsultantSnapshotDto>();
+
+            foreach (var user in activeUsers)
+            {
+                classificationByUserInternalId.TryGetValue(user.InternalId, out var currentLevel);
+                string currentLevelName = currentLevel?.Name ?? string.Empty;
+
+                // User filter: Sem classificação (null/empty), Alef, or Beth
+                bool isEligibleLevel = string.IsNullOrWhiteSpace(currentLevelName)
+                                       || string.Equals(currentLevelName, "Alef", StringComparison.OrdinalIgnoreCase)
+                                       || string.Equals(currentLevelName, "Beth", StringComparison.OrdinalIgnoreCase);
+
+                if (!isEligibleLevel)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var eval = await EvaluateUserCareerPlanAsync(user.Id, calculatedAt);
+
+                    decimal activeProd = eval.RawMetrics.ActiveProduction12mMinPaid2;
+                    decimal? salesGoal = eval.TargetLevel?.SalesGoal;
+                    decimal progressPct = 0m;
+                    if (salesGoal.HasValue && salesGoal.Value > 0)
+                    {
+                        progressPct = Math.Min(1m, Math.Max(0m, activeProd / salesGoal.Value));
+                    }
+
+                    snapshots.Add(new CareerPlanConsultantSnapshotDto
+                    {
+                        UserId = user.Id,
+                        UserName = user.Name ?? string.Empty,
+                        UserEmail = user.Email ?? string.Empty,
+                        CurrentLevelName = string.IsNullOrWhiteSpace(currentLevelName) ? "Sem Classificação" : currentLevelName,
+                        TargetLevelName = eval.TargetLevel?.Name ?? "N/A",
+                        SalesGoal = salesGoal,
+                        RetentionTarget = eval.TargetLevel?.Retention,
+                        ActiveProduction12m = activeProd,
+                        ProductionProgressPct = progressPct,
+                        StrictRetention15m = eval.RawMetrics.StrictRetention15m,
+                        CalculatedAt = calculatedAt
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to evaluate career plan snapshot for user {UserId} ({Email})", user.Id, user.Email);
+                }
+            }
+
+            await _snapshotRepository.SaveSnapshotsAsync(snapshots);
+
+            _logger.LogInformation("Completed career plan consultants snapshot calculation. Processed {Count} consultants.", snapshots.Count);
+
+            return new RecalculateCareerPlanResponse
+            {
+                Success = true,
+                ProcessedCount = snapshots.Count,
+                CalculatedAt = calculatedAt
             };
         }
 

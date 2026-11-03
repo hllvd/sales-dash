@@ -1,3 +1,45 @@
+## Lista de Consultores e Performance do Consultor no Plano de Carreira
+
+Reestruturação da navegação do Plano de Carreira em subitens de menu e criação da tela consolidada **Lista de consultores** com pré-cálculo e persistência em DynamoDB com TTL de 2 meses.
+
+### Comportamento e Regras
+- **Menu em Subitens**:
+  - O item **Plano de Carreira** no menu lateral expande-se em dois subitens acessíveis por SuperAdmins:
+    1. **Performance do Consultor** (`#/career-plan`): acompanhamento detalhado individual com busca por usuário, cards de nível atual e target, tabela de requisitos e acompanhamento RT1 a RT6.
+    2. **Lista de consultores** (`#/career-plan/consultants`): visão tabular consolidada de todos os consultores elegíveis (Sem Classificação, Alef e Beth).
+- **Escopo e Métricas da Tabela**:
+  - Inclui exclusivamente usuários ativos (`IsActive == true`) sem classificação (concorrendo a Alef) ou nos níveis Alef e Beth.
+  - Colunas: Consultor (Nome e E-mail), Classificação Atual, Target de Classificação (com meta em R$), Produção Atual dos últimos 12 meses com percentual de atingimento (`R$ X (Y%)`), Retenção Estrita dos últimos 15 meses e botão de atalho para abrir a Performance do Consultor.
+  - Filtros dinâmicos em tela por texto (nome/e-mail) e classificação atual.
+- **Persistência em DynamoDB com TTL**:
+  - Dados salvos na tabela `salesapp-career-plan-snapshots` com chave `PK = CAREER_SNAPSHOT#LATEST` e `SK = USER#{userId}`.
+  - Atributo nativo `TTL` com timestamp Unix Epoch configurado para 60 dias (2 meses).
+  - Botão **Recalcular agora** na tela para acionamento sob demanda via endpoint `POST /api/career-plan/consultants/recalculate`.
+  - Fallback automático e transparente em memória quando a tabela DynamoDB não estiver configurada no ambiente local/testes.
+- **Scripts de Configuração AWS**:
+  - Utilitário `scripts/aws-setup-career-plan-dynamo.sh` contendo comandos de criação da tabela DynamoDB, habilitação do TTL e IAM Policy.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/CareerPlan/Repositories/ICareerPlanSnapshotRepository.cs`
+- `SalesApp.Api/CareerPlan/Repositories/DynamoDbCareerPlanSnapshotRepository.cs`
+- `SalesApp.Api/Controllers/CareerPlanController.cs`
+- `SalesApp.Api/DTOs/CareerPlanDTOs.cs`
+- `SalesApp.Api/Services/ICareerPlanService.cs`
+- `SalesApp.Api/Services/CareerPlanService.cs`
+- `SalesApp.Api/ReportFilters/Settings/DynamoDbSettings.cs`
+- `SalesApp.Api/appsettings.json`
+- `SalesApp.Api/Startup.cs`
+- `SalesApp.IntegrationTests/CareerPlan/CareerPlanControllerTests.cs`
+- `client/sales-dash/src/components/CareerPlanConsultantsPage.tsx`
+- `client/sales-dash/src/components/Menu.tsx`
+- `client/sales-dash/src/services/careerPlanService.ts`
+- `client/sales-dash/src/App.tsx`
+- `client/e2e-test/e2e/career_plan_progression.spec.ts`
+- `scripts/aws-setup-career-plan-dynamo.sh`
+- `FEATURES.md`
+
+---
+
 ## Validador e Auditoria de Retenção do Plano de Carreira (`scripts/audit_career_plan.py`)
 
 Utilitário de linha de comando para auditoria e validação de conformidade matemática entre as planilhas modelo do Plano de Carreira (como `plano-de-carreira-samuel.xlsx`) e as regras implementadas no backend (`SalesApp.Api/CareerPlan`).

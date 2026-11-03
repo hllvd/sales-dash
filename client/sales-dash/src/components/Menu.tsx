@@ -63,6 +63,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     window.location.hash === '#/import-history' ||
     window.location.hash.startsWith('#/scrapes')
   );
+  const [careerPlanMenuOpened, setCareerPlanMenuOpened] = useState(
+    window.location.hash.startsWith('#/career-plan')
+  );
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [pendingSurveyCount, setPendingSurveyCount] = useState<number>(0);
   const [pendingHelpdeskCount, setPendingHelpdeskCount] = useState<number>(0);
@@ -110,6 +113,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     }
     if (currentPath === '#/import-wizard' || currentPath === '#/import-history' || currentPath.startsWith('#/scrapes')) {
       setImportacaoMenuOpened(true);
+    }
+    if (currentPath.startsWith('#/career-plan')) {
+      setCareerPlanMenuOpened(true);
     }
   }, [currentPath]);
 
@@ -451,15 +457,34 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
 
           {(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')) && (
             <NavLink
-              href="#/career-plan"
               label="Plano de Carreira"
               leftSection={<IconTrophy size={20} />}
-              active={isActive('#/career-plan')}
-              variant="filled"
-              color="red"
-              styles={navLinkStyles('#/career-plan')}
-              onClick={() => { if (opened) close(); }}
-            />
+              childrenOffset={28}
+              styles={navLinkStyles('')}
+              opened={careerPlanMenuOpened}
+              onChange={setCareerPlanMenuOpened}
+            >
+              <NavLink
+                href="#/career-plan"
+                label="Performance do Consultor"
+                leftSection={<IconTrophy size={16} />}
+                active={currentPath === '#/career-plan'}
+                variant="filled"
+                color="red"
+                styles={navLinkStyles('#/career-plan')}
+                onClick={() => { if (opened) close(); }}
+              />
+              <NavLink
+                href="#/career-plan/consultants"
+                label="Lista de consultores"
+                leftSection={<IconTrophy size={16} />}
+                active={currentPath === '#/career-plan/consultants'}
+                variant="filled"
+                color="red"
+                styles={navLinkStyles('#/career-plan/consultants')}
+                onClick={() => { if (opened) close(); }}
+              />
+            </NavLink>
           )}
 
           {userRole === 'superadmin' && (

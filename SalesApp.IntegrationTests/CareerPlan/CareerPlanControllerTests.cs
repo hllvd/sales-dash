@@ -319,6 +319,40 @@ namespace SalesApp.IntegrationTests.CareerPlan
             row1.Current.Should().Be("upToDate");
         }
 
+        [Fact]
+        public async Task GetConsultantsList_AsSuperAdmin_ReturnsConsultantsList()
+        {
+            var token = await GetSuperAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await clientWithToken.GetAsync("/api/career-plan/consultants");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<CareerPlanConsultantsListResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Consultants.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task RecalculateConsultants_AsSuperAdmin_RecalculatesSuccessfully()
+        {
+            var token = await GetSuperAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await clientWithToken.PostAsync("/api/career-plan/consultants/recalculate", null);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<RecalculateCareerPlanResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Success.Should().BeTrue();
+            result.Data.ProcessedCount.Should().BeGreaterThanOrEqualTo(0);
+        }
 
         private async Task<string> GetSuperAdminToken()
         {

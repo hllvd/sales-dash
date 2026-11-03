@@ -136,6 +136,7 @@ namespace SalesApp.IntegrationTests
 
             // Career Plan services
             services.AddSingleton<ICareerPlanConfigProvider, CareerPlanConfigProvider>();
+            services.AddSingleton<SalesApp.CareerPlan.Repositories.ICareerPlanSnapshotRepository, SalesApp.CareerPlan.Repositories.DynamoDbCareerPlanSnapshotRepository>();
             services.AddScoped<ICareerPlanService, CareerPlanService>();
 
             // Helpdesk (Private FAQ) feature

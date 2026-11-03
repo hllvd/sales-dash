@@ -89,5 +89,34 @@ namespace SalesApp.DTOs
         public int TotalPages { get; set; }
         public List<ContractRtRowDto> Items { get; set; } = new();
     }
+
+    public class CareerPlanConsultantSnapshotDto
+    {
+        public Guid UserId { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public string UserEmail { get; set; } = string.Empty;
+        public string CurrentLevelName { get; set; } = string.Empty;
+        public string TargetLevelName { get; set; } = string.Empty;
+        public decimal? SalesGoal { get; set; }
+        public int? RetentionTarget { get; set; }
+        public decimal ActiveProduction12m { get; set; }
+        public decimal ProductionProgressPct { get; set; }
+        public decimal StrictRetention15m { get; set; }
+        public DateTime CalculatedAt { get; set; }
+    }
+
+    public class CareerPlanConsultantsListResponse
+    {
+        public List<CareerPlanConsultantSnapshotDto> Consultants { get; set; } = new();
+        public int TotalCount { get; set; }
+        public DateTime? LastCalculatedAt { get; set; }
+    }
+
+    public class RecalculateCareerPlanResponse
+    {
+        public bool Success { get; set; }
+        public int ProcessedCount { get; set; }
+        public DateTime CalculatedAt { get; set; }
+    }
 }
 

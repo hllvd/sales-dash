@@ -145,5 +145,59 @@ namespace SalesApp.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Returns the pre-calculated career plan snapshot list of consultants (unclassified, Alef, Beth).
+        /// Available strictly to SuperAdmins.
+        /// </summary>
+        [HttpGet("consultants")]
+        public async Task<ActionResult<ApiResponse<CareerPlanConsultantsListResponse>>> GetConsultantsList()
+        {
+            try
+            {
+                var response = await _careerPlanService.GetConsultantsListAsync();
+                return Ok(new ApiResponse<CareerPlanConsultantsListResponse>
+                {
+                    Success = true,
+                    Data = response
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting career plan consultants list");
+                return StatusCode(500, new ApiResponse<CareerPlanConsultantsListResponse>
+                {
+                    Success = false,
+                    Message = "An unexpected error occurred while getting career plan consultants list."
+                });
+            }
+        }
+
+        /// <summary>
+        /// Triggers asynchronous/manual recalculation of career plan consultant snapshots in DynamoDB.
+        /// Available strictly to SuperAdmins.
+        /// </summary>
+        [HttpPost("consultants/recalculate")]
+        public async Task<ActionResult<ApiResponse<RecalculateCareerPlanResponse>>> RecalculateConsultants()
+        {
+            try
+            {
+                var response = await _careerPlanService.RecalculateAllConsultantsSnapshotsAsync();
+                return Ok(new ApiResponse<RecalculateCareerPlanResponse>
+                {
+                    Success = true,
+                    Data = response
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error recalculating career plan consultants");
+                return StatusCode(500, new ApiResponse<RecalculateCareerPlanResponse>
+                {
+                    Success = false,
+                    Message = "An unexpected error occurred while recalculating career plan consultants."
+                });
+            }
+        }
     }
 }

@@ -615,3 +615,8 @@ Each entry records a fix attempt — past entries must be consulted before retry
 3. Added `ActiveProduction` to `MetricKind` and connected to pure method `ComputeActiveProduction`.
 4. In `career_plan_progression.spec.ts`, updated User 1 test contract to `date4m` ensuring inferred paid months >= 2.
 **Result:** ✅ Green (Integration tests: 364/364 PASSED, E2E Run 1: 190/190 PASSED, E2E Run 2: 191/191 PASSED — suite is idempotent)
+
+## [2026-11-02] career-plan — Consultants List & Precalculated Snapshots
+**Feature:** Subdivided "Plano de Carreira" menu into "Performance do Consultor" (`#/career-plan`) and "Lista de consultores" (`#/career-plan/consultants`). Built precalculated snapshots view for active consultants (Sem Classificação, Alef, Beth) stored in DynamoDB with 60-day TTL and in-memory fallback, including asynchronous manual recalculation.
+**Result:** ✅ Green (Integration tests: 366/366 PASSED, E2E Run 1: 193/193 PASSED)
+

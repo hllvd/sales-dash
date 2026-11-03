@@ -271,4 +271,34 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(retRow).toContainText('50');
     await expect(retRow.getByText('Não atingido')).toBeVisible();
   });
+
+  test('should display consultants list page with table and allow recalculation', async ({ page }) => {
+    test.setTimeout(60000);
+
+    // 1. Log in as SuperAdmin
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
+
+    // 2. Navigate to the Consultants List page
+    await page.goto('/#/career-plan/consultants');
+    await expect(page.getByRole('heading', { name: 'Lista de consultores' })).toBeVisible({ timeout: 15000 });
+
+    // 3. Verify Filters exist
+    await expect(page.getByRole('textbox', { name: 'Buscar Consultor' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Classificação Atual' })).toBeVisible();
+
+    // 4. Verify table headers
+    await expect(page.getByRole('columnheader', { name: 'Consultor' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Classificação Atual' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Target de Classificação' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Produção Atual (12m)' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Retenção Atual (15m)' })).toBeVisible();
+
+    // 5. Test recalculate button
+    const recalcBtn = page.getByRole('button', { name: 'Recalcular agora' });
+    await expect(recalcBtn).toBeVisible();
+    await recalcBtn.click();
+
+    // 6. Verify success alert appears
+    await expect(page.getByText(/Recálculo concluído com sucesso!/)).toBeVisible({ timeout: 20000 });
+  });
 });
