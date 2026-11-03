@@ -232,9 +232,9 @@ integration() {
 parse_playwright_stats() {
   local LOG=$1
   local PASSED FAILED SKIPPED TOTAL
-  PASSED=$(grep -Eo '[0-9]+ passed' "$LOG" | tail -1 | grep -Eo '[0-9]+' || echo 0)
-  FAILED=$(grep -Eo '[0-9]+ failed' "$LOG" | tail -1 | grep -Eo '[0-9]+' || echo 0)
-  SKIPPED=$(grep -Eo '[0-9]+ skipped' "$LOG" | tail -1 | grep -Eo '[0-9]+' || echo 0)
+  PASSED=$(grep -aEo '[0-9]+ passed' "$LOG" | tail -1 | grep -aEo '[0-9]+' || echo 0)
+  FAILED=$(grep -aEo '[0-9]+ failed' "$LOG" | tail -1 | grep -aEo '[0-9]+' || echo 0)
+  SKIPPED=$(grep -aEo '[0-9]+ skipped' "$LOG" | tail -1 | grep -aEo '[0-9]+' || echo 0)
   PASSED=${PASSED:-0}
   FAILED=${FAILED:-0}
   SKIPPED=${SKIPPED:-0}

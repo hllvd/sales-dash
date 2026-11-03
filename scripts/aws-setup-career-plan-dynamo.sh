@@ -2,12 +2,12 @@
 set -euo pipefail
 
 # ==============================================================================
-# Setup AWS DynamoDB table and IAM policy for SalesApp Career Plan Snapshots
+# Setup AWS DynamoDB table and IAM policy for SalesApp Generic Data Cache
 # ==============================================================================
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
-TABLE_NAME="${CAREER_PLAN_TABLE_NAME:-salesapp-career-plan-snapshots}"
-POLICY_NAME="${CAREER_PLAN_POLICY_NAME:-SalesAppCareerPlanDynamoPolicy}"
+TABLE_NAME="${DATA_CACHE_TABLE_NAME:-salesapp-data-cache}"
+POLICY_NAME="${DATA_CACHE_POLICY_NAME:-SalesAppDataCacheDynamoPolicy}"
 
 echo "==> 1. Creating DynamoDB table: ${TABLE_NAME} (Region: ${AWS_REGION})..."
 
@@ -40,7 +40,7 @@ cat <<EOF > /tmp/career-plan-dynamo-policy.json
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "SalesAppCareerPlanSnapshotsAccess",
+            "Sid": "SalesAppDataCacheAccess",
             "Effect": "Allow",
             "Action": [
                 "dynamodb:GetItem",
@@ -58,6 +58,6 @@ EOF
 aws iam create-policy \
     --policy-name "${POLICY_NAME}" \
     --policy-document file:///tmp/career-plan-dynamo-policy.json \
-    --description "Permissions for SalesApp API to store and query Career Plan snapshots" || echo "Policy may already exist."
+    --description "Permissions for SalesApp API to store and query data cache items" || echo "Policy may already exist."
 
 echo "==> Done! Attach '${POLICY_NAME}' to the IAM Role/User used by SalesApp API."

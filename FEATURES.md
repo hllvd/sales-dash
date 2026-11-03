@@ -17,7 +17,7 @@ Reestruturação da navegação do Plano de Carreira em subitens de menu e cria�
     - Checkbox `Retenção qualificada (≥ 79%)`: filtra consultores com taxa de retenção estrita (15 meses) igual ou superior a 79%.
     - Os filtros operam com conjunção lógica (`AND`) e resetam a paginação para a página 1 ao serem modificados.
 - **Persistência em DynamoDB com TTL**:
-  - Dados salvos na tabela `salesapp-career-plan-snapshots` com chave `PK = CAREER_SNAPSHOT#LATEST` e `SK = USER#{userId}`.
+  - Dados salvos na tabela `salesapp-data-cache` com chave `PK = CAREER_SNAPSHOT#LATEST` e `SK = USER#{userId}`.
   - Atributo nativo `TTL` com timestamp Unix Epoch configurado para 60 dias (2 meses).
   - Botão **Recalcular agora** na tela para acionamento sob demanda via endpoint `POST /api/career-plan/consultants/recalculate`.
   - Fallback automático e transparente em memória quando a tabela DynamoDB não estiver configurada no ambiente local/testes.
