@@ -4,5 +4,6 @@ namespace SalesApp.Models.Configuration
     {
         public string ContactPhone { get; set; } = string.Empty;
         public string? MasterSuperAdminEmail { get; set; } = "superadmin@salesapp.com";
+        public string? SuperAdminPassword { get; set; }
     }
 }

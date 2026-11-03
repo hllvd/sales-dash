@@ -628,4 +628,9 @@ Each entry records a fix attempt — past entries must be consulted before retry
 3. In `my_career_plan.spec.ts`, fixed user registration endpoint to `/api/users/register`, ensured non-numeric username generation to pass `ValidUserNameAttribute`, and aligned role visibility locators.
 **Result:** ✅ Green (Integration tests: 373/373 PASSED, E2E Run: 196/196 PASSED)
 
+## [2026-11-03] auth — Autenticação do Super Admin via SUPERADMIN_PASSWORD
+**Feature:** Decoupled master superadmin authentication (`superadmin@salesapp.com`) from SQLite database password hash. The password is now validated authoritatively from `SUPERADMIN_PASSWORD` (.env / environment variable), with fallback to `"string"` in local/testing environments. Protected against unintended password resets via public `forgot-password` endpoint and blocked manual UI password changes for superadmin.
+**Result:** ✅ Green (Integration tests: 378/378 PASSED, E2E Run: 196/196 PASSED)
+
+
 

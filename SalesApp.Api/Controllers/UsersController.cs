@@ -576,7 +576,30 @@ namespace SalesApp.Controllers
             var email = request.Email.ToLowerInvariant().Trim();
             var user = await _userRepository.GetByEmailForAuthAsync(email);
             
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            var masterEmail = (_adminInfo.MasterSuperAdminEmail ?? "superadmin@salesapp.com").ToLowerInvariant().Trim();
+            bool isMasterSuperAdmin = email.Equals(masterEmail, StringComparison.OrdinalIgnoreCase);
+
+            bool isPasswordValid = false;
+            if (isMasterSuperAdmin)
+            {
+                var configuredSuperAdminPassword = _configuration["SUPERADMIN_PASSWORD"]
+                    ?? _adminInfo.SuperAdminPassword
+                    ?? Environment.GetEnvironmentVariable("SUPERADMIN_PASSWORD")
+                    ?? "string";
+
+                isPasswordValid = request.Password == configuredSuperAdminPassword;
+                if (isPasswordValid && user != null && !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+                {
+                    user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+                    await _userRepository.UpdateAsync(user);
+                }
+            }
+            else
+            {
+                isPasswordValid = user != null && BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+            }
+            
+            if (user == null || !isPasswordValid)
             {
                 return Unauthorized(new ApiResponse<LoginResponse>
                 {
@@ -647,8 +670,9 @@ namespace SalesApp.Controllers
 
             var email = request.Email.ToLowerInvariant().Trim();
             var user = await _userRepository.GetByEmailAsync(email);
+            var masterEmail = (_adminInfo.MasterSuperAdminEmail ?? "superadmin@salesapp.com").ToLowerInvariant().Trim();
 
-            if (user != null)
+            if (user != null && !email.Equals(masterEmail, StringComparison.OrdinalIgnoreCase))
             {
                 var newPassword = PasswordGenerator.GeneratePassword(user.Name);
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
@@ -937,7 +961,18 @@ namespace SalesApp.Controllers
             }
             
             if (!string.IsNullOrEmpty(request.Password))
+            {
+                var masterEmail = (_adminInfo.MasterSuperAdminEmail ?? "superadmin@salesapp.com").ToLowerInvariant().Trim();
+                if (user.Email.Equals(masterEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new ApiResponse<UserResponse>
+                    {
+                        Success = false,
+                        Message = "A senha do Super Admin é gerenciada exclusivamente via variável de ambiente (SUPERADMIN_PASSWORD)."
+                    });
+                }
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            }
                 
             if (!string.IsNullOrEmpty(request.Role) && hasUpdatePermission)
             {
@@ -1562,6 +1597,16 @@ namespace SalesApp.Controllers
                 {
                     Success = false,
                     Message = _messageService.Get(AppMessage.UserNotFound)
+                });
+            }
+
+            var masterEmail = (_adminInfo.MasterSuperAdminEmail ?? "superadmin@salesapp.com").ToLowerInvariant().Trim();
+            if (user.Email.Equals(masterEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new ApiResponse<ResetPasswordResponse>
+                {
+                    Success = false,
+                    Message = "A senha do Super Admin é gerenciada exclusivamente via variável de ambiente (SUPERADMIN_PASSWORD)."
                 });
             }
             

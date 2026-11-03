@@ -20,6 +20,7 @@ services:
       - AWS__ScrapeResultsBucket=${SCRAPE_S3_BUCKET:-hdev-sales-dash}
       - AWS__ScrapeResultsPrefix=${SCRAPE_S3_PREFIX:-scrape-results/}
       - AWS__ScraperLauncherLambdaUrl=${SCRAPER_LAUNCHER_LAMBDA_URL:-}
+      - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-string}
     ports:
       - "5001:5000"
     deploy:

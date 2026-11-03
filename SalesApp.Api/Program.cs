@@ -12,6 +12,7 @@ using Serilog.Formatting.Compact;
 using Amazon;
 using Amazon.Runtime;
 using Amazon.CloudWatchLogs;
+using SalesApp.Utils;
 
 namespace SalesApp
 {
@@ -19,6 +20,9 @@ namespace SalesApp
     {
         public static async Task Main(string[] args)
         {
+            var initialEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+            ConfigurationHierarchy.LoadDotEnvIntoEnvironment(Directory.GetCurrentDirectory(), initialEnv);
+
             var cwEnabled = Environment.GetEnvironmentVariable("CW_ERROR_LOG")?.ToLower() == "true";
 
             var loggerConfig = new LoggerConfiguration()
@@ -200,6 +204,13 @@ namespace SalesApp
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .UseSerilog() // Use Serilog as the logging provider
+                .ConfigureAppConfiguration((hostingContext, config) =>
+                {
+                    ConfigurationHierarchy.ConfigureAppConfigurationHierarchy(
+                        config,
+                        hostingContext.HostingEnvironment,
+                        args);
+                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();

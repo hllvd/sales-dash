@@ -6,6 +6,7 @@ services:
     container_name: salesapp-api-e2e
     environment:
       - ASPNETCORE_ENVIRONMENT=E2E
+      - SUPERADMIN_PASSWORD=string
     volumes:
       - ./data_e2e:/app/data
       - ./keys:/app/keys

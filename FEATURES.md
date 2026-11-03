@@ -1,3 +1,25 @@
+## Hierarquia de Resolução de Configurações em Cascata (E2E, Development, Produção e .env)
+
+Estrutura de carregamento e resolução em 4 níveis hierárquicos para o backend `SalesApp.Api`, garantindo que ao executar em modo `E2E` as configurações herdem primeiramente as definições de desenvolvimento (ex: tabelas DynamoDB `dev-salesapp-data-cache`), com posterior sobreposição de regras de E2E e arquivos `.env` / variáveis de ambiente no topo de precedência.
+
+### Comportamento e Regras
+- **Hierarquia de 4 Níveis (níveis superiores sobrescrevem níveis inferiores)**:
+  - **1º Nível (Base / Produção):** `appsettings.json` — fornece os padrões globais e de produção.
+  - **2º Nível (Desenvolvimento):** `appsettings.Development.json` — carregado tanto quando `ASPNETCORE_ENVIRONMENT=Development` quanto quando `ASPNETCORE_ENVIRONMENT=E2E`. Isso garante que recursos como DynamoDB (`DataCacheTable = dev-salesapp-data-cache`) herdem os recursos de desenvolvimento durante os testes E2E em vez de apontar para produção.
+  - **3º Nível (E2E específico):** `appsettings.E2E.json` — aplicado quando o ambiente for `E2E`, sobrescrevendo definições de desenvolvimento apenas no que for específico de teste automatizado (ex: banco SQLite `data/SalesApp.E2E.db`).
+  - **4º Nível (Arquivos .env e Variáveis de Ambiente do Sistema)**:
+    - **Arquivos `.env`:** Busca segura por `.env`, `.env.development`, `.env.e2e` ou `.env.local` tanto na pasta da API quanto na raiz da solução, mapeando chaves simples e compostas (`__` convertido para `:`).
+    - **Variáveis de Ambiente do Sistema/Container:** `AddEnvironmentVariables()` no topo absoluto da cadeia de configuração, garantindo que variáveis injetadas via CLI, CI/CD ou Docker Compose tenham a última palavra.
+- **Isolamento e Segurança**:
+  - Implementado através da classe utilitária [ConfigurationHierarchy.cs](file:///Users/hudson/development/sales-dash/SalesApp.Api/Utils/ConfigurationHierarchy.cs), separando parsing puro (`ParseDotEnv`) de efeitos de borda (I/O de arquivos e injeção no `IConfigurationBuilder`).
+  - Tratamento resiliente e tolerante a falhas na ausência de arquivos `.env` ou seções específicas.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Utils/ConfigurationHierarchy.cs`
+- `SalesApp.Api/Program.cs`
+- `SalesApp.Tests/ConfigurationHierarchyTests.cs`
+- `FEATURES.md`
+
 ## Meu Plano de Carreira (Visão Pessoal para Roles User e Admin)
 
 Item de menu de primeiro nível **Meu Plano de Carreira** (`#/my-career-plan`) visível exclusivamente para usuários com as roles `user` e `admin` (oculto para `superadmin`), permitindo que cada consultor visualize seu próprio plano de carreira de forma otimizada via cache no DynamoDB (`salesapp-data-cache` / `dev-salesapp-data-cache`), com recálculo sob demanda e lazy load do Acompanhamento de Contratos (RT1 a RT6).
@@ -2979,6 +3001,32 @@ A funcionalidade de extração automatizada de dados do Power BI (`#/scrapes`) e
 - `client/sales-dash/src/components/Menu.tsx` — Realocação do item `Extração Power Bi` para o grupo expansível `Importação`, atualização do rótulo e restrição de visibilidade para `superadmin`.
 - `client/e2e-test/e2e/scrape_credentials.spec.ts` — Ajuste de autenticação para `superadmin` e novo teste de visibilidade condicional do menu.
 - `FEATURES.md` — Documentação da reorganização do menu lateral.
+
+## [2026-11-03] — Autenticação do Super Admin via Variável de Ambiente (`SUPERADMIN_PASSWORD`)
+
+### Contexto & Motivação
+Em ambientes de produção com banco SQLite persistente (`SalesApp.db`), ações acidentais na rota pública de recuperação de senha (`/api/users/forgot-password`) ou alterações prévias sobrescreviam o `PasswordHash` do superadmin por uma senha aleatória enviada por e-mail, podendo bloquear o acesso legítimo do administrador principal. Para prover imunidade contra redefinições acidentais, recuperação imediata de desastres e total controle sobre as credenciais de emergência, a autenticação do Super Admin (`superadmin@salesapp.com` ou configurado via `MasterSuperAdminEmail`) foi desacoplada do hash armazenado no banco e passou a ser gerenciada diretamente via variável de ambiente `SUPERADMIN_PASSWORD` (`.env`).
+
+### Funcionalidades & Arquitetura
+1. **Validação Autoritativa via `SUPERADMIN_PASSWORD`**:
+   - No login (`UsersController.Login` e `AuthController.GetToken`), para o usuário Master Super Admin, a senha informada é comparada diretamente com o valor da variável de ambiente `SUPERADMIN_PASSWORD` (lida via `IConfiguration`, `AdminInfoOptions` ou `Environment.GetEnvironmentVariable`).
+   - Em ambientes de desenvolvimento e testes locais/CI onde a variável não esteja preenchida, o sistema adota automaticamente o padrão `"string"`, garantindo compatibilidade total com as suítes de testes automatizados.
+   - Ao realizar o login com sucesso pela senha de ambiente, o `PasswordHash` no banco SQLite é automaticamente sincronizado com o novo hash para manter a integridade referencial.
+2. **Blindagem contra Redefinição Pública (`forgot-password`)**:
+   - `POST /api/users/forgot-password` verifica se o e-mail informado pertence ao Master Super Admin. Em caso positivo, ignora qualquer sobrescrita de hash ou geração de senha temporária, retornando a mensagem genérica padrão para evitar enumeração de contas.
+3. **Bloqueio de Alteração via Interface e API de Usuários**:
+   - `PUT /api/users/{id}` e `POST /api/users/{id}/reset-password` rejeitam tentativas de alterar a senha do Super Admin via UI/API, retornando erro explicativo de que a credencial é gerida exclusivamente via variável de ambiente (`SUPERADMIN_PASSWORD`).
+4. **Mapeamento em Docker Compose**:
+   - `docker-compose.yml`, `docker-compose.prod.yml` e `docker-compose.e2e.yml` mapeiam a variável `SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-string}` para repassar o valor do `.env` diretamente para a API.
+
+### Arquivos Modificados
+- `SalesApp.Api/Models/Configuration/AdminInfoOptions.cs` — Adição da propriedade `SuperAdminPassword`.
+- `SalesApp.Api/Controllers/UsersController.cs` — Validação prioritária de `SUPERADMIN_PASSWORD`, blindagem de `forgot-password`, e bloqueio em `UpdateUser` e `ResetPassword`.
+- `SalesApp.Api/Controllers/AuthController.cs` — Validação prioritária de `SUPERADMIN_PASSWORD` no endpoint OAuth de token.
+- `docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.e2e.yml` — Mapeamento da variável `SUPERADMIN_PASSWORD`.
+- `.env` — Adição da chave `SUPERADMIN_PASSWORD=string`.
+- `SalesApp.IntegrationTests/Users/SuperAdminPasswordEnvTests.cs` — Suíte de testes de integração cobrindo login com hash divergente, bloqueio com senha errada, proteção em forgot-password e bloqueio em rotas de alteração de senha.
+
 
 
 
