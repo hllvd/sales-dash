@@ -9,8 +9,13 @@ Reestruturação da navegação do Plano de Carreira em subitens de menu e cria�
     2. **Lista de consultores** (`#/career-plan/consultants`): visão tabular consolidada de todos os consultores elegíveis (Sem Classificação, Alef e Beth).
 - **Escopo e Métricas da Tabela**:
   - Inclui exclusivamente usuários ativos (`IsActive == true`) sem classificação (concorrendo a Alef) ou nos níveis Alef e Beth.
-  - Colunas: Consultor (Nome e E-mail), Classificação Atual, Target de Classificação (com meta em R$), Produção Atual dos últimos 12 meses com percentual de atingimento (`R$ X (Y%)`), Retenção Estrita dos últimos 15 meses e botão de atalho para abrir a Performance do Consultor.
-  - Filtros dinâmicos em tela por texto (nome/e-mail) e classificação atual.
+  - Colunas: Consultor (Nome e E-mail), Classificação Atual, Target de Classificação (com meta em R$), Produção Atual dos últimos 12 meses com percentual de atingimento (`R$ X (Y%)`), Retenção Estrita dos últimos 15 meses e botão de atalho ("Ver mais") para abrir a Performance do Consultor com o usuário já selecionado na URL (`#/career-plan?userId={id}`).
+  - Filtros dinâmicos em tela:
+    - Busca textual por nome ou e-mail.
+    - Seleção de classificação atual (`Todas`, `Sem Classificação`, `Alef`, `Beth`).
+    - Checkbox `Meta de produção atingida (≥ 100%)`: filtra consultores com atingimento de produção igual ou superior a 100%.
+    - Checkbox `Retenção qualificada (≥ 79%)`: filtra consultores com taxa de retenção estrita (15 meses) igual ou superior a 79%.
+    - Os filtros operam com conjunção lógica (`AND`) e resetam a paginação para a página 1 ao serem modificados.
 - **Persistência em DynamoDB com TTL**:
   - Dados salvos na tabela `salesapp-career-plan-snapshots` com chave `PK = CAREER_SNAPSHOT#LATEST` e `SK = USER#{userId}`.
   - Atributo nativo `TTL` com timestamp Unix Epoch configurado para 60 dias (2 meses).

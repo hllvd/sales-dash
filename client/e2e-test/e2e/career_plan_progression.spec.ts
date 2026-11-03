@@ -293,12 +293,39 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(page.getByRole('columnheader', { name: 'Produção Atual (12m)' })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Retenção Atual (15m)' })).toBeVisible();
 
-    // 5. Test recalculate button
+    // 5. Verify checkboxes for new filters
+    const prodCheck = page.getByLabel('Meta de produção atingida (≥ 100%)');
+    const retCheck = page.getByLabel('Retenção qualificada (≥ 79%)');
+    await expect(prodCheck).toBeVisible();
+    await expect(retCheck).toBeVisible();
+
+    // 6. Test recalculate button
     const recalcBtn = page.getByRole('button', { name: 'Recalcular agora' });
     await expect(recalcBtn).toBeVisible();
     await recalcBtn.click();
 
-    // 6. Verify success alert appears
+    // 7. Verify success alert appears
     await expect(page.getByText(/Recálculo concluído com sucesso!/)).toBeVisible({ timeout: 20000 });
+
+    // 8. Test filter checkboxes
+    await prodCheck.check();
+    await expect(prodCheck).toBeChecked();
+
+    await retCheck.check();
+    await expect(retCheck).toBeChecked();
+
+    // Uncheck to see all consultants
+    await prodCheck.uncheck();
+    await retCheck.uncheck();
+
+    // 9. Test "Ver mais" navigation directly selecting user in Career Plan page
+    const verMaisBtn = page.getByRole('button', { name: 'Ver mais' }).first();
+    await expect(verMaisBtn).toBeVisible({ timeout: 10000 });
+    await verMaisBtn.click();
+
+    // Verify redirected to career-plan page with userId and evaluation rendered
+    await expect(page).toHaveURL(/#\/career-plan\?userId=.+/);
+    await expect(page.getByRole('heading', { name: 'Plano de Carreira' })).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.career-plan-card.target')).toBeVisible({ timeout: 15000 });
   });
 });

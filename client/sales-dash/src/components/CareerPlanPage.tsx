@@ -34,16 +34,35 @@ const fmtDate = (dateStr?: string) => {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+const getUserIdFromHash = (): string | null => {
+  try {
+    const queryStr = window.location.hash.split('?')[1]
+    if (queryStr) {
+      return new URLSearchParams(queryStr).get('userId') || null
+    }
+  } catch {}
+  return null
+}
+
 const CareerPlanPage: React.FC = () => {
   const { currentUser } = useCurrentUser()
   const { fetchAllUsers } = useReferenceData()
 
   const [users, setUsers] = useState<User[]>([])
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(() => getUserIdFromHash())
   const [evaluation, setEvaluation] = useState<CareerPlanEvaluation | null>(null)
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [evaluating, setEvaluating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const uId = getUserIdFromHash()
+      setSelectedUserId(uId)
+    }
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
 
   // Verify SuperAdmin role/permissions
   const isSuperAdmin = useMemo(() => {
@@ -100,6 +119,15 @@ const CareerPlanPage: React.FC = () => {
     }
     evaluateUser(selectedUserId)
   }, [selectedUserId, evaluateUser])
+
+  const handleUserChange = (val: string | null) => {
+    setSelectedUserId(val)
+    if (val) {
+      window.location.hash = `#/career-plan?userId=${val}`
+    } else {
+      window.location.hash = `#/career-plan`
+    }
+  }
 
   const handleRefresh = async () => {
     if (selectedUserId) {
@@ -160,7 +188,7 @@ const CareerPlanPage: React.FC = () => {
             placeholder={loadingUsers ? 'Carregando usuários...' : 'Busque pelo nome ou e-mail...'}
             data={userSelectOptions}
             value={selectedUserId}
-            onChange={setSelectedUserId}
+            onChange={handleUserChange}
             searchable
             clearable
             nothingFoundMessage="Nenhum usuário encontrado"

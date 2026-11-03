@@ -8,6 +8,11 @@ namespace SalesApp.ReportFilters.Settings
     {
         public string ReportFiltersTable { get; set; } = string.Empty;
         public string HelpdeskTable { get; set; } = string.Empty;
-        public string CareerPlanSnapshotsTable { get; set; } = "salesapp-career-plan-snapshots";
+        public string DataCacheTable { get; set; } = "salesapp-data-cache";
+        public string CareerPlanSnapshotsTable
+        {
+            get => DataCacheTable;
+            set => DataCacheTable = value;
+        }
     }
 }

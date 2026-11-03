@@ -15,7 +15,8 @@ import {
   Progress,
   Tooltip,
   Paper,
-  Title
+  Title,
+  Checkbox
 } from '@mantine/core'
 import {
   IconSearch,
@@ -65,6 +66,8 @@ export const CareerPlanConsultantsPage: React.FC = () => {
   // Filters
   const [search, setSearch] = useState<string>('')
   const [selectedLevel, setSelectedLevel] = useState<string | null>('ALL')
+  const [filterProductionMet, setFilterProductionMet] = useState<boolean>(false)
+  const [filterRetentionQualified, setFilterRetentionQualified] = useState<boolean>(false)
 
   // Pagination
   const [page, setPage] = useState<number>(1)
@@ -125,8 +128,20 @@ export const CareerPlanConsultantsPage: React.FC = () => {
       })
     }
 
+    if (filterProductionMet) {
+      result = result.filter(
+        c => c.productionProgressPct != null && c.productionProgressPct >= 1.0
+      )
+    }
+
+    if (filterRetentionQualified) {
+      result = result.filter(
+        c => c.strictRetention15m != null && c.strictRetention15m >= 0.79
+      )
+    }
+
     return result
-  }, [consultants, search, selectedLevel])
+  }, [consultants, search, selectedLevel, filterProductionMet, filterRetentionQualified])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const pagedItems = useMemo(() => {
@@ -186,33 +201,54 @@ export const CareerPlanConsultantsPage: React.FC = () => {
 
       {/* Filter Card */}
       <Card withBorder radius="md" p="md" mb="lg">
-        <Group grow align="flex-end">
-          <TextInput
-            label="Buscar Consultor"
-            placeholder="Nome ou e-mail..."
-            leftSection={<IconSearch size={16} />}
-            value={search}
-            onChange={e => {
-              setSearch(e.currentTarget.value)
-              setPage(1)
-            }}
-          />
+        <Stack gap="sm">
+          <Group grow align="flex-end">
+            <TextInput
+              label="Buscar Consultor"
+              placeholder="Nome ou e-mail..."
+              leftSection={<IconSearch size={16} />}
+              value={search}
+              onChange={e => {
+                setSearch(e.currentTarget.value)
+                setPage(1)
+              }}
+            />
 
-          <Select
-            label="Classificação Atual"
-            value={selectedLevel}
-            onChange={val => {
-              setSelectedLevel(val)
-              setPage(1)
-            }}
-            data={[
-              { value: 'ALL', label: 'Todas as classificações' },
-              { value: 'UNCLASSIFIED', label: 'Sem Classificação' },
-              { value: 'Alef', label: 'Alef' },
-              { value: 'Beth', label: 'Beth' }
-            ]}
-          />
-        </Group>
+            <Select
+              label="Classificação Atual"
+              value={selectedLevel}
+              onChange={val => {
+                setSelectedLevel(val)
+                setPage(1)
+              }}
+              data={[
+                { value: 'ALL', label: 'Todas as classificações' },
+                { value: 'UNCLASSIFIED', label: 'Sem Classificação' },
+                { value: 'Alef', label: 'Alef' },
+                { value: 'Beth', label: 'Beth' }
+              ]}
+            />
+          </Group>
+
+          <Group gap="xl" mt="xs">
+            <Checkbox
+              label="Meta de produção atingida (≥ 100%)"
+              checked={filterProductionMet}
+              onChange={e => {
+                setFilterProductionMet(e.currentTarget.checked)
+                setPage(1)
+              }}
+            />
+            <Checkbox
+              label="Retenção qualificada (≥ 79%)"
+              checked={filterRetentionQualified}
+              onChange={e => {
+                setFilterRetentionQualified(e.currentTarget.checked)
+                setPage(1)
+              }}
+            />
+          </Group>
+        </Stack>
       </Card>
 
       {/* Data Table */}
@@ -323,7 +359,7 @@ export const CareerPlanConsultantsPage: React.FC = () => {
                               rightSection={<IconExternalLink size={14} />}
                               onClick={() => navigateToConsultant(c.userId)}
                             >
-                              Ver
+                              Ver mais
                             </Button>
                           </Tooltip>
                         </Table.Td>

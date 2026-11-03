@@ -30,7 +30,7 @@ namespace SalesApp.CareerPlan.Repositories
             IAmazonDynamoDB? dynamoDb = null)
         {
             _dynamoDb = dynamoDb;
-            _tableName = settings.Value.CareerPlanSnapshotsTable ?? "salesapp-career-plan-snapshots";
+            _tableName = settings.Value.DataCacheTable ?? settings.Value.CareerPlanSnapshotsTable ?? "salesapp-data-cache";
             _logger = logger;
         }
 
