@@ -196,8 +196,11 @@
   border: 1.5px dashed #6366f1;
   background: #f5f3ff;
   transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.2s ease;
-  animation: rt-pulse 1.8s infinite;
   user-select: none;
+}
+
+.rt-interactive-cell.pulsing {
+  animation: rt-pulse 1.8s infinite;
 }
 
 .rt-interactive-cell:hover {

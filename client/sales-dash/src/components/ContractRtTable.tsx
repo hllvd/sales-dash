@@ -147,6 +147,7 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
   const [isSimulatorActive, setIsSimulatorActive] = useState<boolean>(false)
   const [overrides, setOverrides] = useState<Record<string, RtCurrentStatus>>({})
   const [simulating, setSimulating] = useState<boolean>(false)
+  const [hasInteracted, setHasInteracted] = useState<boolean>(false)
 
   const fetchData = useCallback(async (targetPage: number) => {
     if (!isMe && !userId) return
@@ -173,6 +174,7 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
   useEffect(() => {
     setOverrides({})
     setIsSimulatorActive(false)
+    setHasInteracted(false)
   }, [userId, asOfDate, resetTrigger])
 
   const handleClearSimulation = useCallback(() => {
@@ -183,13 +185,18 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
   const handleToggleSimulator = () => {
     if (isSimulatorActive) {
       setIsSimulatorActive(false)
+      setHasInteracted(false)
       handleClearSimulation()
     } else {
       setIsSimulatorActive(true)
+      setHasInteracted(false)
     }
   }
 
   const handleCellToggle = async (contractNumber: string, originalCurrent: RtCurrentStatus) => {
+    if (!hasInteracted) {
+      setHasInteracted(true)
+    }
     const effectiveCurrent = overrides[contractNumber] || originalCurrent
     const nextCurrent: RtCurrentStatus = effectiveCurrent === 'upToDate' ? 'overdue' : 'upToDate'
 
@@ -432,7 +439,7 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
                           >
                             <button
                               type="button"
-                              className="rt-interactive-cell"
+                              className={`rt-interactive-cell ${!hasInteracted ? 'pulsing' : ''}`}
                               onClick={() => handleCellToggle(row.contractNumber, row.current)}
                               aria-label={`Simular status do contrato ${row.contractNumber}`}
                               style={{
