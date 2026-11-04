@@ -3061,3 +3061,15 @@ Anteriormente, administradores (`admin`) visualizavam apenas o item "Meu Plano d
 
 
 
+## [2026-11-03] — Prevenção de Sleep Restrita ao `test.sh` (skill `test-and-fix`)
+
+### Contexto & Motivação
+O uso de `caffeinate -dimsu` mantinha o computador acordado (principalmente por `-u`, `-d`, `-s`). O inibidor deve valer apenas durante a execução do `./test.sh`.
+
+### Funcionalidades & Arquitetura
+- macOS: `caffeinate -i ./test.sh <alvo>` (encerra junto com o comando, nunca em background).
+- Linux (systemd): `systemd-inhibit --what=idle ./test.sh <alvo>`; sem systemd, execução direta.
+- Removido o fallback `||` que reexecutava os testes em caso de falha.
+
+### Arquivos Modificados
+- `.agents/skills/test-and-fix/SKILL.md` — Comandos de execução com inibidor de sleep escopado.
