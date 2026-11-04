@@ -134,5 +134,21 @@ namespace SalesApp.DTOs
         public DateTime CalculatedAt { get; set; }
         public long Ttl { get; set; }
     }
+
+    public class SimulateCareerPlanRequest
+    {
+        public List<ContractRtOverrideDto> Overrides { get; set; } = new();
+    }
+
+    public class ContractRtOverrideDto
+    {
+        public string ContractNumber { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty; // "upToDate" or "overdue"
+        public string? SimulatedCurrentStatus
+        {
+            get => State;
+            set => State = value ?? string.Empty;
+        }
+    }
 }
 

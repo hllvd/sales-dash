@@ -17,6 +17,7 @@
 .dotnet_home
 .cache
 .config
+tmp-dotnet
 client/sales-dash/dist
 client/sales-dash/build
 client/sales-dash/node_modules

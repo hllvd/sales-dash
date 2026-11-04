@@ -239,5 +239,50 @@ namespace SalesApp.Tests.CareerPlan
             evaluated[1].Status.Should().Be("Active");
             evaluated[1].Current.Should().Be(RtCurrentState.UpToDate);
         }
+
+        [Fact]
+        public void BuildRtRow_ActiveContractWithZeroAge_HasRt1PaidAndRtCurrentUpToDate()
+        {
+            var contract = new Contract
+            {
+                Id = 10,
+                ContractNumber = "CTR-ZERO-ACTIVE",
+                CustomerName = "Janaina",
+                TotalAmount = 141_750m,
+                SaleStartDate = _refDate, // age 0
+                HasPayment = true,
+                ContractStatus = new ContractStatusEntity { Name = "Active" }
+            };
+
+            var row = ContractPaymentTracking.BuildRtRow(contract, _refDate);
+
+            row.Rts[0].Should().Be(RtCellState.Paid, "Active contracts should show 1st installment (RT1) as paid even if age is 0");
+            row.Rts[1].Should().Be(RtCellState.Blank);
+            row.Rts[2].Should().Be(RtCellState.Blank);
+            row.Rts[3].Should().Be(RtCellState.Blank);
+            row.Rts[4].Should().Be(RtCellState.Blank);
+            row.Rts[5].Should().Be(RtCellState.Blank);
+            row.Current.Should().Be(RtCurrentState.UpToDate);
+        }
+
+        [Fact]
+        public void BuildRtRow_Late1ContractWithZeroAge_HasAllRtBlankAndRtCurrentOverdue()
+        {
+            var contract = new Contract
+            {
+                Id = 11,
+                ContractNumber = "CTR-ZERO-LATE",
+                CustomerName = "Outro",
+                TotalAmount = 50_000m,
+                SaleStartDate = _refDate, // age 0
+                HasPayment = true,
+                ContractStatus = new ContractStatusEntity { Name = "Late1" }
+            };
+
+            var row = ContractPaymentTracking.BuildRtRow(contract, _refDate);
+
+            row.Rts.Should().OnlyContain(r => r == RtCellState.Blank);
+            row.Current.Should().Be(RtCurrentState.Overdue);
+        }
     }
 }

@@ -64,6 +64,11 @@ export interface CareerPlanConfigSummary {
 export type RtCellStatus = 'paid' | 'unpaid' | 'blank'
 export type RtCurrentStatus = 'upToDate' | 'overdue'
 
+export interface ContractRtOverride {
+  contractNumber: string
+  simulatedCurrentStatus: RtCurrentStatus
+}
+
 export interface ContractRtRow {
   contractNumber: string
   customerName: string | null
@@ -286,6 +291,61 @@ export const careerPlanService = {
     }
 
     return result.data
+  },
+
+  async simulateMyCareerPlan(overrides: ContractRtOverride[], asOfDate?: string): Promise<CareerPlanEvaluation> {
+    const params = new URLSearchParams()
+    if (asOfDate) params.append('asOfDate', asOfDate)
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/career-plan/me/simulate${queryString}`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ overrides })
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || 'Falha ao simular plano de carreira.')
+    }
+
+    const result: ApiResponse<CareerPlanEvaluation> = await response.json()
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Dados inválidos retornados pela API.')
+    }
+
+    return result.data
+  },
+
+  async simulateUserCareerPlan(userId: string, overrides: ContractRtOverride[], asOfDate?: string): Promise<CareerPlanEvaluation> {
+    const params = new URLSearchParams()
+    if (asOfDate) params.append('asOfDate', asOfDate)
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/career-plan/users/${userId}/simulate${queryString}`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ overrides })
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || 'Falha ao simular plano de carreira do usuário.')
+    }
+
+    const result: ApiResponse<CareerPlanEvaluation> = await response.json()
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Dados inválidos retornados pela API.')
+    }
+
+    return result.data
   }
 }
+
 

@@ -35,6 +35,8 @@ const CareerPlanPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string | null>(() => getUserIdFromHash())
   const [evaluation, setEvaluation] = useState<CareerPlanEvaluation | null>(null)
+  const [simulatedEvaluation, setSimulatedEvaluation] = useState<CareerPlanEvaluation | null>(null)
+  const [resetTrigger, setResetTrigger] = useState<number>(0)
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [evaluating, setEvaluating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -109,9 +111,12 @@ const CareerPlanPage: React.FC = () => {
       setError(null)
       const result = await careerPlanService.evaluateUser(userId)
       setEvaluation(result)
+      setSimulatedEvaluation(null)
+      setResetTrigger(prev => prev + 1)
     } catch (err: any) {
       setError(err.message || 'Erro ao avaliar plano de carreira.')
       setEvaluation(null)
+      setSimulatedEvaluation(null)
     } finally {
       setEvaluating(false)
     }
@@ -219,8 +224,19 @@ const CareerPlanPage: React.FC = () => {
 
         {!evaluating && evaluation && (
           <Stack gap="lg">
-            <CareerPlanEvaluationView evaluation={evaluation} />
-            <ContractRtTable userId={evaluation.userId} />
+            <CareerPlanEvaluationView
+              evaluation={simulatedEvaluation || evaluation}
+              isSimulated={Boolean(simulatedEvaluation)}
+              onResetSimulation={() => {
+                setSimulatedEvaluation(null)
+                setResetTrigger(prev => prev + 1)
+              }}
+            />
+            <ContractRtTable
+              userId={evaluation.userId}
+              onSimulationChange={setSimulatedEvaluation}
+              resetTrigger={resetTrigger}
+            />
           </Stack>
         )}
 

@@ -334,4 +334,56 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(page.getByRole('heading', { name: 'Plano de Carreira' })).toBeVisible({ timeout: 15000 });
     await expect(page.locator('.career-plan-card.target')).toBeVisible({ timeout: 15000 });
   });
+
+  test('RT Tracking Simulator toggles RT Atual and updates retention dynamically without persistence', async ({ page }) => {
+    test.setTimeout(60000);
+
+    // 1. Log in as SuperAdmin in the browser
+    await loginAs(page, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
+
+    // 2. Navigate to Career Plan page with userEmailBethFail
+    await page.goto('/#/career-plan');
+    const userSelectInput = page.getByRole('textbox', { name: 'Selecione um Usuário' });
+    await expect(userSelectInput).toBeVisible({ timeout: 15000 });
+    await userSelectInput.click();
+    await userSelectInput.fill(userEmailBethFail);
+    const option = page.locator('.mantine-Select-option', { hasText: userNameBethFail });
+    await expect(option).toBeVisible({ timeout: 10000 });
+    await option.click();
+
+    // 3. Ensure RT table is loaded
+    await expect(page.getByText('Acompanhamento de Contratos (RT1 a RT6 e RT Atual)')).toBeVisible({ timeout: 15000 });
+
+    // 4. Click "Simulador" button
+    const simBtn = page.getByRole('button', { name: 'Simulador', exact: true });
+    await expect(simBtn).toBeVisible();
+    await simBtn.click();
+
+    // 5. Verify simulator banner and active mode
+    await expect(page.getByText('Modo Simulador Ativo')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sair do simulador' })).toBeVisible();
+
+    // 6. Click on first interactive RT cell to toggle status
+    const interactiveCell = page.locator('.rt-interactive-cell').first();
+    await expect(interactiveCell).toBeVisible();
+    await interactiveCell.click();
+
+    // 7. Verify simulation banner appears in metrics and modified row is highlighted
+    await expect(page.locator('.rt-row-modified')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Modo de Simulação Ativo')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Valores Simulados').first()).toBeVisible();
+
+    // 8. Click "Limpar" button
+    const clearBtn = page.getByRole('button', { name: /Limpar/ });
+    await expect(clearBtn).toBeVisible();
+    await clearBtn.click();
+
+    // 9. Verify simulated banner disappears and rows return to normal
+    await expect(page.locator('.rt-row-modified')).not.toBeVisible();
+    await expect(page.getByText('Modo de Simulação Ativo')).not.toBeVisible();
+
+    // 10. Exit simulator
+    await page.getByRole('button', { name: 'Sair do simulador' }).click();
+    await expect(page.getByText('Modo Simulador Ativo')).not.toBeVisible();
+  });
 });

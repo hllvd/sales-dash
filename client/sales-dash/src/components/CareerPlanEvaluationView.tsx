@@ -19,7 +19,8 @@ import {
   IconShieldCheck,
   IconChartBar,
   IconAlertCircle,
-  IconCalendar
+  IconCalendar,
+  IconAdjustments
 } from '@tabler/icons-react'
 import { CareerPlanEvaluation } from '../services/careerPlanService'
 import {
@@ -47,6 +48,8 @@ const fmtDate = (dateStr?: string) => {
 
 interface CareerPlanEvaluationViewProps {
   evaluation: CareerPlanEvaluation
+  isSimulated?: boolean
+  onResetSimulation?: () => void
 }
 
 const formatMetricValue = (kind: MetricValueKind, value: number | boolean): React.ReactNode => {
@@ -88,10 +91,40 @@ const MetricBox: React.FC<MetricBoxProps> = ({ definition, rawValue, isRequireme
   </Tooltip>
 )
 
-export const CareerPlanEvaluationView: React.FC<CareerPlanEvaluationViewProps> = ({ evaluation }) => {
+export const CareerPlanEvaluationView: React.FC<CareerPlanEvaluationViewProps> = ({
+  evaluation,
+  isSimulated = false,
+  onResetSimulation
+}) => {
   const requirementKeys = getRequirementMetricKeys(evaluation.requirements)
   return (
     <>
+      {isSimulated && (
+        <Alert
+          icon={<IconAdjustments size={18} />}
+          title="Modo de Simulação Ativo"
+          color="yellow"
+          variant="light"
+          mb="md"
+        >
+          <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+            <Text size="sm">
+              As métricas e requisitos abaixo estão exibindo os valores recalculados com base nas alterações simuladas na tabela de RT Atual. Nada foi gravado no banco de dados.
+            </Text>
+            {onResetSimulation && (
+              <Badge
+                color="yellow"
+                variant="filled"
+                style={{ cursor: 'pointer' }}
+                onClick={onResetSimulation}
+              >
+                Limpar simulação
+              </Badge>
+            )}
+          </Group>
+        </Alert>
+      )}
+
       {/* Level progression cards */}
       <div className="career-plan-level-progression">
         {/* Current level */}
@@ -167,11 +200,18 @@ export const CareerPlanEvaluationView: React.FC<CareerPlanEvaluationViewProps> =
 
       {/* Requirements Table Section */}
       <Card withBorder radius="md" p="lg" className="career-plan-section-card">
-        <Group gap="xs" mb="md">
-          <IconShieldCheck size={22} color="#6366f1" />
-          <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700, fontSize: '18px' }}>
-            Requisitos para Promoção
-          </Title>
+        <Group justify="space-between" align="center" mb="md">
+          <Group gap="xs">
+            <IconShieldCheck size={22} color="#6366f1" />
+            <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700, fontSize: '18px' }}>
+              Requisitos para Promoção
+            </Title>
+          </Group>
+          {isSimulated && (
+            <Badge color="yellow" variant="light" size="sm">
+              Valores Simulados
+            </Badge>
+          )}
         </Group>
 
         {!evaluation.hasRulesConfigured ? (
@@ -240,11 +280,18 @@ export const CareerPlanEvaluationView: React.FC<CareerPlanEvaluationViewProps> =
 
       {/* Consolidated Raw Metrics Section */}
       <Card withBorder radius="md" p="lg" className="career-plan-section-card">
-        <Group gap="xs" mb={4}>
-          <IconChartBar size={22} color="#6366f1" />
-          <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700, fontSize: '18px' }}>
-            Métricas Consolidadas do Usuário
-          </Title>
+        <Group justify="space-between" align="center" mb={4}>
+          <Group gap="xs">
+            <IconChartBar size={22} color="#6366f1" />
+            <Title order={3} style={{ color: '#1c1c1e', fontWeight: 700, fontSize: '18px' }}>
+              Métricas Consolidadas do Usuário
+            </Title>
+          </Group>
+          {isSimulated && (
+            <Badge color="yellow" variant="light" size="sm">
+              Valores Simulados
+            </Badge>
+          )}
         </Group>
         <Text size="xs" c="dimmed" mb="md">
           Calculadas exclusivamente a partir dos contratos e vínculos diretos do consultor nos períodos fechados.

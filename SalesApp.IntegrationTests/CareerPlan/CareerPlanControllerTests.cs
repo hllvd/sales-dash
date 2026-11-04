@@ -584,5 +584,91 @@ namespace SalesApp.IntegrationTests.CareerPlan
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
             return result?.Data?.Token ?? throw new Exception("Failed to get admin token");
         }
+
+        [Fact]
+        public async Task SimulateUser_SuperAdmin_RecalculatesMetricsWithoutPersisting()
+        {
+            var token = await GetSuperAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var bethLevel = await context.ClassificationLevels.FirstAsync(l => l.Name.ToLower() == "beth");
+            var activeStatus = await context.ContractStatuses.FirstAsync(s => s.Name == "Active");
+
+            var testUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Simulation User",
+                Email = $"sim_user_{Guid.NewGuid().ToString()[..8]}@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),
+                RoleId = 3,
+                IsActive = true
+            };
+            context.Users.Add(testUser);
+            await context.SaveChangesAsync();
+
+            context.UserClassifications.Add(new UserClassification
+            {
+                UserInternalId = testUser.InternalId,
+                LevelId = bethLevel.Id,
+                StartDate = DateTime.UtcNow.AddMonths(-6)
+            });
+
+            var now = DateTime.UtcNow;
+            var refDate = CareerReferenceDate.Resolve(now, 15);
+
+            var contract1 = new Contract
+            {
+                ContractNumber = $"CONT-SIM-1-{Guid.NewGuid().ToString()[..6]}",
+                UserInternalId = testUser.InternalId,
+                TotalAmount = 10_000_000m,
+                ContractStatusId = activeStatus.Id,
+                SaleStartDate = refDate.AddMonths(-4),
+                IsActive = true,
+                HasPayment = true
+            };
+            context.Contracts.Add(contract1);
+            await context.SaveChangesAsync();
+
+            // Baseline evaluation: strict retention is 100%
+            var baseEval = await clientWithToken.GetAsync($"/api/career-plan/users/{testUser.Id}");
+            baseEval.StatusCode.Should().Be(HttpStatusCode.OK);
+            var baseResult = await baseEval.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
+            baseResult!.Data!.RawMetrics.StrictRetention15m.Should().Be(1m);
+
+            // Simulation: override contract1 to overdue
+            var simReq = new SimulateCareerPlanRequest
+            {
+                Overrides = new System.Collections.Generic.List<ContractRtOverrideDto>
+                {
+                    new ContractRtOverrideDto
+                    {
+                        ContractNumber = contract1.ContractNumber,
+                        SimulatedCurrentStatus = "overdue"
+                    }
+                }
+            };
+
+            var simResponse = await clientWithToken.PostAsJsonAsync($"/api/career-plan/users/{testUser.Id}/simulate", simReq);
+            simResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var simResult = await simResponse.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
+            simResult.Should().NotBeNull();
+            simResult!.Success.Should().BeTrue();
+            // With contract1 simulated overdue (Late1), retention drops to 0%
+            simResult.Data!.RawMetrics.StrictRetention15m.Should().Be(0m);
+
+            // Verify database was NOT changed: contract in DB remains Active
+            var contractInDb = await context.Contracts.AsNoTracking().FirstAsync(c => c.ContractNumber == contract1.ContractNumber);
+            contractInDb.ContractStatusId.Should().Be(activeStatus.Id);
+
+            // Subsequent normal evaluation still returns baseline 100%
+            var evalAfter = await clientWithToken.GetAsync($"/api/career-plan/users/{testUser.Id}");
+            var evalAfterResult = await evalAfter.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
+            evalAfterResult!.Data!.RawMetrics.StrictRetention15m.Should().Be(1m);
+        }
     }
 }

@@ -1,3 +1,42 @@
+## RT1 Pago para Contratos Ativos de Idade 0 e Simulador de RT Atual no Plano de Carreira
+
+Aprimoramentos no módulo de Plano de Carreira: exibição de RT1 como pago para contratos ativos recém-emitidos (idade 0 meses) na tabela de acompanhamento de contratos, e simulador interativo em tempo real de RT Atual para previsão de impacto na retenção e nos requisitos de promoção de carreira sem persistência de dados.
+
+### Comportamento e Regras
+- **RT1 Pago para Contratos Ativos de Idade 0**:
+  - Na tabela visual de **Acompanhamento de Contratos (RT1 a RT6 e RT Atual)**, contratos com status `Ativo` (sem parcelas em atraso) que possuem 0 meses de idade (emitidos no mês corrente do fechamento) agora exibem a primeira parcela (`RT1`) preenchida como `Pago` (círculo verde).
+  - Contratos com status de atraso ou inadimplência (`Late1`, `Late2`, `Late3`, `Defaulted`) ou cancelados continuam obedecendo às regras de apuração normais (exibindo em branco se idade 0).
+  - Esta regra é estritamente de visualização na tabela de RTs e não altera cálculos de métricas de carreira (produção ativa, idades de carência de contrato ou retenção calculada).
+- **Simulador Interativo de RT Atual ("Simulador")**:
+  - Disponível nas visualizações de plano de carreira para `user` ("Meu Plano de Carreira"), `admin` e `superadmin` ("Plano de Carreira").
+  - Botão **Simulador** no cabeçalho da tabela de RT: ao ser ativado, os círculos da coluna **RT ATUAL** tornam-se botões clicáveis com efeito visual pulsante (`rt-pulse` box-shadow animation) indicando que são interativos.
+  - Ao clicar em uma célula de RT Atual, o status é alternado entre **Em dia (Verde)** e **Atrasado (Vermelho)**.
+  - As linhas que sofreram alteração simulada recebem destaque visual com plano de fundo em tom suave de amarelo (`rt-row-modified`) e um selo `Simulado`.
+  - A cada clique, o frontend aciona o endpoint correspondente (`POST /api/career-plan/me/simulate` para o próprio consultor ou `POST /api/career-plan/users/{userId}/simulate` para administradores) recalculando todas as métricas, cartões de nível e tabela de requisitos de promoção de carreira em memória.
+  - A visão de avaliação exibe um alerta e selos informando que os valores apresentados são simulados.
+  - Botão **Limpar simulação** reverte todas as modificações mantendo o simulador aberto.
+  - Botão **Sair do simulador** desativa o simulador e restaura os dados reais.
+  - **100% Stateless e Seguro**: Nenhuma alteração é gravada no banco de dados SQLite nem no DynamoDB. Administradores continuam estritamente restritos ao escopo de seus subordinados de 1º nível.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/CareerPlan/ContractPaymentTracking.cs`
+- `SalesApp.Api/CareerPlan/ContractSimulation.cs`
+- `SalesApp.Api/DTOs/CareerPlanDTOs.cs`
+- `SalesApp.Api/Services/ICareerPlanService.cs`
+- `SalesApp.Api/Services/CareerPlanService.cs`
+- `SalesApp.Api/Controllers/MyCareerPlanController.cs`
+- `SalesApp.Api/Controllers/CareerPlanController.cs`
+- `SalesApp.Tests/CareerPlan/ContractPaymentTrackingTests.cs`
+- `SalesApp.IntegrationTests/CareerPlan/CareerPlanControllerTests.cs`
+- `SalesApp.IntegrationTests/CareerPlan/MyCareerPlanControllerTests.cs`
+- `client/sales-dash/src/services/careerPlanService.ts`
+- `client/sales-dash/src/components/ContractRtTable.tsx`
+- `client/sales-dash/src/components/CareerPlanEvaluationView.tsx`
+- `client/sales-dash/src/components/MyCareerPlanPage.tsx`
+- `client/sales-dash/src/components/CareerPlanPage.tsx`
+- `client/sales-dash/src/components/CareerPlanPage.css`
+- `client/e2e-test/e2e/career_plan_progression.spec.ts`
+
 ## Hierarquia de Resolução de Configurações em Cascata (E2E, Development, Produção e .env)
 
 Estrutura de carregamento e resolução em 4 níveis hierárquicos para o backend `SalesApp.Api`, garantindo que ao executar em modo `E2E` as configurações herdem primeiramente as definições de desenvolvimento (ex: tabelas DynamoDB `dev-salesapp-data-cache`), com posterior sobreposição de regras de E2E e arquivos `.env` / variáveis de ambiente no topo de precedência.

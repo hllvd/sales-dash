@@ -157,5 +157,51 @@ namespace SalesApp.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Simulates career plan metrics with in-memory overrides for contract RT status without persisting anything.
+        /// </summary>
+        [HttpPost("simulate")]
+        public async Task<ActionResult<ApiResponse<CareerPlanEvaluationResponse>>> SimulateMyCareerPlan(
+            [FromBody] SimulateCareerPlanRequest request,
+            [FromQuery] DateTime? asOfDate = null)
+        {
+            if (!TryGetCurrentUserId(out var userId))
+            {
+                return Unauthorized(new ApiResponse<CareerPlanEvaluationResponse>
+                {
+                    Success = false,
+                    Message = "User identifier is missing or invalid in authentication token."
+                });
+            }
+
+            try
+            {
+                var overrides = request?.Overrides ?? new System.Collections.Generic.List<ContractRtOverrideDto>();
+                var response = await _careerPlanService.SimulateUserCareerPlanAsync(userId, overrides, asOfDate);
+                return Ok(new ApiResponse<CareerPlanEvaluationResponse>
+                {
+                    Success = true,
+                    Data = response
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<CareerPlanEvaluationResponse>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error simulating career plan for user {UserId}", userId);
+                return StatusCode(500, new ApiResponse<CareerPlanEvaluationResponse>
+                {
+                    Success = false,
+                    Message = "An error occurred while simulating career plan metrics."
+                });
+            }
+        }
     }
 }

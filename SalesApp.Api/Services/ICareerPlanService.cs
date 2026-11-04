@@ -12,5 +12,6 @@ namespace SalesApp.Services
         Task<CareerPlanConsultantsListResponse> GetConsultantsListAsync(bool autoCalculateIfEmpty = true);
         Task<RecalculateCareerPlanResponse> RecalculateAllConsultantsSnapshotsAsync();
         Task<MyCareerPlanResponse> GetMyCareerPlanAsync(Guid userId, bool forceRefresh = false);
+        Task<CareerPlanEvaluationResponse> SimulateUserCareerPlanAsync(Guid userId, System.Collections.Generic.List<ContractRtOverrideDto> overrides, DateTime? asOfDate = null);
     }
 }

@@ -56,6 +56,56 @@ namespace SalesApp.Services
                 throw new KeyNotFoundException($"User with ID {userId} not found.");
             }
 
+            var contracts = await _context.Contracts
+                .AsNoTracking()
+                .Include(c => c.ContractStatus)
+                .Where(c => c.UserInternalId == user.InternalId)
+                .ToListAsync();
+
+            return await EvaluateUserWithContractsAsync(user, contracts, asOfDate);
+        }
+
+        public async Task<CareerPlanEvaluationResponse> SimulateUserCareerPlanAsync(
+            Guid userId,
+            List<ContractRtOverrideDto> overrides,
+            DateTime? asOfDate = null)
+        {
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                throw new KeyNotFoundException($"User with ID {userId} not found.");
+            }
+
+            var contracts = await _context.Contracts
+                .AsNoTracking()
+                .Include(c => c.ContractStatus)
+                .Where(c => c.UserInternalId == user.InternalId)
+                .ToListAsync();
+
+            if (overrides != null && overrides.Count > 0)
+            {
+                var activeStatus = await _context.ContractStatuses
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.Name == "Active")
+                    ?? new ContractStatusEntity { Id = (int)ContractStatus.Active, Name = "Active" };
+
+                var late1Status = await _context.ContractStatuses
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.Name == "Late1")
+                    ?? new ContractStatusEntity { Id = (int)ContractStatus.Late1, Name = "Late1" };
+
+                var simulatedContracts = ContractSimulation.ApplyOverrides(contracts, overrides, activeStatus, late1Status);
+                return await EvaluateUserWithContractsAsync(user, simulatedContracts, asOfDate);
+            }
+
+            return await EvaluateUserWithContractsAsync(user, contracts, asOfDate);
+        }
+
+        private async Task<CareerPlanEvaluationResponse> EvaluateUserWithContractsAsync(
+            User user,
+            IReadOnlyList<Contract> contracts,
+            DateTime? asOfDate = null)
+        {
             var config = _configProvider.GetConfig();
             var evaluationDate = asOfDate ?? DateTime.UtcNow;
             var referenceDate = CareerReferenceDate.Resolve(evaluationDate, config.ClosingDay);
@@ -77,14 +127,7 @@ namespace SalesApp.Services
             // 3. Resolve target level
             var targetLevel = CareerLevelResolver.ResolveTargetLevel(currentLevel, allLevels);
 
-            // 4. Load user contracts with status
-            var contracts = await _context.Contracts
-                .AsNoTracking()
-                .Include(c => c.ContractStatus)
-                .Where(c => c.UserInternalId == user.InternalId)
-                .ToListAsync();
-
-            // 5. Team metrics
+            // 4. Team metrics
             bool isTeamOwner = await _context.Teams
                 .AnyAsync(t => t.OwnerUserInternalId == user.InternalId && t.IsActive);
 

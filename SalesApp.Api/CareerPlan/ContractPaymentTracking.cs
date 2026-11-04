@@ -84,18 +84,21 @@ namespace SalesApp.CareerPlan
         /// - Blank: month index > age
         /// - Paid: month index <= paidMonths
         /// - Unpaid: paidMonths < month index <= age
+        /// If firstInstallmentPaid is true and status is Active (overdue=0),
+        /// RT1 is considered paid even if age is 0 (less than 1 full month).
         /// </summary>
-        public static IReadOnlyList<RtCellState> CalculateRtCells(int ageMonths, int overdueMonths, int count = 6)
+        public static IReadOnlyList<RtCellState> CalculateRtCells(int ageMonths, int overdueMonths, int count = 6, bool firstInstallmentPaid = false)
         {
             if (count < 0) count = 0;
             int safeAge = Math.Max(0, ageMonths);
-            int effectiveOverdue = Math.Min(safeAge, Math.Max(0, overdueMonths));
-            int paidMonths = Math.Max(0, safeAge - effectiveOverdue);
+            int displayAge = (firstInstallmentPaid && safeAge == 0 && overdueMonths == 0) ? 1 : safeAge;
+            int effectiveOverdue = Math.Min(displayAge, Math.Max(0, overdueMonths));
+            int paidMonths = Math.Max(0, displayAge - effectiveOverdue);
 
             var cells = new List<RtCellState>(count);
             for (int i = 1; i <= count; i++)
             {
-                if (i > safeAge)
+                if (i > displayAge)
                 {
                     cells.Add(RtCellState.Blank);
                 }
@@ -157,12 +160,13 @@ namespace SalesApp.CareerPlan
             if (contract == null) throw new ArgumentNullException(nameof(contract));
 
             var statusName = contract.ContractStatus?.Name ?? "Unknown";
+            bool isActive = string.Equals(statusName, "active", StringComparison.OrdinalIgnoreCase);
             int age = CareerReferenceDate.CalculateAgeMonths(contract.SaleStartDate, referenceDate);
             int overdue = InferredRtOverdueMonths(statusName);
             int effectiveOverdue = Math.Min(age, overdue);
             int paid = Math.Max(0, age - effectiveOverdue);
 
-            var rts = CalculateRtCells(age, overdue, 6);
+            var rts = CalculateRtCells(age, overdue, 6, firstInstallmentPaid: isActive);
             var current = ResolveRtCurrent(overdue);
 
             return new ContractRtEvaluation(

@@ -7,6 +7,14 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-11-03] all — Attempt 1
+**Feature:** RT1 Pago para Contratos Ativos de Idade 0 na Tabela de RT e Simulador de RT Atual no Plano de Carreira.
+**Root cause / Issues fixed:**
+1. Contratos Ativos com 0 meses de idade (emitidos no mês de referência) agora exibem RT1 como Pago (verde) na visualização da tabela de RTs, preservando métricas internas de apuração de carreira.
+2. Modo Simulador de RT Atual adicionado com botões pulsantes (`rt-pulse`), destaque de linhas modificadas em amarelo (`rt-row-modified`), endpoints `POST /api/career-plan/me/simulate` e `POST /api/career-plan/users/{userId}/simulate` sem persistência de dados.
+3. Deserialização de `ContractRtOverrideDto` adaptada para aceitar `state` e `simulatedCurrentStatus`.
+**Result:** ✅ Green (Build: clean, Integration: 384/384 tests passed, E2E: 197/197 tests passed).
+
 ## [2026-11-01] all — Attempt 2
 **Failure:** `matricula_health_monitoring.spec.ts` expected 76 for 11177, received 75.
 **Root cause:** Contract 1100005807 is reassigned to matricula 8888 by earlier hierarchy tests (`hierarchy_deep_visibility.spec.ts`), reducing 11177 count from 76 to 75.

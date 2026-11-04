@@ -126,6 +126,35 @@ namespace SalesApp.IntegrationTests.CareerPlan
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         }
 
+        [Fact]
+        public async Task SimulateMyCareerPlan_AsUser_ReturnsSimulationWithoutPersisting()
+        {
+            var token = await GetToken("user@test.com", "user123");
+            var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var req = new SimulateCareerPlanRequest
+            {
+                Overrides = new System.Collections.Generic.List<ContractRtOverrideDto>
+                {
+                    new ContractRtOverrideDto
+                    {
+                        ContractNumber = "CTR-12345",
+                        SimulatedCurrentStatus = "overdue"
+                    }
+                }
+            };
+
+            var response = await client.PostAsJsonAsync("/api/career-plan/me/simulate", req);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.UserEmail.Should().Be("user@test.com");
+        }
+
         private async Task<string> GetToken(string email, string password)
         {
             var loginRequest = new LoginRequest

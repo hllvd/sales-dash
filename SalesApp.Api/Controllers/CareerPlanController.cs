@@ -107,6 +107,55 @@ namespace SalesApp.Controllers
         }
 
         /// <summary>
+        /// Simulates career plan metrics for a specific user with temporary in-memory contract overrides.
+        /// Does not mutate or persist any data.
+        /// Available to SuperAdmins and Admins (scoped to self and 1st-level subordinates).
+        /// </summary>
+        [HttpPost("users/{userId}/simulate")]
+        public async Task<ActionResult<ApiResponse<CareerPlanEvaluationResponse>>> SimulateUser(
+            Guid userId,
+            [FromBody] SimulateCareerPlanRequest request,
+            [FromQuery] DateTime? asOfDate = null)
+        {
+            if (!await CanAccessUserAsync(userId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new ApiResponse<CareerPlanEvaluationResponse>
+                {
+                    Success = false,
+                    Message = "Você não tem permissão para simular o plano de carreira deste usuário."
+                });
+            }
+
+            try
+            {
+                var overrides = request?.Overrides ?? new List<ContractRtOverrideDto>();
+                var response = await _careerPlanService.SimulateUserCareerPlanAsync(userId, overrides, asOfDate);
+                return Ok(new ApiResponse<CareerPlanEvaluationResponse>
+                {
+                    Success = true,
+                    Data = response
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<CareerPlanEvaluationResponse>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error simulating career plan for user {UserId}", userId);
+                return StatusCode(500, new ApiResponse<CareerPlanEvaluationResponse>
+                {
+                    Success = false,
+                    Message = "An unexpected error occurred while simulating career plan."
+                });
+            }
+        }
+
+        /// <summary>
         /// Returns summary of loaded career plan configuration.
         /// Available to SuperAdmins and Admins.
         /// </summary>

@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Card, Table, Text, Badge, Loader, Alert, Group, Pagination, Tooltip, Stack, Box
+  Card, Table, Text, Badge, Loader, Alert, Group, Pagination, Tooltip, Stack, Box, Button
 } from '@mantine/core'
-import { IconAlertCircle, IconReceipt2 } from '@tabler/icons-react'
+import {
+  IconAlertCircle,
+  IconReceipt2,
+  IconAdjustments,
+  IconRotateClockwise,
+  IconX
+} from '@tabler/icons-react'
 import {
   careerPlanService,
+  CareerPlanEvaluation,
   ContractRtPage,
+  ContractRtOverride,
   RtCellStatus,
   RtCurrentStatus
 } from '../services/careerPlanService'
@@ -14,6 +22,8 @@ interface ContractRtTableProps {
   userId?: string
   isMe?: boolean
   asOfDate?: string
+  onSimulationChange?: (simulatedEvaluation: CareerPlanEvaluation | null) => void
+  resetTrigger?: number
 }
 
 const fmtCurrency = (val?: number | null) =>
@@ -123,11 +133,20 @@ const SignalCircle: React.FC<{
   )
 }
 
-export const ContractRtTable: React.FC<ContractRtTableProps> = ({ userId, isMe = false, asOfDate }) => {
+export const ContractRtTable: React.FC<ContractRtTableProps> = ({
+  userId,
+  isMe = false,
+  asOfDate,
+  onSimulationChange,
+  resetTrigger
+}) => {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [pageData, setPageData] = useState<ContractRtPage | null>(null)
   const [page, setPage] = useState<number>(1)
+  const [isSimulatorActive, setIsSimulatorActive] = useState<boolean>(false)
+  const [overrides, setOverrides] = useState<Record<string, RtCurrentStatus>>({})
+  const [simulating, setSimulating] = useState<boolean>(false)
 
   const fetchData = useCallback(async (targetPage: number) => {
     if (!isMe && !userId) return
@@ -145,11 +164,67 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({ userId, isMe =
     }
   }, [userId, isMe, asOfDate])
 
-  // Reset page to 1 when user or asOfDate changes
+  // Reset page and simulation when user or asOfDate changes, or on explicit resetTrigger
   useEffect(() => {
     setPage(1)
     fetchData(1)
   }, [fetchData])
+
+  useEffect(() => {
+    setOverrides({})
+    setIsSimulatorActive(false)
+  }, [userId, asOfDate, resetTrigger])
+
+  const handleClearSimulation = useCallback(() => {
+    setOverrides({})
+    onSimulationChange?.(null)
+  }, [onSimulationChange])
+
+  const handleToggleSimulator = () => {
+    if (isSimulatorActive) {
+      setIsSimulatorActive(false)
+      handleClearSimulation()
+    } else {
+      setIsSimulatorActive(true)
+    }
+  }
+
+  const handleCellToggle = async (contractNumber: string, originalCurrent: RtCurrentStatus) => {
+    const effectiveCurrent = overrides[contractNumber] || originalCurrent
+    const nextCurrent: RtCurrentStatus = effectiveCurrent === 'upToDate' ? 'overdue' : 'upToDate'
+
+    const updatedOverrides = { ...overrides }
+    if (nextCurrent === originalCurrent) {
+      delete updatedOverrides[contractNumber]
+    } else {
+      updatedOverrides[contractNumber] = nextCurrent
+    }
+
+    setOverrides(updatedOverrides)
+
+    const overrideKeys = Object.keys(updatedOverrides)
+    if (overrideKeys.length === 0) {
+      onSimulationChange?.(null)
+      return
+    }
+
+    const overrideList: ContractRtOverride[] = overrideKeys.map(cNum => ({
+      contractNumber: cNum,
+      simulatedCurrentStatus: updatedOverrides[cNum]
+    }))
+
+    try {
+      setSimulating(true)
+      const simResult = isMe
+        ? await careerPlanService.simulateMyCareerPlan(overrideList, asOfDate)
+        : await careerPlanService.simulateUserCareerPlan(userId!, overrideList, asOfDate)
+      onSimulationChange?.(simResult)
+    } catch (err: any) {
+      console.error('Simulation error:', err)
+    } finally {
+      setSimulating(false)
+    }
+  }
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage)
@@ -160,6 +235,8 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({ userId, isMe =
   if (!loading && pageData && !pageData.isApplicable) {
     return null
   }
+
+  const modifiedCount = Object.keys(overrides).length
 
   return (
     <Card className="career-plan-card" style={{ marginTop: 24, padding: 24 }}>
@@ -176,11 +253,49 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({ userId, isMe =
           </Text>
         </div>
 
-        {pageData && (
-          <Badge variant="light" color="indigo" size="lg">
-            {pageData.totalCount} contrato{pageData.totalCount === 1 ? '' : 's'}
-          </Badge>
-        )}
+        <Group gap="xs" align="center">
+          {pageData && (
+            <Badge variant="light" color="indigo" size="lg">
+              {pageData.totalCount} contrato{pageData.totalCount === 1 ? '' : 's'}
+            </Badge>
+          )}
+
+          {!isSimulatorActive ? (
+            <Button
+              size="xs"
+              variant="light"
+              color="indigo"
+              leftSection={<IconAdjustments size={15} />}
+              onClick={handleToggleSimulator}
+            >
+              Simulador
+            </Button>
+          ) : (
+            <>
+              {modifiedCount > 0 && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="yellow"
+                  loading={simulating}
+                  leftSection={<IconRotateClockwise size={15} />}
+                  onClick={handleClearSimulation}
+                >
+                  Limpar ({modifiedCount})
+                </Button>
+              )}
+              <Button
+                size="xs"
+                variant="subtle"
+                color="red"
+                leftSection={<IconX size={15} />}
+                onClick={handleToggleSimulator}
+              >
+                Sair do simulador
+              </Button>
+            </>
+          )}
+        </Group>
       </Group>
 
       {/* Legenda visual dos RTs */}
@@ -215,6 +330,21 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({ userId, isMe =
           </Group>
         </Group>
       </Box>
+
+      {isSimulatorActive && (
+        <Alert
+          icon={<IconAdjustments size={16} />}
+          title="Modo Simulador Ativo"
+          color="indigo"
+          variant="light"
+          mb="md"
+          style={{ fontSize: 13 }}
+        >
+          Clique nas células pulsantes da coluna <b>RT ATUAL</b> para alternar entre Em Dia (Verde) e Atrasado (Vermelho).
+          A retenção e os requisitos de carreira são recalculados instantaneamente sem gravar dados.
+          As linhas modificadas recebem destaque em amarelo.
+        </Alert>
+      )}
 
       {loading && (
         <Group justify="center" p="xl">
@@ -256,33 +386,80 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({ userId, isMe =
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {pageData.items.map((row) => (
-                  <Table.Tr key={row.contractNumber}>
-                    <Table.Td style={{ fontWeight: 600, fontSize: 13 }}>{row.contractNumber}</Table.Td>
-                    <Table.Td style={{ fontSize: 13 }}>{row.customerName || '—'}</Table.Td>
-                    <Table.Td style={{ fontSize: 13, textAlign: 'right', fontWeight: 500 }}>
-                      {fmtCurrency(row.totalAmount)}
-                    </Table.Td>
-                    <Table.Td style={{ fontSize: 13 }}>{fmtDate(row.saleStartDate)}</Table.Td>
-                    <Table.Td style={{ fontSize: 13 }}>
-                      <Badge
-                        size="sm"
-                        variant="dot"
-                        color={getStatusColor(row.status)}
-                      >
-                        {formatStatusLabel(row.status)}
-                      </Badge>
-                    </Table.Td>
-                    {row.rts.map((rtStatus, idx) => (
-                      <Table.Td key={idx} style={{ textAlign: 'center' }}>
-                        <SignalCircle type="rt" rtStatus={rtStatus} />
+                {pageData.items.map((row) => {
+                  const isModified = Boolean(overrides[row.contractNumber])
+                  const effectiveCurrent = overrides[row.contractNumber] || row.current
+                  return (
+                    <Table.Tr
+                      key={row.contractNumber}
+                      className={isModified ? 'rt-row-modified' : undefined}
+                    >
+                      <Table.Td style={{ fontWeight: 600, fontSize: 13 }}>
+                        <Group gap={6} wrap="nowrap">
+                          <span>{row.contractNumber}</span>
+                          {isModified && (
+                            <Badge size="xs" color="yellow" variant="filled">
+                              Simulado
+                            </Badge>
+                          )}
+                        </Group>
                       </Table.Td>
-                    ))}
-                    <Table.Td style={{ textAlign: 'center' }}>
-                      <SignalCircle type="current" currentStatus={row.current} />
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
+                      <Table.Td style={{ fontSize: 13 }}>{row.customerName || '—'}</Table.Td>
+                      <Table.Td style={{ fontSize: 13, textAlign: 'right', fontWeight: 500 }}>
+                        {fmtCurrency(row.totalAmount)}
+                      </Table.Td>
+                      <Table.Td style={{ fontSize: 13 }}>{fmtDate(row.saleStartDate)}</Table.Td>
+                      <Table.Td style={{ fontSize: 13 }}>
+                        <Badge
+                          size="sm"
+                          variant="dot"
+                          color={getStatusColor(row.status)}
+                        >
+                          {formatStatusLabel(row.status)}
+                        </Badge>
+                      </Table.Td>
+                      {row.rts.map((rtStatus, idx) => (
+                        <Table.Td key={idx} style={{ textAlign: 'center' }}>
+                          <SignalCircle type="rt" rtStatus={rtStatus} />
+                        </Table.Td>
+                      ))}
+                      <Table.Td style={{ textAlign: 'center' }}>
+                        {isSimulatorActive ? (
+                          <Tooltip
+                            label={`Clique para simular: ${effectiveCurrent === 'upToDate' ? 'Marcar como Atrasado (Vermelho)' : 'Marcar como Em Dia (Verde)'}`}
+                            withArrow
+                            position="top"
+                          >
+                            <button
+                              type="button"
+                              className="rt-interactive-cell"
+                              onClick={() => handleCellToggle(row.contractNumber, row.current)}
+                              aria-label={`Simular status do contrato ${row.contractNumber}`}
+                              style={{
+                                border: isModified ? '1.5px dashed #ca8a04' : '1.5px dashed #6366f1',
+                                backgroundColor: isModified ? '#fef9c3' : '#f5f3ff',
+                                outline: 'none'
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: 14,
+                                  height: 14,
+                                  borderRadius: '50%',
+                                  backgroundColor: effectiveCurrent === 'overdue' ? '#ef4444' : '#22c55e',
+                                  boxShadow: `0 0 0 2px ${effectiveCurrent === 'overdue' ? '#fee2e2' : '#dcfce7'}`
+                                }}
+                              />
+                            </button>
+                          </Tooltip>
+                        ) : (
+                          <SignalCircle type="current" currentStatus={row.current} />
+                        )}
+                      </Table.Td>
+                    </Table.Tr>
+                  )
+                })}
               </Table.Tbody>
             </Table>
           </div>

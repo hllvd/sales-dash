@@ -37,6 +37,8 @@ const fmtDateTime = (isoDate?: string | null) => {
 
 export const MyCareerPlanPage: React.FC = () => {
   const [evaluation, setEvaluation] = useState<CareerPlanEvaluation | null>(null)
+  const [simulatedEvaluation, setSimulatedEvaluation] = useState<CareerPlanEvaluation | null>(null)
+  const [resetTrigger, setResetTrigger] = useState<number>(0)
   const [calculatedAt, setCalculatedAt] = useState<string | null>(null)
   const [fromCache, setFromCache] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(true)
@@ -57,6 +59,7 @@ export const MyCareerPlanPage: React.FC = () => {
         : await careerPlanService.getMyCareerPlan(false)
 
       setEvaluation(res.evaluation)
+      setSimulatedEvaluation(null)
       setCalculatedAt(res.calculatedAt)
       setFromCache(res.fromCache)
     } catch (err: any) {
@@ -72,6 +75,7 @@ export const MyCareerPlanPage: React.FC = () => {
   }, [loadData])
 
   const handleRefresh = () => {
+    setResetTrigger(prev => prev + 1)
     loadData(true)
   }
 
@@ -124,8 +128,19 @@ export const MyCareerPlanPage: React.FC = () => {
 
         {!loading && evaluation && (
           <Stack gap="lg">
-            <CareerPlanEvaluationView evaluation={evaluation} />
-            <ContractRtTable isMe={true} />
+            <CareerPlanEvaluationView
+              evaluation={simulatedEvaluation || evaluation}
+              isSimulated={Boolean(simulatedEvaluation)}
+              onResetSimulation={() => {
+                setSimulatedEvaluation(null)
+                setResetTrigger(prev => prev + 1)
+              }}
+            />
+            <ContractRtTable
+              isMe={true}
+              onSimulationChange={setSimulatedEvaluation}
+              resetTrigger={resetTrigger}
+            />
           </Stack>
         )}
       </div>

@@ -171,3 +171,46 @@
   text-align: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
+
+/* ── RT Simulator Styles ────────────────────────────────────────────────── */
+
+@keyframes rt-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(99, 102, 241, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+.rt-interactive-cell {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  border: 1.5px dashed #6366f1;
+  background: #f5f3ff;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.2s ease;
+  animation: rt-pulse 1.8s infinite;
+  user-select: none;
+}
+
+.rt-interactive-cell:hover {
+  transform: scale(1.08);
+  background: #ede9fe;
+}
+
+.rt-row-modified {
+  background-color: #fefce8 !important;
+  transition: background-color 0.2s ease;
+}
+
+.rt-row-modified:hover {
+  background-color: #fef08a !important;
+}
+
