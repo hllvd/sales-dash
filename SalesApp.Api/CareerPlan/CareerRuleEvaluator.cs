@@ -9,6 +9,7 @@ namespace SalesApp.CareerPlan
     public record RequirementEvaluationResult(
         string Label,
         string Metric,
+        string? RawMetricKey,
         decimal CurrentValue,
         decimal? TargetValue,
         string FormattedCurrent,
@@ -158,6 +159,7 @@ namespace SalesApp.CareerPlan
             return new RequirementEvaluationResult(
                 Label: label,
                 Metric: metricKind.ToString(),
+                RawMetricKey: CareerRawMetricKey.From(metricKind, node.WindowMonths, node.Eligibility),
                 CurrentValue: current,
                 TargetValue: target,
                 FormattedCurrent: formattedCurrent,

@@ -6,6 +6,7 @@ const API_BASE_URL = config.apiUrl
 export interface CareerPlanRequirement {
   label: string
   metric: string
+  rawMetricKey: string | null
   currentValue: number
   targetValue: number | null
   formattedCurrent: string

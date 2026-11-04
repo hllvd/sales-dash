@@ -140,6 +140,12 @@ test.describe('My Career Plan (Meu Plano de Carreira) E2E Tests', () => {
     // 5. Verify Requirements section is visible
     await expect(page.getByText('Requisitos para Promoção')).toBeVisible({ timeout: 15000 });
 
+    // 5b. Verify legend and highlighted metrics used by promotion requirements
+    await expect(page.getByTestId('requirement-legend')).toContainText('Métrica usada em um requisito de promoção', { timeout: 15000 });
+    await expect(page.locator('[data-metric-key="strictRetention15m"]')).toHaveAttribute('data-requirement', 'true');
+    await expect(page.locator('[data-metric-key="activeProduction12mMinPaid2"]')).toHaveAttribute('data-requirement', 'true');
+    await expect(page.locator('[data-metric-key="retention6m"]')).toHaveAttribute('data-requirement', 'false');
+
     // 6. Verify RT contract tracking loaded automatically
     await expect(page.getByText('Acompanhamento de Contratos (RT1 a RT6 e RT Atual)')).toBeVisible({ timeout: 15000 });
   });

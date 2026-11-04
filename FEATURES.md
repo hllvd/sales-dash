@@ -3073,3 +3073,20 @@ O uso de `caffeinate -dimsu` mantinha o computador acordado (principalmente por 
 
 ### Arquivos Modificados
 - `.agents/skills/test-and-fix/SKILL.md` — Comandos de execução com inibidor de sleep escopado.
+
+## [2026-11-03] — Destaque das Métricas Consolidadas Usadas em Requisitos de Promoção
+
+### Contexto & Motivação
+Na tela de Plano de Carreira, o usuário não sabia quais "Métricas Consolidadas" alimentam os "Requisitos para Promoção". Antes, só "Prod. Ativa 12m" tinha destaque fixo (lilás), independente das regras.
+
+### Funcionalidades & Arquitetura
+- **API**: cada requisito agora devolve `rawMetricKey` (ex.: `strictRetention15m`, `activeProduction12mMinPaid2`), derivado da própria regra por `CareerRawMetricKey.From` (função pura). Retorna `null` quando nenhum card representa a condição.
+- **UI**: cards cujo `key` está em `evaluation.requirements[].rawMetricKey` recebem a cor azul (`.career-plan-metric-box.requirement`) e um ícone de escudo; os demais permanecem cinza.
+- **Legenda** sempre visível abaixo do subtítulo: "Métrica usada em um requisito de promoção".
+- Os 12 blocos repetidos foram substituídos pelo componente `MetricBox` + definições em `careerPlanMetrics.ts`; o destaque lilás fixo foi removido.
+
+### Arquivos Modificados
+- `SalesApp.Api/CareerPlan/CareerRawMetricKey.cs` (novo), `CareerRuleEvaluator.cs`, `DTOs/CareerPlanDTOs.cs`, `Services/CareerPlanService.cs`
+- `client/sales-dash/src/components/careerPlanMetrics.ts` (novo), `CareerPlanEvaluationView.tsx`, `CareerPlanPage.css`, `services/careerPlanService.ts`
+- `SalesApp.IntegrationTests/CareerPlan/CareerRawMetricKeyTests.cs` (novo)
+- `client/e2e-test/e2e/my_career_plan.spec.ts` — valida legenda e cards destacados.

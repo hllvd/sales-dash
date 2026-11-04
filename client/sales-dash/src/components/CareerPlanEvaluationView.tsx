@@ -22,6 +22,12 @@ import {
   IconCalendar
 } from '@tabler/icons-react'
 import { CareerPlanEvaluation } from '../services/careerPlanService'
+import {
+  METRIC_DEFINITIONS,
+  MetricDefinition,
+  MetricValueKind,
+  getRequirementMetricKeys
+} from './careerPlanMetrics'
 
 const fmtCurrency = (val?: number | null) =>
   val != null
@@ -43,7 +49,47 @@ interface CareerPlanEvaluationViewProps {
   evaluation: CareerPlanEvaluation
 }
 
+const formatMetricValue = (kind: MetricValueKind, value: number | boolean): React.ReactNode => {
+  switch (kind) {
+    case 'percent':
+      return fmtPercent(value as number)
+    case 'currency':
+      return fmtCurrency(value as number)
+    case 'boolean':
+      return value ? <Badge color="green" size="sm">Sim</Badge> : <Badge color="gray" size="sm">Não</Badge>
+    default:
+      return value as number
+  }
+}
+
+interface MetricBoxProps {
+  definition: MetricDefinition
+  rawValue: number | boolean
+  isRequirement: boolean
+}
+
+const MetricBox: React.FC<MetricBoxProps> = ({ definition, rawValue, isRequirement }) => (
+  <Tooltip label={definition.tooltip} multiline w={300} withArrow position="top">
+    <div
+      className={`career-plan-metric-box${isRequirement ? ' requirement' : ''}`}
+      data-requirement={isRequirement ? 'true' : 'false'}
+      data-metric-key={definition.key}
+      style={{ cursor: 'help' }}
+    >
+      <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span>{definition.label}</span>
+        <Group gap={4} wrap="nowrap">
+          {isRequirement && <IconShieldCheck size={14} color="#2563eb" />}
+          <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
+        </Group>
+      </div>
+      <div className="career-plan-metric-box-value">{formatMetricValue(definition.kind, rawValue)}</div>
+    </div>
+  </Tooltip>
+)
+
 export const CareerPlanEvaluationView: React.FC<CareerPlanEvaluationViewProps> = ({ evaluation }) => {
+  const requirementKeys = getRequirementMetricKeys(evaluation.requirements)
   return (
     <>
       {/* Level progression cards */}
@@ -204,208 +250,23 @@ export const CareerPlanEvaluationView: React.FC<CareerPlanEvaluationViewProps> =
           Calculadas exclusivamente a partir dos contratos e vínculos diretos do consultor nos períodos fechados.
         </Text>
 
+        <Group gap={6} mb="md" className="career-plan-metrics-legend" data-testid="requirement-legend">
+          <span className="career-plan-metrics-legend-swatch" />
+          <IconShieldCheck size={14} color="#2563eb" />
+          <Text size="xs" c="dimmed">
+            Métrica usada em um requisito de promoção
+          </Text>
+        </Group>
+
         <div className="career-plan-metrics-grid">
-          <Tooltip
-            label="Percentual financeiro de retenção padrão na janela dos últimos 6 meses fechados. Considera perda apenas contratos com status Defaulted. Exclui Desistentes e AwaitingPayment."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Retenção Normal (6 meses)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.retention6m)}</div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Percentual financeiro de retenção padrão na janela dos últimos 12 meses fechados. Considera perda apenas contratos com status Defaulted. Exclui Desistentes e AwaitingPayment."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Retenção Normal (12 meses)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.retention12m)}</div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Percentual financeiro de retenção padrão na janela dos últimos 15 meses fechados. Considera perda apenas contratos com status Defaulted. Exclui Desistentes e AwaitingPayment."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Retenção Normal (15 meses)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.retention15m)}</div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Percentual de retenção estrita na janela de 6 meses. Considera perda: Defaulted, Late1, Late2, Late3. Exclui Desistentes e AwaitingPayment."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Retenção Estrita (6 meses)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.strictRetention6m)}</div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Percentual de retenção estrita na janela de 12 meses. Considera perda: Defaulted, Late1, Late2, Late3. Exclui Desistentes e AwaitingPayment."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Retenção Estrita (12 meses)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.strictRetention12m)}</div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Percentual de retenção estrita na janela de 15 meses. Considera perda: Defaulted, Late1, Late2, Late3. Exclui Desistentes e AwaitingPayment."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Retenção Estrita (15 meses)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">{fmtPercent(evaluation.rawMetrics.strictRetention15m)}</div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Volume financeiro total vendido nos últimos 12 meses fechados. Exclui Desistente e AwaitingPayment."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Produção (12 meses)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">{fmtCurrency(evaluation.rawMetrics.production12m)}</div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Volume financeiro total vendido nos últimos 15 meses fechados. Exclui Desistente e AwaitingPayment."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Produção (15 meses)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">{fmtCurrency(evaluation.rawMetrics.production15m)}</div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Volume de contratos vendidos nos últimos 12 meses fechados com idade >= 2 meses e que inferem ter ao menos 2 parcelas pagas, elegíveis como produção ativa."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box highlight" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Prod. Ativa 12m (≥ 2 pagas)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">{fmtCurrency(evaluation.rawMetrics.activeProduction12mMinPaid2)}</div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Indica se o usuário é proprietário ativo de ao menos uma equipe comercial cadastrada no sistema."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Líder de Equipe</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">
-                {evaluation.rawMetrics.isTeamOwner ? (
-                  <Badge color="green" size="sm">Sim</Badge>
-                ) : (
-                  <Badge color="gray" size="sm">Não</Badge>
-                )}
-              </div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Número total de membros ativos vinculados às equipes que este usuário lidera diretamente."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Membros Ativos na Equipe</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">
-                {evaluation.rawMetrics.activeTeamMembers}
-              </div>
-            </div>
-          </Tooltip>
-
-          <Tooltip
-            label="Quantidade de equipes lideradas por consultores que são subordinados diretos deste usuário na hierarquia."
-            multiline
-            w={300}
-            withArrow
-            position="top"
-          >
-            <div className="career-plan-metric-box" style={{ cursor: 'help' }}>
-              <div className="career-plan-metric-box-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Equipes Abaixo (Filhos Diretos)</span>
-                <IconAlertCircle size={14} style={{ opacity: 0.6 }} />
-              </div>
-              <div className="career-plan-metric-box-value">
-                {evaluation.rawMetrics.directSubTeams}
-              </div>
-            </div>
-          </Tooltip>
+          {METRIC_DEFINITIONS.map(def => (
+            <MetricBox
+              key={def.key}
+              definition={def}
+              rawValue={evaluation.rawMetrics[def.key]}
+              isRequirement={requirementKeys.has(def.key)}
+            />
+          ))}
         </div>
       </Card>
     </>

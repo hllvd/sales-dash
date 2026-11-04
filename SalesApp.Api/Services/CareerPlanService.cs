@@ -152,6 +152,7 @@ namespace SalesApp.Services
                 {
                     Label = r.Label,
                     Metric = r.Metric,
+                    RawMetricKey = r.RawMetricKey,
                     CurrentValue = r.CurrentValue,
                     TargetValue = r.TargetValue,
                     FormattedCurrent = r.FormattedCurrent,

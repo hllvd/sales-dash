@@ -133,9 +133,21 @@
   border-color: #cbd5e1;
 }
 
-.career-plan-metric-box.highlight {
-  background: #f5f3ff;
-  border-color: #c7d2fe;
+.career-plan-metric-box.requirement {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.career-plan-metric-box.requirement:hover {
+  border-color: #3b82f6;
+}
+
+.career-plan-metrics-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
 }
 
 .career-plan-metric-box-label {

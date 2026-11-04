@@ -7,6 +7,7 @@ namespace SalesApp.DTOs
     {
         public string Label { get; set; } = string.Empty;
         public string Metric { get; set; } = string.Empty;
+        public string? RawMetricKey { get; set; }
         public decimal CurrentValue { get; set; }
         public decimal? TargetValue { get; set; }
         public string FormattedCurrent { get; set; } = string.Empty;
