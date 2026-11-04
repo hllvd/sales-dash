@@ -40,9 +40,9 @@ namespace SalesApp.Models
 
         public DateTime? LastAccessedAt { get; set; }
         
-        public bool TreatUnpaidActiveAsAwaitingPayment { get; set; } = false;
+        public bool TreatUnpaidActiveAsAwaitingPayment { get; set; } = true;
         
-        public bool IncludeInactiveUsersInFilter { get; set; } = false;
+        public bool IncludeInactiveUsersInFilter { get; set; } = true;
         
         public int? ImportSessionId { get; set; } // Tracks if this user was created via import
         

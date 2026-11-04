@@ -655,5 +655,77 @@ namespace SalesApp.Tests
             response.Data.Page.Should().Be(1);
             response.Data.PageSize.Should().Be(10);
         }
+
+        [Fact]
+        public void User_ShouldDefaultPreferencesToTrue()
+        {
+            // Arrange & Act
+            var user = new User();
+
+            // Assert
+            user.TreatUnpaidActiveAsAwaitingPayment.Should().BeTrue();
+            user.IncludeInactiveUsersInFilter.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetMyPreferences_WhenUserExists_ReturnsUserPreferences()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            SetupUser(userId.ToString(), "user");
+            var user = new User
+            {
+                Id = userId,
+                TreatUnpaidActiveAsAwaitingPayment = true,
+                IncludeInactiveUsersInFilter = true
+            };
+            _mockUserRepository.Setup(x => x.GetByIdAsync(userId)).ReturnsAsync(user);
+
+            // Act
+            var result = await _controller.GetMyPreferences();
+
+            // Assert
+            result.Result.Should().BeOfType<OkObjectResult>();
+            var okResult = result.Result as OkObjectResult;
+            var response = okResult!.Value as ApiResponse<UserPreferencesResponse>;
+            response!.Success.Should().BeTrue();
+            response.Data!.TreatUnpaidActiveAsAwaitingPayment.Should().BeTrue();
+            response.Data!.IncludeInactiveUsersInFilter.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task UpdateMyPreferences_UpdatesPreferencesAndReturnsUpdated()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            SetupUser(userId.ToString(), "user");
+            var user = new User
+            {
+                Id = userId,
+                TreatUnpaidActiveAsAwaitingPayment = true,
+                IncludeInactiveUsersInFilter = true
+            };
+            _mockUserRepository.Setup(x => x.GetByIdAsync(userId)).ReturnsAsync(user);
+            _mockUserRepository.Setup(x => x.UpdateAsync(It.IsAny<User>())).ReturnsAsync((User u) => u);
+
+            var request = new UpdateUserPreferencesRequest
+            {
+                TreatUnpaidActiveAsAwaitingPayment = false,
+                IncludeInactiveUsersInFilter = false
+            };
+
+            // Act
+            var result = await _controller.UpdateMyPreferences(request);
+
+            // Assert
+            result.Result.Should().BeOfType<OkObjectResult>();
+            var okResult = result.Result as OkObjectResult;
+            var response = okResult!.Value as ApiResponse<UserPreferencesResponse>;
+            response!.Success.Should().BeTrue();
+            response.Data!.TreatUnpaidActiveAsAwaitingPayment.Should().BeFalse();
+            response.Data!.IncludeInactiveUsersInFilter.Should().BeFalse();
+            user.TreatUnpaidActiveAsAwaitingPayment.Should().BeFalse();
+            user.IncludeInactiveUsersInFilter.Should().BeFalse();
+        }
     }
 }

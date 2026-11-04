@@ -139,7 +139,7 @@ namespace SalesApp.Controllers
             {
                 var currentUserId = GetCurrentUserId();
                 var currentUser = await _userRepository.GetByIdAsync(currentUserId);
-                effectiveTreatUnpaid = currentUser?.TreatUnpaidActiveAsAwaitingPayment ?? false;
+                effectiveTreatUnpaid = currentUser?.TreatUnpaidActiveAsAwaitingPayment ?? true;
             }
 
             if (page.HasValue && pageSize.HasValue)
@@ -213,7 +213,7 @@ namespace SalesApp.Controllers
             else
             {
                 var targetUser = await _userRepository.GetByIdAsync(userId);
-                effectiveTreatUnpaid = targetUser?.TreatUnpaidActiveAsAwaitingPayment ?? false;
+                effectiveTreatUnpaid = targetUser?.TreatUnpaidActiveAsAwaitingPayment ?? true;
             }
 
             if (page.HasValue && pageSize.HasValue)

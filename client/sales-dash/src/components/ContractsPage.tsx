@@ -112,8 +112,8 @@ const ContractsPage: React.FC = () => {
 
   // Settings modal and retention preference state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [treatUnpaidAsAwaiting, setTreatUnpaidAsAwaiting] = useState(false);
-  const [includeInactiveUsers, setIncludeInactiveUsers] = useState(false);
+  const [treatUnpaidAsAwaiting, setTreatUnpaidAsAwaiting] = useState(true);
+  const [includeInactiveUsers, setIncludeInactiveUsers] = useState(true);
   const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>(() => {
     const saved = localStorage.getItem('contracts_visibleColumns');
     if (saved) {

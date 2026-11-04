@@ -839,12 +839,12 @@ namespace SalesApp.Api.Migrations
                     b.Property<bool>("TreatUnpaidActiveAsAwaitingPayment")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(false);
+                        .HasDefaultValue(true);
 
                     b.Property<bool>("IncludeInactiveUsersInFilter")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(false);
+                        .HasDefaultValue(true);
 
                     b.HasKey("Id");
 

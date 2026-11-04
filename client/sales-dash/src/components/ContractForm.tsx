@@ -74,7 +74,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
 
     const fetchDropdownData = async () => {
       try {
-        let includeInactive = false;
+        let includeInactive = true;
         try {
           const prefRes = await apiService.getUserPreferences();
           if (prefRes.success && prefRes.data) {

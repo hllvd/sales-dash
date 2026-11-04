@@ -1,3 +1,31 @@
+## Padrão Ativo (Default On) para "Aguardando Pagamento" e "Incluir Usuários Desativados"
+
+As preferências do usuário para visualização e retenção de contratos com pagamento pendente e exibição de usuários inativos nos filtros foram migradas para o estado padrão **ativo** (`true`) para todos os usuários do sistema.
+
+### Comportamento e Regras
+- **Ativação Padrão para Novos e Existentes Usuários**:
+  - `TreatUnpaidActiveAsAwaitingPayment`: contratos com status `NORMAL` (ativo) que ainda não tiveram pagamento confirmado (`HasPayment == false`) são computados e exibidos como `Aguardando Pagamento` por padrão.
+  - `IncludeInactiveUsersInFilter`: o seletor de usuários na tela de contratos (`/#/contracts`) e no formulário de contratos (`ContractForm`) passa a exibir por padrão todos os usuários (ativos e inativos), preservando o histórico de contratos de ex-membros de equipes.
+  - Uma migração do Entity Framework Core atualizou todos os registros já existentes na tabela `Users` para terem ambos os campos em `1` (`true`).
+  - Novos usuários criados na base herdam automaticamente `true` via default constraint no banco e no modelo `User.cs`.
+- **Customização e Persistência**:
+  - Usuários mantêm a autonomia de alternar manualmente as opções no modal de configurações da página de contratos (`/#/contracts`), persistindo a escolha individual via `PUT /api/users/me/preferences`.
+  - O estado inicial do frontend (`useState(true)`) e os fallbacks da API inicializam como `true`, eliminando flickers na interface antes da resposta do servidor.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Models/User.cs`: Valor padrão alterado para `true` em `TreatUnpaidActiveAsAwaitingPayment` e `IncludeInactiveUsersInFilter`.
+- `SalesApp.Api/Data/AppDbContext.cs`: Configuração de `HasDefaultValue(true)` para ambas as colunas.
+- `SalesApp.Api/Controllers/ContractsController.cs`: Fallbacks de usuário nulo ajustados para `true`.
+- `SalesApp.Api/Migrations/20261104103000_SetUserPreferencesDefaultTrueAndEnableForAllUsers.cs`: Migração de dados aplicando `UPDATE Users SET ... = 1` para todos os usuários existentes.
+- `SalesApp.Api/Migrations/20261104103000_SetUserPreferencesDefaultTrueAndEnableForAllUsers.Designer.cs`: Metadados da migração.
+- `SalesApp.Api/Migrations/AppDbContextModelSnapshot.cs`: Atualização do snapshot do EF Core.
+- `SalesApp.Tests/UsersControllerTests.cs`: Testes unitários para modelo padrão e endpoints de preferências.
+- `client/sales-dash/src/components/ContractsPage.tsx`: Estados padrão inicializados como `true`.
+- `client/sales-dash/src/components/ContractForm.tsx`: Fallback de inativos ajustado para `true`.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## RT1 Pago para Contratos Ativos de Idade 0 e Simulador de RT Atual no Plano de Carreira
 
 Aprimoramentos no módulo de Plano de Carreira: exibição de RT1 como pago para contratos ativos recém-emitidos (idade 0 meses) na tabela de acompanhamento de contratos, e simulador interativo em tempo real de RT Atual para previsão de impacto na retenção e nos requisitos de promoção de carreira sem persistência de dados.
