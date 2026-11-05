@@ -1,3 +1,24 @@
+## Desacoplamento da Tabela Helpdesk em Ambiente de Desenvolvimento (`dev-salesapp-helpdesk`)
+
+Desacoplamento do banco de dados DynamoDB do Helpdesk entre os ambientes de produção e desenvolvimento, isolando os testes locais e evitando poluição ou concorrência na base de produção `salesapp-helpdesk`.
+
+### Comportamento e Regras
+- **Criação da Tabela Dedicada para Dev**:
+  - Tabela DynamoDB `dev-salesapp-helpdesk` provisionada na AWS (`us-east-1`) em modo sob demanda (`PAY_PER_REQUEST`).
+  - Espelhamento de schema da produção: Chave primária composta `PK` (String, HASH) e `SK` (String, RANGE), acompanhada do índice global secundário `GSI1` (`GSI1PK` HASH, `GSI1SK` RANGE, projeção `ALL`).
+  - Tabela inicializada totalmente vazia para permitir testes locais limpos e isolados.
+- **Hierarquia de Configuração Local**:
+  - `SalesApp.Api/appsettings.Development.json` configurado com `"HelpdeskTable": "dev-salesapp-helpdesk"` dentro da seção `AWS`.
+  - Em ambiente de produção (`appsettings.json`), a configuração padrão permanece `salesapp-helpdesk`.
+  - O arquivo `.env` foi mantido livre de sobrescritas para essa tabela, preservando sua responsabilidade estrita para credenciais e segredos sensíveis.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/appsettings.Development.json`: Adicionada a propriedade `"HelpdeskTable": "dev-salesapp-helpdesk"` na seção `"AWS"`.
+- `SalesApp.Tests/ConfigurationHierarchyTests.cs`: Adicionado teste unitário `ConfigureAppConfigurationHierarchy_WhenDevelopment_OverridesHelpdeskTableFromDevelopmentJson` validando a resolução da tabela em ambiente de desenvolvimento.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Consolidação do Menu Lateral e Renomeação para "Performance do Consultor"
 
 Simplificação da estrutura do menu lateral de navegação no módulo de Plano de Carreira para as roles `admin` e `superadmin`.

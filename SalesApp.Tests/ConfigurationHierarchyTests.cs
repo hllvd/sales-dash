@@ -188,5 +188,48 @@ INLINE_COMMENT=my_value # some note
                 }
             }
         }
+
+        [Fact]
+        public void ConfigureAppConfigurationHierarchy_WhenDevelopment_OverridesHelpdeskTableFromDevelopmentJson()
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "salesapp_test_dev_" + Guid.NewGuid());
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                // Level 1: appsettings.json (Production base)
+                File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), @"{
+                    ""AWS"": {
+                        ""HelpdeskTable"": ""salesapp-helpdesk""
+                    }
+                }");
+
+                // Level 2: appsettings.Development.json
+                File.WriteAllText(Path.Combine(tempDir, "appsettings.Development.json"), @"{
+                    ""AWS"": {
+                        ""HelpdeskTable"": ""dev-salesapp-helpdesk""
+                    }
+                }");
+
+                var envMock = new Mock<IHostEnvironment>();
+                envMock.Setup(e => e.EnvironmentName).Returns("Development");
+                envMock.Setup(e => e.ContentRootPath).Returns(tempDir);
+                envMock.Setup(e => e.ContentRootFileProvider).Returns(new PhysicalFileProvider(tempDir));
+
+                var builder = new ConfigurationBuilder();
+                builder.SetBasePath(tempDir);
+
+                ConfigurationHierarchy.ConfigureAppConfigurationHierarchy(builder, envMock.Object);
+                var config = builder.Build();
+
+                config["AWS:HelpdeskTable"].Should().Be("dev-salesapp-helpdesk");
+            }
+            finally
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+        }
     }
 }
