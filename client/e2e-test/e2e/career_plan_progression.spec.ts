@@ -280,7 +280,7 @@ test.describe('Career Plan Progression E2E Tests', () => {
 
     // 2. Navigate to the Consultants List page
     await page.goto('/#/career-plan/consultants');
-    await expect(page.getByRole('heading', { name: 'Lista de consultores' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Performance do Consultor' })).toBeVisible({ timeout: 15000 });
 
     // 3. Verify Filters exist
     await expect(page.getByRole('textbox', { name: 'Buscar Consultor' })).toBeVisible();

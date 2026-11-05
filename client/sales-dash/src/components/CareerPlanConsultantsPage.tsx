@@ -163,7 +163,7 @@ export const CareerPlanConsultantsPage: React.FC = () => {
             <Group gap="xs" align="center">
               <IconTrophy size={28} color="#6366f1" />
               <Title order={2} style={{ color: '#1c1c1e', fontWeight: 700 }}>
-                Lista de consultores
+                Performance do Consultor
               </Title>
             </Group>
             <Text size="sm" c="dimmed" mt={4}>

@@ -1,3 +1,24 @@
+## Consolidação do Menu Lateral e Renomeação para "Performance do Consultor"
+
+Simplificação da estrutura do menu lateral de navegação no módulo de Plano de Carreira para as roles `admin` e `superadmin`.
+
+### Comportamento e Regras
+- **Omissão de Rota Individual no Menu Lateral**:
+  - A rota `/#/career-plan` deixa de ter uma entrada direta no menu lateral. Ela permanece ativa no roteamento como página de detalhes aprofundados para cada consultor, acessível via ação "Ver mais" na tabela de consultores ou navegação direta por link/URL com `?userId=...`.
+- **Subitem Único no Grupo "Plano de Carreira"**:
+  - O grupo expansível de menu **Plano de Carreira** para `admin` e `superadmin` agora contém um único item de navegação intitulado **Performance do Consultor**, direcionando para a rota `/#/career-plan/consultants`.
+- **Renomeação da Tela de Consultores**:
+  - A página `/#/career-plan/consultants` foi renomeada no cabeçalho de "Lista de consultores" para **Performance do Consultor**, unificando a nomenclatura e eliminando duplicidades visuais no menu.
+
+### Arquivos Adicionados / Modificados
+- `client/sales-dash/src/components/Menu.tsx`: Remoção do item `/#/career-plan` e renomeação do item `/#/career-plan/consultants` para "Performance do Consultor".
+- `client/sales-dash/src/components/CareerPlanConsultantsPage.tsx`: Alteração do título da página para "Performance do Consultor".
+- `client/e2e-test/e2e/my_career_plan.spec.ts`: Atualização do fluxo de navegação do admin pelo menu lateral.
+- `client/e2e-test/e2e/career_plan_progression.spec.ts`: Atualização da validação do título do cabeçalho da página de consultores.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Padrão Ativo (Default On) para "Aguardando Pagamento" e "Incluir Usuários Desativados"
 
 As preferências do usuário para visualização e retenção de contratos com pagamento pendente e exibição de usuários inativos nos filtros foram migradas para o estado padrão **ativo** (`true`) para todos os usuários do sistema.

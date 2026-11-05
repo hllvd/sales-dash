@@ -7,6 +7,15 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-11-05] e2e — Attempt 1
+**Feature:** Consolidação do menu lateral do Plano de Carreira e renomeação de `#/career-plan/consultants` para "Performance do Consultor".
+**Changes applied:**
+1. Removido item direto `/#/career-plan` do menu lateral para `admin` e `superadmin`.
+2. Renomeado subitem `/#/career-plan/consultants` de "Lista de consultores" para "Performance do Consultor" dentro do grupo "Plano de Carreira".
+3. Renomeado cabeçalho da página `CareerPlanConsultantsPage.tsx` de "Lista de consultores" para "Performance do Consultor".
+4. Atualizados testes E2E (`my_career_plan.spec.ts` e `career_plan_progression.spec.ts`) para navegar e validar o novo título.
+**Result:** ✅ Green (Build: clean, Playwright E2E: 67/67 tests passed with 0 failures).
+
 ## [2026-11-03] all — Attempt 1
 **Feature:** RT1 Pago para Contratos Ativos de Idade 0 na Tabela de RT e Simulador de RT Atual no Plano de Carreira.
 **Root cause / Issues fixed:**

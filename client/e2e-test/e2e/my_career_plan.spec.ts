@@ -83,17 +83,13 @@ test.describe('My Career Plan (Meu Plano de Carreira) E2E Tests', () => {
 
     // 4. Open "Plano de Carreira" and click "Performance do Consultor"
     await careerGroup.click();
-    const perfLink = page.locator('a[href="#/career-plan"]');
+    const perfLink = page.locator('a[href="#/career-plan/consultants"]');
     await expect(perfLink).toBeVisible();
     await perfLink.click();
 
-    // 5. Verify page opens, auto-selects admin's own ID in URL, and renders Career Plan
-    await expect(page).toHaveURL(/#\/career-plan(\?userId=.+)?/);
-    await expect(page.getByRole('heading', { name: 'Plano de Carreira' })).toBeVisible({ timeout: 15000 });
-
-    // 6. Verify User Select dropdown exists and user selector works
-    const userSelectInput = page.getByRole('textbox', { name: 'Selecione um Usuário' });
-    await expect(userSelectInput).toBeVisible({ timeout: 15000 });
+    // 5. Verify page opens and renders Performance do Consultor
+    await expect(page).toHaveURL(/#\/career-plan\/consultants/);
+    await expect(page.getByRole('heading', { name: 'Performance do Consultor' })).toBeVisible({ timeout: 15000 });
   });
 
   test('superadmin should see "Plano de Carreira" group and NOT "Meu Plano de Carreira"', async ({ page }) => {

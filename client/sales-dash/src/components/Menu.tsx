@@ -465,20 +465,10 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               onChange={setCareerPlanMenuOpened}
             >
               <NavLink
-                href="#/career-plan"
+                href="#/career-plan/consultants"
                 label="Performance do Consultor"
                 leftSection={<IconTrophy size={16} />}
-                active={currentPath === '#/career-plan'}
-                variant="filled"
-                color="red"
-                styles={navLinkStyles('#/career-plan')}
-                onClick={() => { if (opened) close(); }}
-              />
-              <NavLink
-                href="#/career-plan/consultants"
-                label="Lista de consultores"
-                leftSection={<IconTrophy size={16} />}
-                active={currentPath === '#/career-plan/consultants'}
+                active={currentPath === '#/career-plan/consultants' || currentPath.startsWith('#/career-plan/consultants')}
                 variant="filled"
                 color="red"
                 styles={navLinkStyles('#/career-plan/consultants')}
