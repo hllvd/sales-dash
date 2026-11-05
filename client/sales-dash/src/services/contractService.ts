@@ -33,6 +33,8 @@ export interface Contract {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  segment?: number | null;
+  segmentName?: string | null;
   contractType?: string;
   quota?: number;
   customerName?: string;
@@ -53,7 +55,6 @@ export interface CreateContractRequest {
   status: ContractStatus;
   contractStartDate: string;
   pvId?: number | null;
-  contractType?: string | null;
   quota?: number | null;
   customerName?: string | null;
   matriculaNumber?: string | null;
@@ -69,7 +70,6 @@ export interface UpdateContractRequest {
   status?: ContractStatus;
   contractStartDate?: string;
   isActive?: boolean;
-  contractType?: string | null;
   quota?: number | null;
   customerName?: string | null;
   matriculaNumber?: string | null;
@@ -102,6 +102,8 @@ export interface Group {
   name: string;
   description: string;
   commission: number;
+  segment?: number | null;
+  segmentName?: string | null;
   isActive: boolean;
 }
 
@@ -549,8 +551,11 @@ export const getFilterCandidateUsers = async (): Promise<User[]> => {
   return result.data;
 };
 
-export const getGroups = async (): Promise<Group[]> => {
-  const response = await authenticatedFetch(`${API_BASE_URL}/groups`, {
+export const getGroups = async (includeInactive: boolean = false): Promise<Group[]> => {
+  const url = includeInactive 
+    ? `${API_BASE_URL}/groups?includeInactive=true`
+    : `${API_BASE_URL}/groups`;
+  const response = await authenticatedFetch(url, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
@@ -560,7 +565,51 @@ export const getGroups = async (): Promise<Group[]> => {
   }
 
   const result: ApiResponse<Group[]> = await response.json();
-  return result.data.filter(group => group.isActive);
+  return includeInactive ? result.data : result.data.filter(group => group.isActive);
+};
+
+export const createGroup = async (group: { name: string; description?: string; commission?: number; segment?: number | null }): Promise<Group> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/groups`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(group),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Falha ao criar grupo');
+  }
+
+  const result: ApiResponse<Group> = await response.json();
+  return result.data;
+};
+
+export const updateGroup = async (id: number, group: { name?: string; description?: string; commission?: number; segment?: number | null; isActive?: boolean }): Promise<Group> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/groups/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(group),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Falha ao atualizar grupo');
+  }
+
+  const result: ApiResponse<Group> = await response.json();
+  return result.data;
+};
+
+export const deleteGroup = async (id: number): Promise<void> => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/groups/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Falha ao desativar grupo');
+  }
 };
 
 // Get contract by contract number

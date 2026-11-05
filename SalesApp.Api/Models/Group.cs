@@ -16,6 +16,8 @@ namespace SalesApp.Models
         [Range(0, 100)]
         public decimal Commission { get; set; } = 0;
         
+        public int? Segment { get; set; }
+        
         public bool IsActive { get; set; } = true;
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

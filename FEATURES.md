@@ -3199,3 +3199,35 @@ Na tela de Plano de Carreira, o usuário não sabia quais "Métricas Consolidada
 - `client/sales-dash/src/components/careerPlanMetrics.ts` (novo), `CareerPlanEvaluationView.tsx`, `CareerPlanPage.css`, `services/careerPlanService.ts`
 - `SalesApp.IntegrationTests/CareerPlan/CareerRawMetricKeyTests.cs` (novo)
 - `client/e2e-test/e2e/my_career_plan.spec.ts` — valida legenda e cards destacados.
+
+## [2026-11-05] — Remoção de ContractType, Segmento em Grupos e CRUD de Grupos (`/#/groups`)
+
+### Contexto & Motivação
+A coluna `ContractType` da tabela `Contracts` continha dados imprecisos e foi removida do modelo e do banco de dados. O conceito de segmento agora pertence exclusivamente ao **Grupo**, onde cada grupo pode ser opcionalmente categorizado em um segmento numérico (1: Lar, 2: Motores, 3: Serviços). Além disso, foi disponibilizada a tela de CRUD para gerenciamento de Grupos através da URL `/#/groups` (sem link visível no menu lateral). No cadastro e edição de contratos, o antigo campo editável "Tipo de Contrato" foi substituído pelo campo "Segmento", exibido como somente leitura e derivado dinamicamente do Grupo associado ao contrato.
+
+### Funcionalidades & Arquitetura
+1. **Banco de Dados & Migração SQLite**:
+   - Migração `20261105180000_RemoveContractTypeAndAddGroupSegment` executada com padrão de *Table Rebuild* do SQLite (`suppressTransaction: true`), removendo com segurança a coluna `ContractType` da tabela `Contracts` e preservando todos os índices, chaves estrangeiras e integridade de dados.
+   - Adicionada a coluna `Segment` (`INTEGER NULL`) à tabela `Groups`.
+2. **Backend**:
+   - Criado o enum/helper centralizado [`Segment.cs`](file:///Users/hudson/development/sales-dash/SalesApp.Api/Models/Segment.cs) (1 = Lar, 2 = Motores, 3 = Serviços).
+   - Atualizados os modelos [`Contract.cs`](file:///Users/hudson/development/sales-dash/SalesApp.Api/Models/Contract.cs) e [`Group.cs`](file:///Users/hudson/development/sales-dash/SalesApp.Api/Models/Group.cs).
+   - Atualizados DTOs [`GroupRequest.cs`](file:///Users/hudson/development/sales-dash/SalesApp.Api/DTOs/GroupRequest.cs), [`GroupResponse.cs`](file:///Users/hudson/development/sales-dash/SalesApp.Api/DTOs/GroupResponse.cs) e [`ContractResponse.cs`](file:///Users/hudson/development/sales-dash/SalesApp.Api/DTOs/ContractResponse.cs).
+   - Endpoints de Grupos (`GroupsController`) suportam listagem com filtro inativo (`includeInactive`), criação com segmento, edição de segmento e status, e desativação/reativação.
+   - Exportação Excel (`ExportService.cs`) substituiu o cabeçalho "Tipo" por "Segmento" com os valores textuais correspondentes.
+3. **Frontend**:
+   - Nova página de CRUD [`GroupsPage.tsx`](file:///Users/hudson/development/sales-dash/client/sales-dash/src/components/GroupsPage.tsx) com listagem, busca por texto, filtro de status (ativos/inativos/todos), criação, edição e desativação/reativação.
+   - Rotas `#/groups` e `#/grupos` configuradas no [`App.tsx`](file:///Users/hudson/development/sales-dash/client/sales-dash/src/App.tsx), mantendo o menu lateral ([`Menu.tsx`](file:///Users/hudson/development/sales-dash/client/sales-dash/src/components/Menu.tsx)) limpo sem o item.
+   - Formulário de contrato ([`ContractForm.tsx`](file:///Users/hudson/development/sales-dash/client/sales-dash/src/components/ContractForm.tsx)) com campo "Segmento" como somente leitura vinculado ao grupo selecionado.
+   - Listagens de contratos ([`ContractsPage.tsx`](file:///Users/hudson/development/sales-dash/client/sales-dash/src/components/ContractsPage.tsx), [`MyContractsPage.tsx`](file:///Users/hudson/development/sales-dash/client/sales-dash/src/components/MyContractsPage.tsx)) exibindo a coluna "Segmento".
+
+### Arquivos Modificados / Criados
+- `SalesApp.Api/Models/Segment.cs` — Enum e métodos de extensão para Segmento.
+- `SalesApp.Api/Models/Contract.cs` e `Group.cs` — Atualização das entidades.
+- `SalesApp.Api/Migrations/20261105180000_RemoveContractTypeAndAddGroupSegment.cs` — Migração SQLite com table rebuild.
+- `SalesApp.Api/Controllers/GroupsController.cs`, `ContractsController.cs`, `AdminToolsController.cs`, `UsersController.cs` — Controllers e mapeamentos.
+- `client/sales-dash/src/types/Segment.ts` — Tipos e labels de Segmento no frontend.
+- `client/sales-dash/src/components/GroupsPage.tsx` — Nova tela CRUD de Grupos.
+- `client/sales-dash/src/components/ContractForm.tsx` — Campo Segmento somente leitura.
+- `client/sales-dash/src/App.tsx` — Roteamento de `#/groups`.
+- `SalesApp.IntegrationTests/Groups/GroupsControllerIntegrationTests.cs` — Testes de integração de grupos.

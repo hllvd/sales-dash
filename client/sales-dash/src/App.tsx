@@ -11,6 +11,7 @@ import MatriculasPage from './components/MatriculasPage';
 import TeamsPage from './components/TeamsPage';
 import TeamCalendarPage from './components/TeamCalendarPage';
 import StoresPage from './components/StoresPage';
+import GroupsPage from './components/GroupsPage';
 import ClassificationsPage from './components/ClassificationsPage';
 import CareerPlanPage from './components/CareerPlanPage';
 import { CareerPlanConsultantsPage } from './components/CareerPlanConsultantsPage';
@@ -212,8 +213,10 @@ function App() {
         return <SurveyPage />;
       case '#/qa':
         return <MyQAPage />;
-      case '#/dashboards':
+      case '#/groups':
       case '#/grupos':
+        return <GroupsPage />;
+      case '#/dashboards':
       case '#/home':
       default:
         return <MyContractsPage />;

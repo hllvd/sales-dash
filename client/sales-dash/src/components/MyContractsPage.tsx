@@ -27,6 +27,7 @@ import {
 } from '../services/contractService';
 import { apiService, UserMatricula } from '../services/apiService';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
+import { getSegmentLabel } from '../types/Segment';
 
 const MULTI_SELECT_STYLES = {
   input: { minHeight: '36px' },
@@ -618,6 +619,7 @@ const MyContractsPage: React.FC = () => {
                       <Table.Th>Cliente</Table.Th>
                       <Table.Th>Matrícula</Table.Th>
                       <Table.Th>Grupo</Table.Th>
+                      <Table.Th>Segmento</Table.Th>
                       <Table.Th>Valor Total</Table.Th>
                       <Table.Th>Status</Table.Th>
                       <Table.Th>Data Início</Table.Th>
@@ -630,6 +632,7 @@ const MyContractsPage: React.FC = () => {
                         <Table.Td>{normalizeName(contract.customerName) || '-'}</Table.Td>
                         <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>
                         <Table.Td>{contract.groupName}</Table.Td>
+                        <Table.Td>{contract.segmentName || getSegmentLabel(contract.segment) || '-'}</Table.Td>
                         <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>
                         <Table.Td>
                           <ContractStatusBadge

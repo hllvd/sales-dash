@@ -32,10 +32,6 @@ namespace SalesApp.DTOs
         
         public bool? IsActive { get; set; }
         
-        [StringLength(20)]
-        [Display(Name = "Tipo de Contrato")]
-        public string? ContractType { get; set; }
-        
         [Display(Name = "Cota")]
         public int? Quota { get; set; }
         

@@ -240,7 +240,7 @@ namespace SalesApp.Services
                 {
                     "Nº Contrato", "Usuário", "Email", "Matrícula",
                     "Grupo", "Cliente", "Valor Total", "Status",
-                    "Tipo", "Cota", "Data Início", "Criado Em"
+                    "Segmento", "Cota", "Data Início", "Criado Em"
                 };
 
                 for (var i = 0; i < contracts.Count; i++)
@@ -267,9 +267,7 @@ namespace SalesApp.Services
                     ws.Cells[row, 7].Value = c.TotalAmount;
                     ws.Cells[row, 7].Style.Numberformat.Format = "#,##0.00";
                     ws.Cells[row, 8].Value = c.ContractStatus?.Name ?? string.Empty;
-                    ws.Cells[row, 9].Value = c.ContractType.HasValue
-                        ? ContractTypeExtensions.ToApiString(c.ContractType)
-                        : string.Empty;
+                    ws.Cells[row, 9].Value = SegmentExtensions.ToDisplayName(c.Group?.Segment) ?? string.Empty;
                     ws.Cells[row, 10].Value = c.Quota;
                     ws.Cells[row, 11].Value = c.SaleStartDate.ToString("dd/MM/yyyy");
                     ws.Cells[row, 12].Value = c.CreatedAt.ToString("dd/MM/yyyy");

@@ -514,7 +514,6 @@ namespace SalesApp.Services
             }
             var status = mappedStatus ?? ContractStatus.Active.ToApiString();
             var saleStartDateStr = GetFieldValue(row, reverseMappings, "SaleStartDate");
-            var contractTypeStr = GetFieldValue(row, reverseMappings, "ContractType");
             var quotaStr = GetFieldValue(row, reverseMappings, "Quota");
             if (cotaInfo.IsFromConcatenatedString && !string.IsNullOrWhiteSpace(cotaInfo.Matricula))
             {
@@ -538,25 +537,6 @@ namespace SalesApp.Services
                     throw new ArgumentException($"Invalid start date: {saleStartDateStr}");
                 }
                 saleStartDate = parsedDate;
-            }
-
-            // Parse ContractType - try string first, then fallback to int for backwards compatibility
-            int? contractType = null;
-            if (!string.IsNullOrWhiteSpace(contractTypeStr))
-            {
-                try
-                {
-                    // Try parsing as string ("lar" or "motores")
-                    contractType = ContractTypeExtensions.FromApiStringToInt(contractTypeStr);
-                }
-                catch (ArgumentException)
-                {
-                    // Fallback to int parsing only if it maps to a defined ContractType
-                    if (int.TryParse(contractTypeStr, out var parsedType) && Enum.IsDefined(typeof(ContractType), parsedType))
-                    {
-                        contractType = parsedType;
-                    }
-                }
             }
 
             // Parse Quota
@@ -639,7 +619,6 @@ namespace SalesApp.Services
             contract.ImportSessionId = importSessionId;
             contract.IsActive = true;
             contract.UpdatedAt = DateTime.UtcNow;
-            contract.ContractType = contractType;
             contract.Quota = quota;
             contract.PvId = pvId;
             contract.CustomerName = customerName;

@@ -36,7 +36,7 @@ namespace SalesApp.IntegrationTests.Contracts
         }
 
         [Fact]
-        public async Task CreateContract_ShouldSaveContractTypeAndQuota()
+        public async Task CreateContract_ShouldSaveQuotaAndDeriveSegmentFromGroup()
         {
             // Arrange
             var token = await GetSuperAdminTokenAsync();
@@ -44,7 +44,7 @@ namespace SalesApp.IntegrationTests.Contracts
 
             // Create a user and group first
             var user = new User { Id = Guid.NewGuid(), Name = "Contract Test User", Email = "contracttest@test.com", RoleId = 1 };
-            var group = new Group { Id = 101, Name = "Contract Test Group" };
+            var group = new Group { Id = 101, Name = "Contract Test Group", Segment = 2 };
             
             using (var scope = _factory.Services.CreateScope())
             {
@@ -54,9 +54,14 @@ namespace SalesApp.IntegrationTests.Contracts
                 {
                     context.Users.Add(user);
                 }
-                if (await context.Groups.FindAsync(group.Id) == null)
+                var existingGroup = await context.Groups.FindAsync(group.Id);
+                if (existingGroup == null)
                 {
                     context.Groups.Add(group);
+                }
+                else
+                {
+                    existingGroup.Segment = 2;
                 }
                 await context.SaveChangesAsync();
             }
@@ -67,7 +72,6 @@ namespace SalesApp.IntegrationTests.Contracts
                 UserId = user.Id,
                 GroupId = group.Id,
                 TotalAmount = 5000,
-                ContractType = "motores",
                 Quota = 10,
                 CustomerName = "Jane Doe",
                 Status = "Active",
@@ -82,13 +86,14 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result!.Data!.ContractType.Should().Be("motores");
+            result!.Data!.Segment.Should().Be(2);
+            result!.Data!.SegmentName.Should().Be("Motores");
             result!.Data!.Quota.Should().Be(10);
             result!.Data!.CustomerName.Should().Be("Jane Doe");
         }
 
         [Fact]
-        public async Task UpdateContract_ShouldUpdateContractTypeAndQuota()
+        public async Task UpdateContract_ShouldUpdateQuota()
         {
             // Arrange
             var token = await GetSuperAdminTokenAsync();
@@ -96,7 +101,7 @@ namespace SalesApp.IntegrationTests.Contracts
 
             // Create a user, group and contract
             var user = new User { Id = Guid.NewGuid(), Name = "Contract Test User 2", Email = "contracttest2@test.com", RoleId = 1 };
-            var group = new Group { Id = 102, Name = "Contract Test Group 2" };
+            var group = new Group { Id = 102, Name = "Contract Test Group 2", Segment = 1 };
             Contract contract;
             
             using (var scope = _factory.Services.CreateScope())
@@ -107,9 +112,14 @@ namespace SalesApp.IntegrationTests.Contracts
                 {
                     context.Users.Add(user);
                 }
-                if (await context.Groups.FindAsync(group.Id) == null)
+                var existingGroup = await context.Groups.FindAsync(group.Id);
+                if (existingGroup == null)
                 {
                     context.Groups.Add(group);
+                }
+                else
+                {
+                    existingGroup.Segment = 1;
                 }
                 await context.SaveChangesAsync();
 
@@ -119,7 +129,6 @@ namespace SalesApp.IntegrationTests.Contracts
                     UserInternalId = user.InternalId,
                     GroupId = group.Id,
                     TotalAmount = 3000,
-                    ContractType = 1, // Will be updated to "motores"
                     Quota = 5,
                     ContractStatusId = 1,
                     SaleStartDate = DateTime.UtcNow
@@ -141,7 +150,6 @@ namespace SalesApp.IntegrationTests.Contracts
 
             var updateRequest = new UpdateContractRequest
             {
-                ContractType = "motores",
                 Quota = 20
             };
 
@@ -153,7 +161,6 @@ namespace SalesApp.IntegrationTests.Contracts
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
-            result!.Data!.ContractType.Should().Be("motores");
             result!.Data!.Quota.Should().Be(20);
         }
 
@@ -183,7 +190,6 @@ namespace SalesApp.IntegrationTests.Contracts
                 UserId = null, // No user assigned
                 GroupId = group.Id,
                 TotalAmount = 4000,
-                ContractType = "lar",
                 Quota = 15,
                 CustomerName = "John Smith",
                 Status = "Active",
@@ -477,14 +483,15 @@ namespace SalesApp.IntegrationTests.Contracts
         }
 
         [Fact]
-        public async Task CreateContract_WithStringContractType_ShouldAcceptLarAndMotores()
+        public async Task CreateContract_ShouldDeriveSegmentFromAssignedGroup()
         {
             // Arrange
             var token = await GetSuperAdminTokenAsync();
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            var user = new User { Id = Guid.NewGuid(), Name = "ContractType Test User", Email = "contracttypetest@test.com", RoleId = 1 };
-            var group = new Group { Id = 108, Name = "ContractType Test Group" };
+            var user = new User { Id = Guid.NewGuid(), Name = "Segment Test User", Email = "segmenttest@test.com", RoleId = 1 };
+            var groupLar = new Group { Id = 108, Name = "Segment Lar Group", Segment = 1 };
+            var groupMotores = new Group { Id = 109, Name = "Segment Motores Group", Segment = 2 };
             
             using (var scope = _factory.Services.CreateScope())
             {
@@ -493,21 +500,24 @@ namespace SalesApp.IntegrationTests.Contracts
                 {
                     context.Users.Add(user);
                 }
-                if (await context.Groups.FindAsync(group.Id) == null)
-                {
-                    context.Groups.Add(group);
-                }
+                var existingLar = await context.Groups.FindAsync(groupLar.Id);
+                if (existingLar == null) context.Groups.Add(groupLar);
+                else existingLar.Segment = 1;
+
+                var existingMotores = await context.Groups.FindAsync(groupMotores.Id);
+                if (existingMotores == null) context.Groups.Add(groupMotores);
+                else existingMotores.Segment = 2;
+
                 await context.SaveChangesAsync();
             }
 
-            // Test 1: Create contract with "lar" (lowercase)
+            // Test 1: Create contract with group Lar
             var requestLar = new ContractRequest
             {
-                ContractNumber = $"TYPE-LAR-{Guid.NewGuid().ToString()[..8]}",
+                ContractNumber = $"SEG-LAR-{Guid.NewGuid().ToString()[..8]}",
                 UserId = user.Id,
-                GroupId = group.Id,
+                GroupId = groupLar.Id,
                 TotalAmount = 1000,
-                ContractType = "lar",
                 Status = "Active",
                 ContractStartDate = DateTime.UtcNow
             };
@@ -515,16 +525,16 @@ namespace SalesApp.IntegrationTests.Contracts
             var responseLar = await _client.PostAsJsonAsync("/api/contracts", requestLar);
             responseLar.StatusCode.Should().Be(HttpStatusCode.OK);
             var resultLar = await responseLar.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
-            resultLar!.Data.ContractType.Should().Be("lar");
+            resultLar!.Data.Segment.Should().Be(1);
+            resultLar.Data.SegmentName.Should().Be("Lar");
 
-            // Test 2: Create contract with "motores" (lowercase)
+            // Test 2: Create contract with group Motores
             var requestMotores = new ContractRequest
             {
-                ContractNumber = $"TYPE-MOTORES-{Guid.NewGuid().ToString()[..8]}",
+                ContractNumber = $"SEG-MOTORES-{Guid.NewGuid().ToString()[..8]}",
                 UserId = user.Id,
-                GroupId = group.Id,
+                GroupId = groupMotores.Id,
                 TotalAmount = 2000,
-                ContractType = "motores",
                 Status = "Active",
                 ContractStartDate = DateTime.UtcNow
             };
@@ -532,42 +542,8 @@ namespace SalesApp.IntegrationTests.Contracts
             var responseMotores = await _client.PostAsJsonAsync("/api/contracts", requestMotores);
             responseMotores.StatusCode.Should().Be(HttpStatusCode.OK);
             var resultMotores = await responseMotores.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
-            resultMotores!.Data.ContractType.Should().Be("motores");
-
-            // Test 3: Create contract with "LAR" (uppercase - should be normalized to lowercase)
-            var requestUppercase = new ContractRequest
-            {
-                ContractNumber = $"TYPE-UPPER-{Guid.NewGuid().ToString()[..8]}",
-                UserId = user.Id,
-                GroupId = group.Id,
-                TotalAmount = 3000,
-                ContractType = "LAR",
-                Status = "Active",
-                ContractStartDate = DateTime.UtcNow
-            };
-
-            var responseUppercase = await _client.PostAsJsonAsync("/api/contracts", requestUppercase);
-            responseUppercase.StatusCode.Should().Be(HttpStatusCode.OK);
-            var resultUppercase = await responseUppercase.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
-            resultUppercase!.Data.ContractType.Should().Be("lar"); // Should be normalized to lowercase
-
-            // Test 4: Create contract with invalid type should fail
-            var requestInvalid = new ContractRequest
-            {
-                ContractNumber = $"TYPE-INVALID-{Guid.NewGuid().ToString()[..8]}",
-                UserId = user.Id,
-                GroupId = group.Id,
-                TotalAmount = 4000,
-                ContractType = "invalid",
-                Status = "Active",
-                ContractStartDate = DateTime.UtcNow
-            };
-
-            var responseInvalid = await _client.PostAsJsonAsync("/api/contracts", requestInvalid);
-            responseInvalid.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-            var resultInvalid = await responseInvalid.Content.ReadFromJsonAsync<ApiResponse<ContractResponse>>();
-            resultInvalid!.Success.Should().BeFalse();
-            resultInvalid.Message.Should().Contain("Invalid contract type");
+            resultMotores!.Data.Segment.Should().Be(2);
+            resultMotores.Data.SegmentName.Should().Be("Motores");
         }
 
         [Fact]
@@ -601,7 +577,6 @@ namespace SalesApp.IntegrationTests.Contracts
                 UserId = user.Id,
                 GroupId = group.Id,
                 TotalAmount = 1000,
-                ContractType = "lar",
                 Quota = 25,
                 Status = "Active",
                 ContractStartDate = DateTime.UtcNow
@@ -620,7 +595,6 @@ namespace SalesApp.IntegrationTests.Contracts
                 UserId = user.Id,
                 GroupId = group.Id,
                 TotalAmount = 2000,
-                ContractType = "motores",
                 Quota = null, // Explicitly null
                 Status = "Active",
                 ContractStartDate = DateTime.UtcNow

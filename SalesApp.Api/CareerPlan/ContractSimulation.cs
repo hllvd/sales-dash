@@ -29,7 +29,6 @@ namespace SalesApp.CareerPlan
                 ImportSessionId = source.ImportSessionId,
                 PvId = source.PvId,
                 CustomerName = source.CustomerName,
-                ContractType = source.ContractType,
                 Quota = source.Quota,
                 Version = source.Version,
                 HasPayment = source.HasPayment,

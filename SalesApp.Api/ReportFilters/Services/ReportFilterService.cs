@@ -1303,7 +1303,8 @@ namespace SalesApp.ReportFilters.Services
                     "totalAmount"     => c.TotalAmount,
                     "saleStartDate"   => (object?)c.SaleStartDate,
                     "isActive"        => c.IsActive,
-                    "contractType"    => c.ContractType,
+                    "contractType"    => c.Group?.Segment,
+                    "segment"         => c.Group?.Segment,
                     "quota"           => c.Quota,
                     "customerName"    => c.CustomerName,
                     "tempMatricula"   => c.TempMatricula,
@@ -1351,6 +1352,7 @@ namespace SalesApp.ReportFilters.Services
                     "name"        => c.Group?.Name,
                     "description" => c.Group?.Description,
                     "commission"  => (object?)c.Group?.Commission,
+                    "segment"     => (object?)c.Group?.Segment,
                     _             => null
                 },
                 "Computed" => field switch

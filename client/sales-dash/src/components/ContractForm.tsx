@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { TextInput, NumberInput, Select, Button, Group, Text, Alert } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { normalizeNumber } from '../utils/normalization';
@@ -22,7 +22,7 @@ import { toast } from '../utils/toast';
 import StyledModal from './StyledModal';
 import FormField from './FormField';
 import { CONTRACT_STATUS_OPTIONS } from '../shared/ContractStatusBadge';
-import { ContractType, ContractTypeLabels } from '../types/ContractType';
+import { getSegmentLabel } from '../types/Segment';
 
 interface ContractFormProps {
   contract?: Contract | null;
@@ -50,7 +50,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
     status: contract?.status || ContractStatus.Active,
     contractStartDate: contract?.contractStartDate?.split('T')[0] || '',
     isActive: contract?.isActive ?? true,
-    contractType: contract?.contractType || '',
     quota: contract?.quota || 0,
     customerName: contract?.customerName || '',
     matriculaNumber: contract?.matriculaNumber || null,
@@ -62,6 +61,16 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const topAlertRef = useRef<HTMLDivElement>(null);
+
+  const selectedGroup = useMemo(() => {
+    if (!formData.groupId) return null;
+    return groups.find(g => g.id.toString() === formData.groupId) || null;
+  }, [groups, formData.groupId]);
+
+  const selectedSegmentLabel = useMemo(() => {
+    if (!selectedGroup || !selectedGroup.segment) return '—';
+    return getSegmentLabel(selectedGroup.segment);
+  }, [selectedGroup]);
 
   useEffect(() => {
     if (error && topAlertRef.current) {
@@ -119,14 +128,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           setPVs(pvsData);
         } catch (pvErr) {
           console.warn('Failed to fetch PVs', pvErr);
-        }
-        
-        // For new contracts, set default contract type
-        if (!contract) {
-          setFormData(prev => ({
-            ...prev,
-            contractType: ContractType.Lar, // Default to Lar
-          }));
         }
       } catch (err: any) {
         const errorMessage = err.message || 'Falha ao carregar dados do formulário';
@@ -227,7 +228,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           status: formData.status as ContractStatus,
           contractStartDate: formData.contractStartDate,
           isActive: formData.isActive,
-          contractType: formData.contractType || null,
           quota: formData.quota ? Number(formData.quota) : null,
           customerName: formData.customerName || null,
           matriculaNumber: normalizeNumber(formData.matriculaNumber) || null,
@@ -242,7 +242,6 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           totalAmount: Number(formData.totalAmount),
           status: formData.status as ContractStatus,
           contractStartDate: formData.contractStartDate,
-          contractType: formData.contractType || null,
           quota: formData.quota ? Number(formData.quota) : null,
           customerName: formData.customerName || null,
           matriculaNumber: normalizeNumber(formData.matriculaNumber) || null,
@@ -396,16 +395,13 @@ const ContractForm: React.FC<ContractFormProps> = ({ contract, onClose, onSucces
           />
         </FormField>
 
-        <FormField label="Tipo de Contrato">
-          <Select
-            aria-label="Tipo de Contrato"
-            value={formData.contractType}
-            onChange={(value) => handleChange('contractType', value)}
-            data={[
-              { value: '', label: 'Selecione' },
-              { value: ContractType.Lar, label: ContractTypeLabels[ContractType.Lar] },
-              { value: ContractType.Motores, label: ContractTypeLabels[ContractType.Motores] },
-            ]}
+        <FormField label="Segmento">
+          <TextInput
+            aria-label="Segmento"
+            value={selectedSegmentLabel}
+            readOnly
+            disabled
+            styles={{ input: { backgroundColor: '#f9fafb', cursor: 'not-allowed' } }}
           />
         </FormField>
 

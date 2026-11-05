@@ -1,11 +1,43 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { MantineProvider } from '@mantine/core';
 import ContractsPage from './ContractsPage';
 import * as contractService from '../services/contractService';
 
+const render = (ui: React.ReactElement) => {
+  return rtlRender(<MantineProvider>{ui}</MantineProvider>);
+};
+
 // Mock the contract service
 jest.mock('../services/contractService');
+
+// Mock contexts
+jest.mock('../contexts/CurrentUserContext', () => ({
+  useCurrentUser: () => ({
+    currentUser: { id: 'admin-1', name: 'Admin', role: 'admin' },
+    setCurrentUser: jest.fn(),
+  }),
+}));
+
+jest.mock('../contexts/ContractsContext', () => ({
+  useContractsContext: () => ({
+    users: [],
+    groups: [],
+    contracts: [],
+    setUsers: jest.fn(),
+    setGroups: jest.fn(),
+    setContracts: jest.fn(),
+  }),
+}));
+
+jest.mock('../contexts/ReferenceDataContext', () => ({
+  useReferenceData: () => ({
+    fetchTeams: jest.fn().mockResolvedValue([]),
+    fetchContractFilterUsers: jest.fn().mockResolvedValue([]),
+    fetchPVs: jest.fn().mockResolvedValue([]),
+  }),
+}));
 // Mock ContractForm component
 jest.mock('./ContractForm', () => {
   return function MockContractForm({ onClose, onSuccess }: any) {

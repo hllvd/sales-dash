@@ -107,9 +107,6 @@ namespace SalesApp.Api.Migrations
                     b.Property<int>("ContractStatusId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("ContractType")
-                        .HasColumnType("INTEGER");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -275,6 +272,9 @@ namespace SalesApp.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("Segment")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");

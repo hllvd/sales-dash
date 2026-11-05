@@ -25,9 +25,13 @@ namespace SalesApp.Repositories
                 .FirstOrDefaultAsync(g => g.Name.ToLower() == name.Trim().ToLower());
         }
         
-        public async Task<List<Group>> GetAllAsync()
+        public async Task<List<Group>> GetAllAsync(bool includeInactive = false)
         {
-            return await _context.Groups.Where(g => g.IsActive).ToListAsync();
+            if (includeInactive)
+            {
+                return await _context.Groups.OrderBy(g => g.Name).ToListAsync();
+            }
+            return await _context.Groups.Where(g => g.IsActive).OrderBy(g => g.Name).ToListAsync();
         }
         
         public async Task<Group> CreateAsync(Group group)

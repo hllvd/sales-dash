@@ -25,9 +25,9 @@ namespace SalesApp.Controllers
         
         [HttpGet]
         [HasPermission("groups:read")]
-        public async Task<ActionResult<ApiResponse<List<GroupResponse>>>> GetGroups()
+        public async Task<ActionResult<ApiResponse<List<GroupResponse>>>> GetGroups([FromQuery] bool includeInactive = false)
         {
-            var groups = await _groupRepository.GetAllAsync();
+            var groups = await _groupRepository.GetAllAsync(includeInactive);
             
             return Ok(new ApiResponse<List<GroupResponse>>
             {
@@ -41,7 +41,7 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<GroupResponse>>> GetGroup(int id)
         {
             var group = await _groupRepository.GetByIdAsync(id);
-            if (group == null || !group.IsActive)
+            if (group == null)
             {
                 return NotFound(new ApiResponse<GroupResponse>
                 {
@@ -76,7 +76,8 @@ namespace SalesApp.Controllers
             {
                 Name = request.Name,
                 Description = request.Description,
-                Commission = request.Commission
+                Commission = request.Commission,
+                Segment = request.Segment
             };
             
             await _groupRepository.CreateAsync(group);
@@ -95,7 +96,7 @@ namespace SalesApp.Controllers
         {
             request.Name = NormalizationUtils.NormalizeNumber(request.Name);
             var group = await _groupRepository.GetByIdAsync(id);
-            if (group == null || !group.IsActive)
+            if (group == null)
             {
                 return NotFound(new ApiResponse<GroupResponse>
                 {
@@ -117,11 +118,14 @@ namespace SalesApp.Controllers
                 group.Name = request.Name;
             }
             
-            if (!string.IsNullOrEmpty(request.Description))
+            if (request.Description != null)
                 group.Description = request.Description;
                 
             if (request.Commission.HasValue)
                 group.Commission = request.Commission.Value;
+                
+            if (request.Segment.HasValue)
+                group.Segment = request.Segment.Value;
                 
             if (request.IsActive.HasValue)
                 group.IsActive = request.IsActive.Value;
@@ -168,6 +172,8 @@ namespace SalesApp.Controllers
                 Name = group.Name,
                 Description = group.Description,
                 Commission = group.Commission,
+                Segment = group.Segment,
+                SegmentName = SegmentExtensions.ToDisplayName(group.Segment),
                 IsActive = group.IsActive,
                 CreatedAt = group.CreatedAt,
                 UpdatedAt = group.UpdatedAt

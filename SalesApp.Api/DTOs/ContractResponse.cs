@@ -14,7 +14,9 @@ namespace SalesApp.DTOs
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        public string? ContractType { get; set; }
+        public int? Segment { get; set; }
+        public string? SegmentName { get; set; }
+        public string? ContractType => SegmentName;
         public int? Quota { get; set; }
         public int? PvId { get; set; }
         public string? CustomerName { get; set; }

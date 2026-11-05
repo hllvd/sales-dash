@@ -6,6 +6,8 @@ namespace SalesApp.DTOs
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public decimal Commission { get; set; }
+        public int? Segment { get; set; }
+        public string? SegmentName { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

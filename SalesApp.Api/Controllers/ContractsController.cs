@@ -432,25 +432,6 @@ namespace SalesApp.Controllers
                 });
             }
             
-            // Validate and convert ContractType if provided
-            int? contractTypeInt = null;
-            if (!string.IsNullOrWhiteSpace(request.ContractType))
-            {
-                try
-                {
-                    contractTypeInt = ContractTypeExtensions.FromApiStringToInt(request.ContractType);
-                }
-                catch (ArgumentException ex)
-                {
-                    return BadRequest(new ApiResponse<ContractResponse>
-                    {
-                        Success = false,
-                        Message = ex.Message
-                    });
-                }
-            }
-            
-            
             // Validate group exists (if provided)
             if (request.GroupId.HasValue)
             {
@@ -472,7 +453,6 @@ namespace SalesApp.Controllers
                 GroupId = request.GroupId,
                 ContractStatusId = await _statusService.GetStatusIdByNameAsync(request.Status),
                 SaleStartDate = request.ContractStartDate,
-                ContractType = contractTypeInt,
                 Quota = request.Quota,
                 PvId = request.PvId,
                 CustomerName = request.CustomerName
@@ -647,23 +627,6 @@ namespace SalesApp.Controllers
             if (request.IsActive.HasValue)
                 contract.IsActive = request.IsActive.Value;
                 
-            if (!string.IsNullOrWhiteSpace(request.ContractType))
-            {
-                try
-                {
-                    contract.ContractType = ContractTypeExtensions.FromApiStringToInt(request.ContractType);
-                }
-                catch (ArgumentException ex)
-                {
-                    return BadRequest(new ApiResponse<ContractResponse>
-                    {
-                        Success = false,
-                        Message = ex.Message
-                    });
-                }
-            }
-                
-            
             if (request.Quota.HasValue)
                 contract.Quota = request.Quota.Value;
                 
@@ -983,7 +946,8 @@ namespace SalesApp.Controllers
                 IsActive = contract.IsActive,
                 CreatedAt = contract.CreatedAt,
                 UpdatedAt = contract.UpdatedAt,
-                ContractType = ContractTypeExtensions.ToApiString(contract.ContractType),
+                Segment = contract.Group?.Segment,
+                SegmentName = SegmentExtensions.ToDisplayName(contract.Group?.Segment),
                 Quota = contract.Quota,
                 PvId = contract.PvId,
                 CustomerName = contract.CustomerName,

@@ -6,7 +6,7 @@ namespace SalesApp.Repositories
     {
         Task<Group?> GetByIdAsync(int id);
         Task<Group?> GetByNameAsync(string name);
-        Task<List<Group>> GetAllAsync();
+        Task<List<Group>> GetAllAsync(bool includeInactive = false);
         Task<Group> CreateAsync(Group group);
         Task<Group> UpdateAsync(Group group);
         Task<bool> NameExistsAsync(string name, int? excludeId = null);

@@ -43,8 +43,6 @@ namespace SalesApp.Models
         [MaxLength(200)]
         public string? CustomerName { get; set; } // New field
         
-        public int? ContractType { get; set; }
-        
         public int? Quota { get; set; }
         
         public byte? Version { get; set; } // For contractDashboard import

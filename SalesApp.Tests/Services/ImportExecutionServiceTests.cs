@@ -66,7 +66,7 @@ namespace SalesApp.Tests.Services
         }
 
         [Fact]
-        public async Task ExecuteContractImportAsync_ShouldMapContractTypeAndQuotaAndPvIdAndCustomerName()
+        public async Task ExecuteContractImportAsync_ShouldMapQuotaAndPvIdAndCustomerName()
         {
             // Arrange
             var uploadId = "test-upload-id";
@@ -78,7 +78,6 @@ namespace SalesApp.Tests.Services
                     { "user_email", "test@test.com" },
                     { "amount", "1000" },
                     { "group_id", "1" },
-                    { "type", "1" },
                     { "quota_val", "10" },
                     { "pv_id", "5" },
                     { "cust_name", "John Doe" },
@@ -92,7 +91,6 @@ namespace SalesApp.Tests.Services
                 { "user_email", "UserEmail" },
                 { "amount", "TotalAmount" },
                 { "group_id", "GroupId" },
-                { "type", "ContractType" },
                 { "quota_val", "Quota" },
                 { "pv_id", "PvId" },
                 { "cust_name", "CustomerName" },
@@ -126,7 +124,6 @@ namespace SalesApp.Tests.Services
             capturedContracts.Should().NotBeNull();
             capturedContracts.Should().HaveCount(1);
             var capturedContract = capturedContracts![0];
-            capturedContract.ContractType.Should().Be(1);
             capturedContract.Quota.Should().Be(10);
             capturedContract.PvId.Should().Be(5);
             capturedContract.CustomerName.Should().Be("John Doe");

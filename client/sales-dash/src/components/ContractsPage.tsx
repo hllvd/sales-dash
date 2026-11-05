@@ -26,6 +26,7 @@ import {
   getUsers,
   getGroups,
 } from '../services/contractService';
+import { getSegmentLabel } from '../types/Segment';
 
 interface VisibleColumns {
   contractNumber: boolean;
@@ -33,6 +34,7 @@ interface VisibleColumns {
   team: boolean;
   matricula: boolean;
   group: boolean;
+  segment: boolean;
   customer: boolean;
   totalAmount: boolean;
   status: boolean;
@@ -48,6 +50,7 @@ const DEFAULT_COLUMNS: VisibleColumns = {
   team: false,
   matricula: true,
   group: true,
+  segment: true,
   customer: true,
   totalAmount: true,
   status: true,
@@ -700,6 +703,7 @@ const ContractsPage: React.FC = () => {
                 {visibleColumns.team && <Table.Th>Equipe</Table.Th>}
                 {visibleColumns.matricula && <Table.Th>Matrícula</Table.Th>}
                 {visibleColumns.group && <Table.Th>Grupo</Table.Th>}
+                {visibleColumns.segment && <Table.Th>Segmento</Table.Th>}
                 {visibleColumns.quota && <Table.Th>Cota</Table.Th>}
                 {visibleColumns.customer && <Table.Th>Cliente</Table.Th>}
                 {visibleColumns.totalAmount && <Table.Th>Valor Total</Table.Th>}
@@ -718,6 +722,7 @@ const ContractsPage: React.FC = () => {
                   {visibleColumns.team && <Table.Td>{contract.teamName || '-'}</Table.Td>}
                   {visibleColumns.matricula && <Table.Td>{contract.matriculaNumber || '-'}</Table.Td>}
                   {visibleColumns.group && <Table.Td>{contract.groupName}</Table.Td>}
+                  {visibleColumns.segment && <Table.Td>{contract.segmentName || getSegmentLabel(contract.segment) || '-'}</Table.Td>}
                   {visibleColumns.quota && <Table.Td>{contract.quota || '-'}</Table.Td>}
                   {visibleColumns.customer && <Table.Td>{normalizeName(contract.customerName) || '-'}</Table.Td>}
                   {visibleColumns.totalAmount && <Table.Td>{formatCurrency(contract.totalAmount)}</Table.Td>}
@@ -841,6 +846,11 @@ const ContractsPage: React.FC = () => {
               label="Grupo"
               checked={visibleColumns.group}
               onChange={(e) => handleColumnToggle('group', e.currentTarget.checked)}
+            />
+            <Checkbox
+              label="Segmento"
+              checked={visibleColumns.segment}
+              onChange={(e) => handleColumnToggle('segment', e.currentTarget.checked)}
             />
             <Checkbox
               label="Cliente"

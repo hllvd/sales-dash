@@ -32,10 +32,6 @@ namespace SalesApp.DTOs
         [Required(ErrorMessage = "A data de início do contrato é obrigatória.")]
         [Display(Name = "Data de Início")]
         public DateTime ContractStartDate { get; set; } = DateTime.UtcNow;
-        
-        [StringLength(20)]
-        [Display(Name = "Tipo de Contrato")]
-        public string? ContractType { get; set; }
 
         [Display(Name = "Cota")]
         public int? Quota { get; set; }
