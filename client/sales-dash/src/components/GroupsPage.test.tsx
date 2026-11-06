@@ -2,11 +2,13 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MantineProvider } from '@mantine/core';
-import GroupsPage from './GroupsPage';
+import GroupsPage, { sortGroupsBySegmentAndName } from './GroupsPage';
 import * as contractService from '../services/contractService';
 
 jest.mock('../services/contractService');
-jest.mock('./Menu', () => () => <div data-testid="menu">Menu</div>);
+jest.mock('./Menu', () => ({ children }: { children?: React.ReactNode }) => (
+  <div data-testid="menu">{children}</div>
+));
 jest.mock('@mantine/notifications', () => ({
   notifications: {
     show: jest.fn(),
@@ -16,7 +18,8 @@ jest.mock('@mantine/notifications', () => ({
 const mockGroups = [
   { id: 1, name: 'Grupo Lar', description: 'Grupo do lar', commission: 10, segment: 1, isActive: true },
   { id: 2, name: 'Grupo Motores', description: 'Grupo automotivo', commission: 15, segment: 2, isActive: true },
-  { id: 3, name: 'Grupo Inativo', description: 'Antigo', commission: 5, segment: 3, isActive: false },
+  { id: 3, name: 'Grupo Sem Segmento', description: 'Pendente', commission: 5, segment: null, isActive: true },
+  { id: 4, name: 'Grupo Inativo', description: 'Antigo', commission: 5, segment: 3, isActive: false },
 ];
 
 describe('GroupsPage', () => {
@@ -38,8 +41,10 @@ describe('GroupsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Grupo Lar')).toBeInTheDocument();
       expect(screen.getByText('Grupo Motores')).toBeInTheDocument();
+      expect(screen.getByText('Grupo Sem Segmento')).toBeInTheDocument();
       expect(screen.getByText('Lar')).toBeInTheDocument();
       expect(screen.getByText('Motores')).toBeInTheDocument();
+      expect(screen.getByText('Não Definido')).toBeInTheDocument();
     });
   });
 
@@ -55,6 +60,28 @@ describe('GroupsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Cadastrar')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('Ex: 101, Grupo Alfa...')).toBeInTheDocument();
+    });
+  });
+
+  describe('sortGroupsBySegmentAndName', () => {
+    it('sorts null segments first, then by segment value, then by name', () => {
+      const items = [
+        { id: 1, name: 'Zeta', segment: 2, isActive: true },
+        { id: 2, name: 'Beta', segment: null, isActive: true },
+        { id: 3, name: 'Alfa', segment: null, isActive: true },
+        { id: 4, name: 'Gama', segment: 1, isActive: true },
+        { id: 5, name: 'Delta', segment: 1, isActive: true },
+      ] as any[];
+
+      const sorted = [...items].sort(sortGroupsBySegmentAndName);
+
+      expect(sorted.map((s) => s.name)).toEqual([
+        'Alfa', // null segment, name 'Alfa'
+        'Beta', // null segment, name 'Beta'
+        'Delta', // segment 1, name 'Delta'
+        'Gama', // segment 1, name 'Gama'
+        'Zeta', // segment 2, name 'Zeta'
+      ]);
     });
   });
 });

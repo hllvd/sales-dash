@@ -1,3 +1,31 @@
+## Padronização Visual e Ordenação da Tela de Grupos (`/#/groups`)
+
+Ajuste do layout da página de gerenciamento de grupos para total conformidade com o design system do Mantine UI v7 e o AppShell do SalesApp, com ordenação prioritária e destaque visual para grupos sem segmento definido.
+
+### Comportamento e Regras
+- **Integração Completa ao AppShell**:
+  - A página agora encapsula seu conteúdo como filho de `<Menu>{children}</Menu>`, posicionando a interface corretamente dentro de `AppShell.Main` sobre fundo padronizado `#f5f5f5` e eliminando anomalias de layout e espaçamento vazio.
+- **Card e Tabela Padronizados (`GroupsPage.css`)**:
+  - A tabela de grupos é renderizada em um cartão branco estilizado (`.groups-table-container`), consistente com as telas de *Equipes*, *Matrículas* e *Lojas*.
+  - Cabeçalho padronizado com `Title order={2} size="h2"`, contador de grupos por status e botões de ação Mantine.
+- **Ordenação por Segmento com Nulos no Topo**:
+  - Grupos cujo segmento não está definido (`segment == null`) são ordenados prioritariamente no topo da listagem para rápida identificação e manutenção.
+  - Grupos com segmento atribuído seguem em ordem numérica crescente (`1: Lar`, `2: Motores`, `3: Serviços`).
+  - Como critério secundário de desempate, os grupos são ordenados alfanumericamente pelo nome (`localeCompare(..., 'pt-BR', { numeric: true })`).
+- **Destaque Visual para Grupos sem Segmento**:
+  - As linhas da tabela correspondentes a grupos sem segmento recebem preenchimento de fundo em tom vermelho suave (`#fef2f2`).
+  - Na coluna "Segmento", exibe-se o badge informativo `<Badge color="red" variant="light" size="sm">Não Definido</Badge>`.
+- **Modais com Alto Contraste**:
+  - Títulos dos modais de cadastro, edição e confirmação de desativação configurados com cor primária de alto contraste (`#1c1c1e`) em elemento inline (`component="span"`), prevenindo textos invisíveis e avisos de aninhamento no DOM.
+
+### Arquivos Adicionados / Modificados
+- `client/sales-dash/src/components/GroupsPage.tsx`: Encapsulamento em `<Menu>`, ordenação por segmento e nome, destaque de linhas sem segmento, badges de status e títulos de modal de alto contraste.
+- `client/sales-dash/src/components/GroupsPage.css`: Estilização responsiva do container, cartão da tabela e linha de destaque com fundo vermelho pastel.
+- `client/sales-dash/src/components/GroupsPage.test.tsx`: Testes de renderização com mock de `Menu`, verificação de badge "Não Definido" e teste unitário da função de ordenação `sortGroupsBySegmentAndName`.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Desacoplamento da Tabela Helpdesk em Ambiente de Desenvolvimento (`dev-salesapp-helpdesk`)
 
 Desacoplamento do banco de dados DynamoDB do Helpdesk entre os ambientes de produção e desenvolvimento, isolando os testes locais e evitando poluição ou concorrência na base de produção `salesapp-helpdesk`.
