@@ -6,6 +6,8 @@ import {
   deleteContract,
   getUsers,
   getGroups,
+  importGroups,
+  downloadGroupImportTemplate,
   CreateContractRequest,
   UpdateContractRequest,
   Contract,
@@ -285,6 +287,61 @@ describe('contractService', () => {
 
       expect(result).toHaveLength(2);
       expect(result).toEqual([mockGroups[0], mockGroups[1]]);
+    });
+  });
+
+  describe('importGroups', () => {
+    it('should upload file and return group import result', async () => {
+      const mockResult = {
+        totalRows: 5,
+        createdCount: 3,
+        updatedCount: 2,
+        errorCount: 0,
+        errors: [],
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: mockResult, message: 'Success' }),
+      });
+
+      const file = new File(['content'], 'groups.xlsx', {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      const result = await importGroups(file);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/groups/import',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.any(FormData),
+        })
+      );
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('downloadGroupImportTemplate', () => {
+    it('should download group import template blob', async () => {
+      const mockBlob = new Blob(['template-content'], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        blob: async () => mockBlob,
+      });
+
+      const result = await downloadGroupImportTemplate();
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/groups/import/template',
+        expect.objectContaining({
+          method: 'GET',
+        })
+      );
+      expect(result).toBe(mockBlob);
     });
   });
 

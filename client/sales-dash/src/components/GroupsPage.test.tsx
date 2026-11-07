@@ -37,6 +37,7 @@ describe('GroupsPage', () => {
 
     expect(screen.getByText('Gerenciamento de Grupos')).toBeInTheDocument();
     expect(screen.getByText('Novo Grupo')).toBeInTheDocument();
+    expect(screen.getByText('Importar')).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText('Grupo Lar')).toBeInTheDocument();
@@ -60,6 +61,21 @@ describe('GroupsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Cadastrar')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('Ex: 101, Grupo Alfa...')).toBeInTheDocument();
+    });
+  });
+
+  it('opens import modal when Importar is clicked', async () => {
+    render(
+      <MantineProvider>
+        <GroupsPage />
+      </MantineProvider>
+    );
+
+    fireEvent.click(screen.getByText('Importar'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Importar Grupos via Excel (.xlsx)')).toBeInTheDocument();
+      expect(screen.getByText('Baixar Modelo (.xlsx)')).toBeInTheDocument();
     });
   });
 

@@ -1,3 +1,44 @@
+## Importação de Grupos via Planilha Excel (`.xlsx`) com Upsert Automático
+
+Adição de funcionalidade de importação em lote de grupos a partir de arquivos `.xlsx` com colunas flexíveis de Grupo e Segmento, realizando criação de novos grupos e atualização (*upsert*) de grupos existentes.
+
+### Comportamento e Regras
+- **Botão e Modal de Importação (`GroupImportModal.tsx`)**:
+  - Disponibilizado botão **"Importar"** com ícone `IconUpload` no cabeçalho da página de gerenciamento de grupos (`/#/groups`).
+  - O modal permite selecionar e enviar arquivos `.xlsx` e dispõe do botão **"Baixar Modelo (.xlsx)"** para download do arquivo template de exemplo (`modelo_importacao_grupos.xlsx`).
+- **Mapeamento Flexível de Colunas**:
+  - Reconhecimento automático e flexível de cabeçalhos no Excel sem distinção de maiúsculas/minúsculas ou acentos:
+    - Coluna de Grupo: `grupo`, `groupo`, `nome`, `group`, `name`.
+    - Coluna de Segmento: `segmento`, `segment`, `seguimento`.
+- **Parsing e Validação de Segmentos**:
+  - Valores textuais aceitos:
+    - `"Lar"` / `"1"` $\rightarrow$ Segmento 1 (`Lar`)
+    - `"Motores"` / `"Motor"` / `"2"` $\rightarrow$ Segmento 2 (`Motores`)
+    - `"Serviços"` / `"Servicos"` / `"3"` $\rightarrow$ Segmento 3 (`Serviços`)
+    - Vazio ou em branco $\rightarrow$ `null`
+  - Valores incompatíveis geram erro específico na linha sem interromper o processamento das demais linhas.
+- **Regras de Upsert de Grupos**:
+  - Identificação de grupos pelo nome normalizado (`NormalizationUtils.NormalizeNumber`).
+  - **Grupo Existente**: Atualiza o campo `Segment`, reativa o registro caso estivesse desativado (`IsActive = true`) e preserva campos preexistentes (`Commission`, `Description`).
+  - **Novo Grupo**: Cria o grupo ativo (`IsActive = true`) com o segmento informado, comissão inicial em 0% e descrição vazia.
+- **Relatório e Feedback**:
+  - O modal exibe contadores de grupos criados, atualizados e com erro, além da lista discriminada das linhas com falha de validação.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/DTOs/GroupImportResponse.cs`: DTOs de resposta da importação e detalhamento de erros de linha.
+- `SalesApp.Api/Models/Segment.cs`: Método de extensão `TryParseSegment` para conversão determinística e tolerante a acentos e formatos numéricos/textuais.
+- `SalesApp.Api/Controllers/GroupsController.cs`: Endpoints `POST /api/groups/import` e `GET /api/groups/import/template`.
+- `SalesApp.IntegrationTests/Groups/GroupsControllerIntegrationTests.cs`: Testes de integração para importação com upsert, reativação, segmento nulo, erros e download do template.
+- `client/sales-dash/src/services/contractService.ts`: Tipos `GroupImportResult` e funções `importGroups` e `downloadGroupImportTemplate`.
+- `client/sales-dash/src/components/GroupImportModal.tsx`: Modal com upload de `.xlsx`, download de template e resumo de resultados.
+- `client/sales-dash/src/components/GroupsPage.tsx`: Botão "Importar" no cabeçalho e integração do modal.
+- `client/sales-dash/src/components/GroupImportModal.test.tsx`: Testes unitários do modal de importação.
+- `client/sales-dash/src/components/GroupsPage.test.tsx`: Teste de abertura do modal de importação.
+- `client/sales-dash/src/services/contractService.test.ts`: Testes unitários para envio de `FormData` e download de template.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Padronização Visual e Ordenação da Tela de Grupos (`/#/groups`)
 
 Ajuste do layout da página de gerenciamento de grupos para total conformidade com o design system do Mantine UI v7 e o AppShell do SalesApp, com ordenação prioritária e destaque visual para grupos sem segmento definido.

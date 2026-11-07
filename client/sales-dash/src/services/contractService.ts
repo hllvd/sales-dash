@@ -612,6 +612,58 @@ export const deleteGroup = async (id: number): Promise<void> => {
   }
 };
 
+export interface GroupImportRowError {
+  rowNumber: number;
+  groupName?: string;
+  error: string;
+}
+
+export interface GroupImportResult {
+  totalRows: number;
+  createdCount: number;
+  updatedCount: number;
+  errorCount: number;
+  errors: GroupImportRowError[];
+}
+
+export const importGroups = async (file: File): Promise<GroupImportResult> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const token = localStorage.getItem('token');
+  const response = await authenticatedFetch(`${API_BASE_URL}/groups/import`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || 'Falha ao importar grupos');
+  }
+
+  return data.data;
+};
+
+export const downloadGroupImportTemplate = async (): Promise<Blob> => {
+  const token = localStorage.getItem('token');
+  const response = await authenticatedFetch(`${API_BASE_URL}/groups/import/template`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Falha ao baixar modelo de importação de grupos');
+  }
+
+  return await response.blob();
+};
+
 // Get contract by contract number
 export const getContractByNumber = async (contractNumber: string): Promise<Contract> => {
   const response = await authenticatedFetch(`${API_BASE_URL}/contracts/number/${contractNumber}`, {

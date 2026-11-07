@@ -20,12 +20,14 @@ import {
   IconTrash,
   IconRefresh,
   IconPlus,
+  IconUpload,
   IconUsersGroup,
   IconAlertCircle,
   IconRotateClockwise,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import Menu from './Menu';
+import GroupImportModal from './GroupImportModal';
 import {
   Group as ContractGroup,
   getGroups,
@@ -69,6 +71,7 @@ const GroupsPage: React.FC = () => {
 
   // Modal State (Create / Edit)
   const [modalOpen, setModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<ContractGroup | null>(null);
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
@@ -265,6 +268,13 @@ const GroupsPage: React.FC = () => {
               loading={loading}
             >
               Atualizar
+            </Button>
+            <Button
+              variant="default"
+              leftSection={<IconUpload size={16} />}
+              onClick={() => setImportModalOpen(true)}
+            >
+              Importar
             </Button>
             <Button
               leftSection={<IconPlus size={16} />}
@@ -527,6 +537,13 @@ const GroupsPage: React.FC = () => {
             </Group>
           </Stack>
         </Modal>
+
+        {/* Group Import Modal */}
+        <GroupImportModal
+          opened={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onSuccess={fetchGroups}
+        />
       </div>
     </Menu>
   );
