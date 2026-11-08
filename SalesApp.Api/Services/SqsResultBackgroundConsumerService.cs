@@ -127,10 +127,14 @@ namespace SalesApp.Services
                     return;
                 }
 
+                string? rawStatus = body.status?.ToString();
                 string? s3Key = body.s3Key?.ToString();
-                if (string.IsNullOrEmpty(s3Key))
+                string status = !string.IsNullOrEmpty(rawStatus) ? rawStatus : (string.IsNullOrEmpty(s3Key) ? "Failed" : "Succeeded");
+                string? error = body.error?.ToString();
+
+                if (string.IsNullOrEmpty(s3Key) && status != "Failed")
                 {
-                    _logger.LogDebug("SqsResultBackgroundConsumerService: Message {MessageId} does not contain s3Key (ignoring non-result message).", message.MessageId);
+                    _logger.LogDebug("SqsResultBackgroundConsumerService: Message {MessageId} does not contain s3Key and status is not Failed (ignoring non-result message).", message.MessageId);
                     return;
                 }
 
@@ -151,13 +155,17 @@ namespace SalesApp.Services
                 {
                     durationSeconds = ds;
                 }
-                string? authStatus = body.authStatus?.ToString() ?? "success";
-                string? authMessage = body.authMessage?.ToString() ?? "Autenticação bem-sucedida";
+                string? authStatus = body.authStatus?.ToString() ?? (status == "Failed" ? "wrong-password" : "success");
+                string? authMessage = body.authMessage?.ToString() ?? (status == "Failed" ? (error ?? "Usuário ou senha inválida no AVA PRO.") : "Autenticação bem-sucedida");
                 bool powerBiLoaded = true;
                 string? pblRaw = body.powerbiLoaded?.ToString() ?? body.powerBiLoaded?.ToString();
                 if (!string.IsNullOrEmpty(pblRaw) && bool.TryParse(pblRaw, out bool pbl))
                 {
                     powerBiLoaded = pbl;
+                }
+                else if (status == "Failed" || string.Equals(authStatus, "wrong-password", StringComparison.OrdinalIgnoreCase))
+                {
+                    powerBiLoaded = false;
                 }
                 string? authSteps = body.authSteps != null ? body.authSteps.ToString() : null;
                 string? completedAt = body.completedAt?.ToString() ?? body.timestamp?.ToString() ?? DateTime.UtcNow.ToString("O");
@@ -172,6 +180,66 @@ namespace SalesApp.Services
                 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 var importService = scope.ServiceProvider.GetRequiredService<IScrapeImportService>();
                 var logService = scope.ServiceProvider.GetRequiredService<IScrapeDynamoLogService>();
+
+                // Handle failed scrape jobs (such as authentication or wrong password failures)
+                if (status == "Failed")
+                {
+                    _logger.LogWarning(
+                        "SqsResultBackgroundConsumerService: Received failed job notification (JobId: {JobId}, RunId: {RunId}, Matricula: {Matricula}, AuthStatus: {AuthStatus}, Error: {Error}).",
+                        jobId ?? "N/A", runId ?? "N/A", matricula ?? "N/A", authStatus, error ?? authMessage);
+
+                    if (!string.IsNullOrWhiteSpace(matricula))
+                    {
+                        var config = await dbContext.ScrapeConfigs
+                            .Include(c => c.User)
+                            .FirstOrDefaultAsync(c => c.Matricula == matricula.Trim(), stoppingToken);
+
+                        if (config != null)
+                        {
+                            if (!userId.HasValue && config.User?.Id != null)
+                            {
+                                userId = config.User.Id;
+                            }
+
+                            if (string.Equals(authStatus, "wrong-password", StringComparison.OrdinalIgnoreCase) && config.CredentialStatus != "wrong-password")
+                            {
+                                config.CredentialStatus = "wrong-password";
+                                config.UpdatedAt = DateTime.UtcNow;
+                                await dbContext.SaveChangesAsync(stoppingToken);
+                                _logger.LogWarning("SqsResultBackgroundConsumerService: Trava de seguranca ('wrong-password') ativada no ScrapeConfig para matricula {Matricula}.", matricula);
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(jobId))
+                    {
+                        var effectiveError = !string.IsNullOrWhiteSpace(authMessage) ? authMessage : (!string.IsNullOrWhiteSpace(error) ? error : "Falha na extração");
+                        await logService.WriteJobStatusAsync(
+                            jobId: jobId,
+                            userId: userId?.ToString() ?? rawUserId ?? string.Empty,
+                            status: "Failed",
+                            store: store ?? string.Empty,
+                            matricula: matricula ?? string.Empty,
+                            runId: runId,
+                            userEmail: null,
+                            additionalData: new
+                            {
+                                ErrorMessage = effectiveError,
+                                ScrapeDate = scrapeDate,
+                                DurationFormatted = durationFormatted,
+                                DurationSeconds = durationSeconds,
+                                AuthStatus = authStatus,
+                                AuthMessage = effectiveError,
+                                PowerBiLoaded = powerBiLoaded,
+                                AuthSteps = authSteps,
+                                CompletedAt = completedAt
+                            }
+                        );
+                    }
+
+                    await _sqs.DeleteMessageAsync(_queueUrl, message.ReceiptHandle, stoppingToken);
+                    return;
+                }
 
                 // Check ScrapeConfig if auto-import is enabled for this account
                 if (!string.IsNullOrWhiteSpace(matricula))

@@ -127,19 +127,20 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
     }
   };
 
-  const getAuthStatusBadge = (authStatus?: string) => {
-    switch (authStatus) {
-      case 'success':
-        return <Badge color="green" variant="dot" size="xs">Autenticação OK</Badge>;
-      case 'invalid-credentials':
-        return <Badge color="red" variant="filled" size="xs">Senha / Usuário Inválido</Badge>;
-      case 'timeout':
-        return <Badge color="orange" variant="light" size="xs">Timeout na Autenticação</Badge>;
-      case 'error':
-        return <Badge color="red" variant="light" size="xs">Erro de Autenticação</Badge>;
-      default:
-        return <Text size="xs" c="dimmed">-</Text>;
+  const getAuthStatusBadge = (authStatus?: string, jobStatus?: string) => {
+    if (authStatus === 'success') {
+      return <Badge color="green" variant="dot" size="xs">Autenticação OK</Badge>;
     }
+    if (authStatus === 'timeout') {
+      return <Badge color="orange" variant="light" size="xs">Timeout na Autenticação</Badge>;
+    }
+    if (authStatus === 'wrong-password' || authStatus === 'invalid-credentials' || authStatus === 'error') {
+      return <Badge color="red" variant="filled" size="xs">Senha Incorreta</Badge>;
+    }
+    if (jobStatus === 'Failed') {
+      return <Badge color="red" variant="filled" size="xs">Senha Incorreta</Badge>;
+    }
+    return <Text size="xs" c="dimmed">-</Text>;
   };
 
   const totalRowCount = detail?.jobs.reduce((acc, job) => acc + (job.rowCount || 0), 0) || 0;
@@ -168,7 +169,7 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
           <Text size="xs" c="dimmed">0</Text>
         )}
       </Table.Td>
-      <Table.Td>{getAuthStatusBadge(job.authStatus)}</Table.Td>
+      <Table.Td>{getAuthStatusBadge(job.authStatus, job.status)}</Table.Td>
       <Table.Td>
         {job.powerBiLoaded ? (
           <Badge color="cyan" variant="outline" size="xs" leftSection={<IconCheck size={10} />}>Carregado</Badge>

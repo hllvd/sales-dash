@@ -42,7 +42,19 @@ function detectLoginErrorText(text) {
   if (!text || typeof text !== 'string') return null;
   const lower = text.toLowerCase().trim();
 
-  if (lower.includes('senha expirada') || lower.includes('redefina sua senha')) {
+  if (
+    lower.includes('senha expirada') || 
+    lower.includes('redefina sua senha') ||
+    lower.includes('sua senha expirou') ||
+    lower.includes('senha vencida') ||
+    lower.includes('trocar senha') ||
+    lower.includes('troque sua senha') ||
+    lower.includes('alterar senha') ||
+    lower.includes('redefinir senha') ||
+    lower.includes('redefinição de senha') ||
+    lower.includes('senha temporária') ||
+    (lower.includes('senha') && lower.includes('expirou'))
+  ) {
     return {
       isFatalAuth: true,
       reason: 'Senha expirada. Por favor, redefina sua senha no AVA PRO.'
@@ -56,6 +68,11 @@ function detectLoginErrorText(text) {
     lower.includes('credencial inválida') ||
     lower.includes('senha incorreta') ||
     lower.includes('senha errada') ||
+    lower.includes('usuário inválido') ||
+    lower.includes('usuario invalido') ||
+    lower.includes('não autorizado') ||
+    lower.includes('nao autorizado') ||
+    lower.includes('acesso negado') ||
     lower.includes('tentativas antes do bloqueio') ||
     (lower.includes('tentativa') && (lower.includes('bloqueio') || lower.includes('esqueceu')))
   ) {
@@ -308,6 +325,18 @@ async function getTokenFromLogin(matricula, password, store = null) {
     const currentUrl = page.url();
     addStep(steps, `URL após login: ${currentUrl}`);
 
+    const lowerUrl = currentUrl.toLowerCase();
+    if (
+      lowerUrl.includes('redefinir') || 
+      lowerUrl.includes('trocar-senha') || 
+      lowerUrl.includes('alterar-senha') || 
+      lowerUrl.includes('primeiro-acesso')
+    ) {
+      const expMsg = 'Senha expirada. Por favor, redefina sua senha no AVA PRO.';
+      addStep(steps, `[Falha de Autenticação Detectada na URL] ${expMsg}`);
+      throw new AuthError('wrong-password', expMsg, steps, false, false);
+    }
+
     // Inspeciona texto visível na página de login e aguarda possível resposta
     let pageErrorText = null;
     const checkDeadline = Date.now() + 6000;
@@ -317,13 +346,10 @@ async function getTokenFromLogin(matricula, password, store = null) {
           const errorEl = document.querySelector('.alert, [role="alert"], .error, .text-danger, .invalid-feedback, div[class*="error"], span[class*="error"], p[class*="error"], div[class*="red"], p[class*="red"]');
           if (errorEl && errorEl.textContent) return errorEl.textContent.trim();
           const bodyText = document.body ? document.body.innerText : '';
-          const match = bodyText.split('\n').find(l => 
-            l.includes('Senha expirada') || 
-            l.includes('redefina sua senha') || 
-            l.includes('Usuário ou senha') || 
-            l.includes('usuario ou senha') ||
-            l.includes('tentativas')
-          );
+          const match = bodyText.split('\n').map(l => l.trim()).find(l => {
+            const low = l.toLowerCase();
+            return low.includes('senha') || low.includes('usuario') || low.includes('usuário') || low.includes('tentativa') || low.includes('credencial') || low.includes('bloqueio');
+          });
           return match ? match.trim() : null;
         });
         if (text) {
@@ -362,7 +388,7 @@ async function getTokenFromLogin(matricula, password, store = null) {
 
       const fallbackReason = isPasswordInputStillPresent
         ? (pageErrorText || 'Usuário ou senha inválida no AVA PRO.')
-        : 'Sessão JWT não emitida pelo AVA PRO.';
+        : (pageErrorText || 'Usuário ou senha inválida no AVA PRO.');
       addStep(steps, `[Falha de Autenticação] ${fallbackReason}`);
       throw new AuthError('wrong-password', fallbackReason, steps, false, false);
     }

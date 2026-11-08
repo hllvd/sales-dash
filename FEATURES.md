@@ -1,3 +1,36 @@
+## Detecção e Exibição Imediata de Senha Errada / Expirada no PowerBI Extractor e Notificação Assíncrona via SQS
+
+Correção do ciclo de tratamento de erros de autenticação no PowerBI Extractor, garantindo que falhas de login (senha incorreta, senha expirada ou credenciais inválidas) no AVA PRO sejam registradas e exibidas imediatamente como "Senha Incorreta / Senha Expirada" nos logs e detalhes da execução (`/scrapes/runs/:runId`), eliminando a exibição espúria de "Tempo limite excedido (Timeout)" e travando a conta contra novos disparos até alteração explícita de senha.
+
+### Comportamento e Regras
+- **Detecção Abrangente no Scraper (`auth.js` e `scrape.js`)**:
+  - `detectLoginErrorText` expandido para reconhecer variações de senha expirada (`"sua senha expirou"`, `"senha vencida"`, `"trocar senha"`, `"redefinir senha"`, `"redefinição de senha"`, `"senha temporária"`) e credenciais inválidas (`"usuário inválido"`, `"não autorizado"`, `"acesso negado"`).
+  - Verificação de redirecionamentos de URL pós-login para telas de alteração forçada de credencial (`/redefinir`, `/trocar-senha`, `/alterar-senha`, `/primeiro-acesso`), levantando imediatamente `AuthError('wrong-password')` sem aguardar timeout de carregamento do dashboard/PowerBI iframe.
+  - Em `scrape.js`, qualquer falha durante a autenticação propaga deterministicamente `status = 'Failed'`, `authStatus = 'wrong-password'`, `loginSuccess = false`, `powerbiLoaded = false` e a mensagem descritiva do erro.
+- **Notificação de Falhas pelo Worker SQS (`worker.js`)**:
+  - O worker publica na fila `SQS_RESULTS_QUEUE_URL` tanto em caso de sucesso (`Succeeded`) quanto em caso de falha (`Failed`) ou disparo do disjuntor de segurança de lote/conta.
+  - O payload inclui `status: 'Failed'`, `authStatus: 'wrong-password'`, `authMessage`, `error` e `authSteps`, evitando que jobs com falha fiquem órfãos como `Running` no DynamoDB.
+- **Consumo e Bloqueio de Credencial no Backend (`SqsResultBackgroundConsumerService.cs`)**:
+  - O consumidor SQS trata mensagens de resultado com `status == "Failed"` (mesmo sem `s3Key`).
+  - Atualiza imediatamente o status no DynamoDB via `IScrapeDynamoLogService.WriteJobStatusAsync` com `Status: "Failed"`, `AuthStatus: "wrong-password"` e a mensagem detalhada do erro.
+  - Trava a conta no banco relacional (`ScrapeConfig.CredentialStatus = "wrong-password"`), bloqueando automaticamente novos disparos manuais e execuções agendadas pelo scheduler até que o usuário atualize a senha.
+- **Mapeamento e Exibição Visual no Frontend (`ScrapeRunDetailPage.tsx`)**:
+  - `getAuthStatusBadge` atualizado para mapear `'wrong-password'` (e fallback de erro de autenticação) para o badge preenchido vermelho `<Badge color="red" variant="filled">Senha Incorreta</Badge>`.
+  - Exibe a mensagem de erro específica capturada na coluna "Observações / Passos", eliminando o falso timeout.
+
+### Arquivos Modificados
+- `pbi-scraper/auth.js`: Ampliação de `detectLoginErrorText`, inspeção de URLs de troca de senha e fallback determinístico de falha de login.
+- `pbi-scraper/captureTemplate.js`: Inspeção de URLs de troca de senha e tratamento alinhado com `auth.js`.
+- `pbi-scraper/scrape.js`: Tratamento unificado de erros de autenticação garantindo `authStatus = 'wrong-password'` e `loginSuccess = false`.
+- `pbi-scraper/worker.js`: Publicação obrigatória de resultados de jobs com falha e abortos pelo disjuntor na fila `SQS_RESULTS_QUEUE_URL`.
+- `pbi-scraper/test-auth-errors.js`: Testes unitários para as novas variações de detecção de senha expirada e credenciais inválidas.
+- `SalesApp.Api/Services/SqsResultBackgroundConsumerService.cs`: Processamento de resultados de falha via SQS, atualização no DynamoDB e trava de segurança (`CredentialStatus = "wrong-password"`).
+- `SalesApp.Tests/Services/ScrapeSchedulerAndTimeoutTests.cs`: Teste unitário para mapeamento de status de autenticação `wrong-password` no log.
+- `client/sales-dash/src/components/Scrape/ScrapeRunDetailPage.tsx`: Mapeamento do badge `Senha Incorreta` para `wrong-password`.
+- `FEATURES.md`: Documentação da funcionalidade.
+
+---
+
 ## Normalização Contínua de Grupos em Importações (PowerBI Scraper e Dashboard)
 
 Normalização obrigatória de nomes de grupos (remoção de zeros à esquerda com `NormalizationUtils.NormalizeNumber`) em todas as etapas de ingestão de dados de contratos (PowerBI Scraper, Wizard e Dashboard de Contratos), garantindo que novos contratos e contratos existentes fiquem associados exclusivamente a grupos normalizados e canônicos.

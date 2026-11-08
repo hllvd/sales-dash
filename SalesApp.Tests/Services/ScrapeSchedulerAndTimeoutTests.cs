@@ -106,5 +106,28 @@ namespace SalesApp.Tests.Services
             var parsed = ScrapeDynamoLogService.MapToEntry(item);
             parsed.Status.Should().Be("Running");
         }
+
+        [Fact]
+        public void MapToEntry_WhenAuthStatusIsWrongPassword_PopulatesAuthFieldsCorrectly()
+        {
+            var item = new Dictionary<string, AttributeValue>
+            {
+                { "JobId", new AttributeValue { S = "job-auth-err" } },
+                { "Status", new AttributeValue { S = "Failed" } },
+                { "CreatedAt", new AttributeValue { S = DateTime.UtcNow.AddMinutes(-2).ToString("o") } },
+                { "AuthStatus", new AttributeValue { S = "wrong-password" } },
+                { "AuthMessage", new AttributeValue { S = "Usuário ou senha inválida no AVA PRO." } },
+                { "ErrorMessage", new AttributeValue { S = "Usuário ou senha inválida no AVA PRO." } },
+                { "PowerBiLoaded", new AttributeValue { S = "false" } },
+                { "Matricula", new AttributeValue { S = "8203" } }
+            };
+
+            var parsed = ScrapeDynamoLogService.MapToEntry(item);
+            parsed.Status.Should().Be("Failed");
+            parsed.AuthStatus.Should().Be("wrong-password");
+            parsed.AuthMessage.Should().Be("Usuário ou senha inválida no AVA PRO.");
+            parsed.ErrorMessage.Should().Be("Usuário ou senha inválida no AVA PRO.");
+            parsed.PowerBiLoaded.Should().BeFalse();
+        }
     }
 }

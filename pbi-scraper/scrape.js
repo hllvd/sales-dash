@@ -240,23 +240,27 @@ async function runScrapeJob(params) {
 
     return result;
   } catch (err) {
-    if (err instanceof AuthError) {
-      result.status = 'Failed';
-      result.authStatus = err.authStatus || 'error';
-      result.authMessage = err.authMessage || err.message;
-      result.powerbiLoaded = err.powerbiLoaded || false;
-      result.loginSuccess = err.loginSuccess || false;
-      result.authSteps = err.steps || [];
-      result.error = err.authMessage || err.message;
-      return result;
-    }
-
-    if (err.steps && Array.isArray(err.steps)) {
-      result.authSteps = [...(result.authSteps || []), ...err.steps];
-    }
+    const isWrongPassword = err.authStatus === 'wrong-password' ||
+      err.name === 'AuthError' ||
+      err instanceof AuthError ||
+      err.loginSuccess === false ||
+      (err.message && (
+        err.message.toLowerCase().includes('senha') ||
+        err.message.toLowerCase().includes('credencial') ||
+        err.message.toLowerCase().includes('usuário ou senha') ||
+        err.message.toLowerCase().includes('usuario ou senha') ||
+        err.message.toLowerCase().includes('não autorizado') ||
+        err.message.toLowerCase().includes('nao autorizado') ||
+        err.message.toLowerCase().includes('jwt')
+      ));
 
     result.status = 'Failed';
-    result.error = err.authMessage || err.message || 'Erro inesperado durante scraping';
+    result.authStatus = isWrongPassword ? 'wrong-password' : (err.authStatus || 'error');
+    result.authMessage = err.authMessage || err.message || (isWrongPassword ? 'Usuário ou senha inválida no AVA PRO.' : 'Erro inesperado durante scraping');
+    result.powerbiLoaded = isWrongPassword ? false : (err.powerbiLoaded || false);
+    result.loginSuccess = isWrongPassword ? false : (err.loginSuccess || false);
+    result.authSteps = err.steps || (Array.isArray(err.steps) ? err.steps : (result.authSteps || []));
+    result.error = result.authMessage;
     return result;
   }
 }

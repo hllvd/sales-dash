@@ -161,6 +161,18 @@ async function captureTemplate(matricula, password, stepLogger = null) {
     const currentUrl = page.url();
     addStep(`[Capture] URL após login: ${currentUrl}`);
 
+    const lowerUrl = currentUrl.toLowerCase();
+    if (
+      lowerUrl.includes('redefinir') || 
+      lowerUrl.includes('trocar-senha') || 
+      lowerUrl.includes('alterar-senha') || 
+      lowerUrl.includes('primeiro-acesso')
+    ) {
+      const expMsg = 'Senha expirada. Por favor, redefina sua senha no AVA PRO.';
+      addStep(`[Capture ❌ Falha de Autenticação] ${expMsg}`);
+      throw new AuthError('wrong-password', expMsg, [], false, false);
+    }
+
     // Inspeciona texto visível na página de login e aguarda resposta
     let pageErrorText = null;
     const checkDeadline = Date.now() + 6000;
@@ -170,13 +182,10 @@ async function captureTemplate(matricula, password, stepLogger = null) {
           const errorEl = document.querySelector('.alert, [role="alert"], .error, .text-danger, .invalid-feedback, div[class*="error"], span[class*="error"], p[class*="error"], div[class*="red"], p[class*="red"]');
           if (errorEl && errorEl.textContent) return errorEl.textContent.trim();
           const bodyText = document.body ? document.body.innerText : '';
-          const match = bodyText.split('\n').find(l => 
-            l.includes('Senha expirada') || 
-            l.includes('redefina sua senha') || 
-            l.includes('Usuário ou senha') || 
-            l.includes('usuario ou senha') ||
-            l.includes('tentativas')
-          );
+          const match = bodyText.split('\n').map(l => l.trim()).find(l => {
+            const low = l.toLowerCase();
+            return low.includes('senha') || low.includes('usuario') || low.includes('usuário') || low.includes('tentativa') || low.includes('credencial') || low.includes('bloqueio');
+          });
           return match ? match.trim() : null;
         });
         if (text) {
@@ -214,7 +223,7 @@ async function captureTemplate(matricula, password, stepLogger = null) {
 
       const fallbackReason = isPasswordInputStillPresent
         ? (pageErrorText || 'Usuário ou senha inválida no AVA PRO.')
-        : 'Sessão JWT não emitida pelo AVA PRO.';
+        : (pageErrorText || 'Usuário ou senha inválida no AVA PRO.');
       addStep(`[Capture ❌ Falha de Autenticação] ${fallbackReason}`);
       throw new AuthError('wrong-password', fallbackReason, [], false, false);
     }

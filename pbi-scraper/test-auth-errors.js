@@ -60,6 +60,25 @@ assert(errada !== null, 'Should detect senha incorreta');
 assert.strictEqual(errada.isFatalAuth, true);
 console.log('✔ Test 9 passed: Senha incorreta detected');
 
+// Test 10: Sua senha expirou
+const exp3 = detectLoginErrorText('Sua senha expirou. Por favor efetue a troca.');
+assert(exp3 !== null, 'Should detect "sua senha expirou"');
+assert.strictEqual(exp3.isFatalAuth, true);
+assert(exp3.reason.includes('Senha expirada'), 'Reason should mention expired password');
+console.log('✔ Test 10 passed: "sua senha expirou" detected');
+
+// Test 11: Senha vencida
+const exp4 = detectLoginErrorText('Senha vencida');
+assert(exp4 !== null, 'Should detect "senha vencida"');
+assert.strictEqual(exp4.isFatalAuth, true);
+console.log('✔ Test 11 passed: "senha vencida" detected');
+
+// Test 12: Não autorizado / usuário inválido
+const unauth = detectLoginErrorText('Usuário não autorizado');
+assert(unauth !== null, 'Should detect unauth');
+assert.strictEqual(unauth.isFatalAuth, true);
+console.log('✔ Test 12 passed: "Usuário não autorizado" detected');
+
 console.log('All detectLoginErrorText tests passed successfully!\n');
 
 console.log('Testing tokenManager password hashing & cache invalidation...');

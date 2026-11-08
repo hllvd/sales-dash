@@ -386,6 +386,30 @@ async function processMessage(rawMessage) {
 
     log('WARN', `Job ${jobId} abortado pelo disjuntor de segurança: ${abortReason}`, { jobId, matricula: matriculaToUse, runId });
 
+    if (SQS_RESULTS_QUEUE_URL) {
+      try {
+        await publishToQueue(SQS_RESULTS_QUEUE_URL, {
+          jobId,
+          runId,
+          userId,
+          matricula: matriculaToUse,
+          store,
+          status: 'Failed',
+          rowCount: 0,
+          error: abortReason,
+          authStatus: 'wrong-password',
+          authMessage: abortReason,
+          powerbiLoaded: false,
+          authSteps: ['[Disjuntor SQS] Mensagem descartada para proteção contra bloqueio no AVA PRO.'],
+          scrapeDate: scrapeDate || (scrapeDates ? scrapeDates.join(',') : null),
+          completedAt: new Date().toISOString(),
+          timestamp: new Date().toISOString()
+        });
+      } catch (sqsErr) {
+        log('ERROR', `Failed to publish abort notification to SQS results queue: ${sqsErr.message}`, { jobId });
+      }
+    }
+
     if (callbackUrl) {
       try {
         await axios.put(callbackUrl, {
@@ -477,25 +501,31 @@ async function processMessage(rawMessage) {
   }
 
   // Publish notification to SQS Results Queue if configured
-  if (SQS_RESULTS_QUEUE_URL && scrapeResult.status === 'Succeeded') {
+  if (SQS_RESULTS_QUEUE_URL) {
     try {
+      const isFailed = scrapeResult.status === 'Failed';
+      const isWrongPassword = scrapeResult.authStatus === 'wrong-password' || scrapeResult.loginSuccess === false;
+      const effectiveAuthStatus = isWrongPassword ? 'wrong-password' : (scrapeResult.authStatus || (isFailed ? 'error' : 'success'));
+      const effectiveAuthMessage = scrapeResult.authMessage || (isWrongPassword ? 'Usuário ou senha inválida no AVA PRO.' : (isFailed ? (scrapeResult.error || 'Falha na extração') : 'Autenticação bem-sucedida'));
+
       const resultsPayload = {
         jobId,
         runId,
         userId,
-        s3Bucket: SCRAPE_S3_BUCKET,
-        s3Key: s3Key,
-        rowCount: scrapeResult.rowCount,
-        matricula,
+        s3Bucket: s3Key ? SCRAPE_S3_BUCKET : null,
+        s3Key: s3Key || null,
+        rowCount: scrapeResult.rowCount || 0,
+        matricula: matriculaToUse,
         store: scrapeResult.detectedStore || store,
         scrapeDate: scrapeResult.scrapeDate,
         scrapeType,
         status: scrapeResult.status,
+        error: scrapeResult.error || (isFailed ? effectiveAuthMessage : null),
         durationSeconds: scrapeResult.durationSeconds || null,
         durationFormatted: scrapeResult.durationFormatted || null,
-        authStatus: scrapeResult.authStatus || 'success',
-        authMessage: scrapeResult.authMessage || 'Autenticação bem-sucedida',
-        powerbiLoaded: scrapeResult.powerbiLoaded !== false,
+        authStatus: effectiveAuthStatus,
+        authMessage: effectiveAuthMessage,
+        powerbiLoaded: isWrongPassword ? false : (scrapeResult.powerbiLoaded !== false),
         authSteps: scrapeResult.authSteps || [],
         retryCount: scrapeResult.retryCount || 0,
         completedAt: new Date().toISOString(),
@@ -503,7 +533,7 @@ async function processMessage(rawMessage) {
       };
       log('INFO', `Publishing result to SQS queue: ${SQS_RESULTS_QUEUE_URL}`, { jobId, resultsPayload });
       await publishToQueue(SQS_RESULTS_QUEUE_URL, resultsPayload);
-      log('INFO', `Result notification published to SQS results queue`, { jobId });
+      log('INFO', `Result notification published to SQS results queue`, { jobId, status: scrapeResult.status });
     } catch (sqsErr) {
       log('ERROR', `Failed to publish result to SQS results queue: ${sqsErr.message}`, { jobId });
       // If SQS publishing fails, do not delete message so it can be retried
