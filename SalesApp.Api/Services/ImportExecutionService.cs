@@ -480,8 +480,8 @@ namespace SalesApp.Services
             if (user != null && !matriculaId.HasValue)
             {
                 var userMatriculas = await _userMatriculaRepository.GetByUserIdAsync(user.Id);
-                var defaultMatricula = userMatriculas.FirstOrDefault(um => um.IsActive && um.IsOwner)
-                                       ?? userMatriculas.FirstOrDefault(um => um.IsActive);
+                var defaultMatricula = userMatriculas?.FirstOrDefault(um => um.IsActive && um.IsOwner)
+                                       ?? userMatriculas?.FirstOrDefault(um => um.IsActive);
                 if (defaultMatricula != null)
                 {
                     matriculaId = defaultMatricula.MatriculaId;
@@ -2197,15 +2197,15 @@ namespace SalesApp.Services
             
             if (cache.TryGetValue(groupValue, out var cachedId)) return cachedId;
             
-            // 1. Try lookup by Name (smart case or exact)
+            // 1. Try lookup by Name (normalized)
             var groupByName = await _groupRepository.GetByNameAsync(groupValue.Trim());
             if (groupByName != null)
             {
                 cache[groupValue] = groupByName.Id;
                 return groupByName.Id;
             }
-            
-            // 2. Try lookup by ID if numeric
+
+            // 2. Try lookup by ID if numeric (fallback for direct GroupId imports)
             if (int.TryParse(groupValue.Trim(), out var id))
             {
                 var groupById = await _groupRepository.GetByIdAsync(id);

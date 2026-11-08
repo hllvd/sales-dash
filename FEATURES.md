@@ -1,3 +1,31 @@
+## Normalização de Nomes de Grupos (Zeros à Esquerda), Deduplicação e Migração de Contratos
+
+Migração de banco de dados do Entity Framework Core (`20261108080000_NormalizeGroupNamesAndDeduplicate.cs`) para normalizar nomes de grupos no SQLite, consolidando registros duplicados causados por zeros à esquerda históricos (ex: `000560` vs `560`), migrando contratos vinculados e preservando dados de segmentos.
+
+### Comportamento e Regras
+- **Identificação e Mapeamento Canônico**:
+  - Para cada grupo, o nome normalizado é calculado removendo zeros à esquerda (`CASE WHEN LTRIM(Name, '0') = '' THEN '0' ELSE LTRIM(Name, '0') END`).
+  - Quando já existe o grupo com o nome normalizado (ex: `560`), ele é selecionado como canônico.
+  - Quando existem apenas variantes com zeros (ex: `000888` e `0888`), a variante com menor `Id` é definida como canônica para posterior renomeação.
+- **Herança e Preservação de Segmento**:
+  - Se o grupo canônico estiver com o campo `Segment` nulo e qualquer duplicata possuir segmento atribuído, o valor é migrado para o grupo canônico.
+- **Migração Transacional de Contratos**:
+  - Todos os contratos vinculados a duplicatas (`GroupId` apontando para o grupo com zeros) são migrados para o `CanonicalGroupId`.
+- **Exclusão de Duplicatas e Renomeação In-Place**:
+  - Grupos duplicados com zeros são excluídos permanentemente da tabela `Groups`.
+  - Grupos canônicos remanescentes que possuíam zeros no nome são renomeados in-place para seu nome normalizado.
+- **Prevenção Contínua**:
+  - `ImportExecutionService.cs` ajustado para busca estrita pelo nome normalizado (`NormalizationUtils.NormalizeNumber`), eliminando o fallback incorreto de busca por chave primária surrogate `Id`.
+
+### Arquivos Adicionados / Modificados
+- `SalesApp.Api/Migrations/20261108080000_NormalizeGroupNamesAndDeduplicate.cs`: Migração SQL transacional de consolidação, migração de contratos e remoção de duplicatas.
+- `SalesApp.Api/Migrations/20261108080000_NormalizeGroupNamesAndDeduplicate.Designer.cs`: Metadados da migração.
+- `SalesApp.Api/Services/ImportExecutionService.cs`: Correção da resolução de grupos para casamento estrito por nome normalizado e proteção contra `NullReferenceException` em matrículas.
+- `SalesApp.IntegrationTests/Groups/GroupNormalizationMigrationTests.cs`: Teste de integração validando migração de contratos, exclusão de grupos duplicados e herança de segmento.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Importação de Grupos via Planilha Excel (`.xlsx`) com Upsert Automático
 
 Adição de funcionalidade de importação em lote de grupos a partir de arquivos `.xlsx` com colunas flexíveis de Grupo e Segmento, realizando criação de novos grupos e atualização (*upsert*) de grupos existentes.
