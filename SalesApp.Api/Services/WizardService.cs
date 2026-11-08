@@ -8,6 +8,7 @@ using SalesApp.Repositories;
 using System.Globalization;
 using System.Text.Json;
 using OfficeOpenXml;
+using SalesApp.Utils;
 
 namespace SalesApp.Services
 {
@@ -110,7 +111,7 @@ namespace SalesApp.Services
                     var parts = row[cotaKey].Split(';');
                     if (parts.Length >= 5)
                     {
-                        row["cota.group"] = parts[0].Trim();
+                        row["cota.group"] = NormalizationUtils.NormalizeNumber(parts[0]);
                         row["cota.cota"] = parts[1].Trim();
                         row["cota.customer"] = parts[3].Trim();
                         row["cota.contract"] = parts[^1].Trim();

@@ -1,3 +1,28 @@
+## Normalização Contínua de Grupos em Importações (PowerBI Scraper e Dashboard)
+
+Normalização obrigatória de nomes de grupos (remoção de zeros à esquerda com `NormalizationUtils.NormalizeNumber`) em todas as etapas de ingestão de dados de contratos (PowerBI Scraper, Wizard e Dashboard de Contratos), garantindo que novos contratos e contratos existentes fiquem associados exclusivamente a grupos normalizados e canônicos.
+
+### Comportamento e Regras
+- **Normalização no Ponto de Entrada (Scraper e Wizard)**:
+  - Nos controladores e serviços de upload (`ImportsController.UploadFileInternal` e `WizardService.Step1Upload`), as cotas compostas (formato `grupo;cota;versao;cliente;contrato`) têm a primeira parte explicitamente normalizada com `NormalizationUtils.NormalizeNumber` antes de popular a chave virtual `cota.group`.
+- **Validação e Resolução de Grupos (`ImportValidationService` e `ImportExecutionService`)**:
+  - `ImportValidationService.ValidateContractRowAsync`: Normaliza a chave `GroupId` informada no arquivo antes de verificar a existência no banco (`_context.Groups.AnyAsync`), prevenindo erros falsos de validação quando o grupo já existe com nome normalizado.
+  - `ImportExecutionService.BuildContractFromRowAsync` e `BuildContractDashboardFromRowAsync`: Normalizam o valor de grupo (`groupValue = NormalizationUtils.NormalizeNumber(groupValue)`) antes de chamar `ResolveGroupIdAsync` com criação automática (se habilitada) ou busca estrita por nome.
+- **Atualização Incondicional de Grupo em Contratos Existentes**:
+  - Em `BuildContractDashboardFromRowAsync`, quando um contrato existente é reimportado via Dashboard ou PowerBI Scraper, o campo `contract.GroupId` é sempre atualizado para o grupo normalizado resolvido (`if (groupId.HasValue) contract.GroupId = groupId;`), garantindo que qualquer contrato que estivesse previamente apontando para um grupo incorreto ou desatualizado seja corrigido automaticamente na reimportação.
+- **Isolamento de Atribuição de Segmento**:
+  - O preenchimento do campo `Segment` em grupos continua estritamente manual ou via importação dedicada de planilha de grupos (`GroupImportModal`), nunca sendo inferido ou sobregravado durante a importação de contratos do PowerBI.
+
+### Arquivos Modificados / Adicionados
+- `SalesApp.Api/Controllers/ImportsController.cs`: Normalização de `cota.group` ao decompor string de cota.
+- `SalesApp.Api/Services/WizardService.cs`: Normalização de `cota.group` no upload do wizard.
+- `SalesApp.Api/Services/ImportValidationService.cs`: Normalização de grupo na validação de linhas.
+- `SalesApp.Api/Services/ImportExecutionService.cs`: Normalização de `groupValue` na criação e atualização mandatória de `GroupId` para contratos existentes no dashboard.
+- `SalesApp.IntegrationTests/Imports/DashboardGroupNormalizationImportTests.cs`: Teste de integração validando a normalização de grupos com zeros (`000560` -> `560`) e a atualização automática do `GroupId` em contratos reimportados com novos grupos (`000720` -> `720`).
+- `FEATURES.md`: Registro da documentação da funcionalidade.
+
+---
+
 ## Normalização de Nomes de Grupos (Zeros à Esquerda), Deduplicação e Migração de Contratos
 
 Migração de banco de dados do Entity Framework Core (`20261108080000_NormalizeGroupNamesAndDeduplicate.cs`) para normalizar nomes de grupos no SQLite, consolidando registros duplicados causados por zeros à esquerda históricos (ex: `000560` vs `560`), migrando contratos vinculados e preservando dados de segmentos.

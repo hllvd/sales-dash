@@ -379,6 +379,7 @@ namespace SalesApp.Services
 
             var groupValue = GetFieldValue(row, reverseMappings, "GroupId");
             if (string.IsNullOrWhiteSpace(groupValue) && cotaInfo.IsFromConcatenatedString) groupValue = cotaInfo.Group;
+            groupValue = NormalizationUtils.NormalizeNumber(groupValue);
 
             var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
             if (string.IsNullOrWhiteSpace(matriculaNumber) && !string.IsNullOrWhiteSpace(cotaInfo.Matricula) && !cotaInfo.IsFromConcatenatedString)
@@ -1729,6 +1730,8 @@ namespace SalesApp.Services
                 if (string.IsNullOrWhiteSpace(quotaStr)) quotaStr = cotaInfo.Matricula; // Quota / Cota number (e.g. 1276)
             }
 
+            groupValue = NormalizationUtils.NormalizeNumber(groupValue);
+
             // Resolve Matricula Id
             var matriculaNumber = GetFieldValue(row, reverseMappings, "MatriculaNumber");
             int? matriculaId = await EnsureMatriculaExistsAsync(matriculaNumber, importSessionId, matriculaCache);
@@ -2054,7 +2057,7 @@ namespace SalesApp.Services
                 }
                 else
                 {
-                    if (groupId.HasValue && !contract.GroupId.HasValue) contract.GroupId = groupId;
+                    if (groupId.HasValue) contract.GroupId = groupId;
                     if (!string.IsNullOrWhiteSpace(customerName)) contract.CustomerName = customerName;
                     if (pvId.HasValue) contract.PvId = pvId;
                     if (version.HasValue) contract.Version = version;

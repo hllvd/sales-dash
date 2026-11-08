@@ -1,5 +1,6 @@
 using SalesApp.Data;
 using Microsoft.EntityFrameworkCore;
+using SalesApp.Utils;
 
 namespace SalesApp.Services
 {
@@ -187,21 +188,23 @@ namespace SalesApp.Services
                 }
             }
 
-            // Validate group exists (optional - only if provided and looks like a direct database ID)
+            // Validate group exists (optional - only if provided and auto-create disabled)
             if (!allowAutoCreateGroups && reverseMappings.TryGetValue("GroupId", out var groupColumn))
             {
                 if (row.TryGetValue(groupColumn, out var groupIdValue) && !string.IsNullOrWhiteSpace(groupIdValue))
                 {
-                    // For the dashboard, the group identifier (like 12153) might be a name/code that we auto-create
-                    // instead of a direct integer database ID.
-                    // Only validate if it's likely a database ID (positive integer < 100000 usually, but let's be more specific)
-                    // If the group is intended to be auto-created in the execution service, skip validation here.
-                    if (int.TryParse(groupIdValue, out var groupId) && groupId != 0 && groupId < 10000)
+                    var normalizedGroup = NormalizationUtils.NormalizeNumber(groupIdValue);
+                    if (!string.IsNullOrWhiteSpace(normalizedGroup))
                     {
-                        var groupExists = await _context.Groups.AnyAsync(g => g.Id == groupId && g.IsActive);
+                        var groupExists = await _context.Groups.AnyAsync(g => g.Name == normalizedGroup && g.IsActive);
+                        if (!groupExists && int.TryParse(normalizedGroup, out var groupId))
+                        {
+                            groupExists = await _context.Groups.AnyAsync(g => g.Id == groupId && g.IsActive);
+                        }
+
                         if (!groupExists)
                         {
-                            errors.Add($"Group not found: {groupId}");
+                            errors.Add($"Group not found: {groupIdValue}");
                         }
                     }
                 }
