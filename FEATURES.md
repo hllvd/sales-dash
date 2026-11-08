@@ -1,3 +1,31 @@
+## Desacoplamento de Filas SQS e Tabela DynamoDB para Scrape de PBI em Desenvolvimento
+
+Desacoplamento completo do pipeline de scraping do PowerBI entre produção e desenvolvimento local, isolando filas SQS (Jobs e Resultados) e a tabela DynamoDB de logs de execução, evitando poluição e concorrência com o ambiente produtivo.
+
+### Comportamento e Regras
+- **Filas SQS Dedicadas para Desenvolvimento (AWS `us-east-1`)**:
+  - `dev-hdev-sales-scrape-jobs`: Fila de entrada de jobs de scraping em modo remoto/assíncrono (`VisibilityTimeout = 900s`, retenção de 4 dias, criptografia SSE).
+  - `dev-hdev-sales-dash`: Fila de saída/resultados consumida pelo backend para auto-importação (`VisibilityTimeout = 30s`, retenção de 4 dias, criptografia SSE).
+- **Tabela DynamoDB Dedicada (`dev-pbi_scrape_logs`)**:
+  - Criada na AWS (`us-east-1`) em modo sob demanda (`PAY_PER_REQUEST`).
+  - Schema espelhado de produção: Chave primária `PK` (String, HASH) e `SK` (String, RANGE) e índice secundário global `GSI1` (`GSI1PK` HASH, `GSI1SK` RANGE, projeção `ALL`).
+  - Habilitado Time to Live (TTL) nativo no atributo `TTL`.
+  - Tabela iniciada totalmente vazia para isolamento de testes locais.
+- **Permissões IAM**:
+  - Adicionada a política inline `SalesAppDevPbiScrapeLogsPolicy` ao usuário AWS `salesApp`, autorizando operações na nova tabela `dev-pbi_scrape_logs` e em seus índices.
+- **Configuração de Ambiente**:
+  - `SalesApp.Api/appsettings.Development.json` configurado com `DynamoDbTable`, `SqsQueueUrl`, `SqsResultsQueueUrl` e `SqsJobsQueueUrl` apontando para os recursos de desenvolvimento.
+  - O arquivo `.env` foi limpo de nomes de tabelas e URLs de filas, reservando-o exclusivamente a credenciais sensíveis.
+  - O ambiente de produção permanece inalterado lendo os recursos produtivos padrão de `appsettings.json`.
+
+### Arquivos Modificados
+- `SalesApp.Api/appsettings.Development.json`: Configuração de `DynamoDbTable`, `SqsQueueUrl`, `SqsResultsQueueUrl` e `SqsJobsQueueUrl` com os recursos de dev.
+- `.env`: Remoção de `AWS_DYNAMODB_TABLE`, `SQS_RESULTS_QUEUE_URL` e `SQS_JOBS_QUEUE_URL`.
+- `SalesApp.Tests/ConfigurationHierarchyTests.cs`: Adicionado teste `ConfigureAppConfigurationHierarchy_WhenDevelopment_OverridesPbiScrapeSettingsFromDevelopmentJson`.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Detecção e Exibição Imediata de Senha Errada / Expirada no PowerBI Extractor e Notificação Assíncrona via SQS
 
 Correção do ciclo de tratamento de erros de autenticação no PowerBI Extractor, garantindo que falhas de login (senha incorreta, senha expirada ou credenciais inválidas) no AVA PRO sejam registradas e exibidas imediatamente como "Senha Incorreta / Senha Expirada" nos logs e detalhes da execução (`/scrapes/runs/:runId`), eliminando a exibição espúria de "Tempo limite excedido (Timeout)" e travando a conta contra novos disparos até alteração explícita de senha.

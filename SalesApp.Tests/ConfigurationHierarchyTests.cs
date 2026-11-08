@@ -231,5 +231,57 @@ INLINE_COMMENT=my_value # some note
                 }
             }
         }
+
+        [Fact]
+        public void ConfigureAppConfigurationHierarchy_WhenDevelopment_OverridesPbiScrapeSettingsFromDevelopmentJson()
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "salesapp_test_pbi_dev_" + Guid.NewGuid());
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                // Level 1: appsettings.json (Production base)
+                File.WriteAllText(Path.Combine(tempDir, "appsettings.json"), @"{
+                    ""AWS"": {
+                        ""DynamoDbTable"": ""pbi_scrape_logs"",
+                        ""SqsQueueUrl"": ""https://sqs.us-east-1.amazonaws.com/797163826126/hdev-sales-dash"",
+                        ""SqsResultsQueueUrl"": ""https://sqs.us-east-1.amazonaws.com/797163826126/hdev-sales-dash"",
+                        ""SqsJobsQueueUrl"": ""https://sqs.us-east-1.amazonaws.com/797163826126/hdev-sales-scrape-jobs""
+                    }
+                }");
+
+                // Level 2: appsettings.Development.json
+                File.WriteAllText(Path.Combine(tempDir, "appsettings.Development.json"), @"{
+                    ""AWS"": {
+                        ""DynamoDbTable"": ""dev-pbi_scrape_logs"",
+                        ""SqsQueueUrl"": ""https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-dash"",
+                        ""SqsResultsQueueUrl"": ""https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-dash"",
+                        ""SqsJobsQueueUrl"": ""https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-scrape-jobs""
+                    }
+                }");
+
+                var envMock = new Mock<IHostEnvironment>();
+                envMock.Setup(e => e.EnvironmentName).Returns("Development");
+                envMock.Setup(e => e.ContentRootPath).Returns(tempDir);
+                envMock.Setup(e => e.ContentRootFileProvider).Returns(new PhysicalFileProvider(tempDir));
+
+                var builder = new ConfigurationBuilder();
+                builder.SetBasePath(tempDir);
+
+                ConfigurationHierarchy.ConfigureAppConfigurationHierarchy(builder, envMock.Object);
+                var config = builder.Build();
+
+                config["AWS:DynamoDbTable"].Should().Be("dev-pbi_scrape_logs");
+                config["AWS:SqsQueueUrl"].Should().Be("https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-dash");
+                config["AWS:SqsResultsQueueUrl"].Should().Be("https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-dash");
+                config["AWS:SqsJobsQueueUrl"].Should().Be("https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-scrape-jobs");
+            }
+            finally
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+        }
     }
 }
