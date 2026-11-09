@@ -406,12 +406,12 @@ namespace SalesApp.Services
                 {
                     var eval = await EvaluateUserCareerPlanAsync(user.Id, calculatedAt);
 
-                    decimal activeProd = eval.RawMetrics.ActiveProduction12mMinPaid2;
+                    decimal commProd = eval.RawMetrics.CommercializedContracts12mMinAge2;
                     decimal? salesGoal = eval.TargetLevel?.SalesGoal;
                     decimal progressPct = 0m;
                     if (salesGoal.HasValue && salesGoal.Value > 0)
                     {
-                        progressPct = Math.Min(1m, Math.Max(0m, activeProd / salesGoal.Value));
+                        progressPct = Math.Min(1m, Math.Max(0m, commProd / salesGoal.Value));
                     }
 
                     snapshots.Add(new CareerPlanConsultantSnapshotDto
@@ -423,7 +423,7 @@ namespace SalesApp.Services
                         TargetLevelName = eval.TargetLevel?.Name ?? "N/A",
                         SalesGoal = salesGoal,
                         RetentionTarget = eval.TargetLevel?.Retention,
-                        ActiveProduction12m = activeProd,
+                        ActiveProduction12m = commProd,
                         ProductionProgressPct = progressPct,
                         StrictRetention15m = eval.RawMetrics.StrictRetention15m,
                         CalculatedAt = calculatedAt

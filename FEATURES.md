@@ -1,3 +1,28 @@
+## Atualização das Regras do Plano de Carreira (Alef a Guimel) para Contratos Comercializados
+
+Configuração dos níveis **Alef**, **Beth** e **Guimel** do plano de carreira para utilizarem a métrica `Contratos Comercializados` (`commercializedContracts`) com carência mínima de idade de 2 meses (`minAgeMonths: 2`), substituindo a antiga regra de `Prod. Ativa 12m (≥ 2 pagas)`.
+
+### Comportamento e Regras
+- **Requisitos de Promoção (Alef, Beth e Guimel)**:
+  - O requisito de volume de vendas avalia agora `Contratos Comercializados ≥ Meta` (`commercializedContracts`, janela de 12 meses fechados, `minAgeMonths: 2`).
+  - O requisito de retenção permanece `Retenção Estrita (15 meses)` (`strictRetention`, janela de 15 meses).
+- **Consultores Sem Classificação**:
+  - Usuários sem classificação ativa têm como meta o primeiro degrau da esteira (**Alef**). Dessa forma, são avaliados automaticamente pelos requisitos de **Alef**, exigindo a métrica `Contratos Comercializados` para a primeira promoção.
+  - Na página `Performance do Consultor`, consultores sem classificação já têm a barra de progresso calculada sobre `commercializedContracts12mMinAge2` em direção à meta de Alef.
+- **Snapshot de Performance dos Consultores**:
+  - Na página `Performance do Consultor`, o cálculo de percentual de atingimento da meta de produção (`ProductionProgressPct`) e o valor exibido passam a utilizar a produção de contratos comercializados (`commercializedContracts12mMinAge2`).
+- **Destaque Visual no Frontend**:
+  - O card de métrica consolidada "Contratos Comercializados" recebe o badge e destaque "Requisito" na tela `Meu Plano de Carreira`.
+
+### Arquivos Modificados
+- `SalesApp.Api/CareerPlan/career-plan.json`: Atualização dos nós de requisitos de Alef, Beth e Guimel de `activeProduction` para `commercializedContracts` com `minAgeMonths: 2`.
+- `SalesApp.Api/Services/CareerPlanService.cs`: Atualização do snapshot de consultores para considerar `eval.RawMetrics.CommercializedContracts12mMinAge2`.
+- `SalesApp.IntegrationTests/CareerPlan/CareerPlanControllerTests.cs`: Atualização dos testes de integração para validar a nova métrica de promoção.
+- `client/e2e-test/e2e/my_career_plan.spec.ts`: Atualização do teste E2E validando a indicação de requisito no card `commercializedContracts12mMinAge2`.
+- `FEATURES.md`: Registro da alteração.
+
+---
+
 ## Métrica Consolidada: Contratos Comercializados
 
 Adiciona a métrica consolidada `Contratos Comercializados` ao Plano de Carreira (Meu Plano de Carreira e Performance do Consultor), permitindo visualizar o volume financeiro total comercializado no período de 12 meses fechados, considerando contratos elegíveis a partir do segundo mês de vida.

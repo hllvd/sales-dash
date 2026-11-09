@@ -32,7 +32,10 @@ namespace SalesApp.CareerPlan
                     .ThenBy(l => l.Name)
                     .ToList();
 
-                return rootLevels.FirstOrDefault() ?? allLevels.OrderBy(l => l.SalesGoal ?? decimal.MaxValue).First();
+                var chainRoots = rootLevels.Where(l => l.NextLevelId.HasValue).ToList();
+                var candidates = chainRoots.Count > 0 ? chainRoots : rootLevels;
+
+                return candidates.FirstOrDefault() ?? allLevels.OrderBy(l => l.SalesGoal ?? decimal.MaxValue).First();
             }
 
             if (currentLevel.NextLevel != null)

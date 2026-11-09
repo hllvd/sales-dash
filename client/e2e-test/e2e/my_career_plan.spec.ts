@@ -139,7 +139,8 @@ test.describe('My Career Plan (Meu Plano de Carreira) E2E Tests', () => {
     // 5b. Verify legend and highlighted metrics used by promotion requirements
     await expect(page.getByTestId('requirement-legend')).toContainText('Métrica usada em um requisito de promoção', { timeout: 15000 });
     await expect(page.locator('[data-metric-key="strictRetention15m"]')).toHaveAttribute('data-requirement', 'true');
-    await expect(page.locator('[data-metric-key="activeProduction12mMinPaid2"]')).toHaveAttribute('data-requirement', 'true');
+    await expect(page.locator('[data-metric-key="commercializedContracts12mMinAge2"]')).toHaveAttribute('data-requirement', 'true');
+    await expect(page.locator('[data-metric-key="activeProduction12mMinPaid2"]')).toHaveAttribute('data-requirement', 'false');
     await expect(page.locator('[data-metric-key="retention6m"]')).toHaveAttribute('data-requirement', 'false');
 
     // 6. Verify RT contract tracking loaded automatically

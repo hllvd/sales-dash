@@ -200,13 +200,15 @@ namespace SalesApp.IntegrationTests.CareerPlan
             retentionReq.TargetValue.Should().Be(0.79m);
             retentionReq.Progress.Should().Be(1m);
 
-            // ActiveProduction: contract 1 qualifies (10M, 4 months old, Active, >= 2 paid) >= 10M meta. Contract 2 (1 month old, paid < 2) is excluded.
-            var prodReq = evalResult.Data.Requirements.First(r => r.Metric == "ActiveProduction");
+            // CommercializedContracts: contract 1 qualifies (10M, 4 months old, Active, age >= 2) >= 10M meta. Contract 2 (1 month old, age < 2) is excluded.
+            var prodReq = evalResult.Data.Requirements.First(r => r.Metric == "CommercializedContracts");
             prodReq.Passed.Should().BeTrue();
             prodReq.CurrentValue.Should().Be(10_000_000m);
             prodReq.Progress.Should().Be(1m);
+            prodReq.RawMetricKey.Should().Be("commercializedContracts12mMinAge2");
 
-            // ActiveProduction12mMinPaid2 in raw metrics matches
+            // CommercializedContracts12mMinAge2 in raw metrics matches
+            evalResult.Data.RawMetrics.CommercializedContracts12mMinAge2.Should().Be(10_000_000m);
             evalResult.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(10_000_000m);
 
             // 3. Now add Contract 3: 5 months old, Defaulted, R$ 15.000.000,00
@@ -232,9 +234,10 @@ namespace SalesApp.IntegrationTests.CareerPlan
             retentionReq2.Passed.Should().BeFalse("strict retention dropped to 50% which is below 79%");
             retentionReq2.CurrentValue.Should().Be(0.5m);
 
-            // Contract 3 is Defaulted, so ActiveProduction remains 10M
-            var prodReq2 = evalResult2.Data.Requirements.First(r => r.Metric == "ActiveProduction");
-            prodReq2.CurrentValue.Should().Be(10_000_000m);
+            // Contract 3 is Defaulted with age 5 (>= 2), so CommercializedContracts includes it: 10M + 15M = 25M
+            var prodReq2 = evalResult2.Data.Requirements.First(r => r.Metric == "CommercializedContracts");
+            prodReq2.CurrentValue.Should().Be(25_000_000m);
+            evalResult2.Data.RawMetrics.CommercializedContracts12mMinAge2.Should().Be(25_000_000m);
             evalResult2.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(10_000_000m);
         }
 
@@ -751,6 +754,45 @@ namespace SalesApp.IntegrationTests.CareerPlan
 
             // Compare with ActiveProduction12mMinPaid2: only cActive (100k) is Active with paid >= 2
             evalResult.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(100_000m);
+        }
+
+        [Fact]
+        public async Task EvaluateUser_UnclassifiedUser_TargetsAlefWithCommercializedContractsRequirement()
+        {
+            var token = await GetSuperAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var unclassifiedUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Unclassified Test User",
+                Email = $"unclass_{Guid.NewGuid().ToString()[..8]}@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),
+                RoleId = 3,
+                IsActive = true
+            };
+            context.Users.Add(unclassifiedUser);
+            await context.SaveChangesAsync();
+
+            // Evaluate via API
+            var evalResponse = await clientWithToken.GetAsync($"/api/career-plan/users/{unclassifiedUser.Id}");
+            evalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var evalResult = await evalResponse.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
+            evalResult.Should().NotBeNull();
+            evalResult!.Success.Should().BeTrue();
+            evalResult.Data!.CurrentLevel.Should().BeNull();
+            evalResult.Data.TargetLevel.Should().NotBeNull();
+            evalResult.Data.TargetLevel!.Name.Should().Be("Alef");
+
+            var commReq = evalResult.Data.Requirements.First(r => r.Metric == "CommercializedContracts");
+            commReq.Should().NotBeNull();
+            commReq.RawMetricKey.Should().Be("commercializedContracts12mMinAge2");
+            commReq.Label.Should().Be("Contratos Comercializados ≥ Meta");
         }
     }
 }

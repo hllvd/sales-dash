@@ -5,10 +5,10 @@
       "requirements": {
         "all": [
           {
-            "label": "Prod. Ativa 12m (≥ 2 pagas) ≥ Meta",
-            "metric": "activeProduction",
+            "label": "Contratos Comercializados ≥ Meta",
+            "metric": "commercializedContracts",
             "windowMonths": 12,
-            "eligibility": { "minInferredPaidMonths": 2 },
+            "eligibility": { "minAgeMonths": 2 },
             "op": ">=",
             "value": { "ref": "targetLevel.salesGoal" }
           },
@@ -26,10 +26,10 @@
       "requirements": {
         "all": [
           {
-            "label": "Prod. Ativa 12m (≥ 2 pagas) ≥ Meta",
-            "metric": "activeProduction",
+            "label": "Contratos Comercializados ≥ Meta",
+            "metric": "commercializedContracts",
             "windowMonths": 12,
-            "eligibility": { "minInferredPaidMonths": 2 },
+            "eligibility": { "minAgeMonths": 2 },
             "op": ">=",
             "value": { "ref": "targetLevel.salesGoal" }
           },
@@ -47,10 +47,10 @@
       "requirements": {
         "all": [
           {
-            "label": "Prod. Ativa 12m (≥ 2 pagas) ≥ Meta",
-            "metric": "activeProduction",
+            "label": "Contratos Comercializados ≥ Meta",
+            "metric": "commercializedContracts",
             "windowMonths": 12,
-            "eligibility": { "minInferredPaidMonths": 2 },
+            "eligibility": { "minAgeMonths": 2 },
             "op": ">=",
             "value": { "ref": "targetLevel.salesGoal" }
           },
