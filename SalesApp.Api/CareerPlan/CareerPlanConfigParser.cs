@@ -185,6 +185,7 @@ namespace SalesApp.CareerPlan
                 "strictretention" or "strict_retention" => MetricKind.StrictRetention,
                 "production" => MetricKind.Production,
                 "activeproduction" or "active_production" => MetricKind.ActiveProduction,
+                "commercializedcontracts" or "commercialized_contracts" or "commercializedproduction" or "commercialized_production" => MetricKind.CommercializedContracts,
                 "isteamowner" or "is_team_owner" => MetricKind.IsTeamOwner,
                 "activeteammembers" or "active_team_members" => MetricKind.ActiveTeamMembers,
                 "directsubteams" or "direct_sub_teams" => MetricKind.DirectSubTeams,

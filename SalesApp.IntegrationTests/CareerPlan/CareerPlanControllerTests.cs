@@ -670,5 +670,87 @@ namespace SalesApp.IntegrationTests.CareerPlan
             var evalAfterResult = await evalAfter.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
             evalAfterResult!.Data!.RawMetrics.StrictRetention15m.Should().Be(1m);
         }
+
+        [Fact]
+        public async Task EvaluateUser_CommercializedContracts12mMinAge2_IncludesAllowedStatusesAndExcludesAgeUnderTwo()
+        {
+            var token = await GetSuperAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var alefLevel = await context.ClassificationLevels.FirstAsync(l => l.Name.ToLower() == "alef");
+            var activeStatus = await context.ContractStatuses.FirstAsync(s => s.Name == "Active");
+            var late1Status = await context.ContractStatuses.FirstAsync(s => s.Name == "Late1");
+            var late2Status = await context.ContractStatuses.FirstAsync(s => s.Name == "Late2");
+            var late3Status = await context.ContractStatuses.FirstAsync(s => s.Name == "Late3");
+            var defaultedStatus = await context.ContractStatuses.FirstAsync(s => s.Name == "Defaulted");
+            var desistenteStatus = await context.ContractStatuses.FirstOrDefaultAsync(s => s.Name == "Desistente");
+            if (desistenteStatus == null)
+            {
+                desistenteStatus = new SalesApp.Models.ContractStatusEntity { Name = "Desistente" };
+                context.ContractStatuses.Add(desistenteStatus);
+                await context.SaveChangesAsync();
+            }
+
+            var testUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Comm User",
+                Email = $"comm_user_{Guid.NewGuid().ToString()[..8]}@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),
+                RoleId = 3,
+                IsActive = true
+            };
+            context.Users.Add(testUser);
+            await context.SaveChangesAsync();
+
+            context.UserClassifications.Add(new UserClassification
+            {
+                UserInternalId = testUser.InternalId,
+                LevelId = alefLevel.Id,
+                StartDate = DateTime.UtcNow.AddMonths(-12)
+            });
+
+            var now = DateTime.UtcNow;
+            var refDate = CareerReferenceDate.Resolve(now, 15);
+
+            // 1. Included: Active, age 4, R$ 100.000
+            var cActive = new Contract { ContractNumber = $"COMM-ACT-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 100_000m, ContractStatusId = activeStatus.Id, SaleStartDate = refDate.AddMonths(-4), IsActive = true, HasPayment = true };
+            // 2. Included: Late1, age 3, R$ 200.000
+            var cLate1 = new Contract { ContractNumber = $"COMM-LT1-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 200_000m, ContractStatusId = late1Status.Id, SaleStartDate = refDate.AddMonths(-3), IsActive = true, HasPayment = true };
+            // 3. Included: Late2, age 5, R$ 300.000
+            var cLate2 = new Contract { ContractNumber = $"COMM-LT2-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 300_000m, ContractStatusId = late2Status.Id, SaleStartDate = refDate.AddMonths(-5), IsActive = true, HasPayment = true };
+            // 4. Included: Late3, age 6, R$ 400.000
+            var cLate3 = new Contract { ContractNumber = $"COMM-LT3-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 400_000m, ContractStatusId = late3Status.Id, SaleStartDate = refDate.AddMonths(-6), IsActive = true, HasPayment = true };
+            // 5. Included: Defaulted, age 7, R$ 500.000
+            var cDefaulted = new Contract { ContractNumber = $"COMM-DEF-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 500_000m, ContractStatusId = defaultedStatus.Id, SaleStartDate = refDate.AddMonths(-7), IsActive = true, HasPayment = true };
+
+            // 6. Excluded: Active but age 1 (< 2), R$ 1.000.000
+            var cTooYoung = new Contract { ContractNumber = $"COMM-YNG-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 1_000_000m, ContractStatusId = activeStatus.Id, SaleStartDate = refDate.AddMonths(-1), IsActive = true, HasPayment = true };
+            // 7. Excluded: Desistente age 4, R$ 2.000.000
+            var cDesistente = new Contract { ContractNumber = $"COMM-DES-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 2_000_000m, ContractStatusId = desistenteStatus.Id, SaleStartDate = refDate.AddMonths(-4), IsActive = false, HasPayment = false };
+            // 8. Excluded: Older than 12m window (age 14), R$ 3.000.000
+            var cTooOld = new Contract { ContractNumber = $"COMM-OLD-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 3_000_000m, ContractStatusId = activeStatus.Id, SaleStartDate = refDate.AddMonths(-14), IsActive = true, HasPayment = true };
+
+            context.Contracts.AddRange(cActive, cLate1, cLate2, cLate3, cDefaulted, cTooYoung, cDesistente, cTooOld);
+            await context.SaveChangesAsync();
+
+            // Evaluate user
+            var evalResponse = await clientWithToken.GetAsync($"/api/career-plan/users/{testUser.Id}");
+            evalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var evalResult = await evalResponse.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
+            evalResult.Should().NotBeNull();
+            evalResult!.Success.Should().BeTrue();
+
+            // Expected sum: 100k + 200k + 300k + 400k + 500k = 1.500.000
+            evalResult.Data!.RawMetrics.CommercializedContracts12mMinAge2.Should().Be(1_500_000m);
+
+            // Compare with ActiveProduction12mMinPaid2: only cActive (100k) is Active with paid >= 2
+            evalResult.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(100_000m);
+        }
     }
 }

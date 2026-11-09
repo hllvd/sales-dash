@@ -177,6 +177,7 @@ namespace SalesApp.Services
                 Production12m = raw.Production12m,
                 Production15m = raw.Production15m,
                 ActiveProduction12mMinPaid2 = raw.ActiveProduction12mMinPaid2,
+                CommercializedContracts12mMinAge2 = raw.CommercializedContracts12mMinAge2,
                 IsTeamOwner = raw.IsTeamOwner,
                 ActiveTeamMembers = raw.ActiveTeamMembers,
                 DirectSubTeams = raw.DirectSubTeams

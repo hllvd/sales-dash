@@ -25,6 +25,7 @@ namespace SalesApp.CareerPlan
         decimal Production12m,
         decimal Production15m,
         decimal ActiveProduction12mMinPaid2,
+        decimal CommercializedContracts12mMinAge2,
         bool IsTeamOwner,
         int ActiveTeamMembers,
         int DirectSubTeams
@@ -32,6 +33,35 @@ namespace SalesApp.CareerPlan
 
     public static class CareerMetricsCalculator
     {
+        private static readonly HashSet<string> CommercializedStatusNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ContractStatus.Active.ToApiString(),
+            ContractStatus.Late1.ToApiString(),
+            ContractStatus.Late2.ToApiString(),
+            ContractStatus.Late3.ToApiString(),
+            ContractStatus.Defaulted.ToApiString(),
+        };
+
+        public static decimal ComputeCommercializedProduction(
+            int windowMonths,
+            int minAgeMonths,
+            CareerMetricInputs inputs)
+        {
+            if (inputs == null) throw new ArgumentNullException(nameof(inputs));
+
+            var (start, end) = CareerReferenceDate.GetClosedMonthWindow(inputs.ReferenceDate, windowMonths);
+
+            return inputs.UserContracts
+                .Where(c => c.SaleStartDate >= start && c.SaleStartDate < end)
+                .Where(c => c.ContractStatus != null && CommercializedStatusNames.Contains(c.ContractStatus.Name))
+                .Where(c =>
+                {
+                    int age = CareerReferenceDate.CalculateAgeMonths(c.SaleStartDate, inputs.ReferenceDate);
+                    return age >= minAgeMonths;
+                })
+                .Sum(c => c.TotalAmount);
+        }
+
         public static decimal ComputeActiveProduction(
             int windowMonths,
             int minInferredPaidMonths,
@@ -109,6 +139,13 @@ namespace SalesApp.CareerPlan
                     return ComputeActiveProduction(wm, minPaid, inputs);
                 }
 
+                case MetricKind.CommercializedContracts:
+                {
+                    int wm = windowMonths.GetValueOrDefault(12);
+                    int minAge = eligibility?.MinAgeMonths ?? 2;
+                    return ComputeCommercializedProduction(wm, minAge, inputs);
+                }
+
                 default:
                     throw new NotSupportedException($"MetricKind '{metric}' is not supported.");
             }
@@ -130,6 +167,7 @@ namespace SalesApp.CareerPlan
             var p15 = ComputeMetric(MetricKind.Production, 15, null, inputs);
 
             var activeProd12mMinPaid2 = ComputeActiveProduction(12, 2, inputs);
+            var comm12mAge2 = ComputeCommercializedProduction(12, 2, inputs);
 
             return new CareerRawMetrics(
                 Retention6m: r6,
@@ -142,6 +180,7 @@ namespace SalesApp.CareerPlan
                 Production12m: p12,
                 Production15m: p15,
                 ActiveProduction12mMinPaid2: activeProd12mMinPaid2,
+                CommercializedContracts12mMinAge2: comm12mAge2,
                 IsTeamOwner: inputs.IsTeamOwner,
                 ActiveTeamMembers: inputs.ActiveTeamMembers,
                 DirectSubTeams: inputs.DirectSubTeams

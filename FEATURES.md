@@ -1,3 +1,41 @@
+## Métrica Consolidada: Contratos Comercializados
+
+Adiciona a métrica consolidada `Contratos Comercializados` ao Plano de Carreira (Meu Plano de Carreira e Performance do Consultor), permitindo visualizar o volume financeiro total comercializado no período de 12 meses fechados, considerando contratos elegíveis a partir do segundo mês de vida.
+
+### Comportamento e Regras
+- **Status Elegíveis**:
+  - `Ativo` (`Active`)
+  - `Atrasado 1` (`Late1`)
+  - `Atrasado 2` (`Late2`)
+  - `Atrasado 3` (`Late3`)
+  - `Cancelado` (`Defaulted`)
+- **Status Excluídos**:
+  - `Desistente` (`Withdrawn`)
+  - `Aguardando Pagamento` (`AwaitingPayment`)
+  - `Transferido` (`Transferred`)
+- **Regra de Janela e Carência**:
+  - Considera os últimos 12 meses fechados em relação à data de referência (`windowMonths = 12`).
+  - Carência mínima de idade: descarta os 2 primeiros meses de vida do contrato (`minAgeMonths = 2`, ou seja, `age >= 2`).
+- **Valor e Exibição**:
+  - Soma o valor financeiro dos contratos (`TotalAmount`), formatado em moeda brasileira (`R$`).
+  - Exibido no card "Métricas Consolidadas do Usuário" em `Meu Plano de Carreira` e `Performance do Consultor`.
+
+### Arquivos Modificados
+- `SalesApp.Api/CareerPlan/CareerPlanConfig.cs`: Adição de `MetricKind.CommercializedContracts`.
+- `SalesApp.Api/CareerPlan/CareerMetricsCalculator.cs`: Implementação de `ComputeCommercializedProduction` e cálculo de `CommercializedContracts12mMinAge2`.
+- `SalesApp.Api/DTOs/CareerPlanDTOs.cs`: Inclusão de `CommercializedContracts12mMinAge2` no `CareerRawMetricsDto`.
+- `SalesApp.Api/Services/CareerPlanService.cs`: Mapeamento de `CommercializedContracts12mMinAge2`.
+- `SalesApp.Api/CareerPlan/CareerPlanConfigParser.cs`: Adição de aliases para `CommercializedContracts`.
+- `SalesApp.Api/CareerPlan/CareerRuleEvaluator.cs`: Formatação de label e valor monetário.
+- `SalesApp.Api/CareerPlan/CareerRawMetricKey.cs`: Mapeamento de chave para o frontend (`commercializedContracts12mMinAge2`).
+- `SalesApp.Api/CareerPlan/CareerPlanConfigValidator.cs`: Validação de métrica com janela.
+- `client/sales-dash/src/services/careerPlanService.ts`: Tipagem no DTO frontend.
+- `client/sales-dash/src/components/careerPlanMetrics.ts`: Configuração visual do card de métrica.
+- `SalesApp.IntegrationTests/CareerPlan/CareerPlanControllerTests.cs`: Teste de integração para validação de regras de status, carência e janela.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Remoção da Primeira Letra Vermelha em Títulos de Páginas e Modais
 
 Remoção da estilização CSS via pseudo-elemento `::first-letter` com a cor vermelha (`#b2342b`), unificando a tipografia e cores dos títulos de páginas e caixas de diálogo modais em toda a aplicação.

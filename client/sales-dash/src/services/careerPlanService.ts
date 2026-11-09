@@ -36,6 +36,7 @@ export interface CareerRawMetrics {
   production12m: number
   production15m: number
   activeProduction12mMinPaid2: number
+  commercializedContracts12mMinAge2: number
   isTeamOwner: boolean
   activeTeamMembers: number
   directSubTeams: number

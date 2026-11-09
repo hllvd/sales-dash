@@ -82,7 +82,7 @@ namespace SalesApp.CareerPlan
                     {
                         errors.Add($"{path} condition must specify a Metric.");
                     }
-                    else if (node.Metric is MetricKind.Retention or MetricKind.StrictRetention or MetricKind.Production)
+                    else if (node.Metric is MetricKind.Retention or MetricKind.StrictRetention or MetricKind.Production or MetricKind.CommercializedContracts)
                     {
                         if (!node.WindowMonths.HasValue || node.WindowMonths.Value <= 0)
                         {

@@ -9,6 +9,7 @@ namespace SalesApp.CareerPlan
         StrictRetention,
         Production,
         ActiveProduction,
+        CommercializedContracts,
         IsTeamOwner,
         ActiveTeamMembers,
         DirectSubTeams

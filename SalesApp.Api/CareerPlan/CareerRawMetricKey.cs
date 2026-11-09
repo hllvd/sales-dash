@@ -21,8 +21,16 @@ namespace SalesApp.CareerPlan
                 MetricKind.StrictRetention => Windowed("strictRetention", windowMonths, RetentionWindows, eligibility),
                 MetricKind.Production => Windowed("production", windowMonths, ProductionWindows, eligibility),
                 MetricKind.ActiveProduction => ActiveProduction(windowMonths, eligibility),
+                MetricKind.CommercializedContracts => CommercializedContracts(windowMonths, eligibility),
                 _ => null
             };
+        }
+
+        private static string? CommercializedContracts(int? windowMonths, EligibilityFilter? eligibility)
+        {
+            int wm = windowMonths.GetValueOrDefault(12);
+            int minAge = eligibility?.MinAgeMonths ?? 2;
+            return wm == 12 && minAge == 2 && eligibility?.MinInferredPaidMonths == null ? "commercializedContracts12mMinAge2" : null;
         }
 
         private static string? Windowed(string prefix, int? windowMonths, int[] allowed, EligibilityFilter? eligibility)

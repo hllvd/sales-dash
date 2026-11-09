@@ -39,6 +39,7 @@ namespace SalesApp.DTOs
         public decimal Production12m { get; set; }
         public decimal Production15m { get; set; }
         public decimal ActiveProduction12mMinPaid2 { get; set; }
+        public decimal CommercializedContracts12mMinAge2 { get; set; }
         public bool IsTeamOwner { get; set; }
         public int ActiveTeamMembers { get; set; }
         public int DirectSubTeams { get; set; }

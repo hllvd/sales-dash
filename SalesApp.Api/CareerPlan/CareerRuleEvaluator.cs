@@ -214,6 +214,7 @@ namespace SalesApp.CareerPlan
             MetricKind.StrictRetention => "Retenção Estrita",
             MetricKind.Production => "Produção",
             MetricKind.ActiveProduction => "Prod. Ativa 12m (≥ 2 pagas)",
+            MetricKind.CommercializedContracts => "Contratos Comercializados",
             MetricKind.IsTeamOwner => "Líder de Equipe",
             MetricKind.ActiveTeamMembers => "Membros Ativos",
             MetricKind.DirectSubTeams => "Equipes Diretas",
@@ -230,6 +231,7 @@ namespace SalesApp.CareerPlan
 
                 case MetricKind.Production:
                 case MetricKind.ActiveProduction:
+                case MetricKind.CommercializedContracts:
                     return value.ToString("C2", PtBr);
 
                 case MetricKind.IsTeamOwner:

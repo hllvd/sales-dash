@@ -22,6 +22,7 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
   { key: 'production12m', label: 'Produção (12 meses)', kind: 'currency', tooltip: 'Volume financeiro total vendido nos últimos 12 meses fechados. Exclui Desistente e AwaitingPayment.' },
   { key: 'production15m', label: 'Produção (15 meses)', kind: 'currency', tooltip: 'Volume financeiro total vendido nos últimos 15 meses fechados. Exclui Desistente e AwaitingPayment.' },
   { key: 'activeProduction12mMinPaid2', label: 'Prod. Ativa 12m (≥ 2 pagas)', kind: 'currency', tooltip: 'Volume de contratos vendidos nos últimos 12 meses fechados com idade >= 2 meses e que inferem ter ao menos 2 parcelas pagas, elegíveis como produção ativa.' },
+  { key: 'commercializedContracts12mMinAge2', label: 'Contratos Comercializados', kind: 'currency', tooltip: 'Volume financeiro total de contratos vendidos nos últimos 12 meses fechados com idade >= 2 meses (Ativo, Atrasados 1 a 3 e Cancelado). Exclui Desistente e Aguardando Pagamento.' },
   { key: 'isTeamOwner', label: 'Líder de Equipe', kind: 'boolean', tooltip: 'Indica se o usuário é proprietário ativo de ao menos uma equipe comercial cadastrada no sistema.' },
   { key: 'activeTeamMembers', label: 'Membros Ativos na Equipe', kind: 'number', tooltip: 'Número total de membros ativos vinculados às equipes que este usuário lidera diretamente.' },
   { key: 'directSubTeams', label: 'Equipes Abaixo (Filhos Diretos)', kind: 'number', tooltip: 'Quantidade de equipes lideradas por consultores que são subordinados diretos deste usuário na hierarquia.' },
