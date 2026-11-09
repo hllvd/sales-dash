@@ -1,3 +1,20 @@
+## Remoção da Primeira Letra Vermelha em Títulos de Páginas e Modais
+
+Remoção da estilização CSS via pseudo-elemento `::first-letter` com a cor vermelha (`#b2342b`), unificando a tipografia e cores dos títulos de páginas e caixas de diálogo modais em toda a aplicação.
+
+### Comportamento e Regras
+- **Páginas do Sistema**: Removido o seletor `.mantine-Title-root:not(.mantine-Modal-title)::first-letter` em `App.css`, que coloria a letra inicial de todos os componentes `<Title>` de vermelho. Os títulos agora renderizam uniformemente na cor do texto herdada do tema.
+- **Modais Padrão (`StandardModal`)**: Removida a regra `.modal-header h2::first-letter` em `StandardModal.css`, assegurando que o título do modal tenha cor homogênea `#111827`.
+- **Modais de Perguntas / QA (`SurveyModal`)**: Removida a regra `.survey-modal-header::first-letter` em `SurveyModal.css`, assegurando que o cabeçalho do formulário de pesquisa/QA tenha cor homogênea `#1c1c1e`.
+
+### Arquivos Modificados
+- `client/sales-dash/src/App.css`: Remoção do estilo `::first-letter` em `.mantine-Title-root`.
+- `client/sales-dash/src/shared/StandardModal.css`: Remoção de `.modal-header h2::first-letter`.
+- `client/sales-dash/src/components/Survey/SurveyModal.css`: Remoção de `.survey-modal-header::first-letter`.
+- `FEATURES.md`: Registro da alteração.
+
+---
+
 ## Desacoplamento de Filas SQS e Tabela DynamoDB para Scrape de PBI em Desenvolvimento
 
 Desacoplamento completo do pipeline de scraping do PowerBI entre produção e desenvolvimento local, isolando filas SQS (Jobs e Resultados) e a tabela DynamoDB de logs de execução, evitando poluição e concorrência com o ambiente produtivo.
