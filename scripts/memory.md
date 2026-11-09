@@ -7,6 +7,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-11-09] e2e — Attempt 1
+**Failure:** `career_plan_progression.spec.ts` failed on `expect(locator).toBeVisible()` waiting for `table tbody tr` with text `'Prod. Ativa 12m (≥ 2 pagas)'`.
+**Root cause:** Commit `539c93f` updated the career plan requirements for Alef, Beth, and Guimel to evaluate `Contratos Comercializados ≥ Meta` (`commercializedContracts`) instead of the deprecated `Prod. Ativa 12m (≥ 2 pagas)`, but the assertions in `career_plan_progression.spec.ts` had not been aligned.
+**Fix applied:** Updated requirement row locators in `client/e2e-test/e2e/career_plan_progression.spec.ts` to search for `'Contratos Comercializados'`.
+**Result:** ✅ Green (Playwright E2E: 197/197 tests passed).
+
 ## [2026-11-05] e2e — Attempt 1
 **Feature:** Consolidação do menu lateral do Plano de Carreira e renomeação de `#/career-plan/consultants` para "Performance do Consultor".
 **Changes applied:**
