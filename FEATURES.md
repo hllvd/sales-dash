@@ -1,3 +1,27 @@
+## Otimização de Resposta do Teste de Credenciais e Resolução Resiliente de Filas SQS no Scrape
+
+Otimiza o endpoint `/test-auth` para responder em tempo recorde (~10-15s), eliminando travamentos de 3 a 5 minutos na interface, e implementa fallback resiliente e resolução segura de URLs de filas SQS entre desenvolvimento e produção tanto no Docker Compose quanto na API .NET.
+
+### Comportamento e Regras
+- **Otimização do Teste de Credenciais (`/test-auth`)**:
+  - Removido o probing síncrono e exaustivo de data de início (`probeStartDate`) durante o teste de credenciais. Anteriormente, o endpoint disparava até 30 consultas PowerBI históricas sequenciais, monopolizando o processo Node, gerando rate limit 429 e congelando a UI com a mensagem "Testando credenciais...".
+  - O teste agora apenas valida a autenticidade das credenciais no portal AVA PRO e captura o token/template, retornando em ~10-12 segundos com o status preciso (`ok` ou `wrong-password`).
+  - O client .NET (`PbiScraperClient.TestAuthAsync`) foi encapsulado com um `CancellationTokenSource(TimeSpan.FromSeconds(45))` e tratamento explícito de exceções de rede e timeout, garantindo que o modal da interface nunca fique preso indefinidamente.
+- **Resolução Resiliente de Filas SQS no Docker e Backend**:
+  - `ScrapeOrchestrator` e `SqsResultBackgroundConsumerService` agora utilizam a função pura `FirstNonWhiteSpace` para inspecionar ordenadamente as variáveis de ambiente e de configuração (`AWS:SqsJobsQueueUrl`, `SQS_JOBS_QUEUE_URL`, `AWS__SqsJobsQueueUrl`, `AWS:SqsResultsQueueUrl`, etc.).
+  - Caso valores em branco venham declarados no Docker Compose (`""`), o sistema não os considera como valor final válido e recorre automaticamente à fila dev/prod padrão apropriada, eliminando o erro `"Fila SQS de jobs não configurada ou serviço SQS indisponível para execução remota no Fargate"`.
+  - As variáveis `SQS_JOBS_QUEUE_URL`, `SQS_RESULTS_QUEUE_URL`, `AWS_ECS_TASK_DEFINITION` e os mapeamentos de porta foram devidamente normalizados no `.env` e `docker-compose.yml`.
+
+### Arquivos Modificados
+- `pbi-scraper/server.js`: Remoção de `probeStartDate` no endpoint `/test-auth`.
+- `SalesApp.Api/Services/PbiScraperClient.cs`: Timeout de 45s e tratamento explícito de exceção com retorno amigável.
+- `SalesApp.Api/Services/ScrapeOrchestrator.cs`: Implementação de `FirstNonWhiteSpace` e fallback dev/prod seguro.
+- `SalesApp.Api/Services/SqsResultBackgroundConsumerService.cs`: Implementação de `FirstNonWhiteSpace` e fallback dev/prod seguro.
+- `docker-compose.yml`: Normalização das variáveis de ambiente SQS e ECS Task Definition para o container `salesapp-api`.
+- `.env`: Configuração explícita das filas dev `dev-hdev-sales-scrape-jobs` e `dev-hdev-sales-dash`.
+
+---
+
 ## Retentativa Inteligente contra Rate Limit (HTTP 429), Preservação de Dados e Resumo por Checkpoint no PowerBI Extractor
 
 Adiciona proteção robusta contra erros de rate limit (`HTTP 429 - Too Many Requests`) durante a paginação do relatório do Consultor, retentativa automática com esperas graduais (1 min, 2 min, 5 min, 10 min), cadência preventiva entre páginas, preservação automática de dados parciais já minerados e salvamento/retomada de estado via checkpoints transacionais.

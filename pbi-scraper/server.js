@@ -5,7 +5,7 @@ const PQueue = require('p-queue').default;
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const { scrapeWithReauth, probeStartDate } = require('./extractor');
+const { scrapeWithReauth } = require('./extractor');
 const { scrapeConsultorDirect } = require('./extractorConsultor');
 const { getOrFetchTokens, AuthError } = require('./auth');
 const tokenManager = require('./tokenManager');
@@ -377,22 +377,8 @@ app.post('/test-auth', async (req, res) => {
   console.log(`[Test Auth] Testing credentials for ${matricula}...`);
   try {
     const authInfo = await getOrFetchTokens(matricula, password, store || null, true);
-    let detectedStartDate = null;
-    let detectedStore = authInfo.detectedStore || (store && typeof store === 'string' && store.trim() ? store.trim() : null);
+    const detectedStore = authInfo.detectedStore || (store && typeof store === 'string' && store.trim() ? store.trim() : null);
 
-    if (authInfo.token) {
-      try {
-        const probeRes = await probeStartDate(detectedStore || '', matricula, authInfo.token);
-        if (probeRes) {
-          detectedStartDate = typeof probeRes === 'object' ? probeRes.detectedStartDate : probeRes;
-          if (!detectedStore && probeRes.detectedStore) {
-            detectedStore = probeRes.detectedStore;
-          }
-        }
-      } catch (probeErr) {
-        console.warn(`[Test Auth] StartDate probing skipped/failed: ${probeErr.message}`);
-      }
-    }
     res.json({ 
       success: true, 
       loginSuccess: true,
@@ -400,7 +386,7 @@ app.post('/test-auth', async (req, res) => {
       authStatus: authInfo.authStatus,
       powerbiLoaded: authInfo.powerbiLoaded,
       detectedStore: detectedStore || null,
-      detectedStartDate: detectedStartDate,
+      detectedStartDate: null,
       steps: authInfo.steps
     });
   } catch (err) {

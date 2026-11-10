@@ -32,15 +32,25 @@ namespace SalesApp.Services
             _configuration = configuration;
             _logger = logger;
 
-            _queueUrl = configuration["AWS:SqsResultsQueueUrl"]
-                     ?? configuration["AWS__SqsResultsQueueUrl"]
-                     ?? configuration["SQS_RESULTS_QUEUE_URL"]
-                     ?? configuration["AWS:SqsQueueUrl"]
-                     ?? configuration["AWS__SqsQueueUrl"]
-                     ?? configuration["SQS_QUEUE_URL"]
-                     ?? Environment.GetEnvironmentVariable("SQS_RESULTS_QUEUE_URL")
-                     ?? Environment.GetEnvironmentVariable("SQS_QUEUE_URL")
-                     ?? Environment.GetEnvironmentVariable("AWS__SqsQueueUrl");
+            _queueUrl = FirstNonWhiteSpace(
+                configuration["AWS:SqsResultsQueueUrl"],
+                configuration["AWS__SqsResultsQueueUrl"],
+                configuration["SQS_RESULTS_QUEUE_URL"],
+                Environment.GetEnvironmentVariable("SQS_RESULTS_QUEUE_URL"),
+                configuration["AWS:SqsQueueUrl"],
+                configuration["AWS__SqsQueueUrl"],
+                configuration["SQS_QUEUE_URL"],
+                Environment.GetEnvironmentVariable("SQS_QUEUE_URL"),
+                Environment.GetEnvironmentVariable("AWS__SqsQueueUrl")
+            );
+
+            if (string.IsNullOrWhiteSpace(_queueUrl))
+            {
+                var isDev = string.Equals(configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase);
+                _queueUrl = isDev 
+                    ? "https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-dash"
+                    : "https://sqs.us-east-1.amazonaws.com/797163826126/hdev-sales-dash";
+            }
 
             var enabledStr = configuration["AWS:EnableSqsBackgroundConsumer"]
                           ?? configuration["AWS__EnableSqsBackgroundConsumer"]
@@ -363,6 +373,15 @@ namespace SalesApp.Services
             {
                 _logger.LogWarning(ex, "SqsResultBackgroundConsumerService: Error processing message {MessageId}", message.MessageId);
             }
+        }
+
+        private static string? FirstNonWhiteSpace(params string?[] candidates)
+        {
+            foreach (var c in candidates)
+            {
+                if (!string.IsNullOrWhiteSpace(c)) return c.Trim();
+            }
+            return null;
         }
     }
 }

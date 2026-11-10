@@ -13,9 +13,10 @@ services:
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - CW_ERROR_LOG=${CW_ERROR_LOG:-false}
       - CW_LOG_GROUP=${CW_LOG_GROUP:-/salesapp/api/errors}
-      - AWS__SqsQueueUrl=${SQS_QUEUE_URL:-${SQS_RESULTS_QUEUE_URL:-}}
-      - AWS__SqsJobsQueueUrl=${SQS_JOBS_QUEUE_URL:-${SQS_QUEUE_URL:-}}
-      - AWS__SqsResultsQueueUrl=${SQS_RESULTS_QUEUE_URL:-${SQS_QUEUE_URL:-}}
+      - AWS__SqsQueueUrl=${SQS_QUEUE_URL:-https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-dash}
+      - AWS__SqsJobsQueueUrl=${SQS_JOBS_QUEUE_URL:-https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-scrape-jobs}
+      - AWS__SqsResultsQueueUrl=${SQS_RESULTS_QUEUE_URL:-https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-dash}
+      - AWS__EcsTaskDefinition=${AWS_ECS_TASK_DEFINITION:-pbi-scraper-worker-dev}
       - SCRAPER_ENCRYPTION_KEY=${SCRAPER_ENCRYPTION_KEY:-}
       - AWS__ScrapeResultsBucket=${SCRAPE_S3_BUCKET:-hdev-sales-dash}
       - AWS__ScrapeResultsPrefix=${SCRAPE_S3_PREFIX:-scrape-results/}

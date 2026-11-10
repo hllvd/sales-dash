@@ -88,25 +88,38 @@ namespace SalesApp.Services
             };
 
             var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync("/test-auth", content);
 
-            var resultJson = await response.Content.ReadAsStringAsync();
-            var result = JsonConvert.DeserializeObject<dynamic>(resultJson);
-
-            bool isSuccess = result?.success != null ? (bool)result.success : response.IsSuccessStatusCode;
-            bool loginSuccess = result?.loginSuccess != null ? (bool)result.loginSuccess : isSuccess;
-            string msg = result?.message?.ToString() ?? (isSuccess ? "Autenticação bem-sucedida" : "Falha na autenticação");
-            string? detectedStore = result?.detectedStore?.ToString();
-            string? detectedStartDate = result?.detectedStartDate?.ToString();
-            
-            List<string>? steps = null;
-            if (result?.steps != null)
+            try
             {
-                try { steps = JsonConvert.DeserializeObject<List<string>>(result.steps.ToString()); }
-                catch { }
-            }
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+                var response = await _httpClient.PostAsync("/test-auth", content, cts.Token);
 
-            return (isSuccess, loginSuccess, msg, steps, detectedStore, detectedStartDate);
+                var resultJson = await response.Content.ReadAsStringAsync();
+                var result = JsonConvert.DeserializeObject<dynamic>(resultJson);
+
+                bool isSuccess = result?.success != null ? (bool)result.success : response.IsSuccessStatusCode;
+                bool loginSuccess = result?.loginSuccess != null ? (bool)result.loginSuccess : isSuccess;
+                string msg = result?.message?.ToString() ?? (isSuccess ? "Autenticação bem-sucedida" : "Falha na autenticação");
+                string? detectedStore = result?.detectedStore?.ToString();
+                string? detectedStartDate = result?.detectedStartDate?.ToString();
+                
+                List<string>? steps = null;
+                if (result?.steps != null)
+                {
+                    try { steps = JsonConvert.DeserializeObject<List<string>>(result.steps.ToString()); }
+                    catch { }
+                }
+
+                return (isSuccess, loginSuccess, msg, steps, detectedStore, detectedStartDate);
+            }
+            catch (OperationCanceledException)
+            {
+                return (false, false, "Tempo limite excedido ao testar credenciais no AVA PRO (45s). Tente novamente.", new List<string> { "[Timeout] O serviço de autenticação não respondeu dentro de 45 segundos." }, null, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, false, $"Erro ao conectar no serviço do scraper: {ex.Message}", new List<string> { $"[Erro de Conexão] {ex.Message}" }, null, null);
+            }
         }
     }
 }

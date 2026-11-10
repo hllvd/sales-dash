@@ -44,16 +44,35 @@ namespace SalesApp.Services
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
             _sqs = sqs;
 
-            _jobsQueueUrl = configuration["AWS:SqsJobsQueueUrl"]
-                         ?? configuration["AWS__SqsJobsQueueUrl"]
-                         ?? configuration["SQS_JOBS_QUEUE_URL"]
-                         ?? configuration["AWS:SqsQueueUrl"]
-                         ?? configuration["AWS__SqsQueueUrl"]
-                         ?? configuration["SQS_QUEUE_URL"]
-                         ?? Environment.GetEnvironmentVariable("SQS_JOBS_QUEUE_URL")
-                         ?? Environment.GetEnvironmentVariable("SQS_QUEUE_URL")
-                         ?? Environment.GetEnvironmentVariable("AWS__SqsJobsQueueUrl")
-                         ?? Environment.GetEnvironmentVariable("AWS__SqsQueueUrl");
+            _jobsQueueUrl = FirstNonWhiteSpace(
+                configuration["AWS:SqsJobsQueueUrl"],
+                configuration["AWS__SqsJobsQueueUrl"],
+                configuration["SQS_JOBS_QUEUE_URL"],
+                Environment.GetEnvironmentVariable("SQS_JOBS_QUEUE_URL"),
+                Environment.GetEnvironmentVariable("AWS__SqsJobsQueueUrl"),
+                configuration["AWS:SqsQueueUrl"],
+                configuration["AWS__SqsQueueUrl"],
+                configuration["SQS_QUEUE_URL"],
+                Environment.GetEnvironmentVariable("SQS_QUEUE_URL"),
+                Environment.GetEnvironmentVariable("AWS__SqsQueueUrl")
+            );
+
+            if (string.IsNullOrWhiteSpace(_jobsQueueUrl))
+            {
+                var isDev = string.Equals(configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase);
+                _jobsQueueUrl = isDev 
+                    ? "https://sqs.us-east-1.amazonaws.com/797163826126/dev-hdev-sales-scrape-jobs"
+                    : "https://sqs.us-east-1.amazonaws.com/797163826126/hdev-sales-scrape-jobs";
+            }
+        }
+
+        private static string? FirstNonWhiteSpace(params string?[] candidates)
+        {
+            foreach (var c in candidates)
+            {
+                if (!string.IsNullOrWhiteSpace(c)) return c.Trim();
+            }
+            return null;
         }
 
         public async Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null, string? scrapeType = null, string? outputMode = null)
