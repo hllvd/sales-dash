@@ -10,7 +10,7 @@ if (process.env.NODE_ENV !== 'production') {
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = require('@aws-sdk/client-sqs');
+const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand, ChangeMessageVisibilityCommand } = require('@aws-sdk/client-sqs');
 const { runScrapeJob } = require('./scrape');
 const { decryptField } = require('./crypto');
 const { uploadToS3 } = require('./s3Uploader');
@@ -188,6 +188,27 @@ async function deleteMessage(receiptHandle, customQueueUrl = null) {
 
   await sqsClient.send(command);
   log('DEBUG', `Message successfully deleted from SQS queue (${targetQueueUrl})`);
+}
+
+/**
+ * Extends message visibility timeout in SQS to prevent redelivery during long-running scrapes or rate limit waits.
+ */
+async function extendMessageVisibility(receiptHandle, visibilitySeconds = 900, customQueueUrl = null) {
+  if (!sqsClient || !receiptHandle || receiptHandle.startsWith('mock-')) return;
+  const targetQueueUrl = customQueueUrl || (RESULTS_CONSUMER_MODE ? SQS_RESULTS_QUEUE_URL : SQS_JOBS_QUEUE_URL);
+  if (!targetQueueUrl) return;
+
+  try {
+    const command = new ChangeMessageVisibilityCommand({
+      QueueUrl: targetQueueUrl,
+      ReceiptHandle: receiptHandle,
+      VisibilityTimeout: visibilitySeconds
+    });
+    await sqsClient.send(command);
+    log('DEBUG', `Message visibility extended by ${visibilitySeconds}s on queue ${targetQueueUrl}`);
+  } catch (err) {
+    log('WARN', `Failed to extend message visibility: ${err.message}`);
+  }
 }
 
 /**
@@ -446,6 +467,11 @@ async function processMessage(rawMessage) {
     return;
   }
 
+  // Heartbeat to keep SQS message visibility alive during long-running scrapes or rate limit waits
+  const heartbeatInterval = setInterval(() => {
+    extendMessageVisibility(receiptHandle, 900);
+  }, 120000); // a cada 2 minutos
+
   // Execute Scraping
   let scrapeResult;
   try {
@@ -461,9 +487,12 @@ async function processMessage(rawMessage) {
       maxReauthRetries: 3
     });
   } catch (err) {
+    clearInterval(heartbeatInterval);
     log('ERROR', `Unexpected exception in runScrapeJob for ${jobId}: ${err.message}`, { jobId });
     // Let message retry via SQS visibility timeout on transient crash
     return;
+  } finally {
+    clearInterval(heartbeatInterval);
   }
 
   if (scrapeResult.authStatus === 'wrong-password') {
@@ -493,9 +522,10 @@ async function processMessage(rawMessage) {
     fullFilePath = path.join(OUTPUT_DIR, fileRelativePath);
   }
 
-  // Upload to S3 if successful and file exists
+  // Upload to S3 if successful (or partial success) and file exists
   let s3Key = null;
-  if (scrapeResult.status === 'Succeeded' && fullFilePath && fs.existsSync(fullFilePath)) {
+  const isSuccessOrPartial = (scrapeResult.status === 'Succeeded' || scrapeResult.status === 'PartialSuccess') && fullFilePath && fs.existsSync(fullFilePath);
+  if (isSuccessOrPartial) {
     try {
       s3Key = `${SCRAPE_S3_PREFIX}${fileRelativePath}`;
       log('INFO', `Uploading CSV to S3: s3://${SCRAPE_S3_BUCKET}/${s3Key}`, { jobId, bucket: SCRAPE_S3_BUCKET, key: s3Key });
@@ -528,6 +558,8 @@ async function processMessage(rawMessage) {
         scrapeDate: scrapeResult.scrapeDate,
         scrapeType,
         status: scrapeResult.status,
+        isPartial: !!scrapeResult.isPartial,
+        warning: scrapeResult.warning,
         error: scrapeResult.error || (isFailed ? effectiveAuthMessage : null),
         durationSeconds: scrapeResult.durationSeconds || null,
         durationFormatted: scrapeResult.durationFormatted || null,
@@ -581,8 +613,8 @@ async function processMessage(rawMessage) {
     }
   }
 
-  // If scrape succeeded or failed cleanly with AuthError, delete message from jobs queue
-  if (scrapeResult.status === 'Succeeded' || scrapeResult.authStatus === 'error' || scrapeResult.authStatus === 'wrong-password' || scrapeResult.loginSuccess === false) {
+  // If scrape succeeded, partial succeeded, or failed cleanly with AuthError, delete message from jobs queue
+  if (scrapeResult.status === 'Succeeded' || scrapeResult.status === 'PartialSuccess' || scrapeResult.authStatus === 'error' || scrapeResult.authStatus === 'wrong-password' || scrapeResult.loginSuccess === false) {
     try {
       await deleteMessage(receiptHandle);
       log('INFO', `Job ${jobId} finished and message deleted from jobs queue`, { jobId });

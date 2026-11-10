@@ -9,11 +9,16 @@ const tokenManager = require('./tokenManager');
 const { getOrFetchTokens } = require('./auth');
 const { parseDSR, toCsv } = require('./scrapeConsultor');
 const { captureTemplate } = require('./captureTemplate');
+const { saveCheckpoint, loadCheckpoint, clearCheckpoint } = require('./checkpointManager');
 
 const ENDPOINT = '7a8110990e16404daec259c355434bc6.pbidedicated.windows.net';
 const PATH     = '/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query';
 const URL      = `https://${ENDPOINT}${PATH}`;
 const SCRAPE_TIMEOUT_MS = parseInt(process.env.SCRAPE_TIMEOUT_MS || '300000', 10); // 5 minutos por padrão
+
+// Rate Limit (HTTP 429) backoff schedule: 1min, 2min, 5min, 10min (in milliseconds)
+const RATE_LIMIT_DELAYS_MS = [60000, 120000, 300000, 600000];
+const INTER_PAGE_DELAY_MS = 1000; // 1 segundo preventivo entre páginas consecutivas
 
 let captureTemplatePromise = null;
 async function getOrCaptureTemplate(matricula, password, stepLogger = null) {
@@ -279,13 +284,25 @@ async function scrapeConsultorDirect(options) {
       'Referer': 'https://dashboardbi.ademicon.com.br/'
     };
 
-    // 3. Loop de Paginação via RestartTokens
-    const allRows = [];
+    // 3. Loop de Paginação via RestartTokens com suporte a Checkpoint e Retentativa Inteligente para HTTP 429
+    const existingCheckpoint = loadCheckpoint(outPath, matricula, targetMonths);
+    let allRows = [];
     let pageCount = 0;
-    let isComplete = false;
     let restartTokens = null;
+    let paginationContext = { prev: [] };
+
+    if (existingCheckpoint) {
+      pageCount = existingCheckpoint.completedPages || 0;
+      allRows = [...(existingCheckpoint.allRows || [])];
+      restartTokens = existingCheckpoint.restartTokens;
+      paginationContext = existingCheckpoint.paginationContext || { prev: [] };
+      addStep(`[Checkpoint 🔄 Resumo] Encontrado checkpoint da Página ${pageCount} com ${allRows.length} registros. Retomando da Página ${pageCount + 1}...`);
+    }
+
+    let isComplete = false;
     let lastRawData = null;
-    const paginationContext = { prev: [] };
+    let hasPermanentRateLimit = false;
+    let rateLimitWarning = null;
 
     while (!isComplete) {
       pageCount++;
@@ -303,23 +320,79 @@ async function scrapeConsultorDirect(options) {
       }
 
       let res;
-      try {
-        res = await axios.post(URL, payload, {
-          headers,
-          timeout: SCRAPE_TIMEOUT_MS
-        });
-      } catch (err) {
-        const elapsedSec = ((Date.now() - pageStart) / 1000).toFixed(1);
-        const isTimeout = err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'));
-        const timeoutDesc = isTimeout
-          ? `Timeout de ${Math.round(SCRAPE_TIMEOUT_MS / 1000)}s excedido na consulta PowerBI (Página ${pageCount}, Meses: ${targetMonths.join(', ') || 'Todos'}) após ${elapsedSec}s de espera.`
-          : `Erro na requisição PowerBI (Página ${pageCount}, após ${elapsedSec}s): ${err.message}`;
-        
-        addStep(`[PowerBI ❌ Falha] ${timeoutDesc}`);
-        const customErr = new Error(timeoutDesc);
-        customErr.steps = steps;
-        customErr.originalError = err;
-        throw customErr;
+      let attempt = 0;
+      const maxRateLimitAttempts = RATE_LIMIT_DELAYS_MS.length;
+
+      while (true) {
+        try {
+          res = await axios.post(URL, payload, {
+            headers,
+            timeout: SCRAPE_TIMEOUT_MS
+          });
+          if (attempt > 0) {
+            addStep(`[PowerBI ✅ Recuperado] Página ${pageCount} obtida com sucesso após pausa de rate limit.`);
+          }
+          break; // Sucesso na requisição
+        } catch (err) {
+          const isRateLimit = err.response?.status === 429 || (err.message && err.message.includes('429'));
+          const elapsedSec = ((Date.now() - pageStart) / 1000).toFixed(1);
+
+          if (isRateLimit && attempt < maxRateLimitAttempts) {
+            let delayMs = RATE_LIMIT_DELAYS_MS[attempt];
+            const retryAfterHeader = err.response?.headers?.['retry-after'];
+            if (retryAfterHeader) {
+              const retryAfterSec = parseInt(retryAfterHeader, 10);
+              if (!isNaN(retryAfterSec) && retryAfterSec > 0) {
+                delayMs = Math.max(delayMs, retryAfterSec * 1000);
+              }
+            }
+
+            const delayDesc = `${Math.round(delayMs / 1000)}s (${(delayMs / 60000).toFixed(1)}min)`;
+            addStep(`[PowerBI ⚠️ Rate Limit] HTTP 429 recebido na Página ${pageCount} após ${elapsedSec}s. Pausando por ${delayDesc} antes da tentativa ${attempt + 1}/${maxRateLimitAttempts}...`);
+            attempt++;
+            await new Promise(r => setTimeout(r, delayMs));
+            continue; // Tenta novamente a mesma página
+          }
+
+          if (isRateLimit && attempt >= maxRateLimitAttempts) {
+            const warn = `Rate limit persistente (HTTP 429) após ${maxRateLimitAttempts} tentativas na Página ${pageCount}.`;
+            addStep(`[PowerBI ❌ Falha] ${warn}`);
+            hasPermanentRateLimit = true;
+            rateLimitWarning = warn;
+            break;
+          }
+
+          const isTimeout = err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'));
+          const timeoutDesc = isTimeout
+            ? `Timeout de ${Math.round(SCRAPE_TIMEOUT_MS / 1000)}s excedido na consulta PowerBI (Página ${pageCount}, Meses: ${targetMonths.join(', ') || 'Todos'}) após ${elapsedSec}s de espera.`
+            : `Erro na requisição PowerBI (Página ${pageCount}, após ${elapsedSec}s): ${err.message}`;
+
+          addStep(`[PowerBI ❌ Falha] ${timeoutDesc}`);
+          const customErr = new Error(timeoutDesc);
+          customErr.steps = steps;
+          customErr.originalError = err;
+          throw customErr;
+        }
+      }
+
+      // Se ocorreu rate limit persistente na página e já temos dados acumulados, preservamos os dados parciais
+      if (hasPermanentRateLimit) {
+        if (allRows.length > 0) {
+          addStep(`[PowerBI ⚠️ Preservação] Salvando dados parciais com ${allRows.length} registros extraídos até a Página ${pageCount - 1}. Checkpoint mantido para futura retomada.`);
+          saveCheckpoint(outPath, matricula, {
+            targetMonths,
+            completedPages: pageCount - 1,
+            restartTokens,
+            paginationContext,
+            rowCount: allRows.length,
+            allRows
+          });
+          break;
+        } else {
+          const err = new Error(rateLimitWarning);
+          err.steps = steps;
+          throw err;
+        }
       }
 
       const elapsedSec = ((Date.now() - pageStart) / 1000).toFixed(1);
@@ -352,9 +425,20 @@ async function scrapeConsultorDirect(options) {
       if (isFinished || !nextRt || nextRt.length === 0 || pageRows.length === 0) {
         isComplete = true;
         addStep(`[PowerBI] Paginação concluída após ${pageCount} página(s).`);
+        clearCheckpoint(outPath, matricula);
       } else {
         restartTokens = nextRt;
-        await new Promise(r => setTimeout(r, 200));
+        // Salva checkpoint da página recém concluída
+        saveCheckpoint(outPath, matricula, {
+          targetMonths,
+          completedPages: pageCount,
+          restartTokens,
+          paginationContext,
+          rowCount: allRows.length,
+          allRows
+        });
+        // Pausa preventiva de 1000ms (1 segundo) entre páginas
+        await new Promise(r => setTimeout(r, INTER_PAGE_DELAY_MS));
       }
     }
 
@@ -415,6 +499,27 @@ async function scrapeConsultorDirect(options) {
     const csvText = toCsv(rows);
     fs.writeFileSync(csvFilePath, csvText, 'utf8');
     addStep(`[Consultor] Arquivos salvos: CSV (${csvFileName}) e JSON (${jsonFileName}) em ${durationFormatted}.`);
+
+    if (hasPermanentRateLimit) {
+      addStep(`[Consultor ⚠️ Parcial] Extração parcial concluída com ${rows.length} registros válidos.`);
+      return {
+        status: 'PartialSuccess',
+        isPartial: true,
+        warning: rateLimitWarning,
+        matricula,
+        targetMonths: targetMonths.length > 0 ? targetMonths : null,
+        startedAt: startDate.toISOString(),
+        finishedAt: endDate.toISOString(),
+        durationFormatted,
+        durationSeconds: elapsedSecTotal,
+        totalRows: rows.length,
+        rows,
+        csv: csvText,
+        jsonFile: jsonFilePath,
+        csvFile: csvFilePath,
+        steps
+      };
+    }
 
     return {
       status: 'Succeeded',

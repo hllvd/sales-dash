@@ -160,8 +160,12 @@ async function runScrapeJob(params) {
       result.authMessage = 'Autenticação bem-sucedida';
       result.powerbiLoaded = true;
       result.loginSuccess = true;
+      result.isPartial = !!consultorRes.isPartial;
 
-      if (consultorRes.totalRows === 0) {
+      if (consultorRes.isPartial) {
+        result.warning = consultorRes.warning;
+        result.error = consultorRes.warning;
+      } else if (consultorRes.totalRows === 0) {
         result.status = 'Failed';
         result.error = 'Nenhum registro retornado pelo relatório PowerBI Consultor';
       }

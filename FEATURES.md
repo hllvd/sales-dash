@@ -1,3 +1,37 @@
+## Retentativa Inteligente contra Rate Limit (HTTP 429), Preservação de Dados e Resumo por Checkpoint no PowerBI Extractor
+
+Adiciona proteção robusta contra erros de rate limit (`HTTP 429 - Too Many Requests`) durante a paginação do relatório do Consultor, retentativa automática com esperas graduais (1 min, 2 min, 5 min, 10 min), cadência preventiva entre páginas, preservação automática de dados parciais já minerados e salvamento/retomada de estado via checkpoints transacionais.
+
+### Comportamento e Regras
+- **Retentativa com Backoff Exponencial para HTTP 429**:
+  - Ao receber status `HTTP 429` do PowerBI, a extração não falha imediatamente. O extrator executa até 4 tentativas com intervalos progressivos:
+    - 1ª tentativa: pausa de 1 minuto (60s)
+    - 2ª tentativa: pausa de 2 minutos (120s)
+    - 3ª tentativa: pausa de 5 minutos (300s)
+    - 4ª tentativa: pausa de 10 minutos (600s)
+  - Respeita o cabeçalho `Retry-After` caso o servidor retorne um tempo superior.
+  - Registra passos visuais detalhados na interface (`[PowerBI ⚠️ Rate Limit]` e `[PowerBI ✅ Recuperado]`).
+- **Cadência Preventiva entre Páginas**:
+  - O intervalo de descanso entre páginas sucessivas foi aumentado de 200ms para 1000ms (1 segundo), prevenindo o acionamento do limitador de requisições da Ademicon/PowerBI.
+- **Preservação Automática de Dados Parciais**:
+  - Se mesmo após os 4 retries o rate limit persistir na página N, todos os contratos obtidos com sucesso até a página N-1 (ex: 3.499 registros) são salvos em CSV, enviados ao bucket S3 e importados normalmente no banco com status `PartialSuccess` e aviso explicativo.
+- **Gerenciamento de Checkpoints e Resumo**:
+  - O módulo `pbi-scraper/checkpointManager.js` persiste em disco o estado transacional a cada página concluída (`pageCount`, `restartTokens`, `paginationContext`, `targetMonths`, `allRows`).
+  - Ao reiniciar um scrape para a mesma matrícula e meses, o extrator detecta o checkpoint existente e retoma a paginação exatamente do `restartTokens` da página seguinte, sem reprocessar as páginas anteriores.
+  - Ao concluir a extração de 100% dos dados, o checkpoint é automaticamente limpo.
+- **Heartbeat de Visibilidade SQS**:
+  - No `pbi-scraper/worker.js`, um temporizador de *heartbeat* renova a visibilidade da mensagem (`ChangeMessageVisibilityCommand` com 900s) a cada 2 minutos, impedindo que o SQS redistribua o trabalho durante as pausas de rate limit.
+
+### Arquivos Modificados
+- `pbi-scraper/extractorConsultor.js`: Implementação do loop resiliente a 429 com retentativas, pausas progressivas, intervalo preventivo de 1s e salvamento de dados parciais.
+- `pbi-scraper/checkpointManager.js`: Módulo de persistência, validação e limpeza de checkpoints transacionais.
+- `pbi-scraper/scrape.js`: Suporte e propagação do status `PartialSuccess` e avisos de extração parcial.
+- `pbi-scraper/worker.js`: Adição do heartbeat SQS (`extendMessageVisibility`), upload de CSVs parciais e remoção da fila de jobs em `PartialSuccess`.
+- `pbi-scraper/test-rate-limit-and-checkpoint.js`: Testes unitários do checkpoint manager e cálculo de backoff.
+- `FEATURES.md`: Registro da documentação.
+
+---
+
 ## Segregação de Ambientes AWS (Dev/Prod) no PowerBI Extractor & Correção de Autenticação Remota
 
 Garante a segregação estrita entre os ambientes de **Desenvolvimento** e **Produção** para o PowerBI Extractor na AWS (ECS Fargate + SQS + Lambda Launcher), corrige o fluxo de "Validar Autenticação" em modo remoto/produção e assegura a interrupção imediata e exibição precisa de erros de autenticação (sem timeout espúrio).
