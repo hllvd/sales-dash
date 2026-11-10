@@ -359,7 +359,15 @@ async function processMessage(rawMessage) {
           matricula,
           store,
           status: 'Failed',
+          rowCount: 0,
           error: `Falha nas credenciais: ${credErr.message}`,
+          authStatus: 'wrong-password',
+          authMessage: credErr.message,
+          powerbiLoaded: false,
+          loginSuccess: false,
+          durationFormatted: '0s',
+          durationSeconds: 0,
+          completedAt: new Date().toISOString(),
           timestamp: new Date().toISOString()
         });
       } catch (sqsErr) {

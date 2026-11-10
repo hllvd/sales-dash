@@ -387,15 +387,20 @@ namespace SalesApp.Services
                     }
 
                     // Merge AuthStatus and AuthMessage
-                    if (string.IsNullOrEmpty(entry.AuthStatus))
+                    if (string.IsNullOrEmpty(entry.AuthStatus) || entry.AuthStatus == "-")
                     {
-                        entry.AuthStatus = g.Select(j => j.AuthStatus).FirstOrDefault(a => !string.IsNullOrEmpty(a))
+                        entry.AuthStatus = g.Select(j => j.AuthStatus).FirstOrDefault(a => !string.IsNullOrEmpty(a) && a != "-")
                                            ?? (entry.Status == "Succeeded" ? "success" : null);
                     }
                     if (string.IsNullOrEmpty(entry.AuthMessage))
                     {
                         entry.AuthMessage = g.Select(j => j.AuthMessage).FirstOrDefault(a => !string.IsNullOrEmpty(a))
                                             ?? (entry.Status == "Succeeded" ? "Autenticação bem-sucedida" : null);
+                    }
+
+                    if (entry.AuthStatus == "wrong-password" && (entry.ErrorMessage == "Tempo limite excedido (Timeout)" || string.IsNullOrEmpty(entry.ErrorMessage)))
+                    {
+                        entry.ErrorMessage = !string.IsNullOrEmpty(entry.AuthMessage) ? entry.AuthMessage : "Usuário ou senha inválida no AVA PRO.";
                     }
 
                     // Merge PowerBiLoaded
@@ -532,16 +537,21 @@ namespace SalesApp.Services
             var errorMsg = item.GetValueOrDefault("error")?.S ?? item.GetValueOrDefault("ErrorMessage")?.S ?? item.GetValueOrDefault("errorMessage")?.S;
             var scrapeDate = item.GetValueOrDefault("ScrapeDate")?.S ?? item.GetValueOrDefault("scrapeDate")?.S;
 
+            var authStatus = item.GetValueOrDefault("AuthStatus")?.S ?? item.GetValueOrDefault("authStatus")?.S;
+            var authMessage = item.GetValueOrDefault("AuthMessage")?.S ?? item.GetValueOrDefault("authMessage")?.S;
+
             var timeoutMinutes = CalculateJobTimeoutMinutes(scrapeDate);
 
-            if ((rawStatus == "Pending" || rawStatus == "Running") && createdAt != DateTime.MinValue && (DateTime.UtcNow - createdAt > TimeSpan.FromMinutes(timeoutMinutes)))
+            if (authStatus == "wrong-password")
+            {
+                rawStatus = "Failed";
+                errorMsg = !string.IsNullOrEmpty(authMessage) ? authMessage : (!string.IsNullOrEmpty(errorMsg) ? errorMsg : "Usuário ou senha inválida no AVA PRO.");
+            }
+            else if ((rawStatus == "Pending" || rawStatus == "Running") && createdAt != DateTime.MinValue && (DateTime.UtcNow - createdAt > TimeSpan.FromMinutes(timeoutMinutes)))
             {
                 rawStatus = "Failed";
                 errorMsg = string.IsNullOrEmpty(errorMsg) ? "Tempo limite excedido (Timeout)" : errorMsg;
             }
-
-            var authStatus = item.GetValueOrDefault("AuthStatus")?.S ?? item.GetValueOrDefault("authStatus")?.S;
-            var authMessage = item.GetValueOrDefault("AuthMessage")?.S ?? item.GetValueOrDefault("authMessage")?.S;
             var pbiLoadedStr = item.GetValueOrDefault("PowerBiLoaded")?.S ?? item.GetValueOrDefault("powerbiLoaded")?.S;
             var pbiLoaded = bool.TryParse(pbiLoadedStr, out var pbl) ? pbl : false;
             

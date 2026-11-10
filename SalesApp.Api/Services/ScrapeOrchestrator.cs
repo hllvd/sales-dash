@@ -280,6 +280,10 @@ namespace SalesApp.Services
             try
             {
                 Console.WriteLine($"[ScrapeOrchestrator] Disparando Lambda launcher em {lambdaUrl} para job {jobId} (runId: {runId})...");
+                var taskDefinition = _configuration["AWS:EcsTaskDefinition"]
+                                  ?? _configuration["AWS__EcsTaskDefinition"]
+                                  ?? Environment.GetEnvironmentVariable("AWS_ECS_TASK_DEFINITION");
+
                 var payload = System.Text.Json.JsonSerializer.Serialize(new
                 {
                     jobId,
@@ -287,6 +291,7 @@ namespace SalesApp.Services
                     matricula,
                     workerCount = 1,
                     useSpot = true,
+                    taskDefinition = string.IsNullOrWhiteSpace(taskDefinition) ? null : taskDefinition,
                     timestamp = DateTime.UtcNow.ToString("o")
                 });
 

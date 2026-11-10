@@ -43,6 +43,29 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  pbi-scraper:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/pbi-scraper:${IMAGE_TAG:-latest}
+    container_name: pbi-scraper
+    restart: always
+    command: ["node", "server.js"]
+    environment:
+      - PORT=3001
+      - OUTPUT_DIR=/app/outputs
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - SCRAPER_ENCRYPTION_KEY=${SCRAPER_ENCRYPTION_KEY:-}
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   client:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/salesapp-client:${IMAGE_TAG:-latest}
     container_name: salesapp-client

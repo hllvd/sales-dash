@@ -129,14 +129,16 @@ namespace SalesApp.Services
 
                 string? rawStatus = body.status?.ToString();
                 string? s3Key = body.s3Key?.ToString();
-                string status = !string.IsNullOrEmpty(rawStatus) ? rawStatus : (string.IsNullOrEmpty(s3Key) ? "Failed" : "Succeeded");
-                string? error = body.error?.ToString();
 
-                if (string.IsNullOrEmpty(s3Key) && status != "Failed")
+                // If message has neither status nor s3Key, it is not a result message (e.g. raw job message)
+                if (string.IsNullOrEmpty(rawStatus) && string.IsNullOrEmpty(s3Key))
                 {
-                    _logger.LogDebug("SqsResultBackgroundConsumerService: Message {MessageId} does not contain s3Key and status is not Failed (ignoring non-result message).", message.MessageId);
+                    _logger.LogWarning("SqsResultBackgroundConsumerService: Message {MessageId} contains neither status nor s3Key. Ignoring non-result message.", message.MessageId);
                     return;
                 }
+
+                string status = !string.IsNullOrEmpty(rawStatus) ? rawStatus : "Succeeded";
+                string? error = body.error?.ToString();
 
                 string s3Bucket = body.s3Bucket?.ToString()
                     ?? _configuration["AWS:ScrapeResultsBucket"]

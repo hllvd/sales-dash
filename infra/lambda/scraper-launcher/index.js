@@ -19,7 +19,7 @@ exports.handler = async (event) => {
   const useSpot = body.useSpot !== false;
 
   const cluster = process.env.ECS_CLUSTER || 'pbi-scraper-cluster';
-  const taskDefinition = process.env.ECS_TASK_DEF || 'pbi-scraper-worker';
+  const taskDefinition = body.taskDefinition || process.env.ECS_TASK_DEF || 'pbi-scraper-worker';
   const subnet = process.env.ECS_SUBNET; // Subnet padrão da AWS
   const securityGroup = process.env.ECS_SG; // Security group com egress 443 liberado
 

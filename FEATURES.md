@@ -1,3 +1,40 @@
+## Segregação de Ambientes AWS (Dev/Prod) no PowerBI Extractor & Correção de Autenticação Remota
+
+Garante a segregação estrita entre os ambientes de **Desenvolvimento** e **Produção** para o PowerBI Extractor na AWS (ECS Fargate + SQS + Lambda Launcher), corrige o fluxo de "Validar Autenticação" em modo remoto/produção e assegura a interrupção imediata e exibição precisa de erros de autenticação (sem timeout espúrio).
+
+### Comportamento e Regras
+- **Segregação Estrita de Filas SQS e Configurações**:
+  - **Produção**: Fila de entrada de jobs `hdev-sales-scrape-jobs`, fila de resultados `hdev-sales-dash`, bucket S3 `hdev-sales-dash` com prefixo `scrape-results/`, task definition ECS `pbi-scraper-worker`.
+  - **Desenvolvimento**: Fila de entrada de jobs `dev-hdev-sales-scrape-jobs`, fila de resultados `dev-hdev-sales-dash`, bucket S3 `hdev-sales-dash` com prefixo `dev-scrape-results/`, task definition ECS `pbi-scraper-worker-dev`.
+  - Configuração explícita de `AWS:SqsJobsQueueUrl` e `AWS:SqsResultsQueueUrl` no `appsettings.json` e `appsettings.Development.json`, eliminando sobreposição da fila de jobs com a de resultados.
+- **Nova Chave de Criptografia e Task Definition Fargate para Dev**:
+  - Registro da Task Definition `pbi-scraper-worker-dev:1` no cluster ECS `pbi-scraper-cluster` com uma nova chave criptográfica AES-256 (64 hex chars).
+  - Lambda launcher (`pbi-scraper-launcher`) atualizada para receber dinamicamente `body.taskDefinition`, disparando instâncias de desenvolvimento ou produção conforme o ambiente originador da API.
+- **Validação de Credenciais ("Validar autenticação") no Modo Fargate**:
+  - Inclusão do container leve `pbi-scraper` no `docker-compose.prod.yml` escutando na rede interna Docker (`http://pbi-scraper:3001`).
+  - Chamadas de teste de credenciais (`POST /test-auth`) são atendidas instantaneamente em 5–10 segundos pela VPS sem necessidade de aguardar cold start de tarefas no ECS Fargate.
+- **Interrupção Imediata e Proteção contra Timeout Falso**:
+  - No `pbi-scraper/worker.js`, falhas em `resolveCredentials` publicam na fila de resultados imediatamente com `authStatus: 'wrong-password'`, `loginSuccess: false`, `powerbiLoaded: false` e `completedAt`.
+  - O disjuntor de segurança aborta o processamento da conta/lote de imediato ao detectar erro de login.
+  - No `ScrapeDynamoLogService.MapToEntry`, qualquer registro com `AuthStatus == "wrong-password"` é imediatamente computado como `Failed` com a mensagem descritiva de credencial/senha, sem que o leitor de timeout dinâmico sobreponha a mensagem com "Tempo limite excedido (Timeout)".
+  - No `DeduplicateJobs`, o status `wrong-password` tem precedência absoluta sobre timeouts legados de itens `Pending`.
+  - No `SqsResultBackgroundConsumerService.cs`, mensagens sem `status` e sem `s3Key` são descartadas com log de aviso, impedindo que payloads brutos de jobs sejam interpretados como falhas de autenticação.
+
+### Arquivos Modificados
+- `SalesApp.Api/appsettings.json`: Adição de `SqsJobsQueueUrl`, `SqsResultsQueueUrl` e `EcsTaskDefinition`.
+- `SalesApp.Api/appsettings.Development.json`: Adição de `EcsTaskDefinition` (`pbi-scraper-worker-dev`).
+- `docker-compose.prod.yml`: Adição do container `pbi-scraper` para atendimento ao endpoint `/test-auth`.
+- `pbi-scraper/worker.js`: Inclusão dos campos completos de falha de autenticação no bloco catch de credenciais.
+- `SalesApp.Api/Services/ScrapeOrchestrator.cs`: Envio dinâmico de `taskDefinition` na chamada à Lambda launcher.
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs`: Proteção contra substituição de erro de senha por timeout no `MapToEntry` e consolidação no `DeduplicateJobs`.
+- `SalesApp.Api/Services/SqsResultBackgroundConsumerService.cs`: Descarte seguro de mensagens de fila sem status/s3Key.
+- `infra/lambda/scraper-launcher/index.js`: Suporte a `body.taskDefinition`.
+- `infra/task-definition.dev.json`: Criação da definição da task de desenvolvimento.
+- `SalesApp.Tests/Services/ScrapeSchedulerAndTimeoutTests.cs`: Teste unitário garantindo proteção contra overwrite de timeout.
+- `FEATURES.md`: Registro da documentação.
+
+---
+
 ## Atualização das Regras do Plano de Carreira (Alef a Guimel) para Contratos Comercializados
 
 Configuração dos níveis **Alef**, **Beth** e **Guimel** do plano de carreira para utilizarem a métrica `Contratos Comercializados` (`commercializedContracts`) com carência mínima de idade de 2 meses (`minAgeMonths: 2`), substituindo a antiga regra de `Prod. Ativa 12m (≥ 2 pagas)`.

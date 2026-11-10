@@ -129,5 +129,26 @@ namespace SalesApp.Tests.Services
             parsed.ErrorMessage.Should().Be("Usuário ou senha inválida no AVA PRO.");
             parsed.PowerBiLoaded.Should().BeFalse();
         }
+
+        [Fact]
+        public void MapToEntry_WhenAuthStatusIsWrongPasswordAndExceedsTimeout_DoesNotOverwriteWithTimeoutMessage()
+        {
+            var item = new Dictionary<string, AttributeValue>
+            {
+                { "JobId", new AttributeValue { S = "job-auth-timeout-protect" } },
+                { "Status", new AttributeValue { S = "Pending" } },
+                { "CreatedAt", new AttributeValue { S = DateTime.UtcNow.AddMinutes(-90).ToString("o") } },
+                { "AuthStatus", new AttributeValue { S = "wrong-password" } },
+                { "AuthMessage", new AttributeValue { S = "Sua senha expirou no AVA PRO." } },
+                { "Matricula", new AttributeValue { S = "8203" } }
+            };
+
+            var parsed = ScrapeDynamoLogService.MapToEntry(item);
+            parsed.Status.Should().Be("Failed");
+            parsed.AuthStatus.Should().Be("wrong-password");
+            parsed.AuthMessage.Should().Be("Sua senha expirou no AVA PRO.");
+            parsed.ErrorMessage.Should().Be("Sua senha expirou no AVA PRO.");
+            parsed.ErrorMessage.Should().NotContain("Tempo limite excedido");
+        }
     }
 }
