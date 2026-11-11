@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using Amazon.SQS;
 using Amazon.SQS.Model;
@@ -20,6 +21,10 @@ namespace SalesApp.Services
         private readonly ILogger<SqsResultBackgroundConsumerService> _logger;
         private readonly string? _queueUrl;
         private readonly bool _isEnabled;
+        private static readonly SemaphoreSlim _importLock = new(1, 1);
+        private static readonly ConcurrentDictionary<string, DateTime> _processedJobIds = new();
+        private const int MessageVisibilityTimeoutSeconds = 600;
+        private const int VisibilityHeartbeatIntervalSeconds = 90;
 
         public SqsResultBackgroundConsumerService(
             IServiceScopeFactory scopeFactory,
@@ -83,9 +88,9 @@ namespace SalesApp.Services
                     var receiveRequest = new ReceiveMessageRequest
                     {
                         QueueUrl = _queueUrl,
-                        MaxNumberOfMessages = 10,
+                        MaxNumberOfMessages = 1,
                         WaitTimeSeconds = 20,
-                        VisibilityTimeout = 60,
+                        VisibilityTimeout = MessageVisibilityTimeoutSeconds,
                         MessageSystemAttributeNames = new List<string> { "All" },
                         MessageAttributeNames = new List<string> { "All" }
                     };
@@ -275,11 +280,51 @@ namespace SalesApp.Services
                     }
                 }
 
-                _logger.LogInformation(
-                    "SqsResultBackgroundConsumerService: Processing auto-import from s3://{Bucket}/{Key} (JobId: {JobId}, RunId: {RunId}, User: {User})...",
-                    s3Bucket, s3Key, jobId ?? "N/A", runId ?? "N/A", userId?.ToString() ?? "N/A");
+                if (string.IsNullOrWhiteSpace(s3Key))
+                {
+                    _logger.LogWarning(
+                        "SqsResultBackgroundConsumerService: Message {MessageId} (JobId: {JobId}) has status '{Status}' but missing s3Key. Discarding message.",
+                        message.MessageId, jobId ?? "N/A", status);
+                    await _sqs.DeleteMessageAsync(_queueUrl, message.ReceiptHandle, stoppingToken);
+                    return;
+                }
 
-                var importResult = await importService.AutoImportFromS3Async(s3Bucket, s3Key, userId);
+                if (!string.IsNullOrWhiteSpace(jobId) && IsRecentlyProcessedJob(jobId))
+                {
+                    _logger.LogInformation(
+                        "SqsResultBackgroundConsumerService: Job {JobId} was already imported recently. Discarding duplicate SQS message {MessageId}.",
+                        jobId, message.MessageId);
+                    await _sqs.DeleteMessageAsync(_queueUrl, message.ReceiptHandle, stoppingToken);
+                    return;
+                }
+
+                await _importLock.WaitAsync(stoppingToken);
+                ImportResult importResult;
+                try
+                {
+                    // Re-check inside lock in case a concurrent delivery completed while waiting
+                    if (!string.IsNullOrWhiteSpace(jobId) && IsRecentlyProcessedJob(jobId))
+                    {
+                        _logger.LogInformation(
+                            "SqsResultBackgroundConsumerService: Job {JobId} completed while waiting for import lock. Discarding duplicate SQS message {MessageId}.",
+                            jobId, message.MessageId);
+                        await _sqs.DeleteMessageAsync(_queueUrl, message.ReceiptHandle, stoppingToken);
+                        return;
+                    }
+
+                    _logger.LogInformation(
+                        "SqsResultBackgroundConsumerService: Processing auto-import from s3://{Bucket}/{Key} (JobId: {JobId}, RunId: {RunId}, User: {User})...",
+                        s3Bucket, s3Key, jobId ?? "N/A", runId ?? "N/A", userId?.ToString() ?? "N/A");
+
+                    importResult = await RunWithVisibilityHeartbeatAsync(
+                        message.ReceiptHandle,
+                        () => importService.AutoImportFromS3Async(s3Bucket, s3Key, userId),
+                        stoppingToken);
+                }
+                finally
+                {
+                    _importLock.Release();
+                }
 
                 if (importResult.Errors.Any())
                 {
@@ -328,6 +373,11 @@ namespace SalesApp.Services
                     return;
                 }
 
+                if (!string.IsNullOrWhiteSpace(jobId))
+                {
+                    MarkJobProcessed(jobId);
+                }
+
                 // Delete message from SQS upon successful ingestion
                 await _sqs.DeleteMessageAsync(_queueUrl, message.ReceiptHandle, stoppingToken);
 
@@ -373,6 +423,65 @@ namespace SalesApp.Services
             {
                 _logger.LogWarning(ex, "SqsResultBackgroundConsumerService: Error processing message {MessageId}", message.MessageId);
             }
+        }
+
+        private async Task<T> RunWithVisibilityHeartbeatAsync<T>(string receiptHandle, Func<Task<T>> operation, CancellationToken stoppingToken)
+        {
+            using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            var heartbeatTask = Task.Run(async () =>
+            {
+                while (!heartbeatCts.Token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(VisibilityHeartbeatIntervalSeconds), heartbeatCts.Token);
+                        if (string.IsNullOrEmpty(_queueUrl) || heartbeatCts.Token.IsCancellationRequested) break;
+
+                        await _sqs.ChangeMessageVisibilityAsync(
+                            _queueUrl,
+                            receiptHandle,
+                            MessageVisibilityTimeoutSeconds,
+                            heartbeatCts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "SqsResultBackgroundConsumerService: Failed to extend SQS message visibility.");
+                    }
+                }
+            }, CancellationToken.None);
+
+            try
+            {
+                return await operation();
+            }
+            finally
+            {
+                heartbeatCts.Cancel();
+                try { await heartbeatTask; } catch { /* ignored */ }
+            }
+        }
+
+        private static bool IsRecentlyProcessedJob(string jobId)
+        {
+            var cutoff = DateTime.UtcNow.AddHours(-6);
+            foreach (var kvp in _processedJobIds)
+            {
+                if (kvp.Value < cutoff)
+                {
+                    _processedJobIds.TryRemove(kvp.Key, out _);
+                }
+            }
+
+            return _processedJobIds.TryGetValue(jobId, out var processedAt) && processedAt >= cutoff;
+        }
+
+        private static void MarkJobProcessed(string jobId)
+        {
+            _processedJobIds[jobId] = DateTime.UtcNow;
         }
 
         private static string? FirstNonWhiteSpace(params string?[] candidates)

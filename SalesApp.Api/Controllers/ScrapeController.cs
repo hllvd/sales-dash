@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using SalesApp.Services;
 using Microsoft.AspNetCore.DataProtection;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SalesApp.Controllers
 {
@@ -553,8 +555,19 @@ namespace SalesApp.Controllers
         }
 
         [HttpPut("callback")]
-        public async Task<IActionResult> HandleCallback([FromBody] ScrapeResult result)
+        public async Task<IActionResult> HandleCallback([FromBody] ScrapeResult? result)
         {
+            if (!HasValidWorkerSecret())
+            {
+                _logger.LogWarning("Rejected unauthorized PUT /api/scrape/callback request from {RemoteIp}.", HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown");
+                return Unauthorized(new { message = "Invalid or missing worker secret." });
+            }
+
+            if (result == null || string.IsNullOrWhiteSpace(result.JobId))
+            {
+                return BadRequest(new { message = "JobId is required." });
+            }
+
             await _orchestrator.HandleCallbackAsync(result);
             return Ok();
         }
@@ -562,13 +575,10 @@ namespace SalesApp.Controllers
         [HttpPost("import-from-s3")]
         public async Task<IActionResult> ImportFromS3([FromBody] ImportFromS3Request request)
         {
-            // Validate shared secret header to prevent unauthorized use
-            var expectedSecret = _configuration["PbiScraper:WorkerSecret"];
-            if (!string.IsNullOrEmpty(expectedSecret))
+            if (!HasValidWorkerSecret())
             {
-                var providedSecret = Request.Headers["X-Worker-Secret"].FirstOrDefault();
-                if (providedSecret != expectedSecret)
-                    return Unauthorized(new { message = "Invalid worker secret." });
+                _logger.LogWarning("Rejected unauthorized POST /api/scrape/import-from-s3 request from {RemoteIp}.", HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown");
+                return Unauthorized(new { message = "Invalid or missing worker secret." });
             }
 
             if (string.IsNullOrEmpty(request.S3Key) || string.IsNullOrEmpty(request.S3Bucket))
@@ -600,6 +610,31 @@ namespace SalesApp.Controllers
             {
                 return StatusCode(500, new { message = $"Import failed: {ex.Message}" });
             }
+        }
+
+        private bool HasValidWorkerSecret()
+        {
+            var expectedSecret = _configuration["PbiScraper:WorkerSecret"]
+                              ?? _configuration["WORKER_SECRET"]
+                              ?? Environment.GetEnvironmentVariable("WORKER_SECRET");
+            var providedSecret = Request?.Headers["X-Worker-Secret"].FirstOrDefault();
+            return IsWorkerSecretValid(expectedSecret, providedSecret);
+        }
+
+        /// <summary>
+        /// Fail-closed constant-time comparison of the shared X-Worker-Secret header.
+        /// Rejects empty/unconfigured secrets to ensure internal scrape endpoints cannot be abused.
+        /// </summary>
+        public static bool IsWorkerSecretValid(string? expectedSecret, string? providedSecret)
+        {
+            if (string.IsNullOrWhiteSpace(expectedSecret) || string.IsNullOrWhiteSpace(providedSecret))
+            {
+                return false;
+            }
+
+            var expectedBytes = Encoding.UTF8.GetBytes(expectedSecret.Trim());
+            var providedBytes = Encoding.UTF8.GetBytes(providedSecret.Trim());
+            return CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes);
         }
 
         private static ScrapeConfigDto MapToDto(ScrapeConfig config)

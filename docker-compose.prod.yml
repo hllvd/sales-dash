@@ -21,6 +21,8 @@ services:
       - AWS__ScrapeResultsBucket=${SCRAPE_S3_BUCKET:-hdev-sales-dash}
       - AWS__ScrapeResultsPrefix=${SCRAPE_S3_PREFIX:-scrape-results/}
       - AWS__ScraperLauncherLambdaUrl=${SCRAPER_LAUNCHER_LAMBDA_URL:-}
+      - PbiScraper__WorkerSecret=${WORKER_SECRET:-}
+      - WORKER_SECRET=${WORKER_SECRET:-}
       - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-string}
     volumes:
       - ./data:/app/data
@@ -55,6 +57,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - SCRAPER_ENCRYPTION_KEY=${SCRAPER_ENCRYPTION_KEY:-}
+      - WORKER_SECRET=${WORKER_SECRET:-}
     deploy:
       resources:
         limits:

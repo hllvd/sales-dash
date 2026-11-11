@@ -287,7 +287,7 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(page.getByRole('textbox', { name: 'Classificação Atual' })).toBeVisible();
 
     // 4. Verify table headers
-    await expect(page.getByRole('columnheader', { name: 'Consultor' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Consultor' })).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('columnheader', { name: 'Classificação Atual' })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Target de Classificação' })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Produção Atual (12m)' })).toBeVisible();

@@ -19,6 +19,11 @@ const PORT       = process.env.PORT || 3001;
 const PBI_TOKEN  = process.env.PBI_TOKEN;
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './outputs';
 
+function getWorkerAuthHeaders() {
+  const secret = (process.env.WORKER_SECRET || '').trim();
+  return secret ? { 'X-Worker-Secret': secret } : {};
+}
+
 // If PBI_TOKEN env var is set statically, pre-populate tokenManager
 if (PBI_TOKEN) {
   console.log('[Server] Pre-populando tokenManager com PBI_TOKEN estático de ambiente.');
@@ -127,7 +132,7 @@ app.post('/jobs', (req, res) => {
 
       try {
         console.log(`[Job ${jobId}] Sending circuit breaker abort callback to ${callbackUrl}`);
-        await axios.put(callbackUrl, abortedResult);
+        await axios.put(callbackUrl, abortedResult, { headers: getWorkerAuthHeaders() });
       } catch (cbErr) {
         console.error(`[Job ${jobId}] Abort callback failed:`, cbErr.message);
       }
@@ -340,7 +345,7 @@ app.post('/jobs', (req, res) => {
         store: result.detectedStore || store, 
         matricula 
       };
-      await axios.put(callbackUrl, callbackResult);
+      await axios.put(callbackUrl, callbackResult, { headers: getWorkerAuthHeaders() });
     } catch (callbackErr) {
       console.error(`[Job ${jobId}] Callback failed:`, callbackErr.message);
     }

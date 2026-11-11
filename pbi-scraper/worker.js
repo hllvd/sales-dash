@@ -32,6 +32,11 @@ const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || '300000', 10); /
 const LOCK_FILE_PATH = process.env.LOCK_FILE_PATH || '/tmp/worker.lock';
 const MOCK_QUEUE_FILE = path.join(OUTPUT_DIR, 'mock_queue.json');
 
+function getWorkerAuthHeaders() {
+  const secret = (process.env.WORKER_SECRET || '').trim();
+  return secret ? { 'X-Worker-Secret': secret } : {};
+}
+
 let shuttingDown = false;
 let isProcessing = false;
 let sqsClient = null;
@@ -290,7 +295,7 @@ async function processResultMessage(payload, receiptHandle) {
       runId,
       userId,
       matricula
-    }, { timeout: 120000 });
+    }, { headers: getWorkerAuthHeaders(), timeout: 120000 });
 
     log('INFO', `[Results Consumer] Importação concluída com sucesso para job ${jobId}`, {
       status: response.status,
@@ -364,7 +369,7 @@ async function processMessage(rawMessage) {
           authMessage: credErr.message,
           powerbiLoaded: false,
           loginSuccess: false
-        });
+        }, { headers: getWorkerAuthHeaders(), timeout: 30000 });
       } catch (cbErr) {
         log('ERROR', `Failed to send callback for bad credentials: ${cbErr.message}`, { jobId });
       }
@@ -456,7 +461,7 @@ async function processMessage(rawMessage) {
           loginSuccess: false,
           authSteps: ['[Disjuntor SQS] Mensagem descartada para proteção contra bloqueio no AVA PRO.'],
           scrapeDate: scrapeDate || (scrapeDates ? scrapeDates.join(',') : null)
-        }, { timeout: 30000 });
+        }, { headers: getWorkerAuthHeaders(), timeout: 30000 });
       } catch (cbErr) {
         log('WARN', `Abort callback failed for ${jobId}: ${cbErr.message}`, { jobId });
       }
@@ -607,7 +612,7 @@ async function processMessage(rawMessage) {
 
     try {
       log('INFO', `Sending callback to ${callbackUrl}`, { jobId, status: callbackPayload.status });
-      await axios.put(callbackUrl, callbackPayload, { timeout: 30000 });
+      await axios.put(callbackUrl, callbackPayload, { headers: getWorkerAuthHeaders(), timeout: 30000 });
     } catch (cbErr) {
       log('WARN', `Optional callback to ${callbackUrl} failed: ${cbErr.message}`, { jobId });
     }

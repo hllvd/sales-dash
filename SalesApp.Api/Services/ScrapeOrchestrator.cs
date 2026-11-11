@@ -227,7 +227,20 @@ namespace SalesApp.Services
 
             if (result.Status == "Succeeded" && !isSqsMode && !string.IsNullOrEmpty(result.FileRelativePath))
             {
-                var filePath = Path.Combine(_outputDir, result.FileRelativePath);
+                if (!TryResolveSafeOutputPath(_outputDir, result.FileRelativePath, out var filePath, out var pathError))
+                {
+                    await _logService.WriteJobStatusAsync(
+                        jobId: result.JobId,
+                        userId: result.UserId,
+                        status: "Failed",
+                        store: effectiveStore,
+                        matricula: result.Matricula ?? "Unknown",
+                        runId: result.RunId,
+                        additionalData: new { ErrorMessage = pathError }
+                    );
+                    return;
+                }
+
                 try
                 {
                     Guid? userId = Guid.TryParse(result.UserId, out var uid) ? uid : (Guid?)null;
@@ -388,6 +401,50 @@ namespace SalesApp.Services
                 QueueUrl = _jobsQueueUrl,
                 MessageBody = messageBody
             });
+        }
+
+        /// <summary>
+        /// Pure validation helper that prevents path traversal attacks by guaranteeing the resolved file path
+        /// stays strictly inside the configured scrape output directory.
+        /// </summary>
+        public static bool TryResolveSafeOutputPath(string outputDir, string? relativePath, out string resolvedPath, out string? error)
+        {
+            resolvedPath = string.Empty;
+            error = null;
+
+            if (string.IsNullOrWhiteSpace(outputDir) || string.IsNullOrWhiteSpace(relativePath))
+            {
+                error = "Caminho de arquivo vazio ou inválido.";
+                return false;
+            }
+
+            var trimmed = relativePath.Trim();
+            if (Path.IsPathRooted(trimmed) || trimmed.StartsWith('/') || trimmed.StartsWith('\\'))
+            {
+                error = "Caminho de arquivo absoluto não permitido.";
+                return false;
+            }
+
+            var segments = trimmed.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Any(s => s == ".."))
+            {
+                error = "Caminho de arquivo inválido: tentativa de navegação para fora do diretório permitido (..).";
+                return false;
+            }
+
+            var baseFullDir = Path.GetFullPath(outputDir)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var candidateFullPath = Path.GetFullPath(Path.Combine(baseFullDir, trimmed));
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+            if (!candidateFullPath.StartsWith(baseFullDir, comparison) || candidateFullPath.Length <= baseFullDir.Length)
+            {
+                error = "Caminho de arquivo fora do diretório de saída permitido.";
+                return false;
+            }
+
+            resolvedPath = candidateFullPath;
+            return true;
         }
     }
 }

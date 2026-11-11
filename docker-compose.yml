@@ -21,6 +21,8 @@ services:
       - AWS__ScrapeResultsBucket=${SCRAPE_S3_BUCKET:-hdev-sales-dash}
       - AWS__ScrapeResultsPrefix=${SCRAPE_S3_PREFIX:-scrape-results/}
       - AWS__ScraperLauncherLambdaUrl=${SCRAPER_LAUNCHER_LAMBDA_URL:-}
+      - PbiScraper__WorkerSecret=${WORKER_SECRET:-}
+      - WORKER_SECRET=${WORKER_SECRET:-}
       - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-string}
     ports:
       - "5001:5000"
@@ -55,6 +57,7 @@ services:
       - SQS_QUEUE_URL=${SQS_QUEUE_URL:-}
       - SCRAPE_S3_BUCKET=${SCRAPE_S3_BUCKET:-hdev-sales-dash}
       - SCRAPE_S3_PREFIX=${SCRAPE_S3_PREFIX:-scrape-results/}
+      - WORKER_SECRET=${WORKER_SECRET:-}
     volumes:
       - scrape-data:/app/outputs
     logging:

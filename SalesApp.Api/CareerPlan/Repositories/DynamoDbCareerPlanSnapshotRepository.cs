@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SalesApp.DTOs;
@@ -18,47 +19,84 @@ namespace SalesApp.CareerPlan.Repositories
         private readonly IAmazonDynamoDB? _dynamoDb;
         private readonly string _tableName;
         private readonly ILogger<DynamoDbCareerPlanSnapshotRepository> _logger;
+        private readonly bool _useMemoryOnly;
 
         private const string PkLatest = "CAREER_SNAPSHOT#LATEST";
 
-        // In-memory fallback for local environments/tests when DynamoDB is unreachable or table not configured
+        // In-memory store/cache for fast reads and E2E/local isolation when DynamoDB is bypassed or unavailable
         private static readonly ConcurrentDictionary<string, CareerPlanConsultantSnapshotDto> _inMemoryFallback = new();
+        private static DateTime _lastSyncedAtUtc = DateTime.MinValue;
+        private static readonly TimeSpan MemoryCacheTtl = TimeSpan.FromMinutes(5);
 
         public DynamoDbCareerPlanSnapshotRepository(
             IOptions<DynamoDbSettings> settings,
             ILogger<DynamoDbCareerPlanSnapshotRepository> logger,
-            IAmazonDynamoDB? dynamoDb = null)
+            IAmazonDynamoDB? dynamoDb = null,
+            IHostEnvironment? hostEnvironment = null)
         {
             _dynamoDb = dynamoDb;
             _tableName = settings.Value.DataCacheTable ?? settings.Value.CareerPlanSnapshotsTable ?? "salesapp-data-cache";
             _logger = logger;
+            var envName = hostEnvironment?.EnvironmentName ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            _useMemoryOnly = string.Equals(envName, "E2E", StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<IReadOnlyList<CareerPlanConsultantSnapshotDto>> GetLatestSnapshotsAsync()
         {
+            if (_useMemoryOnly)
+            {
+                return _inMemoryFallback.Values.OrderBy(c => c.UserName).ToList();
+            }
+
+            if (!_inMemoryFallback.IsEmpty && (DateTime.UtcNow - _lastSyncedAtUtc) < MemoryCacheTtl)
+            {
+                return _inMemoryFallback.Values.OrderBy(c => c.UserName).ToList();
+            }
+
             if (_dynamoDb != null && !string.IsNullOrWhiteSpace(_tableName))
             {
                 try
                 {
-                    var request = new QueryRequest
-                    {
-                        TableName = _tableName,
-                        KeyConditionExpression = "PK = :pk",
-                        ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-                        {
-                            [":pk"] = new AttributeValue { S = PkLatest }
-                        }
-                    };
+                    var list = new List<CareerPlanConsultantSnapshotDto>();
+                    Dictionary<string, AttributeValue>? exclusiveStartKey = null;
 
-                    var response = await _dynamoDb.QueryAsync(request);
-                    if (response.Items != null && response.Items.Count > 0)
+                    do
                     {
-                        var list = new List<CareerPlanConsultantSnapshotDto>();
-                        foreach (var item in response.Items)
+                        var request = new QueryRequest
                         {
-                            list.Add(MapFromDynamo(item));
+                            TableName = _tableName,
+                            KeyConditionExpression = "PK = :pk",
+                            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                            {
+                                [":pk"] = new AttributeValue { S = PkLatest }
+                            },
+                            ExclusiveStartKey = exclusiveStartKey
+                        };
+
+                        var response = await _dynamoDb.QueryAsync(request);
+                        if (response.Items != null)
+                        {
+                            foreach (var item in response.Items)
+                            {
+                                list.Add(MapFromDynamo(item));
+                            }
                         }
-                        return list;
+
+                        exclusiveStartKey = response.LastEvaluatedKey != null && response.LastEvaluatedKey.Count > 0
+                            ? response.LastEvaluatedKey
+                            : null;
+                    }
+                    while (exclusiveStartKey != null);
+
+                    if (list.Count > 0)
+                    {
+                        _inMemoryFallback.Clear();
+                        foreach (var s in list)
+                        {
+                            _inMemoryFallback[s.UserId.ToString()] = s;
+                        }
+                        _lastSyncedAtUtc = DateTime.UtcNow;
+                        return list.OrderBy(c => c.UserName).ToList();
                     }
                 }
                 catch (Exception ex)
@@ -74,14 +112,15 @@ namespace SalesApp.CareerPlan.Repositories
         {
             if (snapshots == null) return;
 
-            // Always update in-memory fallback
+            // Always update in-memory store & cache timestamp
             _inMemoryFallback.Clear();
             foreach (var s in snapshots)
             {
                 _inMemoryFallback[s.UserId.ToString()] = s;
             }
+            _lastSyncedAtUtc = DateTime.UtcNow;
 
-            if (_dynamoDb == null || string.IsNullOrWhiteSpace(_tableName))
+            if (_useMemoryOnly || _dynamoDb == null || string.IsNullOrWhiteSpace(_tableName))
             {
                 return;
             }
@@ -90,6 +129,7 @@ namespace SalesApp.CareerPlan.Repositories
             {
                 // TTL = 60 days from now (2 months) in Unix Epoch Seconds
                 var ttlSeconds = DateTimeOffset.UtcNow.AddDays(60).ToUnixTimeSeconds();
+                var currentSks = snapshots.Select(s => $"USER#{s.UserId}").ToHashSet(StringComparer.Ordinal);
 
                 // BatchWriteItem supports up to 25 items per request
                 var writeRequests = snapshots.Select(s => new WriteRequest
@@ -100,43 +140,109 @@ namespace SalesApp.CareerPlan.Repositories
                     }
                 }).ToList();
 
-                for (int i = 0; i < writeRequests.Count; i += 25)
+                // Prune any orphaned SKs previously stored under PkLatest so stale users don't accumulate
+                var existingSks = await QueryExistingSortKeysAsync();
+                foreach (var staleSk in existingSks)
                 {
-                    var batch = writeRequests.Skip(i).Take(25).ToList();
-                    var batchRequest = new BatchWriteItemRequest
+                    if (!currentSks.Contains(staleSk))
                     {
-                        RequestItems = new Dictionary<string, List<WriteRequest>>
+                        writeRequests.Add(new WriteRequest
                         {
-                            [_tableName] = batch
-                        }
-                    };
-
-                    var batchResponse = await _dynamoDb.BatchWriteItemAsync(batchRequest);
-
-                    // Retry unprocessed items if any
-                    int retryCount = 0;
-                    while (batchResponse.UnprocessedItems != null &&
-                           batchResponse.UnprocessedItems.TryGetValue(_tableName, out var unprocessed) &&
-                           unprocessed.Count > 0 &&
-                           retryCount < 3)
-                    {
-                        retryCount++;
-                        await Task.Delay(200 * retryCount);
-                        batchResponse = await _dynamoDb.BatchWriteItemAsync(new BatchWriteItemRequest
-                        {
-                            RequestItems = new Dictionary<string, List<WriteRequest>>
+                            DeleteRequest = new DeleteRequest
                             {
-                                [_tableName] = unprocessed
+                                Key = new Dictionary<string, AttributeValue>
+                                {
+                                    ["PK"] = new AttributeValue { S = PkLatest },
+                                    ["SK"] = new AttributeValue { S = staleSk }
+                                }
                             }
                         });
                     }
                 }
+
+                await ExecuteBatchWritesAsync(writeRequests);
 
                 _logger.LogInformation("Saved {Count} career plan snapshots to DynamoDB table {Table}", snapshots.Count, _tableName);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to save career plan snapshots to DynamoDB table {Table}. Snapshots remain in memory.", _tableName);
+            }
+        }
+
+        private async Task<List<string>> QueryExistingSortKeysAsync()
+        {
+            var keys = new List<string>();
+            if (_dynamoDb == null) return keys;
+
+            Dictionary<string, AttributeValue>? exclusiveStartKey = null;
+            do
+            {
+                var resp = await _dynamoDb.QueryAsync(new QueryRequest
+                {
+                    TableName = _tableName,
+                    KeyConditionExpression = "PK = :pk",
+                    ProjectionExpression = "SK",
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    {
+                        [":pk"] = new AttributeValue { S = PkLatest }
+                    },
+                    ExclusiveStartKey = exclusiveStartKey
+                });
+
+                if (resp.Items != null)
+                {
+                    foreach (var item in resp.Items)
+                    {
+                        if (item.TryGetValue("SK", out var skVal) && !string.IsNullOrEmpty(skVal.S))
+                        {
+                            keys.Add(skVal.S);
+                        }
+                    }
+                }
+
+                exclusiveStartKey = resp.LastEvaluatedKey != null && resp.LastEvaluatedKey.Count > 0
+                    ? resp.LastEvaluatedKey
+                    : null;
+            }
+            while (exclusiveStartKey != null);
+
+            return keys;
+        }
+
+        private async Task ExecuteBatchWritesAsync(List<WriteRequest> writeRequests)
+        {
+            if (_dynamoDb == null) return;
+
+            for (int i = 0; i < writeRequests.Count; i += 25)
+            {
+                var batch = writeRequests.Skip(i).Take(25).ToList();
+                var batchRequest = new BatchWriteItemRequest
+                {
+                    RequestItems = new Dictionary<string, List<WriteRequest>>
+                    {
+                        [_tableName] = batch
+                    }
+                };
+
+                var batchResponse = await _dynamoDb.BatchWriteItemAsync(batchRequest);
+
+                int retryCount = 0;
+                while (batchResponse.UnprocessedItems != null &&
+                       batchResponse.UnprocessedItems.TryGetValue(_tableName, out var unprocessed) &&
+                       unprocessed.Count > 0 &&
+                       retryCount < 3)
+                {
+                    retryCount++;
+                    await Task.Delay(200 * retryCount);
+                    batchResponse = await _dynamoDb.BatchWriteItemAsync(new BatchWriteItemRequest
+                    {
+                        RequestItems = new Dictionary<string, List<WriteRequest>>
+                        {
+                            [_tableName] = unprocessed
+                        }
+                    });
+                }
             }
         }
 

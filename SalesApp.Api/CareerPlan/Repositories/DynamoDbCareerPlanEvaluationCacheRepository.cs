@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SalesApp.DTOs;
@@ -17,6 +18,7 @@ namespace SalesApp.CareerPlan.Repositories
         private readonly IAmazonDynamoDB? _dynamoDb;
         private readonly string _tableName;
         private readonly ILogger<DynamoDbCareerPlanEvaluationCacheRepository> _logger;
+        private readonly bool _useMemoryOnly;
 
         private const string SkLatest = "LATEST";
         private const int DefaultTtlDays = 60;
@@ -27,11 +29,14 @@ namespace SalesApp.CareerPlan.Repositories
         public DynamoDbCareerPlanEvaluationCacheRepository(
             IOptions<DynamoDbSettings> settings,
             ILogger<DynamoDbCareerPlanEvaluationCacheRepository> logger,
-            IAmazonDynamoDB? dynamoDb = null)
+            IAmazonDynamoDB? dynamoDb = null,
+            IHostEnvironment? hostEnvironment = null)
         {
             _dynamoDb = dynamoDb;
             _tableName = settings.Value.DataCacheTable ?? settings.Value.CareerPlanSnapshotsTable ?? "salesapp-data-cache";
             _logger = logger;
+            var envName = hostEnvironment?.EnvironmentName ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            _useMemoryOnly = string.Equals(envName, "E2E", StringComparison.OrdinalIgnoreCase);
         }
 
         public static string BuildPk(Guid userId) => $"CAREER_EVALUATION#USER#{userId}";
@@ -43,7 +48,7 @@ namespace SalesApp.CareerPlan.Repositories
 
         public async Task<CachedCareerPlanEvaluationDto?> GetAsync(Guid userId)
         {
-            if (_dynamoDb != null && !string.IsNullOrWhiteSpace(_tableName))
+            if (!_useMemoryOnly && _dynamoDb != null && !string.IsNullOrWhiteSpace(_tableName))
             {
                 try
                 {
@@ -112,7 +117,7 @@ namespace SalesApp.CareerPlan.Repositories
             // Always update in-memory fallback
             _inMemoryFallback[entry.UserId] = entry;
 
-            if (_dynamoDb == null || string.IsNullOrWhiteSpace(_tableName))
+            if (_useMemoryOnly || _dynamoDb == null || string.IsNullOrWhiteSpace(_tableName))
             {
                 return;
             }

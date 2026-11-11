@@ -1,3 +1,57 @@
+## Isolamento E2E, Paginação e Poda de Snapshots no Cache DynamoDB do Plano de Carreira
+
+Elimina gargalos de latência (`GetConsultantsList` de 18,3s para ~1ms) e falhas de idempotência no Run 2 do Plano de Carreira ao isolar dados efêmeros de testes E2E em memória, implementar paginação completa e podar snapshots órfãos no DynamoDB.
+
+### Comportamento e Regras
+- **Isolamento em Memória para Ambiente `E2E`**:
+  - `DynamoDbCareerPlanSnapshotRepository` e `DynamoDbCareerPlanEvaluationCacheRepository` utilizam exclusivamente o repositório em memória (`_inMemoryFallback`) quando `ASPNETCORE_ENVIRONMENT=E2E`, evitando poluição da tabela `dev-salesapp-data-cache` com GUIDs descartáveis entre execuções e mantendo persistência instantânea entre Run 1 e Run 2 sem chamadas de rede à AWS.
+- **Paginação, Cache em Memória e Poda de Chaves Órfãs (Dev/Produção)**:
+  - `GetLatestSnapshotsAsync()` passa a paginar consultas com `ExclusiveStartKey`/`LastEvaluatedKey` e mantém cache em memória sincronizado por 5 minutos (invalidado imediatamente ao recalcular).
+  - `SaveSnapshotsAsync()` executa poda automática de chaves antigas sob `PK = CAREER_SNAPSHOT#LATEST` que não fazem mais parte dos consultores ativos, impedindo crescimento descontrolado da partição no DynamoDB.
+- **Saneamento e Estabilidade E2E**:
+  - Removidos 3.606 registros órfãos de `CAREER_SNAPSHOT#LATEST` acumulados em `dev-salesapp-data-cache`.
+  - Timeout explícito de `15000ms` aplicado na verificação inicial da tabela em `career_plan_progression.spec.ts`.
+
+### Arquivos Modificados
+- `SalesApp.Api/CareerPlan/Repositories/DynamoDbCareerPlanSnapshotRepository.cs`: Isolamento `E2E`, cache de 5m, paginação por `LastEvaluatedKey` e poda de chaves órfãs.
+- `SalesApp.Api/CareerPlan/Repositories/DynamoDbCareerPlanEvaluationCacheRepository.cs`: Isolamento `E2E` em memória.
+- `client/e2e-test/e2e/career_plan_progression.spec.ts`: Timeout explícito na renderização do cabeçalho da tabela.
+- `FEATURES.md`: Registro da documentação.
+
+---
+
+## Blindagem de Endpoints Internos do Scraper (`X-Worker-Secret` + Nginx + Anti-Path Traversal) e Resiliência do Consumidor SQS/SQLite
+
+Protege os endpoints internos de callback/importação do PowerBI Extractor contra acessos externos não autenticados e ataques de Path Traversal, adiciona permissão IAM `sqs:ChangeMessageVisibility` no Fargate e elimina locks no SQLite e picos de memória causados por expiração prematura de visibilidade no SQS.
+
+### Comportamento e Regras
+- **Autenticação Fail-Closed por `X-Worker-Secret`**:
+  - Os endpoints `PUT /api/scrape/callback` e `POST /api/scrape/import-from-s3` em `ScrapeController` passam a exigir obrigatoriamente o header `X-Worker-Secret` validado em tempo constante (`CryptographicOperations.FixedTimeEquals`) via helper `IsWorkerSecretValid`.
+  - Se `PbiScraper:WorkerSecret` / `WORKER_SECRET` não estiver configurado ou não coincidir, a requisição é rejeitada com `401 Unauthorized` antes de gravar logs no DynamoDB ou tocar no sistema de arquivos.
+  - `pbi-scraper/server.js` e `pbi-scraper/worker.js` enviam automaticamente o header `X-Worker-Secret` lido de `WORKER_SECRET`.
+- **Bloqueio Externo no Nginx**:
+  - `nginx.conf` bloqueia com HTTP `403` qualquer requisição externa destinada a `^/api/scrape/callback/?$` (case-insensitive), preservando a comunicação interna da rede Docker (`http://salesapp-api:5000`) e o fluxo assíncrono via SQS em produção.
+- **Proteção contra Path Traversal (`ScrapeOrchestrator.TryResolveSafeOutputPath`)**:
+  - Valida que `result.FileRelativePath` não é absoluto, não contém segmentos `..` e resolve estritamente dentro de `_outputDir` via `Path.GetFullPath`, retornando falha explícita caso contrário.
+- **Resiliência SQS, Permissão IAM e Prevenção de Locks no SQLite**:
+  - Role IAM `pbi-scraper-task-role` (`pbi-scraper-task-policy`) atualizada com `sqs:ChangeMessageVisibility`, habilitando o heartbeat de visibilidade de jobs longos no Fargate.
+  - Filas SQS de resultados (`hdev-sales-dash` e `dev-hdev-sales-dash`) configuradas com `VisibilityTimeout = 600` segundos.
+  - `SqsResultBackgroundConsumerService` atualizado para processar 1 mensagem por vez (`MaxNumberOfMessages = 1`, `VisibilityTimeout = 600`), renovar a visibilidade a cada 90 segundos enquanto importa o CSV do S3, serializar escritas com `SemaphoreSlim(1, 1)` e descartar entregas duplicadas por `JobId` via cache de idempotência de 6 horas.
+- **TTL e Saneamento de Logs**:
+  - Confirmado TTL de 30 dias (`TimeToLiveStatus = ENABLED` no atributo `TTL`) na tabela DynamoDB `pbi_scrape_logs` e removidos os registros falsos gerados por varredura externa.
+
+### Arquivos Modificados
+- `SalesApp.Api/Controllers/ScrapeController.cs`: Autenticação obrigatória fail-closed via `X-Worker-Secret`.
+- `SalesApp.Api/Services/ScrapeOrchestrator.cs`: Helper `TryResolveSafeOutputPath` e bloqueio de path traversal.
+- `SalesApp.Api/Services/SqsResultBackgroundConsumerService.cs`: Consumo unitário (`MaxNumberOfMessages = 1`), heartbeat SQS a cada 90s, `SemaphoreSlim` e guarda de idempotência por `JobId`.
+- `pbi-scraper/server.js` e `pbi-scraper/worker.js`: Envio do header `X-Worker-Secret`.
+- `nginx.conf`: Bloqueio externo `403` para `/api/scrape/callback`.
+- `docker-compose.yml` e `docker-compose.prod.yml`: Mapeamento das variáveis `PbiScraper__WorkerSecret` e `WORKER_SECRET`.
+- `SalesApp.Tests/Services/ScrapeCallbackSecurityTests.cs`: Testes unitários de fail-closed secret e anti-path traversal.
+- `FEATURES.md`: Registro da documentação.
+
+---
+
 ## Otimização de Resposta do Teste de Credenciais e Resolução Resiliente de Filas SQS no Scrape
 
 Otimiza o endpoint `/test-auth` para responder em tempo recorde (~10-15s), eliminando travamentos de 3 a 5 minutos na interface, e implementa fallback resiliente e resolução segura de URLs de filas SQS entre desenvolvimento e produção tanto no Docker Compose quanto na API .NET.
