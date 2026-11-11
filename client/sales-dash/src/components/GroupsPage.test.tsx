@@ -79,6 +79,40 @@ describe('GroupsPage', () => {
     });
   });
 
+  it('exports xlsx with active filter and search query when Exportar XLSX is clicked', async () => {
+    const mockBlob = new Blob(['xlsx'], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    (contractService.exportGroupsXlsx as jest.Mock).mockResolvedValue(mockBlob);
+
+    const createObjectURL = jest.fn(() => 'blob:mock-url');
+    const revokeObjectURL = jest.fn();
+    window.URL.createObjectURL = createObjectURL;
+    window.URL.revokeObjectURL = revokeObjectURL;
+
+    render(
+      <MantineProvider>
+        <GroupsPage />
+      </MantineProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Grupo Lar')).toBeInTheDocument();
+    });
+
+    const searchInput = screen.getByPlaceholderText('Buscar por nome, descrição ou segmento...');
+    fireEvent.change(searchInput, { target: { value: 'Lar' } });
+
+    const exportButton = screen.getByText('Exportar XLSX');
+    fireEvent.click(exportButton);
+
+    await waitFor(() => {
+      expect(contractService.exportGroupsXlsx).toHaveBeenCalledWith('active', 'Lar');
+      expect(createObjectURL).toHaveBeenCalledWith(mockBlob);
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+    });
+  });
+
   describe('sortGroupsBySegmentAndName', () => {
     it('sorts null segments first, then by segment value, then by name', () => {
       const items = [

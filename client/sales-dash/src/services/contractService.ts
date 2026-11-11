@@ -664,6 +664,31 @@ export const downloadGroupImportTemplate = async (): Promise<Blob> => {
   return await response.blob();
 };
 
+export type GroupStatusFilter = 'active' | 'inactive' | 'all';
+
+export const exportGroupsXlsx = async (
+  status: GroupStatusFilter = 'active',
+  search?: string
+): Promise<Blob> => {
+  const params = new URLSearchParams();
+  params.set('status', status);
+  if (search && search.trim()) {
+    params.set('search', search);
+  }
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/groups/export-xlsx?${params.toString()}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Falha ao exportar grupos para XLSX');
+  }
+
+  return await response.blob();
+};
+
 // Get contract by contract number
 export const getContractByNumber = async (contractNumber: string): Promise<Contract> => {
   const response = await authenticatedFetch(`${API_BASE_URL}/contracts/number/${contractNumber}`, {

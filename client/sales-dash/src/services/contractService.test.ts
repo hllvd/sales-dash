@@ -8,6 +8,7 @@ import {
   getGroups,
   importGroups,
   downloadGroupImportTemplate,
+  exportGroupsXlsx,
   CreateContractRequest,
   UpdateContractRequest,
   Contract,
@@ -342,6 +343,41 @@ describe('contractService', () => {
         })
       );
       expect(result).toBe(mockBlob);
+    });
+  });
+
+  describe('exportGroupsXlsx', () => {
+    it('should fetch groups xlsx blob with status and search params', async () => {
+      const mockBlob = new Blob(['mock-xlsx'], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        blob: async () => mockBlob,
+      });
+
+      const result = await exportGroupsXlsx('all', 'Motores');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/groups/export-xlsx?status=all&search=Motores',
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer mock-token',
+          }),
+        })
+      );
+      expect(result).toBe(mockBlob);
+    });
+
+    it('should throw error when exportGroupsXlsx fails', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ message: 'Filtro inválido' }),
+      });
+
+      await expect(exportGroupsXlsx('active')).rejects.toThrow('Filtro inválido');
     });
   });
 

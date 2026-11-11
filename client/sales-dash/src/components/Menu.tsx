@@ -33,6 +33,7 @@ import {
   IconFileImport,
   IconBook2,
   IconTrophy,
+  IconUsersGroup,
 } from '@tabler/icons-react';
 import { surveyPollingService } from '../services/surveyPollingService';
 
@@ -174,6 +175,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
 
   const isActive = (path: string) => {
     if (path === '#/scrapes' && currentPath.startsWith('#/scrapes')) return true;
+    if (path === '#/groups' && (currentPath === '#/groups' || currentPath === '#/grupos')) return true;
     if (path === '#/help' && (currentPath.startsWith('#/help') || currentPath.startsWith('#/documents') || currentPath.startsWith('#/document'))) return true;
     return currentPath === path;
   };
@@ -425,6 +427,20 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               variant="filled"
               color="red"
               styles={navLinkStyles('#/stores')}
+              onClick={() => { if (opened) close(); }}
+            />
+          )}
+
+          {(hasPermission('system:superadmin') || userRole === UserRole.SUPERADMIN) && (
+            <NavLink
+              href="#/groups"
+              label="Grupos"
+              leftSection={<IconUsersGroup size={20} />}
+              active={isActive('#/groups')}
+              variant="filled"
+              color="red"
+              styles={navLinkStyles('#/groups')}
+              data-testid="nav-groups"
               onClick={() => { if (opened) close(); }}
             />
           )}

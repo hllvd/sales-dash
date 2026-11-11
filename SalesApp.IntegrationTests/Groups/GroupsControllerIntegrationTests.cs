@@ -213,5 +213,59 @@ namespace SalesApp.IntegrationTests.Groups
                 createdNull.IsActive.Should().BeTrue();
             }
         }
+
+        [Fact]
+        public async Task ExportGroupsXlsx_ShouldReturnExcelMatchingTableOrderAndColumns()
+        {
+            var client = await GetAuthenticatedClient("superadmin@test.com", "superadmin123");
+            var tag = Guid.NewGuid().ToString()[..6];
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.Groups.AddRange(
+                    new Group { Name = $"Exp-{tag}-10", Description = "Motor 10", Commission = 15m, Segment = 2, IsActive = true },
+                    new Group { Name = $"Exp-{tag}-2", Description = "", Commission = 10.5m, Segment = 2, IsActive = true },
+                    new Group { Name = $"Exp-{tag}-Null", Description = "Sem seg", Commission = 0m, Segment = null, IsActive = true },
+                    new Group { Name = $"Exp-{tag}-Inactive", Description = "Inativo", Commission = 5m, Segment = 1, IsActive = false }
+                );
+                await db.SaveChangesAsync();
+            }
+
+            var response = await client.GetAsync($"/api/groups/export-xlsx?status=active&search={Uri.EscapeDataString($"Exp-{tag}")}");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.Content.Headers.ContentType!.MediaType.Should().Be("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            OfficeOpenXml.ExcelPackage.License.SetNonCommercialOrganization("SalesApp");
+            using var stream = new MemoryStream(bytes);
+            using var package = new OfficeOpenXml.ExcelPackage(stream);
+            var ws = package.Workbook.Worksheets["Grupos"];
+
+            ws.Should().NotBeNull();
+            ws!.Cells[1, 1].Text.Should().Be("ID");
+            ws.Cells[1, 2].Text.Should().Be("Nome");
+            ws.Cells[1, 3].Text.Should().Be("Descrição");
+            ws.Cells[1, 4].Text.Should().Be("Segmento");
+            ws.Cells[1, 5].Text.Should().Be("Comissão");
+            ws.Cells[1, 6].Text.Should().Be("Status");
+
+            ws.Dimension.End.Row.Should().Be(4);
+            ws.Cells[2, 2].Text.Should().Be($"Exp-{tag}-Null");
+            ws.Cells[2, 4].Text.Should().Be("Não Definido");
+            ws.Cells[3, 2].Text.Should().Be($"Exp-{tag}-2");
+            ws.Cells[3, 3].Text.Should().Be("-");
+            ws.Cells[3, 4].Text.Should().Be("Motores");
+            ws.Cells[3, 5].Text.Should().Be("10.5%");
+            ws.Cells[4, 2].Text.Should().Be($"Exp-{tag}-10");
+        }
+
+        [Fact]
+        public async Task ExportGroupsXlsx_WithInvalidStatus_ShouldReturnBadRequest()
+        {
+            var client = await GetAuthenticatedClient("superadmin@test.com", "superadmin123");
+            var response = await client.GetAsync("/api/groups/export-xlsx?status=bogus");
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
     }
 }

@@ -270,7 +270,7 @@ namespace SalesApp.Services
             try
             {
                 var response = await _dynamoDb.QueryAsync(request);
-                return response.Items.Select(MapToEntry).ToList();
+                return DeduplicateJobs(response.Items.Select(MapToEntry).ToList());
             }
             catch (Exception ex)
             {
@@ -297,7 +297,7 @@ namespace SalesApp.Services
             try
             {
                 var response = await _dynamoDb.QueryAsync(request);
-                var items = response.Items.Select(MapToEntry).ToList();
+                var items = DeduplicateJobs(response.Items.Select(MapToEntry).ToList());
                 if (items.Any()) return items;
                 
                 // Fallback to scan if GSI returns empty
@@ -324,7 +324,10 @@ namespace SalesApp.Services
                     }
                 };
                 var response = await _dynamoDb.ScanAsync(scanRequest);
-                return response.Items.Select(MapToEntry).OrderByDescending(e => e.CreatedAt).Take(limit).ToList();
+                return DeduplicateJobs(response.Items.Select(MapToEntry).ToList())
+                    .OrderByDescending(e => e.CreatedAt)
+                    .Take(limit)
+                    .ToList();
             }
             catch (Exception ex)
             {

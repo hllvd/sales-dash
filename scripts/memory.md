@@ -7,6 +7,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-11-11] integration — Attempt 1
+**Failure:** `ScrapeDynamoDbIntegrationTests` (`WriteJobStatusAsync_And_GetAllJobs_ShouldReturnExpectedRecords`, `HandleCallbackAsync_Via_Orchestrator_UpdatesDynamoDb_And_TriggersImport`) returned 2 entries per `JobId` instead of 1, and `ReportFiltersIntegrationTests.EndToEnd_ReportFilterLifecycle` threw `ResourceNotFoundException` on DynamoDB `PutItemAsync`.
+**Root cause:** (1) `ScrapeDynamoLogService.GetJobsByUserAsync`, `GetAllJobsAsync`, and `ScanAllJobsAsync` returned raw DynamoDB items without deduplicating status transition rows by `JobId` via `DeduplicateJobs(...)`; (2) `SalesApp.Api/appsettings.json` overwrote `ReportFiltersTable` to `"salesapp-reportfilters"` in build output while `ReportFiltersIntegrationTests` created table `"ReportFilters"`.
+**Fix applied:** Applied `DeduplicateJobs(...)` in `GetJobsByUserAsync`, `GetAllJobsAsync`, and `ScanAllJobsAsync` in `SalesApp.Api/Services/ScrapeDynamoLogService.cs` (with user approval), and configured `DynamoDbSettings.ReportFiltersTable = _tableName` in `SalesApp.IntegrationTests/ReportFilters/ReportFiltersIntegrationTests.cs`.
+**Result:** ✅ Green (`DYNAMODB_URL=http://localhost:8000 dotnet test SalesApp.IntegrationTests`: 407/407 passed, 0 failed).
+
 ## [2026-11-09] e2e — Attempt 1
 **Failure:** `career_plan_progression.spec.ts` failed on `expect(locator).toBeVisible()` waiting for `table tbody tr` with text `'Prod. Ativa 12m (≥ 2 pagas)'`.
 **Root cause:** Commit `539c93f` updated the career plan requirements for Alef, Beth, and Guimel to evaluate `Contratos Comercializados ≥ Meta` (`commercializedContracts`) instead of the deprecated `Prod. Ativa 12m (≥ 2 pagas)`, but the assertions in `career_plan_progression.spec.ts` had not been aligned.

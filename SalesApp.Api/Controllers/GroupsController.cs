@@ -39,6 +39,32 @@ namespace SalesApp.Controllers
                 Message = _messageService.Get(AppMessage.GroupsRetrievedSuccessfully)
             });
         }
+
+        [HttpGet("export-xlsx")]
+        [HasPermission("groups:read")]
+        public async Task<IActionResult> ExportGroupsXlsx(
+            [FromQuery] string? status = "active",
+            [FromQuery] string? search = null)
+        {
+            if (!GroupTableHelper.TryParseStatusFilter(status, out var statusFilter))
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Filtro de status inválido. Valores aceitos: active, inactive, all."
+                });
+            }
+
+            var groups = await _groupRepository.GetAllAsync(includeInactive: true);
+            var filteredAndSorted = GroupTableHelper.FilterAndSortGroups(groups, statusFilter, search);
+            var content = GroupTableHelper.BuildGroupsXlsx(filteredAndSorted);
+
+            return File(
+                content,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "grupos.xlsx"
+            );
+        }
         
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponse<GroupResponse>>> GetGroup(int id)

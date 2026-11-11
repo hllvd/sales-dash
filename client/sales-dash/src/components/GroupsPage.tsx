@@ -28,12 +28,15 @@ import {
 import { notifications } from '@mantine/notifications';
 import Menu from './Menu';
 import GroupImportModal from './GroupImportModal';
+import ExportButton from '../shared/ExportButton';
 import {
   Group as ContractGroup,
+  GroupStatusFilter,
   getGroups,
   createGroup,
   updateGroup,
   deleteGroup,
+  exportGroupsXlsx,
 } from '../services/contractService';
 import { Segment, SegmentLabels, getSegmentLabel } from '../types/Segment';
 import './GroupsPage.css';
@@ -65,9 +68,10 @@ export const sortGroupsBySegmentAndName = (a: ContractGroup, b: ContractGroup): 
 const GroupsPage: React.FC = () => {
   const [groups, setGroups] = useState<ContractGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<string>('active');
+  const [activeFilter, setActiveFilter] = useState<GroupStatusFilter>('active');
 
   // Modal State (Create / Edit)
   const [modalOpen, setModalOpen] = useState(false);
@@ -245,6 +249,30 @@ const GroupsPage: React.FC = () => {
     return [...list].sort(sortGroupsBySegmentAndName);
   }, [groups, activeFilter, search]);
 
+  const handleExportXlsx = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const blob = await exportGroupsXlsx(activeFilter, search);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'grupos.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro',
+        message: err.message || 'Falha ao exportar grupos para XLSX',
+        color: 'red',
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Menu>
       <div className="groups-container">
@@ -269,6 +297,11 @@ const GroupsPage: React.FC = () => {
             >
               Atualizar
             </Button>
+            <ExportButton
+              onExport={handleExportXlsx}
+              isExporting={exporting}
+              disabled={loading}
+            />
             <Button
               variant="default"
               leftSection={<IconUpload size={16} />}
@@ -310,7 +343,7 @@ const GroupsPage: React.FC = () => {
 
             <Select
               value={activeFilter}
-              onChange={(val) => setActiveFilter(val || 'active')}
+              onChange={(val) => setActiveFilter((val as GroupStatusFilter) || 'active')}
               data={[
                 { value: 'active', label: 'Somente Ativos' },
                 { value: 'inactive', label: 'Somente Inativos' },

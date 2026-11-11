@@ -50,6 +50,10 @@ namespace SalesApp.IntegrationTests.ReportFilters
                 _client = await _factory.CreateClientWithServicesAsync(services =>
                 {
                     services.AddSingleton<IAmazonDynamoDB>(_dynamoDb);
+                    services.Configure<SalesApp.ReportFilters.Settings.DynamoDbSettings>(opts =>
+                    {
+                        opts.ReportFiltersTable = _tableName;
+                    });
                 });
             }
             catch (Exception ex)
