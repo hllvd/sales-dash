@@ -266,7 +266,27 @@ namespace SalesApp.Tests.CareerPlan
         }
 
         [Fact]
-        public void BuildRtRow_Late1ContractWithZeroAge_HasAllRtBlankAndRtCurrentOverdue()
+        public void CalculateRtCells_WithFirstInstallmentPaidAndOverdueAtLeastAge_ShowsPaidThenAllOverdue()
+        {
+            // Age 3, Late3 (overdue 3), 1st installment paid -> V-A-A-A (1 Paid + 3 Unpaid + 2 Blank)
+            var cells = ContractPaymentTracking.CalculateRtCells(
+                ageMonths: 3,
+                overdueMonths: 3,
+                count: 6,
+                firstInstallmentPaid: true);
+
+            cells.Should().Equal(
+                RtCellState.Paid,
+                RtCellState.Unpaid,
+                RtCellState.Unpaid,
+                RtCellState.Unpaid,
+                RtCellState.Blank,
+                RtCellState.Blank
+            );
+        }
+
+        [Fact]
+        public void BuildRtRow_Late1ContractWithZeroAgeAndPayment_HasRt1PaidRt2UnpaidAndRtCurrentOverdue()
         {
             var contract = new Contract
             {
@@ -281,7 +301,74 @@ namespace SalesApp.Tests.CareerPlan
 
             var row = ContractPaymentTracking.BuildRtRow(contract, _refDate);
 
-            row.Rts.Should().OnlyContain(r => r == RtCellState.Blank);
+            row.PaidMonths.Should().Be(1);
+            row.Rts.Should().Equal(
+                RtCellState.Paid,
+                RtCellState.Unpaid,
+                RtCellState.Blank,
+                RtCellState.Blank,
+                RtCellState.Blank,
+                RtCellState.Blank
+            );
+            row.Current.Should().Be(RtCurrentState.Overdue);
+        }
+
+        [Fact]
+        public void BuildRtRow_Late3ContractSoldThreeMonthsAgoWithPayment_InfersFirstInstallmentPaidAndRendersVAAA()
+        {
+            var referenceDate = new DateTime(2026, 11, 11, 0, 0, 0, DateTimeKind.Utc);
+            var contract = new Contract
+            {
+                Id = 12,
+                ContractNumber = "1100674789",
+                CustomerName = "ELENIR DE SOUZA",
+                TotalAmount = 52_000m,
+                SaleStartDate = new DateTime(2026, 7, 26, 0, 0, 0, DateTimeKind.Utc),
+                HasPayment = true,
+                ContractStatus = new ContractStatusEntity { Name = "Late3" }
+            };
+
+            var row = ContractPaymentTracking.BuildRtRow(contract, referenceDate);
+
+            row.AgeMonths.Should().Be(3);
+            row.OverdueMonths.Should().Be(3);
+            row.PaidMonths.Should().Be(1);
+            row.Rts.Should().Equal(
+                RtCellState.Paid,
+                RtCellState.Unpaid,
+                RtCellState.Unpaid,
+                RtCellState.Unpaid,
+                RtCellState.Blank,
+                RtCellState.Blank
+            );
+            row.Current.Should().Be(RtCurrentState.Overdue);
+        }
+
+        [Fact]
+        public void BuildRtRow_Late3ContractWithoutPayment_DoesNotInferFirstInstallmentPaid()
+        {
+            var contract = new Contract
+            {
+                Id = 13,
+                ContractNumber = "CTR-UNPAID-LATE3",
+                CustomerName = "Sem Pagamento",
+                TotalAmount = 52_000m,
+                SaleStartDate = _refDate.AddMonths(-3),
+                HasPayment = false,
+                ContractStatus = new ContractStatusEntity { Name = "Late3" }
+            };
+
+            var row = ContractPaymentTracking.BuildRtRow(contract, _refDate);
+
+            row.PaidMonths.Should().Be(0);
+            row.Rts.Should().Equal(
+                RtCellState.Unpaid,
+                RtCellState.Unpaid,
+                RtCellState.Unpaid,
+                RtCellState.Blank,
+                RtCellState.Blank,
+                RtCellState.Blank
+            );
             row.Current.Should().Be(RtCurrentState.Overdue);
         }
     }

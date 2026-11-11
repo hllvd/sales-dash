@@ -78,7 +78,7 @@ namespace SalesApp.CareerPlan
                 .Where(c =>
                 {
                     int age = CareerReferenceDate.CalculateAgeMonths(c.SaleStartDate, inputs.ReferenceDate);
-                    int paid = ContractEligibility.CalculateInferredPaidMonths(age, c.ContractStatus?.Name);
+                    int paid = ContractEligibility.CalculateInferredPaidMonths(age, c.ContractStatus?.Name, c.HasPayment != false);
                     return paid >= minInferredPaidMonths;
                 })
                 .Sum(c => c.TotalAmount);

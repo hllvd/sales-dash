@@ -1,3 +1,24 @@
+## Inferência de 1ª Parcela Paga em RTs e Parcelas Pagas para Contratos Não-Desistentes
+
+Garante que contratos elegíveis já pagos (com `HasPayment != false` e status diferente de `Desistente` e `AwaitingPayment`) sempre tenham a 1ª parcela inferida como paga tanto na tabela visual de acompanhamento de RTs (`RT1`) quanto no cálculo de meses pagos inferidos (`CalculateInferredPaidMonths`), mesmo quando a quantidade de parcelas em atraso é igual ou superior à idade do contrato em meses.
+
+### Comportamento e Regras
+- **Tabela de Acompanhamento RT ([ContractPaymentTracking.cs](SalesApp.Api/CareerPlan/ContractPaymentTracking.cs))**:
+  - `BuildRtRow` considera `firstInstallmentPaid = true` para todo contrato com `HasPayment != false` e status diferente de `Desistente` e `AwaitingPayment` (não mais restrito a contratos `Active`).
+  - `CalculateRtCells`: quando `firstInstallmentPaid == true`, garante ao menos `1` parcela paga (`paidMonths = Math.Max(1, safeAge - safeOverdue)`) e posiciona todas as parcelas em atraso logo após as pagas (`displayAge = Math.Max(safeAge, paidMonths + safeOverdue)`). Exemplo: contrato de idade `3` meses com status `Late3` (`3` parcelas em atraso) exibe **`V-A-A-A`** (`RT1` verde, `RT2..RT4` amarelos, `RT5..RT6` em branco) e `PaidMonths = 1`.
+  - O status do contrato (`Late3` / Atrasado) e a coluna **`RT ATUAL`** (`Overdue` / vermelho — Inadimplente) permanecem inalterados e seguem contabilizando negativamente na retenção.
+- **Elegibilidade e Métricas ([ContractEligibility.cs](SalesApp.Api/CareerPlan/ContractEligibility.cs) e [CareerMetricsCalculator.cs](SalesApp.Api/CareerPlan/CareerMetricsCalculator.cs))**:
+  - `CalculateInferredPaidMonths(ageMonths, statusName, hasPayment = true)` garante no mínimo `1` parcela paga para contratos pagos não-`Desistente` e não-`AwaitingPayment`, inclusive quando `age == 0` ou `overdue >= age`.
+
+### Arquivos Modificados
+- `SalesApp.Api/CareerPlan/ContractPaymentTracking.cs`: Inferência de 1ª parcela paga para contratos elegíveis em `CalculateRtCells` e `BuildRtRow`.
+- `SalesApp.Api/CareerPlan/ContractEligibility.cs`: Inferência mínima de 1 parcela paga em `CalculateInferredPaidMonths` e repasse de `HasPayment != false` em `IsEligible`.
+- `SalesApp.Api/CareerPlan/CareerMetricsCalculator.cs`: Repasse explícito de `c.HasPayment != false` para `CalculateInferredPaidMonths`.
+- `SalesApp.Tests/CareerPlan/ContractPaymentTrackingTests.cs` e `SalesApp.Tests/CareerPlan/ContractEligibilityTests.cs`: Atualização e ampliação dos testes unitários (incluindo cenário do contrato `1100674789`).
+- `FEATURES.md`: Registro da regra atualizada.
+
+---
+
 ## Arquitetura de Cancelamento Cooperativo de Extrações PowerBI (`Run` e `Job`)
 
 Permite que administradores `superadmin` cancelem extrações PowerBI em andamento (`Pending` ou `Running`) diretamente pela interface, interrompendo imediatamente workers locais (Docker `pbi-scraper`) e workers remotos (ECS Fargate / SQS), descartando dados parciais e removendo checkpoints.

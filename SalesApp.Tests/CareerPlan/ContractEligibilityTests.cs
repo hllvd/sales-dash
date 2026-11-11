@@ -22,13 +22,22 @@ namespace SalesApp.Tests.CareerPlan
         }
 
         [Theory]
-        [InlineData(3, "Late1", 2)]
-        [InlineData(3, "Active", 3)]
-        [InlineData(2, "Late3", 0)] // Cannot be negative
-        [InlineData(0, "Active", 0)]
-        public void CalculateInferredPaidMonths_SubtractsOverdueFromAge(int age, string status, int expectedPaid)
+        [InlineData(3, "Late1", true, 2)]
+        [InlineData(3, "Active", true, 3)]
+        [InlineData(3, "Late3", true, 1)]
+        [InlineData(2, "Late3", true, 1)]
+        [InlineData(0, "Active", true, 1)]
+        [InlineData(0, "Late1", true, 1)]
+        [InlineData(2, "Late3", false, 0)]
+        [InlineData(0, "Desistente", true, 0)]
+        [InlineData(0, "AwaitingPayment", true, 0)]
+        public void CalculateInferredPaidMonths_InfersAtLeastFirstInstallmentForPaidContracts(
+            int age,
+            string status,
+            bool hasPayment,
+            int expectedPaid)
         {
-            ContractEligibility.CalculateInferredPaidMonths(age, status).Should().Be(expectedPaid);
+            ContractEligibility.CalculateInferredPaidMonths(age, status, hasPayment).Should().Be(expectedPaid);
         }
 
         [Fact]

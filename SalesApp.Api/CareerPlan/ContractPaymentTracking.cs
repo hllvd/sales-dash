@@ -81,19 +81,21 @@ namespace SalesApp.CareerPlan
 
         /// <summary>
         /// Pure function calculating the state of RT1..RT{count} cells:
-        /// - Blank: month index > age
+        /// - Blank: month index > displayAge
         /// - Paid: month index <= paidMonths
-        /// - Unpaid: paidMonths < month index <= age
-        /// If firstInstallmentPaid is true and status is Active (overdue=0),
-        /// RT1 is considered paid even if age is 0 (less than 1 full month).
+        /// - Unpaid: paidMonths < month index <= displayAge
+        /// When firstInstallmentPaid is true, RT1 is always inferred as paid (at least 1 paid month)
+        /// and all overdue installments follow immediately after (e.g. age 3, Late3 -> V-A-A-A).
         /// </summary>
         public static IReadOnlyList<RtCellState> CalculateRtCells(int ageMonths, int overdueMonths, int count = 6, bool firstInstallmentPaid = false)
         {
             if (count < 0) count = 0;
             int safeAge = Math.Max(0, ageMonths);
-            int displayAge = (firstInstallmentPaid && safeAge == 0 && overdueMonths == 0) ? 1 : safeAge;
-            int effectiveOverdue = Math.Min(displayAge, Math.Max(0, overdueMonths));
-            int paidMonths = Math.Max(0, displayAge - effectiveOverdue);
+            int safeOverdue = Math.Max(0, overdueMonths);
+            int paidMonths = CalculatePaidMonthsCount(safeAge, safeOverdue, firstInstallmentPaid);
+            int displayAge = firstInstallmentPaid
+                ? Math.Max(safeAge, paidMonths + safeOverdue)
+                : safeAge;
 
             var cells = new List<RtCellState>(count);
             for (int i = 1; i <= count; i++)
@@ -113,6 +115,19 @@ namespace SalesApp.CareerPlan
             }
 
             return cells;
+        }
+
+        private static bool HasPaidFirstInstallment(Contract contract, string? statusName)
+        {
+            if (contract.HasPayment == false) return false;
+            return string.IsNullOrWhiteSpace(statusName) || !ExcludedStatuses.Contains(statusName.Trim());
+        }
+
+        private static int CalculatePaidMonthsCount(int safeAge, int safeOverdue, bool firstInstallmentPaid)
+        {
+            return firstInstallmentPaid
+                ? Math.Max(1, safeAge - safeOverdue)
+                : Math.Max(0, safeAge - safeOverdue);
         }
 
         /// <summary>
@@ -160,13 +175,12 @@ namespace SalesApp.CareerPlan
             if (contract == null) throw new ArgumentNullException(nameof(contract));
 
             var statusName = contract.ContractStatus?.Name ?? "Unknown";
-            bool isActive = string.Equals(statusName, "active", StringComparison.OrdinalIgnoreCase);
+            bool firstInstallmentPaid = HasPaidFirstInstallment(contract, statusName);
             int age = CareerReferenceDate.CalculateAgeMonths(contract.SaleStartDate, referenceDate);
             int overdue = InferredRtOverdueMonths(statusName);
-            int effectiveOverdue = Math.Min(age, overdue);
-            int paid = Math.Max(0, age - effectiveOverdue);
+            int paid = CalculatePaidMonthsCount(Math.Max(0, age), Math.Max(0, overdue), firstInstallmentPaid);
 
-            var rts = CalculateRtCells(age, overdue, 6, firstInstallmentPaid: isActive);
+            var rts = CalculateRtCells(age, overdue, 6, firstInstallmentPaid: firstInstallmentPaid);
             var current = ResolveRtCurrent(overdue);
 
             return new ContractRtEvaluation(
