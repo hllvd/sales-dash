@@ -9,6 +9,7 @@ import {
   importGroups,
   downloadGroupImportTemplate,
   exportGroupsXlsx,
+  countActiveGroupsWithoutSegment,
   CreateContractRequest,
   UpdateContractRequest,
   Contract,
@@ -378,6 +379,19 @@ describe('contractService', () => {
       });
 
       await expect(exportGroupsXlsx('active')).rejects.toThrow('Filtro inválido');
+    });
+  });
+
+  describe('countActiveGroupsWithoutSegment', () => {
+    it('counts only active groups with null or undefined segment', () => {
+      const groups = [
+        { id: 1, name: 'G1', description: '', commission: 0, segment: null, isActive: true },
+        { id: 2, name: 'G2', description: '', commission: 0, segment: undefined, isActive: true },
+        { id: 3, name: 'G3', description: '', commission: 0, segment: 1, isActive: true },
+        { id: 4, name: 'G4', description: '', commission: 0, segment: null, isActive: false },
+      ] as any[];
+
+      expect(countActiveGroupsWithoutSegment(groups)).toBe(2);
     });
   });
 

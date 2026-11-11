@@ -4,6 +4,7 @@ import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { useBuildInfo } from '../contexts/BuildInfoContext';
 import { UserRole } from '../types/UserRole';
 import { apiService, helpdeskApiService } from '../services/apiService';
+import { getGroups, countActiveGroupsWithoutSegment } from '../services/contractService';
 import './Menu.css';
 import {
   IconUsers,
@@ -70,6 +71,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [pendingSurveyCount, setPendingSurveyCount] = useState<number>(0);
   const [pendingHelpdeskCount, setPendingHelpdeskCount] = useState<number>(0);
+  const [unassignedGroupsCount, setUnassignedGroupsCount] = useState<number>(0);
 
   useEffect(() => {
     const updateSurveyCount = () => {
@@ -101,6 +103,24 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
         .catch(() => {});
     }
   }, [userRole]);
+
+  useEffect(() => {
+    const isSuperAdmin = userPermissions.includes('system:superadmin') || userRole === UserRole.SUPERADMIN;
+    if (!isSuperAdmin) return;
+
+    let cancelled = false;
+    getGroups(false)
+      .then((groups) => {
+        if (!cancelled) {
+          setUnassignedGroupsCount(countActiveGroupsWithoutSegment(groups));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userRole, userPermissions]);
 
   useEffect(() => {
     if (currentPath === '#/users' || currentPath === '#/users/tree') {
@@ -436,6 +456,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
               href="#/groups"
               label="Grupos"
               leftSection={<IconUsersGroup size={20} />}
+              rightSection={unassignedGroupsCount > 0 ? <Badge size="xs" circle color="red">{unassignedGroupsCount}</Badge> : undefined}
               active={isActive('#/groups')}
               variant="filled"
               color="red"

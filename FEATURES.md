@@ -3695,3 +3695,24 @@ A coluna `ContractType` da tabela `Contracts` continha dados imprecisos e foi re
 - `client/sales-dash/src/components/ContractForm.tsx` — Campo Segmento somente leitura.
 - `client/sales-dash/src/App.tsx` — Roteamento de `#/groups`.
 - `SalesApp.IntegrationTests/Groups/GroupsControllerIntegrationTests.cs` — Testes de integração de grupos.
+
+## [2026-11-11] — Menu de Grupos para Superadmin, Badge de Grupos Sem Segmento e Exportação XLSX (`/#/groups`)
+
+### Contexto & Motivação
+Superadmins precisavam de acesso direto à página `/#/groups` pelo menu lateral, visibilidade rápida de quantos grupos ativos ainda estão sem segmento definido e exportação em planilha `.xlsx` fiel à tabela exibida na tela.
+
+### Funcionalidades & Arquitetura
+1. **Item de Menu Exclusivo para Superadmin (`Menu.tsx`)**:
+   - Adicionado o link **Grupos** (`#/groups`, `data-testid="nav-groups"`) visível apenas quando `hasPermission('system:superadmin') || userRole === UserRole.SUPERADMIN`.
+   - Ao carregar o menu para superadmins, consulta `getGroups(false)` e calcula via helper puro [`countActiveGroupsWithoutSegment`](file:///Users/hudson/development/sales-dash/client/sales-dash/src/services/contractService.ts) quantos grupos ativos possuem `segment == null`.
+   - Quando a contagem é maior que zero, exibe `<Badge size="xs" circle color="red">{unassignedGroupsCount}</Badge>` em `rightSection` (mesmo padrão visual de **Solicitações**).
+2. **Exportação XLSX Fiel à Tabela (`/#/groups`)**:
+   - Backend [`GroupsController.ExportGroupsXlsx`](file:///Users/hudson/development/sales-dash/SalesApp.Api/Controllers/GroupsController.cs) (`GET /api/groups/export-xlsx?status=...&search=...`) utiliza [`GroupTableHelper`](file:///Users/hudson/development/sales-dash/SalesApp.Api/Utils/GroupTableHelper.cs) para aplicar o mesmo filtro (`active` / `inactive` / `all` e busca por nome, descrição ou segmento), mesma ordenação (`segment == null` primeiro, depois segmento numérico e ordenação alfanumérica natural `pt-BR` por nome) e mesmas colunas (`ID`, `Nome`, `Descrição`, `Segmento`, `Comissão`, `Status`).
+   - Frontend [`GroupsPage.tsx`](file:///Users/hudson/development/sales-dash/client/sales-dash/src/components/GroupsPage.tsx) exibe o botão **Exportar XLSX** (`ExportButton`) no cabeçalho, enviando os filtros ativos e baixando `grupos.xlsx`.
+
+### Arquivos Modificados / Criados
+- `client/sales-dash/src/components/Menu.tsx`, `Menu.test.tsx` — Item **Grupos** para superadmin e badge de grupos ativos sem segmento.
+- `client/sales-dash/src/services/contractService.ts`, `contractService.test.ts` — `exportGroupsXlsx` e `countActiveGroupsWithoutSegment`.
+- `client/sales-dash/src/components/GroupsPage.tsx`, `GroupsPage.test.tsx` — Botão e fluxo de exportação XLSX.
+- `SalesApp.Api/Utils/GroupTableHelper.cs`, `SalesApp.Tests/GroupTableHelperTests.cs` — Filtragem, ordenação natural e geração de XLSX.
+- `SalesApp.Api/Controllers/GroupsController.cs`, `SalesApp.IntegrationTests/Groups/GroupsControllerIntegrationTests.cs` — Endpoint `GET /api/groups/export-xlsx` e testes de integração.

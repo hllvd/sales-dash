@@ -689,6 +689,10 @@ export const exportGroupsXlsx = async (
   return await response.blob();
 };
 
+export const countActiveGroupsWithoutSegment = (groups: Group[]): number => {
+  return groups.filter((group) => group.isActive && group.segment == null).length;
+};
+
 // Get contract by contract number
 export const getContractByNumber = async (contractNumber: string): Promise<Contract> => {
   const response = await authenticatedFetch(`${API_BASE_URL}/contracts/number/${contractNumber}`, {
