@@ -554,6 +554,52 @@ namespace SalesApp.Controllers
             return Ok(detail);
         }
 
+        [Authorize(Roles = "superadmin")]
+        [HttpPost("runs/{runId}/cancel")]
+        public async Task<IActionResult> CancelRun(string runId)
+        {
+            if (string.IsNullOrWhiteSpace(runId))
+            {
+                return BadRequest(new { message = "RunId is required." });
+            }
+
+            var cancelledByEmail = User?.FindFirst(ClaimTypes.Email)?.Value
+                                ?? User?.FindFirst("email")?.Value
+                                ?? User?.FindFirst(ClaimTypes.Name)?.Value
+                                ?? "superadmin";
+
+            var cancelledCount = await _orchestrator.CancelRunAsync(runId.Trim(), cancelledByEmail);
+            if (cancelledCount == 0)
+            {
+                return NotFound(new { message = "Nenhum job ativo encontrado para cancelar nesta execução." });
+            }
+
+            return Ok(new { success = true, cancelledCount, runId });
+        }
+
+        [Authorize(Roles = "superadmin")]
+        [HttpPost("jobs/{jobId}/cancel")]
+        public async Task<IActionResult> CancelJob(string jobId)
+        {
+            if (string.IsNullOrWhiteSpace(jobId))
+            {
+                return BadRequest(new { message = "JobId is required." });
+            }
+
+            var cancelledByEmail = User?.FindFirst(ClaimTypes.Email)?.Value
+                                ?? User?.FindFirst("email")?.Value
+                                ?? User?.FindFirst(ClaimTypes.Name)?.Value
+                                ?? "superadmin";
+
+            var cancelled = await _orchestrator.CancelJobAsync(jobId.Trim(), cancelledByEmail);
+            if (!cancelled)
+            {
+                return NotFound(new { message = "Job ativo não encontrado ou já finalizado." });
+            }
+
+            return Ok(new { success = true, jobId });
+        }
+
         [HttpPut("callback")]
         public async Task<IActionResult> HandleCallback([FromBody] ScrapeResult? result)
         {

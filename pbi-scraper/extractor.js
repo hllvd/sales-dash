@@ -2,6 +2,7 @@
 const axios = require('axios');
 const tokenManager = require('./tokenManager');
 const { resolveDictValue } = require('./dsrDict');
+const { JobCancelledError, isAbortError, throwIfAborted, sleepAbortable } = require('./cancellationHelper');
 
 const ENDPOINT = '7a8110990e16404daec259c355434bc6.pbidedicated.windows.net';
 const PATH     = '/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query';
@@ -456,12 +457,13 @@ function isAuthErrorStatus(err) {
   return msg.includes('401') || msg.includes('402') || msg.includes('403') || msg.includes('unauthorized');
 }
 
-async function postWithRetry(url, payload, headers, label) {
+async function postWithRetry(url, payload, headers, label, signal = null) {
   const maxRetries = parseInt(process.env.SCRAPE_MAX_RETRIES || '2', 10);
   const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '300000', 10);
   let lastError;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    throwIfAborted(signal);
     try {
       if (attempt > 0) {
         console.log(`[Extractor] ${label} - Retry attempt ${attempt}/${maxRetries}...`);
@@ -469,10 +471,14 @@ async function postWithRetry(url, payload, headers, label) {
       
       const response = await axios.post(url, payload, { 
         headers, 
-        timeout: timeoutMs 
+        timeout: timeoutMs,
+        signal: signal || undefined
       });
       return response;
     } catch (err) {
+      if (isAbortError(err) || (signal && signal.aborted)) {
+        throw new JobCancelledError();
+      }
       lastError = err;
       const isTimeout = err.code === 'ECONNABORTED' || err.message.includes('timeout');
       console.warn(`[Extractor] ${label} - Attempt ${attempt + 1} failed: ${err.message}${isTimeout ? ' (Timeout)' : ''}`);
@@ -483,7 +489,7 @@ async function postWithRetry(url, payload, headers, label) {
       }
 
       if (attempt === maxRetries) break;
-      await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      await sleepAbortable(1000 * (attempt + 1), signal);
     }
   }
 
@@ -493,7 +499,8 @@ async function postWithRetry(url, payload, headers, label) {
 /**
  * Basic scrape query using provided token.
  */
-async function scrape(store, matricula, token, scrapeDate) {
+async function scrape(store, matricula, token, scrapeDate, signal = null) {
+  throwIfAborted(signal);
   const headers = {
     'Authorization':  token,
     'Content-Type':   'application/json',
@@ -515,12 +522,13 @@ async function scrape(store, matricula, token, scrapeDate) {
 
   let rows1 = [];
   try {
-    const res1 = await postWithRetry(URL, payload1, headers, 'Query 1');
+    const res1 = await postWithRetry(URL, payload1, headers, 'Query 1', signal);
     console.log(`[Extractor] Query 1 Response Status: ${res1.status}`);
     rows1 = parseDSR(res1.data);
     console.log(`[Extractor] Query 1 returned ${rows1.length} rows`);
     steps.push(`[${ts()}] Query 1 (resumo): ${rows1.length} registros retornados.`);
   } catch (err) {
+    if (isAbortError(err) || (signal && signal.aborted)) throw new JobCancelledError();
     if (isAuthErrorStatus(err)) throw err;
     const msg = `Query 1 (resumo) falhou — continuando com Query 2. Detalhe: ${err.message}`;
     console.warn(`[Extractor] ${msg}`);
@@ -530,13 +538,14 @@ async function scrape(store, matricula, token, scrapeDate) {
   let rows2 = [];
   let csv = '';
   try {
-    const res2 = await postWithRetry(URL, payload2, headers, 'Query 2');
+    const res2 = await postWithRetry(URL, payload2, headers, 'Query 2', signal);
     console.log(`[Extractor] Query 2 Response Status: ${res2.status}`);
     rows2 = parseDSR(res2.data);
     console.log(`[Extractor] Query 2 returned ${rows2.length} rows`);
     steps.push(`[${ts()}] ✅ Query 2 (contratos): ${rows2.length} contratos extraídos com sucesso.`);
     csv = toCsv(rows2);
   } catch (err) {
+    if (isAbortError(err) || (signal && signal.aborted)) throw new JobCancelledError();
     const msg = `Query 2 (contratos) falhou após tentativas. Detalhe: ${err.message}`;
     console.error(`[Extractor] ${msg}`);
     steps.push(`[${ts()}] ❌ ${msg}`);
@@ -572,25 +581,29 @@ async function scrape(store, matricula, token, scrapeDate) {
  * @param {Function} getTokensFn - Function (matricula, password, store, forceRefresh) => Promise<{ token }>
  * @param {number} maxReauthRetries - Max automatic re-auth retries (default: 3)
  */
-async function scrapeWithReauth(store, matricula, password, scrapeDate, getTokensFn, maxReauthRetries = 3) {
+async function scrapeWithReauth(store, matricula, password, scrapeDate, getTokensFn, maxReauthRetries = 3, signal = null) {
   let attempt = 0;
 
   while (attempt <= maxReauthRetries) {
+    throwIfAborted(signal);
     try {
       // Get cached token or fetch new token on forceRefresh (attempt > 0)
       const forceRefresh = attempt > 0;
-      const authInfo = await getTokensFn(matricula, password, store, forceRefresh);
+      const authInfo = await getTokensFn(matricula, password, store, forceRefresh, signal);
       const activeToken = authInfo.token;
       const effectiveStore = authInfo.detectedStore || store || '';
 
       // Run scrape query
-      const result = await scrape(effectiveStore, matricula, activeToken, scrapeDate);
+      const result = await scrape(effectiveStore, matricula, activeToken, scrapeDate, signal);
       result.authSteps = authInfo.steps || [];
       result.retryCount = attempt;
       result.detectedStore = authInfo.detectedStore || result.detectedStore || null;
       return result;
 
     } catch (err) {
+      if (isAbortError(err) || (signal && signal.aborted)) {
+        throw new JobCancelledError();
+      }
       // Check if credentials are dead (wrong password) -> fail immediately
       if (err.authStatus === 'wrong-password' || (err.message && err.message.toLowerCase().includes('senha'))) {
         console.error(`[Extractor] Autenticação falhou com credenciais inválidas para ${matricula}. Abortando retentativas.`);

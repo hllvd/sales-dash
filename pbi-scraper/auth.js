@@ -8,6 +8,7 @@
 const puppeteer = require('puppeteer');
 const axios     = require('axios');
 const tokenManager = require('./tokenManager');
+const { JobCancelledError, isAbortError, throwIfAborted } = require('./cancellationHelper');
 
 const AVA_URL       = 'https://avapro.ademicon.com.br/';
 const DASHBOARD_URL = 'https://avapro.ademicon.com.br/dashboard';
@@ -191,7 +192,9 @@ async function attachInterceptionToTarget(pageObj, tokenRef, steps, avaJwt, requ
  * @param {string} password
  * @param {string} store
  */
-async function getTokenFromLogin(matricula, password, store = null) {
+async function getTokenFromLogin(matricula, password, store = null, signal = null) {
+  throwIfAborted(signal);
+
   const steps = [];
   addStep(steps, 'Iniciando navegador em modo automatizado...');
 
@@ -206,6 +209,13 @@ async function getTokenFromLogin(matricula, password, store = null) {
       '--allow-running-insecure-content',
     ],
   });
+
+  const onAbort = () => {
+    browser.close().catch(() => {});
+  };
+  if (signal) {
+    signal.addEventListener('abort', onAbort, { once: true });
+  }
 
   const tokenRef        = { value: null };
   const requestCountRef = { count: 0 };
@@ -540,6 +550,12 @@ async function getTokenFromLogin(matricula, password, store = null) {
         }, 120000);
 
         const checkInterval = setInterval(() => {
+          if (signal && signal.aborted) {
+            clearTimeout(timeout);
+            clearInterval(checkInterval);
+            reject(new JobCancelledError());
+            return;
+          }
           elapsed++;
           if (tokenRef.value) {
             clearTimeout(timeout);
@@ -554,6 +570,7 @@ async function getTokenFromLogin(matricula, password, store = null) {
       addStep(steps, 'Token MWCToken já capturado.');
     }
 
+    throwIfAborted(signal);
     addStep(steps, 'Autenticação e obtenção de MWCToken concluídas com sucesso.');
 
     // Save tokens in tokenManager cache
@@ -572,12 +589,18 @@ async function getTokenFromLogin(matricula, password, store = null) {
     };
 
   } catch (err) {
+    if (isAbortError(err) || (signal && signal.aborted)) {
+      throw new JobCancelledError();
+    }
     if (err instanceof AuthError) throw err;
     const errMsg = err.message || 'Erro desconhecido';
     addStep(steps, `ERRO: ${errMsg}`);
     throw new AuthError('error', errMsg, steps, powerbiLoaded, loginSuccess);
   } finally {
-    await browser.close();
+    if (signal) {
+      signal.removeEventListener('abort', onAbort);
+    }
+    await browser.close().catch(() => {});
     console.log('[Auth] Browser closed.');
   }
 }
@@ -591,8 +614,10 @@ async function getTokenFromLogin(matricula, password, store = null) {
  * @param {string} password
  * @param {string} store
  * @param {boolean} forceRefresh
+ * @param {AbortSignal|null} [signal]
  */
-async function getOrFetchTokens(matricula, password, store = null, forceRefresh = false) {
+async function getOrFetchTokens(matricula, password, store = null, forceRefresh = false, signal = null) {
+  throwIfAborted(signal);
   if (!forceRefresh) {
     const cached = tokenManager.getTokens(matricula, password);
     if (cached && cached.pbiToken) {
@@ -616,7 +641,7 @@ async function getOrFetchTokens(matricula, password, store = null, forceRefresh 
     tokenManager.invalidateTokens(matricula);
   }
 
-  return await getTokenFromLogin(matricula, password, store);
+  return await getTokenFromLogin(matricula, password, store, signal);
 }
 
 module.exports = { getTokenFromLogin, getOrFetchTokens, AuthError, detectLoginErrorText };

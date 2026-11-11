@@ -11,6 +11,8 @@ namespace SalesApp.Services
     {
         Task<string> TriggerScrapeAsync(int configId, bool isManual = true, string? runId = null, string? userEmail = null, string? scrapeDate = null, string? scrapeType = null, string? outputMode = null);
         Task HandleCallbackAsync(ScrapeResult result);
+        Task<int> CancelRunAsync(string runId, string? cancelledByEmail = null);
+        Task<bool> CancelJobAsync(string jobId, string? cancelledByEmail = null);
     }
 
     public class ScrapeOrchestrator : IScrapeOrchestrator
@@ -170,6 +172,38 @@ namespace SalesApp.Services
         public async Task HandleCallbackAsync(ScrapeResult result)
         {
             var effectiveStore = result.DetectedStore ?? result.Store ?? "Unknown";
+
+            // Respect cooperative cancellation even if the worker sent a late Succeeded/Failed callback
+            var isCancelled = string.Equals(result.Status, "Cancelled", StringComparison.OrdinalIgnoreCase)
+                           || await _logService.IsJobCancelledAsync(result.JobId);
+
+            if (isCancelled)
+            {
+                await _logService.WriteJobStatusAsync(
+                    jobId: result.JobId,
+                    userId: result.UserId,
+                    status: "Cancelled",
+                    store: effectiveStore,
+                    matricula: result.Matricula ?? "Unknown",
+                    runId: result.RunId,
+                    additionalData: new
+                    {
+                        RowCount = 0,
+                        ErrorMessage = !string.IsNullOrWhiteSpace(result.Error) ? result.Error : "Extração cancelada manualmente.",
+                        CompletedAt = !string.IsNullOrEmpty(result.CompletedAt) ? result.CompletedAt : DateTime.UtcNow.ToString("O"),
+                        StartedAt = result.StartedAt,
+                        DurationSeconds = result.DurationSeconds,
+                        DurationFormatted = result.DurationFormatted,
+                        AuthStatus = "cancelled",
+                        AuthMessage = !string.IsNullOrWhiteSpace(result.AuthMessage) ? result.AuthMessage : "Extração cancelada manualmente.",
+                        PowerBiLoaded = result.PowerBiLoaded,
+                        AuthSteps = result.AuthSteps != null ? Newtonsoft.Json.JsonConvert.SerializeObject(result.AuthSteps) : null,
+                        RetryCount = result.RetryCount,
+                        ScrapeDate = result.ScrapeDate
+                    }
+                );
+                return;
+            }
 
             // If store in DB is currently null/empty, auto-populate with detected store
             if (!string.IsNullOrEmpty(effectiveStore) && effectiveStore != "Unknown" && !string.IsNullOrEmpty(result.Matricula))
@@ -402,6 +436,77 @@ namespace SalesApp.Services
                 MessageBody = messageBody
             });
         }
+
+        public async Task<int> CancelRunAsync(string runId, string? cancelledByEmail = null)
+        {
+            if (string.IsNullOrWhiteSpace(runId)) return 0;
+
+            var detail = await _logService.GetRunDetailAsync(runId);
+            if (detail == null) return 0;
+
+            var activeJobs = detail.Jobs.Where(j => IsCancellableStatus(j.Status)).ToList();
+            if (activeJobs.Count == 0) return 0;
+
+            foreach (var job in activeJobs)
+            {
+                await CancelSingleJobAsync(job, cancelledByEmail);
+            }
+
+            return activeJobs.Count;
+        }
+
+        public async Task<bool> CancelJobAsync(string jobId, string? cancelledByEmail = null)
+        {
+            if (string.IsNullOrWhiteSpace(jobId)) return false;
+
+            var detail = await _logService.GetRunDetailAsync(jobId);
+            var targetJob = detail?.Jobs.FirstOrDefault(j => j.JobId == jobId);
+            if (targetJob == null || !IsCancellableStatus(targetJob.Status))
+            {
+                return false;
+            }
+
+            await CancelSingleJobAsync(targetJob, cancelledByEmail);
+            return true;
+        }
+
+        private async Task CancelSingleJobAsync(ScrapeLogEntry job, string? cancelledByEmail)
+        {
+            var reason = string.IsNullOrWhiteSpace(cancelledByEmail)
+                ? "Extração cancelada manualmente."
+                : $"Extração cancelada manualmente por {cancelledByEmail}.";
+
+            await _logService.SignalCancelJobAsync(job.JobId, job.RunId, cancelledByEmail);
+
+            await _logService.WriteJobStatusAsync(
+                jobId: job.JobId,
+                userId: job.UserId,
+                status: "Cancelled",
+                store: job.Store,
+                matricula: job.Matricula,
+                runId: job.RunId,
+                userEmail: job.UserEmail,
+                additionalData: new
+                {
+                    RowCount = 0,
+                    ErrorMessage = reason,
+                    CompletedAt = DateTime.UtcNow.ToString("O"),
+                    AuthStatus = "cancelled",
+                    AuthMessage = reason,
+                    PowerBiLoaded = job.PowerBiLoaded,
+                    ScrapeDate = job.ScrapeDate
+                });
+
+            if (_scraperClient != null)
+            {
+                await _scraperClient.CancelJobAsync(job.JobId);
+            }
+        }
+
+        public static bool IsCancellableStatus(string? status) =>
+            string.Equals(status, "Pending", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "Running", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "AwaitingImport", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Pure validation helper that prevents path traversal attacks by guaranteeing the resolved file path

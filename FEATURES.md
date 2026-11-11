@@ -1,3 +1,34 @@
+## Arquitetura de Cancelamento Cooperativo de Extrações PowerBI (`Run` e `Job`)
+
+Permite que administradores `superadmin` cancelem extrações PowerBI em andamento (`Pending` ou `Running`) diretamente pela interface, interrompendo imediatamente workers locais (Docker `pbi-scraper`) e workers remotos (ECS Fargate / SQS), descartando dados parciais e removendo checkpoints.
+
+### Comportamento e Regras
+- **Endpoints & RBAC (`ScrapeController.cs`, `ScrapeOrchestrator.cs`)**:
+  - `POST /api/scrape/runs/{runId}/cancel` e `POST /api/scrape/jobs/{jobId}/cancel` protegidos estritamente por `[Authorize(Roles = "superadmin")]`.
+  - Ao cancelar, `ScrapeOrchestrator` grava sinal de cancelamento no DynamoDB (`PK = CANCEL#JOB#{jobId}`, `SK = SIGNAL`, TTL de 24h) + fallback em memória, atualiza o histórico para status terminal `Cancelled`, e notifica o worker local via `POST /jobs/{jobId}/cancel` autenticado com `X-Worker-Secret`.
+  - Callbacks HTTP tardios (`HandleCallbackAsync`) e resultados SQS (`SqsResultBackgroundConsumerService`) de jobs cancelados são ignorados sem acionar importação de CSV.
+- **Worker Remoto Fargate & Worker Local (`pbi-scraper`)**:
+  - Role IAM `pbi-scraper-task-role` atualizada com `dynamodb:GetItem` em `pbi_scrape_logs` e `dev-pbi_scrape_logs`.
+  - `worker.js` checa `CANCEL#JOB#{jobId}` antes de iniciar o navegador e faz polling a cada 8s durante a execução, acionando `AbortController`.
+  - `server.js` mantém `activeJobControllers` e `cancelledJobsSet` para abortar imediatamente jobs ativos ou descartar pendentes na `PQueue`.
+  - `cancellationHelper.js`, `auth.js`, `captureTemplate.js`, `extractorConsultor.js`, `extractor.js` e `scrape.js` propagam `AbortSignal` para requisições HTTP `axios`, pausas (`sleepAbortable`, interrompendo inclusive backoff de HTTP 429) e fechamento imediato do navegador Puppeteer.
+  - Ao cancelar: descarta dados parciais (sem gerar/enviar CSV ao S3), limpa o checkpoint da matrícula (`clearCheckpoint`), remove a mensagem da fila de jobs SQS e publica notificação `Cancelled`.
+- **Interface React (`ScrapeDashboard.tsx`, `ScrapeRunDetailPage.tsx`, `scrapeService.ts`)**:
+  - Status dedicado **`Cancelado`** (badge laranja + filtro na listagem).
+  - Botão **"Cancelar"** para `superadmin` no *Histórico de Extrações* (`RunId`), em *Vínculos de Contas* (quando a matrícula possui execução ativa) e no cabeçalho/linhas de job em *Detalhes da Execução* (`RunId` e `JobId`), com polling automático enquanto houver jobs ativos.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs`: Sinalização `CANCEL#JOB#{jobId}`, prioridade terminal e `ComputeFinalStatus` com suporte a `Cancelled`.
+- `SalesApp.Api/Services/ScrapeOrchestrator.cs`: Métodos `CancelRunAsync`, `CancelJobAsync` e guarda de cancelamento em `HandleCallbackAsync`.
+- `SalesApp.Api/Services/SqsResultBackgroundConsumerService.cs`: Tratamento e descarte imediato de jobs cancelados sem importação S3.
+- `SalesApp.Api/Services/PbiScraperClient.cs` e `SalesApp.Api/Controllers/ScrapeController.cs`: Endpoints `superadmin` de cancelamento e client HTTP para `/jobs/{jobId}/cancel`.
+- `pbi-scraper/cancellationHelper.js`, `auth.js`, `captureTemplate.js`, `extractorConsultor.js`, `extractor.js`, `scrape.js`, `server.js`, `worker.js`, `package.json`: Cancelamento cooperativo com `AbortController`, `@aws-sdk/client-dynamodb`, fechamento de Puppeteer e limpeza de checkpoint.
+- `client/sales-dash/src/services/scrapeService.ts`, `ScrapeDashboard.tsx`, `ScrapeRunDetailPage.tsx`: Botões de cancelamento, badge `Cancelado` e atualização periódica.
+- `SalesApp.Tests/Services/ScrapeCancellationTests.cs` e `pbi-scraper/test-cancellation.js`: Testes unitários.
+- `FEATURES.md`: Registro da documentação.
+
+---
+
 ## Isolamento E2E, Paginação e Poda de Snapshots no Cache DynamoDB do Plano de Carreira
 
 Elimina gargalos de latência (`GetConsultantsList` de 18,3s para ~1ms) e falhas de idempotência no Run 2 do Plano de Carreira ao isolar dados efêmeros de testes E2E em memória, implementar paginação completa e podar snapshots órfãos no DynamoDB.

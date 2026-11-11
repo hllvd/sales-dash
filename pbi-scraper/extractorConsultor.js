@@ -10,6 +10,7 @@ const { getOrFetchTokens } = require('./auth');
 const { parseDSR, toCsv } = require('./scrapeConsultor');
 const { captureTemplate } = require('./captureTemplate');
 const { saveCheckpoint, loadCheckpoint, clearCheckpoint } = require('./checkpointManager');
+const { JobCancelledError, isAbortError, throwIfAborted, sleepAbortable } = require('./cancellationHelper');
 
 const ENDPOINT = '7a8110990e16404daec259c355434bc6.pbidedicated.windows.net';
 const PATH     = '/webapi/capacities/7A811099-0E16-404D-AEC2-59C355434BC6/workloads/QES/QueryExecutionService/automatic/public/query';
@@ -21,12 +22,13 @@ const RATE_LIMIT_DELAYS_MS = [60000, 120000, 300000, 600000];
 const INTER_PAGE_DELAY_MS = 1000; // 1 segundo preventivo entre páginas consecutivas
 
 let captureTemplatePromise = null;
-async function getOrCaptureTemplate(matricula, password, stepLogger = null) {
+async function getOrCaptureTemplate(matricula, password, stepLogger = null, signal = null) {
+  throwIfAborted(signal);
   if (captureTemplatePromise) {
     if (typeof stepLogger === 'function') stepLogger('[Capture] Aguardando captura de template/token já em andamento...');
     return captureTemplatePromise;
   }
-  captureTemplatePromise = captureTemplate(matricula, password, stepLogger).finally(() => {
+  captureTemplatePromise = captureTemplate(matricula, password, stepLogger, signal).finally(() => {
     captureTemplatePromise = null;
   });
   return captureTemplatePromise;
@@ -184,7 +186,8 @@ async function scrapeConsultorDirect(options) {
     matricula,
     password,
     scrapeDates = null,
-    outputDir = './outputs'
+    outputDir = './outputs',
+    signal = null
   } = options || {};
 
   if (!matricula || !password) {
@@ -263,8 +266,9 @@ async function scrapeConsultorDirect(options) {
 
     // Se não tem token ou não tem template, captura via /dashboard/consultor
     if (!consultorToken || !fs.existsSync(tplFile)) {
+      throwIfAborted(signal);
       addStep('[Auth] MWCToken de Consultor ausente ou expirado. Abrindo navegador para login no AVA PRO...');
-      const resCapture = await getOrCaptureTemplate(matricula, password, addStep);
+      const resCapture = await getOrCaptureTemplate(matricula, password, addStep, signal);
       consultorToken = resCapture.token;
       addStep('[Auth] MWCToken e template de Consultor obtidos com sucesso.');
     }
@@ -305,6 +309,7 @@ async function scrapeConsultorDirect(options) {
     let rateLimitWarning = null;
 
     while (!isComplete) {
+      throwIfAborted(signal);
       pageCount++;
       const pageStart = Date.now();
       addStep(`[PowerBI] Disparando requisição HTTP POST (Página ${pageCount}, limite: ${Math.round(SCRAPE_TIMEOUT_MS / 1000)}s)...`);
@@ -324,16 +329,21 @@ async function scrapeConsultorDirect(options) {
       const maxRateLimitAttempts = RATE_LIMIT_DELAYS_MS.length;
 
       while (true) {
+        throwIfAborted(signal);
         try {
           res = await axios.post(URL, payload, {
             headers,
-            timeout: SCRAPE_TIMEOUT_MS
+            timeout: SCRAPE_TIMEOUT_MS,
+            signal: signal || undefined
           });
           if (attempt > 0) {
             addStep(`[PowerBI ✅ Recuperado] Página ${pageCount} obtida com sucesso após pausa de rate limit.`);
           }
           break; // Sucesso na requisição
         } catch (err) {
+          if (isAbortError(err) || (signal && signal.aborted)) {
+            throw new JobCancelledError();
+          }
           const isRateLimit = err.response?.status === 429 || (err.message && err.message.includes('429'));
           const elapsedSec = ((Date.now() - pageStart) / 1000).toFixed(1);
 
@@ -350,7 +360,7 @@ async function scrapeConsultorDirect(options) {
             const delayDesc = `${Math.round(delayMs / 1000)}s (${(delayMs / 60000).toFixed(1)}min)`;
             addStep(`[PowerBI ⚠️ Rate Limit] HTTP 429 recebido na Página ${pageCount} após ${elapsedSec}s. Pausando por ${delayDesc} antes da tentativa ${attempt + 1}/${maxRateLimitAttempts}...`);
             attempt++;
-            await new Promise(r => setTimeout(r, delayMs));
+            await sleepAbortable(delayMs, signal);
             continue; // Tenta novamente a mesma página
           }
 
@@ -438,9 +448,11 @@ async function scrapeConsultorDirect(options) {
           allRows
         });
         // Pausa preventiva de 1000ms (1 segundo) entre páginas
-        await new Promise(r => setTimeout(r, INTER_PAGE_DELAY_MS));
+        await sleepAbortable(INTER_PAGE_DELAY_MS, signal);
       }
     }
+
+    throwIfAborted(signal);
 
     // Deduplicação com base em Identificador.Cota ou chave única de contrato
     const seenKeys = new Set();
@@ -537,6 +549,13 @@ async function scrapeConsultorDirect(options) {
       steps
     };
   } catch (err) {
+    if (isAbortError(err) || (signal && signal.aborted)) {
+      clearCheckpoint(outPath, matricula);
+      addStep('[Consultor 🛑 Cancelado] Extração cancelada manualmente. Dados parciais e checkpoint descartados.');
+      const cancelErr = new JobCancelledError();
+      cancelErr.steps = steps;
+      throw cancelErr;
+    }
     if (!err.steps) err.steps = steps;
     throw err;
   }

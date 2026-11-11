@@ -3,6 +3,7 @@ const path = require('path');
 const { scrapeWithReauth } = require('./extractor');
 const { getOrFetchTokens, AuthError } = require('./auth');
 const { scrapeConsultorDirect } = require('./extractorConsultor');
+const { isAbortError, throwIfAborted } = require('./cancellationHelper');
 
 /**
  * Normalizes input date parameter into an array of date strings (YYYY-MM or YYYY-MM-DD or null).
@@ -100,6 +101,25 @@ function countEffectiveRows(csvText, rowsArray) {
  * @param {number} [params.maxReauthRetries=3] - Maximum automatic reauth attempts
  * @returns {Promise<object>} - Structured result of the scrape run
  */
+function buildCancelledResult(baseResult, err) {
+  const cancelMsg = (err && err.message) || 'Extração cancelada manualmente pelo usuário.';
+  return {
+    ...baseResult,
+    status: 'Cancelled',
+    rowCount: 0,
+    csv: '',
+    rows: [],
+    fileRelativePath: null,
+    isPartial: false,
+    error: cancelMsg,
+    authStatus: 'cancelled',
+    authMessage: cancelMsg,
+    powerbiLoaded: false,
+    loginSuccess: baseResult.loginSuccess,
+    authSteps: (err && Array.isArray(err.steps)) ? err.steps : (baseResult.authSteps || [])
+  };
+}
+
 async function runScrapeJob(params) {
   if (!params || typeof params !== 'object') {
     throw new Error('Invalid runScrapeJob parameters: expected an object');
@@ -114,7 +134,8 @@ async function runScrapeJob(params) {
     scrapeDates: reqScrapeDates,
     scrapeType = 'geral',
     outputDir = './outputs',
-    maxReauthRetries = 3
+    maxReauthRetries = 3,
+    signal = null
   } = params;
 
   if (!matricula || !password) {
@@ -143,11 +164,13 @@ async function runScrapeJob(params) {
   // Branch for Consultor direct extraction
   if (String(scrapeType).toLowerCase() === 'consultor') {
     try {
+      throwIfAborted(signal);
       const consultorRes = await scrapeConsultorDirect({
         matricula,
         password,
         scrapeDates: targetDates,
-        outputDir
+        outputDir,
+        signal
       });
 
       result.status = consultorRes.status || 'Succeeded';
@@ -172,6 +195,9 @@ async function runScrapeJob(params) {
 
       return result;
     } catch (err) {
+      if (isAbortError(err) || (signal && signal.aborted)) {
+        return buildCancelledResult(result, err);
+      }
       result.status = 'Failed';
       result.error = err.message || 'Falha no scrape de Consultor';
       const isWrongPassword = err.authStatus === 'wrong-password' ||
@@ -199,13 +225,15 @@ async function runScrapeJob(params) {
 
   try {
     for (const targetDate of targetDates) {
+      throwIfAborted(signal);
       const scrapeRes = await scrapeWithReauth(
         store || '',
         matricula,
         password,
         targetDate,
         getOrFetchTokens,
-        maxReauthRetries
+        maxReauthRetries,
+        signal
       );
 
       if (scrapeRes.detectedStore) {
@@ -244,6 +272,9 @@ async function runScrapeJob(params) {
 
     return result;
   } catch (err) {
+    if (isAbortError(err) || (signal && signal.aborted)) {
+      return buildCancelledResult(result, err);
+    }
     const isWrongPassword = err.authStatus === 'wrong-password' ||
       err.name === 'AuthError' ||
       err instanceof AuthError ||

@@ -28,6 +28,7 @@ import {
   IconRefresh,
   IconListDetails,
   IconAlertTriangle,
+  IconPlayerStop,
   IconX
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
@@ -69,7 +70,20 @@ interface ScrapeRunDetailPageProps {
 const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
   const [detail, setDetail] = useState<ScrapeRunDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancellingRun, setCancellingRun] = useState(false);
+  const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
   const [selectedJobSteps, setSelectedJobSteps] = useState<{ job: ScrapeJob; steps: string[] } | null>(null);
+
+  const isSuperAdmin = (() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) return false;
+      const parsed = JSON.parse(userStr);
+      return String(parsed?.role || '').toLowerCase() === 'superadmin';
+    } catch {
+      return false;
+    }
+  })();
 
   const fetchDetail = useCallback(async () => {
     try {
@@ -93,6 +107,66 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
     }
   }, [runId, fetchDetail]);
 
+  useEffect(() => {
+    if (!detail || (detail.finalStatus !== 'Running' && detail.finalStatus !== 'Pending')) return;
+    const timer = setInterval(() => {
+      scrapeService.getRunDetail(runId).then((data) => {
+        setDetail(data);
+      }).catch(() => {});
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [runId, detail]);
+
+  const handleCancelRun = async () => {
+    if (!window.confirm('Tem certeza que deseja cancelar toda esta execução? Os dados parciais e checkpoints serão descartados.')) {
+      return;
+    }
+    try {
+      setCancellingRun(true);
+      await scrapeService.cancelRun(runId);
+      notifications.show({
+        title: 'Cancelamento Solicitado',
+        message: 'Execução cancelada. O robô será interrompido em instantes.',
+        color: 'orange',
+        icon: <IconPlayerStop size={16} />
+      });
+      await fetchDetail();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erro ao Cancelar',
+        message: error.response?.data?.message || error.message || 'Falha ao cancelar execução',
+        color: 'red'
+      });
+    } finally {
+      setCancellingRun(false);
+    }
+  };
+
+  const handleCancelJob = async (jobId: string) => {
+    if (!window.confirm('Tem certeza que deseja cancelar este job? Os dados parciais e checkpoints serão descartados.')) {
+      return;
+    }
+    try {
+      setCancellingJobId(jobId);
+      await scrapeService.cancelJob(jobId);
+      notifications.show({
+        title: 'Job Cancelado',
+        message: 'Cancelamento enviado ao robô.',
+        color: 'orange',
+        icon: <IconPlayerStop size={16} />
+      });
+      await fetchDetail();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erro ao Cancelar',
+        message: error.response?.data?.message || error.message || 'Falha ao cancelar job',
+        color: 'red'
+      });
+    } finally {
+      setCancellingJobId(null);
+    }
+  };
+
   const handleBack = () => {
     window.location.hash = '#/scrapes/historial';
   };
@@ -107,6 +181,8 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
         return <Badge color="green" variant="light">Sucesso</Badge>;
       case 'Failed':
         return <Badge color="red" variant="light">Falha</Badge>;
+      case 'Cancelled':
+        return <Badge color="orange" variant="filled">Cancelado</Badge>;
       default:
         return <Badge color="gray">{status}</Badge>;
     }
@@ -118,6 +194,8 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
         return <Badge color="green" size="lg" variant="filled">Sucesso Total</Badge>;
       case 'Failed':
         return <Badge color="red" size="lg" variant="filled">Falha</Badge>;
+      case 'Cancelled':
+        return <Badge color="orange" size="lg" variant="filled">Cancelado</Badge>;
       case 'Running':
         return <Badge color="blue" size="lg" variant="filled">Executando...</Badge>;
       case 'Pending':
@@ -128,6 +206,9 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
   };
 
   const getAuthStatusBadge = (authStatus?: string, jobStatus?: string) => {
+    if (authStatus === 'cancelled' || jobStatus === 'Cancelled') {
+      return <Badge color="orange" variant="light" size="xs">Cancelado</Badge>;
+    }
     if (authStatus === 'success') {
       return <Badge color="green" variant="dot" size="xs">Autenticação OK</Badge>;
     }
@@ -184,6 +265,10 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
             <Text c="red" size="xs" lineClamp={2} title={job.errorMessage || job.authMessage || 'Erro na extração'}>
               {job.errorMessage || job.authMessage || 'Erro na extração'}
             </Text>
+          ) : job.status === 'Cancelled' ? (
+            <Text c="orange" size="xs" lineClamp={2} title={job.errorMessage || job.authMessage || 'Extração cancelada manualmente'}>
+              {job.errorMessage || job.authMessage || 'Extração cancelada manualmente'}
+            </Text>
           ) : job.status === 'Succeeded' ? (
             <Group gap="xs">
               <IconCheck size={16} color="green" />
@@ -191,6 +276,19 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
             </Group>
           ) : (
             <Text size="xs" c="dimmed">-</Text>
+          )}
+
+          {isSuperAdmin && (job.status === 'Running' || job.status === 'Pending') && (
+            <Button
+              size="compact-xs"
+              variant="filled"
+              color="orange"
+              leftSection={<IconPlayerStop size={12} />}
+              onClick={() => handleCancelJob(job.jobId)}
+              loading={cancellingJobId === job.jobId}
+            >
+              Cancelar Job
+            </Button>
           )}
 
           {job.authSteps && job.authSteps.length > 0 ? (
@@ -245,15 +343,28 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
               Voltar ao Histórico
             </Button>
           </Group>
-          <Button
-            variant="light"
-            color="gray"
-            leftSection={<IconRefresh size={18} />}
-            onClick={fetchDetail}
-            loading={loading}
-          >
-            Atualizar
-          </Button>
+          <Group gap="sm">
+            {isSuperAdmin && detail && (detail.finalStatus === 'Running' || detail.finalStatus === 'Pending') && (
+              <Button
+                variant="filled"
+                color="orange"
+                leftSection={<IconPlayerStop size={16} />}
+                onClick={handleCancelRun}
+                loading={cancellingRun}
+              >
+                Cancelar Execução
+              </Button>
+            )}
+            <Button
+              variant="light"
+              color="gray"
+              leftSection={<IconRefresh size={18} />}
+              onClick={fetchDetail}
+              loading={loading}
+            >
+              Atualizar
+            </Button>
+          </Group>
         </Group>
 
         {detail && (

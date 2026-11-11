@@ -43,12 +43,16 @@ namespace SalesApp.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _callbackBaseUrl;
+        private readonly string? _workerSecret;
 
         public PbiScraperClient(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
             _httpClient.Timeout = TimeSpan.FromSeconds(300);
             _callbackBaseUrl = configuration["PbiScraper:CallbackBaseUrl"] ?? "http://salesapp-api:5000";
+            _workerSecret = configuration["PbiScraper:WorkerSecret"]
+                         ?? configuration["WORKER_SECRET"]
+                         ?? Environment.GetEnvironmentVariable("WORKER_SECRET");
         }
 
         public async Task<string> EnqueueJobAsync(string jobId, string userId, string store, string matricula, string? avaproUsername = null, string? avaproPassword = null, string? runId = null, string? scrapeDate = null, string? scrapeType = null, string? outputMode = null)
@@ -119,6 +123,28 @@ namespace SalesApp.Services
             catch (Exception ex)
             {
                 return (false, false, $"Erro ao conectar no serviço do scraper: {ex.Message}", new List<string> { $"[Erro de Conexão] {ex.Message}" }, null, null);
+            }
+        }
+
+        public virtual async Task<bool> CancelJobAsync(string jobId)
+        {
+            if (string.IsNullOrWhiteSpace(jobId)) return false;
+
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"/jobs/{Uri.EscapeDataString(jobId)}/cancel");
+                if (!string.IsNullOrWhiteSpace(_workerSecret))
+                {
+                    request.Headers.Add("X-Worker-Secret", _workerSecret.Trim());
+                }
+
+                var response = await _httpClient.SendAsync(request, cts.Token);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
             }
         }
     }

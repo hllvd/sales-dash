@@ -2,6 +2,7 @@ using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Collections.Concurrent;
 using System.Globalization;
 
 namespace SalesApp.Services
@@ -82,6 +83,8 @@ namespace SalesApp.Services
         Task<List<ScrapeRunSummary>> GetRunsByUserAsync(Guid userId, int limit = 100);
         Task<List<ScrapeRunSummary>> GetAllRunsAsync(int limit = 200);
         Task<ScrapeRunDetail?> GetRunDetailAsync(string runId, Guid? userId = null);
+        Task SignalCancelJobAsync(string jobId, string? runId = null, string? cancelledByEmail = null);
+        Task<bool> IsJobCancelledAsync(string jobId);
     }
 
     public class ScrapeDynamoLogService : IScrapeDynamoLogService
@@ -90,6 +93,7 @@ namespace SalesApp.Services
         private readonly string _tableName;
         private readonly int _logRetentionDays;
         private readonly ILogger<ScrapeDynamoLogService> _logger;
+        private static readonly ConcurrentDictionary<string, DateTime> _cancelledJobsMemory = new();
 
         public ScrapeDynamoLogService(IAmazonDynamoDB dynamoDb, IConfiguration configuration, ILogger<ScrapeDynamoLogService> logger)
         {
@@ -170,6 +174,82 @@ namespace SalesApp.Services
             {
                 _logger.LogError(ex, $"Failed to write job status to DynamoDB table '{_tableName}'");
             }
+        }
+
+        public async Task SignalCancelJobAsync(string jobId, string? runId = null, string? cancelledByEmail = null)
+        {
+            if (string.IsNullOrWhiteSpace(jobId)) return;
+
+            var normalizedJobId = jobId.Trim();
+            _cancelledJobsMemory[normalizedJobId] = DateTime.UtcNow;
+
+            var ttlSeconds = DateTimeOffset.UtcNow.AddHours(24).ToUnixTimeSeconds();
+            var item = new Dictionary<string, AttributeValue>
+            {
+                { "PK", new AttributeValue { S = $"CANCEL#JOB#{normalizedJobId}" } },
+                { "SK", new AttributeValue { S = "SIGNAL" } },
+                { "JobId", new AttributeValue { S = normalizedJobId } },
+                { "CancelledAt", new AttributeValue { S = DateTime.UtcNow.ToString("O") } },
+                { "TTL", new AttributeValue { N = ttlSeconds.ToString() } }
+            };
+
+            if (!string.IsNullOrWhiteSpace(runId))
+            {
+                item["RunId"] = new AttributeValue { S = runId.Trim() };
+            }
+            if (!string.IsNullOrWhiteSpace(cancelledByEmail))
+            {
+                item["CancelledBy"] = new AttributeValue { S = cancelledByEmail.Trim() };
+            }
+
+            try
+            {
+                await _dynamoDb.PutItemAsync(_tableName, item);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to persist cancel signal for JobId {JobId} in DynamoDB '{Table}'. In-memory cancel signal remains active.", normalizedJobId, _tableName);
+            }
+        }
+
+        public async Task<bool> IsJobCancelledAsync(string jobId)
+        {
+            if (string.IsNullOrWhiteSpace(jobId)) return false;
+
+            var normalizedJobId = jobId.Trim();
+            if (_cancelledJobsMemory.TryGetValue(normalizedJobId, out var cancelledAt))
+            {
+                if (DateTime.UtcNow - cancelledAt < TimeSpan.FromHours(24))
+                {
+                    return true;
+                }
+                _cancelledJobsMemory.TryRemove(normalizedJobId, out _);
+            }
+
+            try
+            {
+                var response = await _dynamoDb.GetItemAsync(new GetItemRequest
+                {
+                    TableName = _tableName,
+                    Key = new Dictionary<string, AttributeValue>
+                    {
+                        { "PK", new AttributeValue { S = $"CANCEL#JOB#{normalizedJobId}" } },
+                        { "SK", new AttributeValue { S = "SIGNAL" } }
+                    }
+                });
+
+                if (response.IsItemSet && response.Item != null && response.Item.Count > 0)
+                {
+                    _cancelledJobsMemory[normalizedJobId] = DateTime.UtcNow;
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to check cancel signal for JobId {JobId} in DynamoDB.", normalizedJobId);
+            }
+
+            return false;
         }
 
         public async Task<List<ScrapeLogEntry>> GetJobsByUserAsync(Guid userId, int limit = 50)
@@ -347,6 +427,7 @@ namespace SalesApp.Services
                 .Select(g =>
                 {
                     var entry = g.OrderByDescending(j => j.RowCount > 0 ? 1 : 0)
+                                 .ThenByDescending(j => GetStatusPriority(j.Status))
                                  .ThenByDescending(j => j.CompletedAt ?? j.CreatedAt)
                                  .First();
 
@@ -491,11 +572,23 @@ namespace SalesApp.Services
             return grouped;
         }
 
-        private static string ComputeFinalStatus(List<ScrapeLogEntry> jobs)
+        private static int GetStatusPriority(string? status) => status switch
         {
-            if (jobs.Any(j => j.Status == "Failed")) return "Failed";
+            "Cancelled" => 3,
+            "Succeeded" => 3,
+            "Failed" => 3,
+            "AwaitingImport" => 2,
+            "Running" => 1,
+            "Pending" => 0,
+            _ => 0
+        };
+
+        public static string ComputeFinalStatus(List<ScrapeLogEntry> jobs)
+        {
             if (jobs.Any(j => j.Status == "Running")) return "Running";
             if (jobs.Any(j => j.Status == "Pending")) return "Pending";
+            if (jobs.Any(j => j.Status == "Cancelled")) return "Cancelled";
+            if (jobs.Any(j => j.Status == "Failed")) return "Failed";
             if (jobs.All(j => j.Status == "Succeeded")) return "Succeeded";
             return "Unknown";
         }

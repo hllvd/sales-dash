@@ -8,11 +8,13 @@ const path = require('path');
 const puppeteer = require('puppeteer');
 const { AuthError, detectLoginErrorText } = require('./auth');
 const { hashPassword } = require('./tokenManager');
+const { JobCancelledError, isAbortError, throwIfAborted } = require('./cancellationHelper');
 
 const AVA_URL = 'https://avapro.ademicon.com.br/';
 const DASHBOARD_CONSULTOR_URL = 'https://avapro.ademicon.com.br/dashboard/consultor';
 
-async function captureTemplate(matricula, password, stepLogger = null) {
+async function captureTemplate(matricula, password, stepLogger = null, signal = null) {
+  throwIfAborted(signal);
   const addStep = (msg) => {
     const line = `[${new Date().toLocaleTimeString('pt-BR')}] ${msg}`;
     console.log(line);
@@ -43,6 +45,13 @@ async function captureTemplate(matricula, password, stepLogger = null) {
       '--allow-running-insecure-content',
     ]
   });
+
+  const onAbort = () => {
+    browser.close().catch(() => {});
+  };
+  if (signal) {
+    signal.addEventListener('abort', onAbort, { once: true });
+  }
 
   let capturedTemplate = fs.existsSync(tplFile);
   let capturedToken = null;
@@ -265,8 +274,16 @@ async function captureTemplate(matricula, password, stepLogger = null) {
       templatePath: tplFile,
       token: capturedToken
     };
+  } catch (err) {
+    if (isAbortError(err) || (signal && signal.aborted)) {
+      throw new JobCancelledError();
+    }
+    throw err;
   } finally {
-    await browser.close();
+    if (signal) {
+      signal.removeEventListener('abort', onAbort);
+    }
+    await browser.close().catch(() => {});
     addStep('[Capture] Navegador Puppeteer fechado.');
   }
 }

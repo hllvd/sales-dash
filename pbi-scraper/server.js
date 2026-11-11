@@ -11,6 +11,8 @@ const { getOrFetchTokens, AuthError } = require('./auth');
 const tokenManager = require('./tokenManager');
 const { uploadToS3 } = require('./s3Uploader');
 const { publishToQueue } = require('./sqsPublisher');
+const { isAbortError } = require('./cancellationHelper');
+const { clearCheckpoint } = require('./checkpointManager');
 
 const app = express();
 app.use(express.json());
@@ -58,6 +60,34 @@ if (!fs.existsSync(OUTPUT_DIR)) {
 // Queue for concurrency control (default concurrency: 1 to avoid competing browser sessions)
 const scraperConcurrency = parseInt(process.env.SCRAPER_CONCURRENCY || '1', 10);
 const queue = new PQueue({ concurrency: scraperConcurrency });
+const activeJobControllers = new Map();
+const cancelledJobsSet = new Set();
+
+app.post('/jobs/:jobId/cancel', (req, res) => {
+  const expectedSecret = (process.env.WORKER_SECRET || '').trim();
+  if (expectedSecret) {
+    const provided = (req.headers['x-worker-secret'] || '').trim();
+    if (provided !== expectedSecret) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+
+  const { jobId } = req.params;
+  if (!jobId) {
+    return res.status(400).json({ error: 'Missing jobId' });
+  }
+
+  cancelledJobsSet.add(jobId);
+  const controller = activeJobControllers.get(jobId);
+  if (controller) {
+    console.log(`[Job ${jobId}] Cancelamento recebido. Abortando execução ativa...`);
+    controller.abort();
+    return res.json({ success: true, jobId, abortedInFlight: true });
+  }
+
+  console.log(`[Job ${jobId}] Cancelamento registrado para job pendente na fila.`);
+  return res.json({ success: true, jobId, abortedInFlight: false });
+});
 
 app.post('/jobs', (req, res) => {
   const {
@@ -95,6 +125,41 @@ app.post('/jobs', (req, res) => {
     const jobStartDate = new Date(jobStartTime);
     const passwordToUse = avaproPassword;
     const matriculaToUse = avaproUsername || matricula;
+
+    // Cooperative cancel check before starting
+    if (cancelledJobsSet.has(jobId)) {
+      cancelledJobsSet.delete(jobId);
+      clearCheckpoint(OUTPUT_DIR, matriculaToUse);
+      const cancelledResult = {
+        jobId,
+        userId: req.body.userId,
+        runId: req.body.runId,
+        status: 'Cancelled',
+        rowCount: 0,
+        fileRelativePath: null,
+        error: 'Extração cancelada manualmente antes de iniciar.',
+        authStatus: 'cancelled',
+        authMessage: 'Extração cancelada manualmente antes de iniciar.',
+        powerbiLoaded: false,
+        authSteps: ['[Cancelado] Job cancelado enquanto aguardava na fila.'],
+        scrapeDate: scrapeDates.filter(Boolean).join(',') || null,
+        store: store || (scrapeType === 'consultor' ? 'Consultor' : null),
+        matricula: matriculaToUse,
+        durationSeconds: 0,
+        durationFormatted: '0s',
+        startedAt: jobStartDate.toISOString(),
+        completedAt: new Date().toISOString()
+      };
+      try {
+        await axios.put(callbackUrl, cancelledResult, { headers: getWorkerAuthHeaders() });
+      } catch (cbErr) {
+        console.error(`[Job ${jobId}] Cancel callback failed:`, cbErr.message);
+      }
+      return;
+    }
+
+    const abortController = new AbortController();
+    activeJobControllers.set(jobId, abortController);
 
     // Circuit Breaker check: abort immediately if account failed or run is aborted to prevent Ava Pro lockout
     const isLocked = tokenManager.isAuthLocked(matriculaToUse);
@@ -169,7 +234,8 @@ app.post('/jobs', (req, res) => {
           matricula: matriculaToUse,
           password: passwordToUse,
           scrapeDates,
-          outputDir: OUTPUT_DIR
+          outputDir: OUTPUT_DIR,
+          signal: abortController.signal
         });
 
         result.status = consultorRes.status || 'Succeeded';
@@ -197,7 +263,8 @@ app.post('/jobs', (req, res) => {
             passwordToUse,
             targetDate,
             getOrFetchTokens,
-            3 // max 3 automatic re-auth retries
+            3, // max 3 automatic re-auth retries
+            abortController.signal
           );
 
           if (scrapeRes.detectedStore) {
@@ -263,33 +330,50 @@ app.post('/jobs', (req, res) => {
         }
       }
     } catch (err) {
-      console.error(`[Job ${jobId}] Failed:`, err.message);
-      
       const elapsedSec = Math.round((Date.now() - jobStartTime) / 1000);
       result.durationSeconds = result.durationSeconds || elapsedSec;
       result.durationFormatted = result.durationFormatted || (elapsedSec >= 60 ? `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s` : `${elapsedSec}s`);
       result.completedAt = new Date().toISOString();
 
-      if (err instanceof AuthError) {
-        result.authStatus = err.authStatus;
-        result.authMessage = err.authMessage;
-        result.powerbiLoaded = err.powerbiLoaded;
-        result.loginSuccess = err.loginSuccess || false;
-        result.authSteps = err.steps;
-
-        if (err.authStatus === 'wrong-password') {
-          console.warn(`[Job ${jobId}] Senha incorreta detectada ('wrong-password'). Acionando disjuntor para matrícula ${matriculaToUse}...`);
-          tokenManager.markAuthFailure(matriculaToUse, err.authMessage || err.message);
-          if (req.body.runId) {
-            tokenManager.abortRun(req.body.runId, err.authMessage || err.message);
-          }
+      if (isAbortError(err) || abortController.signal.aborted) {
+        console.warn(`[Job ${jobId}] Extração cancelada manualmente pelo usuário.`);
+        clearCheckpoint(OUTPUT_DIR, matriculaToUse);
+        result.status = 'Cancelled';
+        result.rowCount = 0;
+        result.fileRelativePath = null;
+        result.error = err.message || 'Extração cancelada manualmente pelo usuário.';
+        result.authStatus = 'cancelled';
+        result.authMessage = result.error;
+        if (err.steps) {
+          result.authSteps = [...(result.authSteps || []), ...err.steps];
         }
-      } else if (err.steps) {
-        result.authSteps = [...(result.authSteps || []), ...err.steps];
-      }
+      } else {
+        console.error(`[Job ${jobId}] Failed:`, err.message);
 
-      result.status = 'Failed';
-      result.error = err.authMessage || err.message;
+        if (err instanceof AuthError) {
+          result.authStatus = err.authStatus;
+          result.authMessage = err.authMessage;
+          result.powerbiLoaded = err.powerbiLoaded;
+          result.loginSuccess = err.loginSuccess || false;
+          result.authSteps = err.steps;
+
+          if (err.authStatus === 'wrong-password') {
+            console.warn(`[Job ${jobId}] Senha incorreta detectada ('wrong-password'). Acionando disjuntor para matrícula ${matriculaToUse}...`);
+            tokenManager.markAuthFailure(matriculaToUse, err.authMessage || err.message);
+            if (req.body.runId) {
+              tokenManager.abortRun(req.body.runId, err.authMessage || err.message);
+            }
+          }
+        } else if (err.steps) {
+          result.authSteps = [...(result.authSteps || []), ...err.steps];
+        }
+
+        result.status = 'Failed';
+        result.error = err.authMessage || err.message;
+      }
+    } finally {
+      activeJobControllers.delete(jobId);
+      cancelledJobsSet.delete(jobId);
     }
 
     // If successful and outputMode === 'sqs', upload CSV to S3 and publish to SQS

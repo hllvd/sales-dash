@@ -30,6 +30,7 @@ import {
   IconRefresh, 
   IconSettings, 
   IconPlayerPlay, 
+  IconPlayerStop,
   IconAlertCircle, 
   IconCheck, 
   IconPlus, 
@@ -219,7 +220,19 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
   const [validateOnSave, setValidateOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
+  const [cancellingRunId, setCancellingRunId] = useState<string | null>(null);
   const [testingAuth, setTestingAuth] = useState<number | null>(null);
+
+  const isSuperAdmin = (() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) return false;
+      const parsed = JSON.parse(userStr);
+      return String(parsed?.role || '').toLowerCase() === 'superadmin';
+    } catch {
+      return false;
+    }
+  })();
   const [testAuthModalData, setTestAuthModalData] = useState<{ open: boolean; success: boolean; message: string; steps: string[] }>({
     open: false,
     success: false,
@@ -255,6 +268,20 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Poll lightly every 15s while there are active runs so Running/Cancelled transitions update in real time
+  useEffect(() => {
+    const hasActiveRuns = (runs || []).some((r) => r.finalStatus === 'Running' || r.finalStatus === 'Pending');
+    if (!hasActiveRuns) return;
+
+    const timer = setInterval(() => {
+      scrapeService.getRuns().then((runsRes) => {
+        setRuns(runsRes || []);
+      }).catch(() => {});
+    }, 15000);
+
+    return () => clearInterval(timer);
+  }, [runs]);
 
   const handleOpenModal = (config?: ScrapeConfig) => {
     if (config) {
@@ -571,10 +598,42 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
     }
   };
 
+  const handleCancelRun = async (runId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (!window.confirm('Tem certeza que deseja cancelar esta extração em andamento? Os dados parciais e checkpoints serão descartados.')) {
+      return;
+    }
+
+    try {
+      setCancellingRunId(runId);
+      await scrapeService.cancelRun(runId);
+      notifications.show({
+        title: 'Cancelamento Solicitado',
+        message: 'A extração foi marcada como cancelada e o robô será interrompido em instantes.',
+        color: 'orange',
+        icon: <IconPlayerStop size={16} />
+      });
+      await fetchData();
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || error.message || 'Falha ao cancelar extração';
+      notifications.show({
+        title: 'Erro ao Cancelar',
+        message: errMsg,
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    } finally {
+      setCancellingRunId(null);
+    }
+  };
+
   const getFinalStatusBadge = (status: string) => {
     switch (status) {
       case 'Succeeded': return <Badge color="green" variant="filled">Sucesso Total</Badge>;
       case 'Failed': return <Badge color="red" variant="filled">Falha</Badge>;
+      case 'Cancelled': return <Badge color="orange" variant="filled">Cancelado</Badge>;
       case 'Running': return <Badge color="blue" variant="filled">Executando...</Badge>;
       case 'Pending': return <Badge color="gray" variant="filled">Pendente</Badge>;
       default: return <Badge color="gray">{status}</Badge>;
@@ -679,6 +738,11 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
   const configRows = configs.map((config) => {
     const startInfo = formatStartMonth(config.defaultStartMonth);
     const hasAuthError = config.credentialStatus === 'wrong-password';
+    const activeRun = (runs || []).find(
+      (r) =>
+        (r.finalStatus === 'Running' || r.finalStatus === 'Pending') &&
+        r.matriculas.includes(config.matricula)
+    );
     return (
       <Table.Tr key={config.id} style={hasAuthError ? { backgroundColor: 'var(--mantine-color-red-0)' } : undefined}>
         <Table.Td>
@@ -696,6 +760,11 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
               <Badge color="gray" variant="light">Local (VPS)</Badge>
             )}
             {renderScheduleBadge(config)}
+            {activeRun && (
+              <Badge color="blue" variant="filled" size="sm">
+                {activeRun.finalStatus === 'Pending' ? 'Na fila...' : 'Executando...'}
+              </Badge>
+            )}
           </Group>
         </Table.Td>
         <Table.Td>
@@ -750,6 +819,19 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
             >
               Extrair
             </Button>
+            {isSuperAdmin && activeRun && (
+              <Button
+                data-testid="cancel-active-scrape-btn"
+                size="compact-xs"
+                variant="filled"
+                color="orange"
+                leftSection={<IconPlayerStop size={12} />}
+                onClick={(e) => handleCancelRun(activeRun.runId, e)}
+                loading={cancellingRunId === activeRun.runId}
+              >
+                Cancelar
+              </Button>
+            )}
           </Group>
         </Table.Td>
       </Table.Tr>
@@ -797,9 +879,24 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
         <Table.Td><Badge variant="light" color="blue" size="sm">{run.durationFormatted || '0s'}</Badge></Table.Td>
         <Table.Td><Text fw={600} size="sm">{run.totalRowCount}</Text></Table.Td>
         <Table.Td>
-          <Button size="compact-xs" variant="light" color="indigo">
-            Ver Detalhes
-          </Button>
+          <Group gap="xs" wrap="nowrap">
+            <Button size="compact-xs" variant="light" color="indigo">
+              Ver Detalhes
+            </Button>
+            {isSuperAdmin && (run.finalStatus === 'Running' || run.finalStatus === 'Pending') && (
+              <Button
+                data-testid="cancel-run-btn"
+                size="compact-xs"
+                variant="filled"
+                color="orange"
+                leftSection={<IconPlayerStop size={12} />}
+                onClick={(e) => handleCancelRun(run.runId, e)}
+                loading={cancellingRunId === run.runId}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Group>
         </Table.Td>
       </Table.Tr>
     );
@@ -923,6 +1020,7 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
                       { value: 'all', label: 'Todos os Status' },
                       { value: 'Succeeded', label: 'Sucesso Total' },
                       { value: 'Failed', label: 'Falha' },
+                      { value: 'Cancelled', label: 'Cancelado' },
                       { value: 'Running', label: 'Executando' },
                       { value: 'Pending', label: 'Pendente' },
                     ]}

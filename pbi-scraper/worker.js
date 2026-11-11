@@ -11,10 +11,12 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand, ChangeMessageVisibilityCommand } = require('@aws-sdk/client-sqs');
+const { DynamoDBClient, GetItemCommand } = require('@aws-sdk/client-dynamodb');
 const { runScrapeJob } = require('./scrape');
 const { decryptField } = require('./crypto');
 const { uploadToS3 } = require('./s3Uploader');
 const { publishToQueue } = require('./sqsPublisher');
+const { clearCheckpoint } = require('./checkpointManager');
 const tokenManager = require('./tokenManager');
 
 // Configuration
@@ -31,6 +33,8 @@ const SCALE_TO_ZERO = RESULTS_CONSUMER_MODE ? false : process.env.SCALE_TO_ZERO 
 const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || '300000', 10); // 5 minutes default (300,000 ms)
 const LOCK_FILE_PATH = process.env.LOCK_FILE_PATH || '/tmp/worker.lock';
 const MOCK_QUEUE_FILE = path.join(OUTPUT_DIR, 'mock_queue.json');
+const DYNAMODB_TABLE = (process.env.DYNAMODB_TABLE || '').trim() ||
+  ((SQS_JOBS_QUEUE_URL.includes('dev-') || process.env.NODE_ENV === 'development') ? 'dev-pbi_scrape_logs' : 'pbi_scrape_logs');
 
 function getWorkerAuthHeaders() {
   const secret = (process.env.WORKER_SECRET || '').trim();
@@ -40,6 +44,24 @@ function getWorkerAuthHeaders() {
 let shuttingDown = false;
 let isProcessing = false;
 let sqsClient = null;
+const dynamoClient = new DynamoDBClient({ region: AWS_REGION });
+
+async function isJobCancelledInDynamo(jobId) {
+  if (!jobId) return false;
+  try {
+    const resp = await dynamoClient.send(new GetItemCommand({
+      TableName: DYNAMODB_TABLE,
+      Key: {
+        PK: { S: `CANCEL#JOB#${jobId}` },
+        SK: { S: 'SIGNAL' }
+      }
+    }));
+    return Boolean(resp && resp.Item);
+  } catch (err) {
+    log('WARN', `Failed to check cancel signal in DynamoDB (${DYNAMODB_TABLE}) for ${jobId}: ${err.message}`, { jobId });
+    return false;
+  }
+}
 
 // Ensure output directory exists
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -348,6 +370,43 @@ async function processMessage(rawMessage) {
 
   log('INFO', `Starting ${scrapeType} scrape processing for job ${jobId}`, { jobId, runId, matricula, store, scrapeDate, scrapeType });
 
+  // Cooperative pre-flight cancel check before decrypting/launching browser
+  if (await isJobCancelledInDynamo(jobId)) {
+    log('WARN', `Job ${jobId} was already cancelled before starting. Discarding from jobs queue.`, { jobId, runId, matricula });
+    clearCheckpoint(OUTPUT_DIR, payload.avaproUsername || matricula);
+
+    if (SQS_RESULTS_QUEUE_URL) {
+      try {
+        await publishToQueue(SQS_RESULTS_QUEUE_URL, {
+          jobId,
+          runId,
+          userId,
+          s3Bucket: null,
+          s3Key: null,
+          rowCount: 0,
+          matricula,
+          store,
+          scrapeDate,
+          scrapeType,
+          status: 'Cancelled',
+          isPartial: false,
+          error: 'Extração cancelada manualmente antes de iniciar.',
+          authStatus: 'cancelled',
+          authMessage: 'Extração cancelada manualmente antes de iniciar.',
+          powerbiLoaded: false,
+          authSteps: ['[Cancelado] Mensagem descartada antes da execução pois o job já havia sido cancelado.'],
+          completedAt: new Date().toISOString(),
+          timestamp: new Date().toISOString()
+        });
+      } catch (pubErr) {
+        log('WARN', `Failed to publish pre-start cancel notification for ${jobId}: ${pubErr.message}`, { jobId });
+      }
+    }
+
+    await deleteMessage(receiptHandle);
+    return;
+  }
+
   let credentials;
   try {
     credentials = resolveCredentials(payload);
@@ -477,6 +536,16 @@ async function processMessage(rawMessage) {
     extendMessageVisibility(receiptHandle, 900);
   }, 120000); // a cada 2 minutos
 
+  // Cooperative cancellation poller checking DynamoDB signal every 8s
+  const abortController = new AbortController();
+  const cancelPollInterval = setInterval(async () => {
+    if (abortController.signal.aborted) return;
+    if (await isJobCancelledInDynamo(jobId)) {
+      log('WARN', `Cancelamento detectado no DynamoDB para job ${jobId}. Abortando execução...`, { jobId, runId, matricula: matriculaToUse });
+      abortController.abort();
+    }
+  }, 8000);
+
   // Execute Scraping
   let scrapeResult;
   try {
@@ -489,15 +558,23 @@ async function processMessage(rawMessage) {
       scrapeDates,
       scrapeType,
       outputDir: OUTPUT_DIR,
-      maxReauthRetries: 3
+      maxReauthRetries: 3,
+      signal: abortController.signal
     });
   } catch (err) {
     clearInterval(heartbeatInterval);
+    clearInterval(cancelPollInterval);
     log('ERROR', `Unexpected exception in runScrapeJob for ${jobId}: ${err.message}`, { jobId });
     // Let message retry via SQS visibility timeout on transient crash
     return;
   } finally {
     clearInterval(heartbeatInterval);
+    clearInterval(cancelPollInterval);
+  }
+
+  if (scrapeResult.status === 'Cancelled') {
+    clearCheckpoint(OUTPUT_DIR, matriculaToUse);
+    log('INFO', `Job ${jobId} cancelled cleanly. Partial data and checkpoint discarded.`, { jobId, runId, matricula: matriculaToUse });
   }
 
   if (scrapeResult.authStatus === 'wrong-password') {
@@ -618,8 +695,8 @@ async function processMessage(rawMessage) {
     }
   }
 
-  // If scrape succeeded, partial succeeded, or failed cleanly with AuthError, delete message from jobs queue
-  if (scrapeResult.status === 'Succeeded' || scrapeResult.status === 'PartialSuccess' || scrapeResult.authStatus === 'error' || scrapeResult.authStatus === 'wrong-password' || scrapeResult.loginSuccess === false) {
+  // If scrape succeeded, partial succeeded, cancelled, or failed cleanly with AuthError, delete message from jobs queue
+  if (scrapeResult.status === 'Succeeded' || scrapeResult.status === 'PartialSuccess' || scrapeResult.status === 'Cancelled' || scrapeResult.authStatus === 'error' || scrapeResult.authStatus === 'wrong-password' || scrapeResult.loginSuccess === false) {
     try {
       await deleteMessage(receiptHandle);
       log('INFO', `Job ${jobId} finished and message deleted from jobs queue`, { jobId });

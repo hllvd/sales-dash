@@ -198,6 +198,46 @@ namespace SalesApp.Services
                 var importService = scope.ServiceProvider.GetRequiredService<IScrapeImportService>();
                 var logService = scope.ServiceProvider.GetRequiredService<IScrapeDynamoLogService>();
 
+                var isCancelled = string.Equals(status, "Cancelled", StringComparison.OrdinalIgnoreCase)
+                               || (!string.IsNullOrEmpty(jobId) && await logService.IsJobCancelledAsync(jobId));
+
+                if (isCancelled)
+                {
+                    _logger.LogInformation(
+                        "SqsResultBackgroundConsumerService: Job {JobId} (RunId: {RunId}, Matricula: {Matricula}) is cancelled. Discarding result without importing CSV.",
+                        jobId ?? "N/A", runId ?? "N/A", matricula ?? "N/A");
+
+                    if (!string.IsNullOrEmpty(jobId))
+                    {
+                        var cancelMessage = !string.IsNullOrWhiteSpace(error) ? error : (!string.IsNullOrWhiteSpace(authMessage) && authMessage != "Autenticação bem-sucedida" ? authMessage : "Extração cancelada manualmente.");
+                        await logService.WriteJobStatusAsync(
+                            jobId: jobId,
+                            userId: userId?.ToString() ?? rawUserId ?? string.Empty,
+                            status: "Cancelled",
+                            store: store ?? string.Empty,
+                            matricula: matricula ?? string.Empty,
+                            runId: runId,
+                            userEmail: null,
+                            additionalData: new
+                            {
+                                RowCount = 0,
+                                ErrorMessage = cancelMessage,
+                                ScrapeDate = scrapeDate,
+                                DurationFormatted = durationFormatted,
+                                DurationSeconds = durationSeconds,
+                                AuthStatus = "cancelled",
+                                AuthMessage = cancelMessage,
+                                PowerBiLoaded = powerBiLoaded,
+                                AuthSteps = authSteps,
+                                CompletedAt = completedAt
+                            }
+                        );
+                    }
+
+                    await _sqs.DeleteMessageAsync(_queueUrl, message.ReceiptHandle, stoppingToken);
+                    return;
+                }
+
                 // Handle failed scrape jobs (such as authentication or wrong password failures)
                 if (status == "Failed")
                 {

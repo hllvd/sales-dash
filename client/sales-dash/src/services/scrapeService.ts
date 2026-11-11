@@ -132,5 +132,13 @@ export const scrapeService = {
 
     triggerScrape: async (configId: number, startMonth?: string, monthsCount: number = 3, scrapeType?: 'geral' | 'consultor'): Promise<{ jobId: string; runId: string; jobIds?: string[] }> => {
         return apiService.post(`${ENDPOINT_PREFIX}/jobs/${configId}`, { startMonth, monthsCount, scrapeType });
+    },
+
+    cancelRun: async (runId: string): Promise<{ success: boolean; cancelledCount: number; runId: string }> => {
+        return apiService.post(`${ENDPOINT_PREFIX}/runs/${encodeURIComponent(runId)}/cancel`, {});
+    },
+
+    cancelJob: async (jobId: string): Promise<{ success: boolean; jobId: string }> => {
+        return apiService.post(`${ENDPOINT_PREFIX}/jobs/${encodeURIComponent(jobId)}/cancel`, {});
     }
 };
