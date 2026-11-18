@@ -74,11 +74,11 @@ namespace SalesApp.Tests.CareerPlan
         }
 
         [Theory]
-        [InlineData("2026-08-10", "2026-10-15", 2)] // 2 full months
-        [InlineData("2026-08-20", "2026-10-15", 1)] // Day 20 > 15 -> only 1 full month
-        [InlineData("2026-09-15", "2026-10-15", 1)] // Exactly 1 full month
-        [InlineData("2026-07-01", "2026-10-15", 3)] // 3 full months
-        [InlineData("2026-10-20", "2026-10-15", 0)] // Sale after reference date
+        [InlineData("2026-08-10", "2026-10-15", 2)] // 2 full calendar months (Aug to Oct)
+        [InlineData("2026-08-20", "2026-10-15", 2)] // Entire month of Aug counts
+        [InlineData("2026-09-15", "2026-10-15", 1)] // 1 month (Sep to Oct)
+        [InlineData("2026-07-01", "2026-10-15", 3)] // 3 full months (Jul to Oct)
+        [InlineData("2026-10-20", "2026-10-15", 0)] // Same month
         public void CalculateAgeMonths_ComputesFullMonthsAccurately(string saleStr, string refStr, int expectedMonths)
         {
             var sale = DateTime.Parse(saleStr).ToUniversalTime();
@@ -86,6 +86,21 @@ namespace SalesApp.Tests.CareerPlan
 
             var age = CareerReferenceDate.CalculateAgeMonths(sale, reference);
             age.Should().Be(expectedMonths);
+        }
+
+        [Theory]
+        [InlineData("2026-10-08", "2026-11-15", 2)] // Oct sale on Nov 15 -> 2 installments (RT1, RT2)
+        [InlineData("2026-10-15", "2026-11-15", 2)] // Oct sale on Nov 15 -> 2 installments (RT1, RT2)
+        [InlineData("2026-10-31", "2026-11-15", 2)] // Oct sale on Nov 15 -> 2 installments (RT1, RT2)
+        [InlineData("2026-11-05", "2026-11-15", 1)] // Nov sale on Nov 15 -> 1 installment (RT1)
+        [InlineData("2026-09-10", "2026-11-15", 3)] // Sep sale on Nov 15 -> 3 installments (RT1..3)
+        public void CalculateDueInstallments_ComputesInstallmentsAccurately(string saleStr, string refStr, int expected)
+        {
+            var sale = DateTime.Parse(saleStr).ToUniversalTime();
+            var reference = DateTime.Parse(refStr).ToUniversalTime();
+
+            var due = CareerReferenceDate.CalculateDueInstallments(sale, reference);
+            due.Should().Be(expected);
         }
     }
 }

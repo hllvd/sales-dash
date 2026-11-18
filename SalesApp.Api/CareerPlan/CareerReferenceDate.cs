@@ -41,19 +41,33 @@ namespace SalesApp.CareerPlan
         }
 
         /// <summary>
-        /// Pure function to compute the number of full months elapsed between contract SaleStartDate and referenceDate.
+        /// Pure function computing the number of due installments based on the sale month
+        /// and the reference date (closing day 15).
+        /// In consórcio, every contract pays installment 1 at sale closing in the sale month.
+        /// In each subsequent month after closing (day 15), an additional installment matures.
+        /// Example: sale in Oct/2026 (08/10, 15/10, 31/10), reference 15/11/2026 -> 2 installments (RT1 and RT2).
+        /// </summary>
+        public static int CalculateDueInstallments(DateTime saleDate, DateTime referenceDate)
+        {
+            var saleUtc = DateTime.SpecifyKind(saleDate.Date, DateTimeKind.Utc);
+            var refUtc = DateTime.SpecifyKind(referenceDate.Date, DateTimeKind.Utc);
+
+            int monthDiff = (refUtc.Year - saleUtc.Year) * 12 + refUtc.Month - saleUtc.Month;
+            if (monthDiff < 0) return 0;
+
+            return monthDiff + 1;
+        }
+
+        /// <summary>
+        /// Pure function to compute the number of full calendar months elapsed between contract sale month and reference month.
         /// </summary>
         public static int CalculateAgeMonths(DateTime saleDate, DateTime referenceDate)
         {
-            if (saleDate > referenceDate) return 0;
+            var saleUtc = DateTime.SpecifyKind(saleDate.Date, DateTimeKind.Utc);
+            var refUtc = DateTime.SpecifyKind(referenceDate.Date, DateTimeKind.Utc);
 
-            int months = (referenceDate.Year - saleDate.Year) * 12 + referenceDate.Month - saleDate.Month;
-            if (saleDate.Day > referenceDate.Day)
-            {
-                months--;
-            }
-
-            return Math.Max(0, months);
+            int monthDiff = (refUtc.Year - saleUtc.Year) * 12 + refUtc.Month - saleUtc.Month;
+            return Math.Max(0, monthDiff);
         }
     }
 }

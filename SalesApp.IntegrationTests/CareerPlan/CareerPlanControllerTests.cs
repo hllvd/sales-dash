@@ -200,16 +200,16 @@ namespace SalesApp.IntegrationTests.CareerPlan
             retentionReq.TargetValue.Should().Be(0.79m);
             retentionReq.Progress.Should().Be(1m);
 
-            // CommercializedContracts: contract 1 qualifies (10M, 4 months old, Active, age >= 2) >= 10M meta. Contract 2 (1 month old, age < 2) is excluded.
+            // CommercializedContracts: contract 1 (10M, 4m old, age >= 2) and contract 2 (5M, sold in previous month, 2 installments >= 2) both qualify -> 15M >= 10M meta.
             var prodReq = evalResult.Data.Requirements.First(r => r.Metric == "CommercializedContracts");
             prodReq.Passed.Should().BeTrue();
-            prodReq.CurrentValue.Should().Be(10_000_000m);
+            prodReq.CurrentValue.Should().Be(15_000_000m);
             prodReq.Progress.Should().Be(1m);
             prodReq.RawMetricKey.Should().Be("commercializedContracts12mMinAge2");
 
             // CommercializedContracts12mMinAge2 in raw metrics matches
-            evalResult.Data.RawMetrics.CommercializedContracts12mMinAge2.Should().Be(10_000_000m);
-            evalResult.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(10_000_000m);
+            evalResult.Data.RawMetrics.CommercializedContracts12mMinAge2.Should().Be(15_000_000m);
+            evalResult.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(15_000_000m);
 
             // 3. Now add Contract 3: 5 months old, Defaulted, R$ 15.000.000,00
             // This should drop strict retention on eligible contracts (15M active / 30M total = 50% < 79%), failing retention requirement.
@@ -234,11 +234,11 @@ namespace SalesApp.IntegrationTests.CareerPlan
             retentionReq2.Passed.Should().BeFalse("strict retention dropped to 50% which is below 79%");
             retentionReq2.CurrentValue.Should().Be(0.5m);
 
-            // Contract 3 is Defaulted with age 5 (>= 2), so CommercializedContracts includes it: 10M + 15M = 25M
+            // Contract 3 is Defaulted with age 5 (>= 2), so CommercializedContracts includes it: 15M + 15M = 30M
             var prodReq2 = evalResult2.Data.Requirements.First(r => r.Metric == "CommercializedContracts");
-            prodReq2.CurrentValue.Should().Be(25_000_000m);
-            evalResult2.Data.RawMetrics.CommercializedContracts12mMinAge2.Should().Be(25_000_000m);
-            evalResult2.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(10_000_000m);
+            prodReq2.CurrentValue.Should().Be(30_000_000m);
+            evalResult2.Data.RawMetrics.CommercializedContracts12mMinAge2.Should().Be(30_000_000m);
+            evalResult2.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(15_000_000m);
         }
 
         [Fact]
@@ -731,14 +731,14 @@ namespace SalesApp.IntegrationTests.CareerPlan
             // 5. Included: Defaulted, age 7, R$ 500.000
             var cDefaulted = new Contract { ContractNumber = $"COMM-DEF-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 500_000m, ContractStatusId = defaultedStatus.Id, SaleStartDate = refDate.AddMonths(-7), IsActive = true, HasPayment = true };
 
-            // 6. Excluded: Active but age 1 (< 2), R$ 1.000.000
-            var cTooYoung = new Contract { ContractNumber = $"COMM-YNG-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 1_000_000m, ContractStatusId = activeStatus.Id, SaleStartDate = refDate.AddMonths(-1), IsActive = true, HasPayment = true };
+            // 6. Included: Active sold 1 month ago (has 2 installments: 1 at sale + 1 at reference >= 2), R$ 1.000.000
+            var cMonthMinus1 = new Contract { ContractNumber = $"COMM-M1-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 1_000_000m, ContractStatusId = activeStatus.Id, SaleStartDate = refDate.AddMonths(-1), IsActive = true, HasPayment = true };
             // 7. Excluded: Desistente age 4, R$ 2.000.000
             var cDesistente = new Contract { ContractNumber = $"COMM-DES-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 2_000_000m, ContractStatusId = desistenteStatus.Id, SaleStartDate = refDate.AddMonths(-4), IsActive = false, HasPayment = false };
             // 8. Excluded: Older than 12m window (age 14), R$ 3.000.000
             var cTooOld = new Contract { ContractNumber = $"COMM-OLD-{Guid.NewGuid():N}"[..20], UserInternalId = testUser.InternalId, TotalAmount = 3_000_000m, ContractStatusId = activeStatus.Id, SaleStartDate = refDate.AddMonths(-14), IsActive = true, HasPayment = true };
 
-            context.Contracts.AddRange(cActive, cLate1, cLate2, cLate3, cDefaulted, cTooYoung, cDesistente, cTooOld);
+            context.Contracts.AddRange(cActive, cLate1, cLate2, cLate3, cDefaulted, cMonthMinus1, cDesistente, cTooOld);
             await context.SaveChangesAsync();
 
             // Evaluate user
@@ -749,11 +749,11 @@ namespace SalesApp.IntegrationTests.CareerPlan
             evalResult.Should().NotBeNull();
             evalResult!.Success.Should().BeTrue();
 
-            // Expected sum: 100k + 200k + 300k + 400k + 500k = 1.500.000
-            evalResult.Data!.RawMetrics.CommercializedContracts12mMinAge2.Should().Be(1_500_000m);
+            // Expected sum: 100k + 200k + 300k + 400k + 500k + 1.000.000 = 2.500.000
+            evalResult.Data!.RawMetrics.CommercializedContracts12mMinAge2.Should().Be(2_500_000m);
 
-            // Compare with ActiveProduction12mMinPaid2: only cActive (100k) is Active with paid >= 2
-            evalResult.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(100_000m);
+            // ActiveProduction12mMinPaid2: cActive (100k) + cMonthMinus1 (1.000.000) = 1.100.000m
+            evalResult.Data.RawMetrics.ActiveProduction12mMinPaid2.Should().Be(1_100_000m);
         }
 
         [Fact]
@@ -793,6 +793,111 @@ namespace SalesApp.IntegrationTests.CareerPlan
             commReq.Should().NotBeNull();
             commReq.RawMetricKey.Should().Be("commercializedContracts12mMinAge2");
             commReq.Label.Should().Be("Contratos Comercializados ≥ Meta");
+        }
+
+        [Fact]
+        public async Task GetContractRtTracking_OctoberContractsEvaluatedInNovember_HaveTwoInstallmentsPaidForActive()
+        {
+            var token = await GetSuperAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var alefLevel = await context.ClassificationLevels.FirstAsync(l => l.Name.ToLower() == "alef");
+            var activeStatus = await context.ContractStatuses.FirstAsync(s => s.Name == "Active");
+            var late1Status = await context.ContractStatuses.FirstAsync(s => s.Name == "Late1");
+
+            var testUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test RT October User",
+                Email = $"rt_oct_{Guid.NewGuid().ToString()[..8]}@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),
+                RoleId = 3,
+                IsActive = true
+            };
+            context.Users.Add(testUser);
+            await context.SaveChangesAsync();
+
+            context.UserClassifications.Add(new UserClassification
+            {
+                UserInternalId = testUser.InternalId,
+                LevelId = alefLevel.Id,
+                StartDate = DateTime.UtcNow.AddMonths(-12)
+            });
+
+            // Scenarios from user image: evaluated on 18/11/2026
+            var asOfNov18 = new DateTime(2026, 11, 18, 0, 0, 0, DateTimeKind.Utc);
+
+            // 1. Maria da Conceição: sold 08/10/2026, Active -> RT1 Verde, RT2 Verde
+            var cMaria = new Contract
+            {
+                ContractNumber = $"1100945941-{Guid.NewGuid():N}"[..20],
+                CustomerName = "MARIA DA CONCEICAO MENDES",
+                UserInternalId = testUser.InternalId,
+                TotalAmount = 300_000m,
+                ContractStatusId = activeStatus.Id,
+                SaleStartDate = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+                IsActive = true,
+                HasPayment = true
+            };
+
+            // 2. Zago: sold 31/10/2026, Active -> RT1 Verde, RT2 Verde
+            var cZago = new Contract
+            {
+                ContractNumber = $"1101011234-{Guid.NewGuid():N}"[..20],
+                CustomerName = "ZAGO INVESTIMENTOS LTDA",
+                UserInternalId = testUser.InternalId,
+                TotalAmount = 152_261.58m,
+                ContractStatusId = activeStatus.Id,
+                SaleStartDate = new DateTime(2026, 10, 31, 0, 0, 0, DateTimeKind.Utc),
+                IsActive = true,
+                HasPayment = true
+            };
+
+            // 3. Ronaldo: sold 05/10/2026, Late1 -> RT1 Verde, RT2 Amarelo
+            var cRonaldo = new Contract
+            {
+                ContractNumber = $"1100937573-{Guid.NewGuid():N}"[..20],
+                CustomerName = "RONALDO DE MOURA",
+                UserInternalId = testUser.InternalId,
+                TotalAmount = 100_000m,
+                ContractStatusId = late1Status.Id,
+                SaleStartDate = new DateTime(2026, 10, 5, 0, 0, 0, DateTimeKind.Utc),
+                IsActive = true,
+                HasPayment = true
+            };
+
+            context.Contracts.AddRange(cMaria, cZago, cRonaldo);
+            await context.SaveChangesAsync();
+
+            // Fetch RT tracking evaluated at Nov 18
+            var response = await clientWithToken.GetAsync($"/api/career-plan/users/{testUser.Id}/contracts-rt?asOfDate=2026-11-18T00:00:00Z");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<ContractRtPageDto>>();
+            result.Should().NotBeNull();
+            result!.Data.Should().NotBeNull();
+
+            var mariaRow = result.Data!.Items.First(r => r.ContractNumber == cMaria.ContractNumber);
+            mariaRow.Rts[0].Should().Be("paid");
+            mariaRow.Rts[1].Should().Be("paid");
+            mariaRow.Rts[2].Should().Be("blank");
+            mariaRow.Current.Should().Be("upToDate");
+
+            var zagoRow = result.Data.Items.First(r => r.ContractNumber == cZago.ContractNumber);
+            zagoRow.Rts[0].Should().Be("paid");
+            zagoRow.Rts[1].Should().Be("paid");
+            zagoRow.Rts[2].Should().Be("blank");
+            zagoRow.Current.Should().Be("upToDate");
+
+            var ronaldoRow = result.Data.Items.First(r => r.ContractNumber == cRonaldo.ContractNumber);
+            ronaldoRow.Rts[0].Should().Be("paid");
+            ronaldoRow.Rts[1].Should().Be("unpaid");
+            ronaldoRow.Rts[2].Should().Be("blank");
+            ronaldoRow.Current.Should().Be("overdue");
         }
     }
 }

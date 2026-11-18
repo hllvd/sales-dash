@@ -186,13 +186,13 @@ namespace SalesApp.Tests.CareerPlan
                     HasPayment = true,
                     ContractStatus = new ContractStatusEntity { Name = "Active" }
                 },
-                // 2. Sold 2026-09-10 (Age 1m, Active, HasPayment = true) -> 1 paid < 2 -> EXCLUDED (50k)
+                // 2. Sold 2026-09-10 (Age 1m, Late1, HasPayment = true) -> 2 due - 1 overdue = 1 paid < 2 -> EXCLUDED (50k)
                 new Contract
                 {
                     SaleStartDate = new DateTime(2026, 9, 10, 0, 0, 0, DateTimeKind.Utc),
                     TotalAmount = 50_000m,
                     HasPayment = true,
-                    ContractStatus = new ContractStatusEntity { Name = "Active" }
+                    ContractStatus = new ContractStatusEntity { Name = "Late1" }
                 },
                 // 3. Sold 2026-07-10 (Age 3m, Late1) -> 3 - 1 = 2 paid >= 2, but status is Late1 (not Active) -> EXCLUDED (70k)
                 new Contract

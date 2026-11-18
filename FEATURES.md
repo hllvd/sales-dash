@@ -1,3 +1,33 @@
+## Contabilização de Parcelas Decorridas e Pagas por Mês de Competência no Consórcio (RT1 a RT6 e Plano de Carreira)
+
+Ajuste da regra de negócio para cálculo de parcelas decorridas e inferência de parcelas pagas no Plano de Carreira e no Acompanhamento de Contratos (RT1 a RT6 e RT Atual), alinhando a plataforma à mecânica real de consórcio: todo contrato paga a 1ª parcela imediatamente no ato do fechamento (mês da venda).
+
+### Comportamento e Regras
+- **1ª Parcela no Mês da Venda (Ato da Contratação)**:
+  - Todo contrato emitido no mês de venda $M$ possui obrigatoriamente a 1ª parcela paga no ato. Se o cliente não pagar em até 10 dias, o contrato fica como `AwaitingPayment` e posteriormente transiciona para `Desistente`. Logo, qualquer contrato elegível na tabela RT (`Ativo`, `Late1`, `Late2`, `Late3`, `Defaulted`) tem a 1ª parcela (RT1) como paga (verde).
+- **2ª Parcela em Diante (Meses Subsequentes)**:
+  - No mês seguinte $M+1$ (após o dia 15 de fechamento), vence a 2ª parcela.
+  - Para contratos com status `Ativo`, ambas as parcelas decorridas constam como pagas (RT1 = Verde e RT2 = Verde).
+  - Para contratos com status em atraso (ex.: `Late1`, como contratos de outubro avaliados em novembro), a 1ª parcela consta como paga e a 2ª parcela em atraso (RT1 = Verde e RT2 = Amarelo).
+- **Mês Calendário Integral da Venda**:
+  - Toda venda ocorrida no mês calendário (do dia 01 ao dia 31, como vendas em 08/10, 15/10 ou 31/10) inicia sua 1ª parcela no mês da venda. Eliminada a dedução de mês que ocorria quando o dia da venda era numericamente superior ao dia 15.
+- **Impacto no Plano de Carreira e Métricas Consolidadas**:
+  - Contratos vendidos em outubro possuem 2 parcelas pagas no fechamento de novembro, atingindo o critério de elegibilidade ($\ge 2$ parcelas pagas) para as métricas `Prod. Ativa 12m (≥ 2 pagas)` e `Contratos Comercializados`.
+  - A tabela RT renderiza fielmente o histórico de parcelas decorridas e pagas para cada competência.
+
+### Arquivos Modificados
+- `SalesApp.Api/CareerPlan/CareerReferenceDate.cs`: Adição de `CalculateDueInstallments` baseado em mês de competência da venda e fechamento (dia 15).
+- `SalesApp.Api/CareerPlan/ContractPaymentTracking.cs`: Atualização do `BuildRtRow` e `CalculateRtCells` para utilizar `dueInstallments`.
+- `SalesApp.Api/CareerPlan/ContractEligibility.cs`: Atualização de `CalculateInferredPaidMonths` considerando parcelas decorridas a partir do mês da venda.
+- `SalesApp.Api/CareerPlan/CareerMetricsCalculator.cs`: Conexão de `ComputeCommercializedProduction` e `ComputeActiveProduction` com a apuração de parcelas decorridas.
+- `SalesApp.Tests/CareerPlan/CareerReferenceDateTests.cs`: Testes unitários para `CalculateDueInstallments`.
+- `SalesApp.IntegrationTests/CareerPlan/CareerPlanControllerTests.cs`: Testes de integração validando os cenários de Maria da Conceição, Zago e Ronaldo de Moura avaliados em novembro com 2 parcelas decorridas.
+- `client/e2e-test/e2e/contract_rt_tracking.spec.ts`: Teste E2E cobrindo a exibição das células RT1 a RT6 (2 parcelas verdes para Ativo, 1 verde e 1 amarela para Atrasado 1), cálculo de RT Atual e simulação interativa no navegador.
+- `client/e2e-test/playwright.config.ts`: Registro do teste E2E na suíte de testes.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Solicitação de Atribuição de Contratos Já Atribuídos
 
 Permite que um consultor solicite a transferência de atribuição para si mesmo quando tentar atribuir um contrato que já pertence a outro usuário através de **Meus Contratos > Novo**. A transferência é submetida ao fluxo de aprovação e pode ser autorizada pelo superior imediato do solicitante ou pelo proprietário da matrícula do contrato.

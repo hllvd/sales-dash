@@ -25,12 +25,18 @@ namespace SalesApp.CareerPlan
             };
         }
 
-        public static int CalculateInferredPaidMonths(int ageMonths, string? statusName, bool hasPayment = true)
+        public static int CalculateInferredPaidMonths(int dueInstallments, string? statusName, bool hasPayment = true)
         {
-            int safeAge = Math.Max(0, ageMonths);
+            int safeDue = Math.Max(0, dueInstallments);
             int overdue = InferredOverdueMonths(statusName);
             int minPaidMonths = CanInferFirstInstallmentPaid(statusName, hasPayment) ? 1 : 0;
-            return Math.Max(minPaidMonths, safeAge - overdue);
+            return Math.Max(minPaidMonths, safeDue - overdue);
+        }
+
+        public static int CalculateInferredPaidMonths(DateTime saleDate, string? statusName, DateTime referenceDate, bool hasPayment = true)
+        {
+            int due = CareerReferenceDate.CalculateDueInstallments(saleDate, referenceDate);
+            return CalculateInferredPaidMonths(due, statusName, hasPayment);
         }
 
         private static bool CanInferFirstInstallmentPaid(string? statusName, bool hasPayment)
@@ -44,11 +50,9 @@ namespace SalesApp.CareerPlan
             if (contract == null) return false;
             if (filter == null) return true;
 
-            int? age = null;
-
             if (filter.MinAgeMonths.HasValue)
             {
-                age = CareerReferenceDate.CalculateAgeMonths(contract.SaleStartDate, referenceDate);
+                int age = CareerReferenceDate.CalculateAgeMonths(contract.SaleStartDate, referenceDate);
                 if (age < filter.MinAgeMonths.Value)
                 {
                     return false;
@@ -57,10 +61,10 @@ namespace SalesApp.CareerPlan
 
             if (filter.MinInferredPaidMonths.HasValue)
             {
-                age ??= CareerReferenceDate.CalculateAgeMonths(contract.SaleStartDate, referenceDate);
                 var paid = CalculateInferredPaidMonths(
-                    age.Value,
+                    contract.SaleStartDate,
                     contract.ContractStatus?.Name,
+                    referenceDate,
                     contract.HasPayment != false);
                 if (paid < filter.MinInferredPaidMonths.Value)
                 {

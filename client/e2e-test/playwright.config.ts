@@ -123,6 +123,7 @@ export default defineConfig({
         'surveys_qa.spec.ts',
         'career_plan_progression.spec.ts',
         'my_career_plan.spec.ts',
+        'contract_rt_tracking.spec.ts',
         'helpdesk_faq_flow.spec.ts'
       ],
       use: { ...devices['Desktop Chrome'] },

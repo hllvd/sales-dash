@@ -56,8 +56,8 @@ namespace SalesApp.CareerPlan
                 .Where(c => c.ContractStatus != null && CommercializedStatusNames.Contains(c.ContractStatus.Name))
                 .Where(c =>
                 {
-                    int age = CareerReferenceDate.CalculateAgeMonths(c.SaleStartDate, inputs.ReferenceDate);
-                    return age >= minAgeMonths;
+                    int installments = CareerReferenceDate.CalculateDueInstallments(c.SaleStartDate, inputs.ReferenceDate);
+                    return installments >= minAgeMonths;
                 })
                 .Sum(c => c.TotalAmount);
         }
@@ -77,8 +77,7 @@ namespace SalesApp.CareerPlan
                 .Where(c => c.HasPayment != false)
                 .Where(c =>
                 {
-                    int age = CareerReferenceDate.CalculateAgeMonths(c.SaleStartDate, inputs.ReferenceDate);
-                    int paid = ContractEligibility.CalculateInferredPaidMonths(age, c.ContractStatus?.Name, c.HasPayment != false);
+                    int paid = ContractEligibility.CalculateInferredPaidMonths(c.SaleStartDate, c.ContractStatus?.Name, inputs.ReferenceDate, c.HasPayment != false);
                     return paid >= minInferredPaidMonths;
                 })
                 .Sum(c => c.TotalAmount);
