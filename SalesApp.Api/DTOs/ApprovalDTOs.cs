@@ -68,4 +68,12 @@ namespace SalesApp.DTOs
         public string TeamName { get; set; } = string.Empty;
         public string? NewEmail { get; set; }
     }
+
+    public class RequestContractTransferPayload
+    {
+        public string ContractNumber { get; set; } = string.Empty;
+        public int? ContractId { get; set; }
+        public Guid? CurrentUserId { get; set; }
+        public string? CurrentUserName { get; set; }
+    }
 }

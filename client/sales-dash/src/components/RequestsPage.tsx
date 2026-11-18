@@ -282,6 +282,8 @@ const RequestsPage: React.FC = () => {
         return 'Criar Equipe (Guimel)';
       case 'RequestClassificationLevel':
         return 'Solicitação de Nível de Classificação';
+      case 'RequestContractTransfer':
+        return 'Solicitação de Atribuição de Contrato';
       default:
         return type;
     }
@@ -319,6 +321,11 @@ const RequestsPage: React.FC = () => {
           details += ` | Nível Anterior: ${prevName} (Fim: ${formattedEnd})`;
         }
         return details;
+      }
+      if (type === 'RequestContractTransfer') {
+        const contractNum = parsed.contractNumber || parsed.ContractNumber;
+        const currentOwner = parsed.currentUserName || parsed.CurrentUserName;
+        return `Contrato: ${contractNum}${currentOwner ? ` | Dono atual: ${currentOwner}` : ''}`;
       }
       return jsonStr;
     } catch {

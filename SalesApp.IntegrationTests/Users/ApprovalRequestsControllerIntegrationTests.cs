@@ -3,7 +3,11 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using SalesApp.Data;
 using SalesApp.DTOs;
+using SalesApp.Models;
 using Xunit;
 
 namespace SalesApp.IntegrationTests.Users
@@ -871,6 +875,334 @@ namespace SalesApp.IntegrationTests.Users
             createRes.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var errorData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
             errorData!.Message.Should().Contain("já está em uso");
+        }
+
+        private async Task<(User owner, User requester, User superior, User matriculaOwner, Contract contract, Matricula matricula)> SetupContractTransferScenarioAsync(bool superiorIsMatriculaOwner = false)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var tag = Guid.NewGuid().ToString()[..6];
+
+            // 1. Superior
+            var superior = new User
+            {
+                Name = $"Superior_{tag}",
+                Email = $"superior_{tag}@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+                RoleId = (int)RoleId.Admin,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.Users.Add(superior);
+            await context.SaveChangesAsync();
+
+            // 2. Requester (subordinate of superior)
+            var requester = new User
+            {
+                Name = $"Requester_{tag}",
+                Email = $"requester_{tag}@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+                RoleId = (int)RoleId.User,
+                ParentUserId = superior.Id,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.Users.Add(requester);
+
+            // 3. Current contract owner
+            var owner = new User
+            {
+                Name = $"Owner_{tag}",
+                Email = $"owner_{tag}@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+                RoleId = (int)RoleId.User,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.Users.Add(owner);
+
+            // 4. Matricula
+            var matNum = $"{Random.Shared.Next(100000, 999999)}";
+            var matricula = new Matricula
+            {
+                MatriculaNumber = matNum,
+                Status = "active",
+                StartDate = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.Matriculas.Add(matricula);
+            await context.SaveChangesAsync();
+
+            // Matricula Owner user
+            var matriculaOwner = superiorIsMatriculaOwner ? superior : new User
+            {
+                Name = $"MatOwner_{tag}",
+                Email = $"matowner_{tag}@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+                RoleId = (int)RoleId.User,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            if (!superiorIsMatriculaOwner)
+            {
+                context.Users.Add(matriculaOwner);
+                await context.SaveChangesAsync();
+            }
+
+            var userMat = new UserMatricula
+            {
+                UserInternalId = matriculaOwner.InternalId,
+                MatriculaId = matricula.Id,
+                IsOwner = true,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.UserMatriculas.Add(userMat);
+
+            // 5. Contract
+            var status = await context.ContractStatuses.FirstAsync();
+            var contractNum = $"{Random.Shared.Next(1000000, 9999999)}";
+            var contract = new Contract
+            {
+                ContractNumber = contractNum,
+                UserInternalId = owner.InternalId,
+                MatriculaId = matricula.Id,
+                ContractStatusId = status.Id,
+                TotalAmount = 50000m,
+                SaleStartDate = DateTime.UtcNow,
+                CustomerName = $"Customer {tag}",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.Contracts.Add(contract);
+            await context.SaveChangesAsync();
+
+            return (owner, requester, superior, matriculaOwner, contract, matricula);
+        }
+
+        [Fact]
+        public async Task CreateContractTransferRequest_WhenContractAssignedToOther_Succeeds()
+        {
+            var (owner, requester, _, _, contract, _) = await SetupContractTransferScenarioAsync();
+
+            var token = await GetTokenAsync(requester.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var createReq = new CreateApprovalRequestDto
+            {
+                RequestType = ApprovalRequestType.RequestContractTransfer,
+                PayloadJson = JsonSerializer.Serialize(new RequestContractTransferPayload
+                {
+                    ContractNumber = contract.ContractNumber
+                })
+            };
+
+            var res = await _client.PostAsJsonAsync("/api/approval-requests", createReq);
+            res.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            var result = await res.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeTrue();
+            result.Data!.Status.Should().Be("Pending");
+            result.Data.RequestType.Should().Be(ApprovalRequestType.RequestContractTransfer);
+        }
+
+        [Fact]
+        public async Task CreateContractTransferRequest_WhenDuplicatePending_Fails()
+        {
+            var (owner, requester, _, _, contract, _) = await SetupContractTransferScenarioAsync();
+
+            var token = await GetTokenAsync(requester.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var createReq = new CreateApprovalRequestDto
+            {
+                RequestType = ApprovalRequestType.RequestContractTransfer,
+                PayloadJson = JsonSerializer.Serialize(new RequestContractTransferPayload
+                {
+                    ContractNumber = contract.ContractNumber
+                })
+            };
+
+            var firstRes = await _client.PostAsJsonAsync("/api/approval-requests", createReq);
+            firstRes.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            // Second request for the same contract while first is pending
+            var secondRes = await _client.PostAsJsonAsync("/api/approval-requests", createReq);
+            secondRes.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+            var errorData = await secondRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            errorData!.Message.Should().ContainEquivalentOf("já existe uma solicitação de transferência pendente");
+        }
+
+        [Fact]
+        public async Task ContractTransferRequest_ApprovedBySuperior_TransfersContractPreservingMatricula()
+        {
+            var (owner, requester, superior, _, contract, matricula) = await SetupContractTransferScenarioAsync();
+
+            // Requester creates request
+            var userToken = await GetTokenAsync(requester.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = ApprovalRequestType.RequestContractTransfer,
+                PayloadJson = JsonSerializer.Serialize(new RequestContractTransferPayload
+                {
+                    ContractNumber = contract.ContractNumber
+                })
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            var requestId = createData!.Data!.Id;
+
+            // Superior logs in and sees pending request
+            var superiorToken = await GetTokenAsync(superior.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superiorToken);
+
+            var pendingRes = await _client.GetAsync("/api/approval-requests/pending");
+            var pendingData = await pendingRes.Content.ReadFromJsonAsync<ApiResponse<List<ApprovalRequestResponse>>>();
+            pendingData!.Data.Should().Contain(r => r.Id == requestId);
+
+            // Superior approves request
+            var resolveRes = await _client.PostAsJsonAsync($"/api/approval-requests/{requestId}/resolve", new ResolveApprovalDto
+            {
+                Action = "Approved",
+                Comment = "Transferência autorizada"
+            });
+            resolveRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // Verify contract transferred to requester in database
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var updatedContract = await context.Contracts.FirstAsync(c => c.Id == contract.Id);
+            updatedContract.UserInternalId.Should().Be(requester.InternalId);
+            updatedContract.MatriculaId.Should().Be(matricula.Id, "original matricula must be preserved");
+        }
+
+        [Fact]
+        public async Task ContractTransferRequest_ApprovedByMatriculaOwner_TransfersContract()
+        {
+            var (owner, requester, _, matriculaOwner, contract, _) = await SetupContractTransferScenarioAsync(superiorIsMatriculaOwner: false);
+
+            // Requester creates request
+            var userToken = await GetTokenAsync(requester.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = ApprovalRequestType.RequestContractTransfer,
+                PayloadJson = JsonSerializer.Serialize(new RequestContractTransferPayload
+                {
+                    ContractNumber = contract.ContractNumber
+                })
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            var requestId = createData!.Data!.Id;
+
+            // Matricula Owner logs in and sees pending request
+            var matOwnerToken = await GetTokenAsync(matriculaOwner.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", matOwnerToken);
+
+            var pendingRes = await _client.GetAsync("/api/approval-requests/pending");
+            var pendingData = await pendingRes.Content.ReadFromJsonAsync<ApiResponse<List<ApprovalRequestResponse>>>();
+            pendingData!.Data.Should().Contain(r => r.Id == requestId);
+
+            // Matricula Owner approves request
+            var resolveRes = await _client.PostAsJsonAsync($"/api/approval-requests/{requestId}/resolve", new ResolveApprovalDto
+            {
+                Action = "Approved",
+                Comment = "Aprovado pelo dono da matricula"
+            });
+            resolveRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // Verify contract transferred in database
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var updatedContract = await context.Contracts.FirstAsync(c => c.Id == contract.Id);
+            updatedContract.UserInternalId.Should().Be(requester.InternalId);
+        }
+
+        [Fact]
+        public async Task ContractTransferRequest_Deduplication_WhenSuperiorIsMatriculaOwner_AppearsOnlyOnceInPending()
+        {
+            // Superior is ALSO the matricula owner
+            var (_, requester, superior, _, contract, _) = await SetupContractTransferScenarioAsync(superiorIsMatriculaOwner: true);
+
+            // Requester creates request
+            var userToken = await GetTokenAsync(requester.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = ApprovalRequestType.RequestContractTransfer,
+                PayloadJson = JsonSerializer.Serialize(new RequestContractTransferPayload
+                {
+                    ContractNumber = contract.ContractNumber
+                })
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            var requestId = createData!.Data!.Id;
+
+            // Superior (who is also matricula owner) checks pending
+            var superiorToken = await GetTokenAsync(superior.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superiorToken);
+
+            var pendingRes = await _client.GetAsync("/api/approval-requests/pending");
+            var pendingData = await pendingRes.Content.ReadFromJsonAsync<ApiResponse<List<ApprovalRequestResponse>>>();
+            var matchingRequests = pendingData!.Data.Where(r => r.Id == requestId).ToList();
+
+            // Deduplication requirement: must appear exactly ONCE
+            matchingRequests.Should().HaveCount(1);
+        }
+
+        [Fact]
+        public async Task ContractTransferRequest_RejectedBySuperior_PreservesOriginalOwner()
+        {
+            var (owner, requester, superior, _, contract, matricula) = await SetupContractTransferScenarioAsync();
+
+            var userToken = await GetTokenAsync(requester.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+            {
+                RequestType = ApprovalRequestType.RequestContractTransfer,
+                PayloadJson = JsonSerializer.Serialize(new RequestContractTransferPayload
+                {
+                    ContractNumber = contract.ContractNumber
+                })
+            });
+            createRes.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createData = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+            var requestId = createData!.Data!.Id;
+
+            // Superior rejects
+            var superiorToken = await GetTokenAsync(superior.Email, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superiorToken);
+
+            var resolveRes = await _client.PostAsJsonAsync($"/api/approval-requests/{requestId}/resolve", new ResolveApprovalDto
+            {
+                Action = "Rejected",
+                Comment = "Transferência não autorizada"
+            });
+            resolveRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // Verify contract remains with original owner in database
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var updatedContract = await context.Contracts.FirstAsync(c => c.Id == contract.Id);
+            updatedContract.UserInternalId.Should().Be(owner.InternalId, "rejected request must preserve original owner");
+            updatedContract.MatriculaId.Should().Be(matricula.Id);
         }
     }
 }

@@ -53,5 +53,6 @@ namespace SalesApp.Models
         public const string RequestAdminRole = "RequestAdminRole";
         public const string RequestClassificationLevel = "RequestClassificationLevel";
         public const string CreateTeam = "CreateTeam";
+        public const string RequestContractTransfer = "RequestContractTransfer";
     }
 }

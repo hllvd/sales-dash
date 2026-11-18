@@ -1,3 +1,39 @@
+## Solicitação de Atribuição de Contratos Já Atribuídos
+
+Permite que um consultor solicite a transferência de atribuição para si mesmo quando tentar atribuir um contrato que já pertence a outro usuário através de **Meus Contratos > Novo**. A transferência é submetida ao fluxo de aprovação e pode ser autorizada pelo superior imediato do solicitante ou pelo proprietário da matrícula do contrato.
+
+### Comportamento e Regras
+- **Identificação no Modal ([MyContractsPage.tsx](client/sales-dash/src/components/MyContractsPage.tsx))**:
+  - Ao buscar um contrato pelo número em *Meus Contratos > Novo*, caso o contrato já esteja atribuído a outro usuário (`userId !== currentUser.id`), o modal exibe um alerta indicando o dono atual e altera o botão de ação para **"Solicitar Atribuição"**.
+  - A seleção de matrícula do usuário é ocultada no caso de solicitação de transferência, pois a matrícula original do contrato é preservada após a transferência.
+  - Caso o contrato já pertença ao próprio usuário logado, o modal exibe informativo e desabilita o botão como "Já Atribuído".
+- **Fluxo de Aprovação ([ApprovalService.cs](SalesApp.Api/Services/ApprovalService.cs))**:
+  - Novo tipo de solicitação: `ApprovalRequestType.RequestContractTransfer`.
+  - **Bloqueio de Duplicidade Concorrente**: Se já houver uma solicitação pendente (`Pending`) de transferência para o mesmo contrato, o sistema bloqueia novas solicitações até a resolução da existente.
+  - **Quem Pode Aprovar (`CanUserApproveRequestAsync`)**:
+    - SuperAdmin.
+    - **Usuário Acima**: Superior imediato do solicitante (`requester.ParentUserId == callerId`).
+    - **Dono da Matrícula**: Proprietário ativo da matrícula atual do contrato (`UserMatriculas.IsOwner == true`).
+  - **Regra de Aprovação Alternativa (OU)**: Qualquer um dos aprovadores elegíveis (superior ou dono da matrícula) que aprovar primeiro efetiva imediatamente a transferência do contrato para o solicitante. Se for rejeitada, a solicitação é finalizada e o contrato permanece com o dono atual.
+  - **Desduplicação de Solicitação**: Quando o superior imediato do solicitante e o dono da matrícula forem a **mesma pessoa**, o sistema garante que apenas **uma única solicitação** apareça na fila de pendências dele.
+  - **Efetivação da Transferência (`ExecuteActionAsync`)**:
+    - O contrato tem `UserInternalId` atualizado para o consultor solicitante.
+    - A matrícula original do contrato (`MatriculaId`) é preservada intacta.
+- **Central de Solicitações ([RequestsPage.tsx](client/sales-dash/src/components/RequestsPage.tsx))**:
+  - Exibe o tipo "Solicitação de Atribuição de Contrato" com badge dedicado.
+  - Formata os detalhes exibindo o número do contrato e o dono atual.
+
+### Arquivos Modificados
+- `SalesApp.Api/Models/ApprovalRequestStatus.cs`: Adição de `ApprovalRequestType.RequestContractTransfer`.
+- `SalesApp.Api/DTOs/ApprovalDTOs.cs`: Adição de `RequestContractTransferPayload`.
+- `SalesApp.Api/Services/ApprovalService.cs`: Validações de criação, verificação de duplicidade, regras de aprovação (superior e dono da matrícula com desduplicação) e transferência do contrato mantendo a matrícula original.
+- `client/sales-dash/src/components/MyContractsPage.tsx`: Detecção de contrato atribuído a outro consultor, exibição de alerta explicativo e botão "Solicitar Atribuição" com disparo de `createApprovalRequest`.
+- `client/sales-dash/src/components/RequestsPage.tsx`: Suporte a exibição e formatação de `RequestContractTransfer`.
+- `SalesApp.IntegrationTests/Users/ApprovalRequestsControllerIntegrationTests.cs`: Testes de integração cobrindo criação, bloqueio de duplicidade, aprovação pelo superior, aprovação pelo dono da matrícula, desduplicação quando superior == dono, e rejeição.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Atribuição Automática de Novos Contratos do Ava Pro ao Dono da Matrícula & Central de Preferências
 
 Permite que novos contratos importados do Ava Pro / PowerBI sejam atribuídos automaticamente ao usuário proprietário da matrícula correspondente (`IsOwner = true`), controlado individualmente por uma Feature Flag nas preferências do usuário.

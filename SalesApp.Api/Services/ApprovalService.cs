@@ -126,6 +126,60 @@ namespace SalesApp.Services
                     }
                 }
             }
+            else if (dto.RequestType == ApprovalRequestType.RequestContractTransfer)
+            {
+                var payload = JsonSerializer.Deserialize<RequestContractTransferPayload>(dto.PayloadJson, _jsonOptions);
+                if (string.IsNullOrWhiteSpace(payload?.ContractNumber))
+                {
+                    throw new ArgumentException("Número do contrato é obrigatório.");
+                }
+
+                var normalizedNumber = NormalizationUtils.NormalizeNumber(payload.ContractNumber);
+                if (string.IsNullOrEmpty(normalizedNumber))
+                {
+                    throw new ArgumentException("Número do contrato inválido.");
+                }
+
+                var contract = await _context.Contracts
+                    .Include(c => c.User)
+                    .FirstOrDefaultAsync(c => c.ContractNumber == normalizedNumber && c.IsActive);
+
+                if (contract == null)
+                {
+                    throw new KeyNotFoundException($"Contrato '{normalizedNumber}' não encontrado.");
+                }
+
+                if (contract.UserInternalId == requester.InternalId)
+                {
+                    throw new InvalidOperationException("Este contrato já está atribuído a você.");
+                }
+
+                if (!contract.UserInternalId.HasValue)
+                {
+                    throw new InvalidOperationException("Este contrato não possui outro consultor atribuído. Você pode atribuí-lo diretamente.");
+                }
+
+                var existingPending = await _context.ApprovalRequests
+                    .Where(r => r.RequestType == ApprovalRequestType.RequestContractTransfer && r.Status == ApprovalRequestStatus.Pending)
+                    .ToListAsync();
+
+                var duplicate = existingPending.Any(r =>
+                {
+                    var p = JsonSerializer.Deserialize<RequestContractTransferPayload>(r.PayloadJson, _jsonOptions);
+                    return p != null && NormalizationUtils.NormalizeNumber(p.ContractNumber) == normalizedNumber;
+                });
+
+                if (duplicate)
+                {
+                    throw new InvalidOperationException($"Já existe uma solicitação de transferência pendente para o contrato '{normalizedNumber}'.");
+                }
+
+                payload.ContractNumber = normalizedNumber;
+                payload.ContractId = contract.Id;
+                payload.CurrentUserId = contract.User?.Id;
+                payload.CurrentUserName = contract.User?.Name;
+                dto.PayloadJson = JsonSerializer.Serialize(payload, _jsonOptions);
+            }
             else
             {
                 throw new ArgumentException($"Tipo de solicitação inválido: {dto.RequestType}");
@@ -318,6 +372,43 @@ namespace SalesApp.Services
                 }
             }
 
+            // 3. RequestContractTransfer
+            if (request.RequestType == ApprovalRequestType.RequestContractTransfer)
+            {
+                var payload = JsonSerializer.Deserialize<RequestContractTransferPayload>(request.PayloadJson, _jsonOptions);
+                if (payload != null && !string.IsNullOrWhiteSpace(payload.ContractNumber))
+                {
+                    var normNumber = NormalizationUtils.NormalizeNumber(payload.ContractNumber);
+                    var contract = await _context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == normNumber && c.IsActive);
+                    if (contract != null)
+                    {
+                        // 1) Superior imediato do solicitante
+                        var requesterUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.RequesterId);
+                        if (requesterUser?.ParentUserId == callerId)
+                        {
+                            return true;
+                        }
+
+                        // 2) Dono da matrícula atual do contrato
+                        if (contract.MatriculaId.HasValue)
+                        {
+                            var isMatriculaOwner = await _context.UserMatriculas
+                                .AnyAsync(um => um.MatriculaId == contract.MatriculaId.Value &&
+                                                um.IsOwner &&
+                                                um.IsActive &&
+                                                um.User != null &&
+                                                um.User.Id == callerId);
+
+                            if (isMatriculaOwner)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
             // Fallback: Hierarchy check (requester is descendant of caller)
             var descendantIds = await _hierarchyService.GetDescendantIdsAsync(callerId);
             return descendantIds.Contains(request.RequesterId);
@@ -501,6 +592,26 @@ namespace SalesApp.Services
                     requester.RoleId = (int)RoleId.Admin;
                 }
                 requester.UpdatedAt = DateTime.UtcNow;
+            }
+            else if (request.RequestType == ApprovalRequestType.RequestContractTransfer)
+            {
+                var payload = JsonSerializer.Deserialize<RequestContractTransferPayload>(request.PayloadJson, _jsonOptions);
+                if (payload == null || string.IsNullOrWhiteSpace(payload.ContractNumber))
+                {
+                    throw new InvalidOperationException("Payload de solicitação de transferência de contrato inválido.");
+                }
+
+                var normNumber = NormalizationUtils.NormalizeNumber(payload.ContractNumber);
+                var contract = await _context.Contracts.FirstOrDefaultAsync(c => c.ContractNumber == normNumber && c.IsActive);
+                if (contract == null)
+                {
+                    throw new InvalidOperationException($"Contrato '{normNumber}' não encontrado.");
+                }
+
+                // Transfer contract to requester while preserving original MatriculaId
+                contract.UserInternalId = requester.InternalId;
+                contract.User = requester;
+                contract.UpdatedAt = DateTime.UtcNow;
             }
         }
 

@@ -112,6 +112,14 @@ const MyContractsPage: React.FC = () => {
   const [matriculaPendingClaims, setMatriculaPendingClaims] = useState<PendingClaimResponse[]>([]);
   const [contractNotYetImported, setContractNotYetImported] = useState(false);
 
+  const isAssignedToOther = useMemo(() => {
+    return Boolean(retrievedContract?.userId && currentUser?.id && retrievedContract.userId !== currentUser.id);
+  }, [retrievedContract, currentUser]);
+
+  const isAssignedToMe = useMemo(() => {
+    return Boolean(retrievedContract?.userId && currentUser?.id && retrievedContract.userId === currentUser.id);
+  }, [retrievedContract, currentUser]);
+
   const loadMyContracts = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -358,6 +366,40 @@ const MyContractsPage: React.FC = () => {
       loadMyContracts(); // Refresh the list
     } catch (err: any) {
       setAssignError(err.message || 'Falha ao atribuir contrato');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleRequestTransfer = async () => {
+    if (!retrievedContract) return;
+
+    setAssignLoading(true);
+    setAssignError('');
+    try {
+      await apiService.createApprovalRequest({
+        requestType: 'RequestContractTransfer',
+        payloadJson: JSON.stringify({
+          contractNumber: retrievedContract.contractNumber,
+          contractId: retrievedContract.id,
+          currentUserId: retrievedContract.userId,
+          currentUserName: retrievedContract.userName,
+        }),
+      });
+
+      notifications.show({
+        title: 'Solicitação enviada',
+        message: 'Solicitação de atribuição enviada com sucesso! Aguardando aprovação do seu superior ou do dono da matrícula.',
+        color: 'green',
+      });
+
+      setShowAssignModal(false);
+      setContractNumber('');
+      setRetrievedContract(null);
+      setContractNotYetImported(false);
+      setSelectedMatricula('');
+    } catch (err: any) {
+      setAssignError(err.message || 'Falha ao solicitar atribuição');
     } finally {
       setAssignLoading(false);
     }
@@ -803,13 +845,31 @@ const MyContractsPage: React.FC = () => {
               >
                 Voltar
               </button>
-              <button
-                className="btn-submit"
-                onClick={handleConfirmAssignment}
-                disabled={assignLoading || (userMatriculas.length > 1 && !selectedMatricula) || isAlreadyClaimed}
-              >
-                {assignLoading ? 'Processando...' : (contractNotYetImported ? 'Registrar Interesse' : 'Confirmar Atribuição')}
-              </button>
+              {isAssignedToOther ? (
+                <button
+                  className="btn-submit"
+                  onClick={handleRequestTransfer}
+                  disabled={assignLoading}
+                >
+                  {assignLoading ? 'Solicitando...' : 'Solicitar Atribuição'}
+                </button>
+              ) : isAssignedToMe ? (
+                <button
+                  className="btn-submit"
+                  disabled
+                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                >
+                  Já Atribuído
+                </button>
+              ) : (
+                <button
+                  className="btn-submit"
+                  onClick={handleConfirmAssignment}
+                  disabled={assignLoading || (userMatriculas.length > 1 && !selectedMatricula) || isAlreadyClaimed}
+                >
+                  {assignLoading ? 'Processando...' : (contractNotYetImported ? 'Registrar Interesse' : 'Confirmar Atribuição')}
+                </button>
+              )}
             </>
           )
         }
@@ -832,6 +892,16 @@ const MyContractsPage: React.FC = () => {
           </FormField>
         ) : (
           <>
+            {isAssignedToOther && (
+              <Alert color="yellow" title="Contrato já atribuído" mb="md">
+                Este contrato já está atribuído a {retrievedContract?.userName || 'outro consultor'}. Você pode solicitar a atribuição para você mesmo. A aprovação será realizada pelo seu superior ou pelo titular da matrícula.
+              </Alert>
+            )}
+            {isAssignedToMe && (
+              <Alert color="blue" title="Contrato atribuído a você" mb="md">
+                Este contrato já está atribuído ao seu usuário.
+              </Alert>
+            )}
             {retrievedContract && (
               <div style={{ marginBottom: '1.5rem' }}>
                 <h3 style={{ color: '#111827', marginBottom: '1rem', fontSize: '16px', fontWeight: 600 }}>Detalhes do Contrato</h3>
@@ -876,8 +946,8 @@ const MyContractsPage: React.FC = () => {
               Este contrato ainda não foi importado para o sistema. Você pode registrar seu interesse e ele será atribuído automaticamente à sua matrícula quando for importado.
             </Alert>
           )}
-          {/* Matricula Selection */}
-          {(contractNotYetImported || retrievedContract) && userMatriculas.length >= 1 && (
+          {/* Matricula Selection (only for new assignments or unimported contracts) */}
+          {(contractNotYetImported || (retrievedContract && !isAssignedToOther)) && userMatriculas.length >= 1 && (
             <FormField
               label={`Matrícula ${userMatriculas.length > 1 ? '(Selecione)' : ''}`}
               description={
