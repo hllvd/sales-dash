@@ -1430,6 +1430,7 @@ namespace SalesApp.Services
             var groupCache = new Dictionary<string, int?>();
             var pvCache = new Dictionary<string, int?>();
             var matriculaCache = new Dictionary<string, int?>();
+            var matriculaOwnerCache = new Dictionary<int, UserMatricula?>();
             var contractsToAdd = new List<Contract>();
 
             if (rows.Any())
@@ -1505,7 +1506,8 @@ namespace SalesApp.Services
                         updateTotalAmountOnExisting: updateTotalAmountOnExisting,
                         updateStartDateOnExisting: updateStartDateOnExisting,
                         onSkippedNewContract: cn => skippedNewContracts.Add(cn),
-                        onFailedTotalAmountUpdate: cn => failedTotalAmountUpdateContracts.Add(cn));
+                        onFailedTotalAmountUpdate: cn => failedTotalAmountUpdateContracts.Add(cn),
+                        matriculaOwnerCache: matriculaOwnerCache);
 
                     if (contract != null)
                     {
@@ -1697,7 +1699,8 @@ namespace SalesApp.Services
             bool updateTotalAmountOnExisting = true,
             bool updateStartDateOnExisting = false,
             Action<string>? onSkippedNewContract = null,
-            Action<string>? onFailedTotalAmountUpdate = null)
+            Action<string>? onFailedTotalAmountUpdate = null,
+            Dictionary<int, UserMatricula?>? matriculaOwnerCache = null)
         {
             // Extract raw Cota value (composed string e.g. '012171;1276;0;JULIO FERNANDO BALANDIUK;1100708611')
             var cotaValue = GetFieldValue(row, reverseMappings, "Cota");
@@ -2000,11 +2003,24 @@ namespace SalesApp.Services
                 }
             }
 
-            // If user is not provided by email, try to find the owner of this matricula
-            if (!userInternalId.HasValue && matriculaId.HasValue)
+            // If user is not provided by email, try to find the owner of this matricula for NEW contracts
+            if (!userInternalId.HasValue && matriculaId.HasValue && existingContract == null)
             {
-                var ownerRel = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId.Value);
-                if (ownerRel?.User != null)
+                UserMatricula? ownerRel = null;
+                if (matriculaOwnerCache != null && matriculaOwnerCache.TryGetValue(matriculaId.Value, out var cachedOwner))
+                {
+                    ownerRel = cachedOwner;
+                }
+                else
+                {
+                    ownerRel = await _userMatriculaRepository.GetOwnerByMatriculaIdAsync(matriculaId.Value);
+                    if (matriculaOwnerCache != null)
+                    {
+                        matriculaOwnerCache[matriculaId.Value] = ownerRel;
+                    }
+                }
+
+                if (ownerRel?.User != null && ownerRel.User.AutoAssignNewContractsToMatriculaOwner)
                 {
                     userInternalId = ownerRel.User.InternalId;
                     resolvedUserGuid = ownerRel.User.Id;

@@ -207,6 +207,7 @@ namespace SalesApp.Repositories
         public async Task<UserMatricula?> GetOwnerByMatriculaIdAsync(int matriculaId)
         {
             return await _context.UserMatriculas
+                .Include(m => m.User)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.MatriculaId == matriculaId && m.IsOwner);
         }

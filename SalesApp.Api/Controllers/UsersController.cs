@@ -1116,7 +1116,8 @@ namespace SalesApp.Controllers
                 Data = new UserPreferencesResponse
                 {
                     TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment,
-                    IncludeInactiveUsersInFilter = user.IncludeInactiveUsersInFilter
+                    IncludeInactiveUsersInFilter = user.IncludeInactiveUsersInFilter,
+                    AutoAssignNewContractsToMatriculaOwner = user.AutoAssignNewContractsToMatriculaOwner
                 },
                 Message = "Preferências obtidas com sucesso"
             });
@@ -1147,6 +1148,11 @@ namespace SalesApp.Controllers
                 user.IncludeInactiveUsersInFilter = request.IncludeInactiveUsersInFilter.Value;
             }
 
+            if (request.AutoAssignNewContractsToMatriculaOwner.HasValue)
+            {
+                user.AutoAssignNewContractsToMatriculaOwner = request.AutoAssignNewContractsToMatriculaOwner.Value;
+            }
+
             await _userRepository.UpdateAsync(user);
 
             return Ok(new ApiResponse<UserPreferencesResponse>
@@ -1155,7 +1161,8 @@ namespace SalesApp.Controllers
                 Data = new UserPreferencesResponse
                 {
                     TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment,
-                    IncludeInactiveUsersInFilter = user.IncludeInactiveUsersInFilter
+                    IncludeInactiveUsersInFilter = user.IncludeInactiveUsersInFilter,
+                    AutoAssignNewContractsToMatriculaOwner = user.AutoAssignNewContractsToMatriculaOwner
                 },
                 Message = "Preferências atualizadas com sucesso"
             });
@@ -1307,6 +1314,7 @@ namespace SalesApp.Controllers
                 UpdatedAt = user.UpdatedAt,
                 LastAccessedAt = user.LastAccessedAt,
                 TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment,
+                AutoAssignNewContractsToMatriculaOwner = user.AutoAssignNewContractsToMatriculaOwner,
                 
                 // Matricula information
                 MatriculaId = primaryMatricula?.MatriculaId,

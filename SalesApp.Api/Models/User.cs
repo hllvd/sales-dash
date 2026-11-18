@@ -44,6 +44,8 @@ namespace SalesApp.Models
         
         public bool IncludeInactiveUsersInFilter { get; set; } = true;
         
+        public bool AutoAssignNewContractsToMatriculaOwner { get; set; } = true;
+        
         public int? ImportSessionId { get; set; } // Tracks if this user was created via import
         
         // Navigation properties

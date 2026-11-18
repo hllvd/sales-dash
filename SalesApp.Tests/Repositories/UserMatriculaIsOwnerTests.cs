@@ -204,6 +204,8 @@ namespace SalesApp.Tests.Repositories
             owner.Should().NotBeNull();
             owner!.UserInternalId.Should().Be(ownerUser.InternalId);
             owner.IsOwner.Should().BeTrue();
+            owner.User.Should().NotBeNull();
+            owner.User.Email.Should().Be("owner@test.com");
         }
 
         [Fact]

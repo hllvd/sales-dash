@@ -70,6 +70,7 @@ namespace SalesApp.Data
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
                 entity.Property(e => e.TreatUnpaidActiveAsAwaitingPayment).HasDefaultValue(true);
                 entity.Property(e => e.IncludeInactiveUsersInFilter).HasDefaultValue(true);
+                entity.Property(e => e.AutoAssignNewContractsToMatriculaOwner).HasDefaultValue(true);
                 
                 entity.HasOne(e => e.ParentUser)
                     .WithMany(e => e.ChildUsers)

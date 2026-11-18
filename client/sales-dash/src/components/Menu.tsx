@@ -35,6 +35,8 @@ import {
   IconBook2,
   IconTrophy,
   IconUsersGroup,
+  IconUser,
+  IconAdjustments,
 } from '@tabler/icons-react';
 import { surveyPollingService } from '../services/surveyPollingService';
 
@@ -67,6 +69,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   );
   const [careerPlanMenuOpened, setCareerPlanMenuOpened] = useState(
     window.location.hash.startsWith('#/career-plan')
+  );
+  const [myUserMenuOpened, setMyUserMenuOpened] = useState(
+    window.location.hash === '#/my-profile' || window.location.hash === '#/preferences'
   );
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [pendingSurveyCount, setPendingSurveyCount] = useState<number>(0);
@@ -203,7 +208,8 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   const navLinkStyles = (path: string) => {
     const isNodeActive = isActive(path) || 
       (path === 'users-parent' && (currentPath === '#/users' || currentPath === '#/users/tree')) ||
-      (path === 'teams-parent' && (currentPath === '#/teams' || currentPath === '#/teams/calendar'));
+      (path === 'teams-parent' && (currentPath === '#/teams' || currentPath === '#/teams/calendar')) ||
+      (path === 'my-user-parent' && (currentPath === '#/my-profile' || currentPath === '#/preferences'));
     return {
       root: {
         color: '#d1d5db',
@@ -766,16 +772,43 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
 
         <AppShell.Section style={{ border: '0px', borderTop: '1px solid #374151', borderRadius: '8px', paddingTop: '16px' }}>
           <NavLink
+            component="a"
             href="#/my-profile"
+            role="link"
             label="Meu Usuário"
             leftSection={<IconUsers size={20} />}
-            active={isActive('#/my-profile')}
-            variant="filled"
+            styles={navLinkStyles('my-user-parent')}
+            active={currentPath === '#/my-profile' || currentPath === '#/preferences'}
             color="red"
-            styles={navLinkStyles('#/my-profile')}
-            mb="xs"
-            onClick={() => { if (opened) close(); }}
+            variant="filled"
+            rightSection={myUserMenuOpened ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+            onClick={(e) => {
+              // Toggle accordion if already on one of the children or clicking to expand
+              setMyUserMenuOpened(!myUserMenuOpened);
+            }}
           />
+          {myUserMenuOpened && (
+            <>
+              <NavLink
+                href="#/my-profile"
+                label="Perfil"
+                leftSection={<IconUser size={16} />}
+                active={isActive('#/my-profile')}
+                styles={navLinkStyles('#/my-profile')}
+                style={{ paddingLeft: 28 }}
+                onClick={() => { if (opened) close(); }}
+              />
+              <NavLink
+                href="#/preferences"
+                label="Preferências"
+                leftSection={<IconAdjustments size={16} />}
+                active={isActive('#/preferences')}
+                styles={navLinkStyles('#/preferences')}
+                style={{ paddingLeft: 28 }}
+                onClick={() => { if (opened) close(); }}
+              />
+            </>
+          )}
           <Button
             fullWidth
             leftSection={<IconLogout size={20} />}

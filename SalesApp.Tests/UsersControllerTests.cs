@@ -665,6 +665,7 @@ namespace SalesApp.Tests
             // Assert
             user.TreatUnpaidActiveAsAwaitingPayment.Should().BeTrue();
             user.IncludeInactiveUsersInFilter.Should().BeTrue();
+            user.AutoAssignNewContractsToMatriculaOwner.Should().BeTrue();
         }
 
         [Fact]
@@ -677,7 +678,8 @@ namespace SalesApp.Tests
             {
                 Id = userId,
                 TreatUnpaidActiveAsAwaitingPayment = true,
-                IncludeInactiveUsersInFilter = true
+                IncludeInactiveUsersInFilter = true,
+                AutoAssignNewContractsToMatriculaOwner = true
             };
             _mockUserRepository.Setup(x => x.GetByIdAsync(userId)).ReturnsAsync(user);
 
@@ -691,6 +693,7 @@ namespace SalesApp.Tests
             response!.Success.Should().BeTrue();
             response.Data!.TreatUnpaidActiveAsAwaitingPayment.Should().BeTrue();
             response.Data!.IncludeInactiveUsersInFilter.Should().BeTrue();
+            response.Data!.AutoAssignNewContractsToMatriculaOwner.Should().BeTrue();
         }
 
         [Fact]
@@ -703,7 +706,8 @@ namespace SalesApp.Tests
             {
                 Id = userId,
                 TreatUnpaidActiveAsAwaitingPayment = true,
-                IncludeInactiveUsersInFilter = true
+                IncludeInactiveUsersInFilter = true,
+                AutoAssignNewContractsToMatriculaOwner = true
             };
             _mockUserRepository.Setup(x => x.GetByIdAsync(userId)).ReturnsAsync(user);
             _mockUserRepository.Setup(x => x.UpdateAsync(It.IsAny<User>())).ReturnsAsync((User u) => u);
@@ -711,7 +715,8 @@ namespace SalesApp.Tests
             var request = new UpdateUserPreferencesRequest
             {
                 TreatUnpaidActiveAsAwaitingPayment = false,
-                IncludeInactiveUsersInFilter = false
+                IncludeInactiveUsersInFilter = false,
+                AutoAssignNewContractsToMatriculaOwner = false
             };
 
             // Act
@@ -724,8 +729,10 @@ namespace SalesApp.Tests
             response!.Success.Should().BeTrue();
             response.Data!.TreatUnpaidActiveAsAwaitingPayment.Should().BeFalse();
             response.Data!.IncludeInactiveUsersInFilter.Should().BeFalse();
+            response.Data!.AutoAssignNewContractsToMatriculaOwner.Should().BeFalse();
             user.TreatUnpaidActiveAsAwaitingPayment.Should().BeFalse();
             user.IncludeInactiveUsersInFilter.Should().BeFalse();
+            user.AutoAssignNewContractsToMatriculaOwner.Should().BeFalse();
         }
     }
 }

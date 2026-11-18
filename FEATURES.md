@@ -1,3 +1,43 @@
+## Atribuição Automática de Novos Contratos do Ava Pro ao Dono da Matrícula & Central de Preferências
+
+Permite que novos contratos importados do Ava Pro / PowerBI sejam atribuídos automaticamente ao usuário proprietário da matrícula correspondente (`IsOwner = true`), controlado individualmente por uma Feature Flag nas preferências do usuário.
+
+### Comportamento e Regras
+- **Atribuição Automática de Novos Contratos ([ImportExecutionService.cs](SalesApp.Api/Services/ImportExecutionService.cs))**:
+  - Aplicável estritamente a **novos contratos** (`existingContract == null`). Contratos já existentes no sistema permanecem intocáveis, preservando qualquer atribuição prévia.
+  - Ao identificar a matrícula do contrato importado, localiza o proprietário registrado em `UserMatricula` (`IsOwner = true`).
+  - Se o proprietário possuir a preferência `AutoAssignNewContractsToMatriculaOwner = true`, o contrato é criado com `UserInternalId` definido para o ID interno desse proprietário.
+  - Se a matrícula não tiver dono definido ou se o proprietário tiver a flag desativada (`false`), o contrato novo é criado sem usuário atribuído (`UserInternalId = null`), permitindo atribuição manual posterior.
+  - Implementado cache local (`matriculaOwnerCache`) em lote para otimizar importações volumosas sem chamadas redundantes ao banco.
+- **Carregamento de Proprietário com Entidade do Usuário ([UserMatriculaRepository.cs](SalesApp.Api/Repositories/UserMatriculaRepository.cs))**:
+  - `GetOwnerByMatriculaIdAsync` atualizado com `.Include(m => m.User)` para garantir que os dados e preferências do usuário proprietário sejam carregados corretamente.
+- **Feature Flag no Usuário & API de Preferências ([User.cs](SalesApp.Api/Models/User.cs), [AppDbContext.cs](SalesApp.Api/Data/AppDbContext.cs), [UsersController.cs](SalesApp.Api/Controllers/UsersController.cs))**:
+  - Nova coluna booleana `AutoAssignNewContractsToMatriculaOwner` (padrão `true` / ativado) na tabela `Users`.
+  - Migration dedicada `20261118150000_AddAutoAssignNewContractsToMatriculaOwnerToUser` com ativação padrão para todos os usuários existentes e novos.
+  - Endpoints `GET /api/users/me/preferences` e `PUT /api/users/me/preferences` e DTOs `UserPreferencesResponse` e `UpdateUserPreferencesRequest` atualizados.
+- **Central de Preferências & Menu Lateral ([Menu.tsx](client/sales-dash/src/components/Menu.tsx), [PreferencesPage.tsx](client/sales-dash/src/components/PreferencesPage.tsx))**:
+  - Item **"Meu Usuário"** no menu lateral transformado em menu retrátil (Accordion) com subitens **"Perfil"** (`#/my-profile`) e **"Preferências"** (`#/preferences`).
+  - Nova página de Preferências construída em Mantine UI com switches ON/OFF, feedback instantâneo e tratamento de erros:
+    - *Atribuir novos contratos do Ava Pro ao dono da matrícula* (`autoAssignNewContractsToMatriculaOwner`).
+    - *Tratar cotas ativas sem pagamento como aguardando pagamento* (`treatUnpaidActiveAsAwaitingPayment`).
+    - *Incluir usuários inativos nos filtros* (`includeInactiveUsersInFilter`).
+
+### Arquivos Modificados / Criados
+- `SalesApp.Api/Models/User.cs`: Adição da propriedade `AutoAssignNewContractsToMatriculaOwner`.
+- `SalesApp.Api/Data/AppDbContext.cs`: Configuração de default value `true` na entidade `User`.
+- `SalesApp.Api/Migrations/20261118150000_AddAutoAssignNewContractsToMatriculaOwnerToUser.cs`: Migration do banco de dados.
+- `SalesApp.Api/DTOs/UserPreferencesDTOs.cs` e `UserResponse.cs`: Suporte ao campo na transferência de dados.
+- `SalesApp.Api/Controllers/UsersController.cs`: Leitura e atualização da nova preferência.
+- `SalesApp.Api/Repositories/UserMatriculaRepository.cs`: Carregamento ansioso (`.Include(m => m.User)`) do proprietário.
+- `SalesApp.Api/Services/ImportExecutionService.cs`: Lógica de verificação da flag e atribuição de novos contratos com cache.
+- `client/sales-dash/src/services/apiService.ts`: Tipagem `UserPreferences` atualizada.
+- `client/sales-dash/src/components/Menu.tsx`: Menu retrátil "Meu Usuário" com "Perfil" e "Preferências".
+- `client/sales-dash/src/components/PreferencesPage.tsx` e `App.tsx`: Criação da página de preferências e roteamento `#/preferences`.
+- `SalesApp.Tests/UsersControllerTests.cs`, `UserMatriculaIsOwnerTests.cs`, `AutoAssignMatriculaOwnerTests.cs`, `PreferencesPage.test.tsx`: Testes de unidade e integração.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Inferência de 1ª Parcela Paga em RTs e Parcelas Pagas para Contratos Não-Desistentes
 
 Garante que contratos elegíveis já pagos (com `HasPayment != false` e status diferente de `Desistente` e `AwaitingPayment`) sempre tenham a 1ª parcela inferida como paga tanto na tabela visual de acompanhamento de RTs (`RT1`) quanto no cálculo de meses pagos inferidos (`CalculateInferredPaidMonths`), mesmo quando a quantidade de parcelas em atraso é igual ou superior à idade do contrato em meses.

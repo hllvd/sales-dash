@@ -17,6 +17,7 @@ import CareerPlanPage from './components/CareerPlanPage';
 import { CareerPlanConsultantsPage } from './components/CareerPlanConsultantsPage';
 import MyCareerPlanPage from './components/MyCareerPlanPage';
 import MyProfilePage from './components/MyProfilePage';
+import PreferencesPage from './components/PreferencesPage';
 import ImportHistoryPage from './components/ImportHistoryPage';
 import ImportWizardPage from './components/ImportWizardPage';
 import AccessControlPage from './components/AccessControlPage';
@@ -174,6 +175,8 @@ function App() {
         return <MyCareerPlanPage />;
       case '#/my-profile':
         return <MyProfilePage />;
+      case '#/preferences':
+        return <PreferencesPage />;
       case '#/import-history':
         return <ImportHistoryPage />;
       case '#/import-wizard':

@@ -197,6 +197,12 @@ async function extractErrorMessage(response: Response, defaultMessage: string): 
   return defaultMessage;
 }
 
+export interface UserPreferences {
+  treatUnpaidActiveAsAwaitingPayment: boolean;
+  includeInactiveUsersInFilter: boolean;
+  autoAssignNewContractsToMatriculaOwner: boolean;
+}
+
 export const apiService = {
   async getUsers(
     page: number = 1,
@@ -277,7 +283,7 @@ export const apiService = {
     return response.json()
   },
 
-  async getUserPreferences(): Promise<ApiResponse<{ treatUnpaidActiveAsAwaitingPayment: boolean; includeInactiveUsersInFilter: boolean }>> {
+  async getUserPreferences(): Promise<ApiResponse<UserPreferences>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/preferences`, {
       headers: getAuthHeaders(),
     })
@@ -289,7 +295,7 @@ export const apiService = {
     return response.json()
   },
 
-  async updateUserPreferences(data: { treatUnpaidActiveAsAwaitingPayment?: boolean; includeInactiveUsersInFilter?: boolean }): Promise<ApiResponse<{ treatUnpaidActiveAsAwaitingPayment: boolean; includeInactiveUsersInFilter: boolean }>> {
+  async updateUserPreferences(data: Partial<UserPreferences>): Promise<ApiResponse<UserPreferences>> {
     const response = await authenticatedFetch(`${API_BASE_URL}/users/me/preferences`, {
       method: 'PUT',
       headers: {
