@@ -13,6 +13,7 @@ Esta seção reúne respostas para as dúvidas técnicas, operacionais e regras 
 5. [O que significa o status "Aguardando importação" em Contratos Solicitados?](#5-o-que-significa-o-status-aguardando-importação-em-contratos-solicitados)
 6. [Por que o consultor deve sempre ter uma equipe ativa no Calendário?](#6-por-que-o-consultor-deve-sempre-ter-uma-equipe-ativa-no-calendário)
 7. [O que é o módulo de Perguntas e Respostas (QA) no menu?](#7-o-que-é-o-módulo-de-perguntas-e-respostas-qa-no-menu)
+8. [Como funciona a atribuição de novos contratos do Ava Pro e a transferência entre consultores?](#8-como-funciona-a-atribuição-de-novos-contratos-do-ava-pro-e-a-transferência-entre-consultores)
 
 ---
 
@@ -80,3 +81,16 @@ Se um consultor ficar sem nenhuma equipe ativa cadastrada, as novas vendas e imp
 
 No menu lateral, o item **QA** (`#/qa`) é o canal interativo onde os consultores e membros da equipe respondem a questionários, pesquisas de alinhamento e enquetes operacionais enviadas pela diretoria ou administradores (`#/surveys`).
 Sempre que houver uma nova pergunta com resposta pendente, um selo numérico vermelho aparecerá no item QA do menu para alertar você.
+
+---
+
+### <a id="8-como-funciona-a-atribuição-de-novos-contratos-do-ava-pro-e-a-transferência-entre-consultores"></a> 8. Como funciona a atribuição de novos contratos do Ava Pro e a transferência entre consultores?
+
+1. **Atribuição Automática por Matrícula**:
+   - Todo novo contrato importado do Ava Pro com matrícula associada é vinculado automaticamente ao consultor ou gestor que é o titular/proprietário daquela matrícula (`IsOwner = true`).
+2. **Consultor que usa a Matrícula do Gestor**:
+   - Como a venda entra vinculada ao titular da matrícula (o gestor), o consultor acessa **Meus Contratos** (`#/my-contracts`), clica em **`+ Novo`**, pesquisa pelo número do contrato e clica em **`Solicitar Atribuição`**.
+3. **Aprovação pelo Gestor / Titular**:
+   - O gestor acessa a aba **Solicitações** (`#/requests`) e aprova a transferência com um clique.
+   - Assim que aprovado, o contrato passa a figurar na carteira do consultor, mantendo a matrícula original intacta.
+   - Mais detalhes no guia: [Como atribuir e solicitar contratos](#/help/como-fazer/como-atribuir-e-solicitar-contratos).

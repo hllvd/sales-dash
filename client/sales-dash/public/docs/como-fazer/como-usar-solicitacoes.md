@@ -17,7 +17,8 @@ Clique no tipo de solicitação desejado para ir direto ao passo a passo:
 4. [Solicitação de Nível de Classificação](#4-solicitação-de-nível-de-classificação)
 5. [Solicitação de Matrícula (Proprietário)](#5-solicitação-de-matrícula-proprietário)
 6. [Solicitação de Perfil Administrador (Role Admin)](#6-solicitação-de-perfil-administrador-role-admin)
-7. [Como Acompanhar o Status da Solicitação](#como-acompanhar-o-status-da-solicitação)
+7. [Solicitação de Atribuição de Contrato](#7-solicitação-de-atribuição-de-contrato)
+8. [Como Acompanhar o Status da Solicitação](#como-acompanhar-o-status-da-solicitação)
 
 ---
 
@@ -84,6 +85,14 @@ Clique no tipo de solicitação desejado para ir direto ao passo a passo:
 - **Campos a preencher:**
   - Não requer campos adicionais; basta selecionar essa opção no menu suspenso.
 - **Como funciona a aprovação:** Encaminhada diretamente para o seu superior direto ou SuperAdmin. Ao ser aprovada, suas permissões de acesso são expandidas imediatamente.
+
+---
+
+### <a id="7-solicitação-de-atribuição-de-contrato"></a> 7. Solicitação de Atribuição de Contrato
+
+- **Quando usar:** Quando você realiza uma venda utilizando a matrícula corporativa do seu gestor e o contrato foi atribuído inicialmente ao titular da matrícula na importação.
+- **Onde solicitar:** Esta solicitação é realizada diretamente na tela **Meus Contratos** (`#/my-contracts`) > botão **`+ Novo`**. Ao buscar o número do contrato já pertencente ao titular, o sistema exibe o botão **`Solicitar Atribuição`**.
+- **Como funciona a aprovação:** A solicitação é enviada para o seu superior imediato ou para o dono da matrícula. Assim que qualquer um deles aprovar na aba **Solicitações Pendentes**, o contrato é transferido automaticamente para a sua carteira, mantendo a matrícula original.
 
 ---
 

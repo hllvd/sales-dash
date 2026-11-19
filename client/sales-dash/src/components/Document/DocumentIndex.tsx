@@ -88,6 +88,16 @@ export const DocumentIndex: React.FC = () => {
                 </Anchor>
 
                 <Anchor
+                  href="#/help/como-fazer/como-atribuir-e-solicitar-contratos"
+                  underline="hover"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0969da' }}
+                >
+                  <IconFileText size={16} />
+                  <span>Como atribuir e solicitar contratos</span>
+                  <IconArrowRight size={14} style={{ marginLeft: 'auto' }} />
+                </Anchor>
+
+                <Anchor
                   href="#/help/como-fazer/como-atualizar-senha-powerbi-scrape"
                   underline="hover"
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0969da' }}
