@@ -303,6 +303,23 @@ namespace SalesApp.Tests.CareerPlan
                     TotalAmount = 200_000m,
                     HasPayment = true,
                     ContractStatus = new ContractStatusEntity { Name = "Active" }
+                },
+                // 8. Sold in reference month (2026-10-10), naturally only 1 paid month (RT1 green, RT2 not due) -> EXCLUDED (40k)
+                new Contract
+                {
+                    SaleStartDate = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+                    TotalAmount = 40_000m,
+                    HasPayment = true,
+                    ContractStatus = new ContractStatusEntity { Name = "Active" }
+                },
+                // 9. Sold in reference month (2026-10-10), simulated with SimulatedPaidMonths = 2 (user clicked RT2 green) -> INCLUDED (45k)
+                new Contract
+                {
+                    SaleStartDate = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+                    TotalAmount = 45_000m,
+                    HasPayment = true,
+                    ContractStatus = new ContractStatusEntity { Name = "Active" },
+                    SimulatedPaidMonths = 2
                 }
             };
 
@@ -316,9 +333,10 @@ namespace SalesApp.Tests.CareerPlan
 
             var raw = CareerMetricsCalculator.ComputeRawMetrics(inputs);
 
-            // Qualify: Contract 1 (100k) + Contract 2 (70k) + Contract 4 (60k) + Contract 5 (80k) = 310_000m
-            // Contract 3 (50k) is excluded because it only has 1 paid month.
-            raw.CommercializedContracts12mMinAge2.Should().Be(310_000m);
+            // Qualify: Contract 1 (100k) + Contract 2 (70k) + Contract 4 (60k) + Contract 5 (80k) + Contract 9 (45k) = 355_000m
+            // Contract 3 (50k) is excluded because 1 paid month.
+            // Contract 8 (40k) is excluded because naturally 1 paid month (current month sale).
+            raw.CommercializedContracts12mMinAge2.Should().Be(355_000m);
         }
     }
 }

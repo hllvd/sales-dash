@@ -49,7 +49,7 @@ namespace SalesApp.CareerPlan
         {
             if (inputs == null) throw new ArgumentNullException(nameof(inputs));
 
-            var (start, end) = CareerReferenceDate.GetClosedMonthWindow(inputs.ReferenceDate, windowMonths);
+            var (start, end) = CareerReferenceDate.GetProductionWindow(inputs.ReferenceDate, windowMonths);
 
             return inputs.UserContracts
                 .Where(c => c.SaleStartDate >= start && c.SaleStartDate < end)
@@ -69,7 +69,7 @@ namespace SalesApp.CareerPlan
         {
             if (inputs == null) throw new ArgumentNullException(nameof(inputs));
 
-            var (start, end) = CareerReferenceDate.GetClosedMonthWindow(inputs.ReferenceDate, windowMonths);
+            var (start, end) = CareerReferenceDate.GetProductionWindow(inputs.ReferenceDate, windowMonths);
 
             return inputs.UserContracts
                 .Where(c => c.SaleStartDate >= start && c.SaleStartDate < end)
@@ -120,7 +120,7 @@ namespace SalesApp.CareerPlan
                 case MetricKind.Production:
                 {
                     int wm = windowMonths.GetValueOrDefault(12);
-                    var (start, end) = CareerReferenceDate.GetClosedMonthWindow(inputs.ReferenceDate, wm);
+                    var (start, end) = CareerReferenceDate.GetProductionWindow(inputs.ReferenceDate, wm);
 
                     var eligibleProduction = inputs.UserContracts
                         .Where(c => c.SaleStartDate >= start && c.SaleStartDate < end)

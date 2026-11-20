@@ -41,6 +41,22 @@ namespace SalesApp.CareerPlan
         }
 
         /// <summary>
+        /// Pure function returning the half-open interval [Start, End) of full months
+        /// including the reference date's month (e.g. for production and commercialized metrics).
+        /// Example: reference 15/11/2026, window 12 months -&gt; Start = 2025-12-01 00:00:00, End = 2026-12-01 00:00:00.
+        /// </summary>
+        public static (DateTime Start, DateTime End) GetProductionWindow(DateTime referenceDate, int windowMonths)
+        {
+            if (windowMonths <= 0)
+                throw new ArgumentOutOfRangeException(nameof(windowMonths), "Window months must be positive.");
+
+            var end = new DateTime(referenceDate.Year, referenceDate.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(1);
+            var start = end.AddMonths(-windowMonths);
+
+            return (start, end);
+        }
+
+        /// <summary>
         /// Pure function computing the number of due installments based on the sale month
         /// and the reference date (closing day 15).
         /// In consórcio, every contract pays installment 1 at sale closing in the sale month.

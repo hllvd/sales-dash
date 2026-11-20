@@ -73,6 +73,17 @@ namespace SalesApp.Tests.CareerPlan
             start.Should().Be(new DateTime(2025, 10, 1, 0, 0, 0, DateTimeKind.Utc));
         }
 
+        [Fact]
+        public void GetProductionWindow_12MonthsFromNovember15_CoversDecember2025ThroughNovember2026()
+        {
+            var referenceDate = new DateTime(2026, 11, 15, 0, 0, 0, DateTimeKind.Utc);
+            var (start, end) = CareerReferenceDate.GetProductionWindow(referenceDate, 12);
+
+            // Includes the reference month of November 2026 (end is 2026-12-01)
+            end.Should().Be(new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc));
+            start.Should().Be(new DateTime(2025, 12, 1, 0, 0, 0, DateTimeKind.Utc));
+        }
+
         [Theory]
         [InlineData("2026-08-10", "2026-10-15", 2)] // 2 full calendar months (Aug to Oct)
         [InlineData("2026-08-20", "2026-10-15", 2)] // Entire month of Aug counts

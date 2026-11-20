@@ -4,7 +4,7 @@ Ajusta o critério de elegibilidade da métrica no Plano de Carreira e no simula
 
 ### Comportamento e Regras
 - **Critério de Inclusão ($\ge 2$ Parcelas Pagas)**:
-  - Contratos vendidos na janela de 12 meses fechados entram na métrica apenas se possuírem $\ge 2$ parcelas pagas inferidas ou simuladas (`paidMonths >= 2`).
+  - Contratos vendidos na janela de 12 meses (incluindo o mês de referência da avaliação via `GetProductionWindow`) entram na métrica apenas se possuírem $\ge 2$ parcelas pagas inferidas ou simuladas (`paidMonths >= 2`).
   - Contratos com apenas 1 parcela paga (ex.: RT1 verde e RT2 amarelo, ou RT1 verde e RT2 não vencido/branco) **não são contabilizados**.
   - Ao simular a 2ª parcela (RT2) como verde no modo Simulador, o contrato atinge 2 parcelas pagas e é imediatamente somado ao valor da métrica.
   - Se o usuário desmarcar o RT2 (tornando-o amarelo) ou resetar a simulação, o contrato volta a não ser somado.
