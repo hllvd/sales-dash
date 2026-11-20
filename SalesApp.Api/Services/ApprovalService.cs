@@ -244,6 +244,70 @@ namespace SalesApp.Services
 
         public async Task<ApprovalRequestResponse> ResolveAsync(int requestId, Guid approverId, string approverRole, ResolveApprovalDto dto)
         {
+            var approverUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == approverId && u.IsActive);
+            if (approverUser == null)
+            {
+                throw new UnauthorizedAccessException("Usuário aprovador não encontrado ou inativo.");
+            }
+
+            var request = await ResolveSingleInternalAsync(requestId, approverId, approverRole, approverUser, dto);
+
+            var updated = await _context.ApprovalRequests
+                .Include(r => r.Requester)
+                .Include(r => r.Approver)
+                .FirstAsync(r => r.Id == request.Id);
+
+            return MapToResponse(updated);
+        }
+
+        public async Task<ResolveBatchApprovalResult> ResolveBatchAsync(Guid approverId, string approverRole, ResolveBatchApprovalDto dto)
+        {
+            if (dto.RequestIds == null || dto.RequestIds.Count == 0)
+            {
+                throw new ArgumentException("Nenhuma solicitação informada para processamento em lote.");
+            }
+
+            var approverUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == approverId && u.IsActive);
+            if (approverUser == null)
+            {
+                throw new UnauthorizedAccessException("Usuário aprovador não encontrado ou inativo.");
+            }
+
+            var result = new ResolveBatchApprovalResult
+            {
+                TotalRequested = dto.RequestIds.Count
+            };
+
+            var resolveDto = new ResolveApprovalDto
+            {
+                Action = dto.Action,
+                Comment = dto.Comment
+            };
+
+            foreach (var requestId in dto.RequestIds.Distinct())
+            {
+                try
+                {
+                    await ResolveSingleInternalAsync(requestId, approverId, approverRole, approverUser, resolveDto);
+                    result.SuccessCount++;
+                    result.SucceededIds.Add(requestId);
+                }
+                catch (Exception ex)
+                {
+                    result.FailureCount++;
+                    result.Failures.Add(new BatchFailureItem
+                    {
+                        RequestId = requestId,
+                        ErrorMessage = ex.Message
+                    });
+                }
+            }
+
+            return result;
+        }
+
+        private async Task<ApprovalRequest> ResolveSingleInternalAsync(int requestId, Guid approverId, string approverRole, User approverUser, ResolveApprovalDto dto)
+        {
             var request = await _context.ApprovalRequests
                 .Include(r => r.Requester)
                 .Include(r => r.Approver)
@@ -257,12 +321,6 @@ namespace SalesApp.Services
             if (request.Status != ApprovalRequestStatus.Pending)
             {
                 throw new InvalidOperationException("Esta solicitação já foi processada.");
-            }
-
-            var approverUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == approverId && u.IsActive);
-            if (approverUser == null)
-            {
-                throw new UnauthorizedAccessException("Usuário aprovador não encontrado ou inativo.");
             }
 
             if (!await CanUserApproveRequestAsync(request, approverId, approverRole, approverUser))
@@ -303,13 +361,7 @@ namespace SalesApp.Services
             }
 
             await _context.SaveChangesAsync();
-
-            var updated = await _context.ApprovalRequests
-                .Include(r => r.Requester)
-                .Include(r => r.Approver)
-                .FirstAsync(r => r.Id == request.Id);
-
-            return MapToResponse(updated);
+            return request;
         }
 
         private async Task<bool> CanUserApproveRequestAsync(ApprovalRequest request, Guid callerId, string callerRole, User callerUser)

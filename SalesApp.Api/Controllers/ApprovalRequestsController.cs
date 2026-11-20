@@ -159,5 +159,53 @@ namespace SalesApp.Controllers
                 });
             }
         }
+
+        // POST: api/approval-requests/resolve-batch
+        [HttpPost("resolve-batch")]
+        public async Task<ActionResult<ApiResponse<ResolveBatchApprovalResult>>> ResolveBatch([FromBody] ResolveBatchApprovalDto dto)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdString, out var approverId))
+            {
+                return Unauthorized(new ApiResponse<ResolveBatchApprovalResult>
+                {
+                    Success = false,
+                    Message = "Usuário não autenticado."
+                });
+            }
+
+            var roleName = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+
+            try
+            {
+                var result = await _approvalService.ResolveBatchAsync(approverId, roleName, dto);
+                var message = result.FailureCount > 0
+                    ? $"{result.SuccessCount} de {result.TotalRequested} solicitações processadas com sucesso. {result.FailureCount} falha(s)."
+                    : $"{result.SuccessCount} solicitações processadas com sucesso.";
+
+                return Ok(new ApiResponse<ResolveBatchApprovalResult>
+                {
+                    Success = true,
+                    Data = result,
+                    Message = message
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, new ApiResponse<ResolveBatchApprovalResult>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
+            {
+                return BadRequest(new ApiResponse<ResolveBatchApprovalResult>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
     }
 }

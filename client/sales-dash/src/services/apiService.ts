@@ -1666,6 +1666,16 @@ export const apiService = {
     return response.json()
   },
 
+  async resolveBatchApprovalRequests(payload: ResolveBatchApprovalPayload): Promise<ApiResponse<ResolveBatchApprovalResult>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/approval-requests/resolve-batch`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error(await extractErrorMessage(response, "Failed to resolve approval requests in batch"))
+    return response.json()
+  },
+
   async reconcileContracts(
     file: File,
     startDate: string,
@@ -2513,6 +2523,23 @@ export interface CreateApprovalRequestPayload {
 export interface ResolveApprovalPayload {
   action: string
   comment?: string
+}
+
+export interface ResolveBatchApprovalPayload {
+  requestIds: number[]
+  action: string
+  comment?: string
+}
+
+export interface ResolveBatchApprovalResult {
+  totalRequested: number
+  successCount: number
+  failureCount: number
+  succeededIds: number[]
+  failures: {
+    requestId: number
+    errorMessage: string
+  }[]
 }
 
 export interface ReconciledContractItem {

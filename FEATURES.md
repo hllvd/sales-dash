@@ -1,3 +1,36 @@
+## Central de Solicitações: Aprovação e Rejeição em Massa (Batch Resolution)
+
+Permite aos aprovadores (administradores e superadministradores) selecionar múltiplas solicitações pendentes e executar aprovação ou rejeição em massa na Central de Solicitações (`/#/requests`).
+
+### Comportamento e Regras
+- **Ativação Condicional (> 3 Solicitações Pendentes)**:
+  - Os checkboxes de seleção individual e a opção de "Selecionar todas" (Select All) no cabeçalho da tabela só são exibidos quando há **mais de 3 solicitações pendentes** (`pendingRequests.length > 3`).
+  - Se houver 3 ou menos solicitações, o fluxo permanece no modo individual simples.
+- **Barra de Ações em Lote**:
+  - Exibida acima da tabela sempre que houver 1 ou mais solicitações selecionadas no modo em lote.
+  - Exibe o contador de itens selecionados e os botões de ação:
+    - **Aceitar Selecionadas**: abre modal de confirmação para aprovar os itens selecionados.
+    - **Rejeitar Selecionadas**: abre modal de confirmação com campo opcional de motivo/comentário.
+    - **Desmarcar todas**: limpa a seleção atual.
+- **Modais de Confirmação**:
+  - Tanto a aprovação quanto a rejeição em massa exigem confirmação explícita em modal antes da execução.
+  - A rejeição em massa disponibiliza um campo de texto opcional para justificativa que será gravado em todas as solicitações rejeitadas do lote.
+- **Resiliência e Tolerância a Falhas**:
+  - O endpoint de resolução em lote processa cada solicitação individualmente de forma transacionada e isolada. Caso uma solicitação apresente falha, as demais válidas continuam sendo processadas e concluídas com sucesso.
+  - A resposta da API e a notificação no frontend informam o total de solicitações bem-sucedidas e eventuais falhas.
+
+### Arquivos Modificados
+- `SalesApp.Api/DTOs/ApprovalDTOs.cs`: Novos DTOs `ResolveBatchApprovalDto`, `ResolveBatchApprovalResult` e `BatchFailureItem`.
+- `SalesApp.Api/Services/IApprovalService.cs`: Assinatura do método `ResolveBatchAsync`.
+- `SalesApp.Api/Services/ApprovalService.cs`: Implementação de `ResolveBatchAsync` e reutilização da lógica via `ResolveSingleInternalAsync`.
+- `SalesApp.Api/Controllers/ApprovalRequestsController.cs`: Novo endpoint `POST /api/approval-requests/resolve-batch`.
+- `client/sales-dash/src/services/apiService.ts`: Integração com o endpoint e tipagem da resposta.
+- `client/sales-dash/src/components/RequestsPage.tsx`: Estado de seleção, checkboxes, barra de ações em lote e modais de confirmação.
+- `SalesApp.IntegrationTests/Users/ApprovalRequestsControllerIntegrationTests.cs`: Testes de integração cobrindo aprovação em lote, rejeição em lote com comentário e tolerância a falhas parciais.
+- `FEATURES.md`: Documentação técnica.
+
+---
+
 ## Métrica Contratos Comercializados (12 meses): Exigência de ≥ 2 Parcelas Pagas e Renomeação do Label
 
 Ajusta o critério de elegibilidade da métrica no Plano de Carreira e no simulador interativo, exigindo que o contrato possua ao menos 2 parcelas pagas (`paidMonths >= 2`), e atualiza o rótulo da métrica para **"Contratos comercializados (12 meses)"**.

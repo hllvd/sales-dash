@@ -1204,6 +1204,180 @@ namespace SalesApp.IntegrationTests.Users
             updatedContract.UserInternalId.Should().Be(owner.InternalId, "rejected request must preserve original owner");
             updatedContract.MatriculaId.Should().Be(matricula.Id);
         }
+
+        [Fact]
+        public async Task ResolveBatch_ApproveAll_Succeeds()
+        {
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+
+            var meResponse = await _client.GetAsync("/api/users/me");
+            meResponse.EnsureSuccessStatusCode();
+            var meResult = await meResponse.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var superAdminId = meResult!.Data!.Id;
+
+            var userEmail = $"req_batch_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var registerRes = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "Batch Requester",
+                Email = userEmail,
+                Password = "Password123!",
+                ParentUserId = superAdminId
+            });
+            registerRes.EnsureSuccessStatusCode();
+
+            var userToken = await GetTokenAsync(userEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var requestIds = new List<int>();
+            for (int i = 0; i < 4; i++)
+            {
+                var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+                {
+                    RequestType = "RequestMatricula",
+                    PayloadJson = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = $"{Random.Shared.Next(100000, 999999)}" })
+                });
+                createRes.EnsureSuccessStatusCode();
+                var data = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+                requestIds.Add(data!.Data!.Id);
+            }
+
+            // Superadmin approves batch
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var batchRes = await _client.PostAsJsonAsync("/api/approval-requests/resolve-batch", new ResolveBatchApprovalDto
+            {
+                RequestIds = requestIds,
+                Action = "Approved"
+            });
+            batchRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var batchResult = await batchRes.Content.ReadFromJsonAsync<ApiResponse<ResolveBatchApprovalResult>>();
+            batchResult.Should().NotBeNull();
+            batchResult!.Success.Should().BeTrue();
+            batchResult.Data!.SuccessCount.Should().Be(4);
+            batchResult.Data.FailureCount.Should().Be(0);
+            batchResult.Data.Failures.Should().BeEmpty();
+
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var inDb = await context.ApprovalRequests.Where(r => requestIds.Contains(r.Id)).ToListAsync();
+            inDb.Should().HaveCount(4);
+            inDb.Should().OnlyContain(r => r.Status == ApprovalRequestStatus.Approved);
+        }
+
+        [Fact]
+        public async Task ResolveBatch_RejectAll_WithComment_Succeeds()
+        {
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+
+            var meResponse = await _client.GetAsync("/api/users/me");
+            meResponse.EnsureSuccessStatusCode();
+            var meResult = await meResponse.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var superAdminId = meResult!.Data!.Id;
+
+            var userEmail = $"req_batch_rej_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var registerRes = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "Batch Reject Requester",
+                Email = userEmail,
+                Password = "Password123!",
+                ParentUserId = superAdminId
+            });
+            registerRes.EnsureSuccessStatusCode();
+
+            var userToken = await GetTokenAsync(userEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var requestIds = new List<int>();
+            for (int i = 0; i < 2; i++)
+            {
+                var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+                {
+                    RequestType = "RequestMatricula",
+                    PayloadJson = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = $"{Random.Shared.Next(100000, 999999)}" })
+                });
+                createRes.EnsureSuccessStatusCode();
+                var data = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+                requestIds.Add(data!.Data!.Id);
+            }
+
+            // Superadmin rejects batch
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var batchRes = await _client.PostAsJsonAsync("/api/approval-requests/resolve-batch", new ResolveBatchApprovalDto
+            {
+                RequestIds = requestIds,
+                Action = "Rejected",
+                Comment = "Rejeitado em lote no teste"
+            });
+            batchRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var batchResult = await batchRes.Content.ReadFromJsonAsync<ApiResponse<ResolveBatchApprovalResult>>();
+            batchResult.Should().NotBeNull();
+            batchResult!.Data!.SuccessCount.Should().Be(2);
+            batchResult.Data.FailureCount.Should().Be(0);
+
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var inDb = await context.ApprovalRequests.Where(r => requestIds.Contains(r.Id)).ToListAsync();
+            inDb.Should().HaveCount(2);
+            inDb.Should().OnlyContain(r => r.Status == ApprovalRequestStatus.Rejected && r.ApproverComment == "Rejeitado em lote no teste");
+        }
+
+        [Fact]
+        public async Task ResolveBatch_PartialFailure_ReportsFailuresAndProcessesOthers()
+        {
+            var superAdminToken = await GetTokenAsync("superadmin@test.com", "superadmin123");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+
+            var meResponse = await _client.GetAsync("/api/users/me");
+            meResponse.EnsureSuccessStatusCode();
+            var meResult = await meResponse.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>();
+            var superAdminId = meResult!.Data!.Id;
+
+            var userEmail = $"req_batch_part_{Guid.NewGuid().ToString()[..8]}@test.com";
+            var registerRes = await _client.PostAsJsonAsync("/api/users/register", new
+            {
+                Name = "Batch Partial Requester",
+                Email = userEmail,
+                Password = "Password123!",
+                ParentUserId = superAdminId
+            });
+            registerRes.EnsureSuccessStatusCode();
+
+            var userToken = await GetTokenAsync(userEmail, "Password123!");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+            var requestIds = new List<int>();
+            for (int i = 0; i < 2; i++)
+            {
+                var createRes = await _client.PostAsJsonAsync("/api/approval-requests", new CreateApprovalRequestDto
+                {
+                    RequestType = "RequestMatricula",
+                    PayloadJson = JsonSerializer.Serialize(new RequestMatriculaPayload { MatriculaNumber = $"{Random.Shared.Next(100000, 999999)}" })
+                });
+                createRes.EnsureSuccessStatusCode();
+                var data = await createRes.Content.ReadFromJsonAsync<ApiResponse<ApprovalRequestResponse>>();
+                requestIds.Add(data!.Data!.Id);
+            }
+
+            // Append invalid request ID
+            requestIds.Add(999999);
+
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdminToken);
+            var batchRes = await _client.PostAsJsonAsync("/api/approval-requests/resolve-batch", new ResolveBatchApprovalDto
+            {
+                RequestIds = requestIds,
+                Action = "Approved"
+            });
+            batchRes.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var batchResult = await batchRes.Content.ReadFromJsonAsync<ApiResponse<ResolveBatchApprovalResult>>();
+            batchResult.Should().NotBeNull();
+            batchResult!.Data!.SuccessCount.Should().Be(2);
+            batchResult.Data.FailureCount.Should().Be(1);
+            batchResult.Data.Failures.Should().Contain(f => f.RequestId == 999999);
+        }
     }
 }
 

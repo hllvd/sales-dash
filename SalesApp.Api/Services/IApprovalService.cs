@@ -8,5 +8,6 @@ namespace SalesApp.Services
         Task<List<ApprovalRequestResponse>> GetPendingAsync(Guid callerId, string callerRole);
         Task<List<ApprovalRequestResponse>> GetMyRequestsAsync(Guid requesterId);
         Task<ApprovalRequestResponse> ResolveAsync(int requestId, Guid approverId, string approverRole, ResolveApprovalDto dto);
+        Task<ResolveBatchApprovalResult> ResolveBatchAsync(Guid approverId, string approverRole, ResolveBatchApprovalDto dto);
     }
 }

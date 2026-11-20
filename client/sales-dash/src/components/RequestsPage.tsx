@@ -15,8 +15,10 @@ import {
   LoadingOverlay,
   Card,
   Checkbox,
+  Paper,
 } from '@mantine/core';
-import { IconCheck, IconX, IconClock, IconPlus, IconAlertCircle, IconSend } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import { IconCheck, IconX, IconClock, IconPlus, IconAlertCircle, IconSend, IconListCheck } from '@tabler/icons-react';
 import { apiService, ApprovalRequestItem } from '../services/apiService';
 import Menu from './Menu';
 import './RequestsPage.css';
@@ -34,6 +36,13 @@ const RequestsPage: React.FC = () => {
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
   const [rejectComment, setRejectComment] = useState('');
   const [rejecting, setRejecting] = useState(false);
+
+  // Batch actions state
+  const [selectedRequestIds, setSelectedRequestIds] = useState<number[]>([]);
+  const [batchApproveModalOpen, setBatchApproveModalOpen] = useState(false);
+  const [batchRejectModalOpen, setBatchRejectModalOpen] = useState(false);
+  const [batchRejectComment, setBatchRejectComment] = useState('');
+  const [batchLoading, setBatchLoading] = useState(false);
 
   // New Request modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -108,6 +117,8 @@ const RequestsPage: React.FC = () => {
 
       if (pendingRes.success && pendingRes.data) {
         setPendingRequests(pendingRes.data);
+        const validIds = new Set(pendingRes.data.map((r: ApprovalRequestItem) => r.id));
+        setSelectedRequestIds((prev) => prev.filter((id) => validIds.has(id)));
       }
       if (myRes.success && myRes.data) {
         setMyRequests(myRes.data);
@@ -116,6 +127,114 @@ const RequestsPage: React.FC = () => {
       setError(err.message || 'Erro ao carregar solicitações.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleSelect = (id: number) => {
+    setSelectedRequestIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedRequestIds.length === pendingRequests.length) {
+      setSelectedRequestIds([]);
+    } else {
+      setSelectedRequestIds(pendingRequests.map((r) => r.id));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedRequestIds([]);
+  };
+
+  const handleConfirmBatchApprove = async () => {
+    if (selectedRequestIds.length === 0) return;
+    setBatchLoading(true);
+    try {
+      const res = await apiService.resolveBatchApprovalRequests({
+        requestIds: selectedRequestIds,
+        action: 'Approved',
+      });
+      setBatchApproveModalOpen(false);
+      setSelectedRequestIds([]);
+      if (res.data) {
+        const { successCount, failureCount } = res.data;
+        if (failureCount === 0) {
+          notifications.show({
+            title: 'Sucesso',
+            message: `${successCount} ${successCount === 1 ? 'solicitação aprovada' : 'solicitações aprovadas'} com sucesso.`,
+            color: 'green',
+          });
+        } else if (successCount > 0) {
+          notifications.show({
+            title: 'Atenção',
+            message: `${successCount} aprovadas com sucesso, mas ${failureCount} apresentaram erro.`,
+            color: 'orange',
+          });
+        } else {
+          notifications.show({
+            title: 'Erro',
+            message: `Falha ao aprovar ${failureCount} solicitações selecionadas.`,
+            color: 'red',
+          });
+        }
+      }
+      await loadData();
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro',
+        message: err.message || 'Erro ao aprovar solicitações em lote.',
+        color: 'red',
+      });
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
+  const handleConfirmBatchReject = async () => {
+    if (selectedRequestIds.length === 0) return;
+    setBatchLoading(true);
+    try {
+      const res = await apiService.resolveBatchApprovalRequests({
+        requestIds: selectedRequestIds,
+        action: 'Rejected',
+        comment: batchRejectComment.trim() || undefined,
+      });
+      setBatchRejectModalOpen(false);
+      setSelectedRequestIds([]);
+      setBatchRejectComment('');
+      if (res.data) {
+        const { successCount, failureCount } = res.data;
+        if (failureCount === 0) {
+          notifications.show({
+            title: 'Sucesso',
+            message: `${successCount} ${successCount === 1 ? 'solicitação rejeitada' : 'solicitações rejeitadas'}.`,
+            color: 'green',
+          });
+        } else if (successCount > 0) {
+          notifications.show({
+            title: 'Atenção',
+            message: `${successCount} rejeitadas, mas ${failureCount} apresentaram erro.`,
+            color: 'orange',
+          });
+        } else {
+          notifications.show({
+            title: 'Erro',
+            message: `Falha ao rejeitar ${failureCount} solicitações selecionadas.`,
+            color: 'red',
+          });
+        }
+      }
+      await loadData();
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erro',
+        message: err.message || 'Erro ao rejeitar solicitações em lote.',
+        color: 'red',
+      });
+    } finally {
+      setBatchLoading(false);
     }
   };
 
@@ -347,6 +466,7 @@ const RequestsPage: React.FC = () => {
   };
 
   const isApprover = userRole === 'admin' || userRole === 'superadmin';
+  const showBatchSelection = pendingRequests.length > 3;
 
   return (
     <Menu>
@@ -398,9 +518,72 @@ const RequestsPage: React.FC = () => {
                 </Text>
               ) : (
                 <div className="requests-table-container">
+                  {showBatchSelection && selectedRequestIds.length > 0 && (
+                    <Paper
+                      p="sm"
+                      mb="md"
+                      withBorder
+                      style={{
+                        backgroundColor: '#f8f9fa',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '8px',
+                      }}
+                    >
+                      <Group gap="sm">
+                        <IconListCheck size={18} color="#228be6" />
+                        <Text size="sm" fw={500}>
+                          {selectedRequestIds.length} {selectedRequestIds.length === 1 ? 'solicitação selecionada' : 'solicitações selecionadas'}
+                        </Text>
+                      </Group>
+                      <Group gap="xs">
+                        <Button
+                          size="xs"
+                          color="teal"
+                          leftSection={<IconCheck size={14} />}
+                          onClick={() => setBatchApproveModalOpen(true)}
+                        >
+                          Aceitar Selecionadas
+                        </Button>
+                        <Button
+                          size="xs"
+                          color="red"
+                          variant="light"
+                          leftSection={<IconX size={14} />}
+                          onClick={() => {
+                            setBatchRejectComment('');
+                            setBatchRejectModalOpen(true);
+                          }}
+                        >
+                          Rejeitar Selecionadas
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          color="gray"
+                          onClick={handleClearSelection}
+                        >
+                          Desmarcar todas
+                        </Button>
+                      </Group>
+                    </Paper>
+                  )}
+
                   <Table striped highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
+                        {showBatchSelection && (
+                          <Table.Th style={{ width: '40px' }}>
+                            <Checkbox
+                              checked={selectedRequestIds.length === pendingRequests.length && pendingRequests.length > 0}
+                              indeterminate={selectedRequestIds.length > 0 && selectedRequestIds.length < pendingRequests.length}
+                              onChange={handleToggleSelectAll}
+                              aria-label="Selecionar todas as solicitações"
+                            />
+                          </Table.Th>
+                        )}
                         <Table.Th>Solicitante</Table.Th>
                         <Table.Th>Tipo</Table.Th>
                         <Table.Th>Detalhes</Table.Th>
@@ -411,6 +594,15 @@ const RequestsPage: React.FC = () => {
                     <Table.Tbody>
                       {pendingRequests.map((req) => (
                         <Table.Tr key={req.id}>
+                          {showBatchSelection && (
+                            <Table.Td>
+                              <Checkbox
+                                checked={selectedRequestIds.includes(req.id)}
+                                onChange={() => handleToggleSelect(req.id)}
+                                aria-label={`Selecionar solicitação ${req.id}`}
+                              />
+                            </Table.Td>
+                          )}
                           <Table.Td>
                             <Text fw={500} size="sm">{req.requesterName}</Text>
                             <Text size="xs" c="dimmed">{req.requesterEmail}</Text>
@@ -536,6 +728,52 @@ const RequestsPage: React.FC = () => {
           </Tabs.Panel>
         </Tabs>
       </Card>
+
+      {/* Batch Approve Modal */}
+      <Modal
+        opened={batchApproveModalOpen}
+        onClose={() => setBatchApproveModalOpen(false)}
+        title={<Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>Aprovar Solicitações em Massa</Title>}
+        centered
+      >
+        <Text size="sm" mb="lg">
+          Deseja aprovar as <strong>{selectedRequestIds.length}</strong> solicitações selecionadas de uma vez?
+        </Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => setBatchApproveModalOpen(false)} disabled={batchLoading}>
+            Cancelar
+          </Button>
+          <Button color="teal" loading={batchLoading} onClick={handleConfirmBatchApprove}>
+            Confirmar Aprovação
+          </Button>
+        </Group>
+      </Modal>
+
+      {/* Batch Reject Modal */}
+      <Modal
+        opened={batchRejectModalOpen}
+        onClose={() => setBatchRejectModalOpen(false)}
+        title={<Title order={3} style={{ color: '#1c1c1e', fontWeight: 700 }}>Rejeitar Solicitações em Massa</Title>}
+        centered
+      >
+        <Text size="sm" mb="md">
+          Deseja rejeitar as <strong>{selectedRequestIds.length}</strong> solicitações selecionadas?
+        </Text>
+        <Textarea
+          placeholder="Motivo da rejeição em massa (opcional)"
+          value={batchRejectComment}
+          onChange={(e) => setBatchRejectComment(e.target.value)}
+          mb="md"
+        />
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => setBatchRejectModalOpen(false)} disabled={batchLoading}>
+            Cancelar
+          </Button>
+          <Button color="red" loading={batchLoading} onClick={handleConfirmBatchReject}>
+            Confirmar Rejeição
+          </Button>
+        </Group>
+      </Modal>
 
       {/* Reject Modal */}
       <Modal

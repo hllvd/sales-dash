@@ -76,4 +76,26 @@ namespace SalesApp.DTOs
         public Guid? CurrentUserId { get; set; }
         public string? CurrentUserName { get; set; }
     }
+
+    public class ResolveBatchApprovalDto
+    {
+        public List<int> RequestIds { get; set; } = new();
+        public string Action { get; set; } = string.Empty;
+        public string? Comment { get; set; }
+    }
+
+    public class ResolveBatchApprovalResult
+    {
+        public int TotalRequested { get; set; }
+        public int SuccessCount { get; set; }
+        public int FailureCount { get; set; }
+        public List<int> SucceededIds { get; set; } = new();
+        public List<BatchFailureItem> Failures { get; set; } = new();
+    }
+
+    public class BatchFailureItem
+    {
+        public int RequestId { get; set; }
+        public string ErrorMessage { get; set; } = string.Empty;
+    }
 }
