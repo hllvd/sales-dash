@@ -199,6 +199,13 @@
   user-select: none;
 }
 
+.rt-interactive-cell-rt {
+  padding: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
 .rt-interactive-cell.pulsing {
   animation: rt-pulse 1.8s infinite;
 }

@@ -84,17 +84,15 @@ namespace SalesApp.Services
 
             if (overrides != null && overrides.Count > 0)
             {
-                var activeStatus = await _context.ContractStatuses
+                var statuses = await _context.ContractStatuses
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.Name == "Active")
-                    ?? new ContractStatusEntity { Id = (int)ContractStatus.Active, Name = "Active" };
+                    .ToListAsync();
 
-                var late1Status = await _context.ContractStatuses
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.Name == "Late1")
-                    ?? new ContractStatusEntity { Id = (int)ContractStatus.Late1, Name = "Late1" };
+                var statusDict = statuses
+                    .GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-                var simulatedContracts = ContractSimulation.ApplyOverrides(contracts, overrides, activeStatus, late1Status);
+                var simulatedContracts = ContractSimulation.ApplyOverrides(contracts, overrides, statusDict);
                 return await EvaluateUserWithContractsAsync(user, simulatedContracts, asOfDate);
             }
 

@@ -150,6 +150,10 @@ namespace SalesApp.DTOs
             get => State;
             set => State = value ?? string.Empty;
         }
+        public string? SimulatedStatus { get; set; }
+        public int? OverdueMonths { get; set; }
+        public int? PaidMonths { get; set; }
+        public List<string>? SimulatedRts { get; set; }
     }
 }
 

@@ -68,6 +68,10 @@ export type RtCurrentStatus = 'upToDate' | 'overdue'
 export interface ContractRtOverride {
   contractNumber: string
   simulatedCurrentStatus: RtCurrentStatus
+  simulatedStatus?: string
+  overdueMonths?: number
+  paidMonths?: number
+  simulatedRts?: RtCellStatus[]
 }
 
 export interface ContractRtRow {

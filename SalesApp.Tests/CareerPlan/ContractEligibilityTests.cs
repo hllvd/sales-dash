@@ -74,18 +74,18 @@ namespace SalesApp.Tests.CareerPlan
             var refDate = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc);
             var filter = new EligibilityFilter(MinInferredPaidMonths: 2);
 
-            // Age 2 months but Late1 -> 2 - 1 = 1 paid month -> false
+            // Sale in Sept -> 2 due installments (Sept RT1, Oct RT2). With Late1 -> 2 - 1 = 1 paid month -> false (< 2)
             var lateContract = new Contract
             {
-                SaleStartDate = new DateTime(2026, 8, 10, 0, 0, 0, DateTimeKind.Utc),
+                SaleStartDate = new DateTime(2026, 9, 10, 0, 0, 0, DateTimeKind.Utc),
                 ContractStatus = new ContractStatusEntity { Name = "Late1" }
             };
             ContractEligibility.IsEligible(lateContract, filter, refDate).Should().BeFalse();
 
-            // Age 2 months and Active -> 2 - 0 = 2 paid months -> true
+            // Sale in Sept and Active -> 2 - 0 = 2 paid months -> true (>= 2)
             var activeContract = new Contract
             {
-                SaleStartDate = new DateTime(2026, 8, 10, 0, 0, 0, DateTimeKind.Utc),
+                SaleStartDate = new DateTime(2026, 9, 10, 0, 0, 0, DateTimeKind.Utc),
                 ContractStatus = new ContractStatusEntity { Name = "Active" }
             };
             ContractEligibility.IsEligible(activeContract, filter, refDate).Should().BeTrue();

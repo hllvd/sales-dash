@@ -1,3 +1,49 @@
+## Simulação Interativa de Parcelas RT2 a RT6 no Acompanhamento de Contratos e Sincronização com RT Atual
+
+Permite simular individualmente as parcelas de RT2 a RT6 na tabela de acompanhamento de contratos do Plano de Carreira (quando o modo "Simulador" está ativo), aplicando regras de integridade de consórcio e sincronização bidirecional com a coluna **RT Atual**.
+
+### Comportamento e Regras
+- **Modo Simulador Interativo**:
+  - Ao ativar o botão "Simulador", as células de parcelas decorridas (RT2 a RT6) e a célula "RT Atual" tornam-se botões clicáveis com visual interativo (borda tracejada, efeito hover e transição suave).
+  - Células futuras (em branco) além da régua decorrida também podem ser clicadas para simular ativação e adiantamento de pagamentos futuros.
+- **RT1 Imutável (Verde)**:
+  - No consórcio, a 1ª parcela (RT1) é paga compulsoriamente no ato do fechamento da venda. Permanece fixada em verde com tooltip indicativo, não podendo ser alternada para inadimplente.
+- **Acúmulo de Atraso no Final ("Atrasado Acumulado no Final")**:
+  - No fluxo de pagamento de consórcio, a inadimplência acumula-se sequencialmente nas parcelas mais recentes.
+  - Ao clicar em uma parcela e torná-la amarela (em atraso), todas as parcelas anteriores são mantidas ou convertidas para verde (pagas), e as parcelas subsequentes ativas passam a amarelo.
+  - Ao clicar em uma parcela amarela e torná-la verde (paga), essa parcela e todas as anteriores são marcadas como verde (pagas).
+- **Sincronização Bidirecional com RT Atual**:
+  - Se todas as parcelas decorridas estiverem verdes (0 em atraso) $\rightarrow$ RT Atual torna-se **Em Dia** (Verde).
+  - Se houver 1 ou mais parcelas em atraso (amarelas) $\rightarrow$ RT Atual torna-se **Em Atraso** (Vermelho).
+  - Clicar diretamente no RT Atual:
+    - Se estiver Vermelho $\rightarrow$ transiciona para Verde e todas as parcelas em atraso tornam-se Verdes.
+    - Se estiver Verde $\rightarrow$ transiciona para Vermelho e a última parcela decorrida torna-se Amarela.
+- **Mapeamento de Status e Recalculo do Plano de Carreira**:
+  - A quantidade de meses em atraso simulados mapeia dinamicamente o status do contrato para o cálculo do Plano de Carreira:
+    - 0 atrasadas $\rightarrow$ `Ativo`
+    - 1 atrasada $\rightarrow$ `Late1` (Atrasado 1)
+    - 2 atrasadas $\rightarrow$ `Late2` (Atrasado 2)
+    - 3 atrasadas $\rightarrow$ `Late3` (Atrasado 3)
+    - 4+ atrasadas $\rightarrow$ `Defaulted` (Cancelado/Inadimplente)
+  - Recalcula instantaneamente as métricas de retenção (normal e estrita), produção ativa ($\ge 2$ pagas) e contratos comercializados no resumo do consultor.
+- **Indicação Visual e Reset**:
+  - Linhas com contratos simulados exibem indicador visual discreto e o badge de status reflete o status simulado.
+  - Desativar o Simulador ou restaurar o estado original reseta imediatamente todas as projeções em memória.
+
+### Arquivos Modificados / Criados
+- `client/sales-dash/src/components/ContractRtSimulationLogic.ts`: Lógica pura e determinística das transições de estado (`computeNextRtCellState`, `computeNextCurrentCellState`, `deriveSimulationState`).
+- `client/sales-dash/src/components/ContractRtSimulationLogic.test.ts`: Testes unitários para todas as transições e regras de negócio.
+- `client/sales-dash/src/components/ContractRtTable.tsx`: Renderização das células clicáveis, tooltips e integração com `onSimulateContract`.
+- `client/sales-dash/src/components/CareerPlanPage.css`: Estilização das células interativas em modo simulador.
+- `client/sales-dash/src/services/careerPlanService.ts`: Tipagem `ContractRtOverride` com `simulatedStatus`, `overdueMonths`, `paidMonths` e `simulatedRts`.
+- `SalesApp.Api/DTOs/CareerPlanDTOs.cs`: DTO `ContractRtOverrideDto` com suporte aos campos estendidos de simulação.
+- `SalesApp.Api/CareerPlan/ContractSimulation.cs`: Mapeamento de overrides com suporte a simulação detalhada por status e parcelas.
+- `SalesApp.Api/Services/CareerPlanService.cs`: Injeção de status canônicos e aplicação de overrides no motor de cálculo.
+- `SalesApp.Tests/CareerPlan/ContractSimulationTests.cs`: Testes unitários de backend para as regras de simulação.
+- `FEATURES.md`: Documentação técnica da funcionalidade.
+
+---
+
 ## Contabilização de Parcelas Decorridas e Pagas por Mês de Competência no Consórcio (RT1 a RT6 e Plano de Carreira)
 
 Ajuste da regra de negócio para cálculo de parcelas decorridas e inferência de parcelas pagas no Plano de Carreira e no Acompanhamento de Contratos (RT1 a RT6 e RT Atual), alinhando a plataforma à mecânica real de consórcio: todo contrato paga a 1ª parcela imediatamente no ato do fechamento (mês da venda).

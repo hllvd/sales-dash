@@ -13,10 +13,17 @@ import {
   careerPlanService,
   CareerPlanEvaluation,
   ContractRtPage,
+  ContractRtRow,
   ContractRtOverride,
   RtCellStatus,
   RtCurrentStatus
 } from '../services/careerPlanService'
+import {
+  SimulatedContractState,
+  computeNextRtCellState,
+  computeNextCurrentCellState,
+  isContractStateModified
+} from './ContractRtSimulationLogic'
 
 interface ContractRtTableProps {
   userId?: string
@@ -79,24 +86,32 @@ const SignalCircle: React.FC<{
   type: 'rt' | 'current'
   rtStatus?: RtCellStatus
   currentStatus?: RtCurrentStatus
-}> = ({ type, rtStatus, currentStatus }) => {
+  disableTooltip?: boolean
+}> = ({ type, rtStatus, currentStatus, disableTooltip = false }) => {
   if (type === 'current') {
     const isOverdue = currentStatus === 'overdue'
     const color = isOverdue ? '#ef4444' : '#22c55e'
     const label = isOverdue ? 'RT Atual: Com parcelas em atraso' : 'RT Atual: Contrato 100% em dia'
+
+    const dot = (
+      <span
+        style={{
+          display: 'inline-block',
+          width: 14,
+          height: 14,
+          borderRadius: '50%',
+          backgroundColor: color,
+          boxShadow: `0 0 0 2px ${isOverdue ? '#fee2e2' : '#dcfce7'}`,
+          cursor: 'help'
+        }}
+      />
+    )
+
+    if (disableTooltip) return dot
+
     return (
       <Tooltip label={label} withArrow position="top">
-        <span
-          style={{
-            display: 'inline-block',
-            width: 14,
-            height: 14,
-            borderRadius: '50%',
-            backgroundColor: color,
-            boxShadow: `0 0 0 2px ${isOverdue ? '#fee2e2' : '#dcfce7'}`,
-            cursor: 'help'
-          }}
-        />
+        {dot}
       </Tooltip>
     )
   }
@@ -116,19 +131,25 @@ const SignalCircle: React.FC<{
     label = 'Não pago / em atraso'
   }
 
+  const dot = (
+    <span
+      style={{
+        display: 'inline-block',
+        width: 14,
+        height: 14,
+        borderRadius: '50%',
+        backgroundColor: color,
+        border,
+        cursor: 'help'
+      }}
+    />
+  )
+
+  if (disableTooltip) return dot
+
   return (
     <Tooltip label={label} withArrow position="top">
-      <span
-        style={{
-          display: 'inline-block',
-          width: 14,
-          height: 14,
-          borderRadius: '50%',
-          backgroundColor: color,
-          border,
-          cursor: 'help'
-        }}
-      />
+      {dot}
     </Tooltip>
   )
 }
@@ -145,7 +166,7 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
   const [pageData, setPageData] = useState<ContractRtPage | null>(null)
   const [page, setPage] = useState<number>(1)
   const [isSimulatorActive, setIsSimulatorActive] = useState<boolean>(false)
-  const [overrides, setOverrides] = useState<Record<string, RtCurrentStatus>>({})
+  const [overrides, setOverrides] = useState<Record<string, SimulatedContractState>>({})
   const [simulating, setSimulating] = useState<boolean>(false)
   const [hasInteracted, setHasInteracted] = useState<boolean>(false)
 
@@ -193,22 +214,7 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
     }
   }
 
-  const handleCellToggle = async (contractNumber: string, originalCurrent: RtCurrentStatus) => {
-    if (!hasInteracted) {
-      setHasInteracted(true)
-    }
-    const effectiveCurrent = overrides[contractNumber] || originalCurrent
-    const nextCurrent: RtCurrentStatus = effectiveCurrent === 'upToDate' ? 'overdue' : 'upToDate'
-
-    const updatedOverrides = { ...overrides }
-    if (nextCurrent === originalCurrent) {
-      delete updatedOverrides[contractNumber]
-    } else {
-      updatedOverrides[contractNumber] = nextCurrent
-    }
-
-    setOverrides(updatedOverrides)
-
+  const applySimulationOverrides = async (updatedOverrides: Record<string, SimulatedContractState>) => {
     const overrideKeys = Object.keys(updatedOverrides)
     if (overrideKeys.length === 0) {
       onSimulationChange?.(null)
@@ -217,7 +223,11 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
 
     const overrideList: ContractRtOverride[] = overrideKeys.map(cNum => ({
       contractNumber: cNum,
-      simulatedCurrentStatus: updatedOverrides[cNum]
+      simulatedCurrentStatus: updatedOverrides[cNum].current,
+      simulatedStatus: updatedOverrides[cNum].simulatedStatus,
+      overdueMonths: updatedOverrides[cNum].overdueMonths,
+      paidMonths: updatedOverrides[cNum].paidMonths,
+      simulatedRts: updatedOverrides[cNum].rts
     }))
 
     try {
@@ -231,6 +241,44 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
     } finally {
       setSimulating(false)
     }
+  }
+
+  const handleRtCellToggle = async (row: ContractRtRow, colIndex: number) => {
+    if (!hasInteracted) {
+      setHasInteracted(true)
+    }
+
+    const currentSim = overrides[row.contractNumber]
+    const nextState = computeNextRtCellState(row.rts, row.current, currentSim, colIndex)
+
+    const updatedOverrides = { ...overrides }
+    if (!isContractStateModified(row.rts, row.current, nextState)) {
+      delete updatedOverrides[row.contractNumber]
+    } else {
+      updatedOverrides[row.contractNumber] = nextState
+    }
+
+    setOverrides(updatedOverrides)
+    await applySimulationOverrides(updatedOverrides)
+  }
+
+  const handleCurrentCellToggle = async (row: ContractRtRow) => {
+    if (!hasInteracted) {
+      setHasInteracted(true)
+    }
+
+    const currentSim = overrides[row.contractNumber]
+    const nextState = computeNextCurrentCellState(row.rts, row.current, currentSim)
+
+    const updatedOverrides = { ...overrides }
+    if (!isContractStateModified(row.rts, row.current, nextState)) {
+      delete updatedOverrides[row.contractNumber]
+    } else {
+      updatedOverrides[row.contractNumber] = nextState
+    }
+
+    setOverrides(updatedOverrides)
+    await applySimulationOverrides(updatedOverrides)
   }
 
   const handlePageChange = (newPage: number) => {
@@ -347,8 +395,8 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
           mb="md"
           style={{ fontSize: 13 }}
         >
-          Clique nas células pulsantes da coluna <b>RT ATUAL</b> para alternar entre Em Dia (Verde) e Atrasado (Vermelho).
-          A retenção e os requisitos de carreira são recalculados instantaneamente sem gravar dados.
+          Clique nas células de <b>RT2 a RT6</b> ou na coluna <b>RT ATUAL</b> para simular pagamentos e atrasos.
+          A retenção e as metas de carreira são recalculadas instantaneamente sem gravar dados.
           As linhas modificadas recebem destaque em amarelo.
         </Alert>
       )}
@@ -394,8 +442,12 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
               </Table.Thead>
               <Table.Tbody>
                 {pageData.items.map((row) => {
-                  const isModified = Boolean(overrides[row.contractNumber])
-                  const effectiveCurrent = overrides[row.contractNumber] || row.current
+                  const simulated = overrides[row.contractNumber]
+                  const isModified = Boolean(simulated)
+                  const effectiveRts = simulated?.rts || row.rts
+                  const effectiveCurrent = simulated?.current || row.current
+                  const effectiveStatus = simulated?.simulatedStatus || row.status
+
                   return (
                     <Table.Tr
                       key={row.contractNumber}
@@ -420,16 +472,65 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
                         <Badge
                           size="sm"
                           variant="dot"
-                          color={getStatusColor(row.status)}
+                          color={getStatusColor(effectiveStatus)}
                         >
-                          {formatStatusLabel(row.status)}
+                          {formatStatusLabel(effectiveStatus)}
                         </Badge>
                       </Table.Td>
-                      {row.rts.map((rtStatus, idx) => (
-                        <Table.Td key={idx} style={{ textAlign: 'center' }}>
-                          <SignalCircle type="rt" rtStatus={rtStatus} />
-                        </Table.Td>
-                      ))}
+
+                      {/* RT1: sempre verde / quitado na contratação */}
+                      <Table.Td style={{ textAlign: 'center' }}>
+                        {isSimulatorActive ? (
+                          <Tooltip label="RT1 fixo: quitado na contratação" withArrow position="top">
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <SignalCircle type="rt" rtStatus="paid" disableTooltip />
+                            </span>
+                          </Tooltip>
+                        ) : (
+                          <SignalCircle type="rt" rtStatus={effectiveRts[0]} />
+                        )}
+                      </Table.Td>
+
+                      {/* RT2 a RT6: interativos no simulador */}
+                      {effectiveRts.slice(1).map((rtStatus, idxOffset) => {
+                        const colIdx = idxOffset + 1
+                        const cellDesc =
+                          rtStatus === 'paid'
+                            ? 'Pago (Clique para simular atraso)'
+                            : rtStatus === 'unpaid'
+                            ? 'Não pago / atrasado (Clique para simular pago)'
+                            : 'Não vencido (Clique para simular pago)'
+
+                        return (
+                          <Table.Td key={colIdx} style={{ textAlign: 'center' }}>
+                            {isSimulatorActive ? (
+                              <Tooltip
+                                label={`RT${colIdx + 1}: ${cellDesc}`}
+                                withArrow
+                                position="top"
+                              >
+                                <button
+                                  type="button"
+                                  className={`rt-interactive-cell rt-interactive-cell-rt ${!hasInteracted && colIdx === 1 ? 'pulsing' : ''}`}
+                                  onClick={() => handleRtCellToggle(row, colIdx)}
+                                  aria-label={`Simular RT${colIdx + 1} do contrato ${row.contractNumber}`}
+                                  style={{
+                                    border: isModified ? '1.5px dashed #ca8a04' : '1.5px dashed #6366f1',
+                                    backgroundColor: isModified ? '#fef9c3' : '#f5f3ff',
+                                    outline: 'none'
+                                  }}
+                                >
+                                  <SignalCircle type="rt" rtStatus={rtStatus} disableTooltip />
+                                </button>
+                              </Tooltip>
+                            ) : (
+                              <SignalCircle type="rt" rtStatus={rtStatus} />
+                            )}
+                          </Table.Td>
+                        )
+                      })}
+
+                      {/* RT ATUAL: interativo no simulador */}
                       <Table.Td style={{ textAlign: 'center' }}>
                         {isSimulatorActive ? (
                           <Tooltip
@@ -440,7 +541,7 @@ export const ContractRtTable: React.FC<ContractRtTableProps> = ({
                             <button
                               type="button"
                               className={`rt-interactive-cell ${!hasInteracted ? 'pulsing' : ''}`}
-                              onClick={() => handleCellToggle(row.contractNumber, row.current)}
+                              onClick={() => handleCurrentCellToggle(row)}
                               aria-label={`Simular status do contrato ${row.contractNumber}`}
                               style={{
                                 border: isModified ? '1.5px dashed #ca8a04' : '1.5px dashed #6366f1',
