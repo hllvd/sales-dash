@@ -39,6 +39,16 @@ namespace SalesApp.CareerPlan
             return CalculateInferredPaidMonths(due, statusName, hasPayment);
         }
 
+        public static int CalculateInferredPaidMonths(Contract contract, DateTime referenceDate)
+        {
+            if (contract == null) return 0;
+            if (contract.SimulatedPaidMonths.HasValue)
+            {
+                return contract.SimulatedPaidMonths.Value;
+            }
+            return CalculateInferredPaidMonths(contract.SaleStartDate, contract.ContractStatus?.Name, referenceDate, contract.HasPayment != false);
+        }
+
         private static bool CanInferFirstInstallmentPaid(string? statusName, bool hasPayment)
         {
             if (!hasPayment) return false;
@@ -61,11 +71,7 @@ namespace SalesApp.CareerPlan
 
             if (filter.MinInferredPaidMonths.HasValue)
             {
-                var paid = CalculateInferredPaidMonths(
-                    contract.SaleStartDate,
-                    contract.ContractStatus?.Name,
-                    referenceDate,
-                    contract.HasPayment != false);
+                var paid = CalculateInferredPaidMonths(contract, referenceDate);
                 if (paid < filter.MinInferredPaidMonths.Value)
                 {
                     return false;

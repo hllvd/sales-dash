@@ -68,6 +68,9 @@ namespace SalesApp.Models
         public Group? Group { get; set; }
         public PV? PV { get; set; }
         public ContractMetadata? PlanoVendaMetadata { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public int? SimulatedPaidMonths { get; set; }
         public ContractMetadata? CategoryMetadata { get; set; }
         [JsonIgnore]
         public ImportSession? ImportSession { get; set; }

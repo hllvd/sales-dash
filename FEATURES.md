@@ -1,3 +1,35 @@
+## Métrica Contratos Comercializados (12 meses): Exigência de ≥ 2 Parcelas Pagas e Renomeação do Label
+
+Ajusta o critério de elegibilidade da métrica no Plano de Carreira e no simulador interativo, exigindo que o contrato possua ao menos 2 parcelas pagas (`paidMonths >= 2`), e atualiza o rótulo da métrica para **"Contratos comercializados (12 meses)"**.
+
+### Comportamento e Regras
+- **Critério de Inclusão ($\ge 2$ Parcelas Pagas)**:
+  - Contratos vendidos na janela de 12 meses fechados entram na métrica apenas se possuírem $\ge 2$ parcelas pagas inferidas ou simuladas (`paidMonths >= 2`).
+  - Contratos com apenas 1 parcela paga (ex.: RT1 verde e RT2 amarelo, ou RT1 verde e RT2 não vencido/branco) **não são contabilizados**.
+  - Ao simular a 2ª parcela (RT2) como verde no modo Simulador, o contrato atinge 2 parcelas pagas e é imediatamente somado ao valor da métrica.
+  - Se o usuário desmarcar o RT2 (tornando-o amarelo) ou resetar a simulação, o contrato volta a não ser somado.
+- **Status Elegíveis Mantidos**:
+  - Contratos com status `[Ativo, Atrasado 1, Atrasado 2, Atrasado 3, Cancelado]` são elegíveis desde que tenham $\ge 2$ parcelas pagas (ex.: um contrato de 3 ou mais meses que pagou RT1 e RT2 mas atrasou parcelas posteriores continua contabilizado).
+  - Contratos com status `Desistente` e `Aguardando Pagamento` continuam excluídos.
+- **Retenção Inalterada**:
+  - As métricas de retenção (`Retenção Estrita 15 meses`, `Retenção Normal`, etc.) permanecem **100% inalteradas**, sem qualquer exigência de parcelas pagas mínimas.
+- **Renomeação do Rótulo**:
+  - Rótulo alterado de `"Contratos Comercializados"` para **`"Contratos comercializados (12 meses)"`** no card de métricas consolidadas, tooltips informativos, avaliador de regras e no arquivo `career-plan.json`.
+
+### Arquivos Modificados
+- `SalesApp.Api/Models/Contract.cs`: Propriedade `[NotMapped] public int? SimulatedPaidMonths` para carregar parcelas pagas simuladas em memória.
+- `SalesApp.Api/CareerPlan/ContractSimulation.cs`: Mapeamento de `dto.PaidMonths` para `clone.SimulatedPaidMonths`.
+- `SalesApp.Api/CareerPlan/ContractEligibility.cs`: Sobrecarga `CalculateInferredPaidMonths(Contract contract, DateTime referenceDate)` respeitando simulação.
+- `SalesApp.Api/CareerPlan/CareerMetricsCalculator.cs`: `ComputeCommercializedProduction` verifica `paid >= minPaidMonths` ($\ge 2$).
+- `SalesApp.Api/CareerPlan/CareerRuleEvaluator.cs`: Descrição atualizada para `"Contratos comercializados (12 meses)"`.
+- `SalesApp.Api/CareerPlan/career-plan.json`: Label atualizado para `"Contratos comercializados (12 meses) ≥ Meta"`.
+- `client/sales-dash/src/components/careerPlanMetrics.ts`: Label e tooltip atualizados.
+- `SalesApp.Tests/CareerPlan/CareerMetricsCalculatorTests.cs`: Teste unitário cobrindo exclusão com 1 parcela paga e inclusão com $\ge 2$ pagas.
+- `client/e2e-test/e2e/contract_rt_tracking.spec.ts`: Teste E2E cobrindo a atualização dinâmica da métrica no simulador.
+- `FEATURES.md`: Documentação técnica da funcionalidade.
+
+---
+
 ## Simulação Interativa de Parcelas RT2 a RT6 no Acompanhamento de Contratos e Sincronização com RT Atual
 
 Permite simular individualmente as parcelas de RT2 a RT6 na tabela de acompanhamento de contratos do Plano de Carreira (quando o modo "Simulador" está ativo), aplicando regras de integridade de consórcio e sincronização bidirecional com a coluna **RT Atual**.

@@ -158,7 +158,7 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(targetCard).toContainText('Retenção: 79%');
 
     // 6. Verify Requirements Table has the 4M commercialized contracts requirement as passed (100%)
-    const reqRow = page.locator('table tbody tr', { hasText: 'Contratos Comercializados' });
+    const reqRow = page.locator('table tbody tr', { hasText: /Contratos comercializados/i });
     await expect(reqRow).toBeVisible({ timeout: 15000 });
     await expect(reqRow).toContainText('R$ 4.000.000,00');
     await expect(reqRow.getByText('Atingido')).toBeVisible();
@@ -208,7 +208,7 @@ test.describe('Career Plan Progression E2E Tests', () => {
     await expect(targetCard).toContainText('Prêmio: CAMISA');
 
     // 6. Verify Commercialized Contracts requirement (R$ 10M) passed
-    const prodRow = page.locator('table tbody tr', { hasText: 'Contratos Comercializados' });
+    const prodRow = page.locator('table tbody tr', { hasText: /Contratos comercializados/i });
     await expect(prodRow).toBeVisible({ timeout: 15000 });
     await expect(prodRow).toContainText('R$ 10.000.000,00');
     await expect(prodRow.getByText('Atingido')).toBeVisible();

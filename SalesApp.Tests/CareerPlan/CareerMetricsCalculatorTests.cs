@@ -241,5 +241,84 @@ namespace SalesApp.Tests.CareerPlan
             // Only Contract 1 qualifies for ActiveProduction12mMinPaid2 -> 100_000m
             raw.ActiveProduction12mMinPaid2.Should().Be(100_000m);
         }
+
+        [Fact]
+        public void ComputeRawMetrics_CalculatesCommercializedContracts12mMinPaid2_Correctly()
+        {
+            var contracts = new List<Contract>
+            {
+                // 1. Sold 2026-07-10 (due 4, Active) -> 4 paid >= 2 -> INCLUDED (100k)
+                new Contract
+                {
+                    SaleStartDate = new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc),
+                    TotalAmount = 100_000m,
+                    HasPayment = true,
+                    ContractStatus = new ContractStatusEntity { Name = "Active" }
+                },
+                // 2. Sold 2026-07-10 (due 4, Late1) -> 3 paid >= 2 -> INCLUDED (70k)
+                new Contract
+                {
+                    SaleStartDate = new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc),
+                    TotalAmount = 70_000m,
+                    HasPayment = true,
+                    ContractStatus = new ContractStatusEntity { Name = "Late1" }
+                },
+                // 3. Sold 2026-09-10 (due 2, Late1) -> 2 - 1 = 1 paid < 2 -> EXCLUDED (RT1 green, RT2 yellow) (50k)
+                new Contract
+                {
+                    SaleStartDate = new DateTime(2026, 9, 10, 0, 0, 0, DateTimeKind.Utc),
+                    TotalAmount = 50_000m,
+                    HasPayment = true,
+                    ContractStatus = new ContractStatusEntity { Name = "Late1" }
+                },
+                // 4. Sold 2026-09-10 (due 2, Active) -> 2 paid >= 2 -> INCLUDED (RT1 green, RT2 green) (60k)
+                new Contract
+                {
+                    SaleStartDate = new DateTime(2026, 9, 10, 0, 0, 0, DateTimeKind.Utc),
+                    TotalAmount = 60_000m,
+                    HasPayment = true,
+                    ContractStatus = new ContractStatusEntity { Name = "Active" }
+                },
+                // 5. Sold 2026-09-10 (originally Late1, but simulated with SimulatedPaidMonths = 2) -> INCLUDED (80k)
+                new Contract
+                {
+                    SaleStartDate = new DateTime(2026, 9, 10, 0, 0, 0, DateTimeKind.Utc),
+                    TotalAmount = 80_000m,
+                    HasPayment = true,
+                    ContractStatus = new ContractStatusEntity { Name = "Active" },
+                    SimulatedPaidMonths = 2
+                },
+                // 6. Desistente -> EXCLUDED (30k)
+                new Contract
+                {
+                    SaleStartDate = new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc),
+                    TotalAmount = 30_000m,
+                    HasPayment = false,
+                    ContractStatus = new ContractStatusEntity { Name = "Desistente" }
+                },
+                // 7. Outside 12m window -> EXCLUDED (200k)
+                new Contract
+                {
+                    SaleStartDate = new DateTime(2025, 5, 10, 0, 0, 0, DateTimeKind.Utc),
+                    TotalAmount = 200_000m,
+                    HasPayment = true,
+                    ContractStatus = new ContractStatusEntity { Name = "Active" }
+                }
+            };
+
+            var inputs = new CareerMetricInputs(
+                UserContracts: contracts,
+                IsTeamOwner: false,
+                ActiveTeamMembers: 0,
+                DirectSubTeams: 0,
+                ReferenceDate: _refDate
+            );
+
+            var raw = CareerMetricsCalculator.ComputeRawMetrics(inputs);
+
+            // Qualify: Contract 1 (100k) + Contract 2 (70k) + Contract 4 (60k) + Contract 5 (80k) = 310_000m
+            // Contract 3 (50k) is excluded because it only has 1 paid month.
+            raw.CommercializedContracts12mMinAge2.Should().Be(310_000m);
+        }
     }
 }

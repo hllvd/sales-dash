@@ -323,14 +323,14 @@ namespace SalesApp.Tests.CareerPlan
                 ContractNumber = "1100674789",
                 CustomerName = "ELENIR DE SOUZA",
                 TotalAmount = 52_000m,
-                SaleStartDate = new DateTime(2026, 7, 26, 0, 0, 0, DateTimeKind.Utc),
+                SaleStartDate = new DateTime(2026, 8, 26, 0, 0, 0, DateTimeKind.Utc),
                 HasPayment = true,
                 ContractStatus = new ContractStatusEntity { Name = "Late3" }
             };
 
             var row = ContractPaymentTracking.BuildRtRow(contract, referenceDate);
 
-            row.AgeMonths.Should().Be(3);
+            row.AgeMonths.Should().Be(4);
             row.OverdueMonths.Should().Be(3);
             row.PaidMonths.Should().Be(1);
             row.Rts.Should().Equal(
@@ -353,7 +353,7 @@ namespace SalesApp.Tests.CareerPlan
                 ContractNumber = "CTR-UNPAID-LATE3",
                 CustomerName = "Sem Pagamento",
                 TotalAmount = 52_000m,
-                SaleStartDate = _refDate.AddMonths(-3),
+                SaleStartDate = _refDate.AddMonths(-2),
                 HasPayment = false,
                 ContractStatus = new ContractStatusEntity { Name = "Late3" }
             };

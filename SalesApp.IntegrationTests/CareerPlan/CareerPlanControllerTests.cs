@@ -792,7 +792,7 @@ namespace SalesApp.IntegrationTests.CareerPlan
             var commReq = evalResult.Data.Requirements.First(r => r.Metric == "CommercializedContracts");
             commReq.Should().NotBeNull();
             commReq.RawMetricKey.Should().Be("commercializedContracts12mMinAge2");
-            commReq.Label.Should().Be("Contratos Comercializados ≥ Meta");
+            commReq.Label.Should().Be("Contratos comercializados (12 meses) ≥ Meta");
         }
 
         [Fact]

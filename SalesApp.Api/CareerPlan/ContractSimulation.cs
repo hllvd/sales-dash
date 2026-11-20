@@ -39,7 +39,8 @@ namespace SalesApp.CareerPlan
                 MatriculaId = source.MatriculaId,
                 User = source.User,
                 Matricula = source.Matricula,
-                Group = source.Group
+                Group = source.Group,
+                SimulatedPaidMonths = source.SimulatedPaidMonths
             };
         }
 
@@ -95,6 +96,11 @@ namespace SalesApp.CareerPlan
                     {
                         clone.ContractStatus = targetStatus;
                         clone.ContractStatusId = targetStatus.Id;
+                    }
+
+                    if (dto.PaidMonths.HasValue)
+                    {
+                        clone.SimulatedPaidMonths = dto.PaidMonths.Value;
                     }
                 }
                 result.Add(clone);

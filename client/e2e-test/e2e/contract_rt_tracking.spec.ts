@@ -175,6 +175,10 @@ test.describe('Contract RT Tracking & Consórcio Installments E2E Tests', () => 
     await expect(ronaldoCurrent).toHaveCSS('background-color', 'rgb(239, 68, 68)'); // #ef4444
 
     // 7. Test Simulator: toggle Ronaldo RT2 and RT Atual with bidirectional sync
+    const commBox = page.locator('[data-metric-key="commercializedContracts12mMinAge2"]');
+    await expect(commBox).toContainText('Contratos comercializados (12 meses)');
+    const initialCommText = await commBox.locator('.career-plan-metric-box-value').innerText();
+
     const simButton = page.getByRole('button', { name: /Simulador/i });
     await expect(simButton).toBeVisible();
     await simButton.click();
@@ -203,22 +207,36 @@ test.describe('Contract RT Tracking & Consórcio Installments E2E Tests', () => 
     // Verify status badge updated to "Ativo"
     await expect(rowRonaldo.locator('td').nth(4)).toContainText('Ativo');
 
+    // Verify "Contratos comercializados (12 meses)" increased dynamically to include Ronaldo (+800k)
+    await expect.poll(async () => {
+      const valText = await commBox.locator('.career-plan-metric-box-value').innerText();
+      return valText !== initialCommText;
+    }).toBeTruthy();
+
     // Step 7.2: Click RT2 again (now green). RT2 becomes yellow, and RT Atual automatically becomes red
     await ronaldoRt2Button.click();
     await expect(ronaldoRt2Simulated).toHaveCSS('background-color', 'rgb(234, 179, 8)');
     await expect(ronaldoCurrentSimulated).toHaveCSS('background-color', 'rgb(239, 68, 68)');
     await expect(rowRonaldo.locator('td').nth(4)).toContainText(/Atrasado 1|Late1/i);
 
+    // Verify "Contratos comercializados (12 meses)" decreases back to initial value
+    await expect(commBox.locator('.career-plan-metric-box-value')).toHaveText(initialCommText);
+
     // Step 7.3: Test bidirectional sync via RT Atual:
     // Click RT Atual (currently red). It should turn green, and RT2 should turn green!
     await ronaldoCurrentToggle.click();
     await expect(ronaldoCurrentSimulated).toHaveCSS('background-color', 'rgb(34, 197, 94)');
     await expect(ronaldoRt2Simulated).toHaveCSS('background-color', 'rgb(34, 197, 94)');
+    await expect.poll(async () => {
+      const valText = await commBox.locator('.career-plan-metric-box-value').innerText();
+      return valText !== initialCommText;
+    }).toBeTruthy();
 
     // Click RT Atual again (currently green). It should turn red, and RT2 should turn yellow!
     await ronaldoCurrentToggle.click();
     await expect(ronaldoCurrentSimulated).toHaveCSS('background-color', 'rgb(239, 68, 68)');
     await expect(ronaldoRt2Simulated).toHaveCSS('background-color', 'rgb(234, 179, 8)');
+    await expect(commBox.locator('.career-plan-metric-box-value')).toHaveText(initialCommText);
 
     // Step 7.4: Verify reset simulation via Limpar button
     const clearButton = page.getByRole('button', { name: /Limpar/i });
@@ -231,5 +249,6 @@ test.describe('Contract RT Tracking & Consórcio Installments E2E Tests', () => 
     // RT Atual returns to red (overdue) and RT2 returns to yellow (unpaid)
     await expect(ronaldoCurrent).toHaveCSS('background-color', 'rgb(239, 68, 68)');
     await expect(ronaldoRt2).toHaveCSS('background-color', 'rgb(234, 179, 8)');
+    await expect(commBox.locator('.career-plan-metric-box-value')).toHaveText(initialCommText);
   });
 });

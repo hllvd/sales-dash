@@ -44,7 +44,7 @@ namespace SalesApp.CareerPlan
 
         public static decimal ComputeCommercializedProduction(
             int windowMonths,
-            int minAgeMonths,
+            int minPaidMonths,
             CareerMetricInputs inputs)
         {
             if (inputs == null) throw new ArgumentNullException(nameof(inputs));
@@ -56,8 +56,8 @@ namespace SalesApp.CareerPlan
                 .Where(c => c.ContractStatus != null && CommercializedStatusNames.Contains(c.ContractStatus.Name))
                 .Where(c =>
                 {
-                    int installments = CareerReferenceDate.CalculateDueInstallments(c.SaleStartDate, inputs.ReferenceDate);
-                    return installments >= minAgeMonths;
+                    int paid = ContractEligibility.CalculateInferredPaidMonths(c, inputs.ReferenceDate);
+                    return paid >= minPaidMonths;
                 })
                 .Sum(c => c.TotalAmount);
         }
@@ -77,7 +77,7 @@ namespace SalesApp.CareerPlan
                 .Where(c => c.HasPayment != false)
                 .Where(c =>
                 {
-                    int paid = ContractEligibility.CalculateInferredPaidMonths(c.SaleStartDate, c.ContractStatus?.Name, inputs.ReferenceDate, c.HasPayment != false);
+                    int paid = ContractEligibility.CalculateInferredPaidMonths(c, inputs.ReferenceDate);
                     return paid >= minInferredPaidMonths;
                 })
                 .Sum(c => c.TotalAmount);
@@ -141,8 +141,8 @@ namespace SalesApp.CareerPlan
                 case MetricKind.CommercializedContracts:
                 {
                     int wm = windowMonths.GetValueOrDefault(12);
-                    int minAge = eligibility?.MinAgeMonths ?? 2;
-                    return ComputeCommercializedProduction(wm, minAge, inputs);
+                    int minPaid = eligibility?.MinInferredPaidMonths ?? eligibility?.MinAgeMonths ?? 2;
+                    return ComputeCommercializedProduction(wm, minPaid, inputs);
                 }
 
                 default:

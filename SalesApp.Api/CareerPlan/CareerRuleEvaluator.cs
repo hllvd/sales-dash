@@ -214,7 +214,7 @@ namespace SalesApp.CareerPlan
             MetricKind.StrictRetention => "Retenção Estrita",
             MetricKind.Production => "Produção",
             MetricKind.ActiveProduction => "Prod. Ativa 12m (≥ 2 pagas)",
-            MetricKind.CommercializedContracts => "Contratos Comercializados",
+            MetricKind.CommercializedContracts => "Contratos comercializados (12 meses)",
             MetricKind.IsTeamOwner => "Líder de Equipe",
             MetricKind.ActiveTeamMembers => "Membros Ativos",
             MetricKind.DirectSubTeams => "Equipes Diretas",

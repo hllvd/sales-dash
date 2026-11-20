@@ -5,7 +5,7 @@
       "requirements": {
         "all": [
           {
-            "label": "Contratos Comercializados ≥ Meta",
+            "label": "Contratos comercializados (12 meses) ≥ Meta",
             "metric": "commercializedContracts",
             "windowMonths": 12,
             "eligibility": { "minAgeMonths": 2 },
@@ -26,7 +26,7 @@
       "requirements": {
         "all": [
           {
-            "label": "Contratos Comercializados ≥ Meta",
+            "label": "Contratos comercializados (12 meses) ≥ Meta",
             "metric": "commercializedContracts",
             "windowMonths": 12,
             "eligibility": { "minAgeMonths": 2 },
@@ -47,7 +47,7 @@
       "requirements": {
         "all": [
           {
-            "label": "Contratos Comercializados ≥ Meta",
+            "label": "Contratos comercializados (12 meses) ≥ Meta",
             "metric": "commercializedContracts",
             "windowMonths": 12,
             "eligibility": { "minAgeMonths": 2 },
