@@ -174,7 +174,7 @@ test.describe('Contract RT Tracking & Consórcio Installments E2E Tests', () => 
     const ronaldoCurrent = rowRonaldo.locator('td').nth(11).locator('span');
     await expect(ronaldoCurrent).toHaveCSS('background-color', 'rgb(239, 68, 68)'); // #ef4444
 
-    // 7. Test Simulator: toggle Ronaldo RT Atual and verify dynamic recalculation
+    // 7. Test Simulator: toggle Ronaldo RT2 and RT Atual with bidirectional sync
     const simButton = page.getByRole('button', { name: /Simulador/i });
     await expect(simButton).toBeVisible();
     await simButton.click();
@@ -182,26 +182,54 @@ test.describe('Contract RT Tracking & Consórcio Installments E2E Tests', () => 
     // Verify instructional alert appears
     await expect(page.getByText('Modo Simulador Ativo')).toBeVisible();
 
-    // Toggle Ronaldo from red to green
-    const ronaldoToggle = rowRonaldo.locator('button[aria-label*="Simular status do contrato"]');
-    await expect(ronaldoToggle).toBeVisible();
-    await ronaldoToggle.click();
+    const ronaldoRt2Button = rowRonaldo.locator('button[aria-label*="Simular RT2"]');
+    const ronaldoCurrentToggle = rowRonaldo.locator('button[aria-label*="Simular status do contrato"]');
 
-    // Verify row receives modified class and RT Atual becomes green
+    await expect(ronaldoRt2Button).toBeVisible();
+    await expect(ronaldoCurrentToggle).toBeVisible();
+
+    // Step 7.1: Click RT2 (currently yellow). RT2 becomes green, and RT Atual automatically becomes green
+    await ronaldoRt2Button.click();
     await expect(rowRonaldo).toHaveClass(/rt-row-modified/);
+
+    // Verify RT2 is now green (#22c55e / rgb(34, 197, 94))
+    const ronaldoRt2Simulated = rowRonaldo.locator('td').nth(6).locator('span');
+    await expect(ronaldoRt2Simulated).toHaveCSS('background-color', 'rgb(34, 197, 94)');
+
+    // Verify RT Atual automatically synced to green (#22c55e / rgb(34, 197, 94))
     const ronaldoCurrentSimulated = rowRonaldo.locator('td').nth(11).locator('span');
     await expect(ronaldoCurrentSimulated).toHaveCSS('background-color', 'rgb(34, 197, 94)');
 
-    // Verify "Limpar (1)" button appears in the table header
-    const clearButton = page.getByRole('button', { name: /Limpar \(\d+\)/i });
-    await expect(clearButton).toBeVisible();
+    // Verify status badge updated to "Ativo"
+    await expect(rowRonaldo.locator('td').nth(4)).toContainText('Ativo');
 
-    // Verify reset simulation via Limpar button
-    await clearButton.click();
-    await expect(clearButton).not.toBeVisible();
-    await expect(rowRonaldo).not.toHaveClass(/rt-row-modified/);
+    // Step 7.2: Click RT2 again (now green). RT2 becomes yellow, and RT Atual automatically becomes red
+    await ronaldoRt2Button.click();
+    await expect(ronaldoRt2Simulated).toHaveCSS('background-color', 'rgb(234, 179, 8)');
+    await expect(ronaldoCurrentSimulated).toHaveCSS('background-color', 'rgb(239, 68, 68)');
+    await expect(rowRonaldo.locator('td').nth(4)).toContainText(/Atrasado 1|Late1/i);
 
-    // RT Atual returns to red (overdue)
+    // Step 7.3: Test bidirectional sync via RT Atual:
+    // Click RT Atual (currently red). It should turn green, and RT2 should turn green!
+    await ronaldoCurrentToggle.click();
+    await expect(ronaldoCurrentSimulated).toHaveCSS('background-color', 'rgb(34, 197, 94)');
+    await expect(ronaldoRt2Simulated).toHaveCSS('background-color', 'rgb(34, 197, 94)');
+
+    // Click RT Atual again (currently green). It should turn red, and RT2 should turn yellow!
+    await ronaldoCurrentToggle.click();
+    await expect(ronaldoCurrentSimulated).toHaveCSS('background-color', 'rgb(239, 68, 68)');
+    await expect(ronaldoRt2Simulated).toHaveCSS('background-color', 'rgb(234, 179, 8)');
+
+    // Step 7.4: Verify reset simulation via Limpar button
+    const clearButton = page.getByRole('button', { name: /Limpar/i });
+    if (await clearButton.isVisible()) {
+      await clearButton.click();
+      await expect(clearButton).not.toBeVisible();
+      await expect(rowRonaldo).not.toHaveClass(/rt-row-modified/);
+    }
+
+    // RT Atual returns to red (overdue) and RT2 returns to yellow (unpaid)
     await expect(ronaldoCurrent).toHaveCSS('background-color', 'rgb(239, 68, 68)');
+    await expect(ronaldoRt2).toHaveCSS('background-color', 'rgb(234, 179, 8)');
   });
 });
