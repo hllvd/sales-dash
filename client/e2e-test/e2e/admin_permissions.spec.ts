@@ -99,6 +99,23 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Usuários' })).toBeVisible();
 
 
+    // Helper to submit user form reliably
+    const submitUserForm = async () => {
+      const modal = page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i });
+      const submitBtn = modal.locator('button:has-text("Criar Usuário")');
+      const regPromise = page.waitForResponse(res => res.url().includes('/api/users') && res.request().method() === 'POST', { timeout: 10000 }).catch(() => null);
+      await submitBtn.click();
+      await regPromise;
+      try {
+        await expect(modal).not.toBeVisible({ timeout: 4000 });
+      } catch {
+        if (await modal.isVisible()) {
+          await submitBtn.click().catch(() => {});
+          await expect(modal).not.toBeVisible({ timeout: 10000 });
+        }
+      }
+    };
+
     // 1.1 Create Admin User
     await page.getByRole('button', { name: 'Criar', exact: true }).click();
     await page.fill('input[placeholder="Nome completo"]', `Admin EE ${RUN_LETTERS}`);
@@ -111,12 +128,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     const adminParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(adminParentOpt).toBeVisible({ timeout: 5000 });
     await adminParentOpt.click();
-    await page.waitForTimeout(500);
-    const regPromiseAdmin = page.waitForResponse(r => r.url().includes('/api/users/register'), { timeout: 15000 }).catch(() => null);
-    await page.click('button:has-text("Criar Usuário")');
-    await regPromiseAdmin;
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(500);
+    await submitUserForm();
 
     // Resolve Admin User ID
     const usersMap1 = await page.evaluate(async (email) => {
@@ -141,12 +153,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     const childParentOpt = page.locator('div[role="option"]', { hasText: ADMIN_EMAIL }).first();
     await expect(childParentOpt).toBeVisible({ timeout: 5000 });
     await childParentOpt.click();
-    await page.waitForTimeout(500);
-    const regPromiseChild = page.waitForResponse(r => r.url().includes('/api/users/register'), { timeout: 15000 }).catch(() => null);
-    await page.click('button:has-text("Criar Usuário")');
-    await regPromiseChild;
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(500);
+    await submitUserForm();
 
     // Resolve Child User ID
     childUserId = await page.evaluate(async (email) => {
@@ -169,12 +176,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     const otherParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(otherParentOpt).toBeVisible({ timeout: 5000 });
     await otherParentOpt.click();
-    await page.waitForTimeout(500);
-    const regPromiseOther = page.waitForResponse(r => r.url().includes('/api/users/register'), { timeout: 15000 }).catch(() => null);
-    await page.click('button:has-text("Criar Usuário")');
-    await regPromiseOther;
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(500);
+    await submitUserForm();
 
     // Resolve Other User ID
     otherUserId = await page.evaluate(async (email) => {
@@ -197,12 +199,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     const noparentParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(noparentParentOpt).toBeVisible({ timeout: 5000 });
     await noparentParentOpt.click();
-    await page.waitForTimeout(500);
-    const regPromiseNoparent = page.waitForResponse(r => r.url().includes('/api/users/register'), { timeout: 15000 }).catch(() => null);
-    await page.click('button:has-text("Criar Usuário")');
-    await regPromiseNoparent;
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(500);
+    await submitUserForm();
 
     // Resolve Noparent User ID
     noparentUserId = await page.evaluate(async (email) => {
@@ -225,12 +222,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     const noteamParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(noteamParentOpt).toBeVisible({ timeout: 5000 });
     await noteamParentOpt.click();
-    await page.waitForTimeout(500);
-    const regPromiseNoteam = page.waitForResponse(res => res.url().includes('/api/users') && res.request().method() === 'POST', { timeout: 15000 }).catch(() => null);
-    await page.click('button:has-text("Criar Usuário")');
-    await regPromiseNoteam;
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(500);
+    await submitUserForm();
 
     // Resolve Noteam User ID
     noteamUserId = await page.evaluate(async (email) => {
@@ -253,12 +245,7 @@ test.describe('Admin Scoped Permissions (TEAR 3)', () => {
     const ineligibleParentOpt = page.locator('div[role="option"]', { hasText: 'superadmin@salesapp.com' }).first();
     await expect(ineligibleParentOpt).toBeVisible({ timeout: 5000 });
     await ineligibleParentOpt.click();
-    await page.waitForTimeout(500);
-    const regPromiseIneligible = page.waitForResponse(res => res.url().includes('/api/users') && res.request().method() === 'POST', { timeout: 15000 }).catch(() => null);
-    await page.click('button:has-text("Criar Usuário")');
-    await regPromiseIneligible;
-    await expect(page.getByRole('dialog', { name: /Criar Novo Usuário|Criar Usuário/i })).not.toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(500);
+    await submitUserForm();
 
     // Resolve Ineligible User ID
     ineligibleUserId = await page.evaluate(async (email) => {

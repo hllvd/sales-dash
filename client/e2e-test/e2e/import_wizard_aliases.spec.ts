@@ -123,25 +123,20 @@ test.describe('Import Wizard Aliases Flow', () => {
     
     // Verify the data is actually in the table (TEST-001, TEST-002, TEST-003 from our demo file)
     await page.fill('input#filterContractNumber', 'TEST-001');
-    await page.waitForTimeout(6000); // debounce wait
     await expect(page.getByText('TEST-001')).toBeVisible({ timeout: 15000 });
 
     if (await clearFiltersBtn.isVisible()) {
       await clearFiltersBtn.click();
-      await page.waitForTimeout(1000);
     }
 
     await page.fill('input#filterContractNumber', 'TEST-002');
-    await page.waitForTimeout(6000); // debounce wait
     await expect(page.getByText('TEST-002')).toBeVisible({ timeout: 15000 });
 
     if (await clearFiltersBtn.isVisible()) {
       await clearFiltersBtn.click();
-      await page.waitForTimeout(1000);
     }
 
     await page.fill('input#filterContractNumber', 'TEST-003');
-    await page.waitForTimeout(6000); // debounce wait
     await expect(page.getByText('TEST-003')).toBeVisible({ timeout: 15000 });
   });
 });

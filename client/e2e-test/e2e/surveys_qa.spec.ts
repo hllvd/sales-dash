@@ -24,8 +24,8 @@ test.describe('Surveys / QA Feature (TEAR 3B)', () => {
     const emailFilterInput = page.locator('input[placeholder="Buscar por email..."]');
     await emailFilterInput.fill('superadmin@salesapp.com');
 
-    // Wait for filtered users in table
-    await page.waitForTimeout(500);
+    // Wait for filtered users in table to show superadmin before selecting
+    await expect(page.locator('table tr', { hasText: 'superadmin@salesapp.com' })).toBeVisible({ timeout: 10000 });
     const selectAllBtn = page.getByRole('button', { name: /Selecionar Todos os Filtrados/i });
     await selectAllBtn.click();
 
@@ -34,7 +34,7 @@ test.describe('Surveys / QA Feature (TEAR 3B)', () => {
 
     // 4. Distribute question
     const sendBtn = page.locator('button:has-text("Distribuir Pergunta")');
-    await expect(sendBtn).toBeEnabled();
+    await expect(sendBtn).toBeEnabled({ timeout: 5000 });
     await sendBtn.click();
 
     // 5. Verify automatic transition to "Perguntas Enviadas" tab and row presence

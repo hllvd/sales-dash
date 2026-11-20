@@ -174,7 +174,6 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Matrículas' })).toBeVisible();
 
     await page.fill('input[placeholder="Buscar por número de matrícula (ou separadas por vírgula) ou usuário..."]', MAT);
-    await page.waitForTimeout(2000);
 
     const ownerRow = page.locator('tr').filter({ hasText: MAT }).filter({ hasText: owner.name });
     await expect(ownerRow).toBeVisible({ timeout: 10000 });
@@ -225,7 +224,6 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
   // Step 4: MatriculaOwner sees all 3 contracts in the owner banner
   test('Step 4 – MatriculaOwner sees all 3 contracts in owner banner', async ({ page }) => {
     await login(page, owner.email, owner.password);
-    await page.waitForTimeout(3000); // allow pending claims API to resolve
 
     // "Atenção Proprietário" alert must be visible
     const alert = page.locator('.mantine-Alert-root').filter({ hasText: 'Proprietário' });
@@ -271,7 +269,6 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
     await login(page, admin.email, admin.password);
     await page.click('a[href="#/contracts"]');
     await expect(page.getByRole('heading', { name: 'Gerenciamento de Contratos' })).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(2000);
 
     await page.click('button:has-text("Importar")');
     await expect(page.getByText('Importar Contratos em Lote')).toBeVisible();
@@ -284,11 +281,10 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
     // Skip mismatch warning if it appears
     const proceedBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
     try {
-      if (await proceedBtn.isVisible({ timeout: 3000 })) await proceedBtn.click();
+      if (await proceedBtn.isVisible({ timeout: 200 })) await proceedBtn.click();
     } catch { /* no warning */ }
 
     await expect(page.getByText('Mapeamento')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(10000); // wait for auto-mapping
 
     const confirmBtn = page.locator('button:has-text("Confirmar e Importar")');
     await expect(confirmBtn).toBeEnabled({ timeout: 15000 });
@@ -305,7 +301,6 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
   // Step 7: User1 sees CLM1 + CLM2 auto-assigned; pending table is gone
   test('Step 7 – User1 sees contract1 and contract2 assigned; pending table empty', async ({ page }) => {
     await login(page, user1.email, user1.password);
-    await page.waitForTimeout(3000);
 
     await expect(page.locator('table tbody tr').filter({ hasText: CLM1 })).toBeVisible({ timeout: 15000 });
     await expect(page.locator('table tbody tr').filter({ hasText: CLM2 })).toBeVisible({ timeout: 15000 });
@@ -319,7 +314,6 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
   // Step 8: User2 sees CLM3 assigned; pending table is gone
   test('Step 8 – User2 sees contract3 assigned; pending table empty', async ({ page }) => {
     await login(page, user2.email, user2.password);
-    await page.waitForTimeout(3000);
 
     await expect(page.locator('table tbody tr').filter({ hasText: CLM3 })).toBeVisible({ timeout: 15000 });
     await expect(page.locator('text=Contratos Solicitados')).not.toBeVisible();
@@ -330,7 +324,6 @@ test.describe.serial('Pending Contract Claims — Full Lifecycle (tear-5)', () =
   // Step 9: MatriculaOwner banner is gone
   test('Step 9 – MatriculaOwner sees no owner banner', async ({ page }) => {
     await login(page, owner.email, owner.password);
-    await page.waitForTimeout(3000);
 
     await expect(page.locator('.mantine-Alert-root').filter({ hasText: 'Proprietário' })).not.toBeVisible();
 

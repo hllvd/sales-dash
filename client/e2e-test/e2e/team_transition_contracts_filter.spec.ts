@@ -93,36 +93,36 @@ test.describe('Team Transition & Point-in-Time Contracts Filtering E2E', () => {
       }
     }
 
-    // 3. Register Admin and Seller
-    const adminRes = await request.post('/api/users/register', {
-      headers: { Authorization: `Bearer ${superadminToken}` },
-      data: {
-        name: adminUser.name,
-        email: adminUser.email,
-        password: adminUser.password,
-        role: adminUser.role,
-        parentUserId: superadminId,
-      },
+    // 3. Register Admin and Seller with retry
+    const registerUserWithRetry = async (data: any) => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const res = await request.post('/api/users/register', {
+          headers: { Authorization: `Bearer ${superadminToken}` },
+          data,
+        });
+        if (res.ok()) return (await res.json()).data.id;
+        await settle(400);
+      }
+      throw new Error(`Failed to register user ${data.email}`);
+    };
+
+    adminId = await registerUserWithRetry({
+      name: adminUser.name,
+      email: adminUser.email,
+      password: adminUser.password,
+      role: adminUser.role,
+      parentUserId: superadminId,
     });
-    if (!adminRes.ok()) console.error(`Admin register failed: ${adminRes.status()} ${await adminRes.text()}`);
-    expect(adminRes.ok()).toBeTruthy();
-    adminId = (await adminRes.json()).data.id;
 
     await settle();
 
-    const sellerRes = await request.post('/api/users/register', {
-      headers: { Authorization: `Bearer ${superadminToken}` },
-      data: {
-        name: sellerUser.name,
-        email: sellerUser.email,
-        password: sellerUser.password,
-        role: sellerUser.role,
-        parentUserId: adminId,
-      },
+    sellerId = await registerUserWithRetry({
+      name: sellerUser.name,
+      email: sellerUser.email,
+      password: sellerUser.password,
+      role: sellerUser.role,
+      parentUserId: adminId,
     });
-    if (!sellerRes.ok()) console.error(`Seller register failed: ${sellerRes.status()} ${await sellerRes.text()}`);
-    expect(sellerRes.ok()).toBeTruthy();
-    sellerId = (await sellerRes.json()).data.id;
 
     // 4. Create Matricula and assign to Seller
     const matRes = await request.post('/api/matriculas', {

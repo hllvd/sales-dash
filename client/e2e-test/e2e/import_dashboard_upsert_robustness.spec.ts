@@ -52,7 +52,7 @@ test.describe('Contract Dashboard Import — Upsert Robustness & Duplicate Preve
 
     const proceedAnywayBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
     try {
-      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+      if (await proceedAnywayBtn.isVisible({ timeout: 200 })) {
         await proceedAnywayBtn.click();
       }
     } catch { /* ignore */ }
@@ -80,7 +80,7 @@ test.describe('Contract Dashboard Import — Upsert Robustness & Duplicate Preve
     await nextBtn.click();
 
     try {
-      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+      if (await proceedAnywayBtn.isVisible({ timeout: 200 })) {
         await proceedAnywayBtn.click();
       }
     } catch { /* ignore */ }

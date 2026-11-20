@@ -49,7 +49,7 @@ test.describe('Contract Dashboard Import — Missing TotalAmount (Crédito Venda
     // Handle optional mismatch warning
     const proceedAnywayBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
     try {
-      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+      if (await proceedAnywayBtn.isVisible({ timeout: 200 })) {
         await proceedAnywayBtn.click();
       }
     } catch {
@@ -111,7 +111,7 @@ test.describe('Contract Dashboard Import — Missing TotalAmount (Crédito Venda
 
     const proceedAnywayBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
     try {
-      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+      if (await proceedAnywayBtn.isVisible({ timeout: 200 })) {
         await proceedAnywayBtn.click();
       }
     } catch { /* ignore */ }
@@ -132,7 +132,7 @@ test.describe('Contract Dashboard Import — Missing TotalAmount (Crédito Venda
     await nextBtn.click();
 
     try {
-      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+      if (await proceedAnywayBtn.isVisible({ timeout: 200 })) {
         await proceedAnywayBtn.click();
       }
     } catch { /* ignore */ }

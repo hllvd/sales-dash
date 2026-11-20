@@ -99,7 +99,7 @@ test.describe('Contract Retention — Unpaid Contracts as Awaiting Payment Toggl
 
     const proceedAnywayBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
     try {
-      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+      if (await proceedAnywayBtn.isVisible({ timeout: 200 })) {
         await proceedAnywayBtn.click();
       }
     } catch { /* ignore if not present */ }

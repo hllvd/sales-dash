@@ -47,7 +47,7 @@ test.describe('Contract Dashboard Import — Cota Field Extraction & Upsert', ()
 
     const proceedAnywayBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
     try {
-      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+      if (await proceedAnywayBtn.isVisible({ timeout: 200 })) {
         await proceedAnywayBtn.click();
       }
     } catch { /* ignore if not present */ }
@@ -97,7 +97,7 @@ test.describe('Contract Dashboard Import — Cota Field Extraction & Upsert', ()
     await nextBtn.click();
 
     try {
-      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+      if (await proceedAnywayBtn.isVisible({ timeout: 200 })) {
         await proceedAnywayBtn.click();
       }
     } catch { /* ignore */ }

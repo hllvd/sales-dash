@@ -38,7 +38,7 @@ test.describe('Import Wizard Status Update Test', () => {
     // Handle "Mismatch" warning step if it appears (common for update-only CSVs)
     const proceedAnywayBtn = page.locator('button:has-text("Prosseguir Assim Mesmo")');
     try {
-      if (await proceedAnywayBtn.isVisible({ timeout: 3000 })) {
+      if (await proceedAnywayBtn.isVisible({ timeout: 200 })) {
         await proceedAnywayBtn.click();
       }
     } catch (e) {

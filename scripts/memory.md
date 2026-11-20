@@ -7,6 +7,22 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-11-20] e2e-performance — Attempt 1
+**Problem:** A suite de testes E2E aumentou ~1 min no tempo de execução no Run 1 do `./test.sh all` (indo para ~4m 30s) e apresentava retries intermitentes.
+**Root cause:**
+1. Flakiness / Retries intermitentes em `admin_permissions.spec.ts` (timeout de 15s aguardando fechamento de modal quando o clique no botão Salvar falhava antes de registrar o submit) e `surveys_qa.spec.ts` (timeout de 5s aguardando debounce da busca antes do Select All).
+2. Anti-pattern `isVisible({ timeout: 3000 })` em botões opcionais não existentes (como "Reprocessar Contratos"), forçando o Playwright a dormir 3 segundos por checagem (9 ocorrências = ~27s desperdiçados).
+3. Múltiplos `waitForTimeout` estáticos hardcoded desnecessários em `import_wizard_aliases.spec.ts` (18s) e `pending_contract_claims.spec.ts` (26s).
+4. Locks concorrentes no SQLite durante registro paralelo de usuários em `team_transition_contracts_filter.spec.ts`.
+**Fix applied:**
+- Em `surveys_qa.spec.ts`: aguardou `table tr` com o texto esperado aparecer antes de clicar no checkbox "Select All", eliminando retries e sleeps.
+- Em `admin_permissions.spec.ts`: implementou helper `submitUserForm()` com retry no clique caso o modal não feche imediatamente.
+- Em `team_transition_contracts_filter.spec.ts`: adicionou retry loop com backoff para registro de admin contra bloqueios concorrentes de SQLite.
+- Em `import_wizard_aliases.spec.ts` e `pending_contract_claims.spec.ts`: substituiu `waitForTimeout` por polling reativo do Playwright (`waitForResponse`, `toBeVisible`).
+- Em 6 arquivos de testes de importação/contratos: substituiu `isVisible({ timeout: 3000 })` por `{ timeout: 200 }` para elementos ausentes.
+**Result:** ✅ Green (Build: clean, Integration: 421/421 passed, E2E Run 1: 198/198 passed em 3m 27s [redução de >1min], E2E Run 2: 197/197 passed em 4m 15s — suite é 100% idempotente).
+
+
 ## [2026-11-20] e2e — Attempt 1
 **Failure:** `approval_requests.spec.ts` failed on `expect(locator).toBeVisible()` with `strict mode violation: getByRole('dialog').getByRole('heading', { name: 'Rejeitar Solicitações em Massa' }) resolved to 2 elements`.
 **Root cause:** Mantine `Modal` renders both an outer `h2` modal title wrapper and an inner `h3` Title component with the same text, causing Playwright strict mode to match two headings.
