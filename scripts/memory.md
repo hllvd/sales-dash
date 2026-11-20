@@ -7,6 +7,12 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-11-20] e2e — Attempt 1
+**Failure:** `approval_requests.spec.ts` failed on `expect(locator).toBeVisible()` with `strict mode violation: getByRole('dialog').getByRole('heading', { name: 'Rejeitar Solicitações em Massa' }) resolved to 2 elements`.
+**Root cause:** Mantine `Modal` renders both an outer `h2` modal title wrapper and an inner `h3` Title component with the same text, causing Playwright strict mode to match two headings.
+**Fix applied:** Replaced `getByRole('heading', { name: ... })` with `getByText(...)` within the modal dialog in `client/e2e-test/e2e/approval_requests.spec.ts`.
+**Result:** ✅ Green (Build: clean, Integration: 421/421 passed, E2E Run 1: 197/197 passed, E2E Run 2: 199/199 passed — suite is idempotent).
+
 ## [2026-11-11] integration — Attempt 1
 **Failure:** `ScrapeDynamoDbIntegrationTests` (`WriteJobStatusAsync_And_GetAllJobs_ShouldReturnExpectedRecords`, `HandleCallbackAsync_Via_Orchestrator_UpdatesDynamoDb_And_TriggersImport`) returned 2 entries per `JobId` instead of 1, and `ReportFiltersIntegrationTests.EndToEnd_ReportFilterLifecycle` threw `ResourceNotFoundException` on DynamoDB `PutItemAsync`.
 **Root cause:** (1) `ScrapeDynamoLogService.GetJobsByUserAsync`, `GetAllJobsAsync`, and `ScanAllJobsAsync` returned raw DynamoDB items without deduplicating status transition rows by `JobId` via `DeduplicateJobs(...)`; (2) `SalesApp.Api/appsettings.json` overwrote `ReportFiltersTable` to `"salesapp-reportfilters"` in build output while `ReportFiltersIntegrationTests` created table `"ReportFilters"`.

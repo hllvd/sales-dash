@@ -11,12 +11,14 @@ test.describe('Approval Requests E2E', () => {
   const ADMIN_EMAIL = `parent.admin.${RUN_ID}@test.com`;
   const USER_EMAIL = `request.user.${RUN_ID}@test.com`;
   const GUIMEL_USER_EMAIL = `guimel.user.${RUN_ID}@test.com`;
+  const BATCH_USER_EMAIL = `batch.user.${RUN_ID}@test.com`;
   const INSTITUTIONAL_EMAIL = `guimel.${RUN_ID}@autorizadoademicon.com.br`;
   const GUIMEL_TEAM_NAME = `Equipe Guimel ${RUN_ID}`;
   const PASSWORD = 'Password123!';
 
   let superadminToken = '';
   let superadminId = '';
+  let adminId = '';
 
   test.beforeAll(async ({ request }) => {
     // 1. Login as SuperAdmin
@@ -45,6 +47,7 @@ test.describe('Approval Requests E2E', () => {
           u.email.toLowerCase().includes('parent.admin.') ||
           u.email.toLowerCase().includes('request.user.') ||
           u.email.toLowerCase().includes('guimel.') ||
+          u.email.toLowerCase().includes('batch.user.') ||
           u.email.toLowerCase().includes('@autorizadoademicon.com.br')
         ) {
           await request.delete(`/api/users/${u.id}`, {
@@ -79,13 +82,16 @@ test.describe('Approval Requests E2E', () => {
     const adminMeRes = await request.get('/api/users/me', {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
-    const adminId = (await adminMeRes.json()).data.id;
+    adminId = (await adminMeRes.json()).data.id;
 
     // 3. Register user initially under SuperAdmin
     await registerUser('User Request Test', USER_EMAIL, 'user', superadminId);
 
     // 4. Register Guimel test user under Parent Admin
     await registerUser('Guimel Request Test', GUIMEL_USER_EMAIL, 'user', adminId);
+
+    // 5. Register Batch test user under Parent Admin
+    await registerUser('Batch User Test', BATCH_USER_EMAIL, 'user', adminId);
   });
 
   test('Superadmin can view requests page and tabs', async ({ page }) => {
@@ -294,6 +300,125 @@ test.describe('Approval Requests E2E', () => {
     // 4. Verify user can now log in using the NEW institutional email and is Admin
     await loginAs(page, INSTITUTIONAL_EMAIL, PASSWORD);
     await expect(page.locator('a[href="#/contracts"]')).toBeVisible({ timeout: 15000 });
+  });
+
+  test('Batch approval and rejection: select-all and mass actions appear when >3 requests', async ({ page, request }) => {
+    test.setTimeout(90000);
+
+    const batchLoginRes = await request.post('/api/users/login', {
+      data: { email: BATCH_USER_EMAIL, password: PASSWORD },
+    });
+    expect(batchLoginRes.ok()).toBeTruthy();
+    const batchUserToken = (await batchLoginRes.json()).data.token;
+
+    const createMatriculaRequest = async (matricula: string) => {
+      const res = await request.post('/api/approval-requests', {
+        headers: { Authorization: `Bearer ${batchUserToken}` },
+        data: {
+          requestType: 'RequestMatricula',
+          payloadJson: JSON.stringify({ matriculaNumber: matricula }),
+        },
+      });
+      expect(res.ok()).toBeTruthy();
+      return (await res.json()).data.id;
+    };
+
+    // 1. Create 3 requests (<= 3 threshold)
+    await createMatriculaRequest('50001');
+    await createMatriculaRequest('50002');
+    await createMatriculaRequest('50003');
+
+    // 2. Admin logs in and navigates to Requests page
+    await loginAs(page, ADMIN_EMAIL, PASSWORD);
+    await page.goto('/#/requests');
+    await expect(page.getByRole('heading', { name: 'Central de Solicitações' })).toBeVisible();
+
+    const pendingTab = page.locator('.mantine-Tabs-tab', { hasText: 'Solicitações Pendentes' });
+    await pendingTab.click();
+
+    // Verify exactly 3 pending requests appear in table
+    const tableRows = page.locator('.requests-table-container table tbody tr');
+    await expect(tableRows).toHaveCount(3);
+
+    // Verify checkboxes do NOT exist when count <= 3
+    await expect(page.locator('th input[type="checkbox"]')).not.toBeVisible();
+    await expect(page.locator('td input[type="checkbox"]')).not.toBeVisible();
+
+    // 3. Create 2 more requests (total 5 > 3)
+    await createMatriculaRequest('50004');
+    await createMatriculaRequest('50005');
+
+    // Reload page to refresh pending requests
+    await page.reload();
+    await pendingTab.click();
+
+    // Verify 5 requests are now in the table
+    await expect(tableRows).toHaveCount(5);
+
+    // Verify checkboxes ARE visible now (>3)
+    const headerCheckbox = page.locator('th input[type="checkbox"]');
+    await expect(headerCheckbox).toBeVisible();
+    await expect(page.locator('td input[type="checkbox"]')).toHaveCount(5);
+
+    // Action bar should not be visible before selecting
+    await expect(page.getByText('solicitações selecionadas')).not.toBeVisible();
+
+    // 4. Test "Select All"
+    await headerCheckbox.click();
+    await expect(page.getByText('5 solicitações selecionadas')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Aceitar Selecionadas' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Rejeitar Selecionadas' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Desmarcar todas' })).toBeVisible();
+
+    // Test "Desmarcar todas"
+    await page.getByRole('button', { name: 'Desmarcar todas' }).click();
+    await expect(page.getByText('solicitações selecionadas')).not.toBeVisible();
+
+    // 5. Test Batch Reject (select 2 rows)
+    const rowCheckboxes = page.locator('td input[type="checkbox"]');
+    await rowCheckboxes.nth(0).click();
+    await rowCheckboxes.nth(1).click();
+    await expect(page.getByText('2 solicitações selecionadas')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Rejeitar Selecionadas' }).click();
+    const rejectModal = page.getByRole('dialog');
+    await expect(rejectModal).toBeVisible();
+    await expect(rejectModal.getByText('Rejeitar Solicitações em Massa')).toBeVisible();
+
+    const rejectComment = rejectModal.locator('textarea[placeholder="Motivo da rejeição em massa (opcional)"]');
+    await rejectComment.fill('Rejeitado em lote no teste E2E');
+    await rejectModal.getByRole('button', { name: 'Confirmar Rejeição' }).click();
+
+    // Dialog closes
+    await expect(rejectModal).not.toBeVisible({ timeout: 15000 });
+
+    // 3 requests remain in pending table (<= 3 threshold)
+    await expect(tableRows).toHaveCount(3);
+    // Because count <= 3, checkboxes should no longer be visible
+    await expect(headerCheckbox).not.toBeVisible();
+
+    // 6. Create 1 more request so count is 4 (> 3)
+    await createMatriculaRequest('50006');
+    await page.reload();
+    await pendingTab.click();
+
+    await expect(tableRows).toHaveCount(4);
+    await expect(headerCheckbox).toBeVisible();
+
+    // 7. Test Batch Approve all 4
+    await headerCheckbox.click();
+    await expect(page.getByText('4 solicitações selecionadas')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Aceitar Selecionadas' }).click();
+    const approveModal = page.getByRole('dialog');
+    await expect(approveModal).toBeVisible();
+    await expect(approveModal.getByText('Aprovar Solicitações em Massa')).toBeVisible();
+    await approveModal.getByRole('button', { name: 'Confirmar Aprovação' }).click();
+
+    await expect(approveModal).not.toBeVisible({ timeout: 15000 });
+
+    // Table should now be empty
+    await expect(page.getByText('Nenhuma solicitação pendente para aprovação.')).toBeVisible({ timeout: 15000 });
   });
 });
 
