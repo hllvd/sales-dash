@@ -39,6 +39,7 @@ const COLUMN_MAP_XLSX_TO_CSV = {
   'Quant.Parcelas Pagas':     'Sum(2 Rel Carteira.Quant.Parcelas Pagas)',
   'Data.Venda':               '2 Rel Carteira.Data.Venda',
   'Data.Cancelamento.Cota':   '2 Rel Carteira.Data.Cancelamento.Cota',
+  'Data Primeira Assembleia': '2 Rel Carteira.Data Primeira Assembleia',
 };
 
 // ─── ContractStatusMappings (espelho fiel do appsettings.json) ───────────────
@@ -116,13 +117,15 @@ function isNormal(s) {
  * Derives canonical status for a Consultor CSV row.
  * Mirrors ConsultorStatusEvaluator.cs DeriveStatus() exactly.
  */
-function deriveConsultorStatus(rawStatus, overdueInstallments, paidInstallments, hasPayment, saleStartDate, referenceDate) {
+function deriveConsultorStatus(rawStatus, overdueInstallments, paidInstallments, hasPayment, saleStartDate, referenceDate, cancellationDate, firstAssemblyDate) {
   if (!rawStatus || rawStatus.trim() === '') return 'NaoDefinido';
 
   const s = rawStatus.trim();
 
   if (isExcluido(s)) {
-    if (paidInstallments != null && paidInstallments === 0) return 'Desistente';
+    const isDesistenteByPaid = paidInstallments != null && paidInstallments === 0;
+    const isDesistenteByDate = cancellationDate != null && firstAssemblyDate != null && cancellationDate < firstAssemblyDate;
+    if (isDesistenteByPaid || isDesistenteByDate) return 'Desistente';
     return 'Defaulted';
   }
 
@@ -434,6 +437,8 @@ function deriveScrappedStatus(row, referenceDate) {
   const overdueInstallments = parseNullableInt(row['Sum(2 Rel Carteira.Quant.Parcelas em Atraso)']);
   const paidInstallments    = parseNullableInt(row['Sum(2 Rel Carteira.Quant.Parcelas Pagas)']);
   const saleStartDate       = parseDate(row['2 Rel Carteira.Data.Venda']);
+  const cancellationDate    = parseDate(row['2 Rel Carteira.Data.Cancelamento.Cota'] ?? row['Data.Cancelamento.Cota']);
+  const firstAssemblyDate   = parseDate(row['2 Rel Carteira.Data Primeira Assembleia'] ?? row['Data Primeira Assembleia']);
 
   const ultPagto     = row['2 Rel Carteira.Últ.Pagto Parcela'] ?? null;
   const temPagamento = row['Tem Pagamento?'] ?? row['Tem Pagamento'] ?? null;
@@ -441,7 +446,7 @@ function deriveScrappedStatus(row, referenceDate) {
   let hasPayment = parseHasPayment(temPagamento);
   if (hasPayment === null) hasPayment = parseLastPaymentDate(ultPagto);
 
-  return deriveConsultorStatus(rawStatus, overdueInstallments, paidInstallments, hasPayment, saleStartDate, referenceDate);
+  return deriveConsultorStatus(rawStatus, overdueInstallments, paidInstallments, hasPayment, saleStartDate, referenceDate, cancellationDate, firstAssemblyDate);
 }
 
 function runTest2(dashboardData, csvData) {

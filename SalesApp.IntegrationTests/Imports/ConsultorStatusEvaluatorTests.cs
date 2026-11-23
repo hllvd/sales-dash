@@ -149,5 +149,43 @@ namespace SalesApp.IntegrationTests.Imports
 
             result.Should().Be("CustomMapped");
         }
+
+        [Theory]
+        // Cancellation date strictly before first assembly date -> Desistente (even with paid installments > 0)
+        [InlineData("Excluido", 2, "2026-05-10", "2026-05-20", "Desistente")]
+        [InlineData("EXCLUIDO", 1, "2026-05-01", "2026-05-02", "Desistente")]
+        [InlineData("Excluído", null, "2026-05-01", "2026-05-15", "Desistente")]
+        // Cancellation date after or equal to first assembly date with paid installments > 0 -> Defaulted
+        [InlineData("Excluido", 2, "2026-05-25", "2026-05-20", "Defaulted")]
+        [InlineData("Excluido", 1, "2026-05-20", "2026-05-20", "Defaulted")] // Same day is not strictly before
+        // Cancellation date after first assembly date, but paid installments == 0 -> Desistente (due to 0 paid installments)
+        [InlineData("Excluido", 0, "2026-05-25", "2026-05-20", "Desistente")]
+        // Missing cancellation or assembly date falls back to paid installments check
+        [InlineData("Excluido", 0, null, "2026-05-20", "Desistente")]
+        [InlineData("Excluido", 1, null, "2026-05-20", "Defaulted")]
+        [InlineData("Excluido", 0, "2026-05-10", null, "Desistente")]
+        [InlineData("Excluido", 1, "2026-05-10", null, "Defaulted")]
+        public void DeriveStatus_ExcluidoStatus_WithCancellationAndAssemblyDates(
+            string rawStatus,
+            int? paidInstallments,
+            string? cancellationDateStr,
+            string? firstAssemblyDateStr,
+            string expectedStatus)
+        {
+            DateTime? cancellationDate = cancellationDateStr != null ? DateTime.Parse(cancellationDateStr) : null;
+            DateTime? firstAssemblyDate = firstAssemblyDateStr != null ? DateTime.Parse(firstAssemblyDateStr) : null;
+
+            var result = ConsultorStatusEvaluator.DeriveStatus(
+                rawStatus: rawStatus,
+                overdueInstallments: null,
+                paidInstallments: paidInstallments,
+                hasPayment: false,
+                saleStartDate: null,
+                referenceDate: ReferenceDate,
+                cancellationDate: cancellationDate,
+                firstAssemblyDate: firstAssemblyDate);
+
+            result.Should().Be(expectedStatus);
+        }
     }
 }

@@ -57,7 +57,7 @@ namespace SalesApp.CareerPlan
 
         public static bool IsEligible(Contract contract, EligibilityFilter? filter, DateTime referenceDate)
         {
-            if (contract == null) return false;
+            if (contract == null || !contract.IsActive) return false;
             if (filter == null) return true;
 
             if (filter.MinAgeMonths.HasValue)

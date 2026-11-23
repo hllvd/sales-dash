@@ -36,7 +36,9 @@ namespace SalesApp.Services
             bool? hasPayment,
             DateTime? saleStartDate,
             DateTime referenceDate,
-            Func<string?, string>? defaultStatusMapper = null)
+            Func<string?, string>? defaultStatusMapper = null,
+            DateTime? cancellationDate = null,
+            DateTime? firstAssemblyDate = null)
         {
             if (string.IsNullOrWhiteSpace(rawStatus))
             {
@@ -50,8 +52,13 @@ namespace SalesApp.Services
             // 1. Excluído / Cancelado status handling
             if (IsExcluidoStatus(trimmedStatus))
             {
-                // Desistente: Definição.Situação = Excluido E Quant.Parcelas Pagas = 0
-                if (paidInstallments.HasValue && paidInstallments.Value == 0)
+                // Desistente: Definição.Situação = Excluido E (Quant.Parcelas Pagas = 0 OU Data.Cancelamento.Cota < Data Primeira Assembleia)
+                bool isDesistenteByPaid = paidInstallments.HasValue && paidInstallments.Value == 0;
+                bool isDesistenteByDate = cancellationDate.HasValue &&
+                                          firstAssemblyDate.HasValue &&
+                                          cancellationDate.Value.Date < firstAssemblyDate.Value.Date;
+
+                if (isDesistenteByPaid || isDesistenteByDate)
                 {
                     return ContractStatus.Desistente.ToApiString();
                 }

@@ -59,7 +59,7 @@ namespace SalesApp.Services
             var contracts = await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.ContractStatus)
-                .Where(c => c.UserInternalId == user.InternalId)
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive)
                 .ToListAsync();
 
             return await EvaluateUserWithContractsAsync(user, contracts, asOfDate);
@@ -79,7 +79,7 @@ namespace SalesApp.Services
             var contracts = await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.ContractStatus)
-                .Where(c => c.UserInternalId == user.InternalId)
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive)
                 .ToListAsync();
 
             if (overrides != null && overrides.Count > 0)
@@ -262,7 +262,7 @@ namespace SalesApp.Services
             var contracts = await _context.Contracts
                 .AsNoTracking()
                 .Include(c => c.ContractStatus)
-                .Where(c => c.UserInternalId == user.InternalId)
+                .Where(c => c.UserInternalId == user.InternalId && c.IsActive)
                 .ToListAsync();
 
             // 3. Evaluate contracts purely

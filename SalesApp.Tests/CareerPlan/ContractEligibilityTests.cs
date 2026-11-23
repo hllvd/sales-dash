@@ -90,5 +90,16 @@ namespace SalesApp.Tests.CareerPlan
             };
             ContractEligibility.IsEligible(activeContract, filter, refDate).Should().BeTrue();
         }
+
+        [Fact]
+        public void IsEligible_WhenContractInactive_ReturnsFalse()
+        {
+            var inactiveContract = new Contract
+            {
+                SaleStartDate = DateTime.UtcNow,
+                IsActive = false
+            };
+            ContractEligibility.IsEligible(inactiveContract, null, DateTime.UtcNow).Should().BeFalse();
+        }
     }
 }

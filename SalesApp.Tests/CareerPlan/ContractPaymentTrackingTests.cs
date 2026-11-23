@@ -199,6 +199,15 @@ namespace SalesApp.Tests.CareerPlan
                 ContractStatus = new ContractStatusEntity { Name = "Active" }
             };
             ContractPaymentTracking.IsEligibleContract(tooOld, _refDate).Should().BeFalse();
+
+            var inactive = new Contract
+            {
+                SaleStartDate = _refDate.AddMonths(-5),
+                HasPayment = true,
+                ContractStatus = new ContractStatusEntity { Name = "Active" },
+                IsActive = false
+            };
+            ContractPaymentTracking.IsEligibleContract(inactive, _refDate).Should().BeFalse();
         }
 
         [Fact]

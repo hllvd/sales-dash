@@ -1,3 +1,57 @@
+## Importação PowerBI Consultor: Regra Ampliada para Status "Desistente"
+
+Aprimora a regra de derivação de status no momento da importação de relatórios do Consultor (PowerBI / Scraper) para classificar contratos como `Desistente` com base na data de cancelamento versus a primeira assembleia.
+
+### Comportamento e Regras
+- **Derivação de Status para Contratos com Situação Excluído/Cancelado**:
+  - Quando a situação no relatório consultor for `EXCLUIDO`, `Excluido`, `Cancelado` ou `Defaulted`, o status canônico `Desistente` é atribuído se **pelo menos uma** das seguintes condições for verdadeira (OU lógico):
+    1. **Parcelas pagas zeradas**: `Quant.Parcelas Pagas == 0`.
+    2. **Cancelamento antes da 1ª assembleia**: A data de desistência/cancelamento (`2 Rel Carteira.Data.Cancelamento.Cota`) for estritamente anterior à data da primeira assembleia (`2 Rel Carteira.Data Primeira Assembleia`).
+  - Caso contrário (se houver parcelas pagas > 0 e a data de cancelamento for na data ou após a 1ª assembleia, ou datas ausentes), o contrato é classificado como `Defaulted`.
+- **Mapeamentos de Colunas**:
+  - `2 Rel Carteira.Data.Cancelamento.Cota` e `Data.Cancelamento.Cota` mapeados para `CancellationDate`.
+  - `2 Rel Carteira.Data Primeira Assembleia` e `Data Primeira Assembleia` mapeados para `FirstAssemblyDate`.
+  - Suporte resiliente a datas nos formatos ISO, US, Brasileiro, serial Excel (OADate) e Unix timestamp via `TryParseFlexibleDate`.
+- **Alinhamento do Scraper**:
+  - O script de validação `pbi-scraper/scripts/validate-consultor.js` foi atualizado com a mesma regra em `deriveConsultorStatus` e `deriveScrappedStatus`.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/ConsultorStatusEvaluator.cs`: Adicionados parâmetros `cancellationDate` e `firstAssemblyDate` ao método `DeriveStatus` com avaliação do OU lógico.
+- `SalesApp.Api/Services/ImportExecutionService.cs`: Extração de `cancellationDate` e `firstAssemblyDate` das linhas do consultor e repasse ao `ConsultorStatusEvaluator`.
+- `SalesApp.Api/appsettings.json` e `SalesApp.IntegrationTests/appsettings.json`: Mapeamentos de `CancellationDate` e `FirstAssemblyDate`.
+- `pbi-scraper/scripts/validate-consultor.js`: Espelho fiel da derivação de status e extração de colunas.
+- `SalesApp.IntegrationTests/Imports/ConsultorStatusEvaluatorTests.cs`: Testes cobrindo todas as combinações de cancelamento antes/depois da assembleia e parcelas pagas.
+
+---
+
+## Plano de Carreira: Exclusão de Contratos Deletados (`IsActive == false`)
+
+Garante que contratos excluídos (soft-deleted, com `IsActive = false`) não sejam contabilizados em nenhuma etapa ou métrica do Plano de Carreira (`#/career-plan`).
+
+### Comportamento e Regras
+- **Avaliação de Nível e Metas (`EvaluateUserCareerPlanAsync`)**:
+  - A consulta de contratos do usuário filtra explicitamente `c.UserInternalId == user.InternalId && c.IsActive`.
+  - Contratos deletados não entram no cálculo de produção (12m, 15m), produção ativa, produção comercializada ou retenção.
+- **Simulação de Plano de Carreira (`SimulateUserCareerPlanAsync`)**:
+  - Apenas contratos ativos são carregados para receber eventuais overrides de simulação.
+- **Tabela de Acompanhamento RT (`GetUserContractRtDetailsAsync`)**:
+  - Contratos deletados não aparecem na listagem ou paginação da tabela de RT.
+- **Defesa em Profundidade**:
+  - `ContractEligibility.IsEligible`: retorna imediatamente `false` se `contract.IsActive` for falso.
+  - `ContractPaymentTracking.IsEligibleContract`: retorna imediatamente `false` se `contract.IsActive` for falso.
+  - `CareerMetricsCalculator`: filtros explícitos `c.IsActive` ao calcular produção comercializada, produção ativa e retenção.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/CareerPlanService.cs`: Filtro `c.IsActive` nas queries de avaliação, simulação e RT.
+- `SalesApp.Api/CareerPlan/ContractEligibility.cs`: Verificação `!contract.IsActive`.
+- `SalesApp.Api/CareerPlan/ContractPaymentTracking.cs`: Verificação `!contract.IsActive`.
+- `SalesApp.Api/CareerPlan/CareerMetricsCalculator.cs`: Filtros de `c.IsActive` nos cálculos agregados.
+- `SalesApp.Tests/CareerPlan/ContractEligibilityTests.cs`: Teste unitário para contrato inativo.
+- `SalesApp.Tests/CareerPlan/ContractPaymentTrackingTests.cs`: Teste unitário para contrato inativo.
+- `SalesApp.IntegrationTests/CareerPlan/CareerPlanControllerTests.cs`: Teste de integração de ponta a ponta validando que contratos deletados são excluídos da avaliação e da tabela RT.
+
+---
+
 ## Monitoramento: Contratos por Atualização e Cobertura de Scrape
 
 Adiciona a tela de monitoramento de recência de atualização de contratos (`#/monitoring/contracts`), acessível exclusivamente por Superadministradores através do menu **Monitoramento > Contratos**. O objetivo é permitir auditar e verificar se o processo de scrape está cobrindo e atualizando adequadamente todos os contratos da base.

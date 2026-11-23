@@ -899,5 +899,85 @@ namespace SalesApp.IntegrationTests.CareerPlan
             ronaldoRow.Rts[2].Should().Be("blank");
             ronaldoRow.Current.Should().Be("overdue");
         }
+
+        [Fact]
+        public async Task DeletedContracts_AreNotCountedInCareerPlanEvaluationOrRtTracking()
+        {
+            var token = await GetSuperAdminToken();
+            var clientWithToken = _factory.CreateClient();
+            clientWithToken.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var alefLevel = await context.ClassificationLevels.FirstAsync(l => l.Name.ToLower() == "alef");
+            var activeStatus = await context.ContractStatuses.FirstAsync(s => s.Name == "Active");
+
+            var testUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test User Deleted Contracts",
+                Email = $"deleted_ct_{Guid.NewGuid().ToString()[..8]}@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("string"),
+                RoleId = 3,
+                IsActive = true
+            };
+            context.Users.Add(testUser);
+            await context.SaveChangesAsync();
+
+            context.UserClassifications.Add(new UserClassification
+            {
+                UserInternalId = testUser.InternalId,
+                LevelId = alefLevel.Id,
+                StartDate = DateTime.UtcNow.AddMonths(-12)
+            });
+
+            // 1. Active contract (100,000)
+            var activeContract = new Contract
+            {
+                ContractNumber = $"ACT-{Guid.NewGuid():N}"[..20],
+                CustomerName = "ACTIVE CUSTOMER",
+                UserInternalId = testUser.InternalId,
+                TotalAmount = 100_000m,
+                ContractStatusId = activeStatus.Id,
+                SaleStartDate = DateTime.UtcNow.AddMonths(-3),
+                IsActive = true,
+                HasPayment = true
+            };
+
+            // 2. Deleted contract (500,000, IsActive = false)
+            var deletedContract = new Contract
+            {
+                ContractNumber = $"DEL-{Guid.NewGuid():N}"[..20],
+                CustomerName = "DELETED CUSTOMER",
+                UserInternalId = testUser.InternalId,
+                TotalAmount = 500_000m,
+                ContractStatusId = activeStatus.Id,
+                SaleStartDate = DateTime.UtcNow.AddMonths(-3),
+                IsActive = false,
+                HasPayment = true
+            };
+
+            context.Contracts.AddRange(activeContract, deletedContract);
+            await context.SaveChangesAsync();
+
+            // Check evaluation
+            var evalResponse = await clientWithToken.GetAsync($"/api/career-plan/users/{testUser.Id}");
+            evalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var evalResult = await evalResponse.Content.ReadFromJsonAsync<ApiResponse<CareerPlanEvaluationResponse>>();
+            evalResult.Should().NotBeNull();
+            evalResult!.Data.Should().NotBeNull();
+            // Production12m should be 100,000 (from activeContract only), NOT 600,000
+            evalResult.Data!.RawMetrics.Production12m.Should().Be(100_000m);
+
+            // Check RT tracking
+            var rtResponse = await clientWithToken.GetAsync($"/api/career-plan/users/{testUser.Id}/contracts-rt");
+            rtResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var rtResult = await rtResponse.Content.ReadFromJsonAsync<ApiResponse<ContractRtPageDto>>();
+            rtResult.Should().NotBeNull();
+            rtResult!.Data.Should().NotBeNull();
+            rtResult.Data!.Items.Should().ContainSingle(r => r.ContractNumber == activeContract.ContractNumber);
+            rtResult.Data.Items.Should().NotContain(r => r.ContractNumber == deletedContract.ContractNumber);
+        }
     }
 }

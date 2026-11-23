@@ -52,6 +52,7 @@ namespace SalesApp.CareerPlan
             var (start, end) = CareerReferenceDate.GetProductionWindow(inputs.ReferenceDate, windowMonths);
 
             return inputs.UserContracts
+                .Where(c => c.IsActive)
                 .Where(c => c.SaleStartDate >= start && c.SaleStartDate < end)
                 .Where(c => c.ContractStatus != null && CommercializedStatusNames.Contains(c.ContractStatus.Name))
                 .Where(c =>
@@ -72,6 +73,7 @@ namespace SalesApp.CareerPlan
             var (start, end) = CareerReferenceDate.GetProductionWindow(inputs.ReferenceDate, windowMonths);
 
             return inputs.UserContracts
+                .Where(c => c.IsActive)
                 .Where(c => c.SaleStartDate >= start && c.SaleStartDate < end)
                 .Where(c => string.Equals(c.ContractStatus?.Name, ContractStatus.Active.ToApiString(), StringComparison.OrdinalIgnoreCase))
                 .Where(c => c.HasPayment != false)
@@ -109,6 +111,7 @@ namespace SalesApp.CareerPlan
                     var (start, end) = CareerReferenceDate.GetClosedMonthWindow(inputs.ReferenceDate, wm);
 
                     var eligibleContracts = inputs.UserContracts
+                        .Where(c => c.IsActive)
                         .Where(c => c.SaleStartDate >= start && c.SaleStartDate < end)
                         .Where(c => ContractEligibility.IsEligible(c, eligibility, inputs.ReferenceDate))
                         .ToList();
@@ -123,6 +126,7 @@ namespace SalesApp.CareerPlan
                     var (start, end) = CareerReferenceDate.GetProductionWindow(inputs.ReferenceDate, wm);
 
                     var eligibleProduction = inputs.UserContracts
+                        .Where(c => c.IsActive)
                         .Where(c => c.SaleStartDate >= start && c.SaleStartDate < end)
                         .Where(c => ContractEligibility.IsEligible(c, eligibility, inputs.ReferenceDate))
                         .Where(c => !ReportRetentionCalculator.IsDesistente(c) && !ReportRetentionCalculator.IsAwaitingPayment(c))

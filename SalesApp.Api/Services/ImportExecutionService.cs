@@ -1945,6 +1945,20 @@ namespace SalesApp.Services
                 int? overdueInstallments = ParseNullableInt(GetRawFieldValue(row, reverseMappings, "OverdueInstallments", "Quant.Parcelas em Atraso", "Parcelas em Atraso"));
                 int? paidInstallments = ParseNullableInt(GetRawFieldValue(row, reverseMappings, "PaidInstallments", "Quant.Parcelas Pagas", "Parcelas Pagas"));
 
+                DateTime? cancellationDate = null;
+                var cancellationDateRaw = GetRawFieldValue(row, reverseMappings, "CancellationDate", "2 Rel Carteira.Data.Cancelamento.Cota", "Data.Cancelamento.Cota", "Data Cancelamento", "Dt Cancelamento");
+                if (!string.IsNullOrWhiteSpace(cancellationDateRaw) && TryParseFlexibleDate(cancellationDateRaw, out var parsedCancellationDate))
+                {
+                    cancellationDate = parsedCancellationDate;
+                }
+
+                DateTime? firstAssemblyDate = null;
+                var firstAssemblyDateRaw = GetRawFieldValue(row, reverseMappings, "FirstAssemblyDate", "2 Rel Carteira.Data Primeira Assembleia", "Data Primeira Assembleia", "Data Primeira Assembléia", "Primeira Assembleia");
+                if (!string.IsNullOrWhiteSpace(firstAssemblyDateRaw) && TryParseFlexibleDate(firstAssemblyDateRaw, out var parsedFirstAssemblyDate))
+                {
+                    firstAssemblyDate = parsedFirstAssemblyDate;
+                }
+
                 status = ConsultorStatusEvaluator.DeriveStatus(
                     rawStatus: statusStr,
                     overdueInstallments: overdueInstallments,
@@ -1952,7 +1966,9 @@ namespace SalesApp.Services
                     hasPayment: hasPayment,
                     saleStartDate: saleStartDate,
                     referenceDate: DateTime.UtcNow.Date,
-                    defaultStatusMapper: MapSituacaoCobrancaToStatus);
+                    defaultStatusMapper: MapSituacaoCobrancaToStatus,
+                    cancellationDate: cancellationDate,
+                    firstAssemblyDate: firstAssemblyDate);
             }
             else
             {

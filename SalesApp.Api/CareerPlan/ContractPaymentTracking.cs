@@ -149,7 +149,7 @@ namespace SalesApp.CareerPlan
         /// </summary>
         public static bool IsEligibleContract(Contract contract, DateTime referenceDate, int windowMonths = 15)
         {
-            if (contract == null) return false;
+            if (contract == null || !contract.IsActive) return false;
             if (contract.HasPayment == false) return false;
 
             var statusName = contract.ContractStatus?.Name;
