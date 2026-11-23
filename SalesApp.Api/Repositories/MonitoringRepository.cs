@@ -505,6 +505,7 @@ namespace SalesApp.Repositories
             var t1d = now.AddDays(-1);
             var t3d = now.AddDays(-3);
             var t1w = now.AddDays(-7);
+            var t1m = now.AddMonths(-1);
 
             var counts = await baseQuery
                 .GroupBy(_ => 1)
@@ -516,7 +517,8 @@ namespace SalesApp.Repositories
                     MoreThan6Hours = g.Count(c => c.UpdatedAt < t6h),
                     MoreThan1Day = g.Count(c => c.UpdatedAt < t1d),
                     MoreThan3Days = g.Count(c => c.UpdatedAt < t3d),
-                    MoreThan1Week = g.Count(c => c.UpdatedAt < t1w)
+                    MoreThan1Week = g.Count(c => c.UpdatedAt < t1w),
+                    MoreThan1Month = g.Count(c => c.UpdatedAt < t1m)
                 })
                 .FirstOrDefaultAsync();
 
@@ -596,6 +598,17 @@ namespace SalesApp.Repositories
                     case "1semana":
                         var t1w = now.AddDays(-7);
                         query = query.Where(c => c.UpdatedAt < t1w);
+                        break;
+                    case "morethan1month":
+                    case "olderthan1month":
+                    case "1m":
+                    case ">1m":
+                    case ">1mes":
+                    case ">1mês":
+                    case "1mes":
+                    case "1mês":
+                        var t1m = now.AddMonths(-1);
+                        query = query.Where(c => c.UpdatedAt < t1m);
                         break;
                 }
             }

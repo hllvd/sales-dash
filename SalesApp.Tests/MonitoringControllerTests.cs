@@ -34,6 +34,7 @@ namespace SalesApp.Tests
                 MoreThan1Day = 25,
                 MoreThan3Days = 40,
                 MoreThan1Week = 8,
+                MoreThan1Month = 3,
                 Total = 68
             };
 

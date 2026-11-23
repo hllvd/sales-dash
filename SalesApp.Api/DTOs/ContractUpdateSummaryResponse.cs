@@ -8,6 +8,7 @@ namespace SalesApp.DTOs
         public int MoreThan1Day { get; set; }
         public int MoreThan3Days { get; set; }
         public int MoreThan1Week { get; set; }
+        public int MoreThan1Month { get; set; }
         public int Total { get; set; }
     }
 }

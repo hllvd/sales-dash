@@ -307,6 +307,7 @@ export interface ContractUpdateSummary {
   moreThan1Day: number;
   moreThan3Days: number;
   moreThan1Week: number;
+  moreThan1Month: number;
   total: number;
 }
 

@@ -143,8 +143,9 @@ namespace SalesApp.Tests.Repositories
                 new Contract { Id = 104, ContractNumber = "CTR-4", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddHours(-18) },   // < 1d
                 new Contract { Id = 105, ContractNumber = "CTR-5", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-2) },     // < 3d
                 new Contract { Id = 106, ContractNumber = "CTR-6", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-5) },     // < 1w
-                new Contract { Id = 107, ContractNumber = "CTR-7", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-10) },    // > 1w
-                new Contract { Id = 108, ContractNumber = "CTR-INACTIVE", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = false, UpdatedAt = now.AddMinutes(-10) } // Inactive should be ignored
+                new Contract { Id = 107, ContractNumber = "CTR-7", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-10) },    // > 1w, < 1m
+                new Contract { Id = 108, ContractNumber = "CTR-8", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-40) },    // > 1m
+                new Contract { Id = 109, ContractNumber = "CTR-INACTIVE", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = false, UpdatedAt = now.AddMinutes(-10) } // Inactive should be ignored
             };
 
             _context.Contracts.AddRange(contracts);
@@ -155,13 +156,14 @@ namespace SalesApp.Tests.Repositories
 
             // Assert
             summary.Should().NotBeNull();
-            summary.Total.Should().Be(7);
-            summary.MoreThan1Hour.Should().Be(6); // CTR-2..CTR-7
-            summary.MoreThan3Hours.Should().Be(5); // CTR-3..CTR-7
-            summary.MoreThan6Hours.Should().Be(4); // CTR-4..CTR-7
-            summary.MoreThan1Day.Should().Be(3);   // CTR-5..CTR-7
-            summary.MoreThan3Days.Should().Be(2);  // CTR-6, CTR-7
-            summary.MoreThan1Week.Should().Be(1);  // CTR-7
+            summary.Total.Should().Be(8);
+            summary.MoreThan1Hour.Should().Be(7); // CTR-2..CTR-8
+            summary.MoreThan3Hours.Should().Be(6); // CTR-3..CTR-8
+            summary.MoreThan6Hours.Should().Be(5); // CTR-4..CTR-8
+            summary.MoreThan1Day.Should().Be(4);   // CTR-5..CTR-8
+            summary.MoreThan3Days.Should().Be(3);  // CTR-6..CTR-8
+            summary.MoreThan1Week.Should().Be(2);  // CTR-7, CTR-8
+            summary.MoreThan1Month.Should().Be(1); // CTR-8
         }
 
         [Fact]
@@ -176,7 +178,8 @@ namespace SalesApp.Tests.Repositories
             {
                 new Contract { Id = 201, ContractNumber = "CTR-RECENT", ContractStatusId = 20, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddMinutes(-20) },
                 new Contract { Id = 202, ContractNumber = "CTR-MID", ContractStatusId = 20, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddHours(-4) },
-                new Contract { Id = 203, ContractNumber = "CTR-OLD", ContractStatusId = 20, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-15) }
+                new Contract { Id = 203, ContractNumber = "CTR-OLD", ContractStatusId = 20, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-15) },
+                new Contract { Id = 204, ContractNumber = "CTR-VERYOLD", ContractStatusId = 20, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-45) }
             };
 
             _context.Contracts.AddRange(contracts);
@@ -186,15 +189,22 @@ namespace SalesApp.Tests.Repositories
             var (items1h, total1h) = await _repository.GetContractsByUpdateAsync("moreThan1Hour", null, null, null, null, null, 1, 10);
 
             // Assert
-            total1h.Should().Be(2);
+            total1h.Should().Be(3);
             items1h.Should().NotContain(c => c.ContractNumber == "CTR-RECENT");
             items1h.Should().Contain(c => c.ContractNumber == "CTR-MID");
             items1h.Should().Contain(c => c.ContractNumber == "CTR-OLD");
+            items1h.Should().Contain(c => c.ContractNumber == "CTR-VERYOLD");
 
             // Act - Filter moreThan1Week
             var (itemsOld, totalOld) = await _repository.GetContractsByUpdateAsync("moreThan1Week", null, null, null, null, null, 1, 10);
-            totalOld.Should().Be(1);
-            itemsOld.Should().ContainSingle(c => c.ContractNumber == "CTR-OLD");
+            totalOld.Should().Be(2);
+            itemsOld.Should().Contain(c => c.ContractNumber == "CTR-OLD");
+            itemsOld.Should().Contain(c => c.ContractNumber == "CTR-VERYOLD");
+
+            // Act - Filter moreThan1Month
+            var (itemsMonth, totalMonth) = await _repository.GetContractsByUpdateAsync("moreThan1Month", null, null, null, null, null, 1, 10);
+            totalMonth.Should().Be(1);
+            itemsMonth.Should().ContainSingle(c => c.ContractNumber == "CTR-VERYOLD");
         }
 
         [Fact]

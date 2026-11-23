@@ -544,6 +544,7 @@ describe('contractService', () => {
         moreThan1Day: 40,
         moreThan3Days: 60,
         moreThan1Week: 10,
+        moreThan1Month: 2,
         total: 100,
       };
 

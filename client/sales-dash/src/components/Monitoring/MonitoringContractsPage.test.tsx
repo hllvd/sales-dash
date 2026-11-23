@@ -34,6 +34,7 @@ describe('MonitoringContractsPage', () => {
     moreThan1Day: 35,
     moreThan3Days: 50,
     moreThan1Week: 15,
+    moreThan1Month: 5,
     total: 95,
   };
 
@@ -104,6 +105,7 @@ describe('MonitoringContractsPage', () => {
       expect(screen.getByTestId('card-filter-moreThan1Hour')).toHaveTextContent('5');
       expect(screen.getByTestId('card-filter-moreThan3Hours')).toHaveTextContent('12');
       expect(screen.getByTestId('card-filter-moreThan1Week')).toHaveTextContent('15');
+      expect(screen.getByTestId('card-filter-moreThan1Month')).toHaveTextContent('5');
     });
 
     // Verify contract rows are rendered

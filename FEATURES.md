@@ -64,6 +64,7 @@ Adiciona a tela de monitoramento de recência de atualização de contratos (`#/
   - `> 1 dia` (`moreThan1Day`): Contratos desatualizados há mais de 24 horas (`UpdatedAt < now - 24h`).
   - `> 3 dias` (`moreThan3Days`): Contratos desatualizados há mais de 3 dias (`UpdatedAt < now - 3d`).
   - `> 1 semana` (`moreThan1Week`): Contratos desatualizados há mais de 7 dias (`UpdatedAt < now - 7d`).
+  - `> 1 mês` (`moreThan1Month`): Contratos desatualizados há mais de 1 mês (`UpdatedAt < now - 1 mês`).
   - `Todos` (`total`): Base total de contratos ativos no sistema.
 - **Cards de Resumo no Topo (Acesso Rápido)**:
   - Cards interativos no topo da página exibindo a contagem de contratos em cada faixa de recência.

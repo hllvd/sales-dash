@@ -39,6 +39,7 @@ const UPDATE_FILTER_OPTIONS: FilterOptionConfig[] = [
   { value: 'moreThan1Day', label: '> 1 dia', summaryKey: 'moreThan1Day', color: '#f97316' },
   { value: 'moreThan3Days', label: '> 3 dias', summaryKey: 'moreThan3Days', color: '#ea580c' },
   { value: 'moreThan1Week', label: '> 1 semana', summaryKey: 'moreThan1Week', color: '#ef4444' },
+  { value: 'moreThan1Month', label: '> 1 mês', summaryKey: 'moreThan1Month', color: '#b91c1c' },
 ];
 
 const getDefaultStartDate = (): string => {
@@ -67,6 +68,7 @@ const MonitoringContractsPage: React.FC = () => {
     moreThan1Day: 0,
     moreThan3Days: 0,
     moreThan1Week: 0,
+    moreThan1Month: 0,
     total: 0,
   });
 
