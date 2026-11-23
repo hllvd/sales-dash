@@ -41,6 +41,16 @@ const UPDATE_FILTER_OPTIONS: FilterOptionConfig[] = [
   { value: 'moreThan1Week', label: '> 1 semana', summaryKey: 'moreThan1Week', color: '#ef4444' },
 ];
 
+const getDefaultStartDate = (): string => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 15);
+  return d.toISOString().split('T')[0];
+};
+
+const getDefaultEndDate = (): string => {
+  return new Date().toISOString().split('T')[0];
+};
+
 const MonitoringContractsPage: React.FC = () => {
   const requestCountRef = useRef(0);
   const { fetchTeams, fetchContractFilterUsers } = useReferenceData();
@@ -62,8 +72,12 @@ const MonitoringContractsPage: React.FC = () => {
 
   // Filters
   const [updateFilter, setUpdateFilter] = useState<string>('all');
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState<string>(() => {
+    return localStorage.getItem('monitoring_filterStartDate') || getDefaultStartDate();
+  });
+  const [filterEndDate, setFilterEndDate] = useState<string>(() => {
+    return localStorage.getItem('monitoring_filterEndDate') || getDefaultEndDate();
+  });
   const [filterUserIds, setFilterUserIds] = useState<string[]>([]);
   const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]);
   const [filterMatriculas, setFilterMatriculas] = useState<string[]>([]);
@@ -156,6 +170,8 @@ const MonitoringContractsPage: React.FC = () => {
     setUpdateFilter('all');
     setFilterStartDate('');
     setFilterEndDate('');
+    localStorage.removeItem('monitoring_filterStartDate');
+    localStorage.removeItem('monitoring_filterEndDate');
     setFilterTeamIds([]);
     setFilterUserIds([]);
     setFilterMatriculas([]);
@@ -329,7 +345,13 @@ const MonitoringContractsPage: React.FC = () => {
               id="filterStartDate"
               value={filterStartDate}
               onChange={(e) => {
-                setFilterStartDate(e.target.value);
+                const value = e.target.value;
+                setFilterStartDate(value);
+                if (value) {
+                  localStorage.setItem('monitoring_filterStartDate', value);
+                } else {
+                  localStorage.removeItem('monitoring_filterStartDate');
+                }
                 setCurrentPage(1);
               }}
             />
@@ -342,10 +364,21 @@ const MonitoringContractsPage: React.FC = () => {
               id="filterEndDate"
               value={filterEndDate}
               onChange={(e) => {
-                setFilterEndDate(e.target.value);
+                const value = e.target.value;
+                setFilterEndDate(value);
+                if (value) {
+                  localStorage.setItem('monitoring_filterEndDate', value);
+                } else {
+                  localStorage.removeItem('monitoring_filterEndDate');
+                }
                 setCurrentPage(1);
               }}
             />
+            {filterStartDate && filterEndDate && filterEndDate < filterStartDate && (
+              <span className="filter-error-msg" style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>
+                Data fim deve ser maior ou igual à data início
+              </span>
+            )}
           </div>
 
           <div className="filter-group">

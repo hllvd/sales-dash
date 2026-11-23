@@ -79,6 +79,7 @@ describe('MonitoringContractsPage', () => {
   ];
 
   beforeEach(() => {
+    localStorage.clear();
     jest.clearAllMocks();
     (contractService.getContractUpdateSummary as jest.Mock).mockResolvedValue(mockSummary);
     (contractService.getMonitoringContracts as jest.Mock).mockResolvedValue({
@@ -182,6 +183,23 @@ describe('MonitoringContractsPage', () => {
           page: 1,
         })
       );
+    });
+  });
+
+  it('initializes start date filter with 15 months ago and end date with today by default', async () => {
+    render(<MonitoringContractsPage />);
+
+    const startDateInput = screen.getByLabelText('Data Início') as HTMLInputElement;
+    const endDateInput = screen.getByLabelText('Data Fim') as HTMLInputElement;
+
+    const expectedDate = new Date();
+    expectedDate.setMonth(expectedDate.getMonth() - 15);
+    const expectedStartDateStr = expectedDate.toISOString().split('T')[0];
+    const expectedEndDateStr = new Date().toISOString().split('T')[0];
+
+    await waitFor(() => {
+      expect(startDateInput.value).toBe(expectedStartDateStr);
+      expect(endDateInput.value).toBe(expectedEndDateStr);
     });
   });
 });
