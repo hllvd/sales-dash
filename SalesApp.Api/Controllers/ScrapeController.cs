@@ -320,7 +320,9 @@ namespace SalesApp.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return Unauthorized();
 
-            IQueryable<ScrapeConfig> query = _context.ScrapeConfigs.Include(c => c.User);
+            IQueryable<ScrapeConfig> query = _context.ScrapeConfigs
+                .Include(c => c.User)
+                .Where(c => c.OutputMode != null && c.OutputMode.ToLower() == "sqs");
             if (!User.IsInRole("superadmin"))
             {
                 query = query.Where(c => c.UserInternalId == user.InternalId);

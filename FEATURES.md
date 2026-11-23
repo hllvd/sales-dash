@@ -334,7 +334,7 @@ Reduz drasticamente o tempo de validação de senha no AVA PRO (de 45s–120s pa
   - Se a senha estiver incorreta/expirada, marca `CredentialStatus = "wrong-password"` no banco, retorna `400 BadRequest` imediatamente e o frontend exibe o erro + atualiza o badge da conta para **`Senha Expirada / Inválida`** na hora.
   - Em `SaveConfig` e `TriggerScrape`, o backend classifica o erro com `errorType` (`"wrong-password"`, `"timeout"`, `"auth-error"`), diferenciando explicitamente **Senha Inválida ou Expirada no AVA PRO**, **Timeout ao Validar Senha no AVA PRO** e **Erro Técnico na Validação do AVA PRO**.
   - Corrigido o wrapper `apiService.post/get/put/delete` (que antes descartava `error.response.data` e `steps` ao lançar `new Error(...)` no `fetch`), garantindo que o modal de diagnóstico passo a passo e a mensagem detalhada do backend sejam exibidos ao salvar uma conta com `"Validar credenciais ao salvar"` ativo.
-  - Em `GetMyConfigs` (`GET /api/scrape/configs/me`), usuários `superadmin` passam a visualizar todos os vínculos de conta cadastrados no sistema (independentemente do `UserInternalId`), enquanto usuários `admin` visualizam apenas os próprios vínculos.
+  - Em `GetMyConfigs` (`GET /api/scrape/configs/me`), são retornados exclusivamente os vínculos de conta remotos (`OutputMode == "sqs"`), ocultando vínculos locais (`"direct"`). Usuários `superadmin` visualizam todos os vínculos remotos cadastrados no sistema (independentemente do `UserInternalId`), enquanto usuários `admin` visualizam apenas os próprios vínculos remotos.
 
 ---
 

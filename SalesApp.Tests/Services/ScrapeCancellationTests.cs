@@ -280,7 +280,7 @@ namespace SalesApp.Tests.Services
         }
 
         [Fact]
-        public async Task GetMyConfigs_WhenSuperAdmin_ReturnsAllConfigsAcrossAllUsers()
+        public async Task GetMyConfigs_WhenSuperAdmin_ReturnsAllRemoteConfigsAndExcludesLocal()
         {
             var options = new DbContextOptionsBuilder<AppDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -294,9 +294,10 @@ namespace SalesApp.Tests.Services
                 new User { Id = otherUserId, InternalId = 2, Name = "Admin", Email = "admin@salesapp.com", PasswordHash = "h", RoleId = 2 }
             );
             dbContext.ScrapeConfigs.AddRange(
-                new ScrapeConfig { Id = 1, UserInternalId = 1, Matricula = "11111", CreatedAt = DateTime.UtcNow.AddMinutes(-5) },
-                new ScrapeConfig { Id = 2, UserInternalId = 2, Matricula = "22222", CreatedAt = DateTime.UtcNow.AddMinutes(-2) },
-                new ScrapeConfig { Id = 3, UserInternalId = null, Matricula = "33333", CreatedAt = DateTime.UtcNow }
+                new ScrapeConfig { Id = 1, UserInternalId = 1, Matricula = "11111", OutputMode = "sqs", CreatedAt = DateTime.UtcNow.AddMinutes(-5) },
+                new ScrapeConfig { Id = 2, UserInternalId = 2, Matricula = "22222", OutputMode = "sqs", CreatedAt = DateTime.UtcNow.AddMinutes(-2) },
+                new ScrapeConfig { Id = 3, UserInternalId = null, Matricula = "33333", OutputMode = "sqs", CreatedAt = DateTime.UtcNow },
+                new ScrapeConfig { Id = 4, UserInternalId = 1, Matricula = "44444-LOCAL", OutputMode = "direct", CreatedAt = DateTime.UtcNow }
             );
             await dbContext.SaveChangesAsync();
 
@@ -310,7 +311,7 @@ namespace SalesApp.Tests.Services
                 new ConfigurationBuilder().Build(),
                 Mock.Of<Microsoft.Extensions.Logging.ILogger<ScrapeController>>());
 
-            // 1. Superadmin sees all 3 configs
+            // 1. Superadmin sees all 3 remote ("sqs") configs and excludes local ("direct") config
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext
@@ -328,8 +329,9 @@ namespace SalesApp.Tests.Services
             saResult.Should().NotBeNull();
             var saConfigs = System.Linq.Enumerable.ToList((IEnumerable<ScrapeConfigDto>)saResult!.Value!);
             saConfigs.Should().HaveCount(3);
+            saConfigs.Should().OnlyContain(c => c.OutputMode == "sqs");
 
-            // 2. Regular admin sees only their own config (Id = 2)
+            // 2. Regular admin sees only their own remote config (Id = 2)
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext
