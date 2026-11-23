@@ -14,12 +14,16 @@ namespace SalesApp.Services
         Task<ContractUpdateSummaryResponse> GetContractUpdateSummaryAsync(
             List<int>? teamIds = null,
             List<Guid>? userIds = null,
-            List<string>? matriculas = null);
+            List<string>? matriculas = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null);
         Task<PagedContractResponse> GetContractsByUpdateAsync(
             string? updateFilter,
             List<int>? teamIds,
             List<Guid>? userIds,
             List<string>? matriculas,
+            DateTime? startDate,
+            DateTime? endDate,
             int page,
             int pageSize);
     }

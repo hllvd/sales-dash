@@ -130,7 +130,9 @@
   margin-bottom: 6px;
 }
 
-.filter-group select {
+.filter-group select,
+.filter-group input[type="date"],
+.filter-group input {
   padding: 10px;
   background-color: #ffffff;
   border: 1px solid #d1d5db;
@@ -142,7 +144,9 @@
   box-sizing: border-box;
 }
 
-.filter-group select:focus {
+.filter-group select:focus,
+.filter-group input[type="date"]:focus,
+.filter-group input:focus {
   outline: none;
   border-color: #6366f1;
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);

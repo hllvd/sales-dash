@@ -164,4 +164,24 @@ describe('MonitoringContractsPage', () => {
       );
     });
   });
+
+  it('filters contracts by start date and end date', async () => {
+    render(<MonitoringContractsPage />);
+
+    const startDateInput = screen.getByLabelText('Data Início');
+    const endDateInput = screen.getByLabelText('Data Fim');
+
+    fireEvent.change(startDateInput, { target: { value: '2026-02-01' } });
+    fireEvent.change(endDateInput, { target: { value: '2026-02-28' } });
+
+    await waitFor(() => {
+      expect(contractService.getMonitoringContracts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startDate: '2026-02-01',
+          endDate: '2026-02-28',
+          page: 1,
+        })
+      );
+    });
+  });
 });

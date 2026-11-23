@@ -315,6 +315,8 @@ export interface MonitoringContractsFilter {
   teamIds?: number[];
   userIds?: string[];
   matriculas?: string[];
+  startDate?: string;
+  endDate?: string;
   page?: number;
   pageSize?: number;
 }
@@ -324,6 +326,8 @@ export const getContractUpdateSummary = async (
     teamIds?: number[];
     userIds?: string[];
     matriculas?: string[];
+    startDate?: string;
+    endDate?: string;
   }
 ): Promise<ContractUpdateSummary> => {
   const params = new URLSearchParams();
@@ -335,6 +339,12 @@ export const getContractUpdateSummary = async (
   }
   if (filters?.matriculas && filters.matriculas.length > 0) {
     filters.matriculas.forEach(m => params.append('matriculas', m));
+  }
+  if (filters?.startDate) {
+    params.append('startDate', filters.startDate);
+  }
+  if (filters?.endDate) {
+    params.append('endDate', filters.endDate);
   }
 
   const queryString = params.toString();
@@ -368,6 +378,12 @@ export const getMonitoringContracts = async (
   }
   if (filters.matriculas && filters.matriculas.length > 0) {
     filters.matriculas.forEach(m => params.append('matriculas', m));
+  }
+  if (filters.startDate) {
+    params.append('startDate', filters.startDate);
+  }
+  if (filters.endDate) {
+    params.append('endDate', filters.endDate);
   }
   if (filters.page) {
     params.append('page', filters.page.toString());

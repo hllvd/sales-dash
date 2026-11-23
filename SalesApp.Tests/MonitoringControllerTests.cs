@@ -38,11 +38,11 @@ namespace SalesApp.Tests
             };
 
             _mockMonitoringService
-                .Setup(s => s.GetContractUpdateSummaryAsync(It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(), It.IsAny<List<string>?>()))
+                .Setup(s => s.GetContractUpdateSummaryAsync(It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(), It.IsAny<List<string>?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
                 .ReturnsAsync(expectedSummary);
 
             // Act
-            var actionResult = await _controller.GetContractUpdateSummary(new List<int> { 1 }, null, null);
+            var actionResult = await _controller.GetContractUpdateSummary(new List<int> { 1 }, null, null, null, null);
 
             // Assert
             actionResult.Result.Should().BeOfType<OkObjectResult>();
@@ -75,11 +75,11 @@ namespace SalesApp.Tests
             };
 
             _mockMonitoringService
-                .Setup(s => s.GetContractsByUpdateAsync("lessThan1Hour", It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(), It.IsAny<List<string>?>(), 1, 100))
+                .Setup(s => s.GetContractsByUpdateAsync("moreThan1Hour", It.IsAny<List<int>?>(), It.IsAny<List<Guid>?>(), It.IsAny<List<string>?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), 1, 100))
                 .ReturnsAsync(expectedPagedResponse);
 
             // Act
-            var actionResult = await _controller.GetContractsByUpdate("lessThan1Hour", null, null, null, 1, 100);
+            var actionResult = await _controller.GetContractsByUpdate("moreThan1Hour", null, null, null, null, null, 1, 100);
 
             // Assert
             actionResult.Result.Should().BeOfType<OkObjectResult>();

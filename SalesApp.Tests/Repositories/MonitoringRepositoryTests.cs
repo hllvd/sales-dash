@@ -183,7 +183,7 @@ namespace SalesApp.Tests.Repositories
             await _context.SaveChangesAsync();
 
             // Act - Filter moreThan1Hour (updated more than 1h ago)
-            var (items1h, total1h) = await _repository.GetContractsByUpdateAsync("moreThan1Hour", null, null, null, 1, 10);
+            var (items1h, total1h) = await _repository.GetContractsByUpdateAsync("moreThan1Hour", null, null, null, null, null, 1, 10);
 
             // Assert
             total1h.Should().Be(2);
@@ -192,9 +192,40 @@ namespace SalesApp.Tests.Repositories
             items1h.Should().Contain(c => c.ContractNumber == "CTR-OLD");
 
             // Act - Filter moreThan1Week
-            var (itemsOld, totalOld) = await _repository.GetContractsByUpdateAsync("moreThan1Week", null, null, null, 1, 10);
+            var (itemsOld, totalOld) = await _repository.GetContractsByUpdateAsync("moreThan1Week", null, null, null, null, null, 1, 10);
             totalOld.Should().Be(1);
             itemsOld.Should().ContainSingle(c => c.ContractNumber == "CTR-OLD");
+        }
+
+        [Fact]
+        public async Task GetContractsByUpdateAsync_ShouldFilterBySaleStartDateRange()
+        {
+            // Arrange
+            var now = DateTime.UtcNow;
+            var activeStatus = new ContractStatusEntity { Id = 30, Name = "Ativo" };
+            _context.ContractStatuses.Add(activeStatus);
+
+            var contracts = new List<Contract>
+            {
+                new Contract { Id = 301, ContractNumber = "CTR-JAN", ContractStatusId = 30, ContractStatus = activeStatus, IsActive = true, SaleStartDate = new DateTime(2026, 1, 15), UpdatedAt = now.AddHours(-2) },
+                new Contract { Id = 302, ContractNumber = "CTR-FEB", ContractStatusId = 30, ContractStatus = activeStatus, IsActive = true, SaleStartDate = new DateTime(2026, 2, 10), UpdatedAt = now.AddHours(-2) },
+                new Contract { Id = 303, ContractNumber = "CTR-MAR", ContractStatusId = 30, ContractStatus = activeStatus, IsActive = true, SaleStartDate = new DateTime(2026, 3, 20), UpdatedAt = now.AddHours(-2) }
+            };
+
+            _context.Contracts.AddRange(contracts);
+            await _context.SaveChangesAsync();
+
+            // Act - Filter February onwards
+            var (itemsStart, totalStart) = await _repository.GetContractsByUpdateAsync("all", null, null, null, new DateTime(2026, 2, 1), null, 1, 10);
+            totalStart.Should().Be(2);
+            itemsStart.Should().Contain(c => c.ContractNumber == "CTR-FEB");
+            itemsStart.Should().Contain(c => c.ContractNumber == "CTR-MAR");
+            itemsStart.Should().NotContain(c => c.ContractNumber == "CTR-JAN");
+
+            // Act - Filter February only (start & end)
+            var (itemsFeb, totalFeb) = await _repository.GetContractsByUpdateAsync("all", null, null, null, new DateTime(2026, 2, 1), new DateTime(2026, 2, 28), 1, 10);
+            totalFeb.Should().Be(1);
+            itemsFeb.Should().ContainSingle(c => c.ContractNumber == "CTR-FEB");
         }
     }
 }

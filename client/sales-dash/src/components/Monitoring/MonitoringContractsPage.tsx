@@ -62,6 +62,8 @@ const MonitoringContractsPage: React.FC = () => {
 
   // Filters
   const [updateFilter, setUpdateFilter] = useState<string>('all');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
   const [filterUserIds, setFilterUserIds] = useState<string[]>([]);
   const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]);
   const [filterMatriculas, setFilterMatriculas] = useState<string[]>([]);
@@ -94,12 +96,14 @@ const MonitoringContractsPage: React.FC = () => {
         teamIds: filterTeamIds.length > 0 ? filterTeamIds.map(id => parseInt(id, 10)) : undefined,
         userIds: filterUserIds.length > 0 ? filterUserIds : undefined,
         matriculas: filterMatriculas.length > 0 ? filterMatriculas : undefined,
+        startDate: filterStartDate || undefined,
+        endDate: filterEndDate || undefined,
       });
       setSummary(summaryData);
     } catch (err: any) {
       console.error('Falha ao carregar resumo de atualização:', err);
     }
-  }, [filterTeamIds, filterUserIds, filterMatriculas]);
+  }, [filterTeamIds, filterUserIds, filterMatriculas, filterStartDate, filterEndDate]);
 
   // Load Contracts List
   const loadContracts = useCallback(async () => {
@@ -112,6 +116,8 @@ const MonitoringContractsPage: React.FC = () => {
         teamIds: filterTeamIds.length > 0 ? filterTeamIds.map(id => parseInt(id, 10)) : undefined,
         userIds: filterUserIds.length > 0 ? filterUserIds : undefined,
         matriculas: filterMatriculas.length > 0 ? filterMatriculas : undefined,
+        startDate: filterStartDate || undefined,
+        endDate: filterEndDate || undefined,
         page: currentPage,
         pageSize,
       });
@@ -130,7 +136,7 @@ const MonitoringContractsPage: React.FC = () => {
         setRefreshing(false);
       }
     }
-  }, [updateFilter, filterTeamIds, filterUserIds, filterMatriculas, currentPage, pageSize]);
+  }, [updateFilter, filterTeamIds, filterUserIds, filterMatriculas, filterStartDate, filterEndDate, currentPage, pageSize]);
 
   // Trigger loading when filters change
   useEffect(() => {
@@ -148,6 +154,8 @@ const MonitoringContractsPage: React.FC = () => {
 
   const handleClearFilters = () => {
     setUpdateFilter('all');
+    setFilterStartDate('');
+    setFilterEndDate('');
     setFilterTeamIds([]);
     setFilterUserIds([]);
     setFilterMatriculas([]);
@@ -240,7 +248,7 @@ const MonitoringContractsPage: React.FC = () => {
   };
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
-  const isFiltered = updateFilter !== 'all' || filterTeamIds.length > 0 || filterUserIds.length > 0 || filterMatriculas.length > 0;
+  const isFiltered = updateFilter !== 'all' || filterTeamIds.length > 0 || filterUserIds.length > 0 || filterMatriculas.length > 0 || Boolean(filterStartDate) || Boolean(filterEndDate);
 
   return (
     <Menu>
@@ -312,6 +320,32 @@ const MonitoringContractsPage: React.FC = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="filterStartDate">Data Início</label>
+            <input
+              type="date"
+              id="filterStartDate"
+              value={filterStartDate}
+              onChange={(e) => {
+                setFilterStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="filterEndDate">Data Fim</label>
+            <input
+              type="date"
+              id="filterEndDate"
+              value={filterEndDate}
+              onChange={(e) => {
+                setFilterEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
           </div>
 
           <div className="filter-group">

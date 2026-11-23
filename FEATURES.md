@@ -70,6 +70,7 @@ Adiciona a tela de monitoramento de recência de atualização de contratos (`#/
   - Clicar em qualquer card filtra instantaneamente a listagem na tabela, aplicando realce visual ativo (borda e fundo sutil).
 - **Filtros Específicos**:
   - Seletor de Última Atualização sincronizado com os cards no topo.
+  - Filtro por Data Início e Data Fim (comparando com a data de venda do contrato `SaleStartDate`).
   - Filtro por Equipe (`MultiSelect`).
   - Filtro por Matrícula (`MultiSelect` com busca e adição via Enter).
   - Filtro por Usuário (`MultiSelect`).

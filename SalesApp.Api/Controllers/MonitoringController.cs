@@ -173,9 +173,11 @@ namespace SalesApp.Controllers
         public async Task<ActionResult<ApiResponse<ContractUpdateSummaryResponse>>> GetContractUpdateSummary(
             [FromQuery] List<int>? teamIds = null,
             [FromQuery] List<Guid>? userIds = null,
-            [FromQuery] List<string>? matriculas = null)
+            [FromQuery] List<string>? matriculas = null,
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
         {
-            var summary = await _monitoringService.GetContractUpdateSummaryAsync(teamIds, userIds, matriculas);
+            var summary = await _monitoringService.GetContractUpdateSummaryAsync(teamIds, userIds, matriculas, startDate, endDate);
             return Ok(new ApiResponse<ContractUpdateSummaryResponse>
             {
                 Success = true,
@@ -191,6 +193,8 @@ namespace SalesApp.Controllers
             [FromQuery] List<int>? teamIds = null,
             [FromQuery] List<Guid>? userIds = null,
             [FromQuery] List<string>? matriculas = null,
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 100)
         {
@@ -199,6 +203,8 @@ namespace SalesApp.Controllers
                 teamIds,
                 userIds,
                 matriculas,
+                startDate,
+                endDate,
                 page,
                 pageSize);
 

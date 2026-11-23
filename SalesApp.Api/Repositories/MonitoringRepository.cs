@@ -435,11 +435,25 @@ namespace SalesApp.Repositories
         private IQueryable<Contract> BuildMonitoringContractsBaseQuery(
             List<int>? teamIds,
             List<Guid>? userIds,
-            List<string>? matriculas)
+            List<string>? matriculas,
+            DateTime? startDate = null,
+            DateTime? endDate = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
                 .Where(c => c.IsActive);
+
+            if (startDate.HasValue)
+            {
+                var start = startDate.Value.Date;
+                query = query.Where(c => c.SaleStartDate >= start);
+            }
+
+            if (endDate.HasValue)
+            {
+                var end = endDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(c => c.SaleStartDate <= end);
+            }
 
             if (matriculas != null && matriculas.Count > 0)
             {
@@ -478,9 +492,11 @@ namespace SalesApp.Repositories
         public async Task<ContractUpdateSummaryResponse> GetContractUpdateSummaryAsync(
             List<int>? teamIds = null,
             List<Guid>? userIds = null,
-            List<string>? matriculas = null)
+            List<string>? matriculas = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null)
         {
-            var baseQuery = BuildMonitoringContractsBaseQuery(teamIds, userIds, matriculas);
+            var baseQuery = BuildMonitoringContractsBaseQuery(teamIds, userIds, matriculas, startDate, endDate);
 
             var now = DateTime.UtcNow;
             var t1h = now.AddHours(-1);
@@ -512,10 +528,12 @@ namespace SalesApp.Repositories
             List<int>? teamIds,
             List<Guid>? userIds,
             List<string>? matriculas,
+            DateTime? startDate,
+            DateTime? endDate,
             int page,
             int pageSize)
         {
-            var query = BuildMonitoringContractsBaseQuery(teamIds, userIds, matriculas);
+            var query = BuildMonitoringContractsBaseQuery(teamIds, userIds, matriculas, startDate, endDate);
 
             var now = DateTime.UtcNow;
             if (!string.IsNullOrWhiteSpace(updateFilter) && !updateFilter.Equals("all", StringComparison.OrdinalIgnoreCase))

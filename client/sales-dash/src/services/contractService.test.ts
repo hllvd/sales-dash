@@ -599,6 +599,44 @@ describe('contractService', () => {
       expect(result.contracts).toEqual(mockItems);
       expect(result.totalCount).toBe(1);
     });
+
+    it('should append startDate and endDate params in getMonitoringContracts and getContractUpdateSummary', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: { items: [], totalCount: 0, page: 1, pageSize: 10 },
+        }),
+      });
+
+      await getMonitoringContracts({
+        startDate: '2026-01-01',
+        endDate: '2026-01-31',
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/monitoring/contract-updates?startDate=2026-01-01&endDate=2026-01-31',
+        expect.any(Object)
+      );
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {},
+        }),
+      });
+
+      await getContractUpdateSummary({
+        startDate: '2026-01-01',
+        endDate: '2026-01-31',
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/monitoring/contract-updates/summary?startDate=2026-01-01&endDate=2026-01-31',
+        expect.any(Object)
+      );
+    });
   });
 });
 
