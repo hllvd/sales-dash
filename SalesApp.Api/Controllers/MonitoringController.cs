@@ -167,5 +167,47 @@ namespace SalesApp.Controllers
             var fileBytes = package.GetAsByteArray();
             return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"licenciamento-{month}-{year}.xlsx");
         }
+
+        [HttpGet("contract-updates/summary")]
+        [HasPermission("system:superadmin")]
+        public async Task<ActionResult<ApiResponse<ContractUpdateSummaryResponse>>> GetContractUpdateSummary(
+            [FromQuery] List<int>? teamIds = null,
+            [FromQuery] List<Guid>? userIds = null,
+            [FromQuery] List<string>? matriculas = null)
+        {
+            var summary = await _monitoringService.GetContractUpdateSummaryAsync(teamIds, userIds, matriculas);
+            return Ok(new ApiResponse<ContractUpdateSummaryResponse>
+            {
+                Success = true,
+                Data = summary,
+                Message = "Contract update summary retrieved successfully"
+            });
+        }
+
+        [HttpGet("contract-updates")]
+        [HasPermission("system:superadmin")]
+        public async Task<ActionResult<ApiResponse<PagedContractResponse>>> GetContractsByUpdate(
+            [FromQuery] string? updateFilter = null,
+            [FromQuery] List<int>? teamIds = null,
+            [FromQuery] List<Guid>? userIds = null,
+            [FromQuery] List<string>? matriculas = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 100)
+        {
+            var result = await _monitoringService.GetContractsByUpdateAsync(
+                updateFilter,
+                teamIds,
+                userIds,
+                matriculas,
+                page,
+                pageSize);
+
+            return Ok(new ApiResponse<PagedContractResponse>
+            {
+                Success = true,
+                Data = result,
+                Message = "Contracts retrieved successfully"
+            });
+        }
     }
 }

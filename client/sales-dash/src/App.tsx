@@ -26,6 +26,7 @@ import ScrapeRunDetailPage from './components/Scrape/ScrapeRunDetailPage';
 import ReportsRouter from './components/Reports/ReportsRouter';
 import ViewsRouter from './components/Reports/ViewsRouter';
 import MatriculaHealthPage from './components/Monitoring/MatriculaHealthPage';
+import MonitoringContractsPage from './components/Monitoring/MonitoringContractsPage';
 import LicensingPage from './components/Monitoring/LicensingPage';
 import UserMetadataAdminPage from './components/UserMetadataAdmin/UserMetadataAdminPage';
 import AdminRegistrationPage from './components/AdminRegistrationPage';
@@ -188,6 +189,8 @@ function App() {
         return <ScrapeDashboard initialTab={currentRoute === '#/scrapes/historial' ? 'history' : 'links'} />;
       case '#/monitoring/matricula-health':
         return <MatriculaHealthPage />;
+      case '#/monitoring/contracts':
+        return <MonitoringContractsPage />;
       case '#/monitoring/licensing':
         return <LicensingPage />;
       case '#/user-metadata-fields':

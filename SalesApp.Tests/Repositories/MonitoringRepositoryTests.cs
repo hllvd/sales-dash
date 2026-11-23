@@ -126,5 +126,74 @@ namespace SalesApp.Tests.Repositories
             m1Health.LastUpdate.Should().BeCloseTo(c1.UpdatedAt, TimeSpan.FromSeconds(5));
             m1Health.Status.Should().Be("Healthy");
         }
+
+        [Fact]
+        public async Task GetContractUpdateSummaryAsync_ShouldCalculateCumulativeRecencyCounts()
+        {
+            // Arrange
+            var now = DateTime.UtcNow;
+            var activeStatus = new ContractStatusEntity { Id = 10, Name = "Ativo" };
+            _context.ContractStatuses.Add(activeStatus);
+
+            var contracts = new List<Contract>
+            {
+                new Contract { Id = 101, ContractNumber = "CTR-1", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddMinutes(-30) }, // < 1h
+                new Contract { Id = 102, ContractNumber = "CTR-2", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddHours(-2) },    // < 3h
+                new Contract { Id = 103, ContractNumber = "CTR-3", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddHours(-5) },    // < 6h
+                new Contract { Id = 104, ContractNumber = "CTR-4", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddHours(-18) },   // < 1d
+                new Contract { Id = 105, ContractNumber = "CTR-5", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-2) },     // < 3d
+                new Contract { Id = 106, ContractNumber = "CTR-6", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-5) },     // < 1w
+                new Contract { Id = 107, ContractNumber = "CTR-7", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-10) },    // > 1w
+                new Contract { Id = 108, ContractNumber = "CTR-INACTIVE", ContractStatusId = 10, ContractStatus = activeStatus, IsActive = false, UpdatedAt = now.AddMinutes(-10) } // Inactive should be ignored
+            };
+
+            _context.Contracts.AddRange(contracts);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var summary = await _repository.GetContractUpdateSummaryAsync();
+
+            // Assert
+            summary.Should().NotBeNull();
+            summary.Total.Should().Be(7);
+            summary.LessThan1Hour.Should().Be(1); // CTR-1
+            summary.LessThan3Hours.Should().Be(2); // CTR-1, CTR-2
+            summary.LessThan6Hours.Should().Be(3); // CTR-1, CTR-2, CTR-3
+            summary.LessThan1Day.Should().Be(4);   // CTR-1, CTR-2, CTR-3, CTR-4
+            summary.LessThan3Days.Should().Be(5);  // CTR-1..CTR-5
+            summary.LessThan1Week.Should().Be(6);  // CTR-1..CTR-6
+            summary.OlderThan1Week.Should().Be(1); // CTR-7
+        }
+
+        [Fact]
+        public async Task GetContractsByUpdateAsync_ShouldFilterBySpecifiedInterval()
+        {
+            // Arrange
+            var now = DateTime.UtcNow;
+            var activeStatus = new ContractStatusEntity { Id = 20, Name = "Ativo" };
+            _context.ContractStatuses.Add(activeStatus);
+
+            var contracts = new List<Contract>
+            {
+                new Contract { Id = 201, ContractNumber = "CTR-RECENT", ContractStatusId = 20, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddMinutes(-20) },
+                new Contract { Id = 202, ContractNumber = "CTR-MID", ContractStatusId = 20, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddHours(-4) },
+                new Contract { Id = 203, ContractNumber = "CTR-OLD", ContractStatusId = 20, ContractStatus = activeStatus, IsActive = true, UpdatedAt = now.AddDays(-15) }
+            };
+
+            _context.Contracts.AddRange(contracts);
+            await _context.SaveChangesAsync();
+
+            // Act - Filter lessThan1Hour
+            var (items1h, total1h) = await _repository.GetContractsByUpdateAsync("lessThan1Hour", null, null, null, 1, 10);
+
+            // Assert
+            total1h.Should().Be(1);
+            items1h.Should().ContainSingle(c => c.ContractNumber == "CTR-RECENT");
+
+            // Act - Filter olderThan1Week
+            var (itemsOld, totalOld) = await _repository.GetContractsByUpdateAsync("olderThan1Week", null, null, null, 1, 10);
+            totalOld.Should().Be(1);
+            itemsOld.Should().ContainSingle(c => c.ContractNumber == "CTR-OLD");
+        }
     }
 }

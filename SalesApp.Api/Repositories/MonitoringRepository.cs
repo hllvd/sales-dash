@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SalesApp.Data;
 using SalesApp.DTOs;
 using SalesApp.Models;
+using SalesApp.Utils;
 
 namespace SalesApp.Repositories
 {
@@ -429,6 +430,160 @@ namespace SalesApp.Repositories
                 "Healthy" => 4,
                 _ => 5
             };
+        }
+
+        private IQueryable<Contract> BuildMonitoringContractsBaseQuery(
+            List<int>? teamIds,
+            List<Guid>? userIds,
+            List<string>? matriculas)
+        {
+            var query = _context.Contracts
+                .AsNoTracking()
+                .Where(c => c.IsActive);
+
+            if (matriculas != null && matriculas.Count > 0)
+            {
+                var normalizedMatriculas = matriculas
+                    .Where(m => !string.IsNullOrWhiteSpace(m))
+                    .Select(m => m.ToLower().Trim())
+                    .ToList();
+
+                if (normalizedMatriculas.Count > 0)
+                {
+                    query = query.Where(c =>
+                        (c.Matricula != null && normalizedMatriculas.Any(n => c.Matricula.MatriculaNumber.ToLower().Contains(n))) ||
+                        (!string.IsNullOrEmpty(c.TempMatricula) && normalizedMatriculas.Any(n => c.TempMatricula.ToLower().Contains(n)))
+                    );
+                }
+            }
+
+            if (teamIds != null && teamIds.Count > 0)
+            {
+                query = query.Where(c => c.UserInternalId != null && _context.UserTeams.Any(ut =>
+                    teamIds.Contains(ut.TeamId) &&
+                    ut.UserInternalId == c.UserInternalId.Value &&
+                    c.SaleStartDate.Date >= ut.StartDate.Date &&
+                    (ut.EndDate == null || c.SaleStartDate.Date <= ut.EndDate.Value.Date)
+                ));
+            }
+
+            if (userIds != null && userIds.Count > 0)
+            {
+                query = query.Where(c => c.User != null && userIds.Contains(c.User.Id));
+            }
+
+            return query;
+        }
+
+        public async Task<ContractUpdateSummaryResponse> GetContractUpdateSummaryAsync(
+            List<int>? teamIds = null,
+            List<Guid>? userIds = null,
+            List<string>? matriculas = null)
+        {
+            var baseQuery = BuildMonitoringContractsBaseQuery(teamIds, userIds, matriculas);
+
+            var now = DateTime.UtcNow;
+            var t1h = now.AddHours(-1);
+            var t3h = now.AddHours(-3);
+            var t6h = now.AddHours(-6);
+            var t1d = now.AddDays(-1);
+            var t3d = now.AddDays(-3);
+            var t1w = now.AddDays(-7);
+
+            var counts = await baseQuery
+                .GroupBy(_ => 1)
+                .Select(g => new ContractUpdateSummaryResponse
+                {
+                    Total = g.Count(),
+                    LessThan1Hour = g.Count(c => c.UpdatedAt >= t1h),
+                    LessThan3Hours = g.Count(c => c.UpdatedAt >= t3h),
+                    LessThan6Hours = g.Count(c => c.UpdatedAt >= t6h),
+                    LessThan1Day = g.Count(c => c.UpdatedAt >= t1d),
+                    LessThan3Days = g.Count(c => c.UpdatedAt >= t3d),
+                    LessThan1Week = g.Count(c => c.UpdatedAt >= t1w),
+                    OlderThan1Week = g.Count(c => c.UpdatedAt < t1w)
+                })
+                .FirstOrDefaultAsync();
+
+            return counts ?? new ContractUpdateSummaryResponse();
+        }
+
+        public async Task<(List<ContractResponse> Items, int TotalCount)> GetContractsByUpdateAsync(
+            string? updateFilter,
+            List<int>? teamIds,
+            List<Guid>? userIds,
+            List<string>? matriculas,
+            int page,
+            int pageSize)
+        {
+            var query = BuildMonitoringContractsBaseQuery(teamIds, userIds, matriculas);
+
+            var now = DateTime.UtcNow;
+            if (!string.IsNullOrWhiteSpace(updateFilter) && !updateFilter.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                switch (updateFilter.ToLowerInvariant())
+                {
+                    case "lessthan1hour":
+                    case "1h":
+                        var t1h = now.AddHours(-1);
+                        query = query.Where(c => c.UpdatedAt >= t1h);
+                        break;
+                    case "lessthan3hours":
+                    case "3h":
+                        var t3h = now.AddHours(-3);
+                        query = query.Where(c => c.UpdatedAt >= t3h);
+                        break;
+                    case "lessthan6hours":
+                    case "6h":
+                        var t6h = now.AddHours(-6);
+                        query = query.Where(c => c.UpdatedAt >= t6h);
+                        break;
+                    case "lessthan1day":
+                    case "1d":
+                    case "24h":
+                        var t1d = now.AddDays(-1);
+                        query = query.Where(c => c.UpdatedAt >= t1d);
+                        break;
+                    case "lessthan3days":
+                    case "3d":
+                        var t3d = now.AddDays(-3);
+                        query = query.Where(c => c.UpdatedAt >= t3d);
+                        break;
+                    case "lessthan1week":
+                    case "1w":
+                    case "7d":
+                        var t1w = now.AddDays(-7);
+                        query = query.Where(c => c.UpdatedAt >= t1w);
+                        break;
+                    case "olderthan1week":
+                    case ">1w":
+                    case ">7d":
+                        var tolder = now.AddDays(-7);
+                        query = query.Where(c => c.UpdatedAt < tolder);
+                        break;
+                }
+            }
+
+            int totalCount = await query.CountAsync();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 100;
+
+            var contracts = await query
+                .OrderByDescending(c => c.UpdatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Include(c => c.User!).ThenInclude(u => u.UserMatriculas)
+                .Include(c => c.User!).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Matricula!).ThenInclude(m => m.UserMatriculas).ThenInclude(um => um.User).ThenInclude(u => u.UserTeams).ThenInclude(ut => ut.Team)
+                .Include(c => c.Group)
+                .Include(c => c.PV)
+                .Include(c => c.ContractStatus)
+                .ToListAsync();
+
+            var mappedItems = contracts.Select(c => ContractMappingHelper.MapToContractResponse(c, false)).ToList();
+
+            return (mappedItems, totalCount);
         }
     }
 }

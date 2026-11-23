@@ -1,3 +1,51 @@
+## Monitoramento: Contratos por Atualização e Cobertura de Scrape
+
+Adiciona a tela de monitoramento de recência de atualização de contratos (`#/monitoring/contracts`), acessível exclusivamente por Superadministradores através do menu **Monitoramento > Contratos**. O objetivo é permitir auditar e verificar se o processo de scrape está cobrindo e atualizando adequadamente todos os contratos da base.
+
+### Comportamento e Regras
+- **Filtros por Faixas de Recência (Cumulativo / Teto)**:
+  - `< 1 hora` (`lessThan1Hour`): Contratos com `UpdatedAt` nos últimos 60 minutos.
+  - `< 3 horas` (`lessThan3Hours`): Contratos com `UpdatedAt` nas últimas 3 horas.
+  - `< 6 horas` (`lessThan6Hours`): Contratos com `UpdatedAt` nas últimas 6 horas.
+  - `< 1 dia` (`lessThan1Day`): Contratos com `UpdatedAt` nas últimas 24 horas.
+  - `< 3 dias` (`lessThan3Days`): Contratos com `UpdatedAt` nos últimos 3 dias.
+  - `< 1 semana` (`lessThan1Week`): Contratos com `UpdatedAt` nos últimos 7 dias.
+  - `> 1 semana` (`olderThan1Week`): Contratos desatualizados há mais de 7 dias (destacando potenciais falhas ou lacunas de scrape).
+  - `Todos` (`total`): Base total de contratos ativos no sistema.
+- **Cards de Resumo no Topo (Acesso Rápido)**:
+  - Cards interativos no topo da página exibindo a contagem de contratos em cada faixa de recência.
+  - Clicar em qualquer card filtra instantaneamente a listagem na tabela, aplicando realce visual ativo (borda e fundo sutil).
+- **Filtros Específicos**:
+  - Seletor de Última Atualização sincronizado com os cards no topo.
+  - Filtro por Equipe (`MultiSelect`).
+  - Filtro por Matrícula (`MultiSelect` com busca e adição via Enter).
+  - Filtro por Usuário (`MultiSelect`).
+  - Botão de "Limpar Filtros" exibido condicionalmente quando há filtros aplicados.
+- **Tabela de Dados em Modo Auditoria**:
+  - Mantém o padrão visual, colunas e ordenação da página principal de "Contratos": Número do Contrato, Usuário, Equipe, Matrícula, Grupo, Segmento, Cota, Cliente, Valor Total, Status com badge oficial, Data Início, Data da Última Atualização (com indicador visual colorido e tempo relativo), Aguardando Pagamento.
+  - Sem a coluna "Ações" (somente leitura, sem botões de edição ou exclusão acidental).
+- **Permissões**:
+  - Restrito a usuários com permissão `system:superadmin`.
+
+### Arquivos Modificados / Criados
+- `SalesApp.Api/DTOs/ContractUpdateSummaryResponse.cs`: DTO com as contagens das faixas de atualização.
+- `SalesApp.Api/Utils/ContractMappingHelper.cs`: Helper unificado para mapeamento de entidades `Contract` em `ContractResponse`.
+- `SalesApp.Api/Repositories/IMonitoringRepository.cs` e `MonitoringRepository.cs`: Métodos de cálculo de resumo por faixa e listagem paginada de contratos por atualização.
+- `SalesApp.Api/Services/IMonitoringService.cs` e `MonitoringService.cs`: Camada de serviço para obtenção de métricas de atualização de contratos.
+- `SalesApp.Api/Controllers/MonitoringController.cs`: Endpoints `GET /api/monitoring/contract-updates/summary` e `GET /api/monitoring/contract-updates`.
+- `SalesApp.Api/Controllers/ContractsController.cs`: Refatoração do mapeamento de contratos para reutilizar `ContractMappingHelper`.
+- `client/sales-dash/src/services/contractService.ts`: Tipos `ContractUpdateSummary`, `MonitoringContractsFilter` e funções `getContractUpdateSummary` e `getMonitoringContracts`.
+- `client/sales-dash/src/components/Menu.tsx`: Subitem `Contratos` em `Monitoramento`.
+- `client/sales-dash/src/App.tsx`: Rota `#/monitoring/contracts`.
+- `client/sales-dash/src/components/Monitoring/MonitoringContractsPage.tsx` e `.css`: Componente e estilização da página de monitoramento de contratos.
+- `SalesApp.Tests/Repositories/MonitoringRepositoryTests.cs`: Testes de repositório para o cálculo do resumo e filtro por tempo de atualização.
+- `SalesApp.Tests/MonitoringControllerTests.cs`: Testes unitários do controller para os novos endpoints.
+- `client/sales-dash/src/services/contractService.test.ts`: Testes unitários para as novas chamadas de API.
+- `client/sales-dash/src/components/Monitoring/MonitoringContractsPage.test.tsx`: Testes de renderização, cards de resumo, filtros e tabela.
+- `client/sales-dash/src/components/Menu.test.tsx`: Teste de visibilidade do subitem no menu.
+
+---
+
 ## Central de Solicitações: Aprovação e Rejeição em Massa (Batch Resolution)
 
 Permite aos aprovadores (administradores e superadministradores) selecionar múltiplas solicitações pendentes e executar aprovação ou rejeição em massa na Central de Solicitações (`/#/requests`).

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -44,6 +45,39 @@ namespace SalesApp.Services
                 minDays,
                 _licensingOptions.ExcludedEmails,
                 _licensingOptions.PriceTiers);
+        }
+
+        public Task<ContractUpdateSummaryResponse> GetContractUpdateSummaryAsync(
+            List<int>? teamIds = null,
+            List<Guid>? userIds = null,
+            List<string>? matriculas = null)
+        {
+            return _monitoringRepository.GetContractUpdateSummaryAsync(teamIds, userIds, matriculas);
+        }
+
+        public async Task<PagedContractResponse> GetContractsByUpdateAsync(
+            string? updateFilter,
+            List<int>? teamIds,
+            List<Guid>? userIds,
+            List<string>? matriculas,
+            int page,
+            int pageSize)
+        {
+            var (items, totalCount) = await _monitoringRepository.GetContractsByUpdateAsync(
+                updateFilter,
+                teamIds,
+                userIds,
+                matriculas,
+                page,
+                pageSize);
+
+            return new PagedContractResponse
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
         }
     }
 }

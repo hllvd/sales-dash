@@ -7,6 +7,13 @@ Each entry records a fix attempt — past entries must be consulted before retry
 
 <!-- Append new entries below this line -->
 
+## [2026-11-23] all — Attempt 1
+**Failure:** TypeScript build failure `TS2322: Type '"Active"' is not assignable to type 'ContractStatus'` in `MonitoringContractsPage.test.tsx`.
+**Root cause:** Mock test contract objects in `MonitoringContractsPage.test.tsx` used string literal `'Active'` instead of enum `contractService.ContractStatus.Active`.
+**Fix applied:** Updated mock contracts in `MonitoringContractsPage.test.tsx` to use `contractService.ContractStatus.Active`.
+**Result:** ✅ Green (Build: clean, Integration: 421/421 passed, E2E Run 1: 199/199 passed in 3m 12s, E2E Run 2: 199/199 passed in 2m 57s — suite is 100% idempotent).
+
+
 ## [2026-11-20] e2e-performance — Attempt 1
 **Problem:** A suite de testes E2E aumentou ~1 min no tempo de execução no Run 1 do `./test.sh all` (indo para ~4m 30s) e apresentava retries intermitentes.
 **Root cause:**

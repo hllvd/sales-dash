@@ -16,6 +16,8 @@ import {
   ContractStatus,
   exportLicensingXlsx,
   getUserContracts,
+  getContractUpdateSummary,
+  getMonitoringContracts,
 } from './contractService';
 
 // Mock fetch globally
@@ -530,6 +532,73 @@ describe('contractService', () => {
       expect(result.contracts).toEqual(mockItems);
       expect(result.totalCount).toBe(42);
       expect(result.aggregation).toEqual({ total: 50000 });
+    });
+  });
+
+  describe('monitoring contract updates', () => {
+    it('should call getContractUpdateSummary with correct query params', async () => {
+      const mockSummary = {
+        lessThan1Hour: 5,
+        lessThan3Hours: 12,
+        lessThan6Hours: 25,
+        lessThan1Day: 40,
+        lessThan3Days: 60,
+        lessThan1Week: 90,
+        olderThan1Week: 10,
+        total: 100,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: mockSummary,
+        }),
+      });
+
+      const result = await getContractUpdateSummary({
+        teamIds: [1, 2],
+        userIds: ['u-1'],
+        matriculas: ['M001'],
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/monitoring/contract-updates/summary?teamIds=1&teamIds=2&userIds=u-1&matriculas=M001',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockSummary);
+    });
+
+    it('should call getMonitoringContracts with correct pagination and updateFilter', async () => {
+      const mockItems = [
+        { id: 1, contractNumber: 'CTR-001', updatedAt: '2026-11-23T12:00:00Z' },
+      ];
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            items: mockItems,
+            totalCount: 1,
+            page: 1,
+            pageSize: 50,
+          },
+        }),
+      });
+
+      const result = await getMonitoringContracts({
+        updateFilter: 'lessThan3Hours',
+        page: 1,
+        pageSize: 50,
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/monitoring/contract-updates?updateFilter=lessThan3Hours&page=1&pageSize=50',
+        expect.any(Object)
+      );
+      expect(result.contracts).toEqual(mockItems);
+      expect(result.totalCount).toBe(1);
     });
   });
 });

@@ -683,6 +683,15 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
                 onClick={() => { if (opened) close(); }}
               />
               <NavLink
+                href="#/monitoring/contracts"
+                label="Contratos"
+                leftSection={<IconFileText size={16} />}
+                active={isActive('#/monitoring/contracts')}
+                styles={navLinkStyles('#/monitoring/contracts')}
+                data-testid="nav-monitoring-contracts"
+                onClick={() => { if (opened) close(); }}
+              />
+              <NavLink
                 href="#/monitoring/licensing"
                 label="Licenciamento"
                 leftSection={<IconReceipt2 size={16} />}

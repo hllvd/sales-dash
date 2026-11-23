@@ -300,6 +300,103 @@ export const exportLicensingXlsx = async (
   return response.blob();
 };
 
+export interface ContractUpdateSummary {
+  lessThan1Hour: number;
+  lessThan3Hours: number;
+  lessThan6Hours: number;
+  lessThan1Day: number;
+  lessThan3Days: number;
+  lessThan1Week: number;
+  olderThan1Week: number;
+  total: number;
+}
+
+export interface MonitoringContractsFilter {
+  updateFilter?: string;
+  teamIds?: number[];
+  userIds?: string[];
+  matriculas?: string[];
+  page?: number;
+  pageSize?: number;
+}
+
+export const getContractUpdateSummary = async (
+  filters?: {
+    teamIds?: number[];
+    userIds?: string[];
+    matriculas?: string[];
+  }
+): Promise<ContractUpdateSummary> => {
+  const params = new URLSearchParams();
+  if (filters?.teamIds && filters.teamIds.length > 0) {
+    filters.teamIds.forEach(id => params.append('teamIds', id.toString()));
+  }
+  if (filters?.userIds && filters.userIds.length > 0) {
+    filters.userIds.forEach(id => params.append('userIds', id));
+  }
+  if (filters?.matriculas && filters.matriculas.length > 0) {
+    filters.matriculas.forEach(m => params.append('matriculas', m));
+  }
+
+  const queryString = params.toString();
+  const url = `${API_BASE_URL}/monitoring/contract-updates/summary${queryString ? `?${queryString}` : ''}`;
+
+  const response = await authenticatedFetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Falha ao obter resumo de atualização dos contratos');
+  }
+
+  const result: ApiResponse<ContractUpdateSummary> = await response.json();
+  return result.data;
+};
+
+export const getMonitoringContracts = async (
+  filters: MonitoringContractsFilter
+): Promise<{ contracts: Contract[]; totalCount: number; page: number; pageSize: number }> => {
+  const params = new URLSearchParams();
+  if (filters.updateFilter && filters.updateFilter !== 'all') {
+    params.append('updateFilter', filters.updateFilter);
+  }
+  if (filters.teamIds && filters.teamIds.length > 0) {
+    filters.teamIds.forEach(id => params.append('teamIds', id.toString()));
+  }
+  if (filters.userIds && filters.userIds.length > 0) {
+    filters.userIds.forEach(id => params.append('userIds', id));
+  }
+  if (filters.matriculas && filters.matriculas.length > 0) {
+    filters.matriculas.forEach(m => params.append('matriculas', m));
+  }
+  if (filters.page) {
+    params.append('page', filters.page.toString());
+  }
+  if (filters.pageSize) {
+    params.append('pageSize', filters.pageSize.toString());
+  }
+
+  const queryString = params.toString();
+  const url = `${API_BASE_URL}/monitoring/contract-updates${queryString ? `?${queryString}` : ''}`;
+
+  const response = await authenticatedFetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Falha ao carregar contratos de monitoramento');
+  }
+
+  const result: ApiResponse<{ items: Contract[]; totalCount: number; page: number; pageSize: number }> = await response.json();
+  return {
+    contracts: result.data.items,
+    totalCount: result.data.totalCount,
+    page: result.data.page,
+    pageSize: result.data.pageSize,
+  };
+};
 
 // Contract CRUD Operations
 export const getContracts = async (

@@ -135,4 +135,36 @@ describe('Menu Grupos visibility', () => {
     expect(screen.queryByTestId('nav-groups')).not.toBeInTheDocument();
     expect(getGroups).not.toHaveBeenCalled();
   });
+
+  it('shows Monitoring Contratos link for superadmin and hides for regular user', () => {
+    localStorage.setItem('token', makeJwt({ perm: ['system:superadmin'] }));
+    localStorage.setItem('user', JSON.stringify({ role: 'superadmin', email: 'sa@test.com' }));
+
+    const { unmount } = render(
+      <MantineProvider>
+        <BuildInfoProvider>
+          <Menu><div>content</div></Menu>
+        </BuildInfoProvider>
+      </MantineProvider>
+    );
+
+    expect(screen.getByTestId('nav-monitoring-contracts')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-monitoring-contracts')).toHaveAttribute('href', '#/monitoring/contracts');
+
+    unmount();
+
+    // Regular user
+    localStorage.setItem('token', makeJwt({ perm: ['contracts:read'] }));
+    localStorage.setItem('user', JSON.stringify({ role: 'user', email: 'user@test.com' }));
+
+    render(
+      <MantineProvider>
+        <BuildInfoProvider>
+          <Menu><div>content</div></Menu>
+        </BuildInfoProvider>
+      </MantineProvider>
+    );
+
+    expect(screen.queryByTestId('nav-monitoring-contracts')).not.toBeInTheDocument();
+  });
 });

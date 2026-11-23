@@ -1,0 +1,256 @@
+.monitoring-contracts-page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.monitoring-contracts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.monitoring-contracts-header h2 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1c1c1e;
+  margin: 0;
+}
+
+.monitoring-contracts-subtitle {
+  color: #6b7280;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.monitoring-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Quick Filter Summary Cards Grid */
+.update-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.update-filter-card {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  user-select: none;
+}
+
+.update-filter-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+.update-filter-card.active {
+  border-color: #6366f1;
+  background-color: #f5f3ff;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.update-filter-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.update-filter-card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.update-filter-card.active .update-filter-card-label {
+  color: #4f46e5;
+}
+
+.update-filter-card-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.update-filter-card-count {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1c1c1e;
+}
+
+.update-filter-card.active .update-filter-card-count {
+  color: #4338ca;
+}
+
+/* Filters Bar */
+.monitoring-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 20px;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.filter-group label {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.filter-group select {
+  padding: 10px;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #111827;
+  font-size: 14px;
+  transition: all 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.filter-group .mantine-MultiSelect-root,
+.filter-group .mantine-PillsInput-root,
+.filter-group .mantine-PillsInput-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.filter-group .mantine-Pill-root,
+.filter-group .mantine-MultiSelect-pill {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.filter-group .mantine-Pill-label,
+.filter-group .mantine-MultiSelect-pillLabel {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: calc(100% - 20px) !important;
+}
+
+.clear-filters-btn {
+  background-color: #fef2f2;
+  border: 1px solid #ef4444;
+  color: #b91c1c;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-end;
+  box-sizing: border-box;
+}
+
+.clear-filters-btn:hover {
+  background-color: #fee2e2;
+  border-color: #dc2626;
+}
+
+/* Loading & Empty State */
+.monitoring-contracts-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.monitoring-contracts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+}
+
+.monitoring-contracts-empty p {
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Table Container */
+.monitoring-contracts-table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-top: 16px;
+  margin-bottom: 24px;
+}
+
+.monitoring-contracts-table-container table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.monitoring-contracts-table-container th {
+  background-color: #f8fafc;
+  color: #334155;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 12px 14px;
+  white-space: nowrap;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.monitoring-contracts-table-container td {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  white-space: nowrap;
+}
+
+.monitoring-contracts-table-container tr:hover td {
+  background-color: #f8fafc;
+}
