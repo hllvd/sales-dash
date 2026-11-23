@@ -495,13 +495,12 @@ namespace SalesApp.Repositories
                 .Select(g => new ContractUpdateSummaryResponse
                 {
                     Total = g.Count(),
-                    LessThan1Hour = g.Count(c => c.UpdatedAt >= t1h),
-                    LessThan3Hours = g.Count(c => c.UpdatedAt >= t3h),
-                    LessThan6Hours = g.Count(c => c.UpdatedAt >= t6h),
-                    LessThan1Day = g.Count(c => c.UpdatedAt >= t1d),
-                    LessThan3Days = g.Count(c => c.UpdatedAt >= t3d),
-                    LessThan1Week = g.Count(c => c.UpdatedAt >= t1w),
-                    OlderThan1Week = g.Count(c => c.UpdatedAt < t1w)
+                    MoreThan1Hour = g.Count(c => c.UpdatedAt < t1h),
+                    MoreThan3Hours = g.Count(c => c.UpdatedAt < t3h),
+                    MoreThan6Hours = g.Count(c => c.UpdatedAt < t6h),
+                    MoreThan1Day = g.Count(c => c.UpdatedAt < t1d),
+                    MoreThan3Days = g.Count(c => c.UpdatedAt < t3d),
+                    MoreThan1Week = g.Count(c => c.UpdatedAt < t1w)
                 })
                 .FirstOrDefaultAsync();
 
@@ -523,43 +522,62 @@ namespace SalesApp.Repositories
             {
                 switch (updateFilter.ToLowerInvariant())
                 {
-                    case "lessthan1hour":
+                    case "morethan1hour":
+                    case "olderthan1hour":
                     case "1h":
+                    case ">1h":
+                    case ">1hora":
+                    case "1hora":
                         var t1h = now.AddHours(-1);
-                        query = query.Where(c => c.UpdatedAt >= t1h);
+                        query = query.Where(c => c.UpdatedAt < t1h);
                         break;
-                    case "lessthan3hours":
+                    case "morethan3hours":
+                    case "olderthan3hours":
                     case "3h":
+                    case ">3h":
+                    case ">3horas":
+                    case "3horas":
                         var t3h = now.AddHours(-3);
-                        query = query.Where(c => c.UpdatedAt >= t3h);
+                        query = query.Where(c => c.UpdatedAt < t3h);
                         break;
-                    case "lessthan6hours":
+                    case "morethan6hours":
+                    case "olderthan6hours":
                     case "6h":
+                    case ">6h":
+                    case ">6horas":
+                    case "6horas":
                         var t6h = now.AddHours(-6);
-                        query = query.Where(c => c.UpdatedAt >= t6h);
+                        query = query.Where(c => c.UpdatedAt < t6h);
                         break;
-                    case "lessthan1day":
+                    case "morethan1day":
+                    case "olderthan1day":
                     case "1d":
+                    case ">1d":
                     case "24h":
+                    case ">1dia":
+                    case "1dia":
                         var t1d = now.AddDays(-1);
-                        query = query.Where(c => c.UpdatedAt >= t1d);
+                        query = query.Where(c => c.UpdatedAt < t1d);
                         break;
-                    case "lessthan3days":
+                    case "morethan3days":
+                    case "olderthan3days":
                     case "3d":
+                    case ">3d":
+                    case ">3dias":
+                    case "3dias":
                         var t3d = now.AddDays(-3);
-                        query = query.Where(c => c.UpdatedAt >= t3d);
+                        query = query.Where(c => c.UpdatedAt < t3d);
                         break;
-                    case "lessthan1week":
-                    case "1w":
-                    case "7d":
-                        var t1w = now.AddDays(-7);
-                        query = query.Where(c => c.UpdatedAt >= t1w);
-                        break;
+                    case "morethan1week":
                     case "olderthan1week":
+                    case "1w":
                     case ">1w":
+                    case "7d":
                     case ">7d":
-                        var tolder = now.AddDays(-7);
-                        query = query.Where(c => c.UpdatedAt < tolder);
+                    case ">1semana":
+                    case "1semana":
+                        var t1w = now.AddDays(-7);
+                        query = query.Where(c => c.UpdatedAt < t1w);
                         break;
                 }
             }

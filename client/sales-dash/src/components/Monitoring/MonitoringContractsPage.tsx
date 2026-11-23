@@ -33,13 +33,12 @@ interface FilterOptionConfig {
 
 const UPDATE_FILTER_OPTIONS: FilterOptionConfig[] = [
   { value: 'all', label: 'Todos', summaryKey: 'total', color: '#6366f1' },
-  { value: 'lessThan1Hour', label: '< 1 hora', summaryKey: 'lessThan1Hour', color: '#10b981' },
-  { value: 'lessThan3Hours', label: '< 3 horas', summaryKey: 'lessThan3Hours', color: '#10b981' },
-  { value: 'lessThan6Hours', label: '< 6 horas', summaryKey: 'lessThan6Hours', color: '#10b981' },
-  { value: 'lessThan1Day', label: '< 1 dia', summaryKey: 'lessThan1Day', color: '#3b82f6' },
-  { value: 'lessThan3Days', label: '< 3 dias', summaryKey: 'lessThan3Days', color: '#f59e0b' },
-  { value: 'lessThan1Week', label: '< 1 semana', summaryKey: 'lessThan1Week', color: '#f97316' },
-  { value: 'olderThan1Week', label: '> 1 semana', summaryKey: 'olderThan1Week', color: '#ef4444' },
+  { value: 'moreThan1Hour', label: '> 1 hora', summaryKey: 'moreThan1Hour', color: '#10b981' },
+  { value: 'moreThan3Hours', label: '> 3 horas', summaryKey: 'moreThan3Hours', color: '#3b82f6' },
+  { value: 'moreThan6Hours', label: '> 6 horas', summaryKey: 'moreThan6Hours', color: '#f59e0b' },
+  { value: 'moreThan1Day', label: '> 1 dia', summaryKey: 'moreThan1Day', color: '#f97316' },
+  { value: 'moreThan3Days', label: '> 3 dias', summaryKey: 'moreThan3Days', color: '#ea580c' },
+  { value: 'moreThan1Week', label: '> 1 semana', summaryKey: 'moreThan1Week', color: '#ef4444' },
 ];
 
 const MonitoringContractsPage: React.FC = () => {
@@ -52,13 +51,12 @@ const MonitoringContractsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState<ContractUpdateSummary>({
-    lessThan1Hour: 0,
-    lessThan3Hours: 0,
-    lessThan6Hours: 0,
-    lessThan1Day: 0,
-    lessThan3Days: 0,
-    lessThan1Week: 0,
-    olderThan1Week: 0,
+    moreThan1Hour: 0,
+    moreThan3Hours: 0,
+    moreThan6Hours: 0,
+    moreThan1Day: 0,
+    moreThan3Days: 0,
+    moreThan1Week: 0,
     total: 0,
   });
 

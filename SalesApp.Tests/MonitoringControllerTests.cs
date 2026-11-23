@@ -28,13 +28,12 @@ namespace SalesApp.Tests
             // Arrange
             var expectedSummary = new ContractUpdateSummaryResponse
             {
-                LessThan1Hour = 5,
-                LessThan3Hours = 10,
-                LessThan6Hours = 15,
-                LessThan1Day = 25,
-                LessThan3Days = 40,
-                LessThan1Week = 60,
-                OlderThan1Week = 8,
+                MoreThan1Hour = 5,
+                MoreThan3Hours = 10,
+                MoreThan6Hours = 15,
+                MoreThan1Day = 25,
+                MoreThan3Days = 40,
+                MoreThan1Week = 8,
                 Total = 68
             };
 

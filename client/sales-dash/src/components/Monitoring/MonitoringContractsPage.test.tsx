@@ -28,13 +28,12 @@ jest.mock('../Menu', () => ({ children }: any) => <div data-testid="mock-menu">{
 
 describe('MonitoringContractsPage', () => {
   const mockSummary: contractService.ContractUpdateSummary = {
-    lessThan1Hour: 5,
-    lessThan3Hours: 12,
-    lessThan6Hours: 20,
-    lessThan1Day: 35,
-    lessThan3Days: 50,
-    lessThan1Week: 80,
-    olderThan1Week: 15,
+    moreThan1Hour: 5,
+    moreThan3Hours: 12,
+    moreThan6Hours: 20,
+    moreThan1Day: 35,
+    moreThan3Days: 50,
+    moreThan1Week: 15,
     total: 95,
   };
 
@@ -100,10 +99,10 @@ describe('MonitoringContractsPage', () => {
 
     // Verify summary counts are rendered in the cards
     await waitFor(() => {
-      expect(screen.getByTestId('card-filter-lessThan1Hour')).toBeInTheDocument();
-      expect(screen.getByTestId('card-filter-lessThan1Hour')).toHaveTextContent('5');
-      expect(screen.getByTestId('card-filter-lessThan3Hours')).toHaveTextContent('12');
-      expect(screen.getByTestId('card-filter-olderThan1Week')).toHaveTextContent('15');
+      expect(screen.getByTestId('card-filter-moreThan1Hour')).toBeInTheDocument();
+      expect(screen.getByTestId('card-filter-moreThan1Hour')).toHaveTextContent('5');
+      expect(screen.getByTestId('card-filter-moreThan3Hours')).toHaveTextContent('12');
+      expect(screen.getByTestId('card-filter-moreThan1Week')).toHaveTextContent('15');
     });
 
     // Verify contract rows are rendered
@@ -120,34 +119,34 @@ describe('MonitoringContractsPage', () => {
     render(<MonitoringContractsPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('card-filter-lessThan1Hour')).toBeInTheDocument();
+      expect(screen.getByTestId('card-filter-moreThan1Hour')).toBeInTheDocument();
     });
 
-    // Click the "< 1 hora" card
-    fireEvent.click(screen.getByTestId('card-filter-lessThan1Hour'));
+    // Click the "> 1 hora" card
+    fireEvent.click(screen.getByTestId('card-filter-moreThan1Hour'));
 
     await waitFor(() => {
       expect(contractService.getMonitoringContracts).toHaveBeenCalledWith(
         expect.objectContaining({
-          updateFilter: 'lessThan1Hour',
+          updateFilter: 'moreThan1Hour',
           page: 1,
         })
       );
     });
 
     // The card should now have the active class
-    expect(screen.getByTestId('card-filter-lessThan1Hour')).toHaveClass('active');
+    expect(screen.getByTestId('card-filter-moreThan1Hour')).toHaveClass('active');
   });
 
   it('clears filters when clear button is clicked', async () => {
     render(<MonitoringContractsPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('card-filter-lessThan3Hours')).toBeInTheDocument();
+      expect(screen.getByTestId('card-filter-moreThan3Hours')).toBeInTheDocument();
     });
 
     // Click card to activate a filter
-    fireEvent.click(screen.getByTestId('card-filter-lessThan3Hours'));
+    fireEvent.click(screen.getByTestId('card-filter-moreThan3Hours'));
 
     await waitFor(() => {
       expect(screen.getByText('Limpar Filtros')).toBeInTheDocument();

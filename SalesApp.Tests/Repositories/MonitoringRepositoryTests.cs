@@ -156,13 +156,12 @@ namespace SalesApp.Tests.Repositories
             // Assert
             summary.Should().NotBeNull();
             summary.Total.Should().Be(7);
-            summary.LessThan1Hour.Should().Be(1); // CTR-1
-            summary.LessThan3Hours.Should().Be(2); // CTR-1, CTR-2
-            summary.LessThan6Hours.Should().Be(3); // CTR-1, CTR-2, CTR-3
-            summary.LessThan1Day.Should().Be(4);   // CTR-1, CTR-2, CTR-3, CTR-4
-            summary.LessThan3Days.Should().Be(5);  // CTR-1..CTR-5
-            summary.LessThan1Week.Should().Be(6);  // CTR-1..CTR-6
-            summary.OlderThan1Week.Should().Be(1); // CTR-7
+            summary.MoreThan1Hour.Should().Be(6); // CTR-2..CTR-7
+            summary.MoreThan3Hours.Should().Be(5); // CTR-3..CTR-7
+            summary.MoreThan6Hours.Should().Be(4); // CTR-4..CTR-7
+            summary.MoreThan1Day.Should().Be(3);   // CTR-5..CTR-7
+            summary.MoreThan3Days.Should().Be(2);  // CTR-6, CTR-7
+            summary.MoreThan1Week.Should().Be(1);  // CTR-7
         }
 
         [Fact]
@@ -183,15 +182,17 @@ namespace SalesApp.Tests.Repositories
             _context.Contracts.AddRange(contracts);
             await _context.SaveChangesAsync();
 
-            // Act - Filter lessThan1Hour
-            var (items1h, total1h) = await _repository.GetContractsByUpdateAsync("lessThan1Hour", null, null, null, 1, 10);
+            // Act - Filter moreThan1Hour (updated more than 1h ago)
+            var (items1h, total1h) = await _repository.GetContractsByUpdateAsync("moreThan1Hour", null, null, null, 1, 10);
 
             // Assert
-            total1h.Should().Be(1);
-            items1h.Should().ContainSingle(c => c.ContractNumber == "CTR-RECENT");
+            total1h.Should().Be(2);
+            items1h.Should().NotContain(c => c.ContractNumber == "CTR-RECENT");
+            items1h.Should().Contain(c => c.ContractNumber == "CTR-MID");
+            items1h.Should().Contain(c => c.ContractNumber == "CTR-OLD");
 
-            // Act - Filter olderThan1Week
-            var (itemsOld, totalOld) = await _repository.GetContractsByUpdateAsync("olderThan1Week", null, null, null, 1, 10);
+            // Act - Filter moreThan1Week
+            var (itemsOld, totalOld) = await _repository.GetContractsByUpdateAsync("moreThan1Week", null, null, null, 1, 10);
             totalOld.Should().Be(1);
             itemsOld.Should().ContainSingle(c => c.ContractNumber == "CTR-OLD");
         }

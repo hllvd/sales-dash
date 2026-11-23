@@ -57,14 +57,13 @@ Garante que contratos excluídos (soft-deleted, com `IsActive = false`) não sej
 Adiciona a tela de monitoramento de recência de atualização de contratos (`#/monitoring/contracts`), acessível exclusivamente por Superadministradores através do menu **Monitoramento > Contratos**. O objetivo é permitir auditar e verificar se o processo de scrape está cobrindo e atualizando adequadamente todos os contratos da base.
 
 ### Comportamento e Regras
-- **Filtros por Faixas de Recência (Cumulativo / Teto)**:
-  - `< 1 hora` (`lessThan1Hour`): Contratos com `UpdatedAt` nos últimos 60 minutos.
-  - `< 3 horas` (`lessThan3Hours`): Contratos com `UpdatedAt` nas últimas 3 horas.
-  - `< 6 horas` (`lessThan6Hours`): Contratos com `UpdatedAt` nas últimas 6 horas.
-  - `< 1 dia` (`lessThan1Day`): Contratos com `UpdatedAt` nas últimas 24 horas.
-  - `< 3 dias` (`lessThan3Days`): Contratos com `UpdatedAt` nos últimos 3 dias.
-  - `< 1 semana` (`lessThan1Week`): Contratos com `UpdatedAt` nos últimos 7 dias.
-  - `> 1 semana` (`olderThan1Week`): Contratos desatualizados há mais de 7 dias (destacando potenciais falhas ou lacunas de scrape).
+- **Filtros por Faixas de Desatualização (`>` / Stale)**:
+  - `> 1 hora` (`moreThan1Hour`): Contratos desatualizados há mais de 1 hora (`UpdatedAt < now - 1h`).
+  - `> 3 horas` (`moreThan3Hours`): Contratos desatualizados há mais de 3 horas (`UpdatedAt < now - 3h`).
+  - `> 6 horas` (`moreThan6Hours`): Contratos desatualizados há mais de 6 horas (`UpdatedAt < now - 6h`).
+  - `> 1 dia` (`moreThan1Day`): Contratos desatualizados há mais de 24 horas (`UpdatedAt < now - 24h`).
+  - `> 3 dias` (`moreThan3Days`): Contratos desatualizados há mais de 3 dias (`UpdatedAt < now - 3d`).
+  - `> 1 semana` (`moreThan1Week`): Contratos desatualizados há mais de 7 dias (`UpdatedAt < now - 7d`).
   - `Todos` (`total`): Base total de contratos ativos no sistema.
 - **Cards de Resumo no Topo (Acesso Rápido)**:
   - Cards interativos no topo da página exibindo a contagem de contratos em cada faixa de recência.

@@ -301,13 +301,12 @@ export const exportLicensingXlsx = async (
 };
 
 export interface ContractUpdateSummary {
-  lessThan1Hour: number;
-  lessThan3Hours: number;
-  lessThan6Hours: number;
-  lessThan1Day: number;
-  lessThan3Days: number;
-  lessThan1Week: number;
-  olderThan1Week: number;
+  moreThan1Hour: number;
+  moreThan3Hours: number;
+  moreThan6Hours: number;
+  moreThan1Day: number;
+  moreThan3Days: number;
+  moreThan1Week: number;
   total: number;
 }
 

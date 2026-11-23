@@ -538,13 +538,12 @@ describe('contractService', () => {
   describe('monitoring contract updates', () => {
     it('should call getContractUpdateSummary with correct query params', async () => {
       const mockSummary = {
-        lessThan1Hour: 5,
-        lessThan3Hours: 12,
-        lessThan6Hours: 25,
-        lessThan1Day: 40,
-        lessThan3Days: 60,
-        lessThan1Week: 90,
-        olderThan1Week: 10,
+        moreThan1Hour: 5,
+        moreThan3Hours: 12,
+        moreThan6Hours: 25,
+        moreThan1Day: 40,
+        moreThan3Days: 60,
+        moreThan1Week: 10,
         total: 100,
       };
 
