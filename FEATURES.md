@@ -317,6 +317,27 @@ Permite que novos contratos importados do Ava Pro / PowerBI sejam atribuídos au
 
 ---
 
+## Validação Rápida de Credenciais (Fail-Fast) ao Clicar em "Extrair" Manualmente e Otimização de Login no AVA PRO
+
+Reduz drasticamente o tempo de validação de senha no AVA PRO (de 45s–120s para ~4–8s) e executa uma pré-validação rápida ao clicar em **"Extrair"** manualmente, retornando o erro de senha inválida imediatamente na interface sem enfileirar jobs fadados ao erro no SQS / Fargate Spot.
+
+### Comportamento e Regras
+- **Verificação Rápida de Login (`verifyCredentialsOnly` em [pbi-scraper/auth.js](pbi-scraper/auth.js) e `/test-auth` em [pbi-scraper/server.js](pbi-scraper/server.js))**:
+  - O endpoint `POST /test-auth` passa a validar exclusivamente a autenticação no AVA PRO (captura do `avaJwt` em `bifrost/login`), sem navegar para `/dashboard` e sem aguardar até 120s pelo carregamento do iframe/token `MWCToken` do PowerBI.
+  - Quando chamado com `useCache = true` (pré-validação do botão **Extrair**), reutiliza credenciais já validadas em memória para o mesmo par `(matrícula, hash da senha)` instantaneamente (`<5ms`).
+- **Remoção de Esperas Desnecessárias e Correção de Falso-Positivo no DOM ([pbi-scraper/auth.js](pbi-scraper/auth.js) e [pbi-scraper/captureTemplate.js](pbi-scraper/captureTemplate.js))**:
+  - Navegação inicial usa `waitUntil: 'domcontentloaded'` aguardando apenas os inputs visíveis do formulário.
+  - Removido o bloqueio fixo de 8s em `page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 })` após o clique em "Entrar" (que sempre estourava os 8s quando a senha estava incorreta, pois SPAs não navegam em falha de login).
+  - Adicionado `findLoginErrorInCandidates` e `collectPageErrorCandidates`, ignorando instruções estáticas do formulário que contêm a palavra `"senha"` (como `"Insira a sua matrícula de consultor e a senha cadastrada."` e `"Esqueceu sua senha?"`) para detectar imediatamente alertas reais de erro no DOM ou respostas HTTP de falha do `bifrost`.
+- **Fail-Fast ao Clicar em "Extrair" Manualmente e Diagnóstico Específico de Erro ao Salvar ([ScrapeController.cs](SalesApp.Api/Controllers/ScrapeController.cs), [PbiScraperClient.cs](SalesApp.Api/Services/PbiScraperClient.cs), [apiService.ts](client/sales-dash/src/services/apiService.ts) e [ScrapeDashboard.tsx](client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx))**:
+  - Antes de criar uma execução (`Running`) e enfileirar no SQS/Fargate, `TriggerScrape` (`POST /api/scrape/jobs/{configId}`) valida a credencial via `TestAuthAsync(..., useCache: true)` (timeout de 25s).
+  - Se a senha estiver incorreta/expirada, marca `CredentialStatus = "wrong-password"` no banco, retorna `400 BadRequest` imediatamente e o frontend exibe o erro + atualiza o badge da conta para **`Senha Expirada / Inválida`** na hora.
+  - Em `SaveConfig` e `TriggerScrape`, o backend classifica o erro com `errorType` (`"wrong-password"`, `"timeout"`, `"auth-error"`), diferenciando explicitamente **Senha Inválida ou Expirada no AVA PRO**, **Timeout ao Validar Senha no AVA PRO** e **Erro Técnico na Validação do AVA PRO**.
+  - Corrigido o wrapper `apiService.post/get/put/delete` (que antes descartava `error.response.data` e `steps` ao lançar `new Error(...)` no `fetch`), garantindo que o modal de diagnóstico passo a passo e a mensagem detalhada do backend sejam exibidos ao salvar uma conta com `"Validar credenciais ao salvar"` ativo.
+  - Em `GetMyConfigs` (`GET /api/scrape/configs/me`), usuários `superadmin` passam a visualizar todos os vínculos de conta cadastrados no sistema (independentemente do `UserInternalId`), enquanto usuários `admin` visualizam apenas os próprios vínculos.
+
+---
+
 ## Inferência de 1ª Parcela Paga em RTs e Parcelas Pagas para Contratos Não-Desistentes
 
 Garante que contratos elegíveis já pagos (com `HasPayment != false` e status diferente de `Desistente` e `AwaitingPayment`) sempre tenham a 1ª parcela inferida como paga tanto na tabela visual de acompanhamento de RTs (`RT1`) quanto no cálculo de meses pagos inferidos (`CalculateInferredPaidMonths`), mesmo quando a quantidade de parcelas em atraso é igual ou superior à idade do contrato em meses.

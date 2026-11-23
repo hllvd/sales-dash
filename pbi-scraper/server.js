@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { scrapeWithReauth } = require('./extractor');
 const { scrapeConsultorDirect } = require('./extractorConsultor');
-const { getOrFetchTokens, AuthError } = require('./auth');
+const { getOrFetchTokens, verifyCredentialsOnly, AuthError } = require('./auth');
 const tokenManager = require('./tokenManager');
 const { uploadToS3 } = require('./s3Uploader');
 const { publishToQueue } = require('./sqsPublisher');
@@ -449,7 +449,7 @@ app.post('/reset-auth-lock', (req, res) => {
 });
 
 app.post('/test-auth', async (req, res) => {
-  const { matricula, password, store } = req.body;
+  const { matricula, password, store, useCache = false } = req.body;
 
   if (!matricula || !password) {
     return res.status(400).json({ 
@@ -463,16 +463,16 @@ app.post('/test-auth', async (req, res) => {
   // Reset circuit breaker lock for explicit testing with new or current credentials
   tokenManager.resetAuthLock(matricula);
 
-  console.log(`[Test Auth] Testing credentials for ${matricula}...`);
+  console.log(`[Test Auth] Testing credentials for ${matricula} (useCache=${Boolean(useCache)})...`);
   try {
-    const authInfo = await getOrFetchTokens(matricula, password, store || null, true);
+    const authInfo = await verifyCredentialsOnly(matricula, password, store || null, !useCache);
     const detectedStore = authInfo.detectedStore || (store && typeof store === 'string' && store.trim() ? store.trim() : null);
 
     res.json({ 
       success: true, 
       loginSuccess: true,
       message: authInfo.authMessage || 'Autenticação bem-sucedida.',
-      authStatus: authInfo.authStatus,
+      authStatus: authInfo.authStatus || 'success',
       powerbiLoaded: authInfo.powerbiLoaded,
       detectedStore: detectedStore || null,
       detectedStartDate: null,
@@ -480,6 +480,9 @@ app.post('/test-auth', async (req, res) => {
     });
   } catch (err) {
     console.error(`[Test Auth] Failed for ${matricula}:`, err.message);
+    if (err.authStatus === 'wrong-password') {
+      tokenManager.markAuthFailure(matricula, err.authMessage || err.message);
+    }
     res.json({ 
       success: false, 
       loginSuccess: err.loginSuccess || false,

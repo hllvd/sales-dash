@@ -132,6 +132,224 @@ namespace SalesApp.Tests.Services
             importMock.VerifyNoOtherCalls();
         }
 
+        [Fact]
+        public async Task TriggerScrape_WhenPreFlightAuthDetectsWrongPassword_ReturnsBadRequestAndLocksConfigWithoutEnqueueing()
+        {
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+            var dbContext = new AppDbContext(options, Mock.Of<IHttpContextAccessor>());
+            var userId = Guid.NewGuid();
+            var user = new User
+            {
+                Id = userId,
+                InternalId = 1,
+                Name = "SuperAdmin",
+                Email = "superadmin@salesapp.com",
+                PasswordHash = "hash",
+                RoleId = 1
+            };
+            dbContext.Users.Add(user);
+
+            var config = new ScrapeConfig
+            {
+                Id = 77,
+                UserInternalId = 1,
+                Matricula = "13370",
+                PowerBiPassword = "wrong-password-123",
+                ScrapeType = "consultor",
+                OutputMode = "sqs",
+                CredentialStatus = null
+            };
+            dbContext.ScrapeConfigs.Add(config);
+            await dbContext.SaveChangesAsync();
+
+            var orchestratorMock = new Mock<IScrapeOrchestrator>(MockBehavior.Strict);
+            var scraperClientMock = new Mock<PbiScraperClient>(new System.Net.Http.HttpClient(), new ConfigurationBuilder().Build());
+            scraperClientMock
+                .Setup(c => c.TestAuthAsync("13370", "wrong-password-123", null, true))
+                .ReturnsAsync((false, false, "Usuário ou senha inválida no AVA PRO.", new List<string> { "[Falha de Autenticação] Usuário ou senha inválida no AVA PRO." }, (string?)null, (string?)null));
+
+            var controller = new ScrapeController(
+                orchestratorMock.Object,
+                Mock.Of<IScrapeDynamoLogService>(),
+                dbContext,
+                Mock.Of<IScrapeImportService>(),
+                scraperClientMock.Object,
+                new EphemeralDataProtectionProvider(),
+                new ConfigurationBuilder().Build(),
+                Mock.Of<Microsoft.Extensions.Logging.ILogger<ScrapeController>>());
+
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(
+                        new System.Security.Claims.ClaimsIdentity(new[]
+                        {
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, userId.ToString()),
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, "superadmin@salesapp.com"),
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "superadmin")
+                        }, "TestAuth"))
+                }
+            };
+
+            var actionResult = await controller.TriggerScrape(77);
+
+            actionResult.Should().BeOfType<BadRequestObjectResult>();
+            var updatedConfig = await dbContext.ScrapeConfigs.FindAsync(77);
+            updatedConfig!.CredentialStatus.Should().Be("wrong-password");
+            orchestratorMock.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task SaveConfig_WithTestOnSave_DistinguishesWrongPasswordFromTimeout()
+        {
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+            var dbContext = new AppDbContext(options, Mock.Of<IHttpContextAccessor>());
+            var userId = Guid.NewGuid();
+            dbContext.Users.Add(new User
+            {
+                Id = userId,
+                InternalId = 1,
+                Name = "SuperAdmin",
+                Email = "superadmin@salesapp.com",
+                PasswordHash = "hash",
+                RoleId = 1
+            });
+            await dbContext.SaveChangesAsync();
+
+            var scraperClientMock = new Mock<PbiScraperClient>(new System.Net.Http.HttpClient(), new ConfigurationBuilder().Build());
+            scraperClientMock
+                .Setup(c => c.TestAuthAsync("13370", "bad-pass", null, false))
+                .ReturnsAsync((false, false, "Usuário ou senha inválida no AVA PRO.", new List<string> { "Step 1" }, (string?)null, (string?)null));
+            scraperClientMock
+                .Setup(c => c.TestAuthAsync("13370", "slow-pass", null, false))
+                .ReturnsAsync((false, true, "Tempo limite excedido ao testar credenciais no AVA PRO (25s). Tente novamente.", new List<string> { "[Timeout]" }, (string?)null, (string?)null));
+
+            var controller = new ScrapeController(
+                Mock.Of<IScrapeOrchestrator>(),
+                Mock.Of<IScrapeDynamoLogService>(),
+                dbContext,
+                Mock.Of<IScrapeImportService>(),
+                scraperClientMock.Object,
+                new EphemeralDataProtectionProvider(),
+                new ConfigurationBuilder().Build(),
+                Mock.Of<Microsoft.Extensions.Logging.ILogger<ScrapeController>>());
+
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(
+                        new System.Security.Claims.ClaimsIdentity(new[]
+                        {
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, userId.ToString()),
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "superadmin")
+                        }, "TestAuth"))
+                }
+            };
+
+            var wrongPassRes = await controller.SaveConfig(new ScrapeConfigRequest
+            {
+                Matricula = "13370",
+                PowerBiPassword = "bad-pass",
+                ScrapeType = "consultor",
+                TestOnSave = true
+            }) as BadRequestObjectResult;
+
+            wrongPassRes.Should().NotBeNull();
+            var wrongPassJson = Newtonsoft.Json.JsonConvert.SerializeObject(wrongPassRes!.Value);
+            wrongPassJson.Should().Contain("\"errorType\":\"wrong-password\"");
+            wrongPassJson.Should().Contain("Senha recusada pelo AVA PRO");
+
+            var timeoutRes = await controller.SaveConfig(new ScrapeConfigRequest
+            {
+                Matricula = "13370",
+                PowerBiPassword = "slow-pass",
+                ScrapeType = "consultor",
+                TestOnSave = true
+            }) as BadRequestObjectResult;
+
+            timeoutRes.Should().NotBeNull();
+            var timeoutJson = Newtonsoft.Json.JsonConvert.SerializeObject(timeoutRes!.Value);
+            timeoutJson.Should().Contain("\"errorType\":\"timeout\"");
+            timeoutJson.Should().Contain("Timeout ao validar senha no AVA PRO");
+        }
+
+        [Fact]
+        public async Task GetMyConfigs_WhenSuperAdmin_ReturnsAllConfigsAcrossAllUsers()
+        {
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+            var dbContext = new AppDbContext(options, Mock.Of<IHttpContextAccessor>());
+
+            var superAdminId = Guid.NewGuid();
+            var otherUserId = Guid.NewGuid();
+            dbContext.Users.AddRange(
+                new User { Id = superAdminId, InternalId = 1, Name = "SA", Email = "sa@salesapp.com", PasswordHash = "h", RoleId = 1 },
+                new User { Id = otherUserId, InternalId = 2, Name = "Admin", Email = "admin@salesapp.com", PasswordHash = "h", RoleId = 2 }
+            );
+            dbContext.ScrapeConfigs.AddRange(
+                new ScrapeConfig { Id = 1, UserInternalId = 1, Matricula = "11111", CreatedAt = DateTime.UtcNow.AddMinutes(-5) },
+                new ScrapeConfig { Id = 2, UserInternalId = 2, Matricula = "22222", CreatedAt = DateTime.UtcNow.AddMinutes(-2) },
+                new ScrapeConfig { Id = 3, UserInternalId = null, Matricula = "33333", CreatedAt = DateTime.UtcNow }
+            );
+            await dbContext.SaveChangesAsync();
+
+            var controller = new ScrapeController(
+                Mock.Of<IScrapeOrchestrator>(),
+                Mock.Of<IScrapeDynamoLogService>(),
+                dbContext,
+                Mock.Of<IScrapeImportService>(),
+                new Mock<PbiScraperClient>(new System.Net.Http.HttpClient(), new ConfigurationBuilder().Build()).Object,
+                new EphemeralDataProtectionProvider(),
+                new ConfigurationBuilder().Build(),
+                Mock.Of<Microsoft.Extensions.Logging.ILogger<ScrapeController>>());
+
+            // 1. Superadmin sees all 3 configs
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(
+                        new System.Security.Claims.ClaimsIdentity(new[]
+                        {
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, superAdminId.ToString()),
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "superadmin")
+                        }, "TestAuth"))
+                }
+            };
+
+            var saResult = await controller.GetMyConfigs() as OkObjectResult;
+            saResult.Should().NotBeNull();
+            var saConfigs = System.Linq.Enumerable.ToList((IEnumerable<ScrapeConfigDto>)saResult!.Value!);
+            saConfigs.Should().HaveCount(3);
+
+            // 2. Regular admin sees only their own config (Id = 2)
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(
+                        new System.Security.Claims.ClaimsIdentity(new[]
+                        {
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, otherUserId.ToString()),
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")
+                        }, "TestAuth"))
+                }
+            };
+
+            var adminResult = await controller.GetMyConfigs() as OkObjectResult;
+            adminResult.Should().NotBeNull();
+            var adminConfigs = System.Linq.Enumerable.ToList((IEnumerable<ScrapeConfigDto>)adminResult!.Value!);
+            adminConfigs.Should().HaveCount(1);
+            adminConfigs[0].Matricula.Should().Be("22222");
+        }
+
         private static ScrapeOrchestrator CreateOrchestrator(
             IScrapeDynamoLogService logService,
             IScrapeImportService importService,

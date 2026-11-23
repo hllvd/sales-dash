@@ -280,7 +280,21 @@ namespace SalesApp.Controllers
 
                             if (!success)
                             {
-                                return BadRequest(new { message = $"Falha na autenticação: {message}", steps, credentialStatus = config.CredentialStatus });
+                                var isTimeout = message != null && (message.Contains("Tempo limite", StringComparison.OrdinalIgnoreCase) || message.Contains("timeout", StringComparison.OrdinalIgnoreCase));
+                                var errorType = isTimeout ? "timeout" : (loginSuccess == false ? "wrong-password" : "auth-error");
+                                var detailedMessage = isTimeout
+                                    ? $"Timeout ao validar senha no AVA PRO: {message}"
+                                    : (loginSuccess == false
+                                        ? $"Senha recusada pelo AVA PRO: {message}"
+                                        : $"Erro técnico ao validar acesso no AVA PRO: {message}");
+
+                                return BadRequest(new
+                                {
+                                    message = detailedMessage,
+                                    errorType,
+                                    steps,
+                                    credentialStatus = config.CredentialStatus
+                                });
                             }
                         }
                         catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException)
@@ -306,8 +320,13 @@ namespace SalesApp.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return Unauthorized();
 
-            var configs = await _context.ScrapeConfigs
-                .Where(c => c.UserInternalId == user.InternalId)
+            IQueryable<ScrapeConfig> query = _context.ScrapeConfigs.Include(c => c.User);
+            if (!User.IsInRole("superadmin"))
+            {
+                query = query.Where(c => c.UserInternalId == user.InternalId);
+            }
+
+            var configs = await query
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
             
@@ -431,6 +450,46 @@ namespace SalesApp.Controllers
                 return BadRequest(new { 
                     message = "Credenciais inválidas ('wrong-password'). A extração não foi iniciada para proteger sua conta contra bloqueio no AVA PRO. Atualize e teste sua senha antes de solicitar novas extrações." 
                 });
+            }
+
+            if (!_isE2E && !string.IsNullOrEmpty(config.PowerBiPassword))
+            {
+                try
+                {
+                    var (success, loginSuccess, authMessage, steps, detectedStore, _) =
+                        await _scraperClient.TestAuthAsync(config.Matricula, config.PowerBiPassword, config.Store, useCache: true);
+
+                    config.CredentialStatus = success ? "ok" : (loginSuccess == false ? "wrong-password" : "error");
+                    if (string.IsNullOrEmpty(config.Store) && !string.IsNullOrEmpty(detectedStore))
+                    {
+                        config.Store = detectedStore;
+                    }
+                    config.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+
+                    if (!success)
+                    {
+                        var isTimeout = authMessage != null && (authMessage.Contains("Tempo limite", StringComparison.OrdinalIgnoreCase) || authMessage.Contains("timeout", StringComparison.OrdinalIgnoreCase));
+                        var errorType = isTimeout ? "timeout" : (loginSuccess == false ? "wrong-password" : "auth-error");
+                        var detailedMessage = isTimeout
+                            ? $"Timeout ao validar senha no AVA PRO: {authMessage}"
+                            : (loginSuccess == false
+                                ? $"Senha recusada pelo AVA PRO: {authMessage}"
+                                : $"Erro técnico ao validar acesso no AVA PRO: {authMessage}");
+
+                        return BadRequest(new
+                        {
+                            message = detailedMessage,
+                            errorType,
+                            steps,
+                            credentialStatus = config.CredentialStatus
+                        });
+                    }
+                }
+                catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException)
+                {
+                    _logger.LogWarning(ex, "Serviço HTTP local do scraper inacessível durante pré-validação de TriggerScrape para matrícula {Matricula}. Prosseguindo com enfileiramento.", config.Matricula);
+                }
             }
 
             var runId = Guid.NewGuid().ToString();

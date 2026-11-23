@@ -82,27 +82,30 @@ namespace SalesApp.Services
             return result?.jobId?.ToString() ?? jobId;
         }
 
-        public async Task<(bool success, bool loginSuccess, string message, List<string>? steps, string? detectedStore, string? detectedStartDate)> TestAuthAsync(string matricula, string password, string? store = null)
+        public virtual async Task<(bool success, bool loginSuccess, string message, List<string>? steps, string? detectedStore, string? detectedStartDate)> TestAuthAsync(string matricula, string password, string? store = null, bool useCache = false)
         {
             var request = new
             {
                 matricula = matricula,
                 password = password,
-                store = store
+                store = store,
+                useCache = useCache
             };
 
             var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
 
             try
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
                 var response = await _httpClient.PostAsync("/test-auth", content, cts.Token);
 
                 var resultJson = await response.Content.ReadAsStringAsync();
                 var result = JsonConvert.DeserializeObject<dynamic>(resultJson);
 
                 bool isSuccess = result?.success != null ? (bool)result.success : response.IsSuccessStatusCode;
-                bool loginSuccess = result?.loginSuccess != null ? (bool)result.loginSuccess : isSuccess;
+                string? authStatus = result?.authStatus?.ToString();
+                bool isWrongPassword = string.Equals(authStatus, "wrong-password", StringComparison.OrdinalIgnoreCase);
+                bool loginSuccess = isSuccess || (!isWrongPassword && (result?.loginSuccess != null ? (bool)result.loginSuccess : false));
                 string msg = result?.message?.ToString() ?? (isSuccess ? "Autenticação bem-sucedida" : "Falha na autenticação");
                 string? detectedStore = result?.detectedStore?.ToString();
                 string? detectedStartDate = result?.detectedStartDate?.ToString();
@@ -118,11 +121,7 @@ namespace SalesApp.Services
             }
             catch (OperationCanceledException)
             {
-                return (false, false, "Tempo limite excedido ao testar credenciais no AVA PRO (45s). Tente novamente.", new List<string> { "[Timeout] O serviço de autenticação não respondeu dentro de 45 segundos." }, null, null);
-            }
-            catch (Exception ex)
-            {
-                return (false, false, $"Erro ao conectar no serviço do scraper: {ex.Message}", new List<string> { $"[Erro de Conexão] {ex.Message}" }, null, null);
+                return (false, true, "Tempo limite excedido ao testar credenciais no AVA PRO (25s). Tente novamente.", new List<string> { "[Timeout] O serviço de autenticação não respondeu dentro de 25 segundos." }, null, null);
             }
         }
 

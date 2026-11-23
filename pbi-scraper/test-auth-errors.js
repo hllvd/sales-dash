@@ -2,7 +2,7 @@
 // Unit tests for detectLoginErrorText in auth.js
 
 const assert = require('assert');
-const { detectLoginErrorText } = require('./auth');
+const { detectLoginErrorText, findLoginErrorInCandidates } = require('./auth');
 
 console.log('Testing detectLoginErrorText helper...');
 
@@ -78,6 +78,33 @@ const unauth = detectLoginErrorText('Usuário não autorizado');
 assert(unauth !== null, 'Should detect unauth');
 assert.strictEqual(unauth.isFatalAuth, true);
 console.log('✔ Test 12 passed: "Usuário não autorizado" detected');
+
+// Test 13: Static login form prompt must be ignored (regression for "Insira a sua matrícula de consultor e a senha cadastrada.")
+const staticPrompt = detectLoginErrorText('Insira a sua matrícula de consultor e a senha cadastrada.');
+assert.strictEqual(staticPrompt, null, 'Static login prompt containing "senha" must be ignored');
+assert.strictEqual(detectLoginErrorText('Esqueceu sua senha?'), null, 'Forgot password link must be ignored');
+console.log('✔ Test 13 passed: Static login form prompts ignored');
+
+// Test 14: findLoginErrorInCandidates skips static lines and finds the real error below
+const candidateLines = [
+  'Bem-vindo ao AVA PRO',
+  'Insira a sua matrícula de consultor e a senha cadastrada.',
+  'Matrícula',
+  'Senha',
+  'Esqueceu sua senha?',
+  'Usuário ou senha inválida'
+];
+const found = findLoginErrorInCandidates(candidateLines);
+assert(found !== null, 'Should skip static prompt and find actual error in candidates');
+assert.strictEqual(found.isFatalAuth, true);
+assert.strictEqual(found.reason, 'Usuário ou senha inválida no AVA PRO.');
+console.log('✔ Test 14 passed: findLoginErrorInCandidates skips static prompt and detects error');
+
+// Test 15: Limite de tentativas excedido
+const limitExc = detectLoginErrorText('Limite de tentativas excedido. Será necessário redefinir a sua senha.');
+assert(limitExc !== null, 'Should detect limite de tentativas excedido');
+assert.strictEqual(limitExc.isFatalAuth, true);
+console.log('✔ Test 15 passed: "Limite de tentativas excedido" detected');
 
 console.log('All detectLoginErrorText tests passed successfully!\n');
 

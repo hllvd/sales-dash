@@ -173,6 +173,38 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
   return `Mês inicial: ${startMonth}`;
 }
 
+function resolveSpecificScrapeErrorTitle(
+  errorData: { errorType?: string; credentialStatus?: string } | undefined,
+  errMsg: string,
+  defaultTitle: string
+): string {
+  const lower = (errMsg || '').toLowerCase();
+  const errorType = errorData?.errorType;
+  const credStatus = errorData?.credentialStatus;
+
+  if (errorType === 'timeout' || lower.includes('tempo limite') || lower.includes('timeout')) {
+    return 'Timeout ao Validar Senha no AVA PRO';
+  }
+  if (
+    errorType === 'wrong-password' ||
+    credStatus === 'wrong-password' ||
+    lower.includes('usuário ou senha') ||
+    lower.includes('usuario ou senha') ||
+    lower.includes('senha expirada') ||
+    lower.includes('senha recusada') ||
+    lower.includes('credenciais inválidas')
+  ) {
+    return 'Senha Inválida ou Expirada no AVA PRO';
+  }
+  if (lower.includes('não está acessível') || lower.includes('inacessível') || lower.includes('conectar ao scraper')) {
+    return 'Serviço de Validação Indisponível';
+  }
+  if (errorType === 'auth-error' || lower.includes('erro técnico ao validar')) {
+    return 'Erro Técnico na Validação do AVA PRO';
+  }
+  return defaultTitle;
+}
+
   // Form state
   const [store, setStore] = useState<string | null>(null);
   const [matricula, setMatricula] = useState('');
@@ -445,10 +477,12 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
       setModalOpen(false);
       fetchData();
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || 'Falha ao salvar configuração';
-      const steps = error.response?.data?.steps || [];
+      const errorData = error.response?.data || error.data;
+      const errMsg = errorData?.message || error.message || 'Falha ao salvar configuração';
+      const steps = errorData?.steps || [];
+      const errTitle = resolveSpecificScrapeErrorTitle(errorData, errMsg, 'Erro ao Salvar Configuração');
       notifications.show({
-        title: 'Erro de Salvamento / Autenticação',
+        title: errTitle,
         message: errMsg,
         color: 'red',
         autoClose: 10000,
@@ -537,10 +571,12 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
       }
       fetchData();
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || 'Falha ao testar autenticação';
-      const steps = error.response?.data?.steps || [];
+      const errorData = error.response?.data || error.data;
+      const errMsg = errorData?.message || error.message || 'Falha ao testar autenticação';
+      const steps = errorData?.steps || [];
+      const errTitle = resolveSpecificScrapeErrorTitle(errorData, errMsg, 'Erro ao Testar Autenticação');
       notifications.show({
-        title: 'Erro',
+        title: errTitle,
         message: errMsg,
         color: 'red',
         autoClose: 10000,
@@ -585,14 +621,26 @@ function formatMonthRangeHelper(mode: DateSelectionMode, startMonth: string): st
       });
       fetchData();
     } catch (error: any) {
-      const errMsg = error.response?.data?.message || 'Falha ao iniciar extração';
+      const errorData = error.response?.data || error.data;
+      const errMsg = errorData?.message || error.message || 'Falha ao iniciar extração';
+      const steps = errorData?.steps || [];
+      const errTitle = resolveSpecificScrapeErrorTitle(errorData, errMsg, 'Erro ao Iniciar Extração');
       notifications.show({
-        title: 'Erro ao Iniciar Extração',
+        title: errTitle,
         message: errMsg,
         color: 'red',
         autoClose: 10000,
         icon: <IconAlertCircle size={16} />
       });
+      if (steps && steps.length > 0) {
+        setTestAuthModalData({
+          open: true,
+          success: false,
+          message: errMsg,
+          steps
+        });
+      }
+      fetchData();
     } finally {
       setTriggering(null);
     }

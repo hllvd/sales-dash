@@ -1065,8 +1065,12 @@ export const apiService = {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: `Failed to fetch ${endpoint}` }));
-      throw new Error(error.message || `Failed to fetch ${endpoint}`);
+      const errorData = await response.json().catch(() => ({ message: `Failed to fetch ${endpoint}` }));
+      const err: any = new Error(errorData.message || `Failed to fetch ${endpoint}`);
+      err.status = response.status;
+      err.data = errorData;
+      err.response = { status: response.status, data: errorData };
+      throw err;
     }
     return response.json();
   },
@@ -1078,8 +1082,12 @@ export const apiService = {
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: `Failed to post to ${endpoint}` }));
-      throw new Error(error.message || `Failed to post to ${endpoint}`);
+      const errorData = await response.json().catch(() => ({ message: `Failed to post to ${endpoint}` }));
+      const err: any = new Error(errorData.message || `Failed to post to ${endpoint}`);
+      err.status = response.status;
+      err.data = errorData;
+      err.response = { status: response.status, data: errorData };
+      throw err;
     }
     return response.json();
   },
@@ -1091,8 +1099,12 @@ export const apiService = {
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: `Failed to put to ${endpoint}` }));
-      throw new Error(error.message || `Failed to put to ${endpoint}`);
+      const errorData = await response.json().catch(() => ({ message: `Failed to put to ${endpoint}` }));
+      const err: any = new Error(errorData.message || `Failed to put to ${endpoint}`);
+      err.status = response.status;
+      err.data = errorData;
+      err.response = { status: response.status, data: errorData };
+      throw err;
     }
     return response.json();
   },
@@ -1103,8 +1115,12 @@ export const apiService = {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: `Failed to delete ${endpoint}` }));
-      throw new Error(error.message || `Failed to delete ${endpoint}`);
+      const errorData = await response.json().catch(() => ({ message: `Failed to delete ${endpoint}` }));
+      const err: any = new Error(errorData.message || `Failed to delete ${endpoint}`);
+      err.status = response.status;
+      err.data = errorData;
+      err.response = { status: response.status, data: errorData };
+      throw err;
     }
     if (response.status === 204) {
       return null as any;

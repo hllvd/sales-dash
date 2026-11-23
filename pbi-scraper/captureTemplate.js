@@ -6,7 +6,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
-const { AuthError, detectLoginErrorText } = require('./auth');
+const { AuthError, detectLoginErrorText, findLoginErrorInCandidates, collectPageErrorCandidates } = require('./auth');
 const { hashPassword } = require('./tokenManager');
 const { JobCancelledError, isAbortError, throwIfAborted } = require('./cancellationHelper');
 
@@ -113,6 +113,8 @@ async function captureTemplate(matricula, password, stepLogger = null, signal = 
             if (body?.token) {
               avaJwt = body.token;
               console.log(`[Capture] AVA JWT capturado: ${avaJwt.substring(0, 20)}...`);
+            } else if (body && (body.message || body.error)) {
+              interceptedAuthError = String(body.message || body.error).replace(/\s+/g, ' ').trim();
             }
           } else {
             let message = 'Usuário ou senha inválida';
@@ -123,6 +125,13 @@ async function captureTemplate(matricula, password, stepLogger = null, signal = 
             } catch (_) {}
             interceptedAuthError = message;
           }
+        } else if ((status === 401 || status === 403) && url.includes('bifrost')) {
+          let message = 'Acesso não autorizado no AVA PRO';
+          try {
+            const json = await res.json().catch(() => null);
+            if (json && json.message) message = json.message.replace(/\s+/g, ' ').trim();
+          } catch (_) {}
+          interceptedAuthError = message;
         }
       } catch (_) {}
     };
@@ -141,13 +150,13 @@ async function captureTemplate(matricula, password, stepLogger = null, signal = 
     });
 
     addStep(`[Capture] Acessando tela de login: ${AVA_URL}...`);
-    await page.goto(AVA_URL, { waitUntil: 'networkidle2', timeout: 35000 });
+    await page.goto(AVA_URL, { waitUntil: 'domcontentloaded', timeout: 25000 });
 
     addStep('[Capture] Preenchendo credenciais...');
-    await page.waitForSelector('input[type="text"]', { timeout: 15000 });
-    await page.type('input[type="text"]', matricula, { delay: 25 });
-    await page.waitForSelector('input[type="password"]', { timeout: 15000 });
-    await page.type('input[type="password"]', password, { delay: 25 });
+    await page.waitForSelector('input[type="text"]', { visible: true, timeout: 15000 });
+    await page.type('input[type="text"]', matricula, { delay: 10 });
+    await page.waitForSelector('input[type="password"]', { visible: true, timeout: 15000 });
+    await page.type('input[type="password"]', password, { delay: 10 });
 
     const submitBtn = await page.evaluateHandle(() => {
       const btns = Array.from(document.querySelectorAll('button, input[type="submit"]'));
@@ -158,56 +167,41 @@ async function captureTemplate(matricula, password, stepLogger = null, signal = 
     });
 
     if (submitBtn && submitBtn.asElement()) {
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {}),
-        submitBtn.asElement().click()
-      ]);
+      await submitBtn.asElement().click();
     } else {
       await page.keyboard.press('Enter');
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {});
+    }
+
+    // Aguarda rapidamente a resposta HTTP do login (avaJwt ou erro) ou alerta no DOM sem bloquear 8s em waitForNavigation
+    let detectedDomError = null;
+    const checkDeadline = Date.now() + 8000;
+    while (!avaJwt && !interceptedAuthError && !detectedDomError && Date.now() < checkDeadline) {
+      throwIfAborted(signal);
+      const lowerUrl = page.url().toLowerCase();
+      if (
+        lowerUrl.includes('redefinir') || 
+        lowerUrl.includes('trocar-senha') || 
+        lowerUrl.includes('alterar-senha') || 
+        lowerUrl.includes('primeiro-acesso')
+      ) {
+        const expMsg = 'Senha expirada. Por favor, redefina sua senha no AVA PRO.';
+        addStep(`[Capture ❌ Falha de Autenticação] ${expMsg}`);
+        throw new AuthError('wrong-password', expMsg, [], false, false);
+      }
+
+      try {
+        const candidates = await collectPageErrorCandidates(page);
+        const matched = findLoginErrorInCandidates(candidates);
+        if (matched && matched.isFatalAuth) {
+          detectedDomError = matched.reason;
+          break;
+        }
+      } catch (_) {}
+      await new Promise(r => setTimeout(r, 200));
     }
 
     const currentUrl = page.url();
     addStep(`[Capture] URL após login: ${currentUrl}`);
-
-    const lowerUrl = currentUrl.toLowerCase();
-    if (
-      lowerUrl.includes('redefinir') || 
-      lowerUrl.includes('trocar-senha') || 
-      lowerUrl.includes('alterar-senha') || 
-      lowerUrl.includes('primeiro-acesso')
-    ) {
-      const expMsg = 'Senha expirada. Por favor, redefina sua senha no AVA PRO.';
-      addStep(`[Capture ❌ Falha de Autenticação] ${expMsg}`);
-      throw new AuthError('wrong-password', expMsg, [], false, false);
-    }
-
-    // Inspeciona texto visível na página de login e aguarda resposta
-    let pageErrorText = null;
-    const checkDeadline = Date.now() + 6000;
-    while (!avaJwt && !interceptedAuthError && Date.now() < checkDeadline) {
-      try {
-        const text = await page.evaluate(() => {
-          const errorEl = document.querySelector('.alert, [role="alert"], .error, .text-danger, .invalid-feedback, div[class*="error"], span[class*="error"], p[class*="error"], div[class*="red"], p[class*="red"]');
-          if (errorEl && errorEl.textContent) return errorEl.textContent.trim();
-          const bodyText = document.body ? document.body.innerText : '';
-          const match = bodyText.split('\n').map(l => l.trim()).find(l => {
-            const low = l.toLowerCase();
-            return low.includes('senha') || low.includes('usuario') || low.includes('usuário') || low.includes('tentativa') || low.includes('credencial') || low.includes('bloqueio');
-          });
-          return match ? match.trim() : null;
-        });
-        if (text) {
-          pageErrorText = text;
-          const detected = detectLoginErrorText(pageErrorText);
-          if (detected && detected.isFatalAuth) {
-            interceptedAuthError = detected.reason;
-            break;
-          }
-        }
-      } catch (_) {}
-      await new Promise(r => setTimeout(r, 400));
-    }
 
     if (interceptedAuthError) {
       const detectedIntercepted = detectLoginErrorText(interceptedAuthError);
@@ -216,23 +210,13 @@ async function captureTemplate(matricula, password, stepLogger = null, signal = 
       throw new AuthError('wrong-password', finalMsg, [], false, false);
     }
 
-    if (pageErrorText) {
-      const detectedPageError = detectLoginErrorText(pageErrorText);
-      if (detectedPageError && detectedPageError.isFatalAuth) {
-        addStep(`[Capture ❌ Falha de Autenticação] ${detectedPageError.reason}`);
-        throw new AuthError('wrong-password', detectedPageError.reason, [], false, false);
-      }
+    if (detectedDomError) {
+      addStep(`[Capture ❌ Falha de Autenticação] ${detectedDomError}`);
+      throw new AuthError('wrong-password', detectedDomError, [], false, false);
     }
 
     if (!avaJwt) {
-      const isPasswordInputStillPresent = await page.evaluate(() => {
-        const pwd = document.querySelector('input[type="password"]');
-        return pwd !== null && pwd.offsetParent !== null;
-      }).catch(() => false);
-
-      const fallbackReason = isPasswordInputStillPresent
-        ? (pageErrorText || 'Usuário ou senha inválida no AVA PRO.')
-        : (pageErrorText || 'Usuário ou senha inválida no AVA PRO.');
+      const fallbackReason = 'Usuário ou senha inválida no AVA PRO.';
       addStep(`[Capture ❌ Falha de Autenticação] ${fallbackReason}`);
       throw new AuthError('wrong-password', fallbackReason, [], false, false);
     }
