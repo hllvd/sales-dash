@@ -36,5 +36,7 @@ namespace SalesApp.DTOs
         public bool JoinParentTeam { get; set; } = false;
         
         public bool SendEmail { get; set; } = false;
+
+        public bool CanAccessPowerBiScrape { get; set; } = false;
     }
 }

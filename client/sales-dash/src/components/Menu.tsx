@@ -48,6 +48,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
+  const [canAccessPowerBiScrape, setCanAccessPowerBiScrape] = useState<boolean>(false);
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/home');
   const [opened, { toggle, close }] = useDisclosure();
   const isMobile = useMediaQuery('(max-width: 62em)', false);
@@ -170,6 +171,9 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
           }
           if (user.email) {
             setUserEmail(user.email);
+          }
+          if (user.canAccessPowerBiScrape) {
+            setCanAccessPowerBiScrape(true);
           }
         }
       } catch (e) {
@@ -626,7 +630,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
                 />
               )}
 
-              {(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')) && (
+              {(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin') || hasPermission('scrapes:access') || canAccessPowerBiScrape) && (
                 <NavLink
                   href="#/scrapes"
                   label="Extração Power Bi"

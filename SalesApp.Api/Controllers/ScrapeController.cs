@@ -15,6 +15,9 @@ namespace SalesApp.Controllers
     {
         public int Id { get; set; }
         public Guid? UserId { get; set; }
+        public Guid? OwnerUserId { get; set; }
+        public string? OwnerUserName { get; set; }
+        public string? OwnerUserEmail { get; set; }
         public string? Store { get; set; }
         public string Matricula { get; set; } = string.Empty;
         public string? CredentialStatus { get; set; }
@@ -58,6 +61,7 @@ namespace SalesApp.Controllers
         public bool? UpdateMatriculaOnExisting { get; set; }
         public bool? UpdateTotalAmountOnExisting { get; set; }
         public bool? UpdateStartDateOnExisting { get; set; }
+        public Guid? OwnerUserId { get; set; }
         public bool TestOnSave { get; set; } = true;
     }
 
@@ -116,6 +120,39 @@ namespace SalesApp.Controllers
             _isE2E = configuration["ASPNETCORE_ENVIRONMENT"] == "E2E";
         }
 
+        private bool IsSuperAdmin()
+        {
+            return User.IsInRole("superadmin")
+                || User.IsInRole("SuperAdmin")
+                || User.HasClaim("perm", "system:superadmin")
+                || User.FindFirst("role_id")?.Value == "1";
+        }
+
+        private bool CanAccessScrapes(User user)
+        {
+            return IsSuperAdmin()
+                || user.CanAccessPowerBiScrape
+                || User.HasClaim("perm", "scrapes:access");
+        }
+
+        [Authorize(Roles = "superadmin")]
+        [HttpGet("eligible-owners")]
+        public async Task<IActionResult> GetEligibleOwners()
+        {
+            var eligibleAdmins = await _context.Users
+                .Where(u => u.IsActive && u.RoleId == 2 && u.CanAccessPowerBiScrape)
+                .OrderBy(u => u.Name)
+                .Select(u => new
+                {
+                    id = u.Id,
+                    name = u.Name,
+                    email = u.Email
+                })
+                .ToListAsync();
+
+            return Ok(eligibleAdmins);
+        }
+
         [Authorize(Roles = "admin,superadmin")]
         [HttpPost("configs")]
         public async Task<IActionResult> SaveConfig([FromBody] ScrapeConfigRequest request)
@@ -123,6 +160,7 @@ namespace SalesApp.Controllers
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return Unauthorized();
+            if (!CanAccessScrapes(user)) return Forbid();
 
             if (string.IsNullOrWhiteSpace(request.Matricula))
             {
@@ -135,12 +173,18 @@ namespace SalesApp.Controllers
             if (request.Id.HasValue && request.Id > 0)
             {
                 config = await _context.ScrapeConfigs
+                    .Include(c => c.User)
                     .FirstOrDefaultAsync(c => c.Id == request.Id.Value);
                 if (config == null) return NotFound();
-                if (!User.IsInRole("superadmin") && config.UserInternalId != user.InternalId) return Forbid();
+                if (!IsSuperAdmin() && config.UserInternalId != user.InternalId) return Forbid();
             }
             else
             {
+                if (!IsSuperAdmin())
+                {
+                    return Forbid();
+                }
+
                 if (string.IsNullOrWhiteSpace(request.PowerBiPassword))
                 {
                     return BadRequest(new { message = "Senha é obrigatória para novas credenciais." });
@@ -149,9 +193,25 @@ namespace SalesApp.Controllers
                 config = new ScrapeConfig
                 {
                     UserInternalId = user.InternalId,
+                    User = user,
                     CreatedAt = DateTime.UtcNow
                 };
                 isNew = true;
+            }
+
+            if (IsSuperAdmin() && request.OwnerUserId.HasValue)
+            {
+                var ownerUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Id == request.OwnerUserId.Value && u.IsActive);
+
+                if (ownerUser == null || (ownerUser.RoleId != 1 && !(ownerUser.RoleId == 2 && ownerUser.CanAccessPowerBiScrape)))
+                {
+                    return BadRequest(new { message = "O responsável selecionado deve ser um Admin ativo com permissão de acesso ao PowerBI habilitada." });
+                }
+
+                config.UserInternalId = ownerUser.InternalId;
+                config.User = ownerUser;
+                config.UserId = ownerUser.Id;
             }
 
             var cleanStore = request.Store?.Trim();
@@ -319,11 +379,12 @@ namespace SalesApp.Controllers
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return Unauthorized();
+            if (!CanAccessScrapes(user)) return Forbid();
 
             IQueryable<ScrapeConfig> query = _context.ScrapeConfigs
                 .Include(c => c.User)
                 .Where(c => c.OutputMode != null && c.OutputMode.ToLower() == "sqs");
-            if (!User.IsInRole("superadmin"))
+            if (!IsSuperAdmin())
             {
                 query = query.Where(c => c.UserInternalId == user.InternalId);
             }
@@ -342,12 +403,12 @@ namespace SalesApp.Controllers
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return Unauthorized();
+            if (!IsSuperAdmin()) return Forbid();
 
             var config = await _context.ScrapeConfigs
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (config == null) return NotFound();
-            if (!User.IsInRole("superadmin") && config.UserInternalId != user.InternalId) return Forbid();
 
             _context.ScrapeConfigs.Remove(config);
             await _context.SaveChangesAsync();
@@ -360,12 +421,16 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> TestAuth(int id, [FromQuery] bool force = false)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return Unauthorized();
+            if (!CanAccessScrapes(user)) return Forbid();
+
             var config = await _context.ScrapeConfigs
                 .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (config == null) return NotFound();
-            if (!User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
+            if (!IsSuperAdmin() && config.UserInternalId != user.InternalId && config.UserId != userId) return Forbid();
 
             if (string.IsNullOrEmpty(config.PowerBiPassword))
             {
@@ -430,22 +495,24 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> TriggerScrape(int configId, [FromBody] TriggerScrapeJobRequest? request = null)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value 
-                         ?? User.FindFirst("email")?.Value 
-                         ?? User.FindFirst(ClaimTypes.Name)?.Value;
-
-            if (string.IsNullOrEmpty(userEmail))
-            {
-                var dbUser = await _context.Users.FindAsync(userId);
-                userEmail = dbUser?.Email ?? string.Empty;
-            }
+            var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (currentUser == null) return Unauthorized();
+            if (!CanAccessScrapes(currentUser)) return Forbid();
 
             var config = await _context.ScrapeConfigs
                 .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.Id == configId);
 
             if (config == null) return NotFound();
-            if (!User.IsInRole("admin") && !User.IsInRole("superadmin") && config.UserId != userId) return Forbid();
+            if (!IsSuperAdmin() && config.UserInternalId != currentUser.InternalId && config.UserId != userId) return Forbid();
+
+            var ownerEmail = config.User?.Email;
+            if (string.IsNullOrEmpty(ownerEmail) && config.UserInternalId.HasValue)
+            {
+                var ownerUser = await _context.Users.FirstOrDefaultAsync(u => u.InternalId == config.UserInternalId.Value);
+                ownerEmail = ownerUser?.Email;
+            }
+            ownerEmail ??= currentUser.Email;
 
             if (config.CredentialStatus == "wrong-password")
             {
@@ -507,14 +574,14 @@ namespace SalesApp.Controllers
             if (string.Equals(effectiveScrapeType, "consultor", StringComparison.OrdinalIgnoreCase) && scrapeDates.Count > 1 && scrapeDates.All(d => !string.IsNullOrEmpty(d)))
             {
                 var consolidatedDate = string.Join(",", scrapeDates);
-                var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail, scrapeDate: consolidatedDate, scrapeType: effectiveScrapeType);
+                var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: ownerEmail, scrapeDate: consolidatedDate, scrapeType: effectiveScrapeType);
                 jobIds.Add(jobId);
             }
             else
             {
                 foreach (var date in scrapeDates)
                 {
-                    var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: userEmail, scrapeDate: date, scrapeType: effectiveScrapeType);
+                    var jobId = await _orchestrator.TriggerScrapeAsync(configId, isManual: true, runId: runId, userEmail: ownerEmail, scrapeDate: date, scrapeType: effectiveScrapeType);
                     jobIds.Add(jobId);
                 }
             }
@@ -566,7 +633,13 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> GetMyJobs()
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-            var jobs = await _logService.GetJobsByUserAsync(userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return Unauthorized();
+            if (!CanAccessScrapes(user)) return Forbid();
+
+            var jobs = IsSuperAdmin()
+                ? await _logService.GetAllJobsAsync()
+                : await _logService.GetJobsByUserAsync(userId);
             return Ok(jobs);
         }
 
@@ -583,7 +656,13 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> GetMyRuns()
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-            var runs = await _logService.GetRunsByUserAsync(userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return Unauthorized();
+            if (!CanAccessScrapes(user)) return Forbid();
+
+            var runs = IsSuperAdmin()
+                ? await _logService.GetAllRunsAsync()
+                : await _logService.GetRunsByUserAsync(userId);
             return Ok(runs);
         }
 
@@ -600,14 +679,18 @@ namespace SalesApp.Controllers
         public async Task<IActionResult> GetRunDetail(string runId)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return Unauthorized();
+            if (!CanAccessScrapes(user)) return Forbid();
+
             var detail = await _logService.GetRunDetailAsync(runId, userId);
-            if (detail == null && User.IsInRole("superadmin"))
+            if (detail == null && IsSuperAdmin())
             {
                 detail = await _logService.GetRunDetailAsync(runId, null);
             }
             if (detail == null) return NotFound();
 
-            if (!User.IsInRole("superadmin") && detail.UserId != userId.ToString())
+            if (!IsSuperAdmin() && detail.UserId != userId.ToString())
             {
                 return Forbid();
             }
@@ -750,6 +833,9 @@ namespace SalesApp.Controllers
             {
                 Id = config.Id,
                 UserId = config.UserId,
+                OwnerUserId = config.User?.Id ?? config.UserId,
+                OwnerUserName = config.User?.Name,
+                OwnerUserEmail = config.User?.Email,
                 Store = config.Store,
                 Matricula = config.Matricula,
                 CredentialStatus = config.CredentialStatus,

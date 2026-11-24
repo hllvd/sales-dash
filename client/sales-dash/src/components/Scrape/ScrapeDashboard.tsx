@@ -41,7 +41,7 @@ import {
   IconX
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { scrapeService, ScrapeConfig, ScrapeRunSummary } from '../../services/scrapeService';
+import { scrapeService, ScrapeConfig, ScrapeRunSummary, EligibleScrapeOwner } from '../../services/scrapeService';
 import Menu from '../Menu';
 import './ScrapeDashboard.css';
 
@@ -249,6 +249,8 @@ function resolveSpecificScrapeErrorTitle(
   const [updateMatriculaOnExisting, setUpdateMatriculaOnExisting] = useState(false);
   const [updateTotalAmountOnExisting, setUpdateTotalAmountOnExisting] = useState(true);
   const [updateStartDateOnExisting, setUpdateStartDateOnExisting] = useState(true);
+  const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
+  const [eligibleOwners, setEligibleOwners] = useState<EligibleScrapeOwner[]>([]);
   const [validateOnSave, setValidateOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState<number | null>(null);
@@ -280,12 +282,16 @@ function resolveSpecificScrapeErrorTitle(
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [configsRes, runsRes] = await Promise.all([
+      const [configsRes, runsRes, ownersRes] = await Promise.all([
         scrapeService.getConfigs(),
-        scrapeService.getRuns()
+        scrapeService.getRuns(),
+        isSuperAdmin ? scrapeService.getEligibleOwners().catch(() => []) : Promise.resolve([])
       ]);
       setConfigs(configsRes || []);
       setRuns(runsRes || []);
+      if (isSuperAdmin) {
+        setEligibleOwners(ownersRes || []);
+      }
     } catch (error) {
       notifications.show({
         title: 'Erro',
@@ -365,6 +371,7 @@ function resolveSpecificScrapeErrorTitle(
       setUpdateMatriculaOnExisting(config.updateMatriculaOnExisting ?? false);
       setUpdateTotalAmountOnExisting(config.updateTotalAmountOnExisting ?? true);
       setUpdateStartDateOnExisting(config.updateStartDateOnExisting ?? true);
+      setOwnerUserId(config.ownerUserId || config.userId || null);
     } else {
       setEditingConfig(null);
       setStore('');
@@ -388,6 +395,7 @@ function resolveSpecificScrapeErrorTitle(
       setUpdateMatriculaOnExisting(false);
       setUpdateTotalAmountOnExisting(true);
       setUpdateStartDateOnExisting(true);
+      setOwnerUserId(null);
     }
     setModalOpen(true);
   };
@@ -465,6 +473,7 @@ function resolveSpecificScrapeErrorTitle(
         updateMatriculaOnExisting,
         updateTotalAmountOnExisting,
         updateStartDateOnExisting,
+        ownerUserId: isSuperAdmin && ownerUserId ? ownerUserId : undefined,
         testOnSave: validateOnSave
       });
       
@@ -825,6 +834,16 @@ function resolveSpecificScrapeErrorTitle(
         <Table.Td>
           <Text size="sm">{config.matricula}</Text>
         </Table.Td>
+        {isSuperAdmin && (
+          <Table.Td>
+            <Stack gap={0}>
+              <Text size="sm" fw={500}>{config.ownerUserName || config.ownerUserEmail || '-'}</Text>
+              {config.ownerUserName && config.ownerUserEmail && (
+                <Text size="xs" c="dimmed">{config.ownerUserEmail}</Text>
+              )}
+            </Stack>
+          </Table.Td>
+        )}
         <Table.Td>
           <Stack gap={0}>
             <Text size="sm" fw={500}>{startInfo.relative}</Text>
@@ -851,11 +870,13 @@ function resolveSpecificScrapeErrorTitle(
                 <IconSettings size={18} />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label="Remover">
-              <ActionIcon data-testid="delete-scrape-config-btn" variant="light" color="red" onClick={() => handleDeleteConfig(config.id)} aria-label="Remover">
-                <IconTrash size={18} />
-              </ActionIcon>
-            </Tooltip>
+            {isSuperAdmin && (
+              <Tooltip label="Remover">
+                <ActionIcon data-testid="delete-scrape-config-btn" variant="light" color="red" onClick={() => handleDeleteConfig(config.id)} aria-label="Remover">
+                  <IconTrash size={18} />
+                </ActionIcon>
+              </Tooltip>
+            )}
             <Button 
               data-testid="trigger-scrape-btn"
               size="compact-xs" 
@@ -1005,13 +1026,15 @@ function resolveSpecificScrapeErrorTitle(
             <Card withBorder radius="md" p="md">
               <Group justify="space-between" mb="md">
                 <Text fw={600} size="lg">Contas PowerBI Configuradas</Text>
-                <Button 
-                  leftSection={<IconPlus size={18} />} 
-                  onClick={() => handleOpenModal()}
-                  variant="light"
-                >
-                  Nova Conta
-                </Button>
+                {isSuperAdmin && (
+                  <Button 
+                    leftSection={<IconPlus size={18} />} 
+                    onClick={() => handleOpenModal()}
+                    variant="light"
+                  >
+                    Nova Conta
+                  </Button>
+                )}
               </Group>
 
               {configs.length === 0 ? (
@@ -1028,6 +1051,7 @@ function resolveSpecificScrapeErrorTitle(
                       <Table.Th>Tipo</Table.Th>
                       <Table.Th>Unidade</Table.Th>
                       <Table.Th>Matrícula (Username)</Table.Th>
+                      {isSuperAdmin && <Table.Th>Responsável (Dono)</Table.Th>}
                       <Table.Th>Início da Extração</Table.Th>
                       <Table.Th>Status Credencial</Table.Th>
                       <Table.Th>Ações</Table.Th>
@@ -1416,6 +1440,24 @@ function resolveSpecificScrapeErrorTitle(
                 </Accordion.Control>
                 <Accordion.Panel>
                   <Stack gap="sm" pt="xs">
+                    {isSuperAdmin && (
+                      <>
+                        <Select
+                          label="Responsável pelo Conector (Admin)"
+                          description="Define qual administrador com acesso PowerBI é o dono deste conector e visualizará seus logs."
+                          placeholder="Selecione o administrador responsável"
+                          data={eligibleOwners.map((o) => ({
+                            value: o.id,
+                            label: o.name ? `${o.name} (${o.email})` : o.email
+                          }))}
+                          value={ownerUserId}
+                          onChange={(val) => setOwnerUserId(val || null)}
+                          searchable
+                          clearable
+                        />
+                        <Divider my={4} />
+                      </>
+                    )}
                     <Text size="sm" fw={600} c="#374151">Opções de Importação:</Text>
                     
                     <Checkbox

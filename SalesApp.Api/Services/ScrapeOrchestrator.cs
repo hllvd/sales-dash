@@ -87,24 +87,36 @@ namespace SalesApp.Services
 
             var jobId = Guid.NewGuid().ToString();
             var effectiveRunId = string.IsNullOrEmpty(runId) ? Guid.NewGuid().ToString() : runId;
-            var effectiveUserEmail = userEmail;
             var effectiveScrapeType = !string.IsNullOrWhiteSpace(scrapeType) ? scrapeType : (config.ScrapeType ?? "geral");
             var effectiveOutputMode = !string.IsNullOrWhiteSpace(outputMode) ? outputMode : (config.OutputMode ?? "direct");
 
-            if (string.IsNullOrEmpty(effectiveUserEmail))
+            var ownerUser = config.User;
+            if (ownerUser == null && config.UserInternalId.HasValue)
             {
-                effectiveUserEmail = config.User?.Email ?? string.Empty;
-                if (string.IsNullOrEmpty(effectiveUserEmail) && config.UserId.HasValue)
+                ownerUser = await _context.Users.FirstOrDefaultAsync(u => u.InternalId == config.UserInternalId.Value);
+                if (ownerUser != null)
                 {
-                    var u = await _context.Users.FindAsync(config.UserId.Value);
-                    effectiveUserEmail = u?.Email ?? string.Empty;
+                    config.User = ownerUser;
                 }
             }
+            if (ownerUser == null && config.UserId.HasValue)
+            {
+                ownerUser = await _context.Users.FindAsync(config.UserId.Value);
+                if (ownerUser != null)
+                {
+                    config.User = ownerUser;
+                }
+            }
+
+            var effectiveUserId = (ownerUser?.Id ?? config.UserId)?.ToString() ?? string.Empty;
+            var effectiveUserEmail = !string.IsNullOrEmpty(ownerUser?.Email)
+                ? ownerUser.Email
+                : (userEmail ?? string.Empty);
             
             // 1. Log start in DynamoDB
             await _logService.WriteJobStatusAsync(
                 jobId: jobId,
-                userId: config.UserId?.ToString() ?? string.Empty,
+                userId: effectiveUserId,
                 status: "Pending",
                 store: config.Store ?? string.Empty,
                 matricula: config.Matricula,
@@ -127,7 +139,7 @@ namespace SalesApp.Services
                     await _scraperClient.EnqueueJobAsync(
                         jobId: jobId,
                         runId: effectiveRunId,
-                        userId: config.UserId?.ToString() ?? string.Empty,
+                        userId: effectiveUserId,
                         store: config.Store ?? string.Empty,
                         matricula: config.Matricula,
                         avaproUsername: config.Matricula,
@@ -141,7 +153,7 @@ namespace SalesApp.Services
                 // Update status to Running
                 await _logService.WriteJobStatusAsync(
                     jobId: jobId,
-                    userId: config.UserId?.ToString() ?? string.Empty,
+                    userId: effectiveUserId,
                     status: "Running",
                     store: config.Store ?? string.Empty,
                     matricula: config.Matricula,
@@ -154,7 +166,7 @@ namespace SalesApp.Services
             {
                 await _logService.WriteJobStatusAsync(
                     jobId: jobId,
-                    userId: config.UserId?.ToString() ?? string.Empty,
+                    userId: effectiveUserId,
                     status: "Failed",
                     store: config.Store ?? string.Empty,
                     matricula: config.Matricula,

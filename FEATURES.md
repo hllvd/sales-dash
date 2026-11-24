@@ -23,6 +23,25 @@ Adiciona dois novos filtros à listagem principal de contratos (`/#/contracts`):
 
 ---
 
+## Controle de Acesso Granular à Extração PowerBI para Admins Selecionados (`CanAccessPowerBiScrape`) e Gestão de Propriedade de Conectores
+
+Permite que `superadmins` habilitem o acesso ao módulo de Extração PowerBI (`#/scrapes`) individualmente para administradores específicos (`Role == "admin"`), mantendo cada `admin` autorizado restrito aos seus próprios conectores e logs, enquanto `superadmins` criam conectores, atribuem/alteram o responsável de cada conector e visualizam todos os logs do sistema.
+
+### Comportamento e Regras
+- **Habilitação por Usuário ([User.cs](SalesApp.Api/Models/User.cs), [UsersController.cs](SalesApp.Api/Controllers/UsersController.cs), [JwtService.cs](SalesApp.Api/Services/JwtService.cs), [UserForm.tsx](client/sales-dash/src/components/UserForm.tsx))**:
+  - Coluna booleana `CanAccessPowerBiScrape` (padrão `false`) na tabela `Users` (migration `20261124100000_AddCanAccessPowerBiScrapeToUser`).
+  - No modal de **Criar / Editar Usuário** (`#/users`), usuários `superadmin` visualizam o checkbox **"Liberar acesso à Extração PowerBI"** quando a função selecionada é `Administrador`.
+  - O token JWT inclui a claim `perm = "scrapes:access"` para `superadmin` e para `admin` com `CanAccessPowerBiScrape == true`. O item de menu **"Extração Power Bi"** ([Menu.tsx](client/sales-dash/src/components/Menu.tsx)) só é exibido para esses usuários.
+- **Regras de Conectores e Propriedade ([ScrapeController.cs](SalesApp.Api/Controllers/ScrapeController.cs), [ScrapeDashboard.tsx](client/sales-dash/src/components/Scrape/ScrapeDashboard.tsx))**:
+  - **Criação ("Nova Conta") e Exclusão ("Remover")**: exclusivas de `superadmin`.
+  - **Edição, Teste e Extração**: `admin` com `CanAccessPowerBiScrape == true` visualiza e edita apenas os seus próprios conectores remotos (`OutputMode == "sqs"`). `admin` sem a flag recebe `403 Forbid`.
+  - **Seletor de Responsável pelo Conector**: dentro de **"Opções Avançadas"** no modal do conector (exclusivo para `superadmin`), o seletor **"Responsável pelo Conector (Admin)"** lista os administradores ativos com permissão PowerBI habilitada (`GET /api/scrape/eligible-owners`) e permite definir/transferir de quem é o conector. Na tabela de **"Vínculos de Contas"**, o `superadmin` visualiza a coluna **"Responsável (Dono)"**.
+- **Logs de Execução Sempre Vinculados ao Dono do Conector ([ScrapeOrchestrator.cs](SalesApp.Api/Services/ScrapeOrchestrator.cs) e [ScrapeController.cs](SalesApp.Api/Controllers/ScrapeController.cs))**:
+  - Toda extração (seja disparada pelo próprio `admin`, pelo `superadmin` ou pelo agendador automático) grava o log no DynamoDB em nome do **dono do conector** (`config.User.Id` e `config.User.Email`).
+  - Em **Histórico de Extrações** (`GET /api/scrape/runs/me`), o `admin` autorizado vê apenas os logs dos seus conectores, enquanto o `superadmin` visualiza todos os logs de todos os usuários.
+
+---
+
 ## Importação PowerBI Consultor: Regra Ampliada para Status "Desistente"
 
 Aprimora a regra de derivação de status no momento da importação de relatórios do Consultor (PowerBI / Scraper) para classificar contratos como `Desistente` com base na data de cancelamento versus a primeira assembleia.

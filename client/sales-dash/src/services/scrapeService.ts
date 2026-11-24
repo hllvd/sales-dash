@@ -3,6 +3,9 @@ import { apiService } from './apiService';
 export interface ScrapeConfig {
     id: number;
     userId: string;
+    ownerUserId?: string | null;
+    ownerUserName?: string | null;
+    ownerUserEmail?: string | null;
     store?: string | null;
     matricula: string;
     credentialStatus?: 'ok' | 'wrong-password' | null;
@@ -45,7 +48,14 @@ export interface ScrapeConfigRequest {
     updateMatriculaOnExisting?: boolean;
     updateTotalAmountOnExisting?: boolean;
     updateStartDateOnExisting?: boolean;
+    ownerUserId?: string | null;
     testOnSave?: boolean;
+}
+
+export interface EligibleScrapeOwner {
+    id: string;
+    name: string;
+    email: string;
 }
 
 export interface ScrapeJob {
@@ -104,6 +114,10 @@ const ENDPOINT_PREFIX = '/scrape';
 export const scrapeService = {
     getConfigs: async (): Promise<ScrapeConfig[]> => {
         return apiService.get(`${ENDPOINT_PREFIX}/configs/me`);
+    },
+
+    getEligibleOwners: async (): Promise<EligibleScrapeOwner[]> => {
+        return apiService.get(`${ENDPOINT_PREFIX}/eligible-owners`);
     },
 
     saveConfig: async (data: ScrapeConfigRequest): Promise<ScrapeConfig> => {

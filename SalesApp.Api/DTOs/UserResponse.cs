@@ -17,6 +17,7 @@ namespace SalesApp.DTOs
         public DateTime? LastAccessedAt { get; set; }
         public bool TreatUnpaidActiveAsAwaitingPayment { get; set; }
         public bool AutoAssignNewContractsToMatriculaOwner { get; set; }
+        public bool CanAccessPowerBiScrape { get; set; }
         
         // Matricula information (primary/owner matricula)
         public int? MatriculaId { get; set; }

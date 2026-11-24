@@ -452,6 +452,14 @@ namespace SalesApp.Controllers
                 });
             }
             
+            var isSuperAdminCaller = roleIdClaim == "1"
+                                  || User.HasClaim("perm", "system:superadmin")
+                                  || User.IsInRole("superadmin")
+                                  || User.IsInRole("SuperAdmin");
+            var canGrantScrape = isSuperAdminCaller
+                              && (role.Id == 2 || string.Equals(role.Name, "admin", StringComparison.OrdinalIgnoreCase))
+                              && request.CanAccessPowerBiScrape;
+
             var user = new User
             {
                 Name = request.Name,
@@ -460,6 +468,7 @@ namespace SalesApp.Controllers
                 RoleId = role.Id,
                 ParentUserId = request.ParentUserId,
                 IsActive = true,
+                CanAccessPowerBiScrape = canGrantScrape,
                 Level = 1 // Default level for new users, will be adjusted by hierarchy service if needed
             };
             
@@ -1012,6 +1021,19 @@ namespace SalesApp.Controllers
                 user.IsActive = request.IsActive.Value;
             }
 
+            var isSuperAdminUpdater = roleIdClaim == "1"
+                                   || User.HasClaim("perm", "system:superadmin")
+                                   || User.IsInRole("superadmin")
+                                   || User.IsInRole("SuperAdmin");
+            if (user.RoleId != 2 && user.RoleId != 1)
+            {
+                user.CanAccessPowerBiScrape = false;
+            }
+            else if (request.CanAccessPowerBiScrape.HasValue && isSuperAdminUpdater)
+            {
+                user.CanAccessPowerBiScrape = user.RoleId == 2 && request.CanAccessPowerBiScrape.Value;
+            }
+
                 
             try
             {
@@ -1315,6 +1337,7 @@ namespace SalesApp.Controllers
                 LastAccessedAt = user.LastAccessedAt,
                 TreatUnpaidActiveAsAwaitingPayment = user.TreatUnpaidActiveAsAwaitingPayment,
                 AutoAssignNewContractsToMatriculaOwner = user.AutoAssignNewContractsToMatriculaOwner,
+                CanAccessPowerBiScrape = user.CanAccessPowerBiScrape || user.RoleId == 1 || string.Equals(user.Role?.Name, "superadmin", StringComparison.OrdinalIgnoreCase),
                 
                 // Matricula information
                 MatriculaId = primaryMatricula?.MatriculaId,

@@ -104,6 +104,7 @@ export interface User {
   activeMatriculas?: UserMatriculaInfo[]
   powerBiUsername?: string
   hasPowerBiCredentials?: boolean
+  canAccessPowerBiScrape?: boolean
   metadataGroups?: UserMetadataGroup[]
 }
 
@@ -149,6 +150,7 @@ export interface CreateUserRequest {
   matriculaNumber?: string
   isMatriculaOwner?: boolean
   joinParentTeam?: boolean
+  canAccessPowerBiScrape?: boolean
 }
 
 export interface UpdateUserRequest {
@@ -160,6 +162,7 @@ export interface UpdateUserRequest {
   isActive?: boolean
   powerBiUsername?: string
   powerBiPassword?: string
+  canAccessPowerBiScrape?: boolean
 }
 
 /**
