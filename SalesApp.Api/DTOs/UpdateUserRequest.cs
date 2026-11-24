@@ -29,5 +29,7 @@ namespace SalesApp.DTOs
         [MaxLength(50, ErrorMessage = "MatriculaNumber cannot exceed 50 characters")]
         [RegularExpression(@"^[a-zA-Z0-9]*$", ErrorMessage = "MatriculaNumber can only contain alphanumeric characters")]
         public string? MatriculaNumber { get; set; }
+
+        public bool? CanAccessPowerBiScrape { get; set; }
     }
 }

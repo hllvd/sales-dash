@@ -69,6 +69,7 @@ const UserForm: React.FC<UserFormProps> = ({
     isActive: user?.isActive ?? true,
     matriculaNumber: "",
     isMatriculaOwner: false,
+    canAccessPowerBiScrape: user?.canAccessPowerBiScrape ?? false,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -284,6 +285,10 @@ const UserForm: React.FC<UserFormProps> = ({
         userData.isActive = formData.isActive
       }
 
+      if (!isCurrentAdmin) {
+        userData.canAccessPowerBiScrape = formData.role === 'admin' ? Boolean(formData.canAccessPowerBiScrape) : false
+      }
+
       await onSubmit(userData)
     } catch (err: any) {
       const errorMessage = err.message || "Ocorreu um erro"
@@ -359,6 +364,17 @@ const UserForm: React.FC<UserFormProps> = ({
             ]}
           />
         </FormField>
+
+        {!isCurrentAdmin && formData.role === 'admin' && (
+          <FormField label="Extração PowerBI">
+            <Checkbox
+              label="Liberar acesso à Extração PowerBI"
+              description="Permite que este administrador visualize e execute os próprios conectores de Extração PowerBI."
+              checked={Boolean(formData.canAccessPowerBiScrape)}
+              onChange={(e) => handleChange('canAccessPowerBiScrape', e.currentTarget.checked)}
+            />
+          </FormField>
+        )}
 
         <FormField 
           label="Usuário Pai"

@@ -289,9 +289,11 @@ namespace SalesApp.Tests.Services
 
             var superAdminId = Guid.NewGuid();
             var otherUserId = Guid.NewGuid();
+            var unauthorizedAdminId = Guid.NewGuid();
             dbContext.Users.AddRange(
                 new User { Id = superAdminId, InternalId = 1, Name = "SA", Email = "sa@salesapp.com", PasswordHash = "h", RoleId = 1 },
-                new User { Id = otherUserId, InternalId = 2, Name = "Admin", Email = "admin@salesapp.com", PasswordHash = "h", RoleId = 2 }
+                new User { Id = otherUserId, InternalId = 2, Name = "Admin", Email = "admin@salesapp.com", PasswordHash = "h", RoleId = 2, CanAccessPowerBiScrape = true },
+                new User { Id = unauthorizedAdminId, InternalId = 3, Name = "BlockedAdmin", Email = "blocked@salesapp.com", PasswordHash = "h", RoleId = 2, CanAccessPowerBiScrape = false }
             );
             dbContext.ScrapeConfigs.AddRange(
                 new ScrapeConfig { Id = 1, UserInternalId = 1, Matricula = "11111", OutputMode = "sqs", CreatedAt = DateTime.UtcNow.AddMinutes(-5) },
@@ -331,7 +333,7 @@ namespace SalesApp.Tests.Services
             saConfigs.Should().HaveCount(3);
             saConfigs.Should().OnlyContain(c => c.OutputMode == "sqs");
 
-            // 2. Regular admin sees only their own remote config (Id = 2)
+            // 2. Authorized admin sees only their own remote config (Id = 2)
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext
@@ -350,6 +352,154 @@ namespace SalesApp.Tests.Services
             var adminConfigs = System.Linq.Enumerable.ToList((IEnumerable<ScrapeConfigDto>)adminResult!.Value!);
             adminConfigs.Should().HaveCount(1);
             adminConfigs[0].Matricula.Should().Be("22222");
+
+            // 3. Unauthorized admin (CanAccessPowerBiScrape = false) receives Forbid
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(
+                        new System.Security.Claims.ClaimsIdentity(new[]
+                        {
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, unauthorizedAdminId.ToString()),
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")
+                        }, "TestAuth"))
+                }
+            };
+
+            var blockedResult = await controller.GetMyConfigs();
+            blockedResult.Should().BeOfType<ForbidResult>();
+        }
+
+        [Fact]
+        public async Task ScrapePermissions_AdminCanEditOwnButCannotCreateOrDelete_AndSuperAdminCanReassignOwnerAndLogsGoToOwner()
+        {
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+            var dbContext = new AppDbContext(options, Mock.Of<IHttpContextAccessor>());
+
+            var superAdminId = Guid.NewGuid();
+            var adminOwnerId = Guid.NewGuid();
+            dbContext.Users.AddRange(
+                new User { Id = superAdminId, InternalId = 1, Name = "SuperAdmin", Email = "sa@salesapp.com", PasswordHash = "h", RoleId = 1 },
+                new User { Id = adminOwnerId, InternalId = 2, Name = "AdminOwner", Email = "owner@salesapp.com", PasswordHash = "h", RoleId = 2, CanAccessPowerBiScrape = true }
+            );
+            await dbContext.SaveChangesAsync();
+
+            var orchestratorMock = new Mock<IScrapeOrchestrator>();
+            orchestratorMock
+                .Setup(o => o.TriggerScrapeAsync(It.IsAny<int>(), true, It.IsAny<string?>(), "owner@salesapp.com", It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+                .ReturnsAsync("job-owner-1");
+
+            var logMock = new Mock<IScrapeDynamoLogService>();
+            logMock.Setup(l => l.GetAllRunsAsync(It.IsAny<int>())).ReturnsAsync(new List<ScrapeRunSummary> { new ScrapeRunSummary { RunId = "r-all" } });
+            logMock.Setup(l => l.GetRunsByUserAsync(adminOwnerId, It.IsAny<int>())).ReturnsAsync(new List<ScrapeRunSummary> { new ScrapeRunSummary { RunId = "r-owner" } });
+
+            var scraperClientMock = new Mock<PbiScraperClient>(new System.Net.Http.HttpClient(), new ConfigurationBuilder().Build());
+            scraperClientMock
+                .Setup(c => c.TestAuthAsync("99887", "secret", null, true))
+                .ReturnsAsync((true, true, "OK", new List<string>(), (string?)null, (string?)null));
+
+            var controller = new ScrapeController(
+                orchestratorMock.Object,
+                logMock.Object,
+                dbContext,
+                Mock.Of<IScrapeImportService>(),
+                scraperClientMock.Object,
+                new EphemeralDataProtectionProvider(),
+                new ConfigurationBuilder().Build(),
+                Mock.Of<Microsoft.Extensions.Logging.ILogger<ScrapeController>>());
+
+            // 1. Authorized Admin CANNOT create a new connector
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(
+                        new System.Security.Claims.ClaimsIdentity(new[]
+                        {
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, adminOwnerId.ToString()),
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")
+                        }, "TestAuth"))
+                }
+            };
+
+            var adminCreateRes = await controller.SaveConfig(new ScrapeConfigRequest
+            {
+                Matricula = "99887",
+                PowerBiPassword = "secret",
+                OutputMode = "sqs",
+                TestOnSave = false
+            });
+            adminCreateRes.Should().BeOfType<ForbidResult>();
+
+            // 2. SuperAdmin creates connector and assigns OwnerUserId to adminOwnerId
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(
+                        new System.Security.Claims.ClaimsIdentity(new[]
+                        {
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, superAdminId.ToString()),
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "superadmin")
+                        }, "TestAuth"))
+                }
+            };
+
+            var saCreateRes = await controller.SaveConfig(new ScrapeConfigRequest
+            {
+                Matricula = "99887",
+                PowerBiPassword = "secret",
+                OutputMode = "sqs",
+                OwnerUserId = adminOwnerId,
+                TestOnSave = false
+            }) as OkObjectResult;
+            saCreateRes.Should().NotBeNull();
+            var createdDto = (ScrapeConfigDto)saCreateRes!.Value!;
+            createdDto.OwnerUserId.Should().Be(adminOwnerId);
+            createdDto.OwnerUserEmail.Should().Be("owner@salesapp.com");
+
+            // 3. SuperAdmin triggers scrape on that connector -> log is attributed to owner@salesapp.com
+            await controller.TriggerScrape(createdDto.Id);
+            orchestratorMock.Verify(
+                o => o.TriggerScrapeAsync(createdDto.Id, true, It.IsAny<string?>(), "owner@salesapp.com", It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()),
+                Times.Once);
+
+            // 4. SuperAdmin GetMyRuns returns all runs; Admin GetMyRuns returns only their own runs
+            var saRuns = (await controller.GetMyRuns() as OkObjectResult)!.Value as List<ScrapeRunSummary>;
+            saRuns.Should().ContainSingle(r => r.RunId == "r-all");
+
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(
+                        new System.Security.Claims.ClaimsIdentity(new[]
+                        {
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, adminOwnerId.ToString()),
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")
+                        }, "TestAuth"))
+                }
+            };
+
+            var adminRuns = (await controller.GetMyRuns() as OkObjectResult)!.Value as List<ScrapeRunSummary>;
+            adminRuns.Should().ContainSingle(r => r.RunId == "r-owner");
+
+            // 5. Authorized Admin CAN edit their own connector, but CANNOT delete it
+            var adminEditRes = await controller.SaveConfig(new ScrapeConfigRequest
+            {
+                Id = createdDto.Id,
+                Matricula = "99887",
+                OutputMode = "sqs",
+                DefaultStartMonth = "2026-01",
+                TestOnSave = false
+            });
+            adminEditRes.Should().BeOfType<OkObjectResult>();
+
+            var adminDeleteRes = await controller.DeleteConfig(createdDto.Id);
+            adminDeleteRes.Should().BeOfType<ForbidResult>();
         }
 
         private static ScrapeOrchestrator CreateOrchestrator(

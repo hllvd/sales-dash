@@ -66,6 +66,14 @@ namespace SalesApp.Services
             {
                 claims.Add(new Claim("perm", perm));
             }
+
+            bool hasScrapeAccess = user.RoleId == 1
+                || string.Equals(roleName, "superadmin", StringComparison.OrdinalIgnoreCase)
+                || ((user.RoleId == 2 || string.Equals(roleName, "admin", StringComparison.OrdinalIgnoreCase)) && user.CanAccessPowerBiScrape);
+            if (hasScrapeAccess && !permissions.Contains("scrapes:access"))
+            {
+                claims.Add(new Claim("perm", "scrapes:access"));
+            }
             
             var tokenDescriptor = new SecurityTokenDescriptor
             {
