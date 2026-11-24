@@ -310,6 +310,27 @@ namespace SalesApp.Services
             }
         }
 
+        private async Task<List<Dictionary<string, AttributeValue>>> ScanAllMatchingAsync(ScanRequest request, int maxPages = 50)
+        {
+            var allItems = new List<Dictionary<string, AttributeValue>>();
+            Dictionary<string, AttributeValue>? lastKey = null;
+            int page = 0;
+
+            do
+            {
+                request.ExclusiveStartKey = lastKey;
+                var response = await _dynamoDb.ScanAsync(request);
+                if (response.Items != null && response.Items.Count > 0)
+                {
+                    allItems.AddRange(response.Items);
+                }
+                lastKey = response.LastEvaluatedKey;
+                page++;
+            } while (lastKey != null && lastKey.Count > 0 && page < maxPages);
+
+            return allItems;
+        }
+
         private async Task<List<ScrapeLogEntry>> ScanAllJobsAsync(int limit = 200)
         {
             try
@@ -323,8 +344,8 @@ namespace SalesApp.Services
                         { ":sk", new AttributeValue { S = "JOB#" } }
                     }
                 };
-                var response = await _dynamoDb.ScanAsync(scanRequest);
-                return DeduplicateJobs(response.Items.Select(MapToEntry).ToList())
+                var items = await ScanAllMatchingAsync(scanRequest);
+                return DeduplicateJobs(items.Select(MapToEntry).ToList())
                     .OrderByDescending(e => e.CreatedAt)
                     .Take(limit)
                     .ToList();
@@ -413,8 +434,10 @@ namespace SalesApp.Services
                         { ":rid", new AttributeValue { S = runId } }
                     }
                 };
-                var response = await _dynamoDb.ScanAsync(scanRequest);
-                return response.Items.Select(MapToEntry).OrderByDescending(e => e.CreatedAt).ToList();
+                var items = await ScanAllMatchingAsync(scanRequest);
+                return DeduplicateJobs(items.Select(MapToEntry).ToList())
+                    .OrderByDescending(e => e.CreatedAt)
+                    .ToList();
             }
             catch (Exception ex)
             {

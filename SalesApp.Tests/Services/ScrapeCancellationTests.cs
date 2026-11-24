@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
+using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Moq;
 using SalesApp.Controllers;
 using SalesApp.Data;
@@ -500,6 +504,77 @@ namespace SalesApp.Tests.Services
 
             var adminDeleteRes = await controller.DeleteConfig(createdDto.Id);
             adminDeleteRes.Should().BeOfType<ForbidResult>();
+        }
+
+        [Fact]
+        public async Task GetAllRunsAsync_WhenGsi1FailsAndFirstScanPageIsEmpty_PaginatesScanToReturnAllRuns()
+        {
+            var dynamoMock = new Mock<IAmazonDynamoDB>();
+            dynamoMock
+                .Setup(d => d.QueryAsync(It.Is<QueryRequest>(r => r.IndexName == "GSI1"), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new AmazonDynamoDBException("User is not authorized to perform: dynamodb:Query on resource: index/GSI1"));
+
+            var firstPageKey = new Dictionary<string, AttributeValue>
+            {
+                { "PK", new AttributeValue { S = "ERROR#1" } },
+                { "SK", new AttributeValue { S = "TS#2026-11-24" } }
+            };
+
+            var secondPageItems = new List<Dictionary<string, AttributeValue>>
+            {
+                new Dictionary<string, AttributeValue>
+                {
+                    { "PK", new AttributeValue { S = "USER#11111111-1111-1111-1111-111111111111" } },
+                    { "SK", new AttributeValue { S = "JOB#job-1" } },
+                    { "JobId", new AttributeValue { S = "job-1" } },
+                    { "RunId", new AttributeValue { S = "run-1" } },
+                    { "UserId", new AttributeValue { S = "11111111-1111-1111-1111-111111111111" } },
+                    { "UserEmail", new AttributeValue { S = "superadmin@salesapp.com" } },
+                    { "Status", new AttributeValue { S = "Succeeded" } },
+                    { "Matricula", new AttributeValue { S = "00001" } },
+                    { "Store", new AttributeValue { S = "Loja A" } },
+                    { "RowCount", new AttributeValue { N = "42" } },
+                    { "CreatedAt", new AttributeValue { S = "2026-11-24T14:00:00Z" } }
+                },
+                new Dictionary<string, AttributeValue>
+                {
+                    { "PK", new AttributeValue { S = "USER#22222222-2222-2222-2222-222222222222" } },
+                    { "SK", new AttributeValue { S = "JOB#job-2" } },
+                    { "JobId", new AttributeValue { S = "job-2" } },
+                    { "RunId", new AttributeValue { S = "run-2" } },
+                    { "UserId", new AttributeValue { S = "22222222-2222-2222-2222-222222222222" } },
+                    { "UserEmail", new AttributeValue { S = "admin1@salesapp.com" } },
+                    { "Status", new AttributeValue { S = "Succeeded" } },
+                    { "Matricula", new AttributeValue { S = "00002" } },
+                    { "Store", new AttributeValue { S = "Loja B" } },
+                    { "RowCount", new AttributeValue { N = "15" } },
+                    { "CreatedAt", new AttributeValue { S = "2026-11-24T14:05:00Z" } }
+                }
+            };
+
+            dynamoMock
+                .SetupSequence(d => d.ScanAsync(It.IsAny<ScanRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ScanResponse
+                {
+                    Items = new List<Dictionary<string, AttributeValue>>(),
+                    LastEvaluatedKey = firstPageKey
+                })
+                .ReturnsAsync(new ScanResponse
+                {
+                    Items = secondPageItems,
+                    LastEvaluatedKey = new Dictionary<string, AttributeValue>()
+                });
+
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["AWS:DynamoDbTable"] = "pbi_scrape_logs" })
+                .Build();
+            var service = new ScrapeDynamoLogService(dynamoMock.Object, config, Mock.Of<ILogger<ScrapeDynamoLogService>>());
+
+            var runs = await service.GetAllRunsAsync();
+
+            runs.Should().HaveCount(2);
+            runs.Select(r => r.UserEmail).Should().Contain(new[] { "superadmin@salesapp.com", "admin1@salesapp.com" });
+            dynamoMock.Verify(d => d.ScanAsync(It.IsAny<ScanRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         private static ScrapeOrchestrator CreateOrchestrator(
