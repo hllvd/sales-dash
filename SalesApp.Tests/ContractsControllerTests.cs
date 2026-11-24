@@ -356,7 +356,9 @@ namespace SalesApp.Tests
                 It.IsAny<List<Guid>?>(),
                 It.IsAny<List<string>?>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool?>()))
+                It.IsAny<bool?>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<string?>()))
                 .ReturnsAsync((contracts, 4));
 
             _mockContractRepository.Setup(r => r.GetAggregationAsync(
@@ -374,7 +376,9 @@ namespace SalesApp.Tests
                 It.IsAny<List<string>?>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<string?>()))
                 .ReturnsAsync(new ContractAggregation());
 
             // Act
@@ -400,6 +404,71 @@ namespace SalesApp.Tests
             // Item 4: Active + HasPayment null -> IsAwaitingPayment = false
             items[3].HasPayment.Should().BeNull();
             items[3].IsAwaitingPayment.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task GetContracts_WithSegmentsAndCustomerName_ForwardsFiltersToRepository()
+        {
+            // Arrange
+            var segments = new List<int> { 1, 2 };
+            var customerName = "Maria Silva";
+            var contracts = new List<Contract>();
+
+            _mockUserScopeService.Setup(s => s.GetContractScopeAsync(It.IsAny<ClaimsPrincipal>()))
+                .ReturnsAsync(new UserScopeContext { IsGlobal = true });
+
+            _mockContractRepository.Setup(r => r.GetPagedAsync(
+                1,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                It.IsAny<UserScopeContext?>(),
+                null,
+                null,
+                null,
+                true,
+                null,
+                segments,
+                customerName))
+                .ReturnsAsync((contracts, 0));
+
+            _mockContractRepository.Setup(r => r.GetAggregationAsync(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                It.IsAny<UserScopeContext?>(),
+                null,
+                null,
+                null,
+                true,
+                null,
+                It.IsAny<bool>(),
+                segments,
+                customerName))
+                .ReturnsAsync(new ContractAggregation());
+
+            // Act
+            var result = await _controller.GetContracts(page: 1, pageSize: 10, segments: segments, customerName: customerName);
+
+            // Assert
+            result.Should().BeOfType<OkObjectResult>();
+            _mockContractRepository.Verify(r => r.GetPagedAsync(
+                1, 10, null, null, null, null, null, null, null, null,
+                It.IsAny<UserScopeContext?>(), null, null, null, true, null, segments, customerName), Times.Once);
+            _mockContractRepository.Verify(r => r.GetAggregationAsync(
+                null, null, null, null, null, null, null, null,
+                It.IsAny<UserScopeContext?>(), null, null, null, true, null, It.IsAny<bool>(), segments, customerName), Times.Once);
         }
     }
 }

@@ -430,7 +430,9 @@ export const getContracts = async (
   pageSize?: number,
   statuses?: string[],
   awaitingPayment?: boolean,
-  treatUnpaidAsAwaiting?: boolean
+  treatUnpaidAsAwaiting?: boolean,
+  segments?: number[],
+  customerName?: string
 ): Promise<{ contracts: Contract[]; aggregation?: ContractAggregation; totalCount: number }> => {
   const params = new URLSearchParams();
   if (userId) params.append('userId', userId);
@@ -453,6 +455,8 @@ export const getContracts = async (
   if (statuses && statuses.length > 0) statuses.forEach(s => params.append('statuses', s));
   if (awaitingPayment !== undefined) params.append('awaitingPayment', awaitingPayment.toString());
   if (treatUnpaidAsAwaiting !== undefined) params.append('treatUnpaidAsAwaiting', treatUnpaidAsAwaiting.toString());
+  if (segments && segments.length > 0) segments.forEach(seg => params.append('segments', seg.toString()));
+  if (customerName) params.append('customerName', customerName);
   if (page !== undefined) params.append('page', page.toString());
   if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
 

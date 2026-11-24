@@ -1,3 +1,28 @@
+## Contratos (`/#/contracts`): Filtros por Segmento e Nome do Cliente
+
+Adiciona dois novos filtros à listagem principal de contratos (`/#/contracts`): filtro por **Segmento** (seleção múltipla vinculada ao segmento do grupo do contrato) e filtro por **Cliente** (busca parcial por nome do cliente com delay/debounce ao digitar).
+
+### Comportamento e Regras
+- **Filtro por Segmento (`MultiSelect`)**:
+  - Permite selecionar múltiplos segmentos (`Lar` = 1, `Motores` = 2, `Serviços` = 3).
+  - Por padrão, exibe o placeholder `"Todos"` (nenhum item selecionado), retornando contratos de todos os segmentos.
+  - Quando um ou mais segmentos são selecionados, o backend filtra os contratos através do grupo vinculado (`c.Group != null && c.Group.Segment != null && segments.Contains(c.Group.Segment.Value)`).
+- **Filtro por Nome do Cliente (`input` com debounce)**:
+  - Campo de texto com delay (debounce de `500ms`) que dispara automaticamente a consulta ao digitar.
+  - O backend realiza busca parcial case-insensitive (`Contains` / `include`) sobre `Contract.CustomerName`.
+- **Paginação, Agregação e Limpeza de Filtros**:
+  - A alteração de qualquer um dos dois novos filtros reseta a paginação para a página 1 e recalcula o resumo de agregação (`GetAggregationAsync`).
+  - O botão **"Limpar Filtros"** é exibido quando há segmentos selecionados ou texto no filtro de cliente, e limpa ambos os estados ao ser acionado.
+
+### Arquivos Modificados
+- `SalesApp.Api/Repositories/IContractRepository.cs` e `SalesApp.Api/Repositories/ContractRepository.cs`: Suporte aos parâmetros `segments` e `customerName` em `BuildFilteredQuery`, `GetAllAsync`, `GetPagedAsync` e `GetAggregationAsync`.
+- `SalesApp.Api/Controllers/ContractsController.cs`: Recebimento de `segments` e `customerName` via query string em `GET /api/contracts`.
+- `client/sales-dash/src/services/contractService.ts`: Inclusão de `segments` e `customerName` na montagem dos parâmetros de `getContracts`.
+- `client/sales-dash/src/components/ContractsPage.tsx`: Componentes de filtro de Segmento (`MultiSelect`) e Cliente (`input`), estados com debounce de `500ms` e integração com "Limpar Filtros".
+- `SalesApp.Tests/ContractRepositoryTests.cs`, `SalesApp.Tests/ContractsControllerTests.cs`, `client/sales-dash/src/services/contractService.test.ts` e `client/sales-dash/src/components/ContractsPage.test.tsx`: Testes unitários cobrindo os novos filtros no backend e no frontend.
+
+---
+
 ## Importação PowerBI Consultor: Regra Ampliada para Status "Desistente"
 
 Aprimora a regra de derivação de status no momento da importação de relatórios do Consultor (PowerBI / Scraper) para classificar contratos como `Desistente` com base na data de cancelamento versus a primeira assembleia.

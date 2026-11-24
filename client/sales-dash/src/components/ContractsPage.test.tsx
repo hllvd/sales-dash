@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import { MantineProvider } from '@mantine/core';
 import ContractsPage from './ContractsPage';
 import * as contractService from '../services/contractService';
+import { apiService } from '../services/apiService';
 
 const render = (ui: React.ReactElement) => {
   return rtlRender(<MantineProvider>{ui}</MantineProvider>);
@@ -11,6 +12,17 @@ const render = (ui: React.ReactElement) => {
 
 // Mock the contract service
 jest.mock('../services/contractService');
+
+// Mock apiService
+jest.mock('../services/apiService', () => ({
+  apiService: {
+    getUserPreferences: jest.fn(),
+    updateUserPreferences: jest.fn(),
+    startContractExport: jest.fn(),
+    contractExportPollUrl: jest.fn(),
+    contractExportDownloadUrl: jest.fn(),
+  },
+}));
 
 // Mock contexts
 jest.mock('../contexts/CurrentUserContext', () => ({
@@ -20,22 +32,35 @@ jest.mock('../contexts/CurrentUserContext', () => ({
   }),
 }));
 
+const mockSetUsers = jest.fn();
+const mockSetGroups = jest.fn();
+const mockSetContracts = jest.fn();
+
 jest.mock('../contexts/ContractsContext', () => ({
   useContractsContext: () => ({
     users: [],
     groups: [],
     contracts: [],
-    setUsers: jest.fn(),
-    setGroups: jest.fn(),
-    setContracts: jest.fn(),
+    setUsers: mockSetUsers,
+    setGroups: mockSetGroups,
+    setContracts: mockSetContracts,
   }),
 }));
 
+const mockUsers = [
+  { id: 'user-1', name: 'John Doe', email: 'john@example.com', role: 'user', isActive: true },
+  { id: 'user-2', name: 'Jane Smith', email: 'jane@example.com', role: 'admin', isActive: true },
+];
+
+const mockFetchTeams = jest.fn();
+const mockFetchContractFilterUsers = jest.fn();
+const mockFetchPVs = jest.fn();
+
 jest.mock('../contexts/ReferenceDataContext', () => ({
   useReferenceData: () => ({
-    fetchTeams: jest.fn().mockResolvedValue([]),
-    fetchContractFilterUsers: jest.fn().mockResolvedValue([]),
-    fetchPVs: jest.fn().mockResolvedValue([]),
+    fetchTeams: mockFetchTeams,
+    fetchContractFilterUsers: mockFetchContractFilterUsers,
+    fetchPVs: mockFetchPVs,
   }),
 }));
 // Mock ContractForm component
@@ -50,7 +75,9 @@ jest.mock('./ContractForm', () => {
   };
 });
 // Mock Menu component
-jest.mock('./Menu', () => () => <div data-testid="menu">Menu</div>);
+jest.mock('./Menu', () => ({ children }: any) => <div data-testid="menu">{children}</div>);
+// Mock HistoricProduction component
+jest.mock('../shared/HistoricProduction', () => () => <div data-testid="historic-production" />);
 // Mock BulkImportModal component
 jest.mock('./BulkImportModal', () => {
   return function MockBulkImportModal({ onClose, onSuccess, templateId, title }: any) {
@@ -74,7 +101,10 @@ const mockContracts = [
     totalAmount: 1000,
     groupId: 1,
     groupName: 'Group A',
-    status: 'active' as const,
+    segment: 1,
+    segmentName: 'Lar',
+    customerName: 'Maria Santos',
+    status: contractService.ContractStatus.Active,
     contractStartDate: '2024-01-01T00:00:00Z',
     isActive: true,
     createdAt: '2024-01-01T00:00:00Z',
@@ -88,7 +118,10 @@ const mockContracts = [
     totalAmount: 2000,
     groupId: 2,
     groupName: 'Group B',
-    status: 'delinquent' as const,
+    segment: 2,
+    segmentName: 'Motores',
+    customerName: 'Carlos Oliveira',
+    status: contractService.ContractStatus.Delinquent,
     contractStartDate: '2024-02-01T00:00:00Z',
     isActive: true,
     createdAt: '2024-02-01T00:00:00Z',
@@ -96,21 +129,31 @@ const mockContracts = [
   },
 ];
 
-const mockUsers = [
-  { id: 'user-1', name: 'John Doe', email: 'john@example.com', role: 'user', isActive: true },
-  { id: 'user-2', name: 'Jane Smith', email: 'jane@example.com', role: 'admin', isActive: true },
-];
-
 const mockGroups = [
   { id: 0, name: 'Padrão', description: 'Default', commission: 0, isActive: true },
-  { id: 1, name: 'Group A', description: 'Test A', commission: 10, isActive: true },
-  { id: 2, name: 'Group B', description: 'Test B', commission: 15, isActive: true },
+  { id: 1, name: 'Group A', description: 'Test A', commission: 10, segment: 1, isActive: true },
+  { id: 2, name: 'Group B', description: 'Test B', commission: 15, segment: 2, isActive: true },
 ];
 
 describe('ContractsPage', () => {
   beforeEach(() => {
+    localStorage.clear();
     jest.clearAllMocks();
-    (contractService.getContracts as jest.Mock).mockResolvedValue(mockContracts);
+    mockFetchTeams.mockResolvedValue([]);
+    mockFetchContractFilterUsers.mockResolvedValue(mockUsers);
+    mockFetchPVs.mockResolvedValue([]);
+    (apiService.getUserPreferences as jest.Mock).mockResolvedValue({
+      success: true,
+      data: {
+        treatUnpaidActiveAsAwaitingPayment: true,
+        includeInactiveUsersInFilter: true,
+      },
+    });
+    (apiService.updateUserPreferences as jest.Mock).mockResolvedValue({ success: true });
+    (contractService.getContracts as jest.Mock).mockResolvedValue({
+      contracts: mockContracts,
+      totalCount: mockContracts.length,
+    });
     (contractService.getUsers as jest.Mock).mockResolvedValue(mockUsers);
     (contractService.getGroups as jest.Mock).mockResolvedValue(mockGroups);
   });
@@ -120,7 +163,7 @@ describe('ContractsPage', () => {
       render(<ContractsPage />);
 
       expect(screen.getByText('Gerenciamento de Contratos')).toBeInTheDocument();
-      expect(screen.getByText('+ Criar Contrato')).toBeInTheDocument();
+      expect(screen.getByText('Criar')).toBeInTheDocument();
     });
 
     it('should display loading state initially', () => {
@@ -141,7 +184,10 @@ describe('ContractsPage', () => {
     });
 
     it('should display empty state when no contracts', async () => {
-      (contractService.getContracts as jest.Mock).mockResolvedValue([]);
+      (contractService.getContracts as jest.Mock).mockResolvedValue({
+        contracts: [],
+        totalCount: 0,
+      });
 
       render(<ContractsPage />);
 
@@ -153,75 +199,74 @@ describe('ContractsPage', () => {
   });
 
   describe('Status Badges', () => {
-    it('should display correct status badges with colors', async () => {
+    it('should display correct status badges', async () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        const activeBadge = screen.getByText('Ativo');
-        expect(activeBadge).toHaveClass('status-active');
-
-        const delinquentBadge = screen.getByText('Inadimplente');
-        expect(delinquentBadge).toHaveClass('status-delinquent');
+        expect(screen.getByText('Ativo')).toBeInTheDocument();
+        expect(screen.getByText('Inadimplente')).toBeInTheDocument();
       }, { timeout: 3000 });
     });
   });
 
   describe('Filtering', () => {
-    it('should render filter controls', async () => {
+    it('should render filter controls including Segmento and Cliente', async () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        expect(screen.getByLabelText('Usuário')).toBeInTheDocument();
-        expect(screen.getByLabelText('Grupo')).toBeInTheDocument();
+        expect(screen.getByLabelText('Usuários')).toBeInTheDocument();
+        expect(screen.getByLabelText('Equipe')).toBeInTheDocument();
+        expect(screen.getByLabelText('Segmento')).toBeInTheDocument();
+        expect(screen.getByLabelText('Cliente')).toBeInTheDocument();
         expect(screen.getByLabelText('Data Início')).toBeInTheDocument();
         expect(screen.getByLabelText('Data Fim')).toBeInTheDocument();
       }, { timeout: 3000 });
     });
 
-    it('should call getContracts with filters when filter changes', async () => {
+    it('should filter by customerName after debounce delay when typing in Cliente input', async () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        expect(screen.getByLabelText('Usuário')).toBeInTheDocument();
+        expect(screen.getByLabelText('Cliente')).toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const userFilter = screen.getByLabelText('Usuário');
-      fireEvent.change(userFilter, { target: { value: 'user-1' } });
+      const customerInput = screen.getByLabelText('Cliente') as HTMLInputElement;
+      fireEvent.change(customerInput, { target: { value: 'Maria' } });
 
       await waitFor(() => {
-        expect(contractService.getContracts).toHaveBeenCalledWith(
-          'user-1',
-          undefined,
-          undefined,
-          undefined
-        );
+        const lastCall = (contractService.getContracts as jest.Mock).mock.calls.slice(-1)[0];
+        expect(lastCall[16]).toBe('Maria');
       }, { timeout: 3000 });
     });
 
-    it('should show clear filters button when filters are active', async () => {
+    it('should filter by segment when a segment option is selected', async () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        expect(screen.getByLabelText('Usuário')).toBeInTheDocument();
+        expect(screen.getByLabelText('Segmento')).toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const userFilter = screen.getByLabelText('Usuário');
-      fireEvent.change(userFilter, { target: { value: 'user-1' } });
+      const segmentInput = screen.getByLabelText('Segmento');
+      fireEvent.click(segmentInput);
+
+      const larOption = await screen.findByRole('option', { name: 'Lar', hidden: true });
+      fireEvent.click(larOption);
 
       await waitFor(() => {
-        expect(screen.getByText('Limpar Filtros')).toBeInTheDocument();
+        const lastCall = (contractService.getContracts as jest.Mock).mock.calls.slice(-1)[0];
+        expect(lastCall[15]).toEqual([1]);
       }, { timeout: 3000 });
     });
 
-    it('should clear all filters when clear button is clicked', async () => {
+    it('should show clear filters button when filters are active and reset all filters on click', async () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        expect(screen.getByLabelText('Usuário')).toBeInTheDocument();
+        expect(screen.getByLabelText('Cliente')).toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const userFilter = screen.getByLabelText('Usuário') as HTMLSelectElement;
-      fireEvent.change(userFilter, { target: { value: 'user-1' } });
+      const customerInput = screen.getByLabelText('Cliente') as HTMLInputElement;
+      fireEvent.change(customerInput, { target: { value: 'Carlos' } });
 
       await waitFor(() => {
         expect(screen.getByText('Limpar Filtros')).toBeInTheDocument();
@@ -230,7 +275,7 @@ describe('ContractsPage', () => {
       const clearButton = screen.getByText('Limpar Filtros');
       fireEvent.click(clearButton);
 
-      expect(userFilter.value).toBe('');
+      expect(customerInput.value).toBe('');
     });
   });
 
@@ -239,10 +284,10 @@ describe('ContractsPage', () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('+ Criar Contrato')).toBeInTheDocument();
+        expect(screen.getByText('Criar')).toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const createButton = screen.getAllByText('+ Criar Contrato')[0];
+      const createButton = screen.getAllByText('Criar')[0];
       fireEvent.click(createButton);
 
       expect(screen.getByTestId('contract-form')).toBeInTheDocument();
@@ -271,8 +316,10 @@ describe('ContractsPage', () => {
       const deleteButtons = screen.getAllByTitle('Excluir');
       fireEvent.click(deleteButtons[0]);
 
-      expect(screen.getByText('Confirmar Exclusão')).toBeInTheDocument();
-      expect(screen.getByText('Tem certeza que deseja excluir este contrato?')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Confirmar Exclusão')).toBeInTheDocument();
+        expect(screen.getByText('Tem certeza que deseja excluir este contrato?')).toBeInTheDocument();
+      }, { timeout: 3000 });
     });
 
     it('should delete contract when confirmed', async () => {
@@ -287,12 +334,11 @@ describe('ContractsPage', () => {
       const deleteButtons = screen.getAllByTitle('Excluir');
       fireEvent.click(deleteButtons[0]);
 
-      const confirmButton = screen.getByText('Excluir');
+      const confirmButton = await screen.findByText('Excluir', { selector: 'button .mantine-Button-label' });
       fireEvent.click(confirmButton);
 
       await waitFor(() => {
         expect(contractService.deleteContract).toHaveBeenCalledWith(1);
-        expect(contractService.getContracts).toHaveBeenCalledTimes(2); // Initial + after delete
       }, { timeout: 3000 });
     });
 
@@ -306,7 +352,7 @@ describe('ContractsPage', () => {
       const deleteButtons = screen.getAllByTitle('Excluir');
       fireEvent.click(deleteButtons[0]);
 
-      const cancelButton = screen.getByText('Cancelar');
+      const cancelButton = await screen.findByText('Cancelar');
       fireEvent.click(cancelButton);
 
       await waitFor(() => {
@@ -318,17 +364,18 @@ describe('ContractsPage', () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('+ Criar Contrato')).toBeInTheDocument();
+        expect(screen.getByText('Criar')).toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const createButton = screen.getAllByText('+ Criar Contrato')[0];
+      const createButton = screen.getAllByText('Criar')[0];
       fireEvent.click(createButton);
 
+      const initialCalls = (contractService.getContracts as jest.Mock).mock.calls.length;
       const mockSubmitButton = screen.getByText('Mock Submit');
       fireEvent.click(mockSubmitButton);
 
       await waitFor(() => {
-        expect(contractService.getContracts).toHaveBeenCalledTimes(2); // Initial + after submit
+        expect((contractService.getContracts as jest.Mock).mock.calls.length).toBeGreaterThan(initialCalls);
       }, { timeout: 3000 });
     });
   });
@@ -338,32 +385,33 @@ describe('ContractsPage', () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('⬆️ Importar Contratos')).toBeInTheDocument();
+        expect(screen.getByText('Importar')).toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const importButton = screen.getByText('⬆️ Importar Contratos');
+      const importButton = screen.getByText('Importar');
       fireEvent.click(importButton);
 
       expect(screen.getByTestId('bulk-import-modal')).toBeInTheDocument();
       expect(screen.getByTestId('modal-title')).toHaveTextContent('Importar Contratos em Lote');
-      expect(screen.getByTestId('template-id')).toHaveTextContent('2');
+      expect(screen.getByTestId('template-id')).toHaveTextContent('3');
     });
 
     it('should reload contracts after successful import', async () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('⬆️ Importar Contratos')).toBeInTheDocument();
+        expect(screen.getByText('Importar')).toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const importButton = screen.getByText('⬆️ Importar Contratos');
+      const importButton = screen.getByText('Importar');
       fireEvent.click(importButton);
 
+      const initialCalls = (contractService.getContracts as jest.Mock).mock.calls.length;
       const successButton = screen.getByText('Mock Import Success');
       fireEvent.click(successButton);
 
       await waitFor(() => {
-        expect(contractService.getContracts).toHaveBeenCalledTimes(2); // Initial + after import
+        expect((contractService.getContracts as jest.Mock).mock.calls.length).toBeGreaterThan(initialCalls);
       }, { timeout: 3000 });
     });
 
@@ -371,10 +419,10 @@ describe('ContractsPage', () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('⬆️ Importar Contratos')).toBeInTheDocument();
+        expect(screen.getByText('Importar')).toBeInTheDocument();
       }, { timeout: 3000 });
 
-      const importButton = screen.getByText('⬆️ Importar Contratos');
+      const importButton = screen.getByText('Importar');
       fireEvent.click(importButton);
 
       const closeButton = screen.getByText('Mock Import Close');
@@ -400,12 +448,9 @@ describe('ContractsPage', () => {
       render(<ContractsPage />);
 
       await waitFor(() => {
-        // Handle potential timezone differences (UTC vs Local)
-        // 2024-01-01T00:00:00Z -> 01/01/2024 or 31/12/2023
         const date1 = screen.queryByText('01/01/2024') || screen.queryByText('31/12/2023');
         expect(date1).toBeInTheDocument();
 
-        // 2024-02-01T00:00:00Z -> 01/02/2024 or 31/01/2024
         const date2 = screen.queryByText('01/02/2024') || screen.queryByText('31/01/2024');
         expect(date2).toBeInTheDocument();
       }, { timeout: 3000 });

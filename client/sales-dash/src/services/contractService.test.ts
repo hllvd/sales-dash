@@ -87,6 +87,44 @@ describe('contractService', () => {
       );
     });
 
+    it('should append segments and customerName query parameters when provided', async () => {
+      const mockContracts: Contract[] = [];
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: { items: mockContracts, totalCount: 0, page: 1, pageSize: 100 },
+          message: 'Success',
+        }),
+      });
+
+      await getContracts(
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        1,
+        100,
+        undefined,
+        undefined,
+        true,
+        [1, 3],
+        'Maria'
+      );
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5017/api/contracts?treatUnpaidAsAwaiting=true&segments=1&segments=3&customerName=Maria&page=1&pageSize=100',
+        expect.any(Object)
+      );
+    });
+
     it('should throw error when fetch fails', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,

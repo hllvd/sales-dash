@@ -26,7 +26,13 @@ import {
   getUsers,
   getGroups,
 } from '../services/contractService';
-import { getSegmentLabel } from '../types/Segment';
+import { Segment, SegmentLabels, getSegmentLabel } from '../types/Segment';
+
+const SEGMENT_FILTER_OPTIONS = [
+  { value: String(Segment.Lar), label: SegmentLabels[Segment.Lar] },
+  { value: String(Segment.Motores), label: SegmentLabels[Segment.Motores] },
+  { value: String(Segment.Servicos), label: SegmentLabels[Segment.Servicos] },
+];
 
 interface VisibleColumns {
   contractNumber: boolean;
@@ -112,6 +118,10 @@ const ContractsPage: React.FC = () => {
   const [debouncedStatuses, setDebouncedStatuses] = useState<string[]>([]);
   const [filterAwaitingPayment, setFilterAwaitingPayment] = useState<string>('all');
   const [debouncedAwaitingPayment, setDebouncedAwaitingPayment] = useState<string>('all');
+  const [filterSegments, setFilterSegments] = useState<string[]>([]);
+  const [debouncedSegments, setDebouncedSegments] = useState<string[]>([]);
+  const [filterCustomerName, setFilterCustomerName] = useState('');
+  const [debouncedCustomerName, setDebouncedCustomerName] = useState('');
 
   // Settings modal and retention preference state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -193,7 +203,9 @@ const ContractsPage: React.FC = () => {
         pageSize,
         debouncedStatuses.length > 0 ? debouncedStatuses : undefined,
         debouncedAwaitingPayment === 'yes' ? true : debouncedAwaitingPayment === 'no' ? false : undefined,
-        treatUnpaidAsAwaiting
+        treatUnpaidAsAwaiting,
+        debouncedSegments.length > 0 ? debouncedSegments.map(s => parseInt(s, 10)) : undefined,
+        debouncedCustomerName.trim() || undefined
       );
       if (requestId !== requestCountRef.current) return;
       setContracts(data);
@@ -211,7 +223,7 @@ const ContractsPage: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedUserIds, debouncedStatuses, debouncedAwaitingPayment, treatUnpaidAsAwaiting, currentPage, pageSize, setCachedContracts]);
+  }, [debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedUserIds, debouncedStatuses, debouncedAwaitingPayment, debouncedSegments, debouncedCustomerName, treatUnpaidAsAwaiting, currentPage, pageSize, setCachedContracts]);
 
   // Load saved filters from localStorage
   useEffect(() => {
@@ -269,10 +281,12 @@ const ContractsPage: React.FC = () => {
       setDebouncedTeamIds(filterTeamIds);
       setDebouncedStatuses(filterStatuses);
       setDebouncedAwaitingPayment(filterAwaitingPayment);
+      setDebouncedSegments(filterSegments);
+      setDebouncedCustomerName(filterCustomerName.trim());
     }, 500); // 500ms debounce for all fields
 
     return () => clearTimeout(timer);
-  }, [filterUserIds, filterStartDate, filterEndDate, filterContractNumber, filterShowUnassigned, filterMatriculas, filterTeamIds, filterStatuses, filterAwaitingPayment]);
+  }, [filterUserIds, filterStartDate, filterEndDate, filterContractNumber, filterShowUnassigned, filterMatriculas, filterTeamIds, filterStatuses, filterAwaitingPayment, filterSegments, filterCustomerName]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -282,7 +296,7 @@ const ContractsPage: React.FC = () => {
   // Reset to page 1 when filters change (using debounced values to avoid flickering)
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedUserIds, debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedStatuses, debouncedAwaitingPayment]);
+  }, [debouncedUserIds, debouncedStartDate, debouncedEndDate, debouncedContractNumber, debouncedShowUnassigned, debouncedMatriculas, debouncedTeamIds, debouncedStatuses, debouncedAwaitingPayment, debouncedSegments, debouncedCustomerName]);
 
   // Calculate pagination
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -627,6 +641,31 @@ const ContractsPage: React.FC = () => {
         </div>
 
         <div className="filter-group">
+          <label htmlFor="filterSegment">Segmento</label>
+          <MultiSelect
+            id="filterSegment"
+            placeholder="Todos"
+            value={filterSegments}
+            onChange={setFilterSegments}
+            data={SEGMENT_FILTER_OPTIONS}
+            clearable
+            searchable
+            styles={MULTI_SELECT_STYLES}
+          />
+        </div>
+
+        <div className="filter-group">
+          <label htmlFor="filterCustomerName">Cliente</label>
+          <input
+            type="text"
+            id="filterCustomerName"
+            value={filterCustomerName}
+            onChange={(e) => setFilterCustomerName(e.target.value)}
+            placeholder="Buscar por cliente..."
+          />
+        </div>
+
+        <div className="filter-group">
           <label htmlFor="filterAwaitingPayment">Aguardando Pagamento</label>
           <select
             id="filterAwaitingPayment"
@@ -639,7 +678,7 @@ const ContractsPage: React.FC = () => {
           </select>
         </div>
 
-        {(filterUserIds.length > 0 || filterStartDate || filterEndDate || filterContractNumber || filterMatriculas.length > 0 || filterShowUnassigned !== 'all' || filterTeamIds.length > 0 || filterStatuses.length > 0 || filterAwaitingPayment !== 'all') && (
+        {(filterUserIds.length > 0 || filterStartDate || filterEndDate || filterContractNumber || filterMatriculas.length > 0 || filterShowUnassigned !== 'all' || filterTeamIds.length > 0 || filterStatuses.length > 0 || filterAwaitingPayment !== 'all' || filterSegments.length > 0 || filterCustomerName) && (
           <button
             className="clear-filters-btn"
             onClick={() => {
@@ -661,6 +700,10 @@ const ContractsPage: React.FC = () => {
               setDebouncedStatuses([]);
               setFilterAwaitingPayment('all');
               setDebouncedAwaitingPayment('all');
+              setFilterSegments([]);
+              setDebouncedSegments([]);
+              setFilterCustomerName('');
+              setDebouncedCustomerName('');
               localStorage.removeItem('contracts_filterStartDate');
               localStorage.removeItem('contracts_filterEndDate');
             }}

@@ -59,7 +59,8 @@ namespace SalesApp.Repositories
             Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null,
             string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null,
             string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null,
-            List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null, List<int>? userInternalIds = null)
+            List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null, List<int>? userInternalIds = null,
+            List<int>? segments = null, string? customerName = null)
         {
             var query = _context.Contracts
                 .AsNoTracking()
@@ -121,6 +122,11 @@ namespace SalesApp.Repositories
                 
             if (groupId.HasValue)
                 query = query.Where(c => c.GroupId == groupId.Value);
+
+            if (segments != null && segments.Count > 0)
+            {
+                query = query.Where(c => c.Group != null && c.Group.Segment != null && segments.Contains(c.Group.Segment.Value));
+            }
                 
             if (startDate.HasValue)
             {
@@ -136,6 +142,12 @@ namespace SalesApp.Repositories
  
             if (!string.IsNullOrEmpty(contractNumber))
                 query = query.Where(c => c.ContractNumber == contractNumber);
+
+            if (!string.IsNullOrWhiteSpace(customerName))
+            {
+                var normalizedCustomerName = customerName.Trim().ToLower();
+                query = query.Where(c => c.CustomerName != null && c.CustomerName.ToLower().Contains(normalizedCustomerName));
+            }
 
             if (matriculaNumbers != null && matriculaNumbers.Count > 0)
             {
@@ -214,12 +226,22 @@ namespace SalesApp.Repositories
 
         public Task<List<Contract>> GetAllAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
         {
-            return GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, userInternalIds: null, asNoTracking: false);
+            return GetAllInternalAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, userInternalIds: null, asNoTracking: false, segments: null, customerName: null);
         }
 
-        public async Task<List<Contract>> GetAllAsync(Guid? userId, int? groupId, DateTime? startDate, DateTime? endDate, string? contractNumber, bool? showUnassigned, List<string>? matriculaNumbers, string? userEmail, UserScopeContext? scope, List<int>? teamIds, List<Guid>? userIds, List<string>? statuses, bool isSuperAdmin, bool? awaitingPayment, List<int>? userInternalIds, bool asNoTracking = false)
+        public Task<List<Contract>> GetAllAsync(Guid? userId, int? groupId, DateTime? startDate, DateTime? endDate, string? contractNumber, bool? showUnassigned, List<string>? matriculaNumbers, string? userEmail, UserScopeContext? scope, List<int>? teamIds, List<Guid>? userIds, List<string>? statuses, bool isSuperAdmin, bool? awaitingPayment, List<int>? segments, string? customerName)
         {
-            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, userInternalIds);
+            return GetAllInternalAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, userInternalIds: null, asNoTracking: false, segments: segments, customerName: customerName);
+        }
+
+        public Task<List<Contract>> GetAllAsync(Guid? userId, int? groupId, DateTime? startDate, DateTime? endDate, string? contractNumber, bool? showUnassigned, List<string>? matriculaNumbers, string? userEmail, UserScopeContext? scope, List<int>? teamIds, List<Guid>? userIds, List<string>? statuses, bool isSuperAdmin, bool? awaitingPayment, List<int>? userInternalIds, bool asNoTracking = false)
+        {
+            return GetAllInternalAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, userInternalIds, asNoTracking, segments: null, customerName: null);
+        }
+
+        private async Task<List<Contract>> GetAllInternalAsync(Guid? userId, int? groupId, DateTime? startDate, DateTime? endDate, string? contractNumber, bool? showUnassigned, List<string>? matriculaNumbers, string? userEmail, UserScopeContext? scope, List<int>? teamIds, List<Guid>? userIds, List<string>? statuses, bool isSuperAdmin, bool? awaitingPayment, List<int>? userInternalIds, bool asNoTracking = false, List<int>? segments = null, string? customerName = null)
+        {
+            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, userInternalIds, segments, customerName);
             
             if (asNoTracking)
             {
@@ -237,9 +259,14 @@ namespace SalesApp.Repositories
                 .ToListAsync();
         }
 
-        public async Task<(List<Contract> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
+        public Task<(List<Contract> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null)
         {
-            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
+            return GetPagedAsync(page, pageSize, userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, segments: null, customerName: null);
+        }
+
+        public async Task<(List<Contract> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, Guid? userId, int? groupId, DateTime? startDate, DateTime? endDate, string? contractNumber, bool? showUnassigned, List<string>? matriculaNumbers, string? userEmail, UserScopeContext? scope, List<int>? teamIds, List<Guid>? userIds, List<string>? statuses, bool isSuperAdmin, bool? awaitingPayment, List<int>? segments, string? customerName)
+        {
+            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, segments: segments, customerName: customerName);
 
             int totalCount = await query.CountAsync();
 
@@ -326,9 +353,14 @@ namespace SalesApp.Repositories
             };
         }
 
-        public async Task<ContractAggregation> GetAggregationAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null, bool treatUnpaidAsAwaiting = false)
+        public Task<ContractAggregation> GetAggregationAsync(Guid? userId = null, int? groupId = null, DateTime? startDate = null, DateTime? endDate = null, string? contractNumber = null, bool? showUnassigned = null, List<string>? matriculaNumbers = null, string? userEmail = null, UserScopeContext? scope = null, List<int>? teamIds = null, List<Guid>? userIds = null, List<string>? statuses = null, bool isSuperAdmin = false, bool? awaitingPayment = null, bool treatUnpaidAsAwaiting = false)
         {
-            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
+            return GetAggregationAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, treatUnpaidAsAwaiting, segments: null, customerName: null);
+        }
+
+        public async Task<ContractAggregation> GetAggregationAsync(Guid? userId, int? groupId, DateTime? startDate, DateTime? endDate, string? contractNumber, bool? showUnassigned, List<string>? matriculaNumbers, string? userEmail, UserScopeContext? scope, List<int>? teamIds, List<Guid>? userIds, List<string>? statuses, bool isSuperAdmin, bool? awaitingPayment, bool treatUnpaidAsAwaiting, List<int>? segments, string? customerName)
+        {
+            var query = BuildFilteredQuery(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matriculaNumbers, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, segments: segments, customerName: customerName);
 
             var groupings = await query
                 .GroupBy(c => new

@@ -680,5 +680,125 @@ namespace SalesApp.Tests.Repositories
             var contractNumbers = results.Select(c => c.ContractNumber).ToList();
             contractNumbers.Should().Contain("CTR-INACTIVE-USER");
         }
+
+        [Fact]
+        public async Task GetAllAsync_WithSegments_ShouldFilterContractsByGroupSegment()
+        {
+            // Arrange
+            var activeStatus = new ContractStatusEntity { Id = 801, Name = "Active" };
+            _context.ContractStatuses.Add(activeStatus);
+
+            var groupLar = new Group { Id = 810, Name = "Grupo Lar", Segment = (int)Segment.Lar, IsActive = true };
+            var groupMotores = new Group { Id = 811, Name = "Grupo Motores", Segment = (int)Segment.Motores, IsActive = true };
+            var groupServicos = new Group { Id = 812, Name = "Grupo Servicos", Segment = (int)Segment.Servicos, IsActive = true };
+            var groupNoSegment = new Group { Id = 813, Name = "Grupo Sem Segmento", Segment = null, IsActive = true };
+            _context.Groups.AddRange(groupLar, groupMotores, groupServicos, groupNoSegment);
+
+            var cLar = new Contract
+            {
+                ContractNumber = "CTR-SEG-LAR",
+                GroupId = groupLar.Id,
+                Group = groupLar,
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var cMotores = new Contract
+            {
+                ContractNumber = "CTR-SEG-MOTORES",
+                GroupId = groupMotores.Id,
+                Group = groupMotores,
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                TotalAmount = 2000,
+                IsActive = true
+            };
+            var cServicos = new Contract
+            {
+                ContractNumber = "CTR-SEG-SERVICOS",
+                GroupId = groupServicos.Id,
+                Group = groupServicos,
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                TotalAmount = 3000,
+                IsActive = true
+            };
+            var cNoSeg = new Contract
+            {
+                ContractNumber = "CTR-SEG-NONE",
+                GroupId = groupNoSegment.Id,
+                Group = groupNoSegment,
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                TotalAmount = 4000,
+                IsActive = true
+            };
+            _context.Contracts.AddRange(cLar, cMotores, cServicos, cNoSeg);
+            await _context.SaveChangesAsync();
+
+            // Act: Filter by Lar and Servicos
+            var results = await _repository.GetAllAsync(
+                null, null, null, null, null, null, null, null, null, null, null, null, false, null,
+                segments: new List<int> { (int)Segment.Lar, (int)Segment.Servicos },
+                customerName: null);
+
+            // Assert
+            var contractNumbers = results.Select(c => c.ContractNumber).ToList();
+            contractNumbers.Should().Contain("CTR-SEG-LAR");
+            contractNumbers.Should().Contain("CTR-SEG-SERVICOS");
+            contractNumbers.Should().NotContain("CTR-SEG-MOTORES");
+            contractNumbers.Should().NotContain("CTR-SEG-NONE");
+        }
+
+        [Fact]
+        public async Task GetAllAsync_WithCustomerName_ShouldFilterCaseInsensitiveSubstring()
+        {
+            // Arrange
+            var activeStatus = new ContractStatusEntity { Id = 851, Name = "Active" };
+            _context.ContractStatuses.Add(activeStatus);
+
+            var c1 = new Contract
+            {
+                ContractNumber = "CTR-CUST-1",
+                CustomerName = "Maria Oliveira Santos",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                TotalAmount = 1000,
+                IsActive = true
+            };
+            var c2 = new Contract
+            {
+                ContractNumber = "CTR-CUST-2",
+                CustomerName = "Carlos Eduardo Oliveira",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                TotalAmount = 2000,
+                IsActive = true
+            };
+            var c3 = new Contract
+            {
+                ContractNumber = "CTR-CUST-3",
+                CustomerName = "João Ferreira",
+                ContractStatusId = activeStatus.Id,
+                ContractStatus = activeStatus,
+                TotalAmount = 3000,
+                IsActive = true
+            };
+            _context.Contracts.AddRange(c1, c2, c3);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var results = await _repository.GetAllAsync(
+                null, null, null, null, null, null, null, null, null, null, null, null, false, null,
+                segments: null,
+                customerName: "  oliveira ");
+
+            // Assert
+            var contractNumbers = results.Select(c => c.ContractNumber).ToList();
+            contractNumbers.Should().Contain("CTR-CUST-1");
+            contractNumbers.Should().Contain("CTR-CUST-2");
+            contractNumbers.Should().NotContain("CTR-CUST-3");
+        }
     }
 }

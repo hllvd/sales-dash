@@ -125,7 +125,9 @@ namespace SalesApp.Controllers
             [FromQuery] bool? awaitingPayment = null,
             [FromQuery] bool? treatUnpaidAsAwaiting = null,
             [FromQuery] int? page = null,
-            [FromQuery] int? pageSize = null)
+            [FromQuery] int? pageSize = null,
+            [FromQuery] List<int>? segments = null,
+            [FromQuery] string? customerName = null)
         {
             var scope = await _userScopeService.GetContractScopeAsync(User);
             var isSuperAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("superadmin") || User.HasClaim("perm", "system:superadmin") || scope.IsGlobal;
@@ -146,12 +148,12 @@ namespace SalesApp.Controllers
             {
                 var (contracts, totalCount) = await _contractRepository.GetPagedAsync(
                     page.Value, pageSize.Value, userId, groupId, startDate, endDate,
-                    contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
+                    contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, segments, customerName);
 
                 var contractResponses = contracts.Select(c => MapToContractResponse(c, effectiveTreatUnpaid)).ToList();
                 var aggregation = await _contractRepository.GetAggregationAsync(
                     userId, groupId, startDate, endDate, contractNumber, showUnassigned,
-                    matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, effectiveTreatUnpaid);
+                    matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, effectiveTreatUnpaid, segments, customerName);
 
                 return Ok(new ApiResponse<PagedContractResponse>
                 {
@@ -170,7 +172,7 @@ namespace SalesApp.Controllers
             }
             else
             {
-                var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment);
+                var contracts = await _contractRepository.GetAllAsync(userId, groupId, startDate, endDate, contractNumber, showUnassigned, matricula, userEmail, scope, teamIds, userIds, statuses, isSuperAdmin, awaitingPayment, segments, customerName);
                 var contractResponses = contracts.Select(c => MapToContractResponse(c, effectiveTreatUnpaid)).ToList();
                 var aggregation = _aggregationService.CalculateAggregation(contracts, effectiveTreatUnpaid);
 
