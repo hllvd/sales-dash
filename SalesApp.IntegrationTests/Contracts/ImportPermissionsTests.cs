@@ -58,8 +58,9 @@ namespace SalesApp.IntegrationTests.Contracts
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<ImportTemplateResponse>>>();
-            result!.Data.Should().HaveCount(1);
-            result.Data.First().Name.Should().Be("contractDashboard");
+            result!.Data.Should().HaveCount(2);
+            result.Data.Should().Contain(t => t.Name == "contractDashboard");
+            result.Data.Should().Contain(t => t.Name == "consultorDashboard");
         }
 
         [Fact]

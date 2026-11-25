@@ -116,6 +116,60 @@ namespace SalesApp.Controllers
                 }),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
+            },
+            new ImportTemplate
+            {
+                Id = 4,
+                Name = "consultorDashboard",
+                EntityType = "Contract",
+                Description = "Template for consultor report export from Power BI",
+                RequiredFields = JsonSerializer.Serialize(new List<string> { 
+                    "ContractNumber", "TotalAmount", "SaleStartDate", "GroupId", "Quota", "CustomerName", "MatriculaNumber" 
+                }),
+                OptionalFields = JsonSerializer.Serialize(new List<string> { 
+                    "Status", "PvId", "PvName", "Version", "Category", "CustomerDocument", "LastPaymentDate", "OverdueInstallments", "PaidInstallments", "CancellationDate", "FirstAssemblyDate"
+                }),
+                DefaultMappings = JsonSerializer.Serialize(new Dictionary<string, string> {
+                    { "Nº Contrato", "ContractNumber" },
+                    { "n_contrato", "ContractNumber" },
+                    { "Sum(2 Rel Carteira.n_contrato)", "ContractNumber" },
+                    { "R$ Bem Venda", "TotalAmount" },
+                    { "Sum(2 Rel Carteira.R$ Bem Venda)", "TotalAmount" },
+                    { "Data.Venda", "SaleStartDate" },
+                    { "2 Rel Carteira.Data.Venda", "SaleStartDate" },
+                    { "Grupo", "GroupId" },
+                    { "2 Rel Carteira.Grupo", "GroupId" },
+                    { "Cota", "Quota" },
+                    { "Sum(2 Rel Carteira.Cota)", "Quota" },
+                    { "Consorciado", "CustomerName" },
+                    { "2 Rel Carteira.Consorciado", "CustomerName" },
+                    { "Cod.Comissionado", "MatriculaNumber" },
+                    { "2 Rel Carteira.Cod.Comissionado", "MatriculaNumber" },
+                    { "Definição.Situação", "Status" },
+                    { "2 Rel Carteira.Definição.Situação", "Status" },
+                    { "Cod.Ponto de Venda", "PvId" },
+                    { "2 Rel Carteira.Cod.Ponto de Venda", "PvId" },
+                    { "Ponto de Venda", "PvName" },
+                    { "2 Rel Carteira.Ponto de Venda", "PvName" },
+                    { "Versão", "Version" },
+                    { "Sum(2 Rel Carteira.Versão)", "Version" },
+                    { "Bem", "Category" },
+                    { "2 Rel Carteira.Bem", "Category" },
+                    { "CPF / CNPJ Cons.", "CustomerDocument" },
+                    { "2 Rel Carteira.CPF / CNPJ Cons.", "CustomerDocument" },
+                    { "Últ.Pagto Parcela", "LastPaymentDate" },
+                    { "2 Rel Carteira.Últ.Pagto Parcela", "LastPaymentDate" },
+                    { "Quant.Parcelas em Atraso", "OverdueInstallments" },
+                    { "Sum(2 Rel Carteira.Quant.Parcelas em Atraso)", "OverdueInstallments" },
+                    { "Quant.Parcelas Pagas", "PaidInstallments" },
+                    { "Sum(2 Rel Carteira.Quant.Parcelas Pagas)", "PaidInstallments" },
+                    { "Data.Cancelamento.Cota", "CancellationDate" },
+                    { "2 Rel Carteira.Data.Cancelamento.Cota", "CancellationDate" },
+                    { "Data Primeira Assembleia", "FirstAssemblyDate" },
+                    { "2 Rel Carteira.Data Primeira Assembleia", "FirstAssemblyDate" }
+                }),
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
             }
         };
 
@@ -126,7 +180,7 @@ namespace SalesApp.Controllers
             var isSuperAdmin = User.HasClaim("perm", "system:superadmin");
             
             var templates = HardcodedTemplates
-                .Where(t => isSuperAdmin || t.Name == "contractDashboard")
+                .Where(t => isSuperAdmin || t.Name == "contractDashboard" || t.Name == "consultorDashboard")
                 .Where(t => string.IsNullOrEmpty(entityType) || t.EntityType.Equals(entityType, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
@@ -298,13 +352,50 @@ namespace SalesApp.Controllers
                     });
                 }
 
-                if (!User.HasClaim("perm", "system:superadmin") && hardcodedTemplate.Name != "contractDashboard")
+                if (!User.HasClaim("perm", "system:superadmin") && 
+                    hardcodedTemplate.Name != "contractDashboard" && 
+                    hardcodedTemplate.Name != "consultorDashboard")
                 {
                     return StatusCode(403, new ApiResponse<ImportPreviewResponse>
                     {
                         Success = false,
                         Message = "You do not have permission to use this template"
                     });
+                }
+
+                const int maxAllowedRows = 100_000;
+                var parsedRows = await _fileParser.ParseFileAsync(file);
+
+                if (parsedRows.Count > maxAllowedRows)
+                {
+                    return BadRequest(new ApiResponse<ImportPreviewResponse>
+                    {
+                        Success = false,
+                        Message = $"O arquivo contém mais de {maxAllowedRows:N0} linhas. Divida o arquivo em partes menores."
+                    });
+                }
+
+                var detectedHeaders = parsedRows.Count > 0 ? parsedRows[0].Keys.ToList() : new List<string>();
+
+                // Transparent auto-detection between contractDashboard and consultorDashboard
+                if (hardcodedTemplate.Name == "contractDashboard" || hardcodedTemplate.Name == "consultorDashboard")
+                {
+                    bool isConsultor = detectedHeaders.Any(k => 
+                        k.Equals("Nº Contrato", StringComparison.OrdinalIgnoreCase) ||
+                        k.Equals("n_contrato", StringComparison.OrdinalIgnoreCase) ||
+                        k.Equals("Cod.Comissionado", StringComparison.OrdinalIgnoreCase) ||
+                        k.Contains("Definição.Situação", StringComparison.OrdinalIgnoreCase) ||
+                        k.Contains("2 Rel Carteira.", StringComparison.OrdinalIgnoreCase) ||
+                        k.Equals("Identificador.Cota", StringComparison.OrdinalIgnoreCase));
+
+                    if (isConsultor)
+                    {
+                        hardcodedTemplate = HardcodedTemplates.First(t => t.Name == "consultorDashboard");
+                    }
+                    else
+                    {
+                        hardcodedTemplate = HardcodedTemplates.First(t => t.Name == "contractDashboard");
+                    }
                 }
 
                 var dbTemplate = await _templateRepository.GetByNameAsync(hardcodedTemplate.Name);
@@ -345,18 +436,6 @@ namespace SalesApp.Controllers
                 };
 
                 await _sessionRepository.CreateAsync(session);
-
-                const int maxAllowedRows = 100_000;
-                var parsedRows = await _fileParser.ParseFileAsync(file);
-
-                if (parsedRows.Count > maxAllowedRows)
-                {
-                    return BadRequest(new ApiResponse<ImportPreviewResponse>
-                    {
-                        Success = false,
-                        Message = $"O arquivo contém mais de {maxAllowedRows:N0} linhas. Divida o arquivo em partes menores."
-                    });
-                }
 
                 var virtualCols = new List<string> { "cota.group", "cota.cota", "cota.customer", "cota.contract" };
                 var allRowsForPreview = new List<Dictionary<string, string>>();
@@ -451,7 +530,7 @@ namespace SalesApp.Controllers
                         isTemplateMatch = false;
                         matchMessage = $"Atenção: O arquivo enviado não parece corresponder ao modelo '{hardcodedTemplate.Name}'. Foram identificados apenas {mappedRequiredFieldsCount} de {requiredFields.Count} campos obrigatórios.";
                     }
-                    else if (hardcodedTemplate.Name == "contractDashboard" && mappedRequiredFieldsCount < 3)
+                    else if ((hardcodedTemplate.Name == "contractDashboard" || hardcodedTemplate.Name == "consultorDashboard") && mappedRequiredFieldsCount < 3)
                     {
                         isTemplateMatch = false;
                         matchMessage = "Atenção: Este arquivo não parece ser um dashboard de contratos válido.";
@@ -465,7 +544,7 @@ namespace SalesApp.Controllers
                     {
                         UploadId = uploadId,
                         SessionId = uploadId,
-                        TemplateId = templateId,
+                        TemplateId = hardcodedTemplate.Id,
                         TemplateName = hardcodedTemplate.Name,
                         EntityType = entityType,
                         FileName = file.FileName,
@@ -524,7 +603,7 @@ namespace SalesApp.Controllers
                 var entityType = session.Template?.EntityType ?? "Contract";
                 var templateName = session.Template?.Name ?? "";
                 var requiredFields = session.Template?.RequiredFields != null ? JsonSerializer.Deserialize<List<string>>(session.Template.RequiredFields) : new List<string>();
-                if (templateName == "contractDashboard")
+                if (templateName == "contractDashboard" || templateName == "consultorDashboard")
                 {
                     requiredFields.RemoveAll(rf => rf.Equals("TotalAmount", StringComparison.OrdinalIgnoreCase));
                 }
@@ -635,7 +714,7 @@ namespace SalesApp.Controllers
                     {
                         result = await _importExecution.ExecuteUserImportAsync(uploadId, session.Id, rows, mappings);
                     }
-                    else if (templateName == "contractDashboard")
+                    else if (templateName == "contractDashboard" || templateName == "consultorDashboard")
                     {
                         result = await _importExecution.ExecuteContractDashboardImportAsync(uploadId, session.Id, rows, mappings, skipMissingContractNumber, allowAutoCreateGroups, allowAutoCreatePVs, updateMatriculaOnExisting, updateTotalAmountOnExisting, updateStartDateOnExisting);
                     }

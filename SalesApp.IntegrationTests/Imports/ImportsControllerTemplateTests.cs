@@ -35,9 +35,11 @@ namespace SalesApp.IntegrationTests.Imports
             result.Should().NotBeNull();
             result!.Success.Should().BeTrue();
             result.Data.Should().NotBeNull();
-            result.Data.Should().HaveCount(1); // Only contractDashboard for admins
+            result.Data.Should().HaveCount(2); // contractDashboard and consultorDashboard for admins
             result.Data.Should().Contain(t => t.Name == "contractDashboard" && t.EntityType == "Contract");
+            result.Data.Should().Contain(t => t.Name == "consultorDashboard" && t.EntityType == "Contract");
             result.Data.First(t => t.Name == "contractDashboard").RequiredFields.Should().Contain("MatriculaNumber");
+            result.Data.First(t => t.Name == "consultorDashboard").RequiredFields.Should().Contain("MatriculaNumber");
         }
 
         [Fact]
@@ -111,6 +113,38 @@ namespace SalesApp.IntegrationTests.Imports
             result.Data.OptionalFields.Should().Contain("GroupId");
             result.Data.OptionalFields.Should().Contain("Status");
             result.Data.OptionalFields.Should().Contain("SaleStartDate");
+        }
+
+        [Fact]
+        public async Task GetTemplate_ConsultorDashboardTemplateById_ShouldReturnTemplate()
+        {
+            // Arrange
+            var token = await GetAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Act - Get consultorDashboard template (ID 4)
+            var response = await _client.GetAsync("/api/imports/templates/4");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<ImportTemplateResponse>>();
+            result!.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.Id.Should().Be(4);
+            result.Data.Name.Should().Be("consultorDashboard");
+            result.Data.EntityType.Should().Be("Contract");
+            result.Data.RequiredFields.Should().Contain("ContractNumber");
+            result.Data.RequiredFields.Should().Contain("TotalAmount");
+            result.Data.RequiredFields.Should().Contain("SaleStartDate");
+            result.Data.RequiredFields.Should().Contain("GroupId");
+            result.Data.RequiredFields.Should().Contain("Quota");
+            result.Data.RequiredFields.Should().Contain("CustomerName");
+            result.Data.RequiredFields.Should().Contain("MatriculaNumber");
+            result.Data.OptionalFields.Should().Contain("Status");
+            result.Data.OptionalFields.Should().Contain("PaidInstallments");
+            result.Data.OptionalFields.Should().Contain("OverdueInstallments");
+            result.Data.OptionalFields.Should().Contain("CancellationDate");
+            result.Data.OptionalFields.Should().Contain("FirstAssemblyDate");
         }
 
         [Fact]

@@ -63,6 +63,35 @@ Adiciona dois novos filtros à listagem principal de contratos (`/#/contracts`):
 
 ---
 
+## Importação da Planilha do Consultor (Versão Exportada do PowerBI) com Auto-detecção Transparente
+
+Permite a importação direta de arquivos no formato exportado do Relatório do Consultor do PowerBI (com cabeçalhos legíveis como `Nº Contrato`, `R$ Bem Venda`, `Data.Venda`, `Grupo`, `Cota`, `Consorciado`, `Cod.Comissionado`, `Últ.Pagto Parcela`, `Quant.Parcelas Pagas`, etc.) através do fluxo padrão de importação de contratos na aplicação ("Produção por Cota"), com identificação automática do template pelo backend.
+
+### Comportamento e Regras
+- **Auto-detecção Transparente no Backend ([ImportsController.cs](file:///Users/hudson/development/sales-dash/SalesApp.Api/Controllers/ImportsController.cs))**:
+  - Ao realizar o upload no endpoint `/api/imports/dashboard/upload` (ou com `templateId = 3`), a API inspeciona o cabeçalho das colunas do arquivo.
+  - Se identificar as colunas correspondentes ao Consultor (`Nº Contrato`, `n_contrato`, `Cod.Comissionado`, `Definição.Situação`, `2 Rel Carteira.` ou `Identificador.Cota`), o sistema chaveia automaticamente para o template `consultorDashboard` (ID 4).
+  - O particionamento da coluna `Cota` por ponto e vírgula (utilizado apenas no layout anterior do dashboard) é ignorado, utilizando as colunas diretas da planilha do consultor.
+  - O template `consultorDashboard` está habilitado tanto para administradores (`admin`) quanto para superadministradores (`superadmin`).
+- **Mapeamento Padrão dos Campos ([ImportsController.cs](file:///Users/hudson/development/sales-dash/SalesApp.Api/Controllers/ImportsController.cs))**:
+  - Campos obrigatórios (7): `ContractNumber` (`Nº Contrato`), `TotalAmount` (`R$ Bem Venda`), `SaleStartDate` (`Data.Venda`), `GroupId` (`Grupo`), `Quota` (`Cota`), `CustomerName` (`Consorciado`), `MatriculaNumber` (`Cod.Comissionado`).
+  - Campos opcionais mapeados automaticamente: `Status` (`Definição.Situação`), `PvId` (`Cod.Ponto de Venda`), `PvName` (`Ponto de Venda`), `Version` (`Versão`), `Category` (`Bem`), `CustomerDocument` (`CPF / CNPJ Cons.`), `LastPaymentDate` (`Últ.Pagto Parcela`), `OverdueInstallments` (`Quant.Parcelas em Atraso`), `PaidInstallments` (`Quant.Parcelas Pagas`), `CancellationDate` (`Data.Cancelamento.Cota`), `FirstAssemblyDate` (`Data Primeira Assembleia`).
+- **Regras de Negócio e Derivação de Status ([ImportExecutionService.cs](file:///Users/hudson/development/sales-dash/SalesApp.Api/Services/ImportExecutionService.cs) e [ConsultorStatusEvaluator.cs](file:///Users/hudson/development/sales-dash/SalesApp.Api/Services/ConsultorStatusEvaluator.cs))**:
+  - **Pagamento (`HasPayment`)**: Se a coluna `Tem Pagamento?` não estiver presente no arquivo, o sistema avalia `Quant.Parcelas Pagas > 0` (`hasPayment = true` se > 0, `false` se = 0), com fallback para a presença de data válida em `Últ.Pagto Parcela`.
+  - **Desistência**: Contratos com situação `Excluido` / `Cancelado` são classificados como `Desistente` se `Quant.Parcelas Pagas == 0` OU se `Data.Cancelamento.Cota < Data Primeira Assembleia`. Caso contrário, são classificados como `Defaulted`.
+  - **Descarte de Linhas sem Contrato**: Linhas sem número de contrato são descartadas de forma segura quando a opção `SkipMissingContractNumber` estiver ativa (padrão).
+
+### Arquivos Modificados
+- `SalesApp.Api/Controllers/ImportsController.cs`: Registro do template `consultorDashboard` (ID 4), permissões para `admin` e auto-detecção transparente no upload de arquivos.
+- `SalesApp.Api/Services/ImportExecutionService.cs`: Avaliação de `HasPayment` priorizando `Quant.Parcelas Pagas > 0` antes do fallback de data de último pagamento.
+- `SalesApp.Api/Services/ConsultorStatusEvaluator.cs`: Detecção ampliada de linhas do consultor suportando `Identificador.Cota`, `Nº Contrato` e `Cod.Comissionado`.
+- `SalesApp.IntegrationTests/Imports/ImportsControllerTemplateTests.cs`: Atualização dos testes de listagem de templates para incluir `consultorDashboard`.
+- `SalesApp.IntegrationTests/Imports/ConsultorImportWorkflowTests.cs`: Testes de integração validando auto-detecção no upload, cálculo de `HasPayment`, classificação de `Desistente` e descarte de linhas sem contrato.
+- `client/e2e-test/e2e/import_consultor_dashboard.spec.ts`: Teste E2E Playwright de ponta a ponta validando upload do arquivo legível do consultor, auto-detecção do template no frontend/backend, confirmação da importação e verificação dos contratos refletidos na tabela com filtros de status.
+- `client/e2e-test/playwright.config.ts`: Registro do teste `import_consultor_dashboard.spec.ts` no projeto `tear-2b-roles`.
+
+---
+
 ## Controle de Acesso Granular à Extração PowerBI para Admins Selecionados (`CanAccessPowerBiScrape`) e Gestão de Propriedade de Conectores
 
 Permite que `superadmins` habilitem o acesso ao módulo de Extração PowerBI (`#/scrapes`) individualmente para administradores específicos (`Role == "admin"`), mantendo cada `admin` autorizado restrito aos seus próprios conectores e logs, enquanto `superadmins` criam conectores, atribuem/alteram o responsável de cada conector e visualizam todos os logs do sistema.

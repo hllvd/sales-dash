@@ -20,10 +20,13 @@ namespace SalesApp.Services
             if (row == null || row.Count == 0) return false;
 
             return row.Keys.Any(k =>
-                k.Contains("2 Rel Carteira.Definição.Situação", StringComparison.OrdinalIgnoreCase) ||
+                k.Contains("2 Rel Carteira.", StringComparison.OrdinalIgnoreCase) ||
                 k.Contains("Definição.Situação", StringComparison.OrdinalIgnoreCase) ||
                 k.Contains("Quant.Parcelas em Atraso", StringComparison.OrdinalIgnoreCase) ||
-                k.Contains("Quant.Parcelas Pagas", StringComparison.OrdinalIgnoreCase));
+                k.Contains("Quant.Parcelas Pagas", StringComparison.OrdinalIgnoreCase) ||
+                k.Equals("Identificador.Cota", StringComparison.OrdinalIgnoreCase) ||
+                k.Equals("Nº Contrato", StringComparison.OrdinalIgnoreCase) ||
+                k.Equals("Cod.Comissionado", StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>

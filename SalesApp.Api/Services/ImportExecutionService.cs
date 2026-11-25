@@ -1887,6 +1887,9 @@ namespace SalesApp.Services
                 if (payKey != null) hasPaymentStr = row[payKey];
             }
 
+            int? overdueInstallments = ParseNullableInt(GetRawFieldValue(row, reverseMappings, "OverdueInstallments", "Quant.Parcelas em Atraso", "Parcelas em Atraso", "Sum(2 Rel Carteira.Quant.Parcelas em Atraso)"));
+            int? paidInstallments = ParseNullableInt(GetRawFieldValue(row, reverseMappings, "PaidInstallments", "Quant.Parcelas Pagas", "Parcelas Pagas", "Sum(2 Rel Carteira.Quant.Parcelas Pagas)"));
+
             bool? hasPayment = null;
             if (!string.IsNullOrWhiteSpace(hasPaymentStr))
             {
@@ -1906,6 +1909,10 @@ namespace SalesApp.Services
                 {
                     hasPayment = false;
                 }
+            }
+            else if (paidInstallments.HasValue)
+            {
+                hasPayment = paidInstallments.Value > 0;
             }
             else
             {
@@ -1942,9 +1949,6 @@ namespace SalesApp.Services
             string status;
             if (ConsultorStatusEvaluator.IsConsultorRow(row))
             {
-                int? overdueInstallments = ParseNullableInt(GetRawFieldValue(row, reverseMappings, "OverdueInstallments", "Quant.Parcelas em Atraso", "Parcelas em Atraso"));
-                int? paidInstallments = ParseNullableInt(GetRawFieldValue(row, reverseMappings, "PaidInstallments", "Quant.Parcelas Pagas", "Parcelas Pagas"));
-
                 DateTime? cancellationDate = null;
                 var cancellationDateRaw = GetRawFieldValue(row, reverseMappings, "CancellationDate", "2 Rel Carteira.Data.Cancelamento.Cota", "Data.Cancelamento.Cota", "Data Cancelamento", "Dt Cancelamento");
                 if (!string.IsNullOrWhiteSpace(cancellationDateRaw) && TryParseFlexibleDate(cancellationDateRaw, out var parsedCancellationDate))
