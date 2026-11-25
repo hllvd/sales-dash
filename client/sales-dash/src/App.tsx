@@ -20,6 +20,7 @@ import MyProfilePage from './components/MyProfilePage';
 import PreferencesPage from './components/PreferencesPage';
 import ImportHistoryPage from './components/ImportHistoryPage';
 import ImportWizardPage from './components/ImportWizardPage';
+import BatchImportPage from './components/BatchImportPage';
 import AccessControlPage from './components/AccessControlPage';
 import ScrapeDashboard from './components/Scrape/ScrapeDashboard';
 import ScrapeRunDetailPage from './components/Scrape/ScrapeRunDetailPage';
@@ -182,6 +183,8 @@ function App() {
         return <ImportHistoryPage />;
       case '#/import-wizard':
         return <ImportWizardPage />;
+      case '#/batch-import':
+        return <BatchImportPage />;
       case '#/access-control':
         return <AccessControlPage />;
       case '#/scrapes':

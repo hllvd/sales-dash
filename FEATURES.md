@@ -1,3 +1,52 @@
+## Importação em Lote (`/#/batch-import`): Importação Serial de Múltiplos Arquivos para Superadmin
+
+Permite que usuários com perfil `superadmin` façam o upload e a importação de múltiplos arquivos de contratos (planilhas CSV, XLSX e XLS do Dashboard de Contratos ou do Relatório do Consultor) simultaneamente através de drag-and-drop ou seleção múltipla, processando cada arquivo em série com detecção automática de cabeçalho, acompanhamento em tempo real por barra de progresso e sumário detalhado por arquivo.
+
+### Comportamento e Regras
+- **Acesso Restrito a Superadmin**:
+  - Exibido no menu lateral sob a seção "Importação" (`Menu.tsx`) exclusivamente para usuários com role `superadmin` ou permissão `system:superadmin`.
+  - Proteção na própria página (`BatchImportPage.tsx`), exibindo alerta de acesso restrito caso um usuário não autorizado tente navegar diretamente para `#/batch-import`.
+- **Área de Drag-and-Drop e Seleção Múltipla**:
+  - Zona de upload suportando múltiplos arquivos simultaneamente via arrastar-e-soltar ou clique com seletor de arquivos.
+  - Formatos suportados: `.csv`, `.xlsx`, `.xls`.
+  - Exibição de fila de arquivos selecionados com nome, tamanho formatado (B, KB, MB) e status individual (`idle`, `uploading`, `mapping`, `confirming`, `success`, `warning`, `error`).
+  - Possibilidade de remover arquivos individuais da fila ou limpar todos antes de iniciar a importação.
+- **Configurações e Opções Padrão**:
+  - Exibe as 6 opções de importação compatíveis com o modal de contratos, com os mesmos valores padrão:
+    - Pular linhas sem número de contrato (`skipMissingContractNumber`: `true`)
+    - Criar grupos automaticamente se não existirem (`allowAutoCreateGroups`: `true`)
+    - Criar pontos de venda automaticamente se não existirem (`allowAutoCreatePVs`: `true`)
+    - Atualizar matrícula em contratos existentes (`updateMatriculaOnExisting`: `false`)
+    - Atualizar valor total em contratos existentes (`updateTotalAmountOnExisting`: `true`)
+    - Atualizar data de início em contratos existentes (`updateStartDateOnExisting`: `true`)
+- **Processamento Serial e Resiliência a Falhas**:
+  - Arquivos são processados rigorosamente um a um (em série), prevenindo concorrência e locks no banco de dados SQLite (`database is locked`).
+  - Para cada arquivo:
+    1. Upload para o endpoint correspondente (`/imports/upload` ou `/imports/dashboard/upload`).
+    2. Detecção automática de cabeçalho e validação de campos obrigatórios.
+    3. Mapeamento e confirmação (`confirmImport`) com as opções configuradas.
+  - Se um arquivo falhar ou tiver erros de validação, o sistema registra o erro, marca o status do arquivo e prossegue com o processamento dos arquivos restantes na fila.
+- **Barra de Progresso e Sumário Final**:
+  - Barra de progresso visual em tempo real mostrando a porcentagem e a quantidade de arquivos processados.
+  - Ao término do lote, exibe cartões com métricas consolidadas (arquivos com sucesso, arquivos com erro, linhas processadas, linhas rejeitadas).
+  - Acordeão expansível por arquivo contendo:
+    - Badge de status e contadores de linhas processadas e rejeitadas.
+    - Listagem de grupos criados e PVs criados automaticamente.
+    - Alerta de contratos desistentes identificados.
+    - Avisos e mensagens de erro detalhadas.
+    - Botão de download do CSV de linhas rejeitadas (`downloadFailedRowsCsv`) quando houver linhas com falha.
+
+### Arquivos Modificados / Criados
+- `client/sales-dash/src/components/BatchImportPage.tsx`: Componente completo da página de importação em lote.
+- `client/sales-dash/src/components/Menu.tsx`: Adição do item "Importação em Lote" com restrição a superadmin e sincronização do hash `#/batch-import`.
+- `client/sales-dash/src/App.tsx`: Registro da rota `#/batch-import` apontando para `BatchImportPage`.
+- `client/sales-dash/src/services/apiService.ts`: Ajuste no roteamento de `configureImportMappings` e `confirmImport` para suportar o prefixo `imports/dashboard` de consultor.
+- `client/sales-dash/src/components/BatchImportPage.test.tsx`: Testes unitários do fluxo de upload, opções, processamento serial e exibição do sumário.
+- `client/e2e-test/e2e/batch_import.spec.ts`: Teste E2E cobrindo upload em lote, barra de progresso e sumário de resultados.
+- `FEATURES.md`: Registro da documentação da funcionalidade.
+
+---
+
 ## Importação de Contratos (`/#/contracts`): Remoção da Seleção Manual de Template e Detecção Automática via Backend
 
 Remove a seleção manual de modelo de importação no modal de upload (`BulkImportModal`), delegando integralmente ao backend a identificação automática do template apropriado com base no cabeçalho do arquivo enviado.

@@ -618,7 +618,7 @@ export const apiService = {
   ): Promise<ApiResponse<ImportStatusResponse>> {
     let prefix = "imports"
     if (templateName === "Contracts") prefix = "imports/contracts"
-    else if (templateName === "contractDashboard") prefix = "imports/dashboard"
+    else if (templateName === "contractDashboard" || templateName === "consultorDashboard") prefix = "imports/dashboard"
     else if (templateName === "Users") prefix = "imports/users"
 
     const response = await authenticatedFetch(`${API_BASE_URL}/${prefix}/${uploadId}/mappings`, {
@@ -658,7 +658,7 @@ export const apiService = {
   ): Promise<ApiResponse<ImportStatusResponse>> {
     let prefix = "imports"
     if (templateName === "Contracts") prefix = "imports/contracts"
-    else if (templateName === "contractDashboard") prefix = "imports/dashboard"
+    else if (templateName === "contractDashboard" || templateName === "consultorDashboard") prefix = "imports/dashboard"
     else if (templateName === "Users") prefix = "imports/users"
 
     const response = await authenticatedFetch(`${API_BASE_URL}/${prefix}/${uploadId}/confirm`, {

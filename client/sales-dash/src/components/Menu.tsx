@@ -37,6 +37,7 @@ import {
   IconUsersGroup,
   IconUser,
   IconAdjustments,
+  IconFiles,
 } from '@tabler/icons-react';
 import { surveyPollingService } from '../services/surveyPollingService';
 
@@ -66,6 +67,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
   const [importacaoMenuOpened, setImportacaoMenuOpened] = useState(
     window.location.hash === '#/import-wizard' || 
     window.location.hash === '#/import-history' ||
+    window.location.hash === '#/batch-import' ||
     window.location.hash.startsWith('#/scrapes')
   );
   const [careerPlanMenuOpened, setCareerPlanMenuOpened] = useState(
@@ -138,7 +140,7 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
     if (currentPath.startsWith('#/reports') || currentPath.startsWith('#/views')) {
       setDadosMenuOpened(true);
     }
-    if (currentPath === '#/import-wizard' || currentPath === '#/import-history' || currentPath.startsWith('#/scrapes')) {
+    if (currentPath === '#/import-wizard' || currentPath === '#/import-history' || currentPath === '#/batch-import' || currentPath.startsWith('#/scrapes')) {
       setImportacaoMenuOpened(true);
     }
     if (currentPath.startsWith('#/career-plan')) {
@@ -626,6 +628,19 @@ const Menu: React.FC<MenuProps> = ({ children }) => {
                   variant="filled"
                   color="red"
                   styles={navLinkStyles('#/import-history')}
+                  onClick={() => { if (opened) close(); }}
+                />
+              )}
+
+              {(userRole === 'superadmin' || userRole === UserRole.SUPERADMIN || hasPermission('system:superadmin')) && (
+                <NavLink
+                  href="#/batch-import"
+                  label="Importação em Lote"
+                  leftSection={<IconFiles size={16} />}
+                  active={isActive('#/batch-import')}
+                  variant="filled"
+                  color="red"
+                  styles={navLinkStyles('#/batch-import')}
                   onClick={() => { if (opened) close(); }}
                 />
               )}
