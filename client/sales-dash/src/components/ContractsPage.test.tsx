@@ -277,6 +277,23 @@ describe('ContractsPage', () => {
 
       expect(customerInput.value).toBe('');
     });
+
+    it('should not render Aguardando Pagamento filter or column even if saved in localStorage', async () => {
+      localStorage.setItem('contracts_visibleColumns', JSON.stringify({
+        awaitingPayment: true,
+        team: true,
+      }));
+
+      render(<ContractsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('C001')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      expect(screen.queryByLabelText('Aguardando Pagamento')).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: 'Aguardando Pagamento' })).not.toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: 'Equipe' })).toBeInTheDocument();
+    });
   });
 
   describe('CRUD Actions', () => {
