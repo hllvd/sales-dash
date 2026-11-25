@@ -94,7 +94,9 @@ test.describe('Import Wizard Aliases Flow', () => {
 
     // Inside Import Modal
     await page.setInputFiles('input#file', finalContractsPath);
-    await page.selectOption('select#templateSelection', { label: 'Contracts' });
+    if (await page.locator('select#templateSelection').isVisible()) {
+      await page.selectOption('select#templateSelection', { label: 'Contracts' });
+    }
     await page.click('button:has-text("Próximo")');
 
     // Wait for Mapping screen

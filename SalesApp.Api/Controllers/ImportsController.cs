@@ -112,7 +112,13 @@ namespace SalesApp.Controllers
                     { "Email", "UserEmail" },
                     { "Tem Pagamento?", "HasPayment" },
                     { "Tem Pagamento", "HasPayment" },
-                    { "TemPagamento", "HasPayment" }
+                    { "TemPagamento", "HasPayment" },
+                    { "Contrato", "ContractNumber" },
+                    { "Grupo", "GroupId" },
+                    { "Cota", "Quota" },
+                    { "Nome do Cliente", "CustomerName" },
+                    { "Data da Venda", "SaleStartDate" },
+                    { "Valor", "TotalAmount" }
                 }),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -437,6 +443,10 @@ namespace SalesApp.Controllers
 
                 await _sessionRepository.CreateAsync(session);
 
+                var hasCompoundCota = hardcodedTemplate.Name == "contractDashboard" && parsedRows.Any(r => {
+                    var cotaKey = r.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
+                    return cotaKey != null && !string.IsNullOrWhiteSpace(r[cotaKey]) && r[cotaKey].Contains(';') && r[cotaKey].Split(';').Length >= 5;
+                });
                 var virtualCols = new List<string> { "cota.group", "cota.cota", "cota.customer", "cota.contract" };
                 var allRowsForPreview = new List<Dictionary<string, string>>();
                 var importRows = new List<ImportRow>();
@@ -445,7 +455,7 @@ namespace SalesApp.Controllers
                 {
                     var row = parsedRows[rowIndex];
 
-                    if (hardcodedTemplate.Name == "contractDashboard")
+                    if (hasCompoundCota)
                     {
                         foreach (var col in virtualCols)
                         {
@@ -485,7 +495,7 @@ namespace SalesApp.Controllers
                 }
 
                 var columns = parsedRows.Count > 0 ? parsedRows[0].Keys.ToList() : new List<string>();
-                if (hardcodedTemplate.Name == "contractDashboard")
+                if (hasCompoundCota)
                 {
                     foreach (var col in virtualCols)
                     {
@@ -513,7 +523,23 @@ namespace SalesApp.Controllers
                 {
                     var templateMappings = JsonSerializer.Deserialize<Dictionary<string, string>>(hardcodedTemplate.DefaultMappings) ?? new();
                     var appliedMappings = _autoMapping.ApplyTemplateMappings(templateMappings, columns);
-                    foreach (var (src, target) in appliedMappings) suggestedMappings[src] = target;
+                    foreach (var (src, target) in appliedMappings)
+                    {
+                        if (hasCompoundCota && src.Equals("Cota", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                        suggestedMappings[src] = target;
+                    }
+                }
+
+                if (hasCompoundCota)
+                {
+                    var rawCotaKey = suggestedMappings.Keys.FirstOrDefault(k => k.Equals("Cota", StringComparison.OrdinalIgnoreCase));
+                    if (rawCotaKey != null && suggestedMappings[rawCotaKey] == "Quota")
+                    {
+                        suggestedMappings.Remove(rawCotaKey);
+                    }
                 }
 
                 Console.WriteLine($"Suggested Mappings: {string.Join(", ", suggestedMappings.Select(kv => $"{kv.Key}->{kv.Value}"))}");

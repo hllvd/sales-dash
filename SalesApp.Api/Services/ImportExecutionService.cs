@@ -1730,7 +1730,7 @@ namespace SalesApp.Services
                 if (string.IsNullOrWhiteSpace(contractNumber)) contractNumber = Utils.NormalizationUtils.NormalizeNumber(cotaInfo.Contract);
                 if (string.IsNullOrWhiteSpace(customerName)) customerName = cotaInfo.Customer;
                 if (string.IsNullOrWhiteSpace(groupValue)) groupValue = cotaInfo.Group;
-                if (string.IsNullOrWhiteSpace(quotaStr)) quotaStr = cotaInfo.Matricula; // Quota / Cota number (e.g. 1276)
+                if (string.IsNullOrWhiteSpace(quotaStr) || quotaStr == cotaValue || !int.TryParse(quotaStr, out _)) quotaStr = cotaInfo.Matricula; // Quota / Cota number (e.g. 1276)
             }
 
             groupValue = NormalizationUtils.NormalizeNumber(groupValue);
@@ -1774,6 +1774,11 @@ namespace SalesApp.Services
                         hasTotalAmount = TryParseBrazilianCurrency(creditoVendaStr, out totalAmount);
                     }
                 }
+            }
+
+            if (!hasTotalAmount && !string.IsNullOrWhiteSpace(totalAmountStr) && totalAmountStr.Trim() != "0")
+            {
+                throw new ArgumentException($"Invalid total amount: {totalAmountStr}");
             }
 
             bool isFromScrape = uploadId != null && uploadId.Contains("scrape", StringComparison.OrdinalIgnoreCase);
@@ -1850,10 +1855,8 @@ namespace SalesApp.Services
                     // Excel dates are days since 1900-01-01 (with a leap year bug, so we use 1899-12-30)
                     saleStartDate = new DateTime(1899, 12, 30).AddDays(excelDate);
                 }
-                // Try parsing as YYYY-MM-DD
-                else if (DateTime.TryParseExact(saleStartDateStr, "yyyy-MM-dd", 
-                    System.Globalization.CultureInfo.InvariantCulture, 
-                    System.Globalization.DateTimeStyles.None, out var parsedSaleStartDate))
+                // Try parsing with flexible date formats (including yyyy-MM-dd, dd/MM/yyyy, MM/dd/yyyy)
+                else if (TryParseFlexibleDate(saleStartDateStr, out var parsedSaleStartDate))
                 {
                     saleStartDate = parsedSaleStartDate;
                 }

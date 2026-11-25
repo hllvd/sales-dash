@@ -1,3 +1,28 @@
+## Importação de Contratos (`/#/contracts`): Remoção da Seleção Manual de Template e Detecção Automática via Backend
+
+Remove a seleção manual de modelo de importação no modal de upload (`BulkImportModal`), delegando integralmente ao backend a identificação automática do template apropriado com base no cabeçalho do arquivo enviado.
+
+### Comportamento e Regras
+- **Remoção da Seleção Manual na Interface (`BulkImportModal.tsx`)**:
+  - Eliminado o dropdown `#templateSelection` (*"Selecione o Modelo de Importação"*). Usuários de qualquer perfil (incluindo `superadmin`) não precisam mais escolher manualmente entre `contractDashboard`, `consultorDashboard` ou outros templates ao importar contratos.
+- **Detecção Automática e Transparente no Backend (`ImportsController.cs`)**:
+  - Ao realizar o upload na rota de contratos, o backend examina os cabeçalhos das colunas do arquivo. Se identificar colunas características do relatório de consultor (`Nº Contrato`, `n_contrato`, `Sum(2 Rel Carteira.n_contrato)`, `Cod.Comissionado`, `Definição.Situação`, `Identificador.Cota`, etc.), seleciona automaticamente o modelo `consultorDashboard` (ID 4); caso contrário, utiliza o modelo `contractDashboard` (ID 3).
+  - O retorno da API (`ImportPreviewResponse`) fornece `templateId` e `templateName` correspondentes ao modelo detectado.
+- **Sincronização de Estado e Opções no Frontend**:
+  - No sucesso do upload (ou ao avançar após alerta de divergência), o modal atualiza seu estado `selectedTemplate` com `resp.data.templateId`.
+  - O painel de opções de importação (`allowAutoCreateGroups`, `allowAutoCreatePVs`, `skipMissingContractNumber`, `updateMatriculaOnExisting`, `updateTotalAmountOnExisting`, `updateStartDateOnExisting`) passa a contemplar tanto o template `contractDashboard` (3) quanto `consultorDashboard` (4).
+- **Testes & Qualidade**:
+  - Testes unitários atualizados em `BulkImportModal.test.tsx` cobrindo a ausência do seletor e a atualização de opções baseada no retorno da detecção.
+  - Testes E2E adaptados em `import_consultor_dashboard.spec.ts`, `import_wizard_aliases.spec.ts` e `import_error_csv_download.spec.ts`.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/BulkImportModal.tsx`: Remoção do seletor de template, sincronização de `selectedTemplate` com a resposta do upload e ampliação da exibição de opções para template 4.
+- `client/sales-dash/src/components/BulkImportModal.test.tsx`: Testes unitários do modal sem o dropdown e validando detecção automática de `consultorDashboard`.
+- `client/e2e-test/e2e/import_wizard_aliases.spec.ts` e `client/e2e-test/e2e/import_error_csv_download.spec.ts`: Remoção/adaptação da interação com o seletor `#templateSelection`.
+- `FEATURES.md`: Registro da funcionalidade.
+
+---
+
 ## Extração Power BI (`/#/scrapes/runs/{runId}`): Download do CSV no S3 para Superadmin
 
 Permite que usuários `superadmin` baixem os arquivos CSV gerados por execuções de scrape diretamente do Amazon S3 a partir da tela de detalhes da execução (`/#/scrapes/runs/{runId}`).

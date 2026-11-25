@@ -19,7 +19,6 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [error, setError] = useState<string | null>(null)
   
   // Template selection
-  const [templates, setTemplates] = useState<any[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<number>(templateId || 0)
   
   // Step 1: File upload
@@ -60,7 +59,6 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
   const [desistenteContractNumbers, setDesistenteContractNumbers] = useState<string[]>([])
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isSuperAdmin = user.role?.toLowerCase() === 'superadmin' || user.roleName?.toLowerCase() === 'superadmin';
   const isAdmin = user.role?.toLowerCase() === 'admin' || user.roleName?.toLowerCase() === 'admin';
 
   // Debug logging for mapping state
@@ -79,19 +77,16 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
     const fetchTemplates = async () => {
       try {
         const resp = await apiService.getImportTemplates();
-        if (resp.success && resp.data) {
-          setTemplates(resp.data);
-          if (resp.data.length > 0) {
-            const dashboardTemplate = resp.data.find((t: any) => t.name === "contractDashboard");
-            if (isAdmin && dashboardTemplate) {
-              setSelectedTemplate(dashboardTemplate.id);
-            } else {
-              const found = resp.data.find((t: any) => t.id === templateId);
-              if (found) {
-                setSelectedTemplate(found.id);
-              } else if (!isSuperAdmin || resp.data.length === 1) {
-                setSelectedTemplate(resp.data[0].id);
-              }
+        if (resp.success && resp.data && resp.data.length > 0) {
+          const dashboardTemplate = resp.data.find((t: any) => t.name === "contractDashboard");
+          if (isAdmin && dashboardTemplate) {
+            setSelectedTemplate(dashboardTemplate.id);
+          } else {
+            const found = resp.data.find((t: any) => t.id === templateId);
+            if (found) {
+              setSelectedTemplate(found.id);
+            } else if (resp.data.length > 0) {
+              setSelectedTemplate(resp.data[0].id);
             }
           }
         }
@@ -100,7 +95,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
       }
     };
     fetchTemplates();
-  }, [templateId, isSuperAdmin, isAdmin]);
+  }, [templateId, isAdmin]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null)
@@ -132,6 +127,9 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
           setStep("verification")
         } else {
           setUploadId(resp.data.uploadId)
+          if (resp.data.templateId) {
+            setSelectedTemplate(resp.data.templateId)
+          }
           setSelectedTemplateName(resp.data.templateName)
           setDetectedColumns(resp.data.detectedColumns)
           setSampleRows(resp.data.sampleRows.slice(0, 5))
@@ -314,6 +312,12 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
             onClick={() => {
               const data = pendingPreviewData
               setUploadId(data.uploadId)
+              if (data.templateId) {
+                setSelectedTemplate(data.templateId)
+              }
+              if (data.templateName) {
+                setSelectedTemplateName(data.templateName)
+              }
               setDetectedColumns(data.detectedColumns)
               setSampleRows(data.sampleRows.slice(0, 5))
               setMappings(data.suggestedMappings)
@@ -407,23 +411,6 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
               Formato esperado: Colunas como name, email, role, etc.
             </p>
           </div>
-
-          {!isAdmin && templates.length > 1 && (
-            <div className="form-group">
-              <label htmlFor="templateSelection">Selecione o Modelo de Importação</label>
-              <select 
-                id="templateSelection"
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(Number(e.target.value))}
-                className="template-select"
-              >
-                <option value={0} disabled>-- Selecione um modelo --</option>
-                {templates.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
         </>
       )}
 
@@ -510,12 +497,12 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
             })}
           </div>
 
-          {(selectedTemplate === 2 || selectedTemplate === 3) && (
+          {(selectedTemplate === 2 || selectedTemplate === 3 || selectedTemplate === 4) && (
             <div className="import-options" style={{ marginTop: '20px', padding: '15px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
               <h4 style={{ fontSize: '14px', marginBottom: '12px' }}>Opções de Importação:</h4>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {selectedTemplate === 3 && (
+                {(selectedTemplate === 3 || selectedTemplate === 4) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <input 
                       type="checkbox" 
@@ -541,7 +528,7 @@ const BulkImportModal: React.FC<Props> = ({ onClose, onSuccess, templateId, titl
                   </label>
                 </div>
 
-                {selectedTemplate === 3 && (
+                {(selectedTemplate === 3 || selectedTemplate === 4) && (
                   <>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <input 

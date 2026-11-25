@@ -256,8 +256,9 @@ test.describe('[TEAR 2] Import Error CSV Download', () => {
     // Upload contracts_with_errors.xlsx
     await page.setInputFiles('input#file', contractsWithErrorsPath);
 
-    // Select Contracts template
-    await page.selectOption('select#templateSelection', { label: 'Contracts' });
+    if (await page.locator('select#templateSelection').isVisible()) {
+      await page.selectOption('select#templateSelection', { label: 'Contracts' });
+    }
 
     // Setup status validation listener before mapping step starts
     const validationPromise = page.waitForResponse(response => 
