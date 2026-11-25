@@ -19,6 +19,8 @@ namespace SalesApp.Services
         public int RowCount { get; set; }
         public string? ErrorMessage { get; set; }
         public string? FileRelativePath { get; set; }
+        public string? S3Bucket { get; set; }
+        public string? S3Key { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
 
@@ -492,6 +494,14 @@ namespace SalesApp.Services
                     {
                         entry.UserEmail = g.Select(j => j.UserEmail).FirstOrDefault(e => !string.IsNullOrEmpty(e)) ?? "";
                     }
+                    if (string.IsNullOrEmpty(entry.S3Bucket))
+                    {
+                        entry.S3Bucket = g.Select(j => j.S3Bucket).FirstOrDefault(b => !string.IsNullOrEmpty(b));
+                    }
+                    if (string.IsNullOrEmpty(entry.S3Key))
+                    {
+                        entry.S3Key = g.Select(j => j.S3Key).FirstOrDefault(k => !string.IsNullOrEmpty(k));
+                    }
 
                     // Merge AuthStatus and AuthMessage
                     if (string.IsNullOrEmpty(entry.AuthStatus) || entry.AuthStatus == "-")
@@ -716,6 +726,8 @@ namespace SalesApp.Services
                 RowCount = int.TryParse(rowCountStr, out var rc) ? rc : 0,
                 ErrorMessage = errorMsg,
                 FileRelativePath = item.GetValueOrDefault("fileRelativePath")?.S ?? item.GetValueOrDefault("FileRelativePath")?.S,
+                S3Bucket = item.GetValueOrDefault("S3Bucket")?.S ?? item.GetValueOrDefault("s3Bucket")?.S,
+                S3Key = item.GetValueOrDefault("S3Key")?.S ?? item.GetValueOrDefault("s3Key")?.S,
                 CreatedAt = createdAt,
                 CompletedAt = completedAt,
                 AuthStatus = authStatus,

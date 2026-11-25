@@ -577,6 +577,160 @@ namespace SalesApp.Tests.Services
             dynamoMock.Verify(d => d.ScanAsync(It.IsAny<ScanRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
+        [Fact]
+        public void MapToEntry_ReadsS3BucketAndS3Key()
+        {
+            var item = new Dictionary<string, AttributeValue>
+            {
+                { "JobId", new AttributeValue { S = "job-s3-1" } },
+                { "RunId", new AttributeValue { S = "run-s3-1" } },
+                { "Status", new AttributeValue { S = "Succeeded" } },
+                { "s3Bucket", new AttributeValue { S = "hdev-sales-dash" } },
+                { "s3Key", new AttributeValue { S = "scrape-results/file.csv" } },
+                { "CreatedAt", new AttributeValue { S = "2026-11-24T16:00:00Z" } }
+            };
+
+            var entry = ScrapeDynamoLogService.MapToEntry(item);
+
+            entry.S3Bucket.Should().Be("hdev-sales-dash");
+            entry.S3Key.Should().Be("scrape-results/file.csv");
+        }
+
+        [Fact]
+        public async Task DownloadRunFiles_AuthorizationAndFreshPresignedUrlAndMissingCases()
+        {
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+            using var dbContext = new AppDbContext(options, Mock.Of<IHttpContextAccessor>());
+
+            var logMock = new Mock<IScrapeDynamoLogService>();
+            var s3Mock = new Mock<Amazon.S3.IAmazonS3>();
+            var httpClientFactory = Mock.Of<System.Net.Http.IHttpClientFactory>();
+            var pbiClient = new PbiScraperClient(new System.Net.Http.HttpClient(), new ConfigurationBuilder().Build());
+
+            var controller = new ScrapeController(
+                Mock.Of<IScrapeOrchestrator>(),
+                logMock.Object,
+                dbContext,
+                Mock.Of<IScrapeImportService>(),
+                pbiClient,
+                new EphemeralDataProtectionProvider(),
+                new ConfigurationBuilder().Build(),
+                Mock.Of<ILogger<ScrapeController>>(),
+                s3Mock.Object);
+
+            // 1. Admin (non-superadmin) -> Forbid
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(new[]
+                    {
+                        new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+                        new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")
+                    }, "Test"))
+                }
+            };
+            var adminResult = await controller.DownloadRunFiles("run-1");
+            adminResult.Should().BeOfType<ForbidResult>();
+
+            // 2. Superadmin -> generates fresh presigned URL each call
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(new[]
+                    {
+                        new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+                        new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, "superadmin@salesapp.com"),
+                        new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "superadmin")
+                    }, "Test"))
+                }
+            };
+
+            logMock.Setup(l => l.GetRunDetailAsync("run-1", null)).ReturnsAsync(new ScrapeRunDetail
+            {
+                RunId = "run-1",
+                Jobs = new List<ScrapeLogEntry>
+                {
+                    new ScrapeLogEntry
+                    {
+                        JobId = "job-ok",
+                        RunId = "run-1",
+                        Status = "Succeeded",
+                        Matricula = "0001",
+                        S3Bucket = "hdev-sales-dash",
+                        S3Key = "scrape-results/2026-11/out.csv",
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new ScrapeLogEntry
+                    {
+                        JobId = "job-failed",
+                        RunId = "run-1",
+                        Status = "Failed",
+                        S3Bucket = "hdev-sales-dash",
+                        S3Key = "scrape-results/2026-11/fail.csv",
+                        CreatedAt = DateTime.UtcNow
+                    }
+                }
+            });
+
+            s3Mock.Setup(s => s.GetObjectMetadataAsync(It.IsAny<Amazon.S3.Model.GetObjectMetadataRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Amazon.S3.Model.GetObjectMetadataResponse());
+
+            int callCount = 0;
+            s3Mock.Setup(s => s.GetPreSignedURL(It.IsAny<Amazon.S3.Model.GetPreSignedUrlRequest>()))
+                .Returns(() => $"https://s3.amazonaws.com/hdev-sales-dash/out.csv?sig={++callCount}");
+
+            var firstRes = await controller.DownloadRunFiles("run-1") as OkObjectResult;
+            var secondRes = await controller.DownloadRunFiles("run-1") as OkObjectResult;
+
+            firstRes.Should().NotBeNull();
+            secondRes.Should().NotBeNull();
+            var firstLinks = firstRes!.Value as List<ScrapeDownloadLinkDto>;
+            var secondLinks = secondRes!.Value as List<ScrapeDownloadLinkDto>;
+            firstLinks.Should().HaveCount(1);
+            firstLinks![0].FileName.Should().Be("out.csv");
+            firstLinks[0].Url.Should().Contain("sig=1");
+            secondLinks![0].Url.Should().Contain("sig=2");
+
+            // 3. Missing S3Key -> 404
+            logMock.Setup(l => l.GetRunDetailAsync("run-no-key", null)).ReturnsAsync(new ScrapeRunDetail
+            {
+                RunId = "run-no-key",
+                Jobs = new List<ScrapeLogEntry>
+                {
+                    new ScrapeLogEntry { JobId = "j1", Status = "Succeeded" }
+                }
+            });
+            var noKeyRes = await controller.DownloadRunFiles("run-no-key");
+            noKeyRes.Should().BeOfType<NotFoundObjectResult>();
+
+            // 4. S3 returns NoSuchKey -> 404
+            logMock.Setup(l => l.GetRunDetailAsync("run-missing-s3", null)).ReturnsAsync(new ScrapeRunDetail
+            {
+                RunId = "run-missing-s3",
+                Jobs = new List<ScrapeLogEntry>
+                {
+                    new ScrapeLogEntry
+                    {
+                        JobId = "j2",
+                        Status = "Succeeded",
+                        S3Bucket = "hdev-sales-dash",
+                        S3Key = "scrape-results/gone.csv"
+                    }
+                }
+            });
+            s3Mock.Setup(s => s.GetObjectMetadataAsync(
+                    It.Is<Amazon.S3.Model.GetObjectMetadataRequest>(r => r.Key == "scrape-results/gone.csv"),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Amazon.S3.AmazonS3Exception("Not Found") { StatusCode = System.Net.HttpStatusCode.NotFound, ErrorCode = "NoSuchKey" });
+
+            var missingS3Res = await controller.DownloadRunFiles("run-missing-s3");
+            missingS3Res.Should().BeOfType<NotFoundObjectResult>();
+        }
+
         private static ScrapeOrchestrator CreateOrchestrator(
             IScrapeDynamoLogService logService,
             IScrapeImportService importService,

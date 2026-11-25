@@ -29,7 +29,8 @@ import {
   IconListDetails,
   IconAlertTriangle,
   IconPlayerStop,
-  IconX
+  IconX,
+  IconDownload
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { scrapeService, ScrapeRunDetail, ScrapeJob } from '../../services/scrapeService';
@@ -67,11 +68,15 @@ interface ScrapeRunDetailPageProps {
   runId: string;
 }
 
+export const hasDownloadableCsv = (detail: ScrapeRunDetail | null): boolean =>
+  Boolean(detail?.jobs?.some((job) => job.status === 'Succeeded' && Boolean(job.s3Key)));
+
 const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
   const [detail, setDetail] = useState<ScrapeRunDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancellingRun, setCancellingRun] = useState(false);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
   const [selectedJobSteps, setSelectedJobSteps] = useState<{ job: ScrapeJob; steps: string[] } | null>(null);
 
   const isSuperAdmin = (() => {
@@ -139,6 +144,41 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
       });
     } finally {
       setCancellingRun(false);
+    }
+  };
+
+  const handleDownloadCsv = async () => {
+    try {
+      setDownloadingCsv(true);
+      const links = await scrapeService.getRunDownloadLinks(runId);
+      if (!links || links.length === 0) {
+        notifications.show({
+          title: 'Arquivo indisponível',
+          message: 'Nenhum arquivo S3 disponível para download nesta execução.',
+          color: 'yellow',
+        });
+        return;
+      }
+
+      links.forEach((link, idx) => {
+        setTimeout(() => {
+          const anchor = document.createElement('a');
+          anchor.href = link.url;
+          anchor.download = link.fileName || 'scrape.csv';
+          anchor.rel = 'noopener noreferrer';
+          document.body.appendChild(anchor);
+          anchor.click();
+          document.body.removeChild(anchor);
+        }, idx * 150);
+      });
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erro ao Baixar CSV',
+        message: error.response?.data?.message || error.message || 'Falha ao gerar link de download do S3',
+        color: 'red',
+      });
+    } finally {
+      setDownloadingCsv(false);
     }
   };
 
@@ -353,6 +393,18 @@ const ScrapeRunDetailPage: React.FC<ScrapeRunDetailPageProps> = ({ runId }) => {
                 loading={cancellingRun}
               >
                 Cancelar Execução
+              </Button>
+            )}
+            {isSuperAdmin && hasDownloadableCsv(detail) && (
+              <Button
+                data-testid="download-run-csv-btn"
+                variant="light"
+                color="teal"
+                leftSection={<IconDownload size={18} />}
+                onClick={handleDownloadCsv}
+                loading={downloadingCsv}
+              >
+                Baixar CSV
               </Button>
             )}
             <Button

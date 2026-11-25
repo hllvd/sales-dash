@@ -69,6 +69,8 @@ export interface ScrapeJob {
     rowCount: number;
     errorMessage?: string;
     fileRelativePath?: string;
+    s3Bucket?: string;
+    s3Key?: string;
     createdAt: string;
     completedAt?: string;
     authStatus?: 'success' | 'invalid-credentials' | 'timeout' | 'error' | string;
@@ -109,6 +111,13 @@ export interface ScrapeRunDetail {
     jobs: ScrapeJob[];
 }
 
+export interface ScrapeDownloadLink {
+    jobId: string;
+    fileName: string;
+    url: string;
+    expiresAt: string;
+}
+
 const ENDPOINT_PREFIX = '/scrape';
 
 export const scrapeService = {
@@ -142,6 +151,10 @@ export const scrapeService = {
 
     getRunDetail: async (runId: string): Promise<ScrapeRunDetail> => {
         return apiService.get(`${ENDPOINT_PREFIX}/runs/${encodeURIComponent(runId)}`);
+    },
+
+    getRunDownloadLinks: async (runId: string): Promise<ScrapeDownloadLink[]> => {
+        return apiService.get(`${ENDPOINT_PREFIX}/runs/${encodeURIComponent(runId)}/download`);
     },
 
     triggerScrape: async (configId: number, startMonth?: string, monthsCount: number = 3, scrapeType?: 'geral' | 'consultor'): Promise<{ jobId: string; runId: string; jobIds?: string[] }> => {

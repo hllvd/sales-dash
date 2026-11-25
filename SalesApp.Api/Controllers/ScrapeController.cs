@@ -8,6 +8,9 @@ using SalesApp.Services;
 using Microsoft.AspNetCore.DataProtection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Net;
+using Amazon.S3;
+using Amazon.S3.Model;
 
 namespace SalesApp.Controllers
 {
@@ -82,6 +85,14 @@ namespace SalesApp.Controllers
         public string? Matricula { get; set; }
     }
 
+    public class ScrapeDownloadLinkDto
+    {
+        public string JobId { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public DateTime ExpiresAt { get; set; }
+    }
+
 
     [ApiController]
     [Route("api/[controller]")]
@@ -95,6 +106,7 @@ namespace SalesApp.Controllers
         private readonly IDataProtector _protector;
         private readonly IConfiguration _configuration;
         private readonly ILogger<ScrapeController> _logger;
+        private readonly IAmazonS3? _s3;
         private readonly string _outputDir;
         private readonly bool _isE2E;
 
@@ -106,7 +118,8 @@ namespace SalesApp.Controllers
             PbiScraperClient scraperClient,
             IDataProtectionProvider dataProtectionProvider,
             IConfiguration configuration,
-            ILogger<ScrapeController> logger)
+            ILogger<ScrapeController> logger,
+            IAmazonS3? s3 = null)
         {
             _orchestrator = orchestrator;
             _logService = logService;
@@ -116,6 +129,7 @@ namespace SalesApp.Controllers
             _protector = dataProtectionProvider.CreateProtector("ScrapeConfig.PowerBiPassword");
             _configuration = configuration;
             _logger = logger;
+            _s3 = s3;
             _outputDir = configuration["PbiScraper:OutputDir"] ?? "./outputs";
             _isE2E = configuration["ASPNETCORE_ENVIRONMENT"] == "E2E";
         }
@@ -696,6 +710,119 @@ namespace SalesApp.Controllers
             }
 
             return Ok(detail);
+        }
+
+        public static List<ScrapeLogEntry> SelectDownloadableJobs(IEnumerable<ScrapeLogEntry> jobs)
+        {
+            return jobs
+                .Where(j => string.Equals(j.Status, "Succeeded", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(j.S3Bucket)
+                    && !string.IsNullOrWhiteSpace(j.S3Key))
+                .OrderByDescending(j => j.CreatedAt)
+                .ToList();
+        }
+
+        public static string BuildDownloadFileName(ScrapeLogEntry job)
+        {
+            var keyFileName = !string.IsNullOrWhiteSpace(job.S3Key) ? Path.GetFileName(job.S3Key) : null;
+            if (!string.IsNullOrWhiteSpace(keyFileName))
+            {
+                return keyFileName;
+            }
+            var matricula = string.IsNullOrWhiteSpace(job.Matricula) ? "scrape" : job.Matricula;
+            return $"scrape_{matricula}_{job.JobId}.csv";
+        }
+
+        [Authorize(Roles = "superadmin")]
+        [HttpGet("runs/{runId}/download")]
+        public async Task<IActionResult> DownloadRunFiles(string runId)
+        {
+            if (!IsSuperAdmin())
+            {
+                return Forbid();
+            }
+
+            if (string.IsNullOrWhiteSpace(runId))
+            {
+                return BadRequest(new { message = "RunId é obrigatório." });
+            }
+
+            if (_s3 == null)
+            {
+                return StatusCode(503, new { message = "Serviço S3 indisponível." });
+            }
+
+            var detail = await _logService.GetRunDetailAsync(runId, null);
+            if (detail == null)
+            {
+                return NotFound(new { message = "Execução não encontrada." });
+            }
+
+            var downloadableJobs = SelectDownloadableJobs(detail.Jobs);
+            if (!downloadableJobs.Any())
+            {
+                return NotFound(new { message = "Nenhum arquivo S3 disponível para download nesta execução." });
+            }
+
+            var actorEmail = User?.FindFirst(ClaimTypes.Email)?.Value
+                ?? User?.FindFirst(ClaimTypes.Name)?.Value
+                ?? "superadmin";
+
+            var links = new List<ScrapeDownloadLinkDto>();
+            foreach (var job in downloadableJobs)
+            {
+                try
+                {
+                    await _s3.GetObjectMetadataAsync(new GetObjectMetadataRequest
+                    {
+                        BucketName = job.S3Bucket,
+                        Key = job.S3Key
+                    });
+                }
+                catch (AmazonS3Exception s3Ex) when (
+                    s3Ex.StatusCode == HttpStatusCode.NotFound
+                    || string.Equals(s3Ex.ErrorCode, "NoSuchKey", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(s3Ex.ErrorCode, "NotFound", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning(
+                        "S3 object missing for RunId={RunId}, JobId={JobId}, Bucket={Bucket}, Key={Key}",
+                        runId, job.JobId, job.S3Bucket, job.S3Key);
+                    continue;
+                }
+
+                var fileName = BuildDownloadFileName(job);
+                var expiresAt = DateTime.UtcNow.AddMinutes(5);
+                var presignedUrl = _s3.GetPreSignedURL(new GetPreSignedUrlRequest
+                {
+                    BucketName = job.S3Bucket,
+                    Key = job.S3Key,
+                    Verb = HttpVerb.GET,
+                    Expires = expiresAt,
+                    ResponseHeaderOverrides = new ResponseHeaderOverrides
+                    {
+                        ContentDisposition = $"attachment; filename=\"{fileName}\""
+                    }
+                });
+
+                _logger.LogInformation(
+                    "AUDIT: Superadmin {UserEmail} generated S3 presigned download URL for RunId={RunId}, JobId={JobId}, Bucket={Bucket}, Key={Key}, ExpiresAt={ExpiresAt:O}",
+                    actorEmail, runId, job.JobId, job.S3Bucket, job.S3Key, expiresAt);
+
+                links.Add(new ScrapeDownloadLinkDto
+                {
+                    JobId = job.JobId,
+                    FileName = fileName,
+                    Url = presignedUrl,
+                    ExpiresAt = expiresAt
+                });
+            }
+
+            if (!links.Any())
+            {
+                return NotFound(new { message = "Arquivo não está mais disponível no S3." });
+            }
+
+            return Ok(links);
         }
 
         [Authorize(Roles = "superadmin")]

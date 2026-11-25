@@ -1,4 +1,5 @@
-import { formatMonthYear, formatSingleMonth } from './ScrapeRunDetailPage';
+import { formatMonthYear, formatSingleMonth, hasDownloadableCsv } from './ScrapeRunDetailPage';
+import { ScrapeRunDetail } from '../../services/scrapeService';
 
 describe('ScrapeRunDetailPage - Month formatting', () => {
   describe('formatSingleMonth', () => {
@@ -39,6 +40,76 @@ describe('ScrapeRunDetailPage - Month formatting', () => {
     it('formats multiple comma-separated dates correctly', () => {
       expect(formatMonthYear('2026-07,2026-08,2026-09')).toBe('07/2026, 08/2026, 09/2026');
       expect(formatMonthYear('2026-01, 2026-02')).toBe('01/2026, 02/2026');
+    });
+  });
+
+  describe('hasDownloadableCsv', () => {
+    const baseDetail: ScrapeRunDetail = {
+      runId: 'run-1',
+      userId: 'u1',
+      userEmail: 'superadmin@salesapp.com',
+      finalStatus: 'Succeeded',
+      createdAt: '2026-11-24T16:00:00Z',
+      jobs: [],
+    };
+
+    it('returns false when detail is null or has no Succeeded job with s3Key', () => {
+      expect(hasDownloadableCsv(null)).toBe(false);
+      expect(hasDownloadableCsv(baseDetail)).toBe(false);
+      expect(
+        hasDownloadableCsv({
+          ...baseDetail,
+          jobs: [
+            {
+              jobId: 'j1',
+              userId: 'u1',
+              status: 'Succeeded',
+              store: 'Loja',
+              matricula: '123',
+              rowCount: 10,
+              createdAt: '2026-11-24T16:00:00Z',
+            },
+          ],
+        })
+      ).toBe(false);
+      expect(
+        hasDownloadableCsv({
+          ...baseDetail,
+          jobs: [
+            {
+              jobId: 'j2',
+              userId: 'u1',
+              status: 'Failed',
+              store: 'Loja',
+              matricula: '123',
+              rowCount: 0,
+              s3Key: 'scrape-results/f.csv',
+              createdAt: '2026-11-24T16:00:00Z',
+            },
+          ],
+        })
+      ).toBe(false);
+    });
+
+    it('returns true when at least one Succeeded job has s3Key', () => {
+      expect(
+        hasDownloadableCsv({
+          ...baseDetail,
+          jobs: [
+            {
+              jobId: 'j3',
+              userId: 'u1',
+              status: 'Succeeded',
+              store: 'Loja',
+              matricula: '123',
+              rowCount: 10,
+              s3Bucket: 'hdev-sales-dash',
+              s3Key: 'scrape-results/f.csv',
+              createdAt: '2026-11-24T16:00:00Z',
+            },
+          ],
+        })
+      ).toBe(true);
     });
   });
 });

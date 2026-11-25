@@ -1,3 +1,43 @@
+## Extração Power BI (`/#/scrapes/runs/{runId}`): Download do CSV no S3 para Superadmin
+
+Permite que usuários `superadmin` baixem os arquivos CSV gerados por execuções de scrape diretamente do Amazon S3 a partir da tela de detalhes da execução (`/#/scrapes/runs/{runId}`).
+
+### Comportamento e Regras
+- **Acesso Restrito**: Disponível exclusivamente para `superadmin` (validado via `[Authorize(Roles = "superadmin")]` e `IsSuperAdmin()` no backend e exibido apenas para `superadmin` no frontend).
+- **Persistência e Leitura da Chave S3**: `ScrapeLogEntry`, `MapToEntry` e `DeduplicateJobs` em `ScrapeDynamoLogService.cs` passam a ler e mesclar `S3Bucket` e `S3Key` gravados no DynamoDB para novos jobs concluídos.
+- **URL Pré-Assinada Sob Demanda**: O endpoint `GET /api/scrape/runs/{runId}/download` valida a existência do objeto no S3 (`GetObjectMetadataAsync`) e gera uma nova URL pré-assinada (`GET`, validade de 5 minutos, `Content-Disposition: attachment`) a cada clique — sem armazenar a URL em cache, garantindo que cliques posteriores após expiração continuem funcionando.
+- **Auditoria**: Cada geração de URL registra em log de aplicação (`ILogger.LogInformation`) o e-mail do superadmin, `runId`, `jobId`, `bucket`, `key` e data de expiração.
+- **Interface**: O botão **"Baixar CSV"** aparece ao lado de **"Atualizar"** quando existe ao menos um job com status `Succeeded` e `s3Key` preenchida, disparando o download automático no navegador.
+
+### Arquivos Modificados
+- `SalesApp.Api/Services/ScrapeDynamoLogService.cs`: Propriedades `S3Bucket`/`S3Key` em `ScrapeLogEntry`, leitura em `MapToEntry` e mesclagem em `DeduplicateJobs`.
+- `SalesApp.Api/Controllers/ScrapeController.cs`: Endpoint `GET /api/scrape/runs/{runId}/download`, DTO `ScrapeDownloadLinkDto` e helpers puros `SelectDownloadableJobs` / `BuildDownloadFileName`.
+- `client/sales-dash/src/services/scrapeService.ts`: Campos `s3Bucket`/`s3Key` em `ScrapeJob`, interface `ScrapeDownloadLink` e método `getRunDownloadLinks`.
+- `client/sales-dash/src/components/Scrape/ScrapeRunDetailPage.tsx`: Helper `hasDownloadableCsv`, handler `handleDownloadCsv` e botão **"Baixar CSV"**.
+- `SalesApp.Tests/Services/ScrapeCancellationTests.cs` e `client/sales-dash/src/components/Scrape/ScrapeRunDetailPage.test.ts`: Testes unitários backend e frontend.
+
+---
+
+## Contratos (`/#/contracts`): Remoção do Filtro e Coluna "Aguardando Pagamento"
+
+Remove o filtro dedicado **Aguardando Pagamento** e a coluna opcional **Aguardando Pagamento** da listagem principal de contratos (`/#/contracts`), mantendo o fluxo de retenção e o filtro de status funcionando normalmente.
+
+### Comportamento e Regras
+- **Remoção na Interface (`ContractsPage.tsx`)**:
+  - Removido o seletor `Aguardando Pagamento` da barra de filtros e o parâmetro `awaitingPayment` das chamadas de listagem e exportação na tela `/#/contracts`.
+  - Removida a coluna `Aguardando Pagamento` da tabela e seu checkbox de visibilidade no modal de **Configurações > Colunas**.
+- **Retrocompatibilidade com `localStorage`**:
+  - Ao carregar `contracts_visibleColumns` do `localStorage`, apenas as chaves válidas atuais de `DEFAULT_COLUMNS` são preservadas, descartando com segurança a chave legada `awaitingPayment` para usuários que haviam habilitado a coluna anteriormente.
+- **Funcionalidades Preservadas**:
+  - O switch de **Retenção** (*"Mostrar contratos como não pago, como 'Aguardando pagamento'"*) no modal de Configurações e a opção `AwaitingPayment` no filtro **Status do Contrato** permanecem inalterados, assim como o suporte no backend e em `/#/monitoring/contracts`.
+
+### Arquivos Modificados
+- `client/sales-dash/src/components/ContractsPage.tsx`: Remoção do filtro, da coluna, do checkbox de configuração e sanitização de `contracts_visibleColumns`.
+- `client/sales-dash/src/components/ContractsPage.test.tsx`: Teste unitário validando a ausência do filtro/coluna e a retrocompatibilidade com `localStorage` contendo `awaitingPayment: true`.
+- `FEATURES.md`: Registro da alteração.
+
+---
+
 ## Contratos (`/#/contracts`): Filtros por Segmento e Nome do Cliente
 
 Adiciona dois novos filtros à listagem principal de contratos (`/#/contracts`): filtro por **Segmento** (seleção múltipla vinculada ao segmento do grupo do contrato) e filtro por **Cliente** (busca parcial por nome do cliente com delay/debounce ao digitar).
