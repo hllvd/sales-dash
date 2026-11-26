@@ -2,7 +2,7 @@
 // Unit tests for detectLoginErrorText in auth.js
 
 const assert = require('assert');
-const { detectLoginErrorText, findLoginErrorInCandidates } = require('./auth');
+const { detectLoginErrorText, findLoginErrorInCandidates, inspectInitialLoginState, ensureLoginFormReady } = require('./auth');
 
 console.log('Testing detectLoginErrorText helper...');
 
@@ -139,3 +139,70 @@ const afterInvalidation = tokenManager.getTokens('11177');
 assert.strictEqual(afterInvalidation, null, 'Cache must be empty after invalidation');
 
 console.log('✔ tokenManager password hash and cache invalidation tests passed successfully!\n');
+
+console.log('Testing inspectInitialLoginState and ensureLoginFormReady...');
+
+// Test: inspectInitialLoginState with null/undefined
+assert.strictEqual(inspectInitialLoginState(null), 'unknown');
+assert.strictEqual(inspectInitialLoginState(undefined), 'unknown');
+assert.strictEqual(inspectInitialLoginState({}), 'unknown');
+
+// Test: inspectInitialLoginState with input[type="text"]
+const docWithInput = {
+  querySelector: (sel) => sel === 'input[type="text"]' ? {} : null,
+  querySelectorAll: () => []
+};
+assert.strictEqual(inspectInitialLoginState(docWithInput), 'input');
+
+// Test: inspectInitialLoginState with welcome screen button
+const docWithWelcome = {
+  querySelector: () => null,
+  querySelectorAll: (sel) => [
+    { textContent: ' Outro ' },
+    { textContent: 'Entrar' }
+  ]
+};
+assert.strictEqual(inspectInitialLoginState(docWithWelcome), 'welcome');
+
+// Test: inspectInitialLoginState with unrelated buttons
+const docUnrelated = {
+  querySelector: () => null,
+  querySelectorAll: (sel) => [
+    { textContent: 'Ajuda' }
+  ]
+};
+assert.strictEqual(inspectInitialLoginState(docUnrelated), 'unknown');
+console.log('✔ inspectInitialLoginState pure helper tests passed');
+
+// Test: ensureLoginFormReady with mock page (direct input)
+(async () => {
+  let selectorWaited = null;
+  const mockPageDirect = {
+    waitForFunction: async (fn) => ({ jsonValue: async () => 'input' }),
+    waitForSelector: async (sel) => { selectorWaited = sel; }
+  };
+  await ensureLoginFormReady(mockPageDirect);
+  assert.strictEqual(selectorWaited, 'input[type="text"]');
+
+  // Test: ensureLoginFormReady with mock page (welcome screen)
+  let clicked = false;
+  let loggedMsg = null;
+  const mockPageWelcome = {
+    waitForFunction: async (fn) => ({ jsonValue: async () => 'welcome' }),
+    evaluateHandle: async () => ({
+      asElement: () => ({
+        click: async () => { clicked = true; }
+      })
+    }),
+    waitForSelector: async (sel) => { selectorWaited = sel; }
+  };
+  await ensureLoginFormReady(mockPageWelcome, (msg) => { loggedMsg = msg; });
+  assert.strictEqual(clicked, true, 'Welcome button should have been clicked');
+  assert.strictEqual(selectorWaited, 'input[type="text"]');
+  assert(loggedMsg && loggedMsg.includes('Tela de boas-vindas'), 'Logger should receive welcome screen step');
+
+  console.log('✔ ensureLoginFormReady mock page tests passed successfully!\n');
+})().catch((err) => {
+  console.error('Failure in ensureLoginFormReady tests:', err);
+  process.exit(1);
+});

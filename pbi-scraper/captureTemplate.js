@@ -6,7 +6,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
-const { AuthError, detectLoginErrorText, findLoginErrorInCandidates, collectPageErrorCandidates } = require('./auth');
+const { AuthError, detectLoginErrorText, findLoginErrorInCandidates, collectPageErrorCandidates, ensureLoginFormReady } = require('./auth');
 const { hashPassword } = require('./tokenManager');
 const { JobCancelledError, isAbortError, throwIfAborted } = require('./cancellationHelper');
 
@@ -151,6 +151,8 @@ async function captureTemplate(matricula, password, stepLogger = null, signal = 
 
     addStep(`[Capture] Acessando tela de login: ${AVA_URL}...`);
     await page.goto(AVA_URL, { waitUntil: 'domcontentloaded', timeout: 25000 });
+
+    await ensureLoginFormReady(page, addStep);
 
     addStep('[Capture] Preenchendo credenciais...');
     await page.waitForSelector('input[type="text"]', { visible: true, timeout: 15000 });

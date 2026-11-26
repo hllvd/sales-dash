@@ -177,6 +177,84 @@ async function collectPageErrorCandidates(page) {
   });
 }
 
+/**
+ * Pure helper to inspect the initial login DOM state.
+ * Returns:
+ * - 'input': Credentials input[type="text"] is already present
+ * - 'welcome': Welcome card with 'Entrar' button is present
+ * - 'unknown': Neither input nor welcome button found yet
+ *
+ * @param {{ querySelector?: Function, querySelectorAll?: Function }} documentRef
+ * @returns {'input'|'welcome'|'unknown'}
+ */
+function inspectInitialLoginState(documentRef) {
+  if (!documentRef) return 'unknown';
+
+  if (typeof documentRef.querySelector === 'function' && documentRef.querySelector('input[type="text"]')) {
+    return 'input';
+  }
+
+  const btns = typeof documentRef.querySelectorAll === 'function'
+    ? Array.from(documentRef.querySelectorAll('button, a'))
+    : [];
+
+  const welcomeBtn = btns.find(b => {
+    const txt = (b.textContent || b.innerText || '').trim().toLowerCase();
+    return txt === 'entrar';
+  });
+
+  if (welcomeBtn) {
+    return 'welcome';
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Ensures the login page has transitioned from the welcome card (if present)
+ * to the credentials form with input[type="text"].
+ *
+ * @param {import('puppeteer').Page} page
+ * @param {Function} [logger] - Optional callback receiving step string
+ * @param {number} [timeout=15000]
+ */
+async function ensureLoginFormReady(page, logger = null, timeout = 15000) {
+  // Wait until either the text input or the welcome 'Entrar' button appears in DOM
+  const foundStateHandle = await page.waitForFunction(() => {
+    if (document.querySelector('input[type="text"]')) {
+      return 'input';
+    }
+    const btns = Array.from(document.querySelectorAll('button, a'));
+    const welcomeBtn = btns.find(b => (b.textContent || b.innerText || '').trim().toLowerCase() === 'entrar');
+    if (welcomeBtn) {
+      return 'welcome';
+    }
+    return false;
+  }, { timeout });
+
+  const state = await foundStateHandle.jsonValue();
+
+  if (state === 'welcome') {
+    if (typeof logger === 'function') {
+      logger("Tela de boas-vindas ('Boas-vindas ao AVAPRO') detectada. Clicando em 'Entrar'...");
+    }
+    const welcomeBtn = await page.evaluateHandle(() => {
+      const btns = Array.from(document.querySelectorAll('button, a'));
+      return btns.find(b => (b.textContent || b.innerText || '').trim().toLowerCase() === 'entrar') || null;
+    });
+
+    if (welcomeBtn && welcomeBtn.asElement()) {
+      await welcomeBtn.asElement().click();
+    }
+
+    // Now wait for the input[type="text"] to become visible
+    await page.waitForSelector('input[type="text"]', { visible: true, timeout });
+  } else {
+    // Ensure it's visible
+    await page.waitForSelector('input[type="text"]', { visible: true, timeout });
+  }
+}
+
 /** True when the URL is the PowerBI dedicated query endpoint */
 function isPbiQueryUrl(url) {
   const lower = url.toLowerCase();
@@ -400,6 +478,8 @@ async function getTokenFromLogin(matricula, password, store = null, signal = nul
     addStep(steps, `Navegando para ${AVA_URL}...`);
     await page.goto(AVA_URL, { waitUntil: 'domcontentloaded', timeout: 25000 });
     addStep(steps, 'Página de login carregada.');
+
+    await ensureLoginFormReady(page, (msg) => addStep(steps, msg));
 
     addStep(steps, `Preenchendo credenciais — Matrícula: "${matricula}"...`);
     await page.waitForSelector('input[type="text"]', { visible: true, timeout: 15000 });
@@ -781,5 +861,7 @@ module.exports = {
   AuthError,
   detectLoginErrorText,
   findLoginErrorInCandidates,
-  collectPageErrorCandidates
+  collectPageErrorCandidates,
+  inspectInitialLoginState,
+  ensureLoginFormReady
 };

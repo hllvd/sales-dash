@@ -16,6 +16,7 @@ const AVA_URL = 'https://avapro.ademicon.com.br/';
 const DASHBOARD_URL = 'https://avapro.ademicon.com.br/dashboard';
 const DASHBOARD_CONSULTOR_URL = 'https://avapro.ademicon.com.br/dashboard/consultor';
 const { resolveDictValue } = require('./dsrDict');
+const { ensureLoginFormReady } = require('./auth');
 
 /**
  * Pure helper to convert DSR semantic query result into normalized rows.
@@ -371,6 +372,8 @@ async function runConsultorScrape(options) {
     // ── 1. Login ──────────────────────────────────────────────────────────
     console.log(`[1/5] Navegando para a página de login: ${AVA_URL}...`);
     await page.goto(AVA_URL, { waitUntil: 'networkidle2', timeout: 35000 });
+
+    await ensureLoginFormReady(page, (msg) => console.log(`[1/5] ${msg}`));
 
     console.log('[1/5] Preenchendo credenciais...');
     await page.waitForSelector('input[type="text"]', { timeout: 15000 });
