@@ -195,6 +195,7 @@ namespace SalesApp
             // Career Plan snapshot and evaluation cache repositories (DynamoDB with in-memory fallback)
             services.AddSingleton<SalesApp.CareerPlan.Repositories.ICareerPlanSnapshotRepository, SalesApp.CareerPlan.Repositories.DynamoDbCareerPlanSnapshotRepository>();
             services.AddSingleton<SalesApp.CareerPlan.Repositories.ICareerPlanEvaluationCacheRepository, SalesApp.CareerPlan.Repositories.DynamoDbCareerPlanEvaluationCacheRepository>();
+            services.AddSingleton<IFileHashCacheService, DynamoDbFileHashCacheService>();
 
             // Scraping and Error Services
             services.AddScoped<IScrapeDynamoLogService, ScrapeDynamoLogService>();

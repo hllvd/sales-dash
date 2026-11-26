@@ -15,7 +15,8 @@ import {
   Table,
   ActionIcon,
   Box,
-  SimpleGrid
+  SimpleGrid,
+  Modal
 } from '@mantine/core'
 import {
   IconUpload,
@@ -30,10 +31,11 @@ import {
   IconLock
 } from '@tabler/icons-react'
 import Menu from './Menu'
-import { apiService } from '../services/apiService'
+import { apiService, FileHashCheckResult } from '../services/apiService'
 import { UserRole } from '../types/UserRole'
 import { downloadFailedRowsCsv } from '../utils/csvDownloader'
 import { getFriendlyFieldName } from '../utils/normalization'
+import { computeFileSha256 } from '../utils/hashUtils'
 
 export interface BatchFileResult {
   fileName: string
@@ -52,6 +54,8 @@ export interface BatchFileResult {
 export interface BatchFileItem {
   id: string
   file: File
+  fileHash?: string
+  duplicateInfo?: FileHashCheckResult
   status: 'idle' | 'uploading' | 'mapping' | 'confirming' | 'success' | 'warning' | 'error'
   statusMessage?: string
   result?: BatchFileResult
@@ -61,6 +65,23 @@ export const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+export const formatImportDate = (isoString?: string): string => {
+  if (!isoString) return ''
+  try {
+    const d = new Date(isoString)
+    if (isNaN(d.getTime())) return isoString
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    const day = pad(d.getDate())
+    const month = pad(d.getMonth() + 1)
+    const year = d.getFullYear()
+    const hours = pad(d.getHours())
+    const minutes = pad(d.getMinutes())
+    return `${day}/${month}/${year} às ${hours}:${minutes}`
+  } catch {
+    return isoString
+  }
 }
 
 export const isSupportedFile = (file: File): boolean => {
@@ -75,6 +96,7 @@ const BatchImportPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false)
   const [currentIndex, setCurrentIndex] = useState<number>(-1)
   const [isFinished, setIsFinished] = useState(false)
+  const [confirmDuplicatesModalOpen, setConfirmDuplicatesModalOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -123,7 +145,7 @@ const BatchImportPage: React.FC = () => {
   const [updateTotalAmountOnExisting, setUpdateTotalAmountOnExisting] = useState(true)
   const [updateStartDateOnExisting, setUpdateStartDateOnExisting] = useState(true)
 
-  const addFiles = (newFiles: FileList | File[]) => {
+  const addFiles = async (newFiles: FileList | File[]) => {
     if (isProcessing) return
     const validFiles: BatchFileItem[] = []
     const existingKeys = new Set(files.map(f => `${f.file.name}-${f.file.size}-${f.file.lastModified}`))
@@ -145,6 +167,42 @@ const BatchImportPage: React.FC = () => {
     if (validFiles.length > 0) {
       setFiles(prev => [...prev, ...validFiles])
       setIsFinished(false)
+
+      // Calculate hash and check duplication in background
+      try {
+        const hashesWithIds: { id: string; hash: string }[] = []
+        for (const item of validFiles) {
+          try {
+            const hash = await computeFileSha256(item.file)
+            hashesWithIds.push({ id: item.id, hash })
+          } catch (err) {
+            console.warn('[computeFileSha256] Falha ao calcular hash do arquivo:', item.file.name, err)
+          }
+        }
+
+        if (hashesWithIds.length > 0) {
+          const resp = await apiService.checkFileHashes(hashesWithIds.map(h => h.hash))
+          if (resp?.success && resp?.data) {
+            const resultsMap = resp.data
+            setFiles(prev =>
+              prev.map(f => {
+                const found = hashesWithIds.find(h => h.id === f.id)
+                if (found) {
+                  const dupInfo = resultsMap[found.hash]
+                  return {
+                    ...f,
+                    fileHash: found.hash,
+                    duplicateInfo: dupInfo
+                  }
+                }
+                return f
+              })
+            )
+          }
+        }
+      } catch (checkErr) {
+        console.warn('[checkFileHashes] Falha ao verificar duplicidade:', checkErr)
+      }
     }
   }
 
@@ -291,7 +349,8 @@ const BatchImportPage: React.FC = () => {
             'confirming',
             `Processando no servidor... (${pollData.processedRows || 0} de ${pollData.totalRows || totalRows || 0})`
           )
-        }
+        },
+        item.fileHash
       )
 
       if (confirmResp.success && confirmResp.data) {
@@ -353,7 +412,19 @@ const BatchImportPage: React.FC = () => {
     }
   }
 
-  const handleStartBatchImport = async () => {
+  const handleStartBatchImport = () => {
+    if (files.length === 0 || isProcessing) return
+
+    const hasDuplicates = files.some(f => f.duplicateInfo?.alreadyImported)
+    if (hasDuplicates) {
+      setConfirmDuplicatesModalOpen(true)
+      return
+    }
+
+    runBatchImport()
+  }
+
+  const runBatchImport = async () => {
     if (files.length === 0 || isProcessing) return
 
     setIsProcessing(true)
@@ -509,6 +580,22 @@ const BatchImportPage: React.FC = () => {
                           {item.file.name}
                         </Text>
                       </Group>
+                      {item.duplicateInfo?.alreadyImported && (
+                        <Alert
+                          icon={<IconAlertTriangle size={14} />}
+                          color="yellow"
+                          variant="light"
+                          p="xs"
+                          mt={6}
+                          styles={{ message: { fontSize: '12px', lineHeight: 1.3 } }}
+                          data-testid={`batch-duplicate-alert-${idx}`}
+                        >
+                          <strong>Atenção:</strong> Arquivo idêntico já importado em{' '}
+                          {formatImportDate(item.duplicateInfo.uploadedAt)} por{' '}
+                          {item.duplicateInfo.uploadedByEmail || item.duplicateInfo.uploadedByName || 'outro usuário'}
+                          {item.duplicateInfo.totalRows ? ` (${item.duplicateInfo.totalRows.toLocaleString()} linhas)` : ''}.
+                        </Alert>
+                      )}
                     </Table.Td>
                     <Table.Td>
                       <Text size="xs" c="dimmed">
@@ -813,6 +900,66 @@ const BatchImportPage: React.FC = () => {
           </Stack>
         )}
       </Box>
+
+      {/* Modal de Confirmação de Arquivos Duplicados */}
+      <Modal
+        opened={confirmDuplicatesModalOpen}
+        onClose={() => setConfirmDuplicatesModalOpen(false)}
+        transitionProps={{ duration: 0 }}
+        title={
+          <Group gap="xs">
+            <IconAlertTriangle size={20} color="#f59e0b" />
+            <Text fw={600} size="md">
+              Arquivo(s) já importado(s) detectado(s)
+            </Text>
+          </Group>
+        }
+        centered
+        data-testid="batch-duplicate-modal"
+      >
+        <Stack gap="sm">
+          <Text size="sm" c="#4b5563">
+            O(s) seguinte(s) arquivo(s) na fila já foram importados anteriormente nos últimos 30 dias:
+          </Text>
+          <List size="sm" withPadding spacing="xs">
+            {files
+              .filter(f => f.duplicateInfo?.alreadyImported)
+              .map(f => (
+                <List.Item key={f.id}>
+                  <Text fw={600} span size="sm">
+                    {f.file.name}
+                  </Text>{' '}
+                  <Text size="xs" c="dimmed" span>
+                    (Importado em {formatImportDate(f.duplicateInfo?.uploadedAt)} por{' '}
+                    {f.duplicateInfo?.uploadedByEmail || f.duplicateInfo?.uploadedByName || 'outro usuário'})
+                  </Text>
+                </List.Item>
+              ))}
+          </List>
+          <Text size="sm" c="#4b5563">
+            Deseja continuar e reimportar o lote mesmo assim?
+          </Text>
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="default"
+              onClick={() => setConfirmDuplicatesModalOpen(false)}
+              data-testid="batch-cancel-duplicate-btn"
+            >
+              Cancelar
+            </Button>
+            <Button
+              color="yellow"
+              onClick={() => {
+                setConfirmDuplicatesModalOpen(false)
+                runBatchImport()
+              }}
+              data-testid="batch-confirm-duplicate-btn"
+            >
+              Continuar e Reimportar
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Menu>
   )
 }

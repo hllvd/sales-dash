@@ -1,3 +1,56 @@
+## Importação em Lote (`/#/batch-import`): Detecção de Arquivos Duplicados via Hash no DynamoDB com TTL de 30 Dias
+
+Evita reprocessamentos acidentais e uploads duplicados na importação de contratos em lote (`/#/batch-import`), armazenando o hash SHA-256 dos arquivos concluídos na tabela `salesapp-data-cache` do DynamoDB com expiração automática (TTL de 30 dias), exibindo alerta detalhado na fila e solicitando confirmação explícita do usuário antes de iniciar o lote.
+
+### Comportamento e Regras
+- **Cálculo de Hash SHA-256 e Verificação Imediata**:
+  - Ao arrastar ou selecionar arquivos na zona de upload, o frontend calcula o hash SHA-256 de cada arquivo no navegador através da Web Crypto API (`crypto.subtle.digest`) via `computeFileSha256`.
+  - O frontend consulta o backend via `POST /api/imports/check-hashes` enviando a lista de hashes.
+  - O backend (`DynamoDbFileHashCacheService`) consulta o DynamoDB por `PK = FILE_HASH#<sha256>`, `SK = METADATA` em poucos milissegundos.
+- **Aviso Visual Não-Bloqueante na Fila de Arquivos**:
+  - Arquivos já importados anteriormente recebem um alerta amarelo destacado diretamente na linha da tabela da fila:
+    > *"Atenção: Arquivo idêntico já importado em DD/MM/AAAA às HH:mm por usuario@email.com (N linhas)."*
+- **Modal de Confirmação Explícita ao Iniciar Importação**:
+  - Se o usuário clicar em "Iniciar Importação" contendo arquivo(s) duplicado(s) na fila, um modal de confirmação lista os arquivos detectados e pergunta se o usuário deseja continuar e reimportá-los mesmo assim.
+  - Ao clicar em "Cancelar", o modal fecha sem iniciar a importação; ao clicar em "Continuar e Reimportar", o lote é processado normalmente em série.
+- **Persistência com TTL de 30 Dias apenas no Sucesso**:
+  - O hash só é persistido no DynamoDB quando a importação for concluída com sucesso (`completed` ou `completed_with_errors`) no `confirmImport`. Se o upload falhar ou o usuário cancelar, o hash não é gravado.
+  - Armazena metadados: `FileName`, `FileSize`, `UploadedByEmail`, `UploadedByName`, `UploadedAt`, `TotalRows`, `UploadId` e `TTL` (data atual + 30 dias em timestamp epoch).
+  - Isolamento com fallback em memória para testes unitários, de integração e ambientes E2E (`_useMemoryOnly`).
+
+### Arquivos Modificados / Criados
+- `SalesApp.Api/Services/IFileHashCacheService.cs` e `SalesApp.Api/Services/DynamoDbFileHashCacheService.cs`: Serviço de cache de hash no DynamoDB (`salesapp-data-cache`) com TTL e fallback em memória.
+- `SalesApp.Api/DTOs/FileHashDTOs.cs`: DTOs `CheckFileHashesRequest`, `FileHashCheckResultDto` e `FileHashMetadata`.
+- `SalesApp.Api/Controllers/ImportsController.cs`: Endpoint `POST /api/imports/check-hashes`, injeção do serviço, cálculo de hash no upload e persistência no DynamoDB na conclusão do `confirmImport`.
+- `SalesApp.Api/DTOs/ConfirmImportRequest.cs` e `ImportPreviewResponse.cs`: Adição do campo `FileHash`.
+- `SalesApp.Api/Startup.cs`: Registro de `IFileHashCacheService` no container de injeção de dependência.
+- `client/sales-dash/src/utils/hashUtils.ts`: Função pura `computeFileSha256` para cálculo de hash SHA-256 no cliente.
+- `client/sales-dash/src/services/apiService.ts`: Métodos `checkFileHashes`, suporte a `fileHash` no `confirmImport` e `uploadImportFile`.
+- `client/sales-dash/src/components/BatchImportPage.tsx`: Checagem assíncrona ao adicionar arquivos, alerta visual na fila, modal de confirmação e envio do hash no confirm.
+- `SalesApp.Tests/Services/DynamoDbFileHashCacheServiceTests.cs`: Testes unitários do serviço backend (salvar, consultar, TTL de 30 dias, expiração, insensibilidade a maiúsculas).
+- `SalesApp.IntegrationTests/Imports/ImportsControllerWorkflowTests.cs`: Teste de integração do ciclo completo (verificação inicial -> upload -> confirm com hash -> re-verificação como duplicado).
+- `client/sales-dash/src/components/BatchImportPage.test.tsx`: Testes unitários do fluxo no frontend (formatação de data, alerta na fila, modal de confirmação, cancelamento e reimportação).
+- `FEATURES.md`: Registro da documentação da funcionalidade.
+
+---
+
+## Extração Power BI (`pbi-scraper`): Suporte à Tela de Boas-Vindas ("Entrar") no Login do AVA PRO
+
+Permite que os fluxos de extração e autenticação do robô (`pbi-scraper`) lidem com a nova tela de boas-vindas do AVA PRO (`https://avapro.ademicon.com.br/login`), onde um modal inicial ("Boas-vindas ao AVAPRO - Acesse com a sua matrícula de consultor") exige um clique no botão "Entrar" antes de exibir os campos de matrícula e senha.
+
+### Comportamento e Regras
+- **Detecção Não-Bloqueante do Estado da Página (`inspectInitialLoginState` / `ensureLoginFormReady`)**:
+  - Após carregar a página (`page.goto(AVA_URL)`), o robô aguarda concorrentemente a presença do campo de matrícula (`input[type="text"]`) ou do botão com texto "Entrar".
+  - Se a tela de boas-vindas for detectada, registra a etapa (`"Tela de boas-vindas ('Boas-vindas ao AVAPRO') detectada. Clicando em 'Entrar'..."`), clica no botão e aguarda a renderização do campo `input[type="text"]`.
+  - Se a página carregar diretamente os inputs de credenciais (fluxo anterior ou sem modal), prossegue imediatamente sem bloqueios desnecessários.
+- **Reaproveitamento Consistente**:
+  - Implementado como função pura auxiliar (`inspectInitialLoginState`) e orquestrador reutilizável (`ensureLoginFormReady`) em `pbi-scraper/auth.js`.
+  - Integrado de forma homogênea em `pbi-scraper/auth.js` (`getTokenFromLogin` e `verifyCredentialsOnly`), `pbi-scraper/captureTemplate.js` e `pbi-scraper/scrapeConsultor.js`.
+- **Testes Unitários**:
+  - Testes em `pbi-scraper/test-auth-errors.js` cobrindo o helper puro `inspectInitialLoginState` e mock de transição de página no `ensureLoginFormReady`.
+
+---
+
 ## Importação em Lote (`/#/batch-import`): Importação Serial de Múltiplos Arquivos para Superadmin
 
 Permite que usuários com perfil `superadmin` façam o upload e a importação de múltiplos arquivos de contratos (planilhas CSV, XLSX e XLS do Dashboard de Contratos ou do Relatório do Consultor) simultaneamente através de drag-and-drop ou seleção múltipla, processando cada arquivo em série com detecção automática de cabeçalho, acompanhamento em tempo real por barra de progresso e sumário detalhado por arquivo.

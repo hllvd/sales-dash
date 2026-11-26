@@ -10,5 +10,6 @@ namespace SalesApp.DTOs
         public bool UpdateMatriculaOnExisting { get; set; } = false;
         public bool UpdateTotalAmountOnExisting { get; set; } = true;
         public bool UpdateStartDateOnExisting { get; set; } = false;
+        public string? FileHash { get; set; }
     }
 }

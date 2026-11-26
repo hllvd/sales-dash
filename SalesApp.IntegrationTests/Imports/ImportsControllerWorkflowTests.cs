@@ -365,6 +365,66 @@ EXIST-001,{firstName},{lastName},1000,0,2024-01-01,MAT-EXIST";
             confirmResult!.Success.Should().BeTrue();
         }
 
+        [Fact]
+        public async Task CheckHashes_AndConfirmImport_ShouldCacheAndReturnDuplicateStatus()
+        {
+            var token = await GetSuperAdminToken();
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var testHash = "a1b2c3d4e5f60718293a4b5c6d7e8f901234567890abcdef1234567890abcdef";
+
+            // 1. Initial check: hash should not be imported yet
+            var checkReq = new CheckFileHashesRequest { Hashes = new List<string> { testHash } };
+            var initialCheckResp = await _client.PostAsJsonAsync("/api/imports/check-hashes", checkReq);
+            initialCheckResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var initialCheck = await initialCheckResp.Content.ReadFromJsonAsync<ApiResponse<Dictionary<string, FileHashCheckResultDto>>>();
+            initialCheck!.Success.Should().BeTrue();
+            initialCheck.Data.Should().ContainKey(testHash);
+            initialCheck.Data![testHash].AlreadyImported.Should().BeFalse();
+
+            // 2. Upload file
+            var csvContent = @"Contract Number,User Email,Total Amount,Group,Status,SaleStartDate,MatriculaNumber
+HASH-001,john.doe@test.com,500.00,0,active,2024-01-01,MAT-001";
+            var uploadId = await UploadFile(csvContent, "hash_test.csv", "text/csv");
+
+            // 3. Configure mappings
+            var mappingRequest = new
+            {
+                mappings = new Dictionary<string, string>
+                {
+                    { "Contract Number", "ContractNumber" },
+                    { "User Email", "UserEmail" },
+                    { "Total Amount", "TotalAmount" },
+                    { "Group", "GroupId" },
+                    { "Status", "Status" },
+                    { "SaleStartDate", "SaleStartDate" },
+                    { "MatriculaNumber", "MatriculaNumber" }
+                }
+            };
+            await _client.PostAsJsonAsync($"/api/imports/{uploadId}/mappings", mappingRequest);
+
+            // 4. Confirm with FileHash
+            var confirmReq = new ConfirmImportRequest
+            {
+                FileHash = testHash
+            };
+            var confirmResp = await _client.PostAsJsonAsync($"/api/imports/{uploadId}/confirm", confirmReq);
+            confirmResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // 5. Check again: hash should now be marked as already imported
+            var secondCheckResp = await _client.PostAsJsonAsync("/api/imports/check-hashes", checkReq);
+            secondCheckResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var secondCheck = await secondCheckResp.Content.ReadFromJsonAsync<ApiResponse<Dictionary<string, FileHashCheckResultDto>>>();
+            secondCheck!.Success.Should().BeTrue();
+            secondCheck.Data.Should().ContainKey(testHash);
+            secondCheck.Data![testHash].AlreadyImported.Should().BeTrue();
+            secondCheck.Data![testHash].FileName.Should().Be("hash_test.csv");
+            secondCheck.Data![testHash].UploadedByEmail.Should().Be("superadmin@test.com");
+            secondCheck.Data![testHash].TotalRows.Should().Be(1);
+        }
+
         private async Task<string> UploadFile(string content, string fileName, string contentType)
         {
             var multipartContent = new MultipartFormDataContent();

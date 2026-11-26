@@ -23,6 +23,7 @@ namespace SalesApp.DTOs
         public int BlankContractCount { get; set; }
         public List<string> ShortContractNumbers { get; set; } = new();
         public List<OutlierAmountEntry> OutlierAmounts { get; set; } = new();
+        public string? FileHash { get; set; }
     }
 
     /// <summary>

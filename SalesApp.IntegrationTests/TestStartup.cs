@@ -138,6 +138,7 @@ namespace SalesApp.IntegrationTests
             services.AddSingleton<ICareerPlanConfigProvider, CareerPlanConfigProvider>();
             services.AddSingleton<SalesApp.CareerPlan.Repositories.ICareerPlanSnapshotRepository, SalesApp.CareerPlan.Repositories.DynamoDbCareerPlanSnapshotRepository>();
             services.AddSingleton<SalesApp.CareerPlan.Repositories.ICareerPlanEvaluationCacheRepository, SalesApp.CareerPlan.Repositories.DynamoDbCareerPlanEvaluationCacheRepository>();
+            services.AddSingleton<IFileHashCacheService, DynamoDbFileHashCacheService>();
             services.AddScoped<ICareerPlanService, CareerPlanService>();
 
             // Helpdesk (Private FAQ) feature

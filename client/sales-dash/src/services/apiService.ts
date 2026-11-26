@@ -20,6 +20,18 @@ export interface ApiResponse<T> {
   message: string
 }
 
+export interface FileHashCheckResult {
+  fileHash: string
+  alreadyImported: boolean
+  fileName?: string
+  fileSize?: number
+  uploadedByEmail?: string
+  uploadedByName?: string
+  uploadedAt?: string
+  totalRows?: number
+  uploadId?: string
+}
+
 export interface PagedResponse<T> {
   items: T[]
   totalCount: number
@@ -571,6 +583,7 @@ export const apiService = {
       optionalFields: string[]
       isTemplateMatch?: boolean
       matchMessage?: string
+      fileHash?: string
     }>
   > {
     const formData = new FormData()
@@ -696,6 +709,21 @@ export const apiService = {
     throw new Error('Tempo limite excedido ao aguardar a conclusão da importação no servidor.')
   },
 
+  async checkFileHashes(hashes: string[]): Promise<ApiResponse<Record<string, FileHashCheckResult>>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/imports/check-hashes`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ hashes }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Falha ao verificar duplicidade dos arquivos" }))
+      throw new Error(error.message || "Falha ao verificar duplicidade dos arquivos")
+    }
+
+    return response.json()
+  },
+
   async confirmImport(
     uploadId: string,
     dateFormat: string = "MM/DD/YYYY",
@@ -706,7 +734,8 @@ export const apiService = {
     updateMatriculaOnExisting: boolean = false,
     updateTotalAmountOnExisting: boolean = true,
     updateStartDateOnExisting: boolean = false,
-    onPollProgress?: (status: ImportStatusResponse) => void
+    onPollProgress?: (status: ImportStatusResponse) => void,
+    fileHash?: string
   ): Promise<ApiResponse<ImportStatusResponse>> {
     let prefix = "imports"
     if (templateName === "Contracts") prefix = "imports/contracts"
@@ -725,7 +754,8 @@ export const apiService = {
           allowAutoCreatePVs, 
           updateMatriculaOnExisting,
           updateTotalAmountOnExisting,
-          updateStartDateOnExisting
+          updateStartDateOnExisting,
+          fileHash
         }),
       })
     } catch {

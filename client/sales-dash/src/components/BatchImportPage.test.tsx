@@ -2,7 +2,7 @@ import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { MantineProvider } from '@mantine/core'
-import BatchImportPage, { formatFileSize, isSupportedFile } from './BatchImportPage'
+import BatchImportPage, { formatFileSize, formatImportDate, isSupportedFile } from './BatchImportPage'
 import { apiService } from '../services/apiService'
 
 jest.mock('../services/apiService')
@@ -40,6 +40,13 @@ describe('BatchImportPage Utilities', () => {
     expect(isSupportedFile(xlsxFile)).toBe(true)
     expect(isSupportedFile(xlsFile)).toBe(true)
     expect(isSupportedFile(pdfFile)).toBe(false)
+  })
+
+  it('formats import date strings accurately', () => {
+    expect(formatImportDate('')).toBe('')
+    expect(formatImportDate('invalid-date')).toBe('invalid-date')
+    const formatted = formatImportDate('2026-11-26T14:30:00Z')
+    expect(formatted).toMatch(/\d{2}\/\d{2}\/\d{4} às \d{2}:\d{2}/)
   })
 })
 
@@ -324,5 +331,98 @@ describe('BatchImportPage Workflow', () => {
 
     expect(screen.getByTestId('metric-success-files')).toHaveTextContent('1')
     expect(screen.getByTestId('metric-total-processed')).toHaveTextContent('10000')
+  })
+
+  it('detects duplicate files, shows warning alert in queue, and prompts confirmation modal before importing', async () => {
+    localStorage.setItem('user', JSON.stringify({ role: 'superadmin' }))
+
+    const file = new File(['content'], 'CarteiraDuplicada.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+
+    // Mock checkFileHashes returning duplicate info
+    ;(apiService.checkFileHashes as jest.Mock).mockImplementation(async (hashes: string[]) => {
+      const data: Record<string, any> = {}
+      hashes.forEach(h => {
+        data[h] = {
+          fileHash: h,
+          alreadyImported: true,
+          fileName: 'CarteiraDuplicada.xlsx',
+          uploadedByEmail: 'previous@salesapp.com',
+          uploadedByName: 'Previous User',
+          uploadedAt: '2026-11-20T10:00:00Z',
+          totalRows: 1250
+        }
+      })
+      return { success: true, data }
+    })
+
+    ;(apiService.uploadImportFile as jest.Mock).mockResolvedValue({
+      success: true,
+      data: {
+        uploadId: 'session-dup',
+        templateName: 'contractDashboard',
+        totalRows: 1250,
+        suggestedMappings: { 'Contrato': 'ContractNumber', 'Matrícula': 'Matricula' },
+        requiredFields: ['ContractNumber', 'Matricula'],
+        detectedColumns: ['Contrato', 'Matrícula']
+      }
+    })
+
+    ;(apiService.configureImportMappings as jest.Mock).mockResolvedValue({
+      success: true,
+      data: { sessionId: 'configured' }
+    })
+
+    ;(apiService.confirmImport as jest.Mock).mockResolvedValue({
+      success: true,
+      data: {
+        totalRows: 1250,
+        processedRows: 1250,
+        failedRows: 0,
+        errors: [],
+        warnings: []
+      }
+    })
+
+    renderWithProviders(<BatchImportPage />)
+
+    const fileInput = screen.getByTestId('batch-file-input')
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    // Wait for the duplicate alert to show up in the table row
+    await waitFor(() => {
+      expect(screen.getByTestId('batch-duplicate-alert-0')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/Arquivo idêntico já importado em/i)).toBeInTheDocument()
+    expect(screen.getByText(/previous@salesapp.com/i)).toBeInTheDocument()
+
+    // Clicking "Iniciar Importação" should open the confirmation modal
+    fireEvent.click(screen.getByTestId('batch-start-btn'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Arquivo\(s\) já importado\(s\) detectado\(s\)/i)).toBeInTheDocument()
+    })
+
+    // Clicking Cancel should close the modal without starting import
+    fireEvent.click(screen.getByTestId('batch-cancel-duplicate-btn'))
+    await waitFor(() => {
+      expect(screen.queryByText(/Deseja continuar e reimportar o lote mesmo assim/i)).not.toBeInTheDocument()
+    })
+    expect(apiService.confirmImport).not.toHaveBeenCalled()
+
+    // Re-open modal and confirm
+    fireEvent.click(screen.getByTestId('batch-start-btn'))
+    await waitFor(() => {
+      expect(screen.getByText(/Deseja continuar e reimportar o lote mesmo assim/i)).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTestId('batch-confirm-duplicate-btn'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('batch-results-summary')).toBeInTheDocument()
+    })
+    expect(apiService.confirmImport).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('metric-success-files')).toHaveTextContent('1')
   })
 })

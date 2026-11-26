@@ -27,6 +27,7 @@ namespace SalesApp.Controllers
         private readonly IAutoMappingService _autoMapping;
         private readonly IImportValidationService _validation;
         private readonly IImportExecutionService _importExecution;
+        private readonly IFileHashCacheService _fileHashCacheService;
         private readonly AppDbContext _context;
 
         public ImportsController(
@@ -39,6 +40,7 @@ namespace SalesApp.Controllers
             IAutoMappingService autoMapping,
             IImportValidationService validation,
             IImportExecutionService importExecution,
+            IFileHashCacheService fileHashCacheService,
             AppDbContext context)
         {
             _templateRepository = templateRepository;
@@ -50,6 +52,7 @@ namespace SalesApp.Controllers
             _autoMapping = autoMapping;
             _validation = validation;
             _importExecution = importExecution;
+            _fileHashCacheService = fileHashCacheService;
             _context = context;
         }
 
@@ -289,6 +292,30 @@ namespace SalesApp.Controllers
             return await ConfirmImportInternal(uploadId, request);
         }
 
+        [HttpPost("check-hashes")]
+        [HttpPost("dashboard/check-hashes")]
+        [HttpPost("contracts/check-hashes")]
+        [HasPermission("imports:execute")]
+        public async Task<ActionResult<ApiResponse<Dictionary<string, FileHashCheckResultDto>>>> CheckHashes(
+            [FromBody] CheckFileHashesRequest? request)
+        {
+            if (request?.Hashes == null || request.Hashes.Count == 0)
+            {
+                return Ok(new ApiResponse<Dictionary<string, FileHashCheckResultDto>>
+                {
+                    Success = true,
+                    Data = new Dictionary<string, FileHashCheckResultDto>()
+                });
+            }
+
+            var results = await _fileHashCacheService.CheckHashesAsync(request.Hashes);
+            return Ok(new ApiResponse<Dictionary<string, FileHashCheckResultDto>>
+            {
+                Success = true,
+                Data = results
+            });
+        }
+
         #endregion
 
         #region Import Workflow (Legacy/Generic)
@@ -335,6 +362,19 @@ namespace SalesApp.Controllers
             {
                 var fileType = _fileParser.GetFileType(file);
                 var uploadId = $"{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8]}";
+
+                string fileHash = string.Empty;
+                try
+                {
+                    using var sha256 = System.Security.Cryptography.SHA256.Create();
+                    using var stream = file.OpenReadStream();
+                    var hashBytes = await sha256.ComputeHashAsync(stream);
+                    fileHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+                }
+                catch (Exception hashCalcEx)
+                {
+                    Console.WriteLine($"[UploadFileInternal] Non-fatal: failed to compute file hash: {hashCalcEx.Message}");
+                }
                 
                 var currentUserId = GetCurrentUserId();
                 var currentUser = await _userRepository.GetByIdAsync(currentUserId);
@@ -581,7 +621,8 @@ namespace SalesApp.Controllers
                         RequiredFields = requiredFields,
                         OptionalFields = optionalFields,
                         IsTemplateMatch = isTemplateMatch,
-                        MatchMessage = matchMessage
+                        MatchMessage = matchMessage,
+                        FileHash = fileHash
                     },
                     Message = "File uploaded and preview generated successfully"
                 });
@@ -771,6 +812,29 @@ namespace SalesApp.Controllers
                 session.ProcessedRows = totalResult.ProcessedRows;
                 session.FailedRows = totalResult.FailedRows;
                 await _sessionRepository.UpdateAsync(session);
+
+                if (!string.IsNullOrWhiteSpace(request?.FileHash))
+                {
+                    try
+                    {
+                        var uploader = session.UploadedBy ?? await _context.Users.FirstOrDefaultAsync(u => u.InternalId == session.UploadedByUserInternalId);
+                        await _fileHashCacheService.SaveHashMetadataAsync(new FileHashMetadata
+                        {
+                            FileHash = request.FileHash,
+                            FileName = session.FileName,
+                            FileSize = 0,
+                            UploadedByEmail = uploader?.Email ?? "",
+                            UploadedByName = uploader?.Name ?? "",
+                            UploadedAt = session.CompletedAt ?? DateTime.UtcNow,
+                            TotalRows = session.TotalRows,
+                            UploadId = session.UploadId
+                        });
+                    }
+                    catch (Exception hashEx)
+                    {
+                        Console.WriteLine($"[ConfirmImportInternal] Non-fatal: failed to cache file hash: {hashEx.Message}");
+                    }
+                }
 
                 // Purge staging rows — data is already committed to target tables.
                 // Best-effort: do not fail the request if cleanup errors.
