@@ -256,4 +256,73 @@ describe('BatchImportPage Workflow', () => {
     expect(screen.getByTestId('metric-success-files')).toHaveTextContent('1')
     expect(screen.getByTestId('metric-error-files')).toHaveTextContent('1')
   })
+
+  it('handles background processing and polling progress updates during confirmation', async () => {
+    const file = new File(['cont'], 'huge_file.csv', { type: 'text/csv' })
+
+    ;(apiService.uploadImportFile as jest.Mock).mockResolvedValue({
+      success: true,
+      data: {
+        sessionId: 'session-huge',
+        templateId: 3,
+        templateName: 'contractDashboard',
+        totalRows: 10000,
+        detectedColumns: ['Contrato', 'Matricula']
+      }
+    })
+
+    ;(apiService.configureImportMappings as jest.Mock).mockResolvedValue({
+      success: true,
+      data: { sessionId: 'configured' }
+    })
+
+    ;(apiService.confirmImport as jest.Mock).mockImplementation(
+      async (
+        _uploadId,
+        _df,
+        _skip,
+        _groups,
+        _pvs,
+        _tpl,
+        _mat,
+        _amt,
+        _dt,
+        onPollProgress?: (status: any) => void
+      ) => {
+        if (onPollProgress) {
+          onPollProgress({
+            uploadId: 'session-huge',
+            status: 'processing',
+            totalRows: 10000,
+            processedRows: 5000,
+            failedRows: 0
+          })
+        }
+        return {
+          success: true,
+          data: {
+            totalRows: 10000,
+            processedRows: 10000,
+            failedRows: 0,
+            errors: [],
+            warnings: []
+          }
+        }
+      }
+    )
+
+    renderWithProviders(<BatchImportPage />)
+
+    const fileInput = screen.getByTestId('batch-file-input')
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    fireEvent.click(screen.getByTestId('batch-start-btn'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('batch-results-summary')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('metric-success-files')).toHaveTextContent('1')
+    expect(screen.getByTestId('metric-total-processed')).toHaveTextContent('10000')
+  })
 })

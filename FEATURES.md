@@ -26,6 +26,11 @@ Permite que usuários com perfil `superadmin` façam o upload e a importação d
     2. Detecção automática de cabeçalho e validação de campos obrigatórios.
     3. Mapeamento e confirmação (`confirmImport`) com as opções configuradas.
   - Se um arquivo falhar ou tiver erros de validação, o sistema registra o erro, marca o status do arquivo e prossegue com o processamento dos arquivos restantes na fila.
+  - **Otimização de Paginação por Chave (Keyset Pagination)**:
+    - O backend (`ImportsController.cs`) processa linhas em lotes de 2.500 usando `r.Id > lastProcessedId` em vez de `OFFSET` com `Skip()`, reduzindo o tempo de processamento de arquivos massivos (como planilhas de 100k linhas) de ~10 minutos para ~2-3 minutos e eliminando o consumo exponencial de CPU em SQLite.
+  - **Resiliência a Timeout HTTP (504 Gateway Timeout)**:
+    - O frontend (`apiService.ts`) detecta desconexões de rede ou erro `504` do Nginx durante `confirmImport` e automaticamente passa a consultar periodicamente (`getImportStatus`) o status do upload a cada 5 segundos até a conclusão (`completed` ou `completed_with_errors`). O progresso de linhas processadas é informado em tempo real na interface através do callback `onProgress`.
+    - Ajuste nos timeouts de proxy do Nginx (`proxy_read_timeout 1200s`, `proxy_send_timeout 1200s`) e limite de payload (`client_max_body_size 100M`) em `nginx.conf`, `nginx.local.conf` e `nginx.e2e.conf`.
 - **Barra de Progresso e Sumário Final**:
   - Barra de progresso visual em tempo real mostrando a porcentagem e a quantidade de arquivos processados.
   - Ao término do lote, exibe cartões com métricas consolidadas (arquivos com sucesso, arquivos com erro, linhas processadas, linhas rejeitadas).

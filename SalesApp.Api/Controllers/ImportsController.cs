@@ -705,6 +705,9 @@ namespace SalesApp.Controllers
                     });
                 }
 
+                session.Status = "processing";
+                await _sessionRepository.UpdateAsync(session);
+
                 ImportResult totalResult = new();
                 var entityType = session.Template?.EntityType ?? "Contract";
                 var templateName = session.Template?.Name ?? "";
@@ -716,22 +719,19 @@ namespace SalesApp.Controllers
                 var updateTotalAmountOnExisting = request?.UpdateTotalAmountOnExisting ?? true;
                 var updateStartDateOnExisting = request?.UpdateStartDateOnExisting ?? false;
 
-                int skipRows = 0;
-                int maxChunks = (session.TotalRows / 500) + 2;
-                int chunkIteration = 0;
+                const int chunkSize = 2500;
+                int lastProcessedId = 0;
                 while (true)
                 {
-                    if (chunkIteration++ > maxChunks) break;
-
                     var chunk = await _context.ImportRows
                         .AsNoTracking()
-                        .Where(r => r.ImportSessionId == session.Id)
-                        .OrderBy(r => r.RowIndex)
-                        .Skip(skipRows)
-                        .Take(500)
+                        .Where(r => r.ImportSessionId == session.Id && r.Id > lastProcessedId)
+                        .OrderBy(r => r.Id)
+                        .Take(chunkSize)
                         .ToListAsync();
 
                     if (chunk.Count == 0) break;
+                    lastProcessedId = chunk[^1].Id;
 
                     var rows = chunk.Select(c => JsonSerializer.Deserialize<Dictionary<string, string>>(c.RowData) ?? new()).ToList();
                     
@@ -759,7 +759,10 @@ namespace SalesApp.Controllers
                     totalResult.DesistenteContractNumbers.AddRange(result.DesistenteContractNumbers);
                     totalResult.FailedRowsDetails.AddRange(result.FailedRowsDetails);
 
-                    skipRows += 500;
+                    session.ProcessedRows = totalResult.ProcessedRows;
+                    session.FailedRows = totalResult.FailedRows;
+                    await _sessionRepository.UpdateAsync(session);
+
                     _context.ChangeTracker.Clear();
                 }
 
@@ -962,6 +965,9 @@ namespace SalesApp.Controllers
         #region Status and Management
 
         [HttpGet("{uploadId}/status")]
+        [HttpGet("dashboard/{uploadId}/status")]
+        [HttpGet("contracts/{uploadId}/status")]
+        [HttpGet("users/{uploadId}/status")]
         [HasPermission("imports:execute")]
         public async Task<ActionResult<ApiResponse<ImportStatusResponse>>> GetStatus(string uploadId)
         {

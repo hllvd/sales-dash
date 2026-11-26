@@ -285,7 +285,13 @@ const BatchImportPage: React.FC = () => {
         templateName,
         updateMatriculaOnExisting,
         updateTotalAmountOnExisting,
-        updateStartDateOnExisting
+        updateStartDateOnExisting,
+        (pollData) => {
+          updateItem(
+            'confirming',
+            `Processando no servidor... (${pollData.processedRows || 0} de ${pollData.totalRows || totalRows || 0})`
+          )
+        }
       )
 
       if (confirmResp.success && confirmResp.data) {

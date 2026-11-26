@@ -645,6 +645,57 @@ export const apiService = {
     return response.json()
   },
 
+  async getImportStatus(uploadId: string): Promise<ApiResponse<ImportStatusResponse>> {
+    const response = await authenticatedFetch(`${API_BASE_URL}/imports/${uploadId}/status`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Falha ao obter status da importação" }))
+      throw new Error(error.message || "Falha ao obter status da importação")
+    }
+
+    return response.json()
+  },
+
+  async pollImportUntilFinished(
+    uploadId: string,
+    onProgress?: (status: ImportStatusResponse) => void,
+    maxWaitSeconds: number = 1200,
+    intervalMs: number = 5000
+  ): Promise<ApiResponse<ImportStatusResponse>> {
+    const startTime = Date.now()
+    const maxTime = startTime + maxWaitSeconds * 1000
+
+    while (Date.now() < maxTime) {
+      await new Promise(resolve => setTimeout(resolve, intervalMs))
+      try {
+        const resp = await this.getImportStatus(uploadId)
+        if (resp.success && resp.data) {
+          if (onProgress) {
+            onProgress(resp.data)
+          }
+
+          if (resp.data.status === 'completed' || resp.data.status === 'completed_with_errors') {
+            return resp
+          }
+
+          if (resp.data.status === 'failed') {
+            throw new Error(resp.data.errors?.join('\n') || 'A importação falhou no servidor.')
+          }
+        }
+      } catch (err: any) {
+        if (err.message && err.message.includes('A importação falhou')) {
+          throw err
+        }
+        // Network blip while polling: keep trying
+      }
+    }
+
+    throw new Error('Tempo limite excedido ao aguardar a conclusão da importação no servidor.')
+  },
+
   async confirmImport(
     uploadId: string,
     dateFormat: string = "MM/DD/YYYY",
@@ -654,35 +705,44 @@ export const apiService = {
     templateName?: string,
     updateMatriculaOnExisting: boolean = false,
     updateTotalAmountOnExisting: boolean = true,
-    updateStartDateOnExisting: boolean = false
+    updateStartDateOnExisting: boolean = false,
+    onPollProgress?: (status: ImportStatusResponse) => void
   ): Promise<ApiResponse<ImportStatusResponse>> {
     let prefix = "imports"
     if (templateName === "Contracts") prefix = "imports/contracts"
     else if (templateName === "contractDashboard" || templateName === "consultorDashboard") prefix = "imports/dashboard"
     else if (templateName === "Users") prefix = "imports/users"
 
-    const response = await authenticatedFetch(`${API_BASE_URL}/${prefix}/${uploadId}/confirm`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ 
-        dateFormat, 
-        skipMissingContractNumber, 
-        allowAutoCreateGroups,
-        allowAutoCreatePVs,
-        updateMatriculaOnExisting,
-        updateTotalAmountOnExisting,
-        updateStartDateOnExisting
-      }),
-    })
+    let response: Response
+    try {
+      response = await authenticatedFetch(`${API_BASE_URL}/${prefix}/${uploadId}/confirm`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ 
+          dateFormat, 
+          skipMissingContractNumber, 
+          allowAutoCreateGroups, 
+          allowAutoCreatePVs, 
+          updateMatriculaOnExisting,
+          updateTotalAmountOnExisting,
+          updateStartDateOnExisting
+        }),
+      })
+    } catch {
+      // Network disconnect or timeout: fall back to polling session status
+      return await this.pollImportUntilFinished(uploadId, onPollProgress)
+    }
 
     if (!response.ok) {
+      if (response.status === 504 || response.status === 502) {
+        // Nginx gateway timeout: server is still processing in background.
+        // Recover transparently by polling session status until completed.
+        return await this.pollImportUntilFinished(uploadId, onPollProgress)
+      }
+
       const error = await response
         .json()
-        .catch(() => ({
-          message: response.status === 504 || response.status === 502
-            ? "A importação demorou mais que o esperado. O servidor pode estar processando — aguarde alguns instantes e verifique se os contratos foram importados."
-            : "Failed to confirm import"
-        }))
+        .catch(() => ({ message: "Failed to confirm import" }))
       throw new Error(error.message || "Failed to confirm import")
     }
 
